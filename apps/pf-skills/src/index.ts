@@ -17,3 +17,7 @@ export type {
   SkillDispatcher,
   SkillDispatcherConfig,
 } from './types.js';
+export {
+  buildPfSkillsAdapterDescriptor,
+  skillReplyToHubEvent,
+} from './hub.js';

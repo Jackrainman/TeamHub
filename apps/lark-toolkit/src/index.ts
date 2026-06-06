@@ -24,3 +24,4 @@ export function createToolkit(cfg: ToolkitConfig): Toolkit {
 
 export type { Toolkit, ToolkitConfig, SendReplyArgs } from './types.js';
 export { CliBridgeError } from './types.js';
+export { buildLarkToolkitAdapterDescriptor } from './hub.js';

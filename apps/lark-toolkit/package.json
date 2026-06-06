@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@larksuiteoapi/node-sdk": "^1.42.0",
+    "@teamhub/hub-contracts": "file:../hub-contracts",
     "execa": "^9.5.0"
   },
   "devDependencies": {

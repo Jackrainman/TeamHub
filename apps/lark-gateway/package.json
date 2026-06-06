@@ -17,6 +17,7 @@
     "@larksuiteoapi/node-sdk": "^1.42.0",
     "@probeflash/lark-toolkit": "file:../lark-toolkit",
     "@probeflash/pf-skills": "file:../pf-skills",
+    "@teamhub/hub-contracts": "file:../hub-contracts",
     "dotenv": "^16.4.5",
     "zod": "^3.23.8"
   },

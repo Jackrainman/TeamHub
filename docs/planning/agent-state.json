@@ -9,10 +9,9 @@
   ],
   "authority": "derived-index-only; now.md/backlog.md/decisions.md remain authoritative",
   "mode": "team_hub_shell_design",
-  "stage": "Team Hub 战队中枢概念冻结 + 技术栈拍板完成；Hub 后端壳子、共享契约、控制台壳子与 Compose 代码面已落地",
+  "stage": "Team Hub 战队中枢概念冻结 + 技术栈拍板完成；Hub 后端壳子、共享契约、控制台壳子、Compose 代码面与 Lark mock-first 接线已落地",
   "current_task": null,
   "frontier": [
-    "HUB-LARK-WIRE",
     "HUB-ADAPTERS-MOCK",
     "HUB-GIT-FORGE-DESIGN"
   ],
@@ -104,7 +103,7 @@
       "summary": "新增 Dockerfile / Compose core profile / env example / smoke script；hub 镜像合并 API 与已构建控制台；非 Docker 构建验证已通过，Compose health smoke 待安装 docker CLI 后执行"
     },
     "HUB-LARK-WIRE": {
-      "status": "pending",
+      "status": "done",
       "type": "code",
       "depends_on": [
         "HUB-CONTRACTS-V0"
@@ -113,7 +112,7 @@
         "docs/design/lark-connector.md",
         "docs/design/team-hub-stack-decision.md"
       ],
-      "summary": "把现有 lark-gateway / lark-toolkit / pf-skills 接到 Hub event/adapter 接口；mock-first"
+      "summary": "lark-gateway 归一化 Lark message 为 HubEvent 并支持可选 event sink；lark-toolkit/pf-skills 输出 Hub adapter descriptor；pf-skills 输出 skill.completed 事件映射；mock-first，不跑真实飞书 smoke"
     },
     "HUB-ADAPTERS-MOCK": {
       "status": "pending",

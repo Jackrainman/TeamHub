@@ -2,10 +2,13 @@ import type { Config } from './config.js';
 import type { LarkMessageEvent } from './types.js';
 import type { Toolkit } from '@probeflash/lark-toolkit';
 import type { SkillDispatcher } from '@probeflash/pf-skills';
+import type { HubEventSink } from './hub.js';
+import { larkMessageEventToHubEvent } from './hub.js';
 
 export interface HandlerDeps {
   toolkit: Toolkit;
   skills: SkillDispatcher;
+  hubEvents?: HubEventSink;
 }
 
 /**
@@ -30,6 +33,12 @@ export async function handleMessage(
     (m) => m.id.open_id === cfg.LARK_BOT_OPEN_ID,
   );
   if (!isBotMentioned) return;
+
+  try {
+    await deps.hubEvents?.record(larkMessageEventToHubEvent(data));
+  } catch {
+    // Hub event capture is best-effort in the lark-gateway process.
+  }
 
   let rawText = '';
   try {

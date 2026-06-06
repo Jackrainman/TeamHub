@@ -111,6 +111,29 @@ describe('handleMessage', () => {
       text: '[mock] stub reply',
     });
   });
+
+  test('@bot 带症状 → 可选记录 HubEvent', async () => {
+    const deps = {
+      ...makeDeps(),
+      hubEvents: { record: vi.fn().mockResolvedValue(undefined) },
+    };
+
+    await handleMessage(
+      makeEvent({
+        text: '@_user_1 自动跑点又歪了',
+        mentions: [{ key: '@_user_1', id: { open_id: 'ou_bot' } }],
+      }),
+      cfg,
+      deps,
+    );
+
+    expect(deps.hubEvents.record).toHaveBeenCalledOnce();
+    expect(deps.hubEvents.record.mock.calls[0][0]).toMatchObject({
+      source: 'lark',
+      type: 'message.received',
+      correlationId: 'om_msg',
+    });
+  });
 });
 
 describe('stripMention', () => {
