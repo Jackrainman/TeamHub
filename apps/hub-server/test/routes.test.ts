@@ -4,7 +4,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { buildHubServer } from '../src/server.js';
 import {
+  AdapterCapabilitiesResponseSchema,
   AdaptersResponseSchema,
+  AdapterHealthResponseSchema,
+  AdapterInvokeResponseSchema,
   ArtifactsResponseSchema,
   BridgeMembersResponseSchema,
   GitReposResponseSchema,
@@ -64,6 +67,70 @@ describe('hub-server routes', () => {
         'artifact-store',
       ]),
     );
+  });
+
+  test('GET /api/adapters/:id/health returns mock health for AI adapters', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/adapters/hermes/health',
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = AdapterHealthResponseSchema.parse(response.json());
+    expect(body.adapterId).toBe('hermes');
+    expect(body.status).toBe('unconfigured');
+    expect(body.detail).toContain('mock adapter');
+  });
+
+  test('GET /api/adapters/:id/capabilities returns mock capabilities', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/adapters/claude-code/capabilities',
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = AdapterCapabilitiesResponseSchema.parse(response.json());
+    expect(body.adapterId).toBe('claude-code');
+    expect(body.mode).toBe('mock');
+    expect(body.capabilities).toEqual(
+      expect.arrayContaining(['skill.invoke.stub']),
+    );
+  });
+
+  test('POST /api/adapters/:id/invoke returns a mock invocation response', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/adapters/xiaolongxia/invoke',
+      payload: {
+        correlationId: 'corr-adapter-001',
+        input: {
+          symptom: 'auto aim drifts',
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = AdapterInvokeResponseSchema.parse(response.json());
+    expect(body).toMatchObject({
+      adapterId: 'xiaolongxia',
+      mode: 'mock',
+      status: 'accepted',
+      correlationId: 'corr-adapter-001',
+    });
+    expect(body.output.message).toContain('mock adapter');
+    expect(body.output.inputEcho).toMatchObject({
+      symptom: 'auto aim drifts',
+    });
+  });
+
+  test('mock adapter endpoints reject unsupported adapters', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/adapters/lark/health',
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({ detail: 'Adapter not found' });
   });
 
   test('GET /api/events returns mock-first event fixtures', async () => {

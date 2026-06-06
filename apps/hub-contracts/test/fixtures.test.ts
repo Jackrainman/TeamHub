@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import {
   AdapterDescriptorSchema,
+  AdapterCapabilitiesResponseSchema,
+  AdapterHealthResponseSchema,
+  AdapterInvokeResponseSchema,
   AdaptersResponseSchema,
   ArtifactRefSchema,
   ArtifactsResponseSchema,
@@ -11,7 +14,10 @@ import {
   GitReposResponseSchema,
   HubEventSchema,
   HubEventsResponseSchema,
+  adapterCapabilitiesFixture,
   adapterDescriptorFixtures,
+  adapterHealthFixture,
+  adapterInvokeResponseFixture,
   apiContractFixtures,
   artifactRefFixtures,
   bridgeMemberStateFixtures,
@@ -27,6 +33,16 @@ describe('Team Hub contract fixtures', () => {
     for (const adapter of adapterDescriptorFixtures) {
       expect(AdapterDescriptorSchema.safeParse(adapter).success).toBe(true);
     }
+    expect(AdapterHealthResponseSchema.safeParse(adapterHealthFixture).success)
+      .toBe(true);
+    expect(
+      AdapterCapabilitiesResponseSchema.safeParse(adapterCapabilitiesFixture)
+        .success,
+    ).toBe(true);
+    expect(
+      AdapterInvokeResponseSchema.safeParse(adapterInvokeResponseFixture)
+        .success,
+    ).toBe(true);
     for (const member of bridgeMemberStateFixtures) {
       expect(BridgeMemberStateSchema.safeParse(member).success).toBe(true);
     }
@@ -43,6 +59,19 @@ describe('Team Hub contract fixtures', () => {
       .toBe(true);
     expect(
       AdaptersResponseSchema.safeParse(apiContractFixtures.adapters).success,
+    ).toBe(true);
+    expect(
+      AdapterHealthResponseSchema.safeParse(apiContractFixtures.adapterHealth)
+        .success,
+    ).toBe(true);
+    expect(
+      AdapterCapabilitiesResponseSchema.safeParse(
+        apiContractFixtures.adapterCapabilities,
+      ).success,
+    ).toBe(true);
+    expect(
+      AdapterInvokeResponseSchema.safeParse(apiContractFixtures.adapterInvoke)
+        .success,
     ).toBe(true);
     expect(
       BridgeMembersResponseSchema.safeParse(apiContractFixtures.bridgeMembers)

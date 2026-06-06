@@ -1,5 +1,8 @@
 import type {
+  AdapterCapabilitiesResponse,
   AdapterDescriptor,
+  AdapterHealthResponse,
+  AdapterInvokeResponse,
   ArtifactRef,
   BridgeMemberState,
   GitRepoRef,
@@ -90,6 +93,33 @@ export const adapterDescriptorFixtures: AdapterDescriptor[] = [
   },
 ];
 
+export const adapterHealthFixture: AdapterHealthResponse = {
+  adapterId: 'hermes',
+  status: 'unconfigured',
+  checkedAt: CONTRACT_FIXTURE_TIME,
+  detail: 'mock adapter only; real provider is not configured',
+};
+
+export const adapterCapabilitiesFixture: AdapterCapabilitiesResponse = {
+  adapterId: 'hermes',
+  mode: 'mock',
+  capabilities: ['skill.invoke.stub', 'health.mock', 'capabilities.mock'],
+};
+
+export const adapterInvokeResponseFixture: AdapterInvokeResponse = {
+  adapterId: 'hermes',
+  mode: 'mock',
+  status: 'accepted',
+  createdAt: CONTRACT_FIXTURE_TIME,
+  correlationId: 'corr-debug-001',
+  output: {
+    message: 'Hermes mock adapter received the request; no real provider was called.',
+    inputEcho: {
+      symptom: 'Chassis CAN bus is unstable after power-on',
+    },
+  },
+};
+
 export const bridgeMemberStateFixtures: BridgeMemberState[] = [
   {
     memberId: 'member-control-001',
@@ -154,6 +184,9 @@ export const apiContractFixtures = {
   adapters: {
     adapters: adapterDescriptorFixtures,
   },
+  adapterHealth: adapterHealthFixture,
+  adapterCapabilities: adapterCapabilitiesFixture,
+  adapterInvoke: adapterInvokeResponseFixture,
   bridgeMembers: {
     members: bridgeMemberStateFixtures,
   },

@@ -50,6 +50,36 @@ export const AdapterDescriptorSchema = z.object({
   healthCheckedAt: isoDateTimeSchema.optional(),
 });
 
+export const AdapterHealthResponseSchema = z.object({
+  adapterId: z.string().min(1),
+  status: z.enum(['enabled', 'disabled', 'degraded', 'unconfigured']),
+  checkedAt: isoDateTimeSchema,
+  detail: z.string().min(1).optional(),
+});
+
+export const AdapterCapabilitiesResponseSchema = z.object({
+  adapterId: z.string().min(1),
+  mode: z.literal('mock'),
+  capabilities: z.array(z.string().min(1)),
+});
+
+export const AdapterInvokeRequestSchema = z.object({
+  input: z.unknown().optional(),
+  correlationId: z.string().min(1).optional(),
+});
+
+export const AdapterInvokeResponseSchema = z.object({
+  adapterId: z.string().min(1),
+  mode: z.literal('mock'),
+  status: z.literal('accepted'),
+  createdAt: isoDateTimeSchema,
+  correlationId: z.string().min(1).optional(),
+  output: z.object({
+    message: z.string().min(1),
+    inputEcho: z.unknown().optional(),
+  }),
+});
+
 export const BridgeMemberStateSchema = z.object({
   memberId: z.string().min(1),
   displayName: z.string().min(1),
@@ -116,6 +146,14 @@ export type HubEventSource = z.infer<typeof HubEventSourceSchema>;
 export type HubEventType = z.infer<typeof HubEventTypeSchema>;
 export type HubEvent = z.infer<typeof HubEventSchema>;
 export type AdapterDescriptor = z.infer<typeof AdapterDescriptorSchema>;
+export type AdapterHealthResponse = z.infer<
+  typeof AdapterHealthResponseSchema
+>;
+export type AdapterCapabilitiesResponse = z.infer<
+  typeof AdapterCapabilitiesResponseSchema
+>;
+export type AdapterInvokeRequest = z.infer<typeof AdapterInvokeRequestSchema>;
+export type AdapterInvokeResponse = z.infer<typeof AdapterInvokeResponseSchema>;
 export type BridgeMemberState = z.infer<typeof BridgeMemberStateSchema>;
 export type GitRepoRef = z.infer<typeof GitRepoRefSchema>;
 export type ArtifactRef = z.infer<typeof ArtifactRefSchema>;

@@ -1,7 +1,11 @@
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 import {
+  AdapterCapabilitiesResponseSchema,
   AdaptersResponseSchema,
+  AdapterHealthResponseSchema,
+  AdapterInvokeRequestSchema,
+  AdapterInvokeResponseSchema,
   ArtifactsResponseSchema,
   BridgeMembersResponseSchema,
   GitReposResponseSchema,
@@ -11,6 +15,12 @@ import {
   apiContractFixtures,
 } from './contracts.js';
 import { listMockAdapters } from './mock-adapters.js';
+import {
+  getMockAiAdapterCapabilities,
+  getMockAiAdapterHealth,
+  invokeMockAiAdapter,
+  isMockAiAdapterId,
+} from './mock-ai-adapters.js';
 import {
   buildHealthResponse,
   buildSystemStatusResponse,
@@ -37,6 +47,38 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
 
   app.get('/api/adapters', async () => {
     return AdaptersResponseSchema.parse({ adapters: listMockAdapters() });
+  });
+
+  app.get('/api/adapters/:adapterId/health', async (request, reply) => {
+    const { adapterId } = request.params as { adapterId: string };
+    if (!isMockAiAdapterId(adapterId)) {
+      void reply.code(404).send({ detail: 'Adapter not found' });
+      return;
+    }
+    return AdapterHealthResponseSchema.parse(getMockAiAdapterHealth(adapterId));
+  });
+
+  app.get('/api/adapters/:adapterId/capabilities', async (request, reply) => {
+    const { adapterId } = request.params as { adapterId: string };
+    if (!isMockAiAdapterId(adapterId)) {
+      void reply.code(404).send({ detail: 'Adapter not found' });
+      return;
+    }
+    return AdapterCapabilitiesResponseSchema.parse(
+      getMockAiAdapterCapabilities(adapterId),
+    );
+  });
+
+  app.post('/api/adapters/:adapterId/invoke', async (request, reply) => {
+    const { adapterId } = request.params as { adapterId: string };
+    if (!isMockAiAdapterId(adapterId)) {
+      void reply.code(404).send({ detail: 'Adapter not found' });
+      return;
+    }
+    const invokeRequest = AdapterInvokeRequestSchema.parse(request.body ?? {});
+    return AdapterInvokeResponseSchema.parse(
+      invokeMockAiAdapter(adapterId, invokeRequest),
+    );
   });
 
   app.get('/api/events', async () => {

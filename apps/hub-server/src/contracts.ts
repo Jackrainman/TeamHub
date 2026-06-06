@@ -1,6 +1,10 @@
 import { z } from 'zod';
 export {
+  AdapterCapabilitiesResponseSchema,
   AdapterDescriptorSchema,
+  AdapterHealthResponseSchema,
+  AdapterInvokeRequestSchema,
+  AdapterInvokeResponseSchema,
   AdaptersResponseSchema,
   ArtifactRefSchema,
   ArtifactsResponseSchema,
@@ -13,7 +17,11 @@ export {
   apiContractFixtures,
 } from '@teamhub/hub-contracts';
 export type {
+  AdapterCapabilitiesResponse,
   AdapterDescriptor,
+  AdapterHealthResponse,
+  AdapterInvokeRequest,
+  AdapterInvokeResponse,
   AdaptersResponse,
   ArtifactRef,
   ArtifactsResponse,

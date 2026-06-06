@@ -1,6 +1,10 @@
 export {
   ActorRefSchema,
+  AdapterCapabilitiesResponseSchema,
   AdapterDescriptorSchema,
+  AdapterHealthResponseSchema,
+  AdapterInvokeRequestSchema,
+  AdapterInvokeResponseSchema,
   AdaptersResponseSchema,
   ArtifactRefSchema,
   ArtifactsResponseSchema,
@@ -17,7 +21,11 @@ export {
 } from './schemas.js';
 export type {
   ActorRef,
+  AdapterCapabilitiesResponse,
   AdapterDescriptor,
+  AdapterHealthResponse,
+  AdapterInvokeRequest,
+  AdapterInvokeResponse,
   AdaptersResponse,
   ArtifactRef,
   ArtifactsResponse,
@@ -33,7 +41,10 @@ export type {
 } from './schemas.js';
 export {
   CONTRACT_FIXTURE_TIME,
+  adapterCapabilitiesFixture,
   adapterDescriptorFixtures,
+  adapterHealthFixture,
+  adapterInvokeResponseFixture,
   apiContractFixtures,
   artifactRefFixtures,
   bridgeMemberStateFixtures,
