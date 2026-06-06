@@ -27,6 +27,7 @@ node_modules/
 
 # Generated local outputs
 apps/desktop/dist/
+apps/hub-server/dist/
 tmp/
 *.sqlite
 *.sqlite-*

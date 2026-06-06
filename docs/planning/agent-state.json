@@ -9,12 +9,12 @@
   ],
   "authority": "derived-index-only; now.md/backlog.md/decisions.md remain authoritative",
   "mode": "team_hub_shell_design",
-  "stage": "Team Hub 战队中枢概念冻结 + 技术栈拍板完成；AI 默认上下文已瘦身",
+  "stage": "Team Hub 战队中枢概念冻结 + 技术栈拍板完成；Hub 后端壳子已落地",
   "current_task": null,
   "frontier": [
-    "HUB-BACKEND-SCAFFOLD",
+    "HUB-CONTRACTS-V0",
     "HUB-CONSOLE-SCAFFOLD",
-    "HUB-GIT-FORGE-DESIGN"
+    "HUB-COMPOSE-SCAFFOLD"
   ],
   "blocked": [],
   "active_decisions": [
@@ -58,7 +58,7 @@
   },
   "active_task_index": {
     "HUB-BACKEND-SCAFFOLD": {
-      "status": "pending",
+      "status": "done",
       "type": "code",
       "context_docs": [
         "docs/design/team-hub-stack-decision.md",
