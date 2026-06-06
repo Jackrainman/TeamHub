@@ -9,17 +9,17 @@
   ],
   "authority": "derived-index-only; now.md/backlog.md/decisions.md remain authoritative",
   "mode": "team_hub_shell_design",
-  "stage": "Team Hub 战队中枢概念冻结 + 技术栈拍板完成；Hub 后端壳子、共享契约与控制台壳子已落地",
+  "stage": "Team Hub 战队中枢概念冻结 + 技术栈拍板完成；Hub 后端壳子、共享契约、控制台壳子与 Compose 代码面已落地",
   "current_task": null,
   "frontier": [
-    "HUB-COMPOSE-SCAFFOLD",
     "HUB-LARK-WIRE",
-    "HUB-ADAPTERS-MOCK"
+    "HUB-ADAPTERS-MOCK",
+    "HUB-GIT-FORGE-DESIGN"
   ],
   "blocked": [
     {
-      "id": "HUB-COMPOSE-SCAFFOLD",
-      "reason": "本机缺少 docker CLI（docker --version 返回 command not found），无法完成 Compose core profile 的本地启动与 health smoke；不跳过 frontier，不改做后续任务。"
+      "id": "HUB-COMPOSE-SMOKE",
+      "reason": "Compose scaffold 代码和非 Docker 构建验证已完成；scripts/verify-hub-compose.sh 因本机缺少 docker CLI 返回 127（missing required tool: docker），待安装 Docker Engine + Compose plugin 后执行自动化 health smoke。"
     }
   ],
   "active_decisions": [
@@ -93,7 +93,7 @@
       "summary": "新建 apps/hub-console 前端控制台壳子；React/Vite + API client + schema parse + mock/real backend split + 总览页 mock 数据"
     },
     "HUB-COMPOSE-SCAFFOLD": {
-      "status": "pending",
+      "status": "done-code",
       "type": "code",
       "depends_on": [
         "HUB-BACKEND-SCAFFOLD"
@@ -101,7 +101,7 @@
       "context_docs": [
         "docs/design/team-hub-stack-decision.md"
       ],
-      "summary": "新增 Dockerfile / Compose core profile，至少 hub + postgres 一键启动并通过 health smoke；不接真实公网、不写真实服务器"
+      "summary": "新增 Dockerfile / Compose core profile / env example / smoke script；hub 镜像合并 API 与已构建控制台；非 Docker 构建验证已通过，Compose health smoke 待安装 docker CLI 后执行"
     },
     "HUB-LARK-WIRE": {
       "status": "pending",

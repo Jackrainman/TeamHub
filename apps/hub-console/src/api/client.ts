@@ -27,7 +27,7 @@ export interface HubApiClient {
 
 export function createHubApiClient(options: HubApiClientOptions = {}): HubApiClient {
   const baseUrl = normalizeBaseUrl(options.baseUrl);
-  if (!baseUrl) {
+  if (baseUrl === null) {
     return {
       mode: 'mock',
       async getOverview() {
@@ -83,6 +83,9 @@ function normalizeBaseUrl(value: string | undefined): string | null {
   const trimmed = value?.trim();
   if (!trimmed) {
     return null;
+  }
+  if (trimmed === '/') {
+    return '';
   }
   return trimmed.replace(/\/+$/, '');
 }

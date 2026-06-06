@@ -4,7 +4,9 @@ const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 4177;
 
 async function main(): Promise<void> {
-  const app = buildHubServer();
+  const app = buildHubServer({
+    consoleDistDir: process.env.TEAMHUB_CONSOLE_DIST_DIR,
+  });
   const host = process.env.HUB_HOST ?? DEFAULT_HOST;
   const port = Number.parseInt(process.env.HUB_PORT ?? String(DEFAULT_PORT), 10);
 

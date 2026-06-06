@@ -1,0 +1,50 @@
+services:
+  hub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: teamhub-hub:local
+    env_file:
+      - deploy/teamhub.env.example
+    environment:
+      HUB_HOST: 0.0.0.0
+      HUB_PORT: 4177
+      TEAMHUB_CONSOLE_DIST_DIR: /opt/teamhub/console
+      DATABASE_URL: postgres://teamhub:teamhub_dev_password@postgres:5432/teamhub
+      ARTIFACT_ROOT: /var/lib/teamhub/artifacts
+    ports:
+      - "${TEAMHUB_HOST_PORT:-4177}:4177"
+    volumes:
+      - hub_artifacts:/var/lib/teamhub/artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - node -e "fetch('http://127.0.0.1:4177/health').then(async r => { if (!r.ok) process.exit(1); const body = await r.json(); if (body.status !== 'ok') process.exit(1); }).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: teamhub
+      POSTGRES_USER: teamhub
+      POSTGRES_PASSWORD: teamhub_dev_password
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U teamhub -d teamhub
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+volumes:
+  hub_artifacts:
+  pg_data:

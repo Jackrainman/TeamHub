@@ -2,16 +2,26 @@ import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 import {
   AdaptersResponseSchema,
+  ArtifactsResponseSchema,
+  BridgeMembersResponseSchema,
+  GitReposResponseSchema,
   HealthResponseSchema,
+  HubEventsResponseSchema,
   SystemStatusResponseSchema,
+  apiContractFixtures,
 } from './contracts.js';
 import { listMockAdapters } from './mock-adapters.js';
 import {
   buildHealthResponse,
   buildSystemStatusResponse,
 } from './status.js';
+import { tryServeStaticConsole } from './static-console.js';
 
-export function buildHubServer(): FastifyInstance {
+export interface BuildHubServerOptions {
+  consoleDistDir?: string;
+}
+
+export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInstance {
   const app = Fastify({ logger: false });
 
   app.get('/health', async () => {
@@ -29,7 +39,27 @@ export function buildHubServer(): FastifyInstance {
     return AdaptersResponseSchema.parse({ adapters: listMockAdapters() });
   });
 
-  app.setNotFoundHandler((_request, reply) => {
+  app.get('/api/events', async () => {
+    return HubEventsResponseSchema.parse(apiContractFixtures.events);
+  });
+
+  app.get('/api/bridge/members', async () => {
+    return BridgeMembersResponseSchema.parse(apiContractFixtures.bridgeMembers);
+  });
+
+  app.get('/api/git/repos', async () => {
+    return GitReposResponseSchema.parse(apiContractFixtures.gitRepos);
+  });
+
+  app.get('/api/artifacts', async () => {
+    return ArtifactsResponseSchema.parse(apiContractFixtures.artifacts);
+  });
+
+  app.setNotFoundHandler(async (request, reply) => {
+    if (await tryServeStaticConsole(request, reply, options.consoleDistDir)) {
+      return;
+    }
+
     void reply.code(404).send({ detail: 'Not found' });
   });
 

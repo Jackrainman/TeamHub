@@ -16,7 +16,7 @@ describe('hub console API client', () => {
 
   test('fetches and parses the real API split when baseUrl is set', async () => {
     const fetcher = vi.fn(async (url: string) => {
-      const path = new URL(url).pathname;
+      const path = new URL(url, 'http://teamhub.local').pathname;
       const body = responseByPath(path);
       return {
         ok: true,
@@ -37,6 +37,27 @@ describe('hub console API client', () => {
     expect(snapshot.gitRepos.repos).toHaveLength(
       apiContractFixtures.gitRepos.repos.length,
     );
+  });
+
+  test('uses same-origin real API mode when baseUrl is slash', async () => {
+    const fetcher = vi.fn(async (url: string) => {
+      const path = new URL(url, 'http://teamhub.local').pathname;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => responseByPath(path),
+      } as Response;
+    });
+
+    const client = createHubApiClient({
+      baseUrl: '/',
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+    const snapshot = await client.getOverview();
+
+    expect(client.mode).toBe('real');
+    expect(fetcher).toHaveBeenCalledWith('/health');
+    expect(snapshot.system.service).toBe('teamhub-hub-server');
   });
 
   test('fails closed on invalid API responses', async () => {
