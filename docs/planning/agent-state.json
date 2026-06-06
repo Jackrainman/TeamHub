@@ -9,12 +9,12 @@
   ],
   "authority": "derived-index-only; now.md/backlog.md/decisions.md remain authoritative",
   "mode": "team_hub_shell_design",
-  "stage": "Team Hub 战队中枢概念冻结 + 技术栈拍板完成；Hub 后端壳子已落地",
+  "stage": "Team Hub 战队中枢概念冻结 + 技术栈拍板完成；Hub 后端壳子与共享契约已落地",
   "current_task": null,
   "frontier": [
-    "HUB-CONTRACTS-V0",
     "HUB-CONSOLE-SCAFFOLD",
-    "HUB-COMPOSE-SCAFFOLD"
+    "HUB-COMPOSE-SCAFFOLD",
+    "HUB-LARK-WIRE"
   ],
   "blocked": [],
   "active_decisions": [
@@ -67,7 +67,7 @@
       "summary": "新建 apps/hub-server 后端壳子；Node/TypeScript；/health、/api/system/status、/api/adapters mock endpoint + contract test；不接真实外部服务"
     },
     "HUB-CONTRACTS-V0": {
-      "status": "pending",
+      "status": "done",
       "type": "code",
       "depends_on": [
         "HUB-BACKEND-SCAFFOLD"
