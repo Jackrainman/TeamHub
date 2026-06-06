@@ -9,12 +9,12 @@
   ],
   "authority": "derived-index-only; now.md/backlog.md/decisions.md remain authoritative",
   "mode": "team_hub_shell_design",
-  "stage": "Team Hub 战队中枢概念冻结 + 技术栈拍板完成；Hub 后端壳子与共享契约已落地",
+  "stage": "Team Hub 战队中枢概念冻结 + 技术栈拍板完成；Hub 后端壳子、共享契约与控制台壳子已落地",
   "current_task": null,
   "frontier": [
-    "HUB-CONSOLE-SCAFFOLD",
     "HUB-COMPOSE-SCAFFOLD",
-    "HUB-LARK-WIRE"
+    "HUB-LARK-WIRE",
+    "HUB-ADAPTERS-MOCK"
   ],
   "blocked": [],
   "active_decisions": [
@@ -79,7 +79,7 @@
       "summary": "落 HubEvent / AdapterDescriptor / BridgeMemberState / GitRepoRef / ArtifactRef schema 与 API contract fixtures"
     },
     "HUB-CONSOLE-SCAFFOLD": {
-      "status": "pending",
+      "status": "done",
       "type": "code",
       "context_docs": [
         "docs/design/team-hub-stack-decision.md",
