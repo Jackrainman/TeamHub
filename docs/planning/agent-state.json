@@ -16,7 +16,12 @@
     "HUB-LARK-WIRE",
     "HUB-ADAPTERS-MOCK"
   ],
-  "blocked": [],
+  "blocked": [
+    {
+      "id": "HUB-COMPOSE-SCAFFOLD",
+      "reason": "本机缺少 docker CLI（docker --version 返回 command not found），无法完成 Compose core profile 的本地启动与 health smoke；不跳过 frontier，不改做后续任务。"
+    }
+  ],
   "active_decisions": [
     {
       "id": "D-024",

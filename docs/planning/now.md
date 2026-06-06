@@ -11,7 +11,9 @@ frontier:
   - HUB-COMPOSE-SCAFFOLD
   - HUB-LARK-WIRE
   - HUB-ADAPTERS-MOCK
-blocked: []
+blocked:
+  - id: HUB-COMPOSE-SCAFFOLD
+    reason: 本机缺少 docker CLI（docker --version 返回 command not found），无法完成 Compose core profile 的本地启动与 health smoke；不跳过 frontier，不改做后续任务。
 post_pivot_registry:
   - SKILL-PROTOCOL-V1                    # 已落地草稿；待后续决定是否按 D-024 重新纳入 Hub skill adapter 契约
   - BRIDGE-01-ROSTER-SCHEMA              # 被 Hub BridgeState 契约覆盖，后续不按旧 markdown-only 任务推进
@@ -30,6 +32,7 @@ Teamhub = 战队中枢 / Team Hub；飞书 = 入口与通知层；Hermes / 小�
 
 ## 阻塞 / 待拍板
 
+- **HUB-COMPOSE-SCAFFOLD 本地验证阻塞**：本机缺少 `docker` CLI，`docker --version` 返回 `command not found`，无法完成 Compose core profile 的本地启动与 health smoke；按 frontier 顺序停止，不跳到后续任务。
 - **真实外部 adapter**：Hermes / 小龙虾 / Claude Code 真实接入需要用户提供运行方式与权限；AI 当前只能做 mock-first 适配设计。
 - **真实服务器写入**：Forgejo/Gitea/bare git 部署、SSH、systemd、80/443、真实数据迁移均需用户白天审批后再做。
 
