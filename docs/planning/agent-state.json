@@ -20,7 +20,7 @@
   "active_decisions": [
     {
       "id": "D-024",
-      "title": "ProbeFlash 升级为 Team Hub 战队中枢",
+      "title": "Teamhub 升级为 Team Hub 战队中枢",
       "source": "docs/planning/decisions.md"
     },
     {

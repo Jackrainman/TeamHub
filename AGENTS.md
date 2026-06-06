@@ -1,8 +1,8 @@
 # AGENTS Rules
 
 ## 1. Project Overview
-- ProbeFlash — 嵌入式 / 机器人调试现场的 **战队中枢 / Team Hub**，非单体 issue tracker。
-- 当前形态（D-024）：飞书 / Hermes / 小龙虾 / Claude Code 等入口 → ProbeFlash Hub 大后端 → 前端可视化后端控制台；Hub 负责事件路由、adapter registry、Bridge 状态、Git/artifact 索引、audit/config/health。
+- Teamhub — 嵌入式 / 机器人调试现场的 **战队中枢 / Team Hub**，非单体 issue tracker。
+- 当前形态（D-024）：飞书 / Hermes / 小龙虾 / Claude Code 等入口 → Teamhub Hub 大后端 → 前端可视化后端控制台；Hub 负责事件路由、adapter registry、Bridge 状态、Git/artifact 索引、audit/config/health。
 - Skill / Bridge / Trail 仍是能力 facet：Skill = 当下问题处理；Bridge = 当前协作状态；Trail = 过去经验沉淀。但它们现在挂在 Team Hub 架构下，不再要求 markdown-only / no-server 作为硬边界。
 - v0.3.0（原 SPA + SQLite 版本）已冻结，仅致命补丁；当前模式 `team_hub_shell_design`。
 
@@ -18,8 +18,8 @@
 - `docs/design/team-hub-concept.md`：Team Hub 当前概念设计与边界事实源；涉及大后端 / 控制台 / adapter / Git 中枢方向时优先读取。
 - `README.md`：对外门面，不是内部事实源。
 - 禁止把临时思考散落到仓库根目录或无关路径。
-- `xju-feiyue/`：本地复制的参考项目，已进 `.gitignore`；只可作为架构 / UI / 局部代码模式参考，禁止整体提交或把其社区业务模型搬入 ProbeFlash。
-- **lark-cli skills vs ProbeFlash skills 命名预警**：飞书官方 CLI `@larksuite/cli` 自带 `skills/` 目录（24 个 AI Agent Skills，是"教 Agent 操作飞书 OpenAPI"的指南）。本仓库的 `.agents/skills/`（debug-checklist 等）是"调度领域 skill"。字面同名但完全不同体系，**不会**互通也**不应**互相 import。讨论时全名引用区分（"lark-cli 的 skills/" vs "ProbeFlash `.agents/skills/`"）。
+- `xju-feiyue/`：本地复制的参考项目，已进 `.gitignore`；只可作为架构 / UI / 局部代码模式参考，禁止整体提交或把其社区业务模型搬入 Teamhub。
+- **lark-cli skills vs Teamhub skills 命名预警**：飞书官方 CLI `@larksuite/cli` 自带 `skills/` 目录（24 个 AI Agent Skills，是"教 Agent 操作飞书 OpenAPI"的指南）。本仓库的 `.agents/skills/`（debug-checklist 等）是"调度领域 skill"。字面同名但完全不同体系，**不会**互通也**不应**互相 import。讨论时全名引用区分（"lark-cli 的 skills/" vs "Teamhub `.agents/skills/`"）。
 
 ## 3. Secrets Handling
 - AI / Agent 禁止读取、搜索、打印、总结、复制或提交任何真实密钥文件，包括 `/home/rainman/.config/probeflash/*.env`、仓库内 `.env` / `.env.*` / `.secrets/**` / `*.key` / `*secret*` / `*api-key*`。

@@ -1,17 +1,17 @@
-# ProbeFlash 路线图（Team Hub）
+# Teamhub 路线图（Team Hub）
 
 > 长期愿景骨架；任务态字段在 `now.md` / `backlog.md`；长期决策在 `decisions.md`。pre-pivot 历史快照 → `docs/archive/v0.3-pivot/`，默认不读。
 
 ## 0. 当前定位（Team Hub，2026-06-06 更新）
 
 ### 当前判定
-ProbeFlash 升级为 **战队中枢 / Team Hub**：飞书、Hermes、小龙虾、Claude Code、CLI 等是入口；ProbeFlash Hub 大后端负责事件路由、adapter registry、Bridge 状态、Git/artifact 索引、audit/config/health；前端是可视化后端控制台。详见 `docs/design/team-hub-concept.md` 与 D-024。
+Teamhub 升级为 **战队中枢 / Team Hub**：飞书、Hermes、小龙虾、Claude Code、CLI 等是入口；Teamhub Hub 大后端负责事件路由、adapter registry、Bridge 状态、Git/artifact 索引、audit/config/health；前端是可视化后端控制台。详见 `docs/design/team-hub-concept.md` 与 D-024。
 
 Skill / Bridge / Trail 仍保留为能力 facet，但它们现在挂在 Team Hub 架构下：
 
 | facet | Hub 下定位 | 当前策略 |
 |---|---|---|
-| Skill | adapter 调用的一类能力，处理“当下问题” | 不锁死在 ProbeFlash 自有 SKILL.md；Hermes / 小龙虾 / Claude Code / pf-skills 都可接入 |
+| Skill | adapter 调用的一类能力，处理“当下问题” | 不锁死在 Teamhub 自有 SKILL.md；Hermes / 小龙虾 / Claude Code / pf-skills 都可接入 |
 | Bridge | Hub 的当前协作状态模型 | 通过控制台与飞书展示“谁卡住、需要什么帮助”；禁止产能排名 |
 | Trail | Hub 事件、archive、artifact、日报的长期沉淀 | 等原料足够再做 viewer / 年鉴，不在壳子阶段抢跑 |
 

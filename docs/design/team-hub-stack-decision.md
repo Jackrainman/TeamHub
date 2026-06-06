@@ -1,7 +1,7 @@
 ---
 status: decided
 date: 2026-06-06
-owner: ProbeFlash
+owner: Teamhub
 scope: team-hub-stack
 decision: D-025
 ---
@@ -15,10 +15,10 @@ decision: D-025
 1. **后端选 Node/TypeScript 统一栈**。新 Hub 后端放在 `apps/hub-server/`，不复用已冻结的 `apps/server/`。推荐 Node.js 24 LTS 容器运行时、TypeScript、Fastify、Zod、Drizzle ORM；真实版本在 scaffold 任务锁定。
 2. **前端控制台选 React/Vite/TypeScript**。新控制台放在 `apps/hub-console/`，不复用已冻结的 `apps/desktop/`。借鉴 `xju-feiyue` 的 `React + Vite + TanStack Query + Zod + shadcn/Radix + lucide` 分层，但业务模型全部重写。
 3. **Docker Compose 是硬要求**。后续可部署 milestone 必须能用 Compose 一键起核心栈；服务器不要求安装系统 Node，也不要求 `git pull` 作为正式部署方式。
-4. **同一代码、同一镜像，只换 `.env`**。本地战队服务器、云服务器、未来其他战队 self-host 都使用同一个 `probeflash-hub` 镜像；差异只来自 env、volume、Compose profile 和反向代理。
+4. **同一代码、同一镜像，只换 `.env`**。本地战队服务器、云服务器、未来其他战队 self-host 都使用同一个 `teamhub-hub` 镜像；差异只来自 env、volume、Compose profile 和反向代理。
 5. **数据库生产默认 Postgres，SQLite 只做 dev / 单机 fallback**。一开始按 storage port + 可迁移 schema 预留 SQLite/Postgres 双兼容，但业务决策以 Postgres 为准；如果双兼容与可靠性冲突，Postgres 优先。
 6. **Artifact / 日志 / 固件包 / rosbag 不进 Git**。Hub DB 只存索引、校验和、关联 repo/commit、保留策略；字节内容进入 volume、NAS、S3/MinIO 或 Forgejo release assets。Git forge 的仓库数据由 forge 自己管理。
-7. **Git 中枢推荐 Forgejo，Gitea 可替代，bare git 只做低配 fallback**。ProbeFlash 不自研 GitHub，只做索引、联动、通知、健康检查和 artifact 关联。
+7. **Git 中枢推荐 Forgejo，Gitea 可替代，bare git 只做低配 fallback**。Teamhub 不自研 GitHub，只做索引、联动、通知、健康检查和 artifact 关联。
 8. **Ubuntu 20.04 可以短期先跑，不作为公网 self-host 基线**。已有 20.04 老服务器若 Docker/Compose 已可用，可作为过渡；公网部署优先 Ubuntu 24.04 LTS，22.04 LTS 可接受。20.04 已过标准维护，应启用 Ubuntu Pro/ESM 或尽快升级。
 9. **现有 lark 三包接入 Hub，而不是被废弃**。`apps/lark-gateway` 作为 ingress，`apps/lark-toolkit` 作为 lark outbound adapter，`apps/pf-skills` 作为 skill adapter。
 10. **Hermes / 小龙虾 / Claude Code adapter mock-first**。先落统一 adapter contract、health、capabilities、invoke stub 和 fixture；真实凭证、真实命令、真实外部 API 均后置审批。
@@ -43,10 +43,10 @@ decision: D-025
 | Schema 边界 | 前后端都可用 Zod，后续 `apps/hub-contracts` 可共享 contract | 后端 Pydantic、前端 Zod，需 OpenAPI 生成或双写 |
 | 控制台 API | Fastify + Zod 足够覆盖 health、adapter、event、artifact、bridge | FastAPI 很成熟，`xju-feiyue` 可借鉴更多后端结构 |
 | 部署复杂度 | 一个 Node 镜像可同时服务 API、静态 console、adapter stub | Python 后端 + Node 前端 build，多语言镜像和 CI 更复杂 |
-| 团队维护 | TypeScript 一条线，对当前 ProbeFlash 包更顺 | Python 后端也顺手，但会把现有 adapter 变成第二生态 |
+| 团队维护 | TypeScript 一条线，对当前 Teamhub 包更顺 | Python 后端也顺手，但会把现有 adapter 变成第二生态 |
 | 风险 | 需要认真设计后端分层、迁移和后台任务 | 跨进程 adapter、双 schema、部署复杂度抬高 |
 
-**拍板**：选 Node/TypeScript。FastAPI 的工程成熟度不否认，但 ProbeFlash 当前最贵的边界是 adapter 和飞书三包接入，不是从零写 Web API。
+**拍板**：选 Node/TypeScript。FastAPI 的工程成熟度不否认，但 Teamhub 当前最贵的边界是 adapter 和飞书三包接入，不是从零写 Web API。
 
 ### 3.2 控制台组织方式
 
@@ -61,7 +61,7 @@ decision: D-025
 - `components/ui` / `components/common` / `components/layout` 分层。
 - shadcn/Radix/lucide 提供后台常用控件。
 
-ProbeFlash 控制台应改成 Team Hub 信息架构：
+Teamhub 控制台应改成 Team Hub 信息架构：
 
 ```text
 apps/hub-console/src/
@@ -101,7 +101,7 @@ apps/hub-console/src/
 **拍板**：
 
 - 生产默认 `DATABASE_URL=postgres://...`。
-- dev / 单机 fallback 允许 `DATABASE_URL=sqlite:///var/lib/probeflash/probeflash.db`。
+- dev / 单机 fallback 允许 `DATABASE_URL=sqlite:///var/lib/teamhub/teamhub.db`。
 - 初期 schema 只用两边都能承载的子集：文本、时间戳、枚举字符串、JSON 字符串或受控 JSON 字段、普通索引。
 - 不为了双兼容牺牲生产可靠性；一旦需要 Postgres 特性，先写 ADR 或任务说明。
 
@@ -112,9 +112,9 @@ apps/hub-console/src/
 | Forgejo | 推荐默认 | 社区导向，Docker/Compose 文档完善，功能足够覆盖小战队 Git forge；与 Gitea API/生态接近 |
 | Gitea | 可替代 | 成熟、文档完善、Docker Compose 路径清楚；若用户更熟 Gitea 可直接用 |
 | bare git | fallback | 最少依赖，但没有 Web UI、issue/PR/release/API 体验；只适合临时内网仓库 |
-| ProbeFlash 自研 Git forge | 不做 | 维护成本不合理，偏离 Team Hub 控制面定位 |
+| Teamhub 自研 Git forge | 不做 | 维护成本不合理，偏离 Team Hub 控制面定位 |
 
-ProbeFlash 只做：
+Teamhub 只做：
 
 - repo/ref/commit/release 索引。
 - artifact 与 commit/release 关联。
@@ -122,7 +122,7 @@ ProbeFlash 只做：
 - 控制台健康与同步状态。
 - 飞书通知与任务上下文提示。
 
-ProbeFlash 不做：
+Teamhub 不做：
 
 - Git 权限系统。
 - Web code review。
@@ -184,7 +184,7 @@ Docker Compose 是 Team Hub 的部署硬门槛：后续每个可部署 milestone
 ```text
 core profile:
   hub:
-    image: probeflash-hub:<version>
+    image: teamhub-hub:<version>
     serves: API + built console static files
     env: DATABASE_URL, ARTIFACT_ROOT, PUBLIC_BASE_URL, adapter modes
     volumes: hub_artifacts
@@ -201,7 +201,7 @@ optional forge profile:
 
 optional ingress profiles:
   lark-ingress:
-    image: probeflash-hub:<same version>
+    image: teamhub-hub:<same version>
     command: lark-ingress or adapter worker
     env: same env file, lark-specific keys server-side only
 ```
@@ -246,15 +246,15 @@ optional ingress profiles:
 - 不按部署环境 rebuild 镜像，除非升级版本。
 - 不把密钥写进镜像、前端 bundle、Git 仓库或 planning 文档。
 - 所有环境变量都有 schema 和启动期校验。
-- 关键路径用 `PROBEFLASH_PUBLIC_BASE_URL` 生成回调/下载链接。
+- 关键路径用 `TEAMHUB_PUBLIC_BASE_URL` 生成回调/下载链接。
 - 适配器用 mode 开关：`disabled` / `mock` / `http` / `stdio` / `cli`，默认 `mock` 或 `disabled`。
 
 建议 env 边界：
 
 ```text
-PROBEFLASH_PUBLIC_BASE_URL
-PROBEFLASH_BIND_HOST
-PROBEFLASH_PORT
+TEAMHUB_PUBLIC_BASE_URL
+TEAMHUB_BIND_HOST
+TEAMHUB_PORT
 DATABASE_URL
 ARTIFACT_STORE
 ARTIFACT_ROOT

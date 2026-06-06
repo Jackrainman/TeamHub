@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚡ ProbeFlash
+# ⚡ Teamhub
 
 ### 机器人战队的调试知识枢纽
 
@@ -21,7 +21,7 @@
 
 ## 一句话介绍
 
-**ProbeFlash** 把"调试 + 协作 + 成长"按时间维度拆成三个独立 facet：
+**Teamhub** 把"调试 + 协作 + 成长"按时间维度拆成三个独立 facet：
 
 ```
 当下（我有问题）        现在（我们在做什么）        过去（前人怎么走过来的）
@@ -54,7 +54,7 @@
 | 描述口语化 | 难以沉淀成团队知识 |
 | 解决后不归档 | 经验不能复用 |
 
-ProbeFlash 想解决的，就是"调试知识从现场碎片到可复用资产"的最后一公里。
+Teamhub 想解决的，就是"调试知识从现场碎片到可复用资产"的最后一公里。
 
 ---
 
@@ -67,7 +67,7 @@ flowchart TB
         L2["多维表格、人员状态"]
     end
 
-    subgraph "⚡ ProbeFlash 中央枢纽"
+    subgraph "⚡ Teamhub 中央枢纽"
         S["Skill: 症状 → 检查单"]
         B["Bridge: 阻塞 → 匹配"]
         T["Trail: archive → 年鉴"]
@@ -159,7 +159,7 @@ flowchart LR
 
 ## Harness / Agent 设计
 
-ProbeFlash 不是把用户输入丢给大模型聊天，而是把 AI 放进一个受约束、有上下文、有验证、有反馈的调试闭环。
+Teamhub 不是把用户输入丢给大模型聊天，而是把 AI 放进一个受约束、有上下文、有验证、有反馈的调试闭环。
 
 ### Skill 协议：AI 行为有明确边界
 
@@ -235,7 +235,7 @@ flowchart LR
 
 ```mermaid
 gantt
-    title ProbeFlash 演进路线
+    title Teamhub 演进路线
     dateFormat YYYY-MM
     axisFormat %Y-%m
 
@@ -328,7 +328,7 @@ SKILL.md 协议、镜像同步 hook、`.agents` 三方共用（Claude Code / Ope
 
 ## 与普通记录工具对比
 
-| 对比项 | 普通笔记 | ProbeFlash |
+| 对比项 | 普通笔记 | Teamhub |
 |---|---|---|
 | 输入方式 | 手动整理 | 飞书消息触发 / 一句话症状 |
 | 问题结构 | 靠用户自觉 | Skill 协议约束 |
@@ -364,7 +364,7 @@ SKILL.md 协议、镜像同步 hook、`.agents` 三方共用（Claude Code / Ope
 
 ```bash
 git clone <你的仓库地址>
-cd ProbeFlash
+cd TeamHub
 ```
 
 然后在 Claude Code 里直接说：
@@ -404,7 +404,7 @@ cd ../..
 ### 赛后（2026 夏）：飞书集成
 - ⏳ LARK-01：connector 架构设计
 - ⏳ LARK-02：飞书开放平台 API 能力调研
-- ⏳ LARK-03：跑通"飞书消息 → ProbeFlash 处理 → 飞书回复"最小闭环
+- ⏳ LARK-03：跑通"飞书消息 → Teamhub 处理 → 飞书回复"最小闭环
 
 ### 2026 秋：Bridge 飞书版
 - ⏳ BRIDGE-01：与飞书多维表格对齐的 ROSTER schema
@@ -440,7 +440,7 @@ cd ../..
 
 ## 项目定位
 
-ProbeFlash 不是万能 AI 助手，也不是又一个协作工具。
+Teamhub 不是万能 AI 助手，也不是又一个协作工具。
 
 它是为机器人战队这种 5–15 人小作坊定制的**调试知识枢纽**：
 
@@ -455,7 +455,7 @@ ProbeFlash 不是万能 AI 助手，也不是又一个协作工具。
 
 <div align="center">
 
-**ProbeFlash · Skill / Bridge / Trail**
+**Teamhub · Skill / Bridge / Trail**
 
 数据是 markdown · 权威源是 git · 飞书是数据层 · AI 是隐式经验的翻译器
 

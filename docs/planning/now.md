@@ -17,7 +17,7 @@ post_pivot_registry:
   - BRIDGE-01-ROSTER-SCHEMA              # 被 Hub BridgeState 契约覆盖，后续不按旧 markdown-only 任务推进
   - TRAIL-01-VIEWER-DESIGN               # 等 Hub 有 archive / artifact / event 原料后再设计
 frozen:
-  - probeflash-v0.3.0                    # 不再加功能、不重构；致命补丁除外
+  - ProbeFlash-v0.3.0                    # 不再加功能、不重构；致命补丁除外
 ```
 
 ## 当前任务
@@ -26,7 +26,7 @@ _无。WORKFLOW-CONTEXT-SLIM-01（docs/planning）**已闭环**：新增 `docs/p
 
 ## 架构定位（2026-06-06）
 
-ProbeFlash = 战队中枢 / Team Hub；飞书 = 入口与通知层；Hermes / 小龙虾 / Claude Code / pf-skills = adapter 候选；战队服务器 = Git / artifact / 控制台运行层。详见 `docs/design/team-hub-concept.md`、`docs/design/team-hub-stack-decision.md`、D-024 与 D-025。旧 Skill/Bridge/Trail 三 facet 保留为能力分类，但实现边界从 markdown-only 升级为 Hub 后端 + 控制台 + 插件接口。
+Teamhub = 战队中枢 / Team Hub；飞书 = 入口与通知层；Hermes / 小龙虾 / Claude Code / pf-skills = adapter 候选；战队服务器 = Git / artifact / 控制台运行层。详见 `docs/design/team-hub-concept.md`、`docs/design/team-hub-stack-decision.md`、D-024 与 D-025。旧 Skill/Bridge/Trail 三 facet 保留为能力分类，但实现边界从 markdown-only 升级为 Hub 后端 + 控制台 + 插件接口。
 
 ## 阻塞 / 待拍板
 

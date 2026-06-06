@@ -1,14 +1,14 @@
 ---
 status: stable
 date: 2026-06-06
-owner: ProbeFlash
+owner: Teamhub
 scope: concept-design
 decision: D-024
 ---
 
-# ProbeFlash Team Hub Concept
+# Teamhub Team Hub Concept
 
-> 目标：把 ProbeFlash 从单一调试记录工具升级为“战队中枢”：飞书是入口与通知层，战队服务器是运行与托管层，ProbeFlash Hub 负责事件路由、工具/AI 适配、状态聚合、控制台观测与后续功能扩展。
+> 目标：把 Teamhub 从单一调试记录工具升级为“战队中枢”：飞书是入口与通知层，战队服务器是运行与托管层，Teamhub Hub 负责事件路由、工具/AI 适配、状态聚合、控制台观测与后续功能扩展。
 
 ## 1. 结论
 
@@ -19,7 +19,7 @@ decision: D-024
 1. 先写概念设计与接口边界。
 2. 后续每次只认领一个原子任务。
 3. 每个任务先做详细设计，再写代码与验证。
-4. 能借鉴 `xju-feiyue/` 的架构和局部代码，但不能把它整体并入 ProbeFlash。
+4. 能借鉴 `xju-feiyue/` 的架构和局部代码，但不能把它整体并入 Teamhub。
 
 更好的约束是：**先搭中枢控制面，再接真实能力；先留 adapter 接口，再绑定 Hermes / 小龙虾 / Claude Code；先做可观测和配置，再做复杂业务。**
 
@@ -29,10 +29,10 @@ decision: D-024
 
 - 飞书已经接入，Hermes / 小龙虾这类入口已经能让同学方便使用。
 - 已有同学用 Hermes 把一台车的整车代码蒸馏成 skill，说明“代码理解 / skill 生成”可能由外部 AI 工具承担。
-- 后续可能接 Claude Code 或插件体系，ProbeFlash 不应把自身锁死在某一个 skill 格式或模型 provider 上。
+- 后续可能接 Claude Code 或插件体系，Teamhub 不应把自身锁死在某一个 skill 格式或模型 provider 上。
 - 服务器侧有新的可能：把战队服务器作为内部 Git / artifact / 控制台服务器，让队员本地写代码、服务器集中托管与观测。
 
-因此，ProbeFlash 的主任务从“自己生产所有能力”转为“组织和调度所有能力”。
+因此，Teamhub 的主任务从“自己生产所有能力”转为“组织和调度所有能力”。
 
 ## 3. 目标
 
@@ -47,7 +47,7 @@ Team Hub 目标：
 一句话：
 
 ```text
-ProbeFlash Team Hub = 战队的信息路由器 + 后端控制台 + 工具/AI 插件底座。
+Teamhub = 战队的信息路由器 + 后端控制台 + 工具/AI 插件底座。
 ```
 
 ## 4. 非目标
@@ -60,7 +60,7 @@ ProbeFlash Team Hub = 战队的信息路由器 + 后端控制台 + 工具/AI 插
 - 不做大型项目管理系统。
 - 不做成员产能排名、效率分、贡献榜。
 - 不替代 Forgejo / Gitea / GitHub 这类 Git forge。
-- 不把 `xju-feiyue/` 社区业务整体迁入 ProbeFlash。
+- 不把 `xju-feiyue/` 社区业务整体迁入 Teamhub。
 - 不依赖已有大量真实数据才能启动。
 
 ## 5. 总体架构
@@ -385,11 +385,11 @@ GET  /api/audit/logs?cursor=&limit=
 
 ## 10. `xju-feiyue/` 复用判断
 
-`xju-feiyue/` 当前作为本地参考项目，已加入 `.gitignore`，不提交到 ProbeFlash。
+`xju-feiyue/` 当前作为本地参考项目，已加入 `.gitignore`，不提交到 Teamhub。
 
 ### 10.1 可以直接复用或近似搬运的代码模式
 
-这些代码与业务耦合较低，可在后续任务中按 ProbeFlash 命名重写或局部搬运：
+这些代码与业务耦合较低，可在后续任务中按 Teamhub 命名重写或局部搬运：
 
 - `frontend/src/api/client.ts` 的唯一 fetch 点、mock/real split、Zod 边界校验模式。
 - `frontend/src/App.tsx` 的 `QueryClientProvider` + `RouterProvider` 基础壳。
@@ -400,7 +400,7 @@ GET  /api/audit/logs?cursor=&limit=
 - `frontend/src/components/ui/*` 的 shadcn/Radix 基础组件，如果 license 和依赖版本确认无问题。
 - `frontend/src/components/common/ErrorState.tsx`、`LoadingSkeleton.tsx` 这类通用状态组件的模式。
 
-注意：即使“可复用”，也必须在后续代码任务中逐文件审查、改名、删业务字段、加 ProbeFlash 测试，不能整目录复制。
+注意：即使“可复用”，也必须在后续代码任务中逐文件审查、改名、删业务字段、加 Teamhub 测试，不能整目录复制。
 
 ### 10.2 可以借鉴但不建议直接复用的代码
 
