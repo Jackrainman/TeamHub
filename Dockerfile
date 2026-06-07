@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1.7
-
 ARG NODE_VERSION=24-bookworm-slim
 
 FROM node:${NODE_VERSION} AS build
@@ -30,7 +28,9 @@ WORKDIR /opt/teamhub
 
 COPY apps/hub-contracts/package*.json apps/hub-contracts/
 COPY apps/hub-server/package*.json apps/hub-server/
-RUN cd apps/hub-server && npm ci --omit=dev && npm cache clean --force
+RUN cd apps/hub-contracts && npm ci --omit=dev \
+  && cd ../hub-server && npm ci --omit=dev \
+  && npm cache clean --force
 
 COPY --from=build /workspace/apps/hub-contracts/dist apps/hub-contracts/dist
 COPY --from=build /workspace/apps/hub-server/dist apps/hub-server/dist

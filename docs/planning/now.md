@@ -4,14 +4,12 @@
 
 ```yaml
 mode: team_hub_shell_design
-stage: Team Hub 战队中枢概念冻结 + 技术栈拍板完成；Hub 后端壳子、共享契约、控制台壳子、Compose 代码面、Lark mock-first 接线与 AI mock adapter 已落地
+stage: Team Hub 战队中枢概念冻结 + 技术栈拍板完成；Hub 后端壳子、共享契约、控制台壳子、Compose 代码面与 Docker health smoke、Lark mock-first 接线与 AI mock adapter 已落地
 stage_goal: 以 docs/design/team-hub-concept.md + docs/design/team-hub-stack-decision.md + D-024/D-025 为事实源，后续按 Node/TypeScript 统一栈推进 Compose 部署、lark/adapter 接入与 Git/artifact 索引；Skill/Bridge/Trail 作为 Hub 下能力位保留；AI 每轮默认读 AGENTS.md + now.md + agent-state.json + git 状态，backlog/decisions/roadmap/设计文档按条件读取
-current_task: null  # HUB-ADAPTERS-MOCK 已闭环；下一步需重新走 atomic-task，从 frontier 选择唯一候选
+current_task: null  # HUB-COMPOSE-SMOKE 已闭环；下一步需重新走 atomic-task，从 frontier 选择唯一候选
 frontier:
   - HUB-GIT-FORGE-DESIGN
-blocked:
-  - id: HUB-COMPOSE-SMOKE
-    reason: "Compose scaffold 代码和非 Docker 构建验证已完成；scripts/verify-hub-compose.sh 因本机缺少 docker CLI 返回 127（missing required tool docker），待安装 Docker Engine + Compose plugin 后执行自动化 health smoke。"
+blocked: []
 post_pivot_registry:
   - SKILL-PROTOCOL-V1                    # 已落地草稿；待后续决定是否按 D-024 重新纳入 Hub skill adapter 契约
   - BRIDGE-01-ROSTER-SCHEMA              # 被 Hub BridgeState 契约覆盖，后续不按旧 markdown-only 任务推进
@@ -22,7 +20,7 @@ frozen:
 
 ## 当前任务
 
-_无。HUB-ADAPTERS-MOCK 已闭环：共享契约新增 adapter health / capabilities / invoke schema，Hub server 对 Hermes / 小龙虾 / Claude Code 暴露 mock-only health、capabilities、invoke stub；不接真实凭证、不调用真实外部服务。下一步按用户当前目标继续构建后续候选。_
+_无。HUB-COMPOSE-SMOKE 已闭环：Docker CLI/Compose 可用后，修复 Hub 镜像 runtime 依赖打包问题并跑通 `scripts/verify-hub-compose.sh`，已完成 Hub + Postgres build/up、health/API/static console smoke 与自动清理。下一步需重新走 atomic-task，从 frontier 选择唯一候选。_
 
 ## 架构定位（2026-06-06）
 
@@ -30,7 +28,6 @@ Teamhub = 战队中枢 / Team Hub；飞书 = 入口与通知层；Hermes / 小�
 
 ## 阻塞 / 待拍板
 
-- **HUB-COMPOSE-SMOKE 自动化验证待工具**：Compose scaffold 的代码与非 Docker smoke 已通过；本机缺少 `docker` CLI，`scripts/verify-hub-compose.sh` 返回 127（`missing required tool: docker`），安装 Docker Engine + Compose plugin 后再跑自动化 health smoke。
 - **真实外部 adapter**：Hermes / 小龙虾 / Claude Code 真实接入需要用户提供运行方式与权限；AI 当前只能做 mock-first 适配设计。
 - **真实服务器写入**：Forgejo/Gitea/bare git 部署、SSH、systemd、80/443、真实数据迁移均需用户白天审批后再做。
 
@@ -49,8 +46,8 @@ Teamhub = 战队中枢 / Team Hub；飞书 = 入口与通知层；Hermes / 小�
 
 ## 最近完成（详见 `git log`）
 
+- 2026-06-07 HUB-COMPOSE-SMOKE — Docker 最终验证闭环：修复 root `Dockerfile` runtime 阶段只安装 `apps/hub-server` 生产依赖、未安装 `apps/hub-contracts` 生产依赖导致的 `ERR_MODULE_NOT_FOUND: zod`；移除未使用的 Dockerfile frontend syntax directive，避免额外拉取 `docker/dockerfile:1.7`；`scripts/verify-hub-compose.sh` 已在 Docker 29.5.2 / Compose v5.1.4 下通过，完成 Hub + Postgres build/up、`/health`、`/api/system/status` 与静态控制台 smoke，并自动清理临时容器和卷。环境注记：本机访问 Docker Hub 出现 TLS EOF，验证前通过 `public.ecr.aws/docker/library` 预拉 `node:24-bookworm-slim` / `postgres:16-alpine` 并打本地同名 tag；项目代码不依赖该 registry。验证：`scripts/verify-hub-compose.sh`、`cd apps/hub-contracts && npm run verify:all`、`cd apps/hub-server && npm run verify:all`、`cd apps/hub-console && npm run verify:all`、`cd apps/desktop && npm run typecheck && npm run build && npm run verify:all`、`cd apps/server && npm run verify:deploy-prep`、`git diff --check` 均通过。
 - 2026-06-07 HUB-ADAPTERS-MOCK — AI mock adapter endpoint 落地：`apps/hub-contracts` 新增 `AdapterHealthResponse` / `AdapterCapabilitiesResponse` / `AdapterInvokeRequest` / `AdapterInvokeResponse` schema、fixtures 与 schema 测试；`apps/hub-server/src/mock-ai-adapters.ts` 定义 Hermes / 小龙虾 / Claude Code mock adapter helper；Hub server 暴露 `GET /api/adapters/:id/health`、`GET /api/adapters/:id/capabilities`、`POST /api/adapters/:id/invoke`，仅支持三类 mock AI adapter，其他 adapter 返回标准 404；不接真实凭证、不调用真实外部服务。验证：`cd apps/hub-contracts && npm run verify:all`、`cd apps/hub-server && npm run verify:all`、`cd apps/hub-console && npm run verify:all`、`git diff --check`、`now.md` yaml 可解析、`python3 -m json.tool docs/planning/agent-state.json`、`cd apps/desktop && npm run verify:skills-sync` 均通过。
 - 2026-06-07 HUB-LARK-WIRE — Lark 三包接入 Hub contract：`apps/lark-gateway/src/hub.ts` 输出 `lark-gateway` ingress adapter descriptor，并把飞书 `im.message.receive_v1` 子集归一化为 schema-valid `HubEvent`；`handleMessage` 支持可选 `hubEvents.record()` sink，失败不影响回复链路；`apps/lark-toolkit/src/hub.ts` 输出 `lark-toolkit` tool adapter descriptor；`apps/pf-skills/src/hub.ts` 输出 `pf-skills` tool adapter descriptor 与 `skillReplyToHubEvent()`；三包新增 `@teamhub/hub-contracts` 本地依赖与 schema 测试。验证：`cd apps/pf-skills && npm run verify:all`、`cd apps/lark-toolkit && npm run verify:all`、`cd apps/lark-gateway && npm run verify:all`、`cd apps/hub-contracts && npm run verify:all`、`git diff --check`、`cd apps/desktop && npm run verify:skills-sync` 均通过；真实飞书 smoke 未跑，按边界留用户线下配置后执行。
-- 2026-06-07 HUB-COMPOSE-SCAFFOLD — Compose 代码面落地：新增 root `Dockerfile`（Node 24 多阶段构建，合并 Hub API 与已构建控制台）、`.dockerignore`、`compose.yaml` core stack（`hub + postgres`）、`deploy/teamhub.env.example` 与 `scripts/verify-hub-compose.sh`；`apps/hub-server` 增加无新生产依赖的静态控制台托管与 mock-first `/api/events`、`/api/bridge/members`、`/api/git/repos`、`/api/artifacts`；`apps/hub-console` 支持 `VITE_API_BASE=/` 同源 real API。验证：`cd apps/hub-contracts && npm run verify:all`、`cd apps/hub-server && npm run verify:all`、`cd apps/hub-console && npm run verify:all`、`cd apps/desktop && npm run typecheck && npm run build && npm run verify:all`、`cd apps/server && npm run verify:deploy-prep`、`cd apps/lark-toolkit && npm run verify:all`、`cd apps/pf-skills && npm run verify:all`、`cd apps/lark-gateway && npm run verify:all`、构建后 Hub server 同源托管 console 的本地 static/API smoke、`bash -n scripts/verify-hub-compose.sh`、`sh -n scripts/verify-hub-compose.sh`、`compose.yaml` yaml 可解析、`git diff --check`、`now.md` yaml 可解析、`python3 -m json.tool docs/planning/agent-state.json`、`cd apps/desktop && npm run verify:skills-sync` 均通过；hub-server/hub-console 生产依赖审计 0 漏洞。未跑：`scripts/verify-hub-compose.sh` 因本机缺少 `docker` CLI 返回 127，待安装 Docker 后执行自动化 Compose health smoke。
+- 2026-06-07 HUB-COMPOSE-SCAFFOLD — Compose 代码面落地：新增 root `Dockerfile`（Node 24 多阶段构建，合并 Hub API 与已构建控制台）、`.dockerignore`、`compose.yaml` core stack（`hub + postgres`）、`deploy/teamhub.env.example` 与 `scripts/verify-hub-compose.sh`；`apps/hub-server` 增加无新生产依赖的静态控制台托管与 mock-first `/api/events`、`/api/bridge/members`、`/api/git/repos`、`/api/artifacts`；`apps/hub-console` 支持 `VITE_API_BASE=/` 同源 real API。验证：Hub 三包 verify、desktop/server/lark 三包既有 verify、非 Docker 本地 static/API smoke、compose yaml parse、脚本语法、生产依赖 audit 0 漏洞均通过；当时 `scripts/verify-hub-compose.sh` 因本机缺少 `docker` CLI 返回 127，已由后续 HUB-COMPOSE-SMOKE 闭环补跑。
 - 2026-06-07 HUB-CONSOLE-SCAFFOLD — Hub 控制台壳子落地：新增 `apps/hub-console/` 独立 npm 包（React/Vite/TypeScript、TanStack Query、lucide、共享契约 `file:../hub-contracts`），实现 mock/real API client 分流、Zod 响应解析、总览页 mock 数据、运维控制台布局与 `test/client.test.ts` API client 契约测试；本地 dev smoke 访问 `http://127.0.0.1:5174/`，Playwright 桌面/移动截图均非空且布局无明显重叠；真实外部服务未接入。验证：`cd apps/hub-console && npm run verify:all`、`cd apps/hub-contracts && npm run verify:all`、`cd apps/hub-server && npm run verify:all`、`cd apps/desktop && npm run typecheck && npm run build && npm run verify:all`、`cd apps/server && npm run verify:deploy-prep`、`git diff --check`、`now.md` yaml 可解析、`python3 -m json.tool docs/planning/agent-state.json`、`cd apps/desktop && npm run verify:skills-sync` 均通过；hub-console 生产依赖审计 0 漏洞。
-- 2026-06-07 HUB-CONTRACTS-V0 — Hub 共享契约 v0 落地：新增 `apps/hub-contracts/` 独立 npm 包，导出 `HubEvent` / `AdapterDescriptor` / `BridgeMemberState` / `GitRepoRef` / `ArtifactRef` schema、错误体与列表响应 schema、API contract fixtures；`apps/hub-server` 通过 `file:../hub-contracts` 使用共享 adapter 契约和 fixtures，并在自身 verify 前构建 contracts。验证：`cd apps/hub-contracts && npm run verify:all`、`cd apps/hub-server && npm run verify:all`、`cd apps/desktop && npm run typecheck && npm run build && npm run verify:all`、`cd apps/server && npm run verify:deploy-prep`、`git diff --check`、`now.md` yaml 可解析、`python3 -m json.tool docs/planning/agent-state.json`、`cd apps/desktop && npm run verify:skills-sync` 均通过；hub-contracts/hub-server 生产依赖审计均为 0 漏洞。
