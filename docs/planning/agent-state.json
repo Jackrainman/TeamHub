@@ -55,6 +55,15 @@
     ]
   },
   "active_task_index": {
+    "HUB-CONSOLE-PREVIEW-SCRIPT": {
+      "status": "done",
+      "type": "code",
+      "context_docs": [
+        "docs/design/team-hub-stack-decision.md",
+        "docs/design/team-hub-concept.md"
+      ],
+      "summary": "新增 root scripts/preview-hub-console.sh 与 apps/hub-console preview:local 入口；默认 mock preview，可用 TEAMHUB_API_BASE 切换 real API preview"
+    },
     "HUB-BACKEND-SCAFFOLD": {
       "status": "done",
       "type": "code",
