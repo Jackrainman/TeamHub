@@ -26,6 +26,8 @@ _无。HUB-COMPOSE-SMOKE 已闭环：Docker CLI/Compose 可用后，修复 Hub �
 
 Teamhub = 战队中枢 / Team Hub；飞书 = 入口与通知层；Hermes / 小龙虾 / Claude Code / pf-skills = adapter 候选；战队服务器 = Git / artifact / 控制台运行层。详见 `docs/design/team-hub-concept.md`、`docs/design/team-hub-stack-decision.md`、D-024 与 D-025。旧 Skill/Bridge/Trail 三 facet 保留为能力分类，但实现边界从 markdown-only 升级为 Hub 后端 + 控制台 + 插件接口。
 
+**产品定义锐化（2026-06-08, D-026 draft）**：定位从“运维 / 观测控制台”锐化为“**制度化进度治理系统**”——系统是大脑 / 飞书是脸、不双写、无硬截止只轻推、暴露需求不暴露人、中央视图 = 动态依赖图（务实版）、给新人安全网。事实源 `docs/design/team-hub-product-definition.md`（涉及产品形态 / 领域模型 / 中央视图 / 飞书·Git 边界时优先读）。§7 待定项待逐条拍板。
+
 ## 阻塞 / 待拍板
 
 - **真实外部 adapter**：Hermes / 小龙虾 / Claude Code 真实接入需要用户提供运行方式与权限；AI 当前只能做 mock-first 适配设计。
@@ -46,6 +48,7 @@ Teamhub = 战队中枢 / Team Hub；飞书 = 入口与通知层；Hermes / 小�
 
 ## 最近完成（详见 `git log`）
 
+- 2026-06-08 HUB-PRODUCT-DEFINITION-V0 — 与用户讨论后沉淀产品定义：新增 `docs/design/team-hub-product-definition.md`（status: draft，产品意义 / 五原则 / 核心数据模型 / 中央依赖图务实版 / 反监视四原则 / 四层架构 / 已定 vs 待定）+ `decisions.md` D-026（draft，演进 D-024，正式承认加角色权限 + 轻量项目管理 + Bridge 扩展）。定位锐化为“制度化进度治理系统”：系统是大脑 / 飞书是脸、不双写、无硬截止只轻推、暴露需求不暴露人、给新人安全网。§7 待定项（角色权限 / 提醒规则 / AI 边界 / 提醒可见范围）待用户逐条拍板后升 stable。验证：`git diff --check`、`now.md` yaml 可解析、`cd apps/desktop && npm run verify:skills-sync`。
 - 2026-06-07 HUB-CONSOLE-PREVIEW-SCRIPT — 新增 root `scripts/preview-hub-console.sh` 与 `apps/hub-console` `preview:local` 入口；脚本支持默认 mock preview，也可通过 `TEAMHUB_API_BASE` 切到 real API preview；验证：`bash -n scripts/preview-hub-console.sh`、`cd apps/hub-console && npm run verify:all`、`cd apps/desktop && npm run verify:skills-sync`、`git diff --check`。
 - 2026-06-07 HUB-COMPOSE-SMOKE — Docker 最终验证闭环：修复 root `Dockerfile` runtime 阶段只安装 `apps/hub-server` 生产依赖、未安装 `apps/hub-contracts` 生产依赖导致的 `ERR_MODULE_NOT_FOUND: zod`；移除未使用的 Dockerfile frontend syntax directive，避免额外拉取 `docker/dockerfile:1.7`；`scripts/verify-hub-compose.sh` 已在 Docker 29.5.2 / Compose v5.1.4 下通过，完成 Hub + Postgres build/up、`/health`、`/api/system/status` 与静态控制台 smoke，并自动清理临时容器和卷。环境注记：本机访问 Docker Hub 出现 TLS EOF，验证前通过 `public.ecr.aws/docker/library` 预拉 `node:24-bookworm-slim` / `postgres:16-alpine` 并打本地同名 tag；项目代码不依赖该 registry。验证：`scripts/verify-hub-compose.sh`、`cd apps/hub-contracts && npm run verify:all`、`cd apps/hub-server && npm run verify:all`、`cd apps/hub-console && npm run verify:all`、`cd apps/desktop && npm run typecheck && npm run build && npm run verify:all`、`cd apps/server && npm run verify:deploy-prep`、`git diff --check` 均通过。
 - 2026-06-07 HUB-ADAPTERS-MOCK — AI mock adapter endpoint 落地：`apps/hub-contracts` 新增 `AdapterHealthResponse` / `AdapterCapabilitiesResponse` / `AdapterInvokeRequest` / `AdapterInvokeResponse` schema、fixtures 与 schema 测试；`apps/hub-server/src/mock-ai-adapters.ts` 定义 Hermes / 小龙虾 / Claude Code mock adapter helper；Hub server 暴露 `GET /api/adapters/:id/health`、`GET /api/adapters/:id/capabilities`、`POST /api/adapters/:id/invoke`，仅支持三类 mock AI adapter，其他 adapter 返回标准 404；不接真实凭证、不调用真实外部服务。验证：`cd apps/hub-contracts && npm run verify:all`、`cd apps/hub-server && npm run verify:all`、`cd apps/hub-console && npm run verify:all`、`git diff --check`、`now.md` yaml 可解析、`python3 -m json.tool docs/planning/agent-state.json`、`cd apps/desktop && npm run verify:skills-sync` 均通过。
