@@ -12,9 +12,6 @@
 .vscode
 .idea
 
-# Local backend runtime data
-apps/server/.runtime/
-
 # Local secrets and API keys. Never commit real provider credentials.
 .env
 .env.*
@@ -26,7 +23,6 @@ deepseek.env
 node_modules/
 
 # Generated local outputs
-apps/desktop/dist/
 apps/hub-contracts/dist/
 apps/hub-console/dist/
 apps/hub-server/dist/
@@ -34,7 +30,7 @@ tmp/
 *.sqlite
 *.sqlite-*
 
-# Local reference projects copied for comparison; do not commit into ProbeFlash.
+# Local reference projects copied for comparison; do not commit into Teamhub.
 xju-feiyue/
 docs/se-assignment/
 

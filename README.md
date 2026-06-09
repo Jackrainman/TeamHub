@@ -2,18 +2,18 @@
 
 # ⚡ Teamhub
 
-### 机器人战队的调试知识枢纽
+### 机器人战队的制度化进度治理系统
 
-**当下用 Skill 给检查单，过去用 Trail 翻历史，未来对接飞书做联调板。<br />
-让现场救火变成下次更快解决问题的经验底盘。**
+**跨组协调 + 管进度 + 不让某些人干太多。<br />
+当进度卡住、当事人又羞于开口时，靠制度让系统替他把卡点说出来——提前暴露"没人去满足的隐含依赖"，让所有人动起来。**
 
 <br />
 
-![Status](https://img.shields.io/badge/status-post--pivot%20self--dogfood-blue)
-![Mode](https://img.shields.io/badge/mode-Skill%20%2F%20Bridge%20%2F%20Trail-purple)
+![Status](https://img.shields.io/badge/status-governance--design-blue)
+![Mode](https://img.shields.io/badge/mode-governance__design-purple)
+![Arch](https://img.shields.io/badge/arch-4--layer-success)
 ![v0.3](https://img.shields.io/badge/v0.3-frozen%20artifact-lightgrey)
-![Data](https://img.shields.io/badge/data-markdown%20%2B%20git%20native-success)
-![Integration](https://img.shields.io/badge/integration-Lark%20(planned)-orange)
+![Integration](https://img.shields.io/badge/integration-Lark%20(route%20A)-orange)
 
 </div>
 
@@ -21,16 +21,20 @@
 
 ## 一句话介绍
 
-**Teamhub** 把"调试 + 协作 + 成长"按时间维度拆成三个独立 facet：
+**Teamhub** 是一套**轻量进度治理系统**（5–15 人小作坊、无硬截止）。**系统是大脑、飞书是脸**：真相在系统关系库，飞书只做汇报 / 通知 / 一键 check-in，不双写。
+
+四层架构（每层只依赖下层）：
 
 ```
-当下（我有问题）        现在（我们在做什么）        过去（前人怎么走过来的）
-     ↓                       ↓                          ↓
-   Skill                   Bridge                      Trail
- 给检查单                联调板 / 阻塞匹配           足迹档案 / 赛季年鉴
+①数据真相层      →  ②规则/治理层（魂）   →  ③展示/汇报层       →  ④触点/集成层
+项目/赛季·成员       卡点/过载/沉默/升级      动态最短任务周期图      飞书是脸·Git
++角色+资历·组织树     系统替你说卡点·暴露缺口   给老师的自动汇报        Hermes/小龙虾
+·任务依赖DAG·Need    让所有人动起来                                /Claude Code
 ```
 
-数据是 markdown，权威源是 git，不再做单体 issue tracker。飞书做输入数据源 + 通知层。
+不做单体 issue tracker、不做产能排名（任何角色含老师都不得见）、不做完整 RBAC / 多租户 / 大型 PM。Skill / Bridge / Trail 作为能力 facet 归入四层架构。
+
+> **本仓库源于战队调试现场的真实痛点**（见下文"痛点来源"），从"调试知识枢纽"逐步演进为进度治理系统（D-026）。README 是对外门面；内部事实源以 `AGENTS.md` + `docs/planning/` + `docs/design/` 为准。
 
 ---
 
@@ -274,7 +278,7 @@ v0.3.0 是 2026-04 到 2026-05 初的一次完整交付：
 - IssueCard / InvestigationRecord / ErrorEntry / ArchiveDocument 全链路
 - 用户目录部署 + systemd 自启 + 全套 verify
 
-代码都在 `apps/desktop` 和 `apps/server`，作为完整作品保留。
+代码原在 `apps/desktop` 和 `apps/server`，已于 2026-06-09（D-026 治理 reframe）从工作区删除；完整代码保留在 **git 历史**中，精华提炼见 `docs/archive/v0.3-closeout/PROBEFLASH-V03-ESSENCE.md`。
 
 ### Pivot：为什么转向
 
@@ -290,17 +294,31 @@ v0.3 形态本质上是"跨组需求单"——为大组织异步协作 + 责任�
 
 ## 设计宪法
 
-任何新 facet 不过这 5 条就不动手：
+三层结构（D-026 重构）。任何治理 / facet 设计不过本节不动手。下游按 `C/G/A` 编号引用。
 
-| # | 宪法 | 一句话解释 |
+**核心原则（C，产品根基）**
+
+| # | 宪法 | 一句话 |
 |---|---|---|
-| 1 | **填写成本必须由当下回报抵消** | v0.3 让人填"过去发生了什么"——失败原因 |
-| 2 | **让协作摩擦可见，让产能不可比** | 阻塞可见 ✓ ，人与人 KPI ✗ |
-| 3 | **小作坊优先** | 5–15 人战队，不抢大组织 ticketing |
-| 4 | **AI 是隐式经验的翻译** | Skill 输出是清单 / 提示，不替代硬件验证 |
-| 5 | **只为上游数据流自然存在的场景构建** | 没有河流的水处理厂没用 |
+| C1 | **填写成本必须由当下回报抵消** | 录入是兜底，状态优先从飞书 / Git 既有动作派生 |
+| C2 | **让协作摩擦可见，让产能不可比** | 阻塞可见 ✓；任何角色（含老师）都不得见人效排名 ✗ |
+| C3 | **小作坊优先** | 5–15 人；轻量角色 / 组织树 / 治理，不做 RBAC / 多租户 / 大型 PM |
+| C4 | **AI 是转译者与协作促成者** | 输出是清单 / 提示 / 暴露的需求，不替代实物验证与人的决定 |
+| C5 | **只为上游数据流自然存在的场景构建** | 没有河流的水处理厂没用；状态必须有自然上游 |
 
-来源：`docs/planning/roadmap.md §0` 和 D-018 / D-019。
+**治理专属原则（G，产品的魂）**
+
+| # | 宪法 | 一句话 |
+|---|---|---|
+| G1 | **制度化替代凭感觉** | 进度真相靠制度判定，系统替羞于开口的人说卡点 |
+| G2 | **系统是大脑、飞书是脸** | 真相在系统库，飞书只做汇报 / 通知 / check-in，不双写 |
+| G3 | **暴露需求/缺口而非督促进度** | 提前暴露隐含依赖、让所有人动起来；Need 一等公民 |
+| G4 | **无硬截止，只轻提醒** | 不设 deadline，沉默→可一键回的轻提醒 |
+| G5 | **对资历弱者更主动兜底** | 大一 / 低资历更主动提示、更鼓励、"替你说"权重更高 |
+
+**反监视四原则（A，C2/G2 执行细则）**：A1 暴露需求不暴露"人慢了"；A2 提醒先私下给本人、帮忙口吻，老师只看项目级；A3 系统给得比拿得多；A4 无 deadline 只轻推。
+
+唯一源：`AGENTS.md §5`；ADR：D-018 / D-019 确立，D-026 重构。
 
 ---
 
@@ -377,18 +395,11 @@ cd TeamHub
 
 Skill 协议会自动加载。觉得有用就让它把归档写进 `.debug-archive/`，攒着，下次类似症状能翻回来对照。
 
-### v0.3 SPA（已冻结，仅历史参考）
+### v0.3 SPA（已删除，仅历史参考）
 
-```bash
-cd apps/server && npm install
-cd ../desktop && npm install
-cd ../..
-./dev-start.sh
-```
+v0.3 代码（`apps/server` + `apps/desktop` + `dev-start.sh`）已于 2026-06-09 D-026 reframe 时从工作区删除。完整代码保留在 **git 历史**中（致命补丁走 `git revert` / `git checkout <sha> -- apps/server apps/desktop`），精华提炼见 `docs/archive/v0.3-closeout/PROBEFLASH-V03-ESSENCE.md`。
 
-默认 `http://localhost:5173`（前端）和 `http://127.0.0.1:4100/api/health`（后端）。
-
-新工作不在这里——新工作在 `.agents/skills/` 和 `.debug-archive/`。v0.3 是完整作品保留，不再演进。
+新工作不在这里——新工作在治理系统（`apps/hub-*`）、`.agents/skills/` 和 `.debug-archive/`。
 
 ---
 

@@ -3,8 +3,8 @@ title: 飞书开放平台 API 能力镜像
 status: stable
 date: 2026-05-19
 sources:
-  - docs/飞书开放平台企业内部应用API接入可行性与技术架构深度调研报告.md
-  - docs/飞书开放平台企业级能力边界、系统限制与深度集成架构调研报告.md
+  - docs/archive/lark-research/飞书开放平台企业内部应用API接入可行性与技术架构深度调研报告.md
+  - docs/archive/lark-research/飞书开放平台企业级能力边界、系统限制与深度集成架构调研报告.md
 related_decisions:
   - D-020
 ---
@@ -182,6 +182,6 @@ ProbeFlash 是 Node-TS 栈，Node 侧候选必须在 LARK-OSS-SCAN 任务中独�
 
 ---
 
-来源原文（保留在仓库 `docs/` 根目录，未删）：
-- [飞书开放平台企业内部应用API接入可行性与技术架构深度调研报告.md](../飞书开放平台企业内部应用API接入可行性与技术架构深度调研报告.md)（gemini, 2026-05-16）
-- [飞书开放平台企业级能力边界、系统限制与深度集成架构调研报告.md](../飞书开放平台企业级能力边界、系统限制与深度集成架构调研报告.md)（gemini, 2026-05-16）
+来源原文（2026-06-09 归档至 `docs/archive/lark-research/`）：
+- [飞书开放平台企业内部应用API接入可行性与技术架构深度调研报告.md](../archive/lark-research/飞书开放平台企业内部应用API接入可行性与技术架构深度调研报告.md)（gemini, 2026-05-16）
+- [飞书开放平台企业级能力边界、系统限制与深度集成架构调研报告.md](../archive/lark-research/飞书开放平台企业级能力边界、系统限制与深度集成架构调研报告.md)（gemini, 2026-05-16）

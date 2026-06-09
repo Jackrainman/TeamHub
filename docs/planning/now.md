@@ -3,37 +3,42 @@
 > 唯一当前战况源。Team Hub 方向已由 D-024 覆盖旧 markdown-only pivot。pre-pivot 历史快照 → `docs/archive/v0.3-pivot/`。
 
 ```yaml
-mode: team_hub_shell_design
-stage: Team Hub 战队中枢概念冻结 + 技术栈拍板完成；Hub 后端壳子、共享契约、控制台壳子、Compose 代码面与 Docker health smoke、Lark mock-first 接线与 AI mock adapter 已落地
-stage_goal: 以 docs/design/team-hub-concept.md + docs/design/team-hub-stack-decision.md + D-024/D-025 为事实源，后续按 Node/TypeScript 统一栈推进 Compose 部署、lark/adapter 接入与 Git/artifact 索引；Skill/Bridge/Trail 作为 Hub 下能力位保留；AI 每轮默认读 AGENTS.md + now.md + agent-state.json + git 状态，backlog/decisions/roadmap/设计文档按条件读取
-current_task: null  # HUB-COMPOSE-SMOKE 已闭环；下一步需重新走 atomic-task，从 frontier 选择唯一候选
+mode: governance_design
+stage: D-026 把 Teamhub reframe 为制度化进度治理系统；设计宪法重构为 C/G/A 三层；AGENTS §1/§4/§5 + README + roadmap + decisions(D-026) 文档体系大改进行中
+stage_goal: 以 D-026 + 重写中的 docs/design/team-hub-concept.md + AGENTS.md §1/§4/§5 为事实源，按四层架构推进数据真相层（项目/赛季·成员角色资历·组织树·任务依赖·Need）→ 规则治理层 → 展示汇报层 → 触点集成层；已建 Hub 壳子降为触点/集成+展示底座复用；两项待拍板（架构走法 A/B、提醒可见范围/送达模型）深设计先搭骨架留待定，不阻塞宪法/定位/planning；AI 每轮默认读 AGENTS.md + now.md + agent-state.json + git 状态，backlog/decisions/roadmap/设计文档按条件读取
+current_task: null  # 文档体系治理 reframe 大改进行中；收尾后重走 atomic-task，从 frontier 选治理数据模型 epic
 frontier:
-  - HUB-GIT-FORGE-DESIGN
+  - GOV-DATA-MODEL-DESIGN
 blocked: []
+open_for_decision:
+  - ARCH-PATH                           # 治理为主轴 vs Hub 之上平行模块（decisions.md D-026 开放项）
+  - REMIND-MODEL                        # 提醒可见范围/送达：混合 / 更私密优先 / 更透明（倾向混合）
 post_pivot_registry:
-  - SKILL-PROTOCOL-V1                    # 已落地草稿；待后续决定是否按 D-024 重新纳入 Hub skill adapter 契约
-  - BRIDGE-01-ROSTER-SCHEMA              # 被 Hub BridgeState 契约覆盖，后续不按旧 markdown-only 任务推进
-  - TRAIL-01-VIEWER-DESIGN               # 等 Hub 有 archive / artifact / event 原料后再设计
+  - SKILL-PROTOCOL-V1                    # 已落地草稿；作为治理触点层 skill 契约底座保留
+  - BRIDGE-01-ROSTER-SCHEMA              # 模型并入治理 Task/progress；数据载体被 D-026 路线 A 反转（系统库做真相）
+  - TRAIL-01-VIEWER-DESIGN               # 等治理 event/archive/artifact 原料足够后再设计
 frozen:
-  - ProbeFlash-v0.3.0                    # 不再加功能、不重构；致命补丁除外
+  - ProbeFlash-v0.3.0                    # 代码已删(git 历史保留)；致命补丁走 git revert
 ```
 
 ## 当前任务
 
 _无。HUB-COMPOSE-SMOKE 已闭环：Docker CLI/Compose 可用后，修复 Hub 镜像 runtime 依赖打包问题并跑通 `scripts/verify-hub-compose.sh`，已完成 Hub + Postgres build/up、health/API/static console smoke 与自动清理。下一步需重新走 atomic-task，从 frontier 选择唯一候选。_
 
-## 架构定位（2026-06-06）
+## 架构定位（2026-06-09，D-026）
 
-Teamhub = 战队中枢 / Team Hub；飞书 = 入口与通知层；Hermes / 小龙虾 / Claude Code / pf-skills = adapter 候选；战队服务器 = Git / artifact / 控制台运行层。详见 `docs/design/team-hub-concept.md`、`docs/design/team-hub-stack-decision.md`、D-024 与 D-025。旧 Skill/Bridge/Trail 三 facet 保留为能力分类，但实现边界从 markdown-only 升级为 Hub 后端 + 控制台 + 插件接口。
+四层架构 + 路线 A 详见 `AGENTS.md §1` 与 D-026（不在此重复）。治理域是新增核心；已建 Hub 壳子（hub-server/contracts/console/Compose）作为触点/集成 + 展示底座保留。深设计见重写中的 `docs/design/team-hub-concept.md`。
 
 ## 阻塞 / 待拍板
 
+- **架构走法（D-026 开放项）**：治理为主轴（hub-contracts 设治理为核心域）vs 治理作 Hub 之上平行模块——待拍板；倾向主轴 + 渐进迁移。
+- **提醒可见范围/送达模型**：混合 / 更私密优先 / 更透明——用户仍在想，倾向混合。
 - **真实外部 adapter**：Hermes / 小龙虾 / Claude Code 真实接入需要用户提供运行方式与权限；AI 当前只能做 mock-first 适配设计。
 - **真实服务器写入**：Forgejo/Gitea/bare git 部署、SSH、systemd、80/443、真实数据迁移均需用户白天审批后再做。
 
 ## 已冻结
 
-- ProbeFlash v0.3 全部代码（apps/desktop、apps/server、release 流程）：不再加功能、不再重构、不再写 verify。
+- ProbeFlash v0.3 代码（原 apps/desktop、apps/server、dev-start.sh、release 流程）：已于 2026-06-09 删除；完整代码留 git 历史，精华见 `docs/archive/v0.3-closeout/PROBEFLASH-V03-ESSENCE.md`；致命补丁走 `git revert`。
 - pre-pivot backlog 全部任务（TECH-* / AIREADY-* / REALAI-* / CODECTX-* / DEP-* / DATA-* / UI-* / CORE-* / SEARCH-*）：不再认领；详细见 `docs/archive/v0.3-pivot/backlog.md`。
 - **原 BRIDGE / TRAIL markdown-only 候选**：已被 D-024 Team Hub 架构覆盖，后续只作为 Hub BridgeState / Trail 能力重评，不按旧任务直接认领。
 
@@ -46,8 +51,8 @@ Teamhub = 战队中枢 / Team Hub；飞书 = 入口与通知层；Hermes / 小�
 
 ## 最近完成（详见 `git log`）
 
-- 2026-06-07 HUB-CONSOLE-PREVIEW-SCRIPT — 新增 root `scripts/preview-hub-console.sh` 与 `apps/hub-console` `preview:local` 入口；脚本支持默认 mock preview，也可通过 `TEAMHUB_API_BASE` 切到 real API preview；验证：`bash -n scripts/preview-hub-console.sh`、`cd apps/hub-console && npm run verify:all`、`cd apps/desktop && npm run verify:skills-sync`、`git diff --check`。
-- 2026-06-07 HUB-COMPOSE-SMOKE — Docker 最终验证闭环：修复 root `Dockerfile` runtime 阶段只安装 `apps/hub-server` 生产依赖、未安装 `apps/hub-contracts` 生产依赖导致的 `ERR_MODULE_NOT_FOUND: zod`；移除未使用的 Dockerfile frontend syntax directive，避免额外拉取 `docker/dockerfile:1.7`；`scripts/verify-hub-compose.sh` 已在 Docker 29.5.2 / Compose v5.1.4 下通过，完成 Hub + Postgres build/up、`/health`、`/api/system/status` 与静态控制台 smoke，并自动清理临时容器和卷。环境注记：本机访问 Docker Hub 出现 TLS EOF，验证前通过 `public.ecr.aws/docker/library` 预拉 `node:24-bookworm-slim` / `postgres:16-alpine` 并打本地同名 tag；项目代码不依赖该 registry。验证：`scripts/verify-hub-compose.sh`、`cd apps/hub-contracts && npm run verify:all`、`cd apps/hub-server && npm run verify:all`、`cd apps/hub-console && npm run verify:all`、`cd apps/desktop && npm run typecheck && npm run build && npm run verify:all`、`cd apps/server && npm run verify:deploy-prep`、`git diff --check` 均通过。
-- 2026-06-07 HUB-ADAPTERS-MOCK — AI mock adapter endpoint 落地：`apps/hub-contracts` 新增 `AdapterHealthResponse` / `AdapterCapabilitiesResponse` / `AdapterInvokeRequest` / `AdapterInvokeResponse` schema、fixtures 与 schema 测试；`apps/hub-server/src/mock-ai-adapters.ts` 定义 Hermes / 小龙虾 / Claude Code mock adapter helper；Hub server 暴露 `GET /api/adapters/:id/health`、`GET /api/adapters/:id/capabilities`、`POST /api/adapters/:id/invoke`，仅支持三类 mock AI adapter，其他 adapter 返回标准 404；不接真实凭证、不调用真实外部服务。验证：`cd apps/hub-contracts && npm run verify:all`、`cd apps/hub-server && npm run verify:all`、`cd apps/hub-console && npm run verify:all`、`git diff --check`、`now.md` yaml 可解析、`python3 -m json.tool docs/planning/agent-state.json`、`cd apps/desktop && npm run verify:skills-sync` 均通过。
-- 2026-06-07 HUB-LARK-WIRE — Lark 三包接入 Hub contract：`apps/lark-gateway/src/hub.ts` 输出 `lark-gateway` ingress adapter descriptor，并把飞书 `im.message.receive_v1` 子集归一化为 schema-valid `HubEvent`；`handleMessage` 支持可选 `hubEvents.record()` sink，失败不影响回复链路；`apps/lark-toolkit/src/hub.ts` 输出 `lark-toolkit` tool adapter descriptor；`apps/pf-skills/src/hub.ts` 输出 `pf-skills` tool adapter descriptor 与 `skillReplyToHubEvent()`；三包新增 `@teamhub/hub-contracts` 本地依赖与 schema 测试。验证：`cd apps/pf-skills && npm run verify:all`、`cd apps/lark-toolkit && npm run verify:all`、`cd apps/lark-gateway && npm run verify:all`、`cd apps/hub-contracts && npm run verify:all`、`git diff --check`、`cd apps/desktop && npm run verify:skills-sync` 均通过；真实飞书 smoke 未跑，按边界留用户线下配置后执行。
-- 2026-06-07 HUB-COMPOSE-SCAFFOLD — Compose 代码面落地：新增 root `Dockerfile`（Node 24 多阶段构建，合并 Hub API 与已构建控制台）、`.dockerignore`、`compose.yaml` core stack（`hub + postgres`）、`deploy/teamhub.env.example` 与 `scripts/verify-hub-compose.sh`；`apps/hub-server` 增加无新生产依赖的静态控制台托管与 mock-first `/api/events`、`/api/bridge/members`、`/api/git/repos`、`/api/artifacts`；`apps/hub-console` 支持 `VITE_API_BASE=/` 同源 real API。验证：Hub 三包 verify、desktop/server/lark 三包既有 verify、非 Docker 本地 static/API smoke、compose yaml parse、脚本语法、生产依赖 audit 0 漏洞均通过；当时 `scripts/verify-hub-compose.sh` 因本机缺少 `docker` CLI 返回 127，已由后续 HUB-COMPOSE-SMOKE 闭环补跑。
+- 2026-06-09 GOV-REFRAME-DOCS — D-026 治理 reframe + 设计宪法 C/G/A 三层重构（AGENTS §1/§4/§5 + README + roadmap + decisions D-026 + concept 骨架）。
+- 2026-06-09 PF-V03-CLEANUP — 删除 ProbeFlash v0.3 代码（apps/server/desktop/dev-start.sh），精华入 `docs/archive/v0.3-closeout/`，飞书大文档归档，agent-state.json + AGENTS/now 瘦身。
+- 2026-06-07 HUB-CONSOLE-PREVIEW-SCRIPT — 新增 `scripts/preview-hub-console.sh` 与 hub-console `preview:local`（mock / TEAMHUB_API_BASE 切 real）。
+- 2026-06-07 HUB-COMPOSE-SMOKE — Docker 验证闭环：修 Dockerfile runtime 依赖打包，`scripts/verify-hub-compose.sh` 通过 Hub+Postgres build/up/health/API/static smoke。
+- 2026-06-07 HUB-ADAPTERS-MOCK / HUB-LARK-WIRE — hub-contracts adapter schema + mock endpoint；Lark 三包接入 Hub contract（ingress/tool adapter descriptor + HubEvent 归一化）。

@@ -65,7 +65,7 @@ description: 读真实状态 → 选唯一原子任务 → 执行 → 验证 →
 | type | DoD 必含 | 验证命令样例 |
 |---|---|---|
 | code | 代码文件落地 + 任务对应 verify 通过 | `cd apps/X && npm run verify:Y`（exit 0） |
-| skill | `.agents/skills/X/SKILL.md` 落地 + `verify:skills-sync` 通过 | `cd apps/desktop && npm run verify:skills-sync`（exit 0） |
+| skill | `.agents/skills/X/SKILL.md` 落地 + `verify:skills-sync` 通过 | `bash .agents/scripts/verify-skills-sync.sh`（exit 0） |
 | design | `docs/design/X.md` 落地 + 在 `decisions.md` 追加 ADR 或文档自标 `status: forward-looking` | `test -f docs/design/X.md && grep -q "^status:" docs/design/X.md`（exit 0） |
 | research | `docs/research/X.md` 落地 + 在 `decisions.md` 追加 1 条结论 | 同 design 形式 |
 | docs | `git diff --check` 干净 + yaml 可解析 + grep 旧路径无残留 | `git diff --check`；`python3 -c "import yaml; yaml.safe_load(open('X').read())"` |

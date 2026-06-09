@@ -260,6 +260,6 @@ status: draft  # 出发前改为 confirmed
 
 - SKILL.md 含：触发示例、输入、输出 markdown 模板、协议、存档 schema、prompt 模板要点、工具调用、反馈闭环、不做的事、与其他 skill 的关系。
 - hook 自动同步到 `.claude/skills/pre-match-checklist/SKILL.md`。
-- `cd apps/desktop && npm run verify:skills-sync` 通过。
+- `bash .agents/scripts/verify-skills-sync.sh` 通过。
 - `git diff --check` 干净。
 - 备赛期跑通**至少一次真实清单生成**且队员看了觉得"这能参赛用"，再考虑迭代。

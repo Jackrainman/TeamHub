@@ -46,7 +46,7 @@ epic（大任务）
 
 ## 4. 保留不变（硬约束，不可妥协）
 
-- `AGENTS.md §5` 设计宪法 5 条 → 仍是 epic 立项的准入门
+- `AGENTS.md §5` 设计宪法（D-026 重构为 C/G/A 三层：核心 C1-C5 + 治理 G1-G5 + 反监视 A1-A4）→ 仍是 epic 立项的准入门
 - `AGENTS.md §6` 单原子任务执行 / 单任务 commit / commit 后 STOP
 - `AGENTS.md §7` Verify Matrix
 - `AGENTS.md §8` 夜跑边界

@@ -170,4 +170,4 @@ ProbeFlash v0.4 阶段已落地 3 个 active 业务 skill（`debug-checklist` / 
 
 - **D-018**：pivot 后 Skill / Bridge / Trail 三 facet（本协议是 Skill facet 的契约底座）
 - **D-022**：lark-cli 接入 + 三包拆分（后续飞书 skill 输出会按 v1.0 协议）
-- **D-019**：明确"阻塞可见但不比产能"——宪法 #2 的边界线（业务字段约束的隐含来源，但本协议层不涉及）
+- **D-019**：明确"阻塞可见但不比产能"——宪法 C2 的边界线（D-026 重构为 C/G/A 三层，旧 #2→C2；业务字段约束的隐含来源，但本协议层不涉及）

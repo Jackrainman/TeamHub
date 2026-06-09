@@ -13,7 +13,7 @@ proposes:
   - D-022                         # 本 spec 拍板后追加的新 ADR
 constraints:
   - AGENTS.md §3 全文（AI 不读密钥、用户线下注入凭证）
-  - AGENTS.md §5 设计宪法 #3（小作坊优先）+ #5（只为上游存在的数据流构建）
+  - AGENTS.md §5 设计宪法 C3（小作坊优先）+ C5（只为上游存在的数据流构建）
   - AGENTS.md §6 atomic task discipline
 ---
 

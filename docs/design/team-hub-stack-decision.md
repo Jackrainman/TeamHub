@@ -10,6 +10,8 @@ decision: D-025
 
 > 本文只拍板 Team Hub 技术栈和部署边界，不实现后端或前端代码。事实源：D-024、`docs/design/team-hub-concept.md`、现有 `apps/lark-*` / `apps/pf-skills` 三包、允许读取的 `xju-feiyue/` 非密钥文件。
 
+> **D-026 继承说明（2026-06-09）**：治理 reframe 后，本文技术栈 / 部署 / 数据边界结论（Node/TS、Fastify、Zod、Drizzle、生产 Postgres + SQLite fallback、Forgejo 默认、Compose、同镜像换 env）**全部继续有效**。新增两点：①治理数据真相层实体（项目/赛季 · 成员+角色+资历 · 可配置组织树 · 任务+依赖 DAG · 前置需求 Need）进同一关系库（生产 Postgres）；②**路线 A**——系统库是唯一真相，飞书只做汇报 / 通知 / check-in，不双写。当前模式 `governance_design`。
+
 ## 1. 结论
 
 1. **后端选 Node/TypeScript 统一栈**。新 Hub 后端放在 `apps/hub-server/`，不复用已冻结的 `apps/server/`。推荐 Node.js 24 LTS 容器运行时、TypeScript、Fastify、Zod、Drizzle ORM；真实版本在 scaffold 任务锁定。
@@ -25,8 +27,8 @@ decision: D-025
 
 ## 2. 约束
 
-- 当前模式是 `team_hub_shell_design`：先做壳子、接口、控制台、adapter 插件位；不炼丹，不做完整 Trail viewer，不做大型社区站。
-- v0.3 已冻结：`apps/server/` 和 `apps/desktop/` 只保留历史与致命补丁，不承载 Team Hub 新功能。
+- 当前模式 `governance_design`（D-026；壳子阶段 `team_hub_shell_design` 已落地为触点/集成 + 展示底座）：推进治理四层（数据真相 → 规则治理 → 展示汇报 → 触点集成）；不炼丹，不做大型社区站 / 完整 Trail viewer。
+- v0.3 已冻结：`apps/server/` 和 `apps/desktop/` 已于 2026-06-09（D-026）删除，完整代码留 git 历史、精华见 `docs/archive/v0.3-closeout/PROBEFLASH-V03-ESSENCE.md`；不承载 Team Hub 新功能。
 - 目标团队是 5-15 人机器人战队：后台要轻、可扫、可部署；不做多租户 SaaS、绩效统计、成员产能排名。
 - 外部入口可能长期并存：飞书、Hermes、小龙虾、Claude Code、CLI、Git forge、未来脚本。Hub 不能把其中任何一个写死为唯一能力。
 - 真实密钥只来自 server 进程环境变量或用户线下注入的外部 secret 文件；不进入前端、planning 文档、README、日志、commit message。
@@ -280,6 +282,7 @@ ADAPTER_CLAUDE_CODE_MODE
 - `ArtifactRef`：artifact kind、name、uri/path、checksum、size、related repo/commit、createdAt、retention。
 - `AuditLog`：写入类操作、操作者、来源、时间、结果。
 - `ConfigMetadata`：非密钥配置状态，例如某 adapter 是否已配置、最后校验时间。
+- **（D-026 治理域，schema 待 `GOV-DATA-MODEL-DESIGN`）**：`Season`/`Project`、`Member`（id / 显示名 / role / 资历 / group）、`Group`（可配置组织树）、`Task`（一等公民 + 状态）、`Dependency`（Task→Task 有向边）、`Need`/前置需求（描述 / 提供方 / 状态）。`BridgeMemberState` 并入 `Member` + Task 状态派生。
 
 ### 7.2 Volume / 外部存储中放什么
 

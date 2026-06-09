@@ -5,12 +5,28 @@
 ## 认领规则（Team Hub）
 
 1. 每次只认领一个原子任务，未 commit 不进入下一任务。
-2. 当前允许的任务类型：**Team Hub 概念 / 技术栈拍板 / Hub 后端壳子 / 控制台壳子 / adapter mock-first / 飞书接入整合**。真实 Hermes / 小龙虾 / Claude Code / 服务器写入必须用户线下配置或审批。
+2. 当前允许的任务类型（D-026 `governance_design`）：**治理概念/数据模型/规则层/展示汇报/触点派生设计 + 对应 schema 与代码 + 文档 reframe**。真实 Hermes / 小龙虾 / Claude Code / 服务器写入必须用户线下配置或审批。两项待拍板（架构走法、提醒模型）的深设计先搭骨架留待定。
 3. ProbeFlash v0.3 已冻结：不再认领 TECH / AIREADY / REALAI / CODECTX / DEP / DATA / UI / CORE / SEARCH 任务；致命补丁除外。
 4. 每个代码任务必须先有接口契约或 schema；控制台 UI 任务必须先有页面状态与 API mock 设计。
 5. 候选池只在本文件；`roadmap.md` 不构成候选源。若 `now.md` frontier 项在本文件无对应行，视为脱节，必须先补本文件再认领；不允许"凭空 frontier"。
 
-## P0 — Team Hub 壳子与接口（当前主线）
+## P0 — 治理系统（当前主线，D-026）
+
+> 四层架构推进。两项待拍板（架构走法 A/B、提醒可见范围/送达模型）只阻塞 concept 深设计与对应 epic 细节，不阻塞数据模型骨架。
+
+| 任务 | 状态 | type | 内容 |
+|------|------|------|------|
+| GOV-REFRAME-DOCS | done | docs | 已落地 2026-06-09；D-026 + 设计宪法 C/G/A 三层重构 + AGENTS §1/§4/§5 + README + roadmap + now + backlog + concept 骨架 + 下游引用迁移；见 `now.md` 最近完成 |
+| GOV-CONCEPT-REWRITE | current | design | 重写 `docs/design/team-hub-concept.md` 为治理系统（四层架构/实体/规则/route A）；架构走法 + 提醒模型留待定锚点 |
+| GOV-DATA-MODEL-DESIGN | pending | design | 数据真相层实体与关系：项目/赛季 · 成员+角色+资历 · 可配置组织树 · 任务+依赖 DAG · 前置需求 Need；先契约/schema 后落地。可复用 hub-contracts 与 v0.3 领域模型 |
+| GOV-RULES-LAYER-DESIGN | pending | design | 规则/治理层：卡点/过载/沉默/升级判定；进度派生信号阈值（commit 频率 / check-in 形态 / 沉默天数）|
+| GOV-VIZ-DAG-DESIGN | pending | design | 展示层"动态最短任务周期图"结构+状态版：关键链 / 收敛点 / 阻塞链高亮、缺口红点 |
+| GOV-REPORT-DESIGN | pending | design | 给老师的项目级自动汇报（不含个人比较，C2/A2）|
+| GOV-LARK-DERIVE-DESIGN | pending | design | 触点层：飞书动作→状态派生映射（@ / 卡片 / 一键 check-in）+ 提醒送达（待提醒模型拍板）；复用 Lark 三包 |
+| ARCH-PATH-DECISION | decision-needed | design | 治理为主轴（hub-contracts 设治理为核心域）vs Hub 之上平行模块（D-026 开放项）|
+| REMIND-MODEL-DECISION | decision-needed | design | 提醒可见范围/送达：混合 / 更私密优先 / 更透明（D-026 开放项，倾向混合）|
+
+## P0 — Team Hub 壳子（已落地，作为治理触点/集成 + 展示底座保留）
 
 | 任务 | 状态 | type | 内容 |
 |------|------|------|------|
@@ -24,7 +40,7 @@
 | HUB-COMPOSE-SCAFFOLD | done | code | 已落地于 2026-06-07；新增 root `Dockerfile`、`.dockerignore`、`compose.yaml` core stack（`hub + postgres`）、`deploy/teamhub.env.example` 与 `scripts/verify-hub-compose.sh`；Hub server 支持同镜像托管已构建控制台静态文件，并补齐控制台 real 模式需要的 mock-first `/api/events`、`/api/bridge/members`、`/api/git/repos`、`/api/artifacts`；未接真实公网、不写真实服务器。DoD 已完成：Hub 三包 verify、desktop/server/lark 三包既有 verify、非 Docker 本地 static/API smoke、compose yaml parse、脚本语法、生产依赖 audit 0 漏洞；Docker CLI/Compose 可用后，已修复 runtime 镜像缺少 `apps/hub-contracts` 生产依赖的问题，并通过 `scripts/verify-hub-compose.sh` 完成 Hub + Postgres build/up、health/API/static console smoke 与自动清理 |
 | HUB-LARK-WIRE | done | code | 已落地于 2026-06-07；`apps/lark-gateway` 增加 `src/hub.ts`，把飞书消息归一化为 Hub `message.received` 事件，并在 `handleMessage` 中支持可选 Hub event sink；`apps/lark-toolkit` 增加 Hub adapter descriptor；`apps/pf-skills` 增加 Hub adapter descriptor 与 `skill.completed` 事件映射；三包均通过 `@teamhub/hub-contracts` schema 测试。mock-first，不执行真实飞书 smoke |
 | HUB-ADAPTERS-MOCK | done | code | 已落地于 2026-06-07；`apps/hub-contracts` 新增 adapter health / capabilities / invoke request/response schema 与 fixtures；`apps/hub-server` 新增 Hermes / 小龙虾 / Claude Code mock AI adapter helpers，并暴露 `GET /api/adapters/:id/health`、`GET /api/adapters/:id/capabilities`、`POST /api/adapters/:id/invoke`；只返回 mock stub，不接真实凭证、不调用真实外部命令 |
-| HUB-GIT-FORGE-DESIGN | pending | design | 战队服务器 Git 中枢方案：Forgejo/Gitea/bare git 取舍、push/pull 工作流、artifact 不入 Git 策略、权限和备份边界；真实服务器操作另开任务审批 |
+| HUB-GIT-FORGE-DESIGN | pending（触点层） | design | 战队服务器 Git 中枢方案：Forgejo/Gitea/bare git 取舍、push/pull 工作流、artifact 不入 Git 策略、备份边界；D-026 后归触点/集成层，并入 Git 提交→进度派生（见 GOV-LARK-DERIVE / GOV-RULES-LAYER）；真实服务器操作另开任务审批 |
 
 ## P0 — Skill 自用闭环（备赛期窗口）
 
@@ -99,9 +115,9 @@
 ## 当前不做
 
 - 不为 v0.3 加新功能、不重构、不 polish。
-- 不按旧 markdown-only 方式启动 Bridge / Trail；它们已纳入 Team Hub 能力位。
-- 不做人与人比较的产能排名 / 绩效统计 / 多租户 / 权限。任务阻塞可见（"这个任务卡了 3 天需要人帮"）≠ 产能排名（"张三比李四干得多"），前者允许。
-- 壳子阶段不做 RAG / embedding / 炼丹 / 完整 Trail viewer。
-- 不抢占服务器 80 端口；不升级系统 Node。
-- 不读 / 搜索 / 提交真实 API key。
+- 不做完整 RBAC / 多租户 / 大型项目管理系统——治理是轻量（三层角色 + 可配置组织树 + 无硬截止，C3）。
+- 不做人与人比较的产能排名 / 绩效统计——任何角色含老师都不得见（C2 + 反监视 A1）。任务阻塞可见（"这个任务卡了 3 天需要人帮"）≠ 产能排名（"张三比李四干得多"），前者允许。
+- 不在飞书与系统之间双写（路线 A，G2）；不设硬截止 deadline，只发轻提醒（G4）。
+- 不做 RAG / embedding / 炼丹。
+- 不抢占服务器 80 端口；不升级系统 Node；不读 / 搜索 / 提交真实 API key。
 - 不依赖学校战队配合作为产品验证。
