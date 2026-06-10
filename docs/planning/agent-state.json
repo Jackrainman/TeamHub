@@ -2,14 +2,13 @@
   "schema_version": 1,
   "authority": "derived-cache-only; now.md/backlog.md/decisions.md remain authoritative",
   "mode": "governance_design",
-  "stage": "D-026 把 Teamhub reframe 为制度化进度治理系统；设计宪法重构为 C/G/A 三层；AGENTS §1/§4/§5 + README + roadmap + decisions(D-026) 文档体系大改进行中",
+  "stage": "D-026 治理 reframe + C/G/A 宪法已落地；2026-06-10 拍定提醒模型/AI 边界（D-026 后续）+ 新增 D-027 成长轴/机器人知识图谱；下一步按四层架构推进治理数据模型 epic，并行成长轴设计",
   "current_task": null,
   "frontier": [
     "GOV-DATA-MODEL-DESIGN"
   ],
   "blocked": [],
   "open_for_decision": [
-    "ARCH-PATH",
-    "REMIND-MODEL"
+    "ARCH-PATH"
   ]
 }

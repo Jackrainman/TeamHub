@@ -5,14 +5,14 @@
 ## 认领规则（Team Hub）
 
 1. 每次只认领一个原子任务，未 commit 不进入下一任务。
-2. 当前允许的任务类型（D-026 `governance_design`）：**治理概念/数据模型/规则层/展示汇报/触点派生设计 + 对应 schema 与代码 + 文档 reframe**。真实 Hermes / 小龙虾 / Claude Code / 服务器写入必须用户线下配置或审批。两项待拍板（架构走法、提醒模型）的深设计先搭骨架留待定。
+2. 当前允许的任务类型（D-026 `governance_design`）：**治理概念/数据模型/规则层/展示汇报/触点派生设计 + 成长轴（D-027 知识图谱/订阅）+ 对应 schema 与代码 + 文档 reframe**。真实 Hermes / 小龙虾 / Claude Code / 服务器写入必须用户线下配置或审批。一项待拍板（架构走法）的深设计先搭骨架留待定（提醒模型已 2026-06-10 拍定）。
 3. ProbeFlash v0.3 已冻结：不再认领 TECH / AIREADY / REALAI / CODECTX / DEP / DATA / UI / CORE / SEARCH 任务；致命补丁除外。
 4. 每个代码任务必须先有接口契约或 schema；控制台 UI 任务必须先有页面状态与 API mock 设计。
 5. 候选池只在本文件；`roadmap.md` 不构成候选源。若 `now.md` frontier 项在本文件无对应行，视为脱节，必须先补本文件再认领；不允许"凭空 frontier"。
 
 ## P0 — 治理系统（当前主线，D-026）
 
-> 四层架构推进。两项待拍板（架构走法 A/B、提醒可见范围/送达模型）只阻塞 concept 深设计与对应 epic 细节，不阻塞数据模型骨架。
+> 四层架构推进。一项待拍板（架构走法 A/B）只阻塞 concept 深设计与对应 epic 细节，不阻塞数据模型骨架（提醒模型已 2026-06-10 拍定，见 `decisions.md` D-026 后续）。
 
 | 任务 | 状态 | type | 内容 |
 |------|------|------|------|
@@ -22,9 +22,20 @@
 | GOV-RULES-LAYER-DESIGN | pending | design | 规则/治理层：卡点/过载/沉默/升级判定；进度派生信号阈值（commit 频率 / check-in 形态 / 沉默天数）|
 | GOV-VIZ-DAG-DESIGN | pending | design | 展示层"动态最短任务周期图"结构+状态版：关键链 / 收敛点 / 阻塞链高亮、缺口红点 |
 | GOV-REPORT-DESIGN | pending | design | 给老师的项目级自动汇报（不含个人比较，C2/A2）|
-| GOV-LARK-DERIVE-DESIGN | pending | design | 触点层：飞书动作→状态派生映射（@ / 卡片 / 一键 check-in）+ 提醒送达（待提醒模型拍板）；复用 Lark 三包 |
-| ARCH-PATH-DECISION | decision-needed | design | 治理为主轴（hub-contracts 设治理为核心域）vs Hub 之上平行模块（D-026 开放项）|
-| REMIND-MODEL-DECISION | decision-needed | design | 提醒可见范围/送达：混合 / 更私密优先 / 更透明（D-026 开放项，倾向混合）|
+| GOV-LARK-DERIVE-DESIGN | pending | design | 触点层：飞书动作→状态派生映射（@ / 卡片 / 一键 check-in）+ 提醒送达（提醒模型已拍定：私聊本人、起草不发送、升级的是事不是人，见 D-026 后续）；复用 Lark 三包 |
+| ARCH-PATH-DECISION | decision-needed | design | 治理为主轴（hub-contracts 设治理为核心域）vs Hub 之上平行模块（D-026 开放项）；成长轴（D-027）落核心域还是平行模块一并拍 |
+| REMIND-MODEL-DECISION | done | design | 已于 2026-06-10 拍定；提醒=队长轮询自动化、私聊本人、升级的是事不是人、AI 起草不发送/建议不判定/检索不评价；见 `decisions.md` D-026 后续 |
+
+## P0 — 成长轴 / 机器人知识图谱（与治理主干并列，D-027）
+
+> 反监视正面纲领：把"系统给得比拿得多"（A3）做厚。三级=本周在做→知识树→兴趣方向；护栏=兴趣数据归本人 / 无可比进度不排名 / MVP 不做课程平台。
+
+| 任务 | 状态 | type | 内容 |
+|------|------|------|------|
+| AXIS-KNOWLEDGE-MODEL-DESIGN | pending | design | 成长轴数据模型：`KnowledgeNode`（知识点）+ `Member×Knowledge`（掌握/兴趣关系）+ 任务知识标注；与治理域共享 Member/Task/Season；先契约/schema。落核心域 vs 平行模块随 ARCH-PATH |
+| AXIS-TREE-VIZ-DESIGN | pending | design | 知识树展示（人的未来），与依赖图（项目的未来）双图对称；**无完成率/不排名/不跨人对比**（C2/A1）|
+| AXIS-TASK-ANNOTATE-MVP | pending | design | MVP：布置任务时 AI 建议涉及知识点 + 挂资料/去年做过谁；树从标注长出，不预设本体（C3）|
+| AXIS-LARK-DIGEST-DESIGN | pending | design | 飞书订阅 digest：相关知识/缺口/新资料定时私推；参考 feiyue `_conf_crawl_loop`（72h 爬+推）模式；复用 Lark 三包 |
 
 ## P0 — Team Hub 壳子（已落地，作为治理触点/集成 + 展示底座保留）
 

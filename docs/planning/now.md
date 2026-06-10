@@ -5,14 +5,13 @@
 ```yaml
 mode: governance_design
 stage: D-026 把 Teamhub reframe 为制度化进度治理系统；设计宪法重构为 C/G/A 三层；AGENTS §1/§4/§5 + README + roadmap + decisions(D-026) 文档体系大改进行中
-stage_goal: 以 D-026 + 重写中的 docs/design/team-hub-concept.md + AGENTS.md §1/§4/§5 为事实源，按四层架构推进数据真相层（项目/赛季·成员角色资历·组织树·任务依赖·Need）→ 规则治理层 → 展示汇报层 → 触点集成层；已建 Hub 壳子降为触点/集成+展示底座复用；两项待拍板（架构走法 A/B、提醒可见范围/送达模型）深设计先搭骨架留待定，不阻塞宪法/定位/planning；AI 每轮默认读 AGENTS.md + now.md + agent-state.json + git 状态，backlog/decisions/roadmap/设计文档按条件读取
+stage_goal: 以 D-026/D-027 + 重写中的 docs/design/team-hub-concept.md + AGENTS.md §1/§4/§5 为事实源，按四层架构推进数据真相层（项目/赛季·成员角色资历·组织树·任务依赖·Need）→ 规则治理层 → 展示汇报层 → 触点集成层，并行成长轴（知识图谱/订阅，D-027）；已建 Hub 壳子降为触点/集成+展示底座复用；一项待拍板（架构走法 A/B；提醒模型已于 2026-06-10 拍定，见 D-026 后续）深设计先搭骨架留待定，不阻塞宪法/定位/planning；AI 每轮默认读 AGENTS.md + now.md + agent-state.json + git 状态，backlog/decisions/roadmap/设计文档按条件读取
 current_task: null  # 文档体系治理 reframe 大改进行中；收尾后重走 atomic-task，从 frontier 选治理数据模型 epic
 frontier:
   - GOV-DATA-MODEL-DESIGN
 blocked: []
 open_for_decision:
-  - ARCH-PATH                           # 治理为主轴 vs Hub 之上平行模块（decisions.md D-026 开放项）
-  - REMIND-MODEL                        # 提醒可见范围/送达：混合 / 更私密优先 / 更透明（倾向混合）
+  - ARCH-PATH                           # 治理为主轴 vs Hub 之上平行模块（decisions.md D-026 开放项；成长轴 D-027 落点一并拍）
 post_pivot_registry:
   - SKILL-PROTOCOL-V1                    # 已落地草稿；作为治理触点层 skill 契约底座保留
   - BRIDGE-01-ROSTER-SCHEMA              # 模型并入治理 Task/progress；数据载体被 D-026 路线 A 反转（系统库做真相）
@@ -31,8 +30,8 @@ _无。HUB-COMPOSE-SMOKE 已闭环：Docker CLI/Compose 可用后，修复 Hub �
 
 ## 阻塞 / 待拍板
 
-- **架构走法（D-026 开放项）**：治理为主轴（hub-contracts 设治理为核心域）vs 治理作 Hub 之上平行模块——待拍板；倾向主轴 + 渐进迁移。
-- **提醒可见范围/送达模型**：混合 / 更私密优先 / 更透明——用户仍在想，倾向混合。
+- **架构走法（D-026 开放项）**：治理为主轴（hub-contracts 设治理为核心域）vs 治理作 Hub 之上平行模块——待拍板；倾向主轴 + 渐进迁移。成长轴（D-027）落核心域还是平行模块一并拍。
+- ~~提醒可见范围/送达模型~~：**已于 2026-06-10 拍定**（提醒=队长轮询自动化、私聊本人、升级的是事不是人、AI 起草不发送/建议不判定/检索不评价）——见 `decisions.md` D-026 后续。
 - **真实外部 adapter**：Hermes / 小龙虾 / Claude Code 真实接入需要用户提供运行方式与权限；AI 当前只能做 mock-first 适配设计。
 - **真实服务器写入**：Forgejo/Gitea/bare git 部署、SSH、systemd、80/443、真实数据迁移均需用户白天审批后再做。
 
@@ -51,6 +50,7 @@ _无。HUB-COMPOSE-SMOKE 已闭环：Docker CLI/Compose 可用后，修复 Hub �
 
 ## 最近完成（详见 `git log`）
 
+- 2026-06-10 GOV-REMIND-AXIS-DECIDE — 拍定提醒模型 / AI 边界（提醒=队长轮询自动化、私聊本人、升级的是事不是人、起草不发送 / 建议不判定 / 检索不评价；`decisions.md` D-026 后续）+ 新增 **D-027 成长轴 / 机器人知识图谱**（三级：本周在做→知识树→兴趣方向；MVP=任务知识标注；飞书订阅 digest；feiyue 作 UX 参考、栈不搬）。AGENTS §1/§4/§5 同步锐化（A3 帮你开口 + 成长轴载体、A4 沉默不升级 + 建议不判定/检索不评价）。验证：`git diff --check`、now.md yaml 可解析、agent-state.json 同步、grep 引用一致。
 - 2026-06-09 GOV-REFRAME-DOCS — D-026 治理 reframe + 设计宪法 C/G/A 三层重构（AGENTS §1/§4/§5 + README + roadmap + decisions D-026 + concept 骨架）。
 - 2026-06-09 PF-V03-CLEANUP — 删除 ProbeFlash v0.3 代码（apps/server/desktop/dev-start.sh），精华入 `docs/archive/v0.3-closeout/`，飞书大文档归档，agent-state.json + AGENTS/now 瘦身。
 - 2026-06-07 HUB-CONSOLE-PREVIEW-SCRIPT — 新增 `scripts/preview-hub-console.sh` 与 hub-console `preview:local`（mock / TEAMHUB_API_BASE 切 real）。
