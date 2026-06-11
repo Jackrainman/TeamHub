@@ -56,6 +56,17 @@ describe('derivePresenceSchedule — 差异化在场（在场 / 随叫 / 去学 
     expect(byGroup.has('grp-mech')).toBe(false);
   });
 
+  test('排班按小组、汇报按大组：reportingGroupId 上溯到顶层大组', () => {
+    // 电控 / 视觉是程序大组的小组 → reportingGroupId = 程序
+    expect(byGroup.get('grp-ec')!.reportingGroupId).toBe('grp-program');
+    expect(byGroup.get('grp-vision')!.reportingGroupId).toBe('grp-program');
+    // 电路本就顶层 → reportingGroupId = 自身；程序大组自身亦然
+    expect(byGroup.get('grp-circuit')!.reportingGroupId).toBe('grp-circuit');
+    expect(byGroup.get('grp-program')!.reportingGroupId).toBe('grp-program');
+    // 排班单元仍是小组（groupId 不被汇报层吞掉）
+    expect(byGroup.get('grp-ec')!.groupId).toBe('grp-ec');
+  });
+
   test('事实陈述只含组 / 任务 / 资源名，不含任何人名（反排名）', () => {
     for (const r of recs) {
       for (const name of ['视觉C', '电控B', '视觉A', '程序A', '程序B', '机械C', '机械D', '电路D']) {

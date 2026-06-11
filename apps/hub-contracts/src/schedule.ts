@@ -6,6 +6,7 @@ import {
 import type {
   Dependency,
   DepNodeKnowledge,
+  Group,
   PresenceMode,
   PresenceReason,
   PresenceRecommendation,
@@ -38,6 +39,24 @@ function indexBy<T>(items: T[], key: (item: T) => string): Map<string, T> {
 /** 只走 active + 已确认（confirmedBy 非空）的边，aiSuggested 未确认不参与（C4）。 */
 function isLiveEdge(dep: Dependency): boolean {
   return dep.status === 'active' && dep.confirmedBy !== null;
+}
+
+/**
+ * 顶层大组祖先（汇报按大组）：沿 parentGroupId 上溯到根。
+ * 电控 / 视觉 → 程序；电路 / 机械（本就顶层）→ 自身。环 / 缺失则停在当前。
+ */
+function topLevelGroupId(
+  groupId: string,
+  groupsById: Map<string, Group>,
+): string {
+  let current = groupId;
+  const seen = new Set<string>([current]);
+  for (;;) {
+    const parent = groupsById.get(current)?.parentGroupId;
+    if (!parent || seen.has(parent)) return current;
+    seen.add(parent);
+    current = parent;
+  }
 }
 
 /** 沿 DAG 反向收集 holderTask 的全部 live 未完成上游任务 id。 */
@@ -226,6 +245,7 @@ export function derivePresenceSchedule(
       id: `presc-${windowLabel}-${groupId}`,
       windowLabel,
       groupId,
+      reportingGroupId: topLevelGroupId(groupId, groupsById),
       mode: acc.mode,
       resourceId: acc.resourceId,
       holderTaskLabel: acc.holderTaskLabel,

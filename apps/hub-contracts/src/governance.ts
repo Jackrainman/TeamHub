@@ -387,7 +387,10 @@ export const PresenceReasonSchema = z.enum([
 export const PresenceRecommendationSchema = z.object({
   id: z.string().min(1),
   windowLabel: z.string().min(1),
+  // 布置任务 / 排班按小组（电控 / 视觉 / 电路 / 机械；跨小组的收敛任务如总联调挂大组）。
   groupId: z.string().min(1), // 组键（反排名核心）
+  // 汇报按大组：groupId 的顶层祖先（程序 / 电路 / 机械）；顶层组自身 = groupId。
+  reportingGroupId: z.string().min(1),
   mode: PresenceModeSchema,
   resourceId: z.string().min(1).nullable(),
   holderTaskLabel: z.string().min(1).nullable(), // "R1 总联调"（任务名，非人名）
