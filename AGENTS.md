@@ -64,6 +64,7 @@
 - 同一时刻只允许一个原子任务处于执行中。
 - Completion gate 三件套：最小验证通过 + `now.md` planning sync + 单任务 commit。三者全齐才允许选下一任务。
 - planning sync = 覆盖式更新 `now.md`（current_task / frontier / blocked / 最近完成裁剪到 5 条）并同步 `agent-state.json` 活状态字段；候选池增删改名重排时同步 `backlog.md`；长期决策变化时追加 `decisions.md`。
+- **提交习惯（用户 2026-06-11 授权）**：completion gate（验证 + planning sync + 单任务 commit）通过后，**直接 `commit` 并 `push` 到 `origin/master`，无需等用户 review**（trunk-based，全在 `master`）。push 前先 `git fetch` 看 `origin/master` 有无分叉（跨机器 WSL2 测试机 vs 本地可能造成远端分叉）；有分叉先 rebase/合并再 push。此授权仅限 git 提交/推送（代码 + docs + planning）；**真实服务器写入 / 部署 / SSH / systemd / 80·443 / 密钥仍需用户审批（§3 / §8 边界不变）**。
 - 禁止凭旧计划机械顺推；禁止 commit 后自动续推下一任务，必须重新走 `atomic-task` skill 第 1 步。
 - 完整循环规则见 `.agents/skills/atomic-task/SKILL.md`。
 
