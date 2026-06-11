@@ -27,6 +27,8 @@ _无。HUB-COMPOSE-SMOKE 已闭环：Docker CLI/Compose 可用后，修复 Hub �
 
 四层架构 + 路线 A 详见 `AGENTS.md §1` 与 D-026（不在此重复）。治理域是新增核心；已建 Hub 壳子（hub-server/contracts/console/Compose）作为触点/集成 + 展示底座保留。深设计见重写中的 `docs/design/team-hub-concept.md`。
 
+**产品定义锐化（2026-06-08, D-026 draft）**：定位从“运维 / 观测控制台”锐化为“**制度化进度治理系统**”——系统是大脑 / 飞书是脸、不双写、无硬截止只轻推、暴露需求不暴露人、中央视图 = 动态依赖图（务实版）、给新人安全网。事实源 `docs/design/team-hub-product-definition.md`（涉及产品形态 / 领域模型 / 中央视图 / 飞书·Git 边界时优先读）。§7 待定项待逐条拍板。
+
 ## 阻塞 / 待拍板
 
 - **架构走法（D-026 开放项）**：治理为主轴（hub-contracts 设治理为核心域）vs 治理作 Hub 之上平行模块——待拍板；倾向主轴 + 渐进迁移。成长轴（D-027）落核心域还是平行模块一并拍。
