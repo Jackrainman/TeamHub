@@ -368,3 +368,20 @@
 - 暂缓（用户认同，记此以免遗忘）：`lark-api-capability.md` + `lark-oss-candidates.md` 暂留 `docs/research`——前者仍是 pending `GOV-LARK-DERIVE`（触点层）的事实底座，二者均被 append-only 的 D-020/D-021 引用，现在动会 churn 决策日志且收益仅 364 行；**待 GOV-LARK-DERIVE 落地后归档**。scope 3（`superpowers/specs` / `visuals.md` / `D-023` / `workflow-evolution` / `agents/workflow`）未在本轮范围，留待后续；`docs/superpowers/specs/*` 内对已移走 plan 的交叉引用暂为 stale path，随 scope 3 一并清理。
 - 影响：活文档 8838 → ~4760 行（−46%）。引用更新：`now.md`（product-definition→concept）、`lark-connector.md` / `decisions.md`（plans 路径→archive）。
 - 事实源：`docs/design/team-hub-concept.md`（canonical 产品+架构）；本 ADR（保留规则）。
+
+## D-031 — 概念调研：数据生命线命门比"录入"更深，frontier 重排
+
+- 状态：**DECIDED**
+- 日期：2026-06-11
+- 上下文：用子 agent（ground → 6 个 pending 概念区设计 → opus 跨切面缺失综合 → opus 对抗 critic，9 agent，结论全部回源核实）调研后续概念设计并找缺失。核心发现：6 份设计草案都**假设三个公共底座已存在**，但代码里全是空的；且整条"被卡 vs 摸鱼"判定压在一个**没有派生来源、还在撒谎标 `updatedBy:'derived'`** 的字段上。当前 frontier 第一位 `GOV-DEP-INTAKE` 其实**不是最深命门**——它前面压着 server 治理骨架与 idle 派生两层，缺它们则录入了也只是把数据写进一个没人读、没有真实 now/快照注入的洞。
+- 已核实的命门级缺失（带 file:line）：
+  1. **三层地基全空**：`hub-server` 无任何治理路由（`server.ts` 只有 broker fixtures 路由，real 模式 `GET /api/dep-graph` 直接 404）；`lark-toolkit` 只有 `reply(text)`（`index.ts:9`，无 sendCard/卡片回调）；无 ViewerContext/认证/身份映射。每区都假设它在、没人负责先建。
+  2. **真信号→idle 派生链断在最后一截**：`ownerIsIdle`（`attribution.ts:65`）只读 `Member.status==='idle'`，但该字段在 `fixtures.ts:253` 是手填硬常量却标 `updatedBy:'derived'`（无 `deriveMemberStatus` 函数）；且它与 `currentTaskId` 指向的 `Task.status` 构成事实双写（违 G2，m-visionC idle 却持 inProgress 任务）。**最尖锐：`freeIdle` 会把"队长还没录入下一个任务/依赖"的人误判成"真摸鱼"**——系统自己制造了"摸鱼=测量错误"，且"未录入"没有 `blockedIdle` 那样的洗白态，直接打脸锚点场景"一眼可分"。
+  3. **看起来已 ship 实则空壳**：`OverloadSignal` 只有 schema+type、零 derive 函数/fixtures/测（三痛点里"负载错配"在 schema 层就停了却被记功）；`Need.escalated` 枚举值/字段在但无任何函数做 open→escalated（`escalatedAt` 全 null），A4"系统唯一授权的施压机制"是死代码路径。
+  4. **两处一行级 C4 破口**（已修，见 commit 17316cc）：`relatedKnowledgeFor` 不过滤 `confirmedBy`、`computeCriticalSet` 喂全量 deps 而非 liveDeps——均暂被 fixtures 掩盖，`GOV-DEP-INTAKE` 接真实 AI 即爆。
+- 决策（用户 2026-06-11 选定范围 2+1）：
+  1. **范围 2（已落地，commit 17316cc）**：先拆两处一行 C4 雷 + 2 锚定测试；hub-contracts 29 测 + hub-console 4 测全过。
+  2. **范围 1：frontier 重排**——把 server 治理骨架与 idle 派生提到录入之前。新 top-3：`HUB-SERVER-GOV-SCAFFOLD`（可变内存 GovernanceStore + 治理路由骨架 + now=server clock 注入）→ `GOV-MEMBER-STATUS-DERIVE`（idle/working/blocked 纯函数派生 + 解决与 Task.status 双写 + **第三态"未录入"**，schema 待本轮讨论拍）→ `GOV-DEP-INTAKE`（前两者落地后才有真实写入/读取出入口）。`GOV-RULES-LAYER` / `GOV-CONCEPT-REWRITE` 退出 top-3（仍在 backlog）。
+- 待拍（用户线下 / 下一轮讨论）：`GOV-MEMBER-STATUS-DERIVE` 的"未录入"第三态如何建模才不让 `freeIdle` 冤枉人（讨论项 4）；`OverloadSignal` 派生 / `Need` escalated 转换 / `LARK-CARD-CHANNEL` + `LarkMemberBinding` 立为 backlog 行。
+- 影响：`now.md` / `agent-state.json` frontier 重排；新增上述 pending 区入 backlog。本 ADR 不改代码（范围 2 的代码改动在 17316cc）。
+- 事实源：本 ADR；ultracode 调研产物（本 session task `wu26owofd` 输出，含 6 区设计草案 + 13 条缺失清单 + 对抗 critic 5 条补漏）；`docs/design/team-hub-concept.md`（canonical）。

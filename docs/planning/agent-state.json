@@ -2,15 +2,16 @@
   "schema_version": 1,
   "authority": "derived-cache-only; now.md/backlog.md/decisions.md remain authoritative",
   "mode": "governance_design",
-  "stage": "2026-06-11 D-030 文档瘦身(dogfood 单一真相源)：superpowers/plans(4038行)→archive/pre-pivot-plans + product-definition 独有实质并入 canonical concept.md(原文件退役) + 活文档8838→~4760(−46%)；lark 调研暂留待 GOV-LARK-DERIVE；同日前一步 planning-sync 已补立 GOV-DEP-INTAKE+重排 frontier。纯 docs/planning",
+  "stage": "2026-06-11 ultracode 概念调研(9 agent，全回源核实) → 范围2+1。范围2(已落 commit 17316cc)：修两处一行级 C4 破口(relatedKnowledgeFor 不过滤 confirmedBy + computeCriticalSet 喂全量 deps)，hub-contracts 29 测+hub-console 4 测全过。范围1(本步，纯 docs/planning)：frontier 重排(D-031)——数据生命线命门(server 治理骨架+idle 派生)比录入更深，提到 GOV-DEP-INTAKE 之前",
   "current_task": null,
   "frontier": [
-    "GOV-DEP-INTAKE-DESIGN",
-    "GOV-RULES-LAYER-DESIGN",
-    "GOV-CONCEPT-REWRITE"
+    "HUB-SERVER-GOV-SCAFFOLD",
+    "GOV-MEMBER-STATUS-DERIVE",
+    "GOV-DEP-INTAKE-DESIGN"
   ],
   "blocked": [],
   "open_for_decision": [
+    "GOV-MEMBER-STATUS-THIRD-STATE",
     "SCHED-WINDOW-GRANULARITY",
     "SCHED-INVITED-MEMBER-DISPLAY"
   ]
