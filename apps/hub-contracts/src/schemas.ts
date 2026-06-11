@@ -1,12 +1,6 @@
 import { z } from 'zod';
 
-export const isoDateTimeSchema = z.string().datetime({ offset: true });
-
-export const ActorRefSchema = z.object({
-  id: z.string().min(1),
-  displayName: z.string().min(1),
-  source: z.enum(['lark', 'git', 'console', 'unknown']),
-});
+import { ActorRefSchema, isoDateTimeSchema } from './common.js';
 
 export const HubEventSourceSchema = z.enum([
   'lark',
@@ -141,7 +135,6 @@ export const ArtifactsResponseSchema = z.object({
   artifacts: z.array(ArtifactRefSchema),
 });
 
-export type ActorRef = z.infer<typeof ActorRefSchema>;
 export type HubEventSource = z.infer<typeof HubEventSourceSchema>;
 export type HubEventType = z.infer<typeof HubEventTypeSchema>;
 export type HubEvent = z.infer<typeof HubEventSchema>;

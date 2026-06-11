@@ -1,5 +1,4 @@
 export {
-  ActorRefSchema,
   AdapterCapabilitiesResponseSchema,
   AdapterDescriptorSchema,
   AdapterHealthResponseSchema,
@@ -17,10 +16,8 @@ export {
   HubEventSourceSchema,
   HubEventTypeSchema,
   HubEventsResponseSchema,
-  isoDateTimeSchema,
 } from './schemas.js';
 export type {
-  ActorRef,
   AdapterCapabilitiesResponse,
   AdapterDescriptor,
   AdapterHealthResponse,
@@ -50,4 +47,14 @@ export {
   bridgeMemberStateFixtures,
   gitRepoRefFixtures,
   hubEventFixtures,
+  governanceScenarioFixture,
+  memberKnowledgeFixtures,
+  GOVERNANCE_SCENARIO_TIME,
+  GOVERNANCE_SCENARIO_NOW,
 } from './fixtures.js';
+
+// 共享基元（ActorRef / isoDateTime）+ 治理主轴域（D-028）+ 成长轴 + 派生算法
+export * from './common.js';
+export * from './governance.js';
+export * from './growth.js';
+export * from './attribution.js';
