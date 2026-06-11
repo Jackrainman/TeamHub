@@ -248,6 +248,8 @@ function relatedKnowledgeFor(
   const seen = new Set<string>();
   for (const tag of tags) {
     if (!taskIds.includes(tag.taskId)) continue;
+    // C4：未确认的 AI 标注（confirmedBy=null）不参与派生，与 isLiveEdge 对称。
+    if (tag.confirmedBy === null) continue;
     const node = nodesById.get(tag.knowledgeNodeId);
     if (!node) continue;
     for (const link of node.resourceLinks) {
@@ -276,7 +278,12 @@ export function toDepGraphView(
 
   const attributions = deriveBlockAttributions(snapshot, now);
   const attrByIdle = indexBy(attributions, (a) => a.idleTaskId);
-  const criticalSet = computeCriticalSet(snapshot.tasks, snapshot.dependencies);
+  // 关键链只走 live 边（active + 已确认），与 deriveBlockAttributions / 阻塞边渲染同口径；
+  // satisfied / 未确认 AI 边不得延伸关键链或点亮 isCritical（C4）。
+  const criticalSet = computeCriticalSet(
+    snapshot.tasks,
+    snapshot.dependencies.filter(isLiveEdge),
+  );
 
   const nodes: DepNode[] = snapshot.tasks.map((task) => {
     const unmet = unmetNeedsOf(task.id, snapshot.needs);

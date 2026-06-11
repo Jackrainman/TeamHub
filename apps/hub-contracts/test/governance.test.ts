@@ -124,3 +124,50 @@ describe('toDepGraphView — 两种空闲结构可分', () => {
     }
   });
 });
+
+describe('C4 护栏：未确认 AI 不参与派生（与 isLiveEdge 对称）', () => {
+  test('关键链只走 live 边：satisfied 的 arm-mount 不在关键链，live blocker newboard 在', () => {
+    const view = toDepGraphView(F, NOW);
+    const byId = new Map(view.nodes.map((n) => [n.id, n]));
+    // dep-001 (arm-mount→chassis) status=satisfied → 非 live，不得延伸关键链
+    expect(byId.get('t-r1-arm-mount')!.isCritical).toBe(false);
+    // dep-002 (newboard→chassis) active+confirmed → live blocker，应在关键链
+    expect(byId.get('t-r1-newboard')!.isCritical).toBe(true);
+    // 关键链终点链路不变
+    expect(byId.get('t-r1-chassis')!.isCritical).toBe(true);
+    expect(byId.get('t-r1-integration')!.isCritical).toBe(true);
+  });
+
+  test('未确认 AI 知识标注(confirmedBy=null)不进 relatedKnowledge', () => {
+    const tampered = {
+      ...F,
+      knowledgeNodes: [
+        ...F.knowledgeNodes,
+        {
+          id: 'kn-ghost',
+          name: '未确认猜测知识点',
+          groupId: null,
+          parentNodeId: null,
+          resourceLinks: [{ label: 'AI瞎猜的资料', uri: 'doc://ghost' }],
+          createdAt: NOW,
+        },
+      ],
+      taskKnowledgeTags: [
+        ...F.taskKnowledgeTags,
+        {
+          id: 'tkt-ghost',
+          taskId: 't-r1-vision-stream',
+          knowledgeNodeId: 'kn-ghost',
+          source: 'aiSuggested' as const,
+          confirmedBy: null,
+        },
+      ],
+    };
+    const view = toDepGraphView(tampered, NOW);
+    const n = view.nodes.find((x) => x.id === 't-r1-vision-stream')!;
+    const titles = n.relatedKnowledge.map((k) => k.title);
+    expect(titles).not.toContain('AI瞎猜的资料');
+    // 已确认的标注仍正常挂接（回归护栏）
+    expect(titles).toContain('R2 同款视觉代码');
+  });
+});
