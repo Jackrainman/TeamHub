@@ -49,12 +49,15 @@ export {
   hubEventFixtures,
   governanceScenarioFixture,
   memberKnowledgeFixtures,
+  scheduleScenarioFixture,
+  scheduleResourceDownFixture,
   GOVERNANCE_SCENARIO_TIME,
   GOVERNANCE_SCENARIO_NOW,
 } from './fixtures.js';
 
-// 共享基元（ActorRef / isoDateTime）+ 治理主轴域（D-028）+ 成长轴 + 派生算法
+// 共享基元（ActorRef / isoDateTime）+ 治理主轴域（D-028）+ 成长轴 + 派生算法 + 在场排班（D-029）
 export * from './common.js';
 export * from './governance.js';
 export * from './growth.js';
 export * from './attribution.js';
+export * from './schedule.js';

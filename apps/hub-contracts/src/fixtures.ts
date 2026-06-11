@@ -1,4 +1,5 @@
 import type { GovernanceSnapshot } from './attribution.js';
+import type { ScheduleSnapshot } from './schedule.js';
 import type {
   AdapterCapabilitiesResponse,
   AdapterDescriptor,
@@ -292,3 +293,31 @@ export const memberKnowledgeFixtures: MemberKnowledge[] = [
   { memberId: 'm-visionC', knowledgeNodeId: 'kn-vision-cal', relation: 'interested', visibility: 'private', updatedAt: GOVERNANCE_SCENARIO_NOW },
   { memberId: 'm-visionC', knowledgeNodeId: 'kn-rtos', relation: 'learning', visibility: 'private', updatedAt: GOVERNANCE_SCENARIO_NOW },
 ];
+
+// ---------------------------------------------------------------------------
+// 差异化在场排班样例（D-029）：治理快照 + 实车 + 今晚占用窗口。
+//
+// 今晚 R1 归程序组调「R1 总联调」。期望派生：
+//   程序 = present（持有 R1，最后一关）；电控 / 电路 = onCall（上游链上仍在推进）；
+//   视觉 = free（被底盘卡，挂"可看的资料"）；机械 = 沉默（机械臂已装完，链上无活）。
+// down 变体：R1 撞坏 → R1 链相关组整片 free(resourceDown)。
+// ---------------------------------------------------------------------------
+
+export const scheduleScenarioFixture: ScheduleSnapshot = {
+  ...governanceScenarioFixture,
+  resources: [
+    { id: 'res-r1', projectId: 'prj-robots', name: 'R1 比赛车', kind: 'robot', robotTarget: 'R1', status: 'inUse', statusReason: null, statusSource: 'console', updatedAt: GOVERNANCE_SCENARIO_NOW },
+    { id: 'res-r2', projectId: 'prj-robots', name: 'R2 比赛车', kind: 'robot', robotTarget: 'R2', status: 'available', statusReason: null, statusSource: 'console', updatedAt: GOVERNANCE_SCENARIO_NOW },
+  ],
+  resourceSessions: [
+    { id: 'sess-tonight-prog', projectId: 'prj-robots', resourceId: 'res-r1', windowLabel: '今晚', orderInWindow: 0, holderGroupId: 'grp-program', holderTaskId: 't-r1-integration', invitedMemberIds: ['m-progA'], note: '今晚 R1 归程序调总联调', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, createdAt: GOVERNANCE_SCENARIO_NOW },
+  ],
+};
+
+export const scheduleResourceDownFixture: ScheduleSnapshot = {
+  ...scheduleScenarioFixture,
+  resources: [
+    { ...scheduleScenarioFixture.resources[0], status: 'down', statusReason: '撞坏维修中' },
+    scheduleScenarioFixture.resources[1],
+  ],
+};

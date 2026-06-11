@@ -314,6 +314,93 @@ export const DepGraphSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// 共享物理资源 + 差异化在场排班（D-029）
+//
+// 通用 PM 调度任务、假设人可并行 / 资源抽象；本场景有「单一共享物理资源（实车）」
+// 做硬串行点 + 物理共处要求 → "今晚 / 明天你这角色要不要在场"不是排班表，是从
+// DAG + 车可用性派生。差异化（程序熬夜调车 / 机械电路 on-call / 被卡的今晚去学）
+// 由依赖位置 + 资源状态自动落出，不手排。
+//
+// 反监视（C2/A1）：派生输出 PresenceRecommendation 的主键是 group/resource/task，
+// **无 memberId 维度**；ResourceSession.invitedMemberIds 仅是"单窗操作名单"，
+// 绝不跨窗按人累计（否则即出勤排名）——护栏落在"输出无人维度 + 不做按人聚合视图"。
+// ---------------------------------------------------------------------------
+
+export const ResourceKindSchema = z.enum(['robot', 'testRig', 'instrument']);
+
+/** 资源自身状态：down/upgrading 时整片下游 require 它的任务无法上车（车撞坏全卡）。 */
+export const ResourceStatusSchema = z.enum([
+  'available', // 空闲可用
+  'inUse', // 某窗口被占用（调试中）
+  'down', // 损坏 / 不可用（撞坏维修）
+  'upgrading', // 升级改造中
+]);
+
+export const SharedResourceSchema = z.object({
+  id: z.string().min(1),
+  projectId: z.string().min(1),
+  name: z.string().min(1), // "R1 比赛车"
+  kind: ResourceKindSchema,
+  robotTarget: RobotTargetSchema, // 与 Task.robotTarget 对齐
+  status: ResourceStatusSchema,
+  statusReason: z.string().min(1).nullable(), // "撞坏维修中"——中性事实，非归咎于人
+  statusSource: GovActorSourceSchema, // 派生优先，console 兜底
+  updatedAt: isoDateTimeSchema,
+});
+
+/**
+ * 占用窗口：粗粒度（"今晚" / "明天上午"），队长一拍即录（低录入 C1）。
+ * 同一 windowLabel + 同一 resource 可有多条（orderInWindow 表"先程序后机械"的接力）。
+ * 精确钟点语义（startsAt/endsAt）留 open（见 D-029 open_for_decision）。
+ */
+export const ResourceSessionSchema = z.object({
+  id: z.string().min(1),
+  projectId: z.string().min(1),
+  resourceId: z.string().min(1),
+  windowLabel: z.string().min(1), // 粗粒度标签，不锁 enum（"今晚" / "明天上午" / "周末"）
+  orderInWindow: z.number().int().nonnegative(), // 窗口内接力顺序（0,1,2…）
+  holderGroupId: z.string().min(1), // 该段车归哪个组
+  holderTaskId: z.string().min(1).nullable(), // 关联任务（"R1 总联调"）
+  // 队长一次可选多组多人——仅本窗操作名单，绝不跨窗按人累计（反排名护栏）。
+  invitedMemberIds: z.array(z.string().min(1)),
+  note: z.string().min(1).nullable(),
+  source: z.enum(['human', 'aiSuggested', 'derived']),
+  // aiSuggested 未确认不参与派生（C4：AI 建议不判定）。
+  confirmedBy: ActorRefSchema.nullable(),
+  createdAt: isoDateTimeSchema,
+});
+
+export const PresenceModeSchema = z.enum([
+  'present', // 在场（持有车 / 接力持有）
+  'onCall', // 随叫（上游链上仍在推进，可能临时被叫）
+  'free', // 今晚不用来（被卡 → 去歇 / 去学；或车 down）
+]);
+
+export const PresenceReasonSchema = z.enum([
+  'holdsResource', // 持有车做这段工作
+  'upstreamOnCall', // 上游链上还在推进，可能被叫
+  'blockedFree', // 被卡而空闲，本窗无法推进
+  'resourceDown', // 车不可用，整片下游今晚作罢
+]);
+
+/** 派生输出：在场建议（组键，无人维度）。 */
+export const PresenceRecommendationSchema = z.object({
+  id: z.string().min(1),
+  windowLabel: z.string().min(1),
+  groupId: z.string().min(1), // 组键（反排名核心）
+  mode: PresenceModeSchema,
+  resourceId: z.string().min(1).nullable(),
+  holderTaskLabel: z.string().min(1).nullable(), // "R1 总联调"（任务名，非人名）
+  orderInWindow: z.number().int().nonnegative().nullable(), // present 时显示接力顺序
+  reason: PresenceReasonSchema,
+  factStatement: z.string().min(1), // 中性：只填组 / 任务 / 资源名
+  // free 模式挂"这段时间可以看的资料"（A3/D-027 正面给予）。
+  relatedKnowledge: z.array(DepNodeKnowledgeSchema),
+  detectedBy: z.literal('derived'), // 永远派生，从不是人录入
+  detectedAt: isoDateTimeSchema,
+});
+
+// ---------------------------------------------------------------------------
 // 列表响应包装（继承 { xxx: [] } 风格）
 // ---------------------------------------------------------------------------
 
@@ -334,6 +421,16 @@ export const DependenciesResponseSchema = z.object({
 export const NeedsResponseSchema = z.object({ needs: z.array(NeedSchema) });
 export const BlockAttributionsResponseSchema = z.object({
   attributions: z.array(BlockAttributionSchema),
+});
+export const SharedResourcesResponseSchema = z.object({
+  resources: z.array(SharedResourceSchema),
+});
+export const ResourceSessionsResponseSchema = z.object({
+  sessions: z.array(ResourceSessionSchema),
+});
+export const PresenceScheduleResponseSchema = z.object({
+  windowLabel: z.string().min(1),
+  recommendations: z.array(PresenceRecommendationSchema),
 });
 
 // ---------------------------------------------------------------------------
@@ -373,3 +470,12 @@ export type DepEdgeKind = z.infer<typeof DepEdgeKindSchema>;
 export type DepEdge = z.infer<typeof DepEdgeSchema>;
 export type DepGraphSummary = z.infer<typeof DepGraphSummarySchema>;
 export type DepGraph = z.infer<typeof DepGraphSchema>;
+export type ResourceKind = z.infer<typeof ResourceKindSchema>;
+export type ResourceStatus = z.infer<typeof ResourceStatusSchema>;
+export type SharedResource = z.infer<typeof SharedResourceSchema>;
+export type ResourceSession = z.infer<typeof ResourceSessionSchema>;
+export type PresenceMode = z.infer<typeof PresenceModeSchema>;
+export type PresenceReason = z.infer<typeof PresenceReasonSchema>;
+export type PresenceRecommendation = z.infer<
+  typeof PresenceRecommendationSchema
+>;
