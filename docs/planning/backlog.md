@@ -25,6 +25,7 @@
 | GOV-SCHED-VIZ-DESIGN | pending | design | 控制台"谁该在场"活页面（资源条 + `[改占用]` 入口 + present/onCall/free 分色 + free 行"可看的资料"）；页面状态 + API mock 设计已在 `gov-oncall-schedule.md` §3 前置；mock 由 `derivePresenceSchedule` 从场景派生（同 DAG 页同构）；真实写路径 `POST /api/schedule/sessions` 后置（hub-server mock-first，待服务器审批）|
 | GOV-REPORT-DESIGN | pending | design | 给老师的项目级自动汇报（不含个人比较，C2/A2）|
 | GOV-LARK-DERIVE-DESIGN | pending | design | 触点层：飞书动作→状态派生映射（@ / 卡片 / 一键 check-in）+ 提醒送达（提醒模型已拍定：私聊本人、起草不发送、升级的是事不是人，见 D-026 后续）；复用 Lark 三包 |
+| GOV-DEP-INTAKE-DESIGN | pending | design | **DAG 数据命门（此前未立项的脱节，2026-06-11 补立）**：队长布置任务那一下顺手连依赖 + AI 预填建议依赖 / Need 的一屏录入交互（页面状态 + API mock）；目标 = DAG 录入即长出、不额外打卡（C1 低录入 / G2 不双写）；用锚点场景（视觉A采集→电控B调底盘→机械C装臂→电路D配合）当样例；真实写路径 `POST /api/tasks` + `POST /api/deps` 后置 mock-first（待服务器审批）。无此项则归因 / 排班 / 知识树全在 fixtures 上演 |
 | ARCH-PATH-DECISION | done | design | 已于 2026-06-11 拍定（**D-028**）：治理为主轴——治理实体进 hub-contracts 核心域（common/governance/growth/attribution），hub-\* 壳子降为触点/展示底座，成长轴落同包独立文件域 |
 | REMIND-MODEL-DECISION | done | design | 已于 2026-06-10 拍定；提醒=队长轮询自动化、私聊本人、升级的是事不是人、AI 起草不发送/建议不判定/检索不评价；见 `decisions.md` D-026 后续 |
 

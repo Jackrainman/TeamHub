@@ -2,11 +2,12 @@
   "schema_version": 1,
   "authority": "derived-cache-only; now.md/backlog.md/decisions.md remain authoritative",
   "mode": "governance_design",
-  "stage": "D-029 差异化在场排班(杀手锏)立项并落数据模型：hub-contracts 新增 SharedResource/ResourceSession/PresenceRecommendation + derivePresenceSchedule 纯函数 + 锚点/车撞坏 fixtures + 12 项排班单测，verify:all 全过 26 测；输出无 memberId 维度(反排名)；下一步 GOV-SCHED-VIZ(活页面) 或 GOV-RULES-LAYER",
+  "stage": "2026-06-11 planning-sync：给此前未立项的依赖录入交互补立项(GOV-DEP-INTAKE，DAG 数据命门) + 按用户选定顺序重排 frontier 为 录入→规则层→concept 回写 + concept.md 追上已 ship 的 D-028/D-029(修 §6/§8 stale 标记)；GOV-SCHED-VIZ 仍 pending 但暂让出 top-3 frontier；本轮纯 docs/planning sync 未动代码",
   "current_task": null,
   "frontier": [
-    "GOV-SCHED-VIZ-DESIGN",
-    "GOV-RULES-LAYER-DESIGN"
+    "GOV-DEP-INTAKE-DESIGN",
+    "GOV-RULES-LAYER-DESIGN",
+    "GOV-CONCEPT-REWRITE"
   ],
   "blocked": [],
   "open_for_decision": [

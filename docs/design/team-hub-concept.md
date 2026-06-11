@@ -10,7 +10,7 @@ supersedes: D-024 的"信息路由器 / 监控 broker"产品定位
 # Teamhub 概念设计 — 制度化进度治理系统
 
 > 目标：把 Teamhub 从"信息路由器 + 后端运维控制台 + adapter 底座"（D-024）升级为**制度化的项目进度治理系统**（D-026）。
-> 本文件为**骨架版**：方向与四层架构已定；两项待拍板（架构走法 A/B、提醒可见范围/送达模型）相关章节标 `> 待定`，待拍板回填。
+> 本文件为**骨架版**（`status: skeleton`）：方向与四层架构已定。原两项待拍板均已拍——架构走法→**D-028**（治理为主轴）、提醒模型→**D-026 后续**。**§6 数据真相 / §8 阻塞归因视图已由 D-028 落地代码、差异化在场排班由 D-029 落地**；本轮（2026-06-11 planning-sync）只修正了 stale 的"待 X-DESIGN"标记，§6-§8 细化深写仍待 `GOV-CONCEPT-REWRITE`。仍 pending：§7 规则层（`GOV-RULES-LAYER`）、§9 触点派生（`GOV-LARK-DERIVE`）、录入交互（`GOV-DEP-INTAKE`，DAG 数据命门）。
 
 ## 0. 一句话
 
@@ -66,7 +66,7 @@ Teamhub = 机器人战队的轻量进度治理系统：
 
 **路线 A**：真相在系统关系库（生产 Postgres，D-025 不变）；飞书只做汇报 / 通知 / 一键 check-in / 自动生成老师汇报；不双写。
 
-## 6. 数据真相层（①）— 实体（需求粒度，schema 待 GOV-DATA-MODEL-DESIGN）
+## 6. 数据真相层（①）— 实体（**schema 已落地 D-028**：`hub-contracts` `common.ts`/`governance.ts`/`growth.ts`/`attribution.ts`；余细化待 GOV-CONCEPT-REWRITE）
 
 - **Season / Project**：按赛季分项目（RoboCon 每年新车 = 新项目）；人员 / 经验跨赛季沉淀。
 - **Group**：可配置组织树（机械 / 电路 / 程序{电控, 视觉}，可能合并），不写死。
@@ -74,6 +74,7 @@ Teamhub = 机器人战队的轻量进度治理系统：
 - **Task**（一等公民，非 member 上的 free-text）：负责人 / 协作人 / 组 / 状态 / 所属项目。
 - **Dependency**：Task→依赖→Task 有向边，构成 DAG。
 - **Need / 前置需求**（一等公民）：{描述, 提供方, 状态}，挂在 Task 上，跨组；人工填 / AI 建议 / 本人确认。
+- **依赖 / Need 的录入交互**（DAG 数据命门，`GOV-DEP-INTAKE` 待立设计）：队长布置任务那一下顺手连依赖 + AI 预填建议，DAG 录入即长出、不额外打卡（C1 低录入 / G2 不双写）。**无此项则下游归因 / 排班 / 知识树全在 fixtures 上演。**
 
 > 复用：`apps/hub-contracts`（HubEvent/GitRepoRef/ArtifactRef + Zod 边界）、v0.3 领域模型（状态机 / relatedIds 依赖模式 / 时间线）、`bridge-roster-design.md`（Task + progress_log 模型，**载体反转**为系统库）。
 
@@ -85,9 +86,10 @@ Teamhub = 机器人战队的轻量进度治理系统：
 - **升级**：卡点持续 → 私下轻提醒本人 →（按提醒模型）升级可见范围。
 - **进度派生**：Git 提交 + 轻 check-in + 沉默检测 → 状态；**信号阈值（commit 频率 / 沉默天数 / check-in 形态）待定**。
 
-## 8. 展示/汇报层（③）— 待细化 GOV-VIZ-DAG-DESIGN / GOV-REPORT-DESIGN
+## 8. 展示/汇报层（③）— **依赖链·阻塞归因视图已落地 D-028**；给老师汇报待 GOV-REPORT-DESIGN
 
-- **动态最短任务周期图**：任务依赖 DAG，高亮关键链 / 收敛点（总联调）/ 阻塞链；缺口 = "待点亮的红点"。先做"结构 + 状态"高亮版；CPM 精确工期为远期。
+- **动态最短任务周期图**：任务依赖 DAG，高亮关键链 / 收敛点（总联调）/ 阻塞链；缺口 = "待点亮的红点"。先做"结构 + 状态"高亮版；CPM 精确工期为远期。**已落地 D-028**：`hub-console` 依赖链·阻塞归因页（`@xyflow/react`，blocked-idle 红斜纹+锁 / free-idle 琥珀虚线一眼可分）。
+- **差异化在场排班**（D-029，杀手锏）：共享物理资源（车）状态门控下游 → 派生"今晚/明天谁该在场 / 随叫 / 去学"；数据模型 + `derivePresenceSchedule` 已落地，活页面待 `GOV-SCHED-VIZ`。
 - **给老师的自动汇报**：项目级进度，不含个人比较（C2 / A2）。
 - 控制台复用 `hub-console`（React/Vite/TanStack Query）。
 
@@ -103,6 +105,8 @@ Teamhub = 机器人战队的轻量进度治理系统：
 
 > **已拍定 2 — 提醒可见范围 / 送达模型（D-026 后续，2026-06-10）**：提醒=队长轮询自动化、私聊本人、升级的是事不是人、AI 起草不发送/建议不判定/检索不评价。见 `decisions.md` D-026 后续。
 
+> **已拍定 3 — 资源建模 / 差异化在场（D-029，2026-06-11）**：车 = 单一共享物理资源，其状态翻转门控整片下游空闲；派生在场 / 随叫 / 去学，输出无 memberId 维度（反排名）。留待用户线下细节：窗口粒度（精确钟点 vs 粗粒度 windowLabel）、单窗 invitedMemberIds 的 UI 展示边界。
+
 ## 11. 复用资产盘点
 
 | 资产 | 复用 | 注意 |
@@ -115,7 +119,7 @@ Teamhub = 机器人战队的轻量进度治理系统：
 ## 12. 工作流
 
 沿用 `AGENTS.md §6` 原子任务纪律：每次一个原子任务，代码任务先有接口契约 / schema，adapter mock-first，真实写入审批。
-后续候选见 `backlog.md` P0 治理系统（GOV-CONCEPT-REWRITE → GOV-DATA-MODEL-DESIGN → GOV-RULES-LAYER-DESIGN → GOV-VIZ-DAG-DESIGN → GOV-REPORT-DESIGN → GOV-LARK-DERIVE-DESIGN；ARCH-PATH（D-028）/ REMIND-MODEL 均已拍定）。
+后续候选见 `backlog.md` P0 治理系统。**已落地**：GOV-DATA-MODEL（D-028）/ GOV-VIZ-DAG（D-028）/ GOV-SCHED-MODEL（D-029）/ ARCH-PATH（D-028）/ REMIND-MODEL。**当前 frontier（2026-06-11 选定顺序）**：GOV-DEP-INTAKE → GOV-RULES-LAYER → GOV-CONCEPT-REWRITE。其余 pending：GOV-SCHED-VIZ / GOV-REPORT / GOV-LARK-DERIVE / 成长轴 AXIS-*。
 
 ## 13. 历史
 
