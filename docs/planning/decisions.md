@@ -120,7 +120,7 @@
 ### 选项 B（未采纳）：自写最小 gateway（零飞书 SDK 依赖）
 - 工程量估算：~250 行核心代码 + 加解密链路单测（详见 `lark-oss-candidates.md` §5.1）
 - 模块：Webhook 入口 / Challenge-Response / AES-256-GCM 解密 / HMAC-SHA256 签名校验 / Token 缓存与刷新 / 消息发送 / 错误处理与指数退避
-- 已存在的脚手架：`docs/superpowers/plans/2026-05-16-lark-gateway.md`（保持 `status: forward-looking`；本 ADR 选路径 A，不激活此 plan）
+- 已存在的脚手架：`docs/archive/pre-pivot-plans/2026-05-16-lark-gateway.md`（保持 `status: forward-looking`；本 ADR 选路径 A，不激活此 plan）
 - 引入依赖：仅 Express + Node `crypto`（标准库）；可选 `zod` 做 payload 校验
 
 ### 主要权衡
@@ -148,7 +148,7 @@
 ### 拍板已落实的动作（2026-05-19）
 1. ✅ 本 ADR 头部从 `（草稿 / DECISION-NEEDED）` 改为 `DECIDED`；"AI 推荐"段已重写为"最终决策"。
 2. → LARK-01-CONNECTOR-ARCH 从 `now.md.blocked` 提升到 `frontier`（本 commit 同步）。
-3. → `docs/superpowers/plans/2026-05-16-lark-gateway.md` 保持 `status: forward-looking`（路径 A 不激活此 plan）。
+3. → `docs/archive/pre-pivot-plans/2026-05-16-lark-gateway.md` 保持 `status: forward-looking`（路径 A 不激活此 plan）。
 4. → LARK-03-MIN-INTEGRATION 推进时直接基于 `@larksuiteoapi/node-sdk` Long Connection 模式实现。
 
 ### 放弃方案（不考虑）
@@ -186,7 +186,7 @@
 - 替代项：
   - 全切 shell out（路径 ②）：fork ~50ms+ 冲击 3 秒 ack；lark-cli 无 WSS 入站
   - 死守 SDK（路径 ①）：每加一个能力线性增加 wrapper 代码
-- 落地任务：LARK-CLI-01..06（见 docs/superpowers/plans/2026-05-21-lark-cli-integration.md）
+- 落地任务：LARK-CLI-01..06（见 docs/archive/pre-pivot-plans/2026-05-21-lark-cli-integration.md）
 - 回滚：包级 git revert 到基线 e821c8f；决策级标 SUPERSEDED + 加 D-023
 - 关联 spec：docs/superpowers/specs/2026-05-21-lark-cli-integration-design.md
 
@@ -355,3 +355,16 @@
 - 落地（2026-06-11 同日，design + 数据模型，活页面下一任务）：`apps/hub-contracts`（`governance.ts` 新增 SharedResource/ResourceSession/PresenceRecommendation + `schedule.ts` 的 `derivePresenceSchedule` 纯函数 + 锚点场景 + down 变体 fixtures + 12 项排班单测；`verify:all` 全过 26 测）；设计 + 一屏交互见 `docs/design/gov-oncall-schedule.md`。控制台"谁该在场"活页面 = `GOV-SCHED-VIZ-DESIGN`（下一原子任务）。
 - Open（标进 now.md）：窗口精确钟点语义；invitedMemberIds 展示边界；overloadRelief 触发（归 GOV-RULES-LAYER）；ResourceSession 真实占用来源（归 GOV-LARK-DERIVE）。
 - 事实源：`docs/design/gov-oncall-schedule.md` + 代码契约 `apps/hub-contracts/src/{governance,schedule}.ts`。
+
+## D-030 — 文档保留规则 + 退役死肉/双写（dogfood 单一真相源）
+
+- 状态：**DECIDED**
+- 日期：2026-06-11
+- 上下文：讨论"文档是否还有必要留这么多"。体检：活文档（非 archive）8838 行，其中 `docs/superpowers/plans/*` 占 4038 行（46%）——全是 pivot 前已落地 / 已弃功能的实施计划；且 `team-hub-concept.md` 与 `team-hub-product-definition.md` 是同一篇定位的两个版本（双写），叠加 `decisions.md` D-026 ADR = 同一套定位记三遍。**TeamHub 的魂就是单一真相源 + 低录入 + 派生而非双写——其文档仓库正违反自己的戒律。** 把 §9 对 skill 已用的"退役而非删除"纪律搬到 docs。
+- 决策（用户 2026-06-11 选定范围 1+2）：
+  1. **文档保留规则**：一篇文档留在 `docs/design`/`docs/research`，当且仅当它是 (a) 某个已 ship 或 frontier 功能的当前 spec，或 (b) 一个人会照着做的 guide。凡"导向某决策的调研"或"某项已完成工作的计划"，`git mv` 进 `docs/archive/`，结论留在本文件。archive≠delete（git 历史 + `docs/archive/` 保留）。
+  2. **本轮退役**：`docs/superpowers/plans/` → `docs/archive/pre-pivot-plans/`（3 个 pivot 前大 plan，4038 行）。
+  3. **本轮合并（杀双写）**：`team-hub-product-definition.md` 的独有实质（数据模型细节：牵头组=重心组 / Assignment 多对多带角色 / 跨组天然 / Resource 争用；中央视图务实版；反监视机制；假完成判定）并入 canonical `team-hub-concept.md`，原文件退役至 `docs/archive/team-hub-product-definition-v0.md`（status: retired）。**canonical 单一定位源 = concept.md**。
+- 暂缓（用户认同，记此以免遗忘）：`lark-api-capability.md` + `lark-oss-candidates.md` 暂留 `docs/research`——前者仍是 pending `GOV-LARK-DERIVE`（触点层）的事实底座，二者均被 append-only 的 D-020/D-021 引用，现在动会 churn 决策日志且收益仅 364 行；**待 GOV-LARK-DERIVE 落地后归档**。scope 3（`superpowers/specs` / `visuals.md` / `D-023` / `workflow-evolution` / `agents/workflow`）未在本轮范围，留待后续；`docs/superpowers/specs/*` 内对已移走 plan 的交叉引用暂为 stale path，随 scope 3 一并清理。
+- 影响：活文档 8838 → ~4760 行（−46%）。引用更新：`now.md`（product-definition→concept）、`lark-connector.md` / `decisions.md`（plans 路径→archive）。
+- 事实源：`docs/design/team-hub-concept.md`（canonical 产品+架构）；本 ADR（保留规则）。

@@ -494,8 +494,8 @@ LARK-03 代码部分完成的标志：
 - `docs/planning/decisions.md` D-021 — 路径 A 拍板与约束
 - `docs/planning/decisions.md` D-022 — lark-cli 接入 + 三包拆分（本文 v2 的 ADR 依据）
 - `docs/superpowers/specs/2026-05-21-lark-cli-integration-design.md` — D-022 落地 spec（含包布局 + 硬规则 + §3 对齐细则）
-- `docs/superpowers/plans/2026-05-21-lark-cli-integration.md` — LARK-CLI-01..06 执行计划
-- `docs/superpowers/plans/2026-05-16-lark-gateway.md`（forward-looking，**未激活**）— 历史路径 B 计划，本期不参考
+- `docs/archive/pre-pivot-plans/2026-05-21-lark-cli-integration.md` — LARK-CLI-01..06 执行计划
+- `docs/archive/pre-pivot-plans/2026-05-16-lark-gateway.md`（forward-looking，**未激活**）— 历史路径 B 计划，本期不参考
 - `.agents/skills/debug-checklist/SKILL.md` — 检查清单生成 skill（mock 模式不读，provider 模式读 prompt 模板）
 
 ---

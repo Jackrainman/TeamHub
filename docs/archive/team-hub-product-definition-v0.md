@@ -1,12 +1,15 @@
 ---
-status: draft
+status: retired
 date: 2026-06-08
+retired: 2026-06-11
 owner: Teamhub
 scope: product-definition
-decision: D-026
+decision: D-026; D-030（退役）
 ---
 
 # Team Hub 产品定义 v0
+
+> **已退役（2026-06-11，D-030）**：本文件的独有实质（数据模型细节 / 中央视图务实版 / 反监视机制 / 五条原则）已并入 canonical 文档 `docs/design/team-hub-concept.md`。此处仅作历史留存（git 历史 + archive），**不再维护、不应被工程文档引用**。当前产品定位 + 架构请读 concept.md。
 
 > 本文件是 Team Hub 的**产品形式与意义**事实源（v0 沉淀版）。它在 D-024（中枢化）/ D-025（技术栈）之上，把产品定位从“信息路由器 + 后端运维控制台 + adapter 底座”**锐化**为“制度化的进度治理系统”。状态 `draft`：核心已定，仍有 §7 待定项待用户逐条拍板后升 `stable`。
 

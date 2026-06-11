@@ -184,7 +184,7 @@ interface AtomicTask {
 
 ## 与现有计划整合
 
-`docs/superpowers/plans/2026-05-16-lark-gateway.md` → 拆为 queue.md 中的任务：
+`docs/archive/pre-pivot-plans/2026-05-16-lark-gateway.md`（已退役归档，D-030）→ 拆为 queue.md 中的任务：
 
 | 原 Task | 拆为 Queue Task | size |
 |---------|----------------|------|

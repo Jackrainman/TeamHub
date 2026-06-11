@@ -2,7 +2,7 @@
   "schema_version": 1,
   "authority": "derived-cache-only; now.md/backlog.md/decisions.md remain authoritative",
   "mode": "governance_design",
-  "stage": "2026-06-11 planning-sync：给此前未立项的依赖录入交互补立项(GOV-DEP-INTAKE，DAG 数据命门) + 按用户选定顺序重排 frontier 为 录入→规则层→concept 回写 + concept.md 追上已 ship 的 D-028/D-029(修 §6/§8 stale 标记)；GOV-SCHED-VIZ 仍 pending 但暂让出 top-3 frontier；本轮纯 docs/planning sync 未动代码",
+  "stage": "2026-06-11 D-030 文档瘦身(dogfood 单一真相源)：superpowers/plans(4038行)→archive/pre-pivot-plans + product-definition 独有实质并入 canonical concept.md(原文件退役) + 活文档8838→~4760(−46%)；lark 调研暂留待 GOV-LARK-DERIVE；同日前一步 planning-sync 已补立 GOV-DEP-INTAKE+重排 frontier。纯 docs/planning",
   "current_task": null,
   "frontier": [
     "GOV-DEP-INTAKE-DESIGN",
