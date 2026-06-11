@@ -2,13 +2,11 @@
   "schema_version": 1,
   "authority": "derived-cache-only; now.md/backlog.md/decisions.md remain authoritative",
   "mode": "governance_design",
-  "stage": "D-026 治理 reframe + C/G/A 宪法已落地；2026-06-10 拍定提醒模型/AI 边界（D-026 后续）+ 新增 D-027 成长轴/机器人知识图谱；下一步按四层架构推进治理数据模型 epic，并行成长轴设计",
+  "stage": "D-028 拍板治理为主轴并落地：hub-contracts 治理域(common/governance/growth/attribution)+真实场景 fixtures+11 项归因单测，hub-console 依赖链·阻塞归因 mock 页(@xyflow/react)均 verify:all 通过；GOV-DATA-MODEL/VIZ-DAG 已落，下一步 GOV-RULES-LAYER",
   "current_task": null,
   "frontier": [
-    "GOV-DATA-MODEL-DESIGN"
+    "GOV-RULES-LAYER-DESIGN"
   ],
   "blocked": [],
-  "open_for_decision": [
-    "ARCH-PATH"
-  ]
+  "open_for_decision": []
 }

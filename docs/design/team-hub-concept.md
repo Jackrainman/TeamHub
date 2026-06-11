@@ -99,9 +99,9 @@ Teamhub = 机器人战队的轻量进度治理系统：
 
 ## 10. 待拍板（开放项，回填前不动相关深设计）
 
-> **待定 1 — 架构走法**：治理为主轴（`hub-contracts` 设治理为核心域，§6 实体进核心）vs 治理作 Hub 之上平行模块（少动现有契约）。倾向主轴 + 渐进迁移。利弊见 plan `teamhub-parsed-cerf.md` Part I §5 / D-026 开放项。
+> **已拍板 1 — 架构走法（D-028，2026-06-11）**：**治理为主轴**——治理实体进 `hub-contracts` 核心域（`common.ts` 基元 + `governance.ts` + `growth.ts` + `attribution.ts`），现有 hub-\* 壳子降为触点/展示底座；成长轴落同包独立文件域。已落地，见 D-028 与 `gov-data-model.md` / `gov-viz-dag.md`。
 
-> **待定 2 — 提醒可见范围 / 送达模型**：混合（缺口任务级对相关方可见 · "该你动了"私聊本人 · 老师看项目级）/ 更私密优先 / 更透明。倾向混合（最贴反监视四原则 A）。用户仍在想。
+> **已拍定 2 — 提醒可见范围 / 送达模型（D-026 后续，2026-06-10）**：提醒=队长轮询自动化、私聊本人、升级的是事不是人、AI 起草不发送/建议不判定/检索不评价。见 `decisions.md` D-026 后续。
 
 ## 11. 复用资产盘点
 
@@ -115,7 +115,7 @@ Teamhub = 机器人战队的轻量进度治理系统：
 ## 12. 工作流
 
 沿用 `AGENTS.md §6` 原子任务纪律：每次一个原子任务，代码任务先有接口契约 / schema，adapter mock-first，真实写入审批。
-后续候选见 `backlog.md` P0 治理系统（GOV-CONCEPT-REWRITE → GOV-DATA-MODEL-DESIGN → GOV-RULES-LAYER-DESIGN → GOV-VIZ-DAG-DESIGN → GOV-REPORT-DESIGN → GOV-LARK-DERIVE-DESIGN；ARCH-PATH / REMIND-MODEL 为 decision-needed）。
+后续候选见 `backlog.md` P0 治理系统（GOV-CONCEPT-REWRITE → GOV-DATA-MODEL-DESIGN → GOV-RULES-LAYER-DESIGN → GOV-VIZ-DAG-DESIGN → GOV-REPORT-DESIGN → GOV-LARK-DERIVE-DESIGN；ARCH-PATH（D-028）/ REMIND-MODEL 均已拍定）。
 
 ## 13. 历史
 

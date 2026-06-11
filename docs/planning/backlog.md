@@ -17,13 +17,13 @@
 | 任务 | 状态 | type | 内容 |
 |------|------|------|------|
 | GOV-REFRAME-DOCS | done | docs | 已落地 2026-06-09；D-026 + 设计宪法 C/G/A 三层重构 + AGENTS §1/§4/§5 + README + roadmap + now + backlog + concept 骨架 + 下游引用迁移；见 `now.md` 最近完成 |
-| GOV-CONCEPT-REWRITE | current | design | 重写 `docs/design/team-hub-concept.md` 为治理系统（四层架构/实体/规则/route A）；架构走法 + 提醒模型留待定锚点 |
-| GOV-DATA-MODEL-DESIGN | pending | design | 数据真相层实体与关系：项目/赛季 · 成员+角色+资历 · 可配置组织树 · 任务+依赖 DAG · 前置需求 Need；先契约/schema 后落地。可复用 hub-contracts 与 v0.3 领域模型 |
-| GOV-RULES-LAYER-DESIGN | pending | design | 规则/治理层：卡点/过载/沉默/升级判定；进度派生信号阈值（commit 频率 / check-in 形态 / 沉默天数）|
-| GOV-VIZ-DAG-DESIGN | pending | design | 展示层"动态最短任务周期图"结构+状态版：关键链 / 收敛点 / 阻塞链高亮、缺口红点 |
+| GOV-CONCEPT-REWRITE | pending | design | 概念文档完整重写为治理系统（§6-§8 细化到已落地 schema）；§10/§12 待定锚点已随 D-028 回填，余下细化待做 |
+| GOV-DATA-MODEL-DESIGN | done | design | 已落地 2026-06-11（D-028）；`apps/hub-contracts` 新增 `common/governance/growth/attribution`（Season/Project/Group/Member/Task/有向 Dependency/Need/TaskProgressSignal/BlockAttribution/DepGraph 视图 + `deriveBlockAttributions`/`toDepGraphView`）+ 真实场景 fixtures + 11 项归因单测；`verify:all` 全过；设计见 `docs/design/gov-data-model.md` |
+| GOV-RULES-LAYER-DESIGN | pending | design | 规则/治理层：卡点/过载/沉默/升级判定；进度派生信号阈值（commit 频率 / check-in 形态 / 沉默天数）。注：MVP 已落地结构性"被卡 vs 摸鱼"判别（attribution.ts），本任务做完整阈值/沉默检测 |
+| GOV-VIZ-DAG-DESIGN | done | design | 已落地 2026-06-11（D-028）；`apps/hub-console`"依赖链·阻塞归因"视图（`@xyflow/react`，blocked-idle 斜纹+锁/free-idle 虚线/gap/关键链 高亮，被卡去学中性入口）+ DepGraph 视图契约 + mock 由 `toDepGraphView` 派生；`verify:all` + preview 走查通过；设计见 `docs/design/gov-viz-dag.md` |
 | GOV-REPORT-DESIGN | pending | design | 给老师的项目级自动汇报（不含个人比较，C2/A2）|
 | GOV-LARK-DERIVE-DESIGN | pending | design | 触点层：飞书动作→状态派生映射（@ / 卡片 / 一键 check-in）+ 提醒送达（提醒模型已拍定：私聊本人、起草不发送、升级的是事不是人，见 D-026 后续）；复用 Lark 三包 |
-| ARCH-PATH-DECISION | decision-needed | design | 治理为主轴（hub-contracts 设治理为核心域）vs Hub 之上平行模块（D-026 开放项）；成长轴（D-027）落核心域还是平行模块一并拍 |
+| ARCH-PATH-DECISION | done | design | 已于 2026-06-11 拍定（**D-028**）：治理为主轴——治理实体进 hub-contracts 核心域（common/governance/growth/attribution），hub-\* 壳子降为触点/展示底座，成长轴落同包独立文件域 |
 | REMIND-MODEL-DECISION | done | design | 已于 2026-06-10 拍定；提醒=队长轮询自动化、私聊本人、升级的是事不是人、AI 起草不发送/建议不判定/检索不评价；见 `decisions.md` D-026 后续 |
 
 ## P0 — 成长轴 / 机器人知识图谱（与治理主干并列，D-027）
@@ -32,7 +32,7 @@
 
 | 任务 | 状态 | type | 内容 |
 |------|------|------|------|
-| AXIS-KNOWLEDGE-MODEL-DESIGN | pending | design | 成长轴数据模型：`KnowledgeNode`（知识点）+ `Member×Knowledge`（掌握/兴趣关系）+ 任务知识标注；与治理域共享 Member/Task/Season；先契约/schema。落核心域 vs 平行模块随 ARCH-PATH |
+| AXIS-KNOWLEDGE-MODEL-DESIGN | done | design | 已落地 2026-06-11（D-028）；`apps/hub-contracts/src/growth.ts`：`KnowledgeNode`（parentNodeId 默认 null 不预设本体）+ `MemberKnowledge`（visibility 默认 private、无 score/完成率）+ `TaskKnowledgeTag`（AI 建议+人审核）；护栏落在 schema 形状。展示/标注 MVP/digest 仍 pending |
 | AXIS-TREE-VIZ-DESIGN | pending | design | 知识树展示（人的未来），与依赖图（项目的未来）双图对称；**无完成率/不排名/不跨人对比**（C2/A1）|
 | AXIS-TASK-ANNOTATE-MVP | pending | design | MVP：布置任务时 AI 建议涉及知识点 + 挂资料/去年做过谁；树从标注长出，不预设本体（C3）|
 | AXIS-LARK-DIGEST-DESIGN | pending | design | 飞书订阅 digest：相关知识/缺口/新资料定时私推；参考 feiyue `_conf_crawl_loop`（72h 爬+推）模式；复用 Lark 三包 |
