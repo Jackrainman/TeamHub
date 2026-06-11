@@ -385,3 +385,19 @@
 - 待拍（用户线下 / 下一轮讨论）：`GOV-MEMBER-STATUS-DERIVE` 的"未录入"第三态如何建模才不让 `freeIdle` 冤枉人（讨论项 4）；`OverloadSignal` 派生 / `Need` escalated 转换 / `LARK-CARD-CHANNEL` + `LarkMemberBinding` 立为 backlog 行。
 - 影响：`now.md` / `agent-state.json` frontier 重排；新增上述 pending 区入 backlog。本 ADR 不改代码（范围 2 的代码改动在 17316cc）。
 - 事实源：本 ADR；ultracode 调研产物（本 session task `wu26owofd` 输出，含 6 区设计草案 + 13 条缺失清单 + 对抗 critic 5 条补漏）；`docs/design/team-hub-concept.md`（canonical）。
+
+## D-032 — 治理提示层 GovernanceCue 统一 + Member.status 全派生 + 静默信号
+
+- 状态：**DECIDED**（spec 落 `docs/design/gov-cue-layer.md`；实现属 frontier `GOV-MEMBER-STATUS-DERIVE` + `GOV-RULES-LAYER`）
+- 日期：2026-06-11
+- 上下文：D-031 暴露的"freeIdle 会把'队长还没录入下一个任务'的人误判成摸鱼"——系统自造测量错误。讨论中用户把 idle 检测从"贴人标签"reframe 为"建设性提示触发器"（对本人"去看别的知识?"、对队长"xx 做完了去聊聊"、颜色中性变化），并选定对"有就绪任务却 N 天零进展"这一种（真·摸鱼候选）用**私下静默信号**（事级、对事不对人、看得见但不排名）。进一步发现：idle 三态 + 静默 + Need 升级（A.3 死代码）+ OverloadSignal（#4 空壳）是**同一个形状**，应收成一层。
+- 决策：
+  1. **`Member.status` 完全派生**：Task 是真相、人是投影，禁手写——杀掉与 `Task.status` 的双写（守 G2）。`updatedBy:'derived'` 不再是谎。
+  2. **三个非推进态 + 静默**（`deriveMemberStatus`）：`uncovered` 待安排（无 active 任务→队长去派活，= 录入入口）/ `blocked` 被卡（复用 BlockAttribution）/ `capacityFreed` 腾出手（做完→本人去学 + 队长去聊·匀给过载组）；外加 `silence` 静默（有就绪任务却 N 天零进展→私下问本人 + 给队长事级提示）。`silence` 与 `capacityFreed` 之别 = 手里有没有就绪任务；两者都不贴"摸鱼"。真摸鱼靠队长"去聊"的对话发现，不进看板计数。
+  3. **统一 `GovernanceCue` 层**（多态）：所有派生的"事/缺口/机会"= 一个 schema `{kind, subjectRef(task/group/need/resource), audience, tone(give/ask/surface), factStatement, suggestedAction, relatedKnowledge}`。**反排名红线只守在这一个 schema**（无 memberId 聚合维度、无 count/score/rank）。`GOV-RULES-LAYER` 由此重定义 = "Cue 生产者们（deriveBlockAttributions 已有 + deriveMemberStatus + deriveNeedEscalations + deriveOverloadSignals）+ `RulesConfig` 阈值"。
+  4. **受众到人不落人名**：`audience='taskOwnerPrivate'` 不存 memberId，送达层即时解析 owner→larkOpenId 私发，不沉淀可聚合人维度 → 反排名保住。
+  5. **阈值进 `RulesConfig`**（per-project，全默认值：silenceDays=3 / needEscalationDays=2 / overloadCriticalLimit=3），不强制录入（C1/C3）。
+  6. **idle↔overload 闭环**：`capacityFreed` 与 `overload` 同层，队长一眼配对"谁空了 ↔ 哪组压了 N 项"。
+- OPEN（留字段、本轮不定）：**`CUE-AUDIENCE-ROUTING`——队长 vs 组长身份难界定**：role enum 仅 `superAdmin/groupAdmin/member` + 组织树 `parentGroupId`，"队长(全队)"与"组长(子组)"如何落、一个 Cue 上给队长还是停在组长，决定 `audience` 枚举最终形态。单立 open_for_decision，配独立讨论提示词，归 ROLE-VISIBILITY。其余 OPEN：静默是否被读成变相监视（措辞+频率冷却）、阈值是否需 per-赛季 profile。
+- 影响：新增 `docs/design/gov-cue-layer.md`（spec）；`GOV-MEMBER-STATUS-DERIVE`（frontier#2）从此有落地图纸；`GOV-RULES-LAYER` 范围明确为 Cue 生产者层；`now.md`/`agent-state.json` 加 `CUE-AUDIENCE-ROUTING` 入 open_for_decision。本 ADR 不改代码。
+- 事实源：`docs/design/gov-cue-layer.md`；本 ADR；`docs/design/team-hub-concept.md`（canonical）。

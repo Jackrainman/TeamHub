@@ -2,7 +2,7 @@
   "schema_version": 1,
   "authority": "derived-cache-only; now.md/backlog.md/decisions.md remain authoritative",
   "mode": "governance_design",
-  "stage": "2026-06-11 ultracode 概念调研(9 agent，全回源核实) → 范围2+1。范围2(已落 commit 17316cc)：修两处一行级 C4 破口(relatedKnowledgeFor 不过滤 confirmedBy + computeCriticalSet 喂全量 deps)，hub-contracts 29 测+hub-console 4 测全过。范围1(本步，纯 docs/planning)：frontier 重排(D-031)——数据生命线命门(server 治理骨架+idle 派生)比录入更深，提到 GOV-DEP-INTAKE 之前",
+  "stage": "2026-06-11 D-032 治理提示层 GovernanceCue 拍定(讨论落地)：idle 检测 reframe 为建设性提示触发器(去学/去聊/中性颜色)；Member.status 全派生(Task 真相、杀双写 G2) + 三态 uncovered/blocked/capacityFreed + 私下 silence 信号；idle/静默/Need 升级/过载 收成同一 GovernanceCue 多态层(反排名守一个 schema)。spec 落 docs/design/gov-cue-layer.md，GOV-RULES-LAYER 重定义为 Cue 生产者层。受众路由队长vs组长留 OPEN(CUE-AUDIENCE-ROUTING)。纯 docs/planning",
   "current_task": null,
   "frontier": [
     "HUB-SERVER-GOV-SCAFFOLD",
@@ -11,7 +11,7 @@
   ],
   "blocked": [],
   "open_for_decision": [
-    "GOV-MEMBER-STATUS-THIRD-STATE",
+    "CUE-AUDIENCE-ROUTING",
     "SCHED-WINDOW-GRANULARITY",
     "SCHED-INVITED-MEMBER-DISPLAY"
   ]
