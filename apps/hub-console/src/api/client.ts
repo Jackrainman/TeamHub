@@ -2,9 +2,12 @@ import {
   AdaptersResponseSchema,
   ArtifactsResponseSchema,
   BridgeMembersResponseSchema,
+  DepGraphSchema,
   GitReposResponseSchema,
   HubEventsResponseSchema,
+  type DepGraph,
 } from '@teamhub/hub-contracts';
+import { mockDepGraph } from './mock/dep-graph';
 import { mockOverviewSnapshot } from './mock/overview';
 import {
   HealthResponseSchema,
@@ -23,6 +26,7 @@ export interface HubApiClientOptions {
 export interface HubApiClient {
   mode: 'mock' | 'real';
   getOverview(): Promise<OverviewSnapshot>;
+  getDepGraph(): Promise<DepGraph>;
 }
 
 export function createHubApiClient(options: HubApiClientOptions = {}): HubApiClient {
@@ -32,6 +36,9 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
       mode: 'mock',
       async getOverview() {
         return OverviewSnapshotSchema.parse(mockOverviewSnapshot);
+      },
+      async getDepGraph() {
+        return DepGraphSchema.parse(mockDepGraph);
       },
     };
   }
@@ -75,6 +82,9 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         gitRepos,
         artifacts,
       });
+    },
+    async getDepGraph() {
+      return fetchJson(`${baseUrl}/api/dep-graph`, DepGraphSchema, fetcher);
     },
   };
 }

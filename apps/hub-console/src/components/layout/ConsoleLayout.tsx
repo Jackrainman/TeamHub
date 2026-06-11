@@ -4,13 +4,23 @@ import {
   Boxes,
   GitBranch,
   Home,
+  Network,
   RadioTower,
   Settings,
   Users,
 } from 'lucide-react';
 
-const navItems = [
-  { label: 'Overview', icon: Home, active: true },
+export type ConsolePage = 'overview' | 'dep-graph';
+
+interface NavItem {
+  label: string;
+  icon: typeof Home;
+  page?: ConsolePage;
+}
+
+const navItems: NavItem[] = [
+  { label: 'Overview', icon: Home, page: 'overview' },
+  { label: '依赖图', icon: Network, page: 'dep-graph' },
   { label: 'Adapters', icon: RadioTower },
   { label: 'Events', icon: Activity },
   { label: 'Bridge', icon: Users },
@@ -21,11 +31,15 @@ const navItems = [
 
 interface ConsoleLayoutProps {
   mode: 'mock' | 'real';
+  page: ConsolePage;
+  onNavigate: (page: ConsolePage) => void;
 }
 
 export function ConsoleLayout({
   children,
   mode,
+  page,
+  onNavigate,
 }: PropsWithChildren<ConsoleLayoutProps>) {
   return (
     <div className="console-shell">
@@ -40,15 +54,18 @@ export function ConsoleLayout({
         <nav className="console-nav">
           {navItems.map((item) => {
             const Icon = item.icon;
+            const isActive = item.page !== undefined && item.page === page;
             return (
-              <a
-                className={item.active ? 'nav-item nav-item-active' : 'nav-item'}
-                href="#overview"
+              <button
+                className={isActive ? 'nav-item nav-item-active' : 'nav-item'}
+                type="button"
                 key={item.label}
+                onClick={() => item.page && onNavigate(item.page)}
+                disabled={item.page === undefined}
               >
                 <Icon aria-hidden="true" size={17} />
                 <span>{item.label}</span>
-              </a>
+              </button>
             );
           })}
         </nav>
