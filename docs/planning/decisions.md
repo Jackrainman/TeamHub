@@ -432,3 +432,17 @@
 - 替代项（继续单 project 标量 `silenceDays` + 三信号源不分组）未采纳：审计证其为 C2/A1/G5 三破口、且系统性偏向资历弱的硬件新生，不可调走。
 - 影响：`gov-cue-layer.md` §4（silence 触发条件细化为分河 + 保守铁律）/ §5（deriveMemberStatus 须读 group.kind）/ §6（RulesConfig kind-keyed + cooldown + 分河 + presence 佐证 + parity 测试）同步。新 `ProgressSignalKind='artifactUpload'` 与 kind-keyed RulesConfig schema 由 GOV-MEMBER-STATUS-DERIVE 落代码（本 ADR 不改代码）。图纸上传端点/存储 = 审批门后 server 任务（D-036 登记）。
 - 事实源：本 ADR；`docs/design/gov-cue-layer.md` §6；`docs/design/gov-data-model.md`（TaskProgressSignal/GroupKind）；`AGENTS.md §5`（C2/A1/G5/C5）。
+
+## D-035 — 化解层 give-floor + 修正测量第 4 段意图（A3 暴露必带给予）
+
+- 状态：**DECIDED**（spec 落 `docs/design/gov-cue-layer.md` §4/§5/§7；实现属 frontier `GOV-MEMBER-STATUS-DERIVE` / `GOV-RULES-LAYER`）
+- 日期：2026-06-12
+- 上下文：3-agent 产品核实对"把'让没事的人自己去找事做'后置给知识树（D-027）"判 holds=false——代码证明（attribution.ts:242-267 `relatedKnowledgeFor` 从 `[task.id, rootBlockerTaskId]` 取知识，`capacityFreed` 的人 `currentTaskId→null` 故**无任务键可取**，唯二 relatedKnowledge 生产者都 gated on 被卡）。后果：`capacityFreed` 的 3a（匀过载组）在无过载组时为空，3b（去学）后置给未建知识树 → `deriveMemberStatus` 一上线就把人**暴露成 idle 却零给予** = 破 **A3（系统给得比拿得多 = 观察资格来源，D-031 确立）**，freeIdle 污名换标签复活。另：原 `暴露→问责→化解` 三段漏了 D-031 的核心前提——多数 idle/silence 是**测量错误**（未录入/信号没接）。
+- 决策（用户 2026-06-12："先不去干预[自我成长]"对一半——树后置对，给予地板不可后置）：
+  1. **四段意图**：`修正测量(兜底) → 暴露 → 问责 → 化解`。化解叉 **3a 人力调度**（治理，匀过载组，captain，idle↔overload 闭环）/ **3b 自我成长**（知识树 D-027，**整棵后置**）。
+  2. **第 4 段「修正测量」前置于化解**：`uncovered` 先走"去派活 = 录入入口"、`silence` 先查信号源新鲜度（D-034 分河），别在"未录入/信号没接"的假象上开火。
+  3. **give-floor（不可后置的那块 3b）**：`capacityFreed` 的 3a 为空时，`relatedKnowledge` 从**本人私有** `MemberKnowledge`(relation∈{interested,learning} 的 `KnowledgeNode.resourceLinks`，growth.ts，fixtures.ts:292-295 已 seed) 平铺取，**仅 `taskOwnerPrivate`**（绝不给队长）——即"让他自己挑自己存的兴趣"，agency 留本人（A3），零树结构、不等 D-027 整棵树。`capacityFreed` 队长面 gate on (有过载组 OR cooldown)。
+  4. **暴露必带给予不变式（可测）**：任何发第三方的 `capacityFreed`/`silence`(surface) **必须**配一条同主体 `taskOwnerPrivate`(give, `relatedKnowledge.length>0`)，像反排名一样守在单测里，结构上禁止"暴露 idle 却零给予"。
+- 替代项（3b 整体后置给知识树）未采纳：审计证其在"做完又无过载组可去"分支破 A3、复活 freeIdle 污名；give-floor 是 tree-free、复用已 seed 的私有兴趣链，无须等 D-027。
+- 影响：`gov-cue-layer.md` §4（capacityFreed give-floor + 空-3a 行为 + 修正测量段）/ §5（四段意图）/ §7（暴露必带给予不变式）同步。代码留 GOV-MEMBER-STATUS-DERIVE / GOV-RULES-LAYER 落（本 ADR 不改代码）。
+- 事实源：本 ADR；`docs/design/gov-cue-layer.md` §4/§5/§7；`apps/hub-contracts/src/growth.ts`（MemberKnowledge）；`D-027`（成长轴/知识树后置）；`D-031`（A3 = 观察资格来源 + 测量错误命门）；`AGENTS.md §5`（A3/A4）。

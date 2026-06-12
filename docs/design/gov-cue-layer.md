@@ -70,6 +70,8 @@ GovernanceCue = {
 
 - **`silence` 与 `capacityFreed` 的区别 = 手里有没有就绪任务**：有（却不动）→ 静默（私下问本人）；没有（做完了）→ 腾出手（去学 + 队长去聊）。两者都**不贴"摸鱼"**。
 - "真摸鱼"不靠系统 push 点名发现：`silence` 只私发本人一条可忽略的询问、第三方零 push；停滞事实在本组 console（事键快照、**不持久化按人历史**）由组长自己注意 + 判定（问责上移）。系统**永不**把"某人反复静默"surface 给第三方（A4 红线 + D-033 §6）。
+- **give-floor（A3：暴露必带给予，D-035）**：`capacityFreed` 的 3a（匀给过载组）为空时（无过载组，= 做完那一刻最常见状态），`relatedKnowledge` 从**本人私有** `MemberKnowledge`(relation∈{interested,learning} 的 `KnowledgeNode.resourceLinks`，growth.ts，fixtures.ts:292-295 已 seed) 平铺取，**仅 `taskOwnerPrivate`**（绝不给队长）——让他自己挑自己存的兴趣（agency 留本人）。否则"做完又无过载组可去"的人会被暴露成 idle 却零给予 = 破 A3、freeIdle 污名换标签复活。整棵知识树（D-027）仍后置；此切片 tree-free、无父子结构。
+- **化解前先修正测量（第 4 段意图，D-035）**：`暴露→问责→化解` 之前还有一段 **修正测量 / 兜底**——`uncovered` 先走"去派活=录入入口"、`silence` 先查信号源新鲜度（D-034 分河），别在"未录入 / 信号没接"的假象上开火。
 
 ## 5. 五个生产者（= GOV-RULES-LAYER 的实体）
 
@@ -82,6 +84,8 @@ GovernanceCue = {
 
 **idle ↔ overload 闭环**：`capacityFreed` 与 `overload` Cue 在同一层，队长一眼配对"这人空了 ↔ 那组压了 N 项"——"做完了去聊聊"聊完调去哪，系统替他指出来。
 
+**四段意图（D-035）**：生产者整体遵循 `修正测量(兜底) → 暴露 → 问责 → 化解`，化解叉 3a 人力调度（治理，匀过载，captain）/ 3b 自我成长（知识树 D-027 **整棵后置**，仅 give-floor 这块"本人私有兴趣链"tree-free 切片现在做）。`capacityFreed` 队长面 gate on (有过载组 OR cooldown)，无过载且无 give 时不打扰队长。
+
 ## 6. `RulesConfig` 阈值（per-project，全有默认值，不强制录入，C1/C3）
 
 `silenceDays`（**按 GroupKind 配**：硬件 mechanical/electrical 更长 + 更强触发；默认软件 3） · `silenceCueCooldownDays`（同任务每窗至多一条协调 Cue，杀累积，A4） · `needEscalationDays=2` · `overloadCriticalLimit=3` · `commitSilenceWindow=7d`（备赛 / 摸底节奏不同可改）。
@@ -93,6 +97,7 @@ GovernanceCue = {
 - `GovernanceCue` 无 `memberId` 字段、无 `count/score/rank/percent/duration`。
 - 受众到人靠送达层即时解析，不存可聚合的人维度。
 - 单测锚定：任一 Cue 输出 `Object.keys` 不匹配 `/member|owner|count|score|rank|percent|completed|duration/i`（与现有归因测试同护栏）。
+- **暴露必带给予（A3，D-035）**：任何发给第三方的 `capacityFreed`/`silence`(surface) 必须配一条同主体 `taskOwnerPrivate`(give, `relatedKnowledge.length>0`)——把"系统给得比拿得多"守在单测里，结构上禁止"暴露 idle 却零给予"。
 
 ## 8. OPEN / 待议
 
