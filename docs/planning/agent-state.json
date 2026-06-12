@@ -2,7 +2,7 @@
   "schema_version": 1,
   "authority": "derived-cache-only; now.md/backlog.md/decisions.md remain authoritative",
   "mode": "governance_design",
-  "stage": "2026-06-12 D-033 ROLE-VISIBILITY / CUE-AUDIENCE-ROUTING 拍定(关闭 D-032 §3 OPEN)：role enum 不动；队长/老师=项目级指派(captainMemberId/observerMemberIds[])、组长=Group.leadMemberId、superAdmin 收窄为配置非受众；audience 三值 taskOwnerPrivate/subjectGroupLead/teamCoordinator + 路由表 + 可见性双轴；silence 纯 pull + 问责上移(用户选 A)；两轮对抗审计必修(去名宽视图/factStatement 文本红线/老师 k-anon rollup/良基兜底/dedupe)。spec 落 docs/design/gov-role-visibility.md。本轮续 D-034 信号分河 + D-035 化解 give-floor + D-036 数据河 build 轨登记。纯 docs/planning",
+  "stage": "2026-06-12 D-033 ROLE-VISIBILITY / CUE-AUDIENCE-ROUTING 拍定(关闭 D-032 §3 OPEN)：role enum 不动；队长/老师=项目级指派(captainMemberId/observerMemberIds[])、组长=Group.leadMemberId、superAdmin 收窄为配置非受众；audience 三值 taskOwnerPrivate/subjectGroupLead/teamCoordinator + 路由表 + 可见性双轴；silence 纯 pull + 问责上移(用户选 A)；两轮对抗审计必修(去名宽视图/factStatement 文本红线/老师 k-anon rollup/良基兜底/dedupe)。spec 落 docs/design/gov-role-visibility.md。本轮已落 D-034 数据生命线分组化(silence 按组数据河 + 保守铁律 + presence 佐证 + kind-keyed RulesConfig + cooldown，修硬件组 commit 偏差)，续 D-035 化解 give-floor + D-036 数据河 build 轨登记。纯 docs/planning",
   "current_task": null,
   "frontier": [
     "HUB-SERVER-GOV-SCAFFOLD",

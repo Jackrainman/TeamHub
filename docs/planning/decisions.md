@@ -417,3 +417,18 @@
 - 替代项（增长 role enum 加 captain/observer）未采纳：steelman 结论 keep-enum-unchanged——observer 多对多是致命点，进不了 1:1 enum；项目级字段是赛季级正交指派的正确关系表达；零迁移、天然支持一人多帽（并集可见性，安全靠去名/k-anon/dedupe 而非 enum 互斥）。
 - 影响：新增 `docs/design/gov-role-visibility.md`（spec）；`gov-cue-layer.md` §2 audience 改名、§3 关 OPEN、§4 silence 行改纯 pull、§8 OPEN#1 移除；`now.md`/`agent-state.json` 移除 `CUE-AUDIENCE-ROUTING` 出 open_for_decision；supersede D-026 dec4 的 superAdmin 合并。为 frontier 列出 schema/纯函数/测试落地清单（spec §9）。本 ADR 不改代码。
 - 事实源：`docs/design/gov-role-visibility.md`；本 ADR；`docs/design/gov-cue-layer.md`；`docs/design/gov-oncall-schedule.md`（reportingGroupId，D-029）；`AGENTS.md §5`。
+
+## D-034 — 数据生命线分组化：silence 信号按组分河（C5）+ 保守过渡铁律
+
+- 状态：**DECIDED**（spec 落 `docs/design/gov-cue-layer.md` §6；实现属 frontier `GOV-MEMBER-STATUS-DERIVE` / `GOV-RULES-LAYER`）
+- 日期：2026-06-12
+- 上下文：对抗式产品核实（3-agent，REJECT「摸鱼可见」）抓到 silence 触发的**信号源偏差是 schema 级宪法破口、非可调阈值**：「零进展」只从 `{gitCommit, larkCheckIn, manualNote}` 判定、**无任何 GroupKind 维度**（governance.ts:50-55 有 enum 但零逻辑 key off）。后果按工作物理性质不对称——程序连续 commit、硬件做物理活（锉件/焊板/台架）几乎零 commit，同样努力对程序"干净"、对机械/电路"静默"。这是 **C2（产能不可比，gitCommit 密度=因角色而异的产能代理）+ A1（"机械组老静默"成可读模式）+ G5（冤枉恰是 fixtures 里 freshman 机械新生 m-mechC/m-mechD）by proxy**。用户校正：硬件/机械"没那么容易卡"，重灾区在程序。reframe：信号偏差不是调阈值，而是**每组一条数据河（C5：治理状态必须有自然上游）**。
+- 决策（用户 2026-06-12：图纸喂信号 + 程序薄封装 git）：
+  1. **silence 按 GroupKind 分河**：机械/电路河 = **图纸版本上传**（新 `ProgressSignalKind='artifactUpload'`，喂硬件进度信号——这才是 §信号偏差的真正修法，对齐用户"机械图纸从微信迁上服务器按天/版本分类"的诉求）；程序河 = **git**（经薄封装 adapter 降门槛，HUB-GIT-ADAPTER-DESIGN，D-036）；通用兜底 = **larkCheckIn**，但须是回 Cue/digest 的**自然副产品**，**不得变日报打卡**（守 C5 禁凭空打卡）。
+  2. **保守过渡铁律**：在各组的"河"真实接入前，**非 program 组的"git 缺失"一律不触发 silence**——宁可漏报不冤枉（硬件本就难卡）。这是过渡期护栏，避免 GOV-MEMBER-STATUS-DERIVE 一上线就用 commit-absence 冤枉硬件组。
+  3. **presence 佐证**：owner 当窗在某 `ResourceSession` present/onCall（物理在场干活的证据）→ 抑制 silence；复用已落地 `derivePresenceSchedule`（schedule.ts），零新录入。
+  4. **`RulesConfig` 阈值改 group-kind-keyed**：`silenceDays` 按 GroupKind 配（硬件更长 + 更强触发）；新增 `silenceCueCooldownDays`（同任务每窗至多一条协调 Cue，杀"反复 silence 累积成对人信号"，A4）。
+  5. **parity 单测要求**：仅差 `group.kind`、相同 larkCheckIn/manualNote 历史的两任务 → 必须出相同 silence 判定（gitCommit 计数对非软件组 silence **可证明不承重**），落进 `governance.test.ts` 反排名 guard 同款体例。
+- 替代项（继续单 project 标量 `silenceDays` + 三信号源不分组）未采纳：审计证其为 C2/A1/G5 三破口、且系统性偏向资历弱的硬件新生，不可调走。
+- 影响：`gov-cue-layer.md` §4（silence 触发条件细化为分河 + 保守铁律）/ §5（deriveMemberStatus 须读 group.kind）/ §6（RulesConfig kind-keyed + cooldown + 分河 + presence 佐证 + parity 测试）同步。新 `ProgressSignalKind='artifactUpload'` 与 kind-keyed RulesConfig schema 由 GOV-MEMBER-STATUS-DERIVE 落代码（本 ADR 不改代码）。图纸上传端点/存储 = 审批门后 server 任务（D-036 登记）。
+- 事实源：本 ADR；`docs/design/gov-cue-layer.md` §6；`docs/design/gov-data-model.md`（TaskProgressSignal/GroupKind）；`AGENTS.md §5`（C2/A1/G5/C5）。

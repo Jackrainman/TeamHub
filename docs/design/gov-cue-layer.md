@@ -62,10 +62,10 @@ GovernanceCue = {
 
 | 条件 | 态 | 颜色 | 产出 Cue |
 |---|---|---|---|
-| 无 active 分配任务 | `uncovered`（待安排） | 灰虚线 | `{uncovered, captain, surface, "给 X 派活"}` |
+| 无 active 分配任务 | `uncovered`（待安排） | 灰虚线 | `{uncovered, subjectGroupLead, surface, "给 X 派活"}`（全组无人可接 → 升 `teamCoordinator`，D-033） |
 | active 任务被 live 上游卡 | `blocked`（被卡） | 红斜纹+锁 | 复用 `BlockAttribution`（已有），转 `blocked` Cue |
-| active 任务就绪未卡、N 天无进度信号 | （仍标 working）→ 触发 `silence` | working 实线 | `{silence, taskOwnerPrivate, ask, "还在做 X 吗?"}` 仅私发本人；**不 push 任何第三方**——停滞以事键快照「任务X·就绪·无进展」在本组 console pull 显示（问责上移，D-033 §6），永不升级对人可见(A4) |
-| 最近任务 done、无下一个 | `capacityFreed`（腾出手） | 青 | `{capacityFreed, taskOwnerPrivate, give, "看看别的知识?"+relatedKnowledge}` + `{capacityFreed, captain, surface, "X 做完了，去聊聊 / 可匀给过载组"}` |
+| active 任务就绪未卡、**本组数据河** N 天无信号（分河 + 保守铁律见 §6 / D-034） | （仍标 working）→ 触发 `silence` | working 实线 | `{silence, taskOwnerPrivate, ask, "还在做 X 吗?"}` 仅私发本人；**不 push 任何第三方**——停滞以事键快照「任务X·就绪·无进展」在本组 console pull 显示（问责上移，D-033 §6），永不升级对人可见(A4) |
+| 最近任务 done、无下一个 | `capacityFreed`（腾出手） | 青 | `{capacityFreed, taskOwnerPrivate, give, "看看别的知识?"+relatedKnowledge}`（give-floor 来源见 §4 注 / D-035） + `{capacityFreed, teamCoordinator, surface, "X 做完了，可匀给过载组"}` |
 | 最近有进度信号 | `working` | 实线 | — |
 
 - **`silence` 与 `capacityFreed` 的区别 = 手里有没有就绪任务**：有（却不动）→ 静默（私下问本人）；没有（做完了）→ 腾出手（去学 + 队长去聊）。两者都**不贴"摸鱼"**。
@@ -76,7 +76,7 @@ GovernanceCue = {
 | 函数 | 状态 | 产出 |
 |---|---|---|
 | `deriveBlockAttributions` | 已有 | `blocked` Cue |
-| `deriveMemberStatus` | 新（frontier#2） | `uncovered` / `capacityFreed` + `silence` |
+| `deriveMemberStatus` | 新（frontier#2） | `uncovered` / `capacityFreed` + `silence`；须读 `group.kind` 分河信号 + `artifactUpload` / presence 佐证（D-034） |
 | `deriveNeedEscalations` | 新 | `needEscalation`（`Need.status open>阈值 → escalated`，补上 A.3 死代码） |
 | `deriveOverloadSignals` | 新 | `overload`（复用已 export 的 `computeCriticalSet`，组级，补上 #4 空壳） |
 
@@ -84,7 +84,9 @@ GovernanceCue = {
 
 ## 6. `RulesConfig` 阈值（per-project，全有默认值，不强制录入，C1/C3）
 
-`silenceDays=3` · `needEscalationDays=2` · `overloadCriticalLimit=3` · `commitSilenceWindow=7d`（备赛 / 摸底节奏不同可改）。
+`silenceDays`（**按 GroupKind 配**：硬件 mechanical/electrical 更长 + 更强触发；默认软件 3） · `silenceCueCooldownDays`（同任务每窗至多一条协调 Cue，杀累积，A4） · `needEscalationDays=2` · `overloadCriticalLimit=3` · `commitSilenceWindow=7d`（备赛 / 摸底节奏不同可改）。
+
+**数据生命线分组化（D-034，= silence 信号偏差的真正修法 C5）**：silence 的"零进展"按组分河——机械/电路河 = **图纸版本上传**（新 `ProgressSignalKind='artifactUpload'`），程序河 = **git**（经薄封装 adapter 降门槛），通用兜底 = **larkCheckIn**（须回 Cue/digest 的自然副产品，非日报打卡 C5）。**保守过渡铁律**：各组的河真实接入前，**非 program 组的 git 缺失一律不触发 silence**（硬件本就"没那么容易卡"，重灾区是程序，宁漏报不冤枉，否则继续冤枉机械新生）。**presence 佐证**：owner 当窗在某 `ResourceSession` present/onCall（物理在场干活）→ 抑制 silence（复用 `derivePresenceSchedule`，零新录入）。**parity 单测要求**：仅差 `group.kind`、相同 check-in/note 历史的两任务 → 必须出相同 silence 判定（gitCommit 计数对非软件组 silence **可证明不承重**），落进反排名 guard 同款体例。
 
 ## 7. 反排名不变式（守在一个 schema 上）
 
