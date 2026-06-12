@@ -29,6 +29,16 @@
 | ARCH-PATH-DECISION | done | design | 已于 2026-06-11 拍定（**D-028**）：治理为主轴——治理实体进 hub-contracts 核心域（common/governance/growth/attribution），hub-\* 壳子降为触点/展示底座，成长轴落同包独立文件域 |
 | REMIND-MODEL-DECISION | done | design | 已于 2026-06-10 拍定；提醒=队长轮询自动化、私聊本人、升级的是事不是人、AI 起草不发送/建议不判定/检索不评价；见 `decisions.md` D-026 后续 |
 
+## P0 — 数据河 build 轨（D-036，方向已定，实现审批门后）
+
+> 治理信号的上游河流（C5：每组一条河，D-034）。方向已定（图纸喂信号 / 程序薄封装 git / openclaw=Hermes 类 adapter / 远程=LAN+隧道），实现是 server/基础设施任务、§8 审批门后；本轮只登记方向 + 未决项，避免重复探索。
+
+| 任务 | 状态 | type | 内容 |
+|------|------|------|------|
+| HUB-ARTIFACT-VERSION-DESIGN | pending（数据河） | design | 图纸/artifact 版本上服务器：扩展 `ArtifactRef`(schemas.ts:95-111) 加 'drawing'/'cad' kind + 版本链 + 按天/robotTarget 分类；**图纸上传→`artifactUpload` 进度信号**（喂机械/电路河，D-034）；mock-first；字节进 volume/MinIO、不入 git/治理库（D-025 边界）。未决：版本语义（谁 bump / 自动 vs 手动 / 当前权威版指针 / 撞坏回退 / 按车分支）、上传 UX 须比微信省事（C1，否则迁不动如多维表格 D-026）、存储/备份/审批（§3/§8）。别做完整 PLM（C3）|
+| HUB-GIT-ADAPTER-DESIGN | pending（数据河） | design | 程序薄封装 git（git 仍唯一真相 G2、不另造 VCS C3）：一键"保存版本"=底层 commit+push；git push→`gitCommit` 进度信号（喂程序河，D-034）；双重职责=降门槛 + 让程序 silence 信号可信。可并入既有 `HUB-GIT-FORGE-DESIGN`。未决：交互形态（Lark 卡片 / console 按钮）、鉴权 |
+| GOV-REMOTE-ACCESS-DESIGN | pending（基础设施） | design | 在外访问 = 实验室 LAN + 隧道（用户 2026-06-12）：治理服务器在内网，备赛在外要隧道/反代才能直连；与 Hermes/openclaw adapter 轨**区分**（adapter=能力、隧道=访问路径）。真痛点=在外 Cue 送得到（飞书走 Lark 云本可达）+ 信号收得进。§8 审批门后，独立基础设施轨，别缠治理设计 |
+
 ## P0 — 成长轴 / 机器人知识图谱（与治理主干并列，D-027）
 
 > 反监视正面纲领：把"系统给得比拿得多"（A3）做厚。三级=本周在做→知识树→兴趣方向；护栏=兴趣数据归本人 / 无可比进度不排名 / MVP 不做课程平台。
@@ -124,7 +134,8 @@
 ## Decision-needed
 
 - 战队服务器 Git 中枢：Forgejo / Gitea / bare git 取舍，真实部署另开审批任务。
-- Hermes / 小龙虾 / Claude Code adapter：真实接入方式、权限和运行边界需用户提供。
+- Hermes / 小龙虾 / Claude Code / **openclaw** adapter：真实接入方式、权限和运行边界需用户提供。**openclaw 澄清（用户 2026-06-12）= Hermes 类 AI/命令 adapter，归 mock-first adapter 轨，≠ D-020/D-021 否决的 `openclaw-lark` 飞书协议桥（协议错位）**。
+- `ARTIFACT-VERSION-SEMANTICS`（图纸版本语义）/ `REMOTE-ACCESS-DEPLOY`（远程部署=LAN+隧道方案与鉴权）：见 D-036 + 数据河 build 轨；细化待用户线下。
 
 ## 当前不做
 

@@ -446,3 +446,24 @@
 - 替代项（3b 整体后置给知识树）未采纳：审计证其在"做完又无过载组可去"分支破 A3、复活 freeIdle 污名；give-floor 是 tree-free、复用已 seed 的私有兴趣链，无须等 D-027。
 - 影响：`gov-cue-layer.md` §4（capacityFreed give-floor + 空-3a 行为 + 修正测量段）/ §5（四段意图）/ §7（暴露必带给予不变式）同步。代码留 GOV-MEMBER-STATUS-DERIVE / GOV-RULES-LAYER 落（本 ADR 不改代码）。
 - 事实源：本 ADR；`docs/design/gov-cue-layer.md` §4/§5/§7；`apps/hub-contracts/src/growth.ts`（MemberKnowledge）；`D-027`（成长轴/知识树后置）；`D-031`（A3 = 观察资格来源 + 测量错误命门）；`AGENTS.md §5`（A3/A4）。
+
+## D-036 — 数据河 build 轨：方向已定 + 未决项登记（避免重复探索）
+
+- 状态：**DIRECTION-SET / 实现审批门后**（设计任务入 backlog；实现是 server/基础设施任务，§8 审批门后）
+- 日期：2026-06-12
+- 上下文：D-034 把 silence 信号偏差 reframe 为"每组一条数据河（C5）"后，治理信号的**上游河流**（图纸上传 / git / 远程接入）从旁支升为命门。用户给出新语境（机械图纸靠微信传、希望上服务器按天/版本分类；程序需统一版本管理但 git 学习成本高；openclaw/hermes 是在外远连服务器的现有手段）。本 ADR 把这些方向**定向 + 登记未决项**，避免之后重复探索；实现不在本轮（纯 docs/planning）。
+- 已定方向（用户 2026-06-12 四问拍板）：
+  1. **图纸上服务器 = 喂硬件进度信号**：扩展既有 `ArtifactRef`(schemas.ts:95-111) 加 'drawing'/'cad' kind + 版本链 + 按天/robotTarget 分类；图纸上传派生 `artifactUpload` 进度信号（喂机械/电路河，D-034）。立 `HUB-ARTIFACT-VERSION-DESIGN`。
+  2. **程序版本管理 = 薄封装 git**：一键"保存版本"=底层 commit+push，**git 仍唯一真相（G2）、不另造 VCS（C3）**；git push 派生 `gitCommit` 信号（喂程序河）；双重职责=降门槛 + 让程序 silence 信号可信。立 `HUB-GIT-ADAPTER-DESIGN`（可并入 `HUB-GIT-FORGE-DESIGN`）。
+  3. **openclaw = Hermes 类 AI/命令 adapter**（用户澄清）：归 mock-first adapter 轨（复用既有 `/api/adapters/:id/{health,capabilities,invoke}` 契约，HUB-ADAPTERS-MOCK done），真实接入审批后置。**≠ D-020/D-021 否决的 `openclaw-lark` 飞书协议桥**（协议错位）——同名不同物，勿混。
+  4. **远程访问 = 实验室 LAN + 隧道**（用户）：治理服务器在内网，备赛在外要隧道/反代才能直连；与 adapter 轨**区分**（adapter=能力、隧道=访问路径）。真痛点=在外 Cue 送得到（飞书走 Lark 云本可达）+ 信号收得进。立 `GOV-REMOTE-ACCESS-DESIGN`（独立基础设施轨，§8 审批门后）。
+- 未决项登记（= 本轮 pitfalls，避免重复探索）：
+  - **图纸-as-信号循环依赖**（P1）：硬件 silence 正确性依赖"图纸上传=信号"先落地 → D-034 保守铁律（非 program 组 git 缺失不触发 silence）是过渡护栏。
+  - **图纸版本语义**（P5，`ARTIFACT-VERSION-SEMANTICS`）：谁 bump / 自动 vs 手动 / 当前权威版指针 / 撞坏回退 / 按车分支——别做完整 PLM（C3）。
+  - **上传 UX 必须比微信省事**（P4）：否则迁不动（飞书多维表格当年败于"上手难"D-026）。
+  - **真实存储 = 真服务器写**（P6，§3/§8）：字节进 volume/MinIO（D-025），不进 git/治理库。
+  - **程序避 git 则 gitCommit 信号也不可靠**（P8）：薄封装 adapter 是信号可信的前提。
+  - **远程访问 = 基础设施 + 安全面**（P9，`REMOTE-ACCESS-DEPLOY`）：§8 禁夜跑/需审批；Hermes/openclaw 是已有独立工具，接入=适配器接线+鉴权非造工具（P10）。
+  - **一切真实数据流卡 `HUB-SERVER-GOV-SCAFFOLD`**（P12，frontier#1，真路由现 404）。
+- 影响：`backlog.md` 新增 `HUB-ARTIFACT-VERSION-DESIGN` / `HUB-GIT-ADAPTER-DESIGN` / `GOV-REMOTE-ACCESS-DESIGN`（数据河 build 轨）+ Decision-needed 补 openclaw 澄清；`now.md`/`agent-state.json` 加 `ARTIFACT-VERSION-SEMANTICS` / `REMOTE-ACCESS-DEPLOY` 入 open_for_decision。本 ADR 不改代码、不碰服务器。
+- 事实源：本 ADR；`D-034`（数据河）；`D-025`（栈/存储边界、Hermes mock-first）；`D-020`/`D-021`（openclaw-lark 否决）；`AGENTS.md §1`（四层架构触点层）/ `§8`（夜跑禁服务器写）。
