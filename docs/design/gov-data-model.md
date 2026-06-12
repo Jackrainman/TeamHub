@@ -3,8 +3,8 @@ status: stable
 date: 2026-06-11
 owner: Teamhub
 scope: governance-data-model
-decision: D-028
-implements: D-026 第①数据真相层 + 阻塞归因（第②规则层 MVP 切片）
+decision: D-028 / D-037 (图纸档案库 archive-first) / D-038 (图纸按组分治)
+implements: D-026 第①数据真相层 + 阻塞归因（第②规则层 MVP 切片）+ D-036/D-037 战队数据库
 ---
 
 # 治理数据真相层 — 数据模型 + 阻塞归因（MVP 切片）
@@ -37,9 +37,21 @@ Member(idle) ──currentTaskId──▶ Task(简单/无问题)
 | `Task` | 必需 | 五态(待启动/进行中/卡住/已完成/已搁置，继承 bridge-roster)；`statusSource` 派生优先(C5)；`rawSummary/polishedSummary` 双存(C4)；`intrinsicComplexity` 让"本来简单却被卡"可见 |
 | `Dependency` | 必需 | **有向边** `fromTaskId→toTaskId`（v0.3 无向 relatedIds 的升级）；`source`+`confirmedBy`：aiSuggested 未确认不参与归因(C4) |
 | `Need` | 必需 | 一等公民 `{描述,providerGroupId(缺口归组,A1),状态}`；`escalated` 作为"事"升级、不挂人名(A4) |
-| `TaskProgressSignal` | 薄 | `gitCommit/larkCheckIn`(派生 C5) + `manualNote`(兜底 C1)；六态全量后置 |
+| `TaskProgressSignal` | 薄 | `gitCommit/larkCheckIn/artifactUpload`(派生 C5) + `manualNote`(兜底 C1)；`artifactUpload`=图纸上传副产品(D-036/D-037)；六态全量后置 |
 
 成长轴（`growth.ts`，D-027 并列）：`KnowledgeNode`(parentNodeId 默认 null、不预设本体) + `MemberKnowledge`(visibility 默认 private、无 score/完成率) + `TaskKnowledgeTag`(AI 建议+人审核)。
+
+### 1.1 战队数据库 / 图纸·代码档案（archive-first，D-036/D-037；**按组分治 D-038**）
+
+D-037 把"图纸上服务器"的语义重心从"喂 silence 信号"移到**战队数据库**第一价值——
+"**以后不用到处找人要图纸，直接去服务器拿、随时找到任何版本**"。**D-038 按各组原生工具分治**（每组一条数据河，D-034）：
+
+- **机械组（SolidWorks）= 本地服务器存储真相**：无云端、现仅本地/微信传 → 战队服务器是唯一备份/版本库（兑现 D-034 用户原话"机械图纸从微信迁服务器按天/版本分类"）。`ArtifactRef` 加 `kind:'cad'` + 字节进 volume/MinIO（D-025）+ 版本链 + 命名规范 + 任意版本检索。立 `HUB-ARTIFACT-STORE-MECH`（第 4 样自建）。
+- **电路组（EDA）= 云端引用**：已在云端 PDM 做版本管理 → TeamHub **不存二进制**，只 `kind:'eda'` + `externalUrl` + 版本指针。
+- **程序/固件 = git**：**当前 GitHub**，薄封装一键"保存版本"=commit+push，git 唯一真相（G2）；**迁本地 Forgejo = 考虑中**（`GITHUB-TO-LOCAL`）。
+- **统一信号**：每组工作产物在其原生工具 version-control，TeamHub 收"发布新版本"事件 → 派生 `artifactUpload`（机械/电路）/ `gitCommit`（程序）进度信号喂对应河（D-034），**信号是副产品、非监视谁传没传**。先做手动 check-in 钩子；云工具有 API 再自动化。**定期 pull 云端代码/EDA 到本地备份 = 考虑中**（`PULL-CLOUD-CODE`）。
+- **archive-first / 事件驱动 / 命名规范**：首要价值 = 版本档案库（命名 + 检索任意版本）；**完成一版即上传**、非日报打卡（C1/C5）。机械组命名待规定（用户 2026 计划）。
+- 版本语义（谁 bump / 当前权威版指针 / 撞坏回退 / 按车分支）= open `ARTIFACT-VERSION-SEMANTICS`，**别做完整 PLM**（C3）。立 `HUB-ARTIFACT-VERSION-DESIGN`（D-036）。
 
 ## 2. 阻塞归因（`attribution.ts`，纯函数）
 

@@ -2,15 +2,15 @@
 
 # ⚡ Teamhub
 
-### 机器人战队的制度化进度治理系统
+### 机器人战队的协作中枢 · CASE 工具 + 团队交流中心 + 战队数据库
 
-**跨组协调 + 管进度 + 不让某些人干太多。<br />
-当进度卡住、当事人又羞于开口时，靠制度让系统替他把卡点说出来——提前暴露"没人去满足的隐含依赖"，让所有人动起来。**
+**给学长减负 + 给学弟指引 + 项目同步进度表。<br />
+进度卡住、当事人又羞于开口时，靠"卡点在依赖图上自动可见"的结构替他说出来——规范团队、增强凝聚力，不监视个人。**
 
 <br />
 
-![Status](https://img.shields.io/badge/status-governance--design-blue)
-![Mode](https://img.shields.io/badge/mode-governance__design-purple)
+![Status](https://img.shields.io/badge/status-collab--design-blue)
+![Mode](https://img.shields.io/badge/mode-collab__design-purple)
 ![Arch](https://img.shields.io/badge/arch-4--layer-success)
 ![v0.3](https://img.shields.io/badge/v0.3-frozen%20artifact-lightgrey)
 ![Integration](https://img.shields.io/badge/integration-Lark%20(route%20A)-orange)
@@ -21,18 +21,18 @@
 
 ## 一句话介绍
 
-**Teamhub** 是一套**轻量进度治理系统**（5–15 人小作坊、无硬截止）。**系统是大脑、飞书是脸**：真相在系统关系库，飞书只做汇报 / 通知 / 一键 check-in，不双写。
+**Teamhub** 是机器人战队的**协作中枢**（CASE 工具 + 团队交流中心 + 战队数据库；5–15 人小作坊、无硬截止）。**系统是大脑、飞书是脸**：真相在系统关系库，飞书只做汇报 / 通知 / 一键 check-in，不双写。**核心不变式（D-037）**：人键信号只回本人当帮助、第三方只见结构键——**不监视个人**，公平靠给被卡的人正名。
 
 四层架构（每层只依赖下层）：
 
 ```
-①数据真相层      →  ②规则/治理层（魂）   →  ③展示/汇报层       →  ④触点/集成层
-项目/赛季·成员       卡点/过载/沉默/升级      动态最短任务周期图      飞书是脸·Git
-+角色+资历·组织树     系统替你说卡点·暴露缺口   给老师的自动汇报        Hermes/小龙虾
-·任务依赖DAG·Need    让所有人动起来                                /Claude Code
+①数据真相层      →  ②规则/协调层（魂）   →  ③展示/汇报层       →  ④触点/集成层
+项目/赛季·成员       卡点/过载/缺口暴露      动态最短任务周期图      飞书是脸·Git
++角色+资历·组织树     被卡正名·给本人帮助     给老师的项目级汇报      Hermes/小龙虾
+·依赖DAG·Need·档案库  (人键只回本人I0)      机会导向协调视图        /Claude Code
 ```
 
-不做单体 issue tracker、不做产能排名（任何角色含老师都不得见）、不做完整 RBAC / 多租户 / 大型 PM。Skill / Bridge / Trail 作为能力 facet 归入四层架构。
+不做单体 issue tracker、不做产能排名（任何角色含老师都不得见）、**不对个人做活动监视**（人键信号只回本人）、不做完整 RBAC / 多租户 / 大型 PM。Skill / Bridge / Trail 作为能力 facet 归入四层架构。
 
 > **本仓库源于战队调试现场的真实痛点**（见下文"痛点来源"），从"调试知识枢纽"逐步演进为进度治理系统（D-026）。README 是对外门面；内部事实源以 `AGENTS.md` + `docs/planning/` + `docs/design/` 为准。
 
@@ -316,7 +316,9 @@ v0.3 形态本质上是"跨组需求单"——为大组织异步协作 + 责任�
 | G4 | **无硬截止，只轻提醒** | 不设 deadline，沉默→可一键回的轻提醒 |
 | G5 | **对资历弱者更主动兜底** | 大一 / 低资历更主动提示、更鼓励、"替你说"权重更高 |
 
-**反监视四原则（A，C2/G2 执行细则）**：A1 暴露需求不暴露"人慢了"；A2 提醒先私下给本人、帮忙口吻，老师只看项目级；A3 系统给得比拿得多；A4 无 deadline 只轻推。
+**核心不变式 I0（D-037，凌驾全部）**：人键输出只回本人当帮助、第三方只见结构键。
+
+**反监视四原则（A，C2/G2/I0 执行细则）**：A1 暴露需求不暴露"人慢了"；A2 人键提醒只回本人(不上报管理者)，老师只看项目级；A3 面向个人 = 纯给予；A4 无 deadline 只轻推（人-silence 永不升级）。
 
 唯一源：`AGENTS.md §5`；ADR：D-018 / D-019 确立，D-026 重构。
 
@@ -399,7 +401,7 @@ Skill 协议会自动加载。觉得有用就让它把归档写进 `.debug-archi
 
 v0.3 代码（`apps/server` + `apps/desktop` + `dev-start.sh`）已于 2026-06-09 D-026 reframe 时从工作区删除。完整代码保留在 **git 历史**中（致命补丁走 `git revert` / `git checkout <sha> -- apps/server apps/desktop`），精华提炼见 `docs/archive/v0.3-closeout/PROBEFLASH-V03-ESSENCE.md`。
 
-新工作不在这里——新工作在治理系统（`apps/hub-*`）、`.agents/skills/` 和 `.debug-archive/`。
+新工作不在这里——新工作在协作中枢（`apps/hub-*`）、`.agents/skills/` 和 `.debug-archive/`。
 
 ---
 

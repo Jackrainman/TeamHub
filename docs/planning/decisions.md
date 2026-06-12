@@ -467,3 +467,50 @@
   - **一切真实数据流卡 `HUB-SERVER-GOV-SCAFFOLD`**（P12，frontier#1，真路由现 404）。
 - 影响：`backlog.md` 新增 `HUB-ARTIFACT-VERSION-DESIGN` / `HUB-GIT-ADAPTER-DESIGN` / `GOV-REMOTE-ACCESS-DESIGN`（数据河 build 轨）+ Decision-needed 补 openclaw 澄清；`now.md`/`agent-state.json` 加 `ARTIFACT-VERSION-SEMANTICS` / `REMOTE-ACCESS-DEPLOY` 入 open_for_decision。本 ADR 不改代码、不碰服务器。
 - 事实源：本 ADR；`D-034`（数据河）；`D-025`（栈/存储边界、Hermes mock-first）；`D-020`/`D-021`（openclaw-lark 否决）；`AGENTS.md §1`（四层架构触点层）/ `§8`（夜跑禁服务器写）。
+
+## D-037 — 产品定位回中（CASE+交流中心+数据库）+ 人键自指化（彻底去监视味）
+
+- 状态：**DECIDED**（本 ADR = 产品定位 + 核心不变式的权威源；supersede 多条前序决策的相关部分；spec 落各设计文档）
+- 日期：2026-06-12
+- 上下文：D-026 把产品魂定为"制度化进度治理系统"，此后 D-032～D-036 在 silence 检测 / 受众路由 / 反监视上越钻越深（audience 三值路由表、问责上移、k-anon、良基兜底、暴露必带给予不变式）。用户触底反思：**为了让"silence/提醒"这一个功能"不像监视"，要堆四个大决策 + 8-agent 宪法审计 + 一整套去名机器——这本身就是诊断：那个功能根上是监视形状的，反监视机器只是在给它拔牙。** 越做越像"把先进技术包装成更隐蔽的监视器"，违背初心（"本来是为了更公平"）。子 agent 审计另证：D-032～D-036 几乎全 spec-only、代码未实现 → 本次纠偏绝大部分是文档重写、代码近零。
+- 核心洞察（`gov-data-model.md` §0 自陈的命门被范围蔓延掩盖）：公平的真解是**给被卡的人正名**（纯结构——依赖图自动显示"被上游卡"，被冤枉的空闲当场洗白），不是**抓摸鱼的人**（必须盯个人 = 监视）。silence 越过"正名"去抓真摸鱼，正是它滑进监视的越界线。"替你说"也是结构做得更好：靠卡点在图上自动可见替他说，而非盯着他+戳他。
+- 决策（用户 2026-06-12 拍板"彻底改掉"）：
+  1. **产品定位回中**：从"制度化进度治理系统"→ **融合的 CASE 工具 + 团队交流中心 + 战队数据库**：给学长**减负**、给学弟**指引**、**项目同步进度表**。目标 = 规范团队 + 增强凝聚力，**非高压监视**。
+  2. **核心不变式（新宪法脊柱）**：**人键的输出只回给本人、当作帮助（self-directed give）；对第三方只暴露结构（task/group/resource 键），永不暴露人。** 系统对你说你自己的事是为帮你；它永不替你向别人通报你的事。第三方面向的一切都是结构键。
+  3. **silence 自指化**：保留检测；受众 = 仅 `taskOwnerPrivate` + AI 指引；**砍 D-033 §6 问责上移 / 本组 console 事键快照 / 一切管理者面**。理由：真想帮学弟，早就线下去问了；管理者面只多监视味、零增益。
+  4. **开放问题"没派活 + 被卡 + 没主动接 → 标记管理者?" = 机会导向协调视图**：拆三 case——① 没派活 = 队长的缺口（"这些活还没派人"派活 TODO，结构键、前瞻，非成员判断）；② 被卡 = 结构已正名；③ 没自己主动 = 唯一关于人的部分，**不建"谁没主动"探测器**，本人收 AI"可接的活/可学的"、空槽在共享进度表被动显形（顺手可见），系统从不主动说"X 没在主动"。管理者侧只看**工作分配视角**：待派的活 + 过载组 + 某组前瞻余力（组键、"可支援"措辞）。
+  5. **坦白边界（取代 k-anon 幻觉）**：5–15 人小团队组键可反推到人，**纯匿名做不到**；真护栏是**机会措辞（"可支援"≠"没干活"）+ 组长定夺谁去（系统不点名）+ 人在环**，不是匿名算法。
+  6. **A3 重述**：面向个人 = 纯给予，**无需"补偿暴露"**（不再发生人-暴露，补偿条款失去前提）。give-floor 保留，动机从"抵消暴露"简化为"就是帮你"。
+  7. **两条 AI / 反排名 guard（新增）**：① AI 指引读任务 / 知识上下文来帮你，**绝不计算"你被提醒过几次"**（否则自指帮助反成隐性监视）；② 自指 Cue **不沉淀按人历史**（不能事后 `groupBy` 出"谁被提醒最多"）。
+- supersedes（逐条，写明失 / 保）：
+  - **D-026 定位词**"制度化进度治理系统" → 失；**保**四层架构（结构层为主，本就与新不变式一致）。
+  - **D-032** silence 多受众（本人 + 队长）+ idle↔overload 双向闭环 → silence 收为纯自指；闭环改单向（`overload` 结构键照常给协调者，`capacityFreed` 队长面改机会导向协调视图）。**保** GovernanceCue 统一 schema + 反排名守一处。
+  - **D-033 §6 问责上移 + audience 三值** → 问责上移删；audience 收窄（silence 不再用 `subjectGroupLead`/`teamCoordinator`）。**保**角色字段（`leadMemberId`/`captainMemberId`/`observerMemberIds`，仍用于路由协调视图 + 老师项目级汇报）。
+  - **D-034 保守铁律 / k-anon / per-kind 重机器** → 降级为"尽力而为的低风险自助提示"（不再对第三方指控，重机器失去存在理由）。**保**"每组一条数据河"（C5，仍需知道有进展发生才能给本人提示）。
+  - **D-035 A3 动机** → 重述为"纯给予"（见决策 6）。**保** give-floor 机制 + "修正测量先于化解"（四段意图：未录入/信号没接的假象上不开火）。
+  - **D-036 图纸轨** → 方向不变，但语义重心从"喂 silence 信号"移到"**战队数据库 / 图纸档案**"（archive-first、事件驱动上传、命名规范、版本检索）；`artifactUpload` 信号降为副产品。
+- 记录债（不在本轮修，归 frontier `GOV-MEMBER-STATUS-DERIVE`）：`freeIdle` 节点语义混了 `uncovered`（测量错误：队长没派活）与真闲（D-031 已指）。其前瞻重构（"可接任务 / 有余力"框架 + `uncovered` 第三态拆分 + 复核 `DepGraphSummary.freeIdleCount` 与 console「空闲·自由」标签是否偏回溯判断）coupled 到该 frontier，与 `Member.status` 双写债（`fixtures.ts` 手填却标 `updatedBy:'derived'`）一并修。注：console 已把 `freeIdle` 节点标为「可接任务」，前瞻框架部分到位；`freeIdleCount` 是节点计数（非按人）、符合 repo 现有反排名鲁布里克（summary 结构计数允许），故本轮不强改。
+- 影响：重写 `AGENTS.md §5`（核心不变式顶置）+ §1/§4 定位与 mode；重写 `docs/design/team-hub-concept.md` 身份 + `gov-cue-layer.md` §2-§8 + `gov-role-visibility.md`（大幅收窄）；`gov-data-model.md` 增图纸档案库；`README.md` 定位词；`now.md`/`agent-state.json`/`roadmap.md`/`backlog.md` 改 mode + frontier 描述去监视假设（frontier 顺序在新 thesis 下后续独立重评）。**纯 docs/planning，一处 freeIdle 代码债记而不修**。不碰服务器、不碰真实数据。
+- 事实源：本 ADR（定位 + 核心不变式权威源）；`docs/design/{team-hub-concept,gov-cue-layer,gov-role-visibility,gov-data-model}.md`；`AGENTS.md §5`；`D-026`（被覆盖定位）/ `D-031`（freeIdle 命门 + A3 = 观察资格）/ `D-032`–`D-036`（被收窄 / 降级的设计）。
+
+## D-038 — 目标结构最终确认：真相分域 + 飞书纯被动脸 + 图纸按组分治 + 只自建四样
+
+- 状态：**DECIDED**（本 ADR = TeamHub 目标结构 + 飞书/本地边界的权威源；refine D-034/D-036/D-025 路线 A 的落点；落地顺序见 frontier）
+- 日期：2026-06-12
+- 上下文：D-037 回中后 frontier 顺序待新 thesis 重评；同时用户明年计划"飞书为主交流平台 + 本地服务器做后端/数据库"，但"飞书和本地怎么分配"一直是悬而未决的大问题。本轮拆开"飞书命门"（WSL2 `lark-cli` 已配自建 app + 个人 device-flow 登录 + 146 user scope，能力远超需要、已 ready）并跑两个 dynamic workflow：① 结构对抗核实（10 agent：3 读现状 / 3 设计候选 / 3 opus 对抗 / 1 opus 综合）② 公开前例调研（7 agent：飞书开发成本 / 聊天前端+本地后端 / DAG 工具 / 自托管轻量协作 / git 派生进度 / 机器人战队工具）。
+- 核心洞察：① 真相分域边界线 = **凡"关系 / 派生计算 / 按组横比"→本地；凡"给人看的通知和文档"→飞书；图纸二进制→各组按其原生工具分治**。② "push 到飞书"≠"依赖飞书"——只要 DAG 真相在本地、飞书只拿渲染视图/人话通知，飞书就只是一块可替换的显示屏，学一天 webhook+卡片够用，不构成结构性依赖。③ 前例佐证：聊天平台当脸+本地后端存真相是成熟模式（Plane+Slack / op-mattermost / DjinnBot），全自建是负价值（Huly 26k★ 仍要 4GB RAM）；图纸自托管机器人战队前例都走 git+本地（PurdueRM/CMU）。
+- 决策（用户 2026-06-12 拍板）：
+  1. **否决"飞书 base 当业务真相"**（对抗核实三透镜一致，宪法/采纳/成本得分 3/4/4）：破 G2（base 与本地双写同批实体）+ 破 I0/C2（base 表天然可按 ownerId 横比人效，护栏在系统控制外）+ bitable 表达不了有向边 DAG + QPS 5/s。
+  2. **真相分域，每个真相一个写者**：本地 `GovernanceStore`=关系业务真相（Season/Project/Group/Member/Task/Dependency/Need/SharedResource/信号）；飞书=非结构化真相（wiki 规范）+ 纯触点脸；git / 各组云端 PDM=代码与图纸真相。
+  3. **飞书纯被动、薄集成**：被动 bot（@才答、不主动 push、无需长连接事件订阅）；IM 通知/check-in（egress）+ wiki 活规范；**不碰 Base/Task API**（深绑陷阱）；真相不入飞书、飞书 down 真相不丢。学习裁定：~1 天 webhook+卡片够用一年。**Hermes 主/被动=已定被动**。
+  4. **图纸按组分治（refine D-036）**：**机械组 SolidWorks 无云端、现仅本地/微信传 → 战队服务器做存储/版本管理真相**（第 4 样自建，正好兑现 D-034 用户原话"机械图纸从微信迁服务器按天/版本分类"）；**电路组 EDA 已在云端 PDM → 只引用**（`externalUrl` + 版本指针，不存二进制）；**程序/固件 → git**（**当前用 GitHub，迁本地 Forgejo on 战队服务器 = 考虑中**）。三者各 = D-034 一条数据河（各组工作产物在其原生工具 version-control，TeamHub 收"新版本"事件派生 `artifactUpload` 信号）。**两项云端 vs 本地均标记考虑中**：① 程序 GitHub→本地 Forgejo 迁移（`GITHUB-TO-LOCAL`，用户 2026-06-12）② 定期 pull 云端代码/EDA 到本地备份（`PULL-CLOUD-CODE`）。无论迁不迁，TeamHub 只消费 git 的"新版本"信号、不改 git 唯一真相（G2）。
+  5. **只自建四样**（其余全外包 飞书+git+云 PDM）：① 依赖 DAG 引擎（关系真相+拓扑+关键链）② 阻塞归因/负载错配计算 ③ 节点图 web UI（给所有人）+ 个人任务详情页 ④ 机械组 SolidWorks 图纸本地存储/版本管理。
+  6. **DAG 节点图给所有人看 + 个人详情弥补**（用户 2026-06-12）：全局图给方向感（"我在链的哪、谁和我并行"），个人任务详情页给"我具体干嘛"补偿全局图可能的"懵"；先做给全员、懵了再收窄队长（低风险可逆）。
+  7. **飞书接入通道**：egress 发消息走 SDK（已实通、token 自刷）；只读（base 镜像/calendar 佐证）走 lark-cli（须先修 `cli-bridge.ts` bin bug `'lark'→'lark-cli'` 且 `boundary.ts` 白名单后置）；**不引入 MCP 面**（绕过 boundary 守门、给 G2 开不可控写路径）。
+- refine（写明改 / 保）：
+  - **D-036 图纸轨** → 机械从"上服务器喂信号"升为"**本地存储真相**"（无云端故服务器是唯一备份）；电路从"上服务器"改为"**云端引用**"（已有 PDM，不重复存）。**保** archive-first + 事件驱动 + 命名规范 + `artifactUpload` 副产品信号。
+  - **D-034 每组一条数据河** → 落到具体工具：程序河=git / 机械河=SolidWorks 本地版本事件 / 电路河=EDA 云端发布事件。**保** C5 每组一河。
+  - **D-025 路线 A** → 落点确认：本地关系库=业务真相不变；新增"飞书 wiki 持非结构化真相""图纸按组分治"两条 G2 不双写细化。
+- 落地顺序（frontier 在新 thesis 下重评，第一刀不变）：`HUB-SERVER-GOV-SCAFFOLD`（第一纵切破设计-only 循环）→ schema 补齐（`artifactUpload`/角色字段/`ArtifactRef` cad·eda）→ `GOV-MEMBER-STATUS-DERIVE`（修 freeIdle C2/A1 破口）→ `boundary.ts` 白名单+修 bin bug → 个人详情页+SchedulePage → 飞书被动 bot+`LarkMemberBinding` → `GOV-DEP-INTAKE`（DAG 数据命门）→ Forgejo（若迁本地）+`HUB-ARTIFACT-STORE-MECH`+图纸引用接口。
+- 影响：本 ADR + `now.md`/`agent-state.json`（stage/frontier/最近完成）+ `gov-data-model.md` §1.1（图纸按组分治）+ `backlog.md`（新增 `HUB-ARTIFACT-STORE-MECH` + `PULL-CLOUD-CODE` 考虑中）。计划全文 = `~/.claude/plans/dynamic-workflows-tender-crayon.md`（含逐域分配表 + 参考 repo + 否决记录）。**纯 docs/planning**，不碰服务器、不碰真实数据。
+- 事实源：本 ADR；plan file（结构确认全文）；两个 workflow 输出（结构对抗核实 + 公开前例调研）；`D-034`（数据河）/ `D-036`（图纸轨）/ `D-025`（路线 A/栈）/ `D-037`（定位回中）；飞书能力实测（lark-cli 146 scope，记于 memory `teamhub-feishu-capability`）。

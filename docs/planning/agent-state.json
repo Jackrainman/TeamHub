@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "authority": "derived-cache-only; now.md/backlog.md/decisions.md remain authoritative",
-  "mode": "governance_design",
-  "stage": "2026-06-12 D-033 ROLE-VISIBILITY / CUE-AUDIENCE-ROUTING 拍定(关闭 D-032 §3 OPEN)：role enum 不动；队长/老师=项目级指派(captainMemberId/observerMemberIds[])、组长=Group.leadMemberId、superAdmin 收窄为配置非受众；audience 三值 taskOwnerPrivate/subjectGroupLead/teamCoordinator + 路由表 + 可见性双轴；silence 纯 pull + 问责上移(用户选 A)；两轮对抗审计必修(去名宽视图/factStatement 文本红线/老师 k-anon rollup/良基兜底/dedupe)。spec 落 docs/design/gov-role-visibility.md。本轮已落 D-034 数据生命线分组化(silence 按组数据河 + 保守铁律 + presence 佐证 + kind-keyed RulesConfig + cooldown，修硬件组 commit 偏差)，D-035 化解层 give-floor(capacityFreed 无过载组→本人私有兴趣链仅私发 + 暴露必带给予不变式 + 修正测量第 4 段)，D-036 数据河 build 轨登记(图纸喂信号/程序薄封装 git/openclaw=Hermes 类 adapter/远程=LAN+隧道，方向已定 + 未决项登记，实现审批门后)。本轮 4 commit 全落，纯 docs/planning、未碰服务器",
+  "mode": "collab_design",
+  "stage": "2026-06-12 D-038 目标结构最终确认：拆飞书命门(lark-cli 146 scope ready)+两 workflow(对抗核实10/前例调研7)→真相分域边界(关系·派生·按组横比→本地;通知文档→飞书;图纸按组分治)、否决飞书base当业务真相(三透镜 G2双写+I0/C2横比+bitable无有向边)、飞书纯被动薄集成(@才答~1天webhook+卡片不碰Base/Task API真相不入飞书Hermes被动)、图纸按组分治(机械SolidWorks无云端→本地存储/版本管理第4样自建/电路EDA云端引用/程序git当前GitHub迁本地Forgejo考虑中)、只自建四样(DAG引擎/阻塞归因负载/节点图全员+个人详情/机械图纸本地库)、DAG给所有人+个人详情弥补;前例佐证聊天当脸+本地后端成熟、全自建负价值(Huly)。pull云端代码+GitHub迁本地=考虑中。计划全文=plan file。纯docs/planning未碰服务器/真实数据。【前序 D-037】用户触底反思'为让 silence 不像监视堆了 D-032~035 一整套去名机器=诊断它根上是监视形状'，拍板彻底改。定位从'制度化进度治理系统'→ CASE 工具 + 团队交流中心 + 战队数据库(给学长减负/给学弟指引/项目同步进度表)。核心不变式 I0=人键输出只回本人当帮助、第三方只见结构键。silence 收纯自指(只回本人+AI 建议、砍问责上移/管理者面)；开放问题'没派活+被卡+没主动接'=机会导向协调视图(管理者只看待派活+过载组+组级前瞻余力，不点个人)；A3 重述纯给予；D-034 k-anon/保守铁律重机器降级；图纸轨重心移到战队数据库(archive-first)。子 agent 审计证 D-032~036 几乎全 spec-only→本轮近纯文档：decisions(D-037 ADR)/AGENTS §1·§4·§5(顶置 I0)/gov-cue-layer/gov-role-visibility(大幅收窄)/team-hub-concept/gov-data-model(图纸档案)/planning。freeIdle 代码债记归 GOV-MEMBER-STATUS-DERIVE。frontier 顺序待新 thesis 下重评。未碰服务器、未碰真实数据",
   "current_task": null,
   "frontier": [
     "HUB-SERVER-GOV-SCAFFOLD",
@@ -14,6 +14,8 @@
     "SCHED-WINDOW-GRANULARITY",
     "SCHED-INVITED-MEMBER-DISPLAY",
     "ARTIFACT-VERSION-SEMANTICS",
-    "REMOTE-ACCESS-DEPLOY"
+    "REMOTE-ACCESS-DEPLOY",
+    "GITHUB-TO-LOCAL",
+    "PULL-CLOUD-CODE"
   ]
 }

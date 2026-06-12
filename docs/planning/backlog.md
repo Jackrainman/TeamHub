@@ -10,21 +10,23 @@
 4. 每个代码任务必须先有接口契约或 schema；控制台 UI 任务必须先有页面状态与 API mock 设计。
 5. 候选池只在本文件；`roadmap.md` 不构成候选源。若 `now.md` frontier 项在本文件无对应行，视为脱节，必须先补本文件再认领；不允许"凭空 frontier"。
 
-## P0 — 治理系统（当前主线，D-026）
+## P0 — 协作中枢（当前主线，D-026 立魂 / D-037 回中：CASE+交流中心+数据库）
 
 > 四层架构推进。一项待拍板（架构走法 A/B）只阻塞 concept 深设计与对应 epic 细节，不阻塞数据模型骨架（提醒模型已 2026-06-10 拍定，见 `decisions.md` D-026 后续）。
 
 | 任务 | 状态 | type | 内容 |
 |------|------|------|------|
 | GOV-REFRAME-DOCS | done | docs | 已落地 2026-06-09；D-026 + 设计宪法 C/G/A 三层重构 + AGENTS §1/§4/§5 + README + roadmap + now + backlog + concept 骨架 + 下游引用迁移；见 `now.md` 最近完成 |
-| GOV-CONCEPT-REWRITE | pending | design | 概念文档完整重写为治理系统（§6-§8 细化到已落地 schema）；§10/§12 待定锚点已随 D-028 回填，余下细化待做 |
+| GOV-CONCEPT-REWRITE | pending | design | 概念文档完整重写（§6-§8 细化到已落地 schema）；身份段已随 D-037 回中（协作中枢：CASE+交流中心+数据库）；§10/§12 锚点已随 D-028/D-037 回填，余下深写待做 |
 | GOV-DATA-MODEL-DESIGN | done | design | 已落地 2026-06-11（D-028）；`apps/hub-contracts` 新增 `common/governance/growth/attribution`（Season/Project/Group/Member/Task/有向 Dependency/Need/TaskProgressSignal/BlockAttribution/DepGraph 视图 + `deriveBlockAttributions`/`toDepGraphView`）+ 真实场景 fixtures + 11 项归因单测；`verify:all` 全过；设计见 `docs/design/gov-data-model.md` |
-| GOV-RULES-LAYER-DESIGN | pending | design | 规则/治理层：卡点/过载/沉默/升级判定；进度派生信号阈值（commit 频率 / check-in 形态 / 沉默天数）。注：MVP 已落地结构性"被卡 vs 摸鱼"判别（attribution.ts），本任务做完整阈值/沉默检测 |
+| GOV-RULES-LAYER-DESIGN | pending | design | 规则/协调层：卡点/过载/缺口/沉默判定；进度派生信号阈值（commit 频率 / check-in 形态 / 沉默天数）。注：MVP 已落地结构性"被卡 vs 摸鱼"判别（attribution.ts）；**D-037：silence 等人键信号只回本人 + AI 建议、不上报管理者（I0），结构信号才给协调者**；本任务做完整阈值/沉默检测 |
 | GOV-VIZ-DAG-DESIGN | done | design | 已落地 2026-06-11（D-028）；`apps/hub-console`"依赖链·阻塞归因"视图（`@xyflow/react`，blocked-idle 斜纹+锁/free-idle 虚线/gap/关键链 高亮，被卡去学中性入口）+ DepGraph 视图契约 + mock 由 `toDepGraphView` 派生；`verify:all` + preview 走查通过；设计见 `docs/design/gov-viz-dag.md` |
 | GOV-SCHED-MODEL-DESIGN | done | design | 已落地 2026-06-11（**D-029**，差异化在场排班=杀手锏立项）；`apps/hub-contracts` 新增 `SharedResource`/`ResourceSession`/`PresenceRecommendation`（governance.ts）+ `derivePresenceSchedule` 纯函数（schedule.ts）+ 锚点场景 + 车撞坏 down 变体 fixtures + 12 项排班单测；持有组在场 / live 上游随叫 / 被卡去学 / 资源 down 整片去学 / 无关组沉默，输出无 memberId 维度（反排名）；`verify:all` 全过 26 测；设计见 `docs/design/gov-oncall-schedule.md` |
 | GOV-SCHED-VIZ-DESIGN | pending | design | 控制台"谁该在场"活页面（资源条 + `[改占用]` 入口 + present/onCall/free 分色 + free 行"可看的资料"）；页面状态 + API mock 设计已在 `gov-oncall-schedule.md` §3 前置；mock 由 `derivePresenceSchedule` 从场景派生（同 DAG 页同构）；真实写路径 `POST /api/schedule/sessions` 后置（hub-server mock-first，待服务器审批）|
 | GOV-REPORT-DESIGN | pending | design | 给老师的项目级自动汇报（不含个人比较，C2/A2）|
 | GOV-LARK-DERIVE-DESIGN | pending | design | 触点层：飞书动作→状态派生映射（@ / 卡片 / 一键 check-in）+ 提醒送达（提醒模型已拍定：私聊本人、起草不发送、升级的是事不是人，见 D-026 后续）；复用 Lark 三包 |
+| HUB-SERVER-GOV-SCAFFOLD | pending (frontier#1) | code | 可变内存 `GovernanceStore` + 协调路由骨架（real 模式 `GET /api/dep-graph` 等，现 404）+ `now=server clock` 注入——所有真实数据流的物理出入口（D-031 补立 frontier#1，此前未在 backlog 立行）；store 先 seed fixtures 也能让 real 路由不再 404；与数据源无关，是后续真实写入/派生的地基 |
+| GOV-MEMBER-STATUS-DERIVE | pending (frontier#2) | code | `Member.status` 全派生（Task 真相、禁手写、杀与 Task.status 双写 G2）+ 三态 uncovered/blocked/capacityFreed + 私下 silence（**D-037：只回本人 + AI 建议、不上报管理者 I0**）→ 收成 `GovernanceCue`；spec=`gov-cue-layer.md` + `gov-role-visibility.md`（D-037 收窄）；落地须读 group.kind 分河（D-034 降级）+ give-floor（D-035）+ parity 测试 + **修 freeIdle 语义债（uncovered/真闲拆分、前瞻"可接任务"框架、复核 freeIdleCount/标签）+ Member.status 双写债（fixtures 手填却标 derived）** |
 | GOV-DEP-INTAKE-DESIGN | pending | design | **DAG 数据命门（此前未立项的脱节，2026-06-11 补立）**：队长布置任务那一下顺手连依赖 + AI 预填建议依赖 / Need 的一屏录入交互（页面状态 + API mock）；目标 = DAG 录入即长出、不额外打卡（C1 低录入 / G2 不双写）；用锚点场景（视觉A采集→电控B调底盘→机械C装臂→电路D配合）当样例；真实写路径 `POST /api/tasks` + `POST /api/deps` 后置 mock-first（待服务器审批）。无此项则归因 / 排班 / 知识树全在 fixtures 上演 |
 | ARCH-PATH-DECISION | done | design | 已于 2026-06-11 拍定（**D-028**）：治理为主轴——治理实体进 hub-contracts 核心域（common/governance/growth/attribution），hub-\* 壳子降为触点/展示底座，成长轴落同包独立文件域 |
 | REMIND-MODEL-DECISION | done | design | 已于 2026-06-10 拍定；提醒=队长轮询自动化、私聊本人、升级的是事不是人、AI 起草不发送/建议不判定/检索不评价；见 `decisions.md` D-026 后续 |
@@ -35,7 +37,8 @@
 
 | 任务 | 状态 | type | 内容 |
 |------|------|------|------|
-| HUB-ARTIFACT-VERSION-DESIGN | pending（数据河） | design | 图纸/artifact 版本上服务器：扩展 `ArtifactRef`(schemas.ts:95-111) 加 'drawing'/'cad' kind + 版本链 + 按天/robotTarget 分类；**图纸上传→`artifactUpload` 进度信号**（喂机械/电路河，D-034）；mock-first；字节进 volume/MinIO、不入 git/治理库（D-025 边界）。未决：版本语义（谁 bump / 自动 vs 手动 / 当前权威版指针 / 撞坏回退 / 按车分支）、上传 UX 须比微信省事（C1，否则迁不动如多维表格 D-026）、存储/备份/审批（§3/§8）。别做完整 PLM（C3）|
+| HUB-ARTIFACT-VERSION-DESIGN | pending（数据河） | design | 图纸/artifact 版本上服务器：扩展 `ArtifactRef`(schemas.ts:95-111) 加 kind + 版本链 + 按天/robotTarget 分类；**上传→`artifactUpload` 进度信号**（喂机械/电路河，D-034）；mock-first；字节进 volume/MinIO、不入 git/治理库（D-025 边界）。**D-038 按组分治**：机械=本地存储真相（见下行）、电路=云端引用（`kind:'eda'`+externalUrl 不存二进制）、程序=git。未决：版本语义（谁 bump / 当前权威版指针 / 撞坏回退 / 按车分支）、上传 UX 须比微信省事（C1）、存储/备份/审批（§3/§8）。别做完整 PLM（C3）|
+| HUB-ARTIFACT-STORE-MECH | pending（数据河，**第4样自建 D-038**） | code/design | 机械组 SolidWorks 图纸**本地版本库**：无云端、现仅本地/微信传 → 战队服务器做唯一备份/版本管理真相（`ArtifactRef kind:'cad'` + 字节进 volume/MinIO + 版本链 + 命名规范 + 任意版本检索）；上传→`artifactUpload` 信号喂机械河（D-034）；上传 UX 须比微信省事（C1，否则迁不动）。**对照**：电路 EDA=云端引用、程序=git（当前 GitHub，迁本地 Forgejo 考虑中 `GITHUB-TO-LOCAL`）。§3/§8 审批门后 |
 | HUB-GIT-ADAPTER-DESIGN | pending（数据河） | design | 程序薄封装 git（git 仍唯一真相 G2、不另造 VCS C3）：一键"保存版本"=底层 commit+push；git push→`gitCommit` 进度信号（喂程序河，D-034）；双重职责=降门槛 + 让程序 silence 信号可信。可并入既有 `HUB-GIT-FORGE-DESIGN`。未决：交互形态（Lark 卡片 / console 按钮）、鉴权 |
 | GOV-REMOTE-ACCESS-DESIGN | pending（基础设施） | design | 在外访问 = 实验室 LAN + 隧道（用户 2026-06-12）：治理服务器在内网，备赛在外要隧道/反代才能直连；与 Hermes/openclaw adapter 轨**区分**（adapter=能力、隧道=访问路径）。真痛点=在外 Cue 送得到（飞书走 Lark 云本可达）+ 信号收得进。§8 审批门后，独立基础设施轨，别缠治理设计 |
 
@@ -136,6 +139,8 @@
 - 战队服务器 Git 中枢：Forgejo / Gitea / bare git 取舍，真实部署另开审批任务。
 - Hermes / 小龙虾 / Claude Code / **openclaw** adapter：真实接入方式、权限和运行边界需用户提供。**openclaw 澄清（用户 2026-06-12）= Hermes 类 AI/命令 adapter，归 mock-first adapter 轨，≠ D-020/D-021 否决的 `openclaw-lark` 飞书协议桥（协议错位）**。
 - `ARTIFACT-VERSION-SEMANTICS`（图纸版本语义）/ `REMOTE-ACCESS-DEPLOY`（远程部署=LAN+隧道方案与鉴权）：见 D-036 + 数据河 build 轨；细化待用户线下。
+- `GITHUB-TO-LOCAL`（程序代码 GitHub→本地 Forgejo 迁移）= 用户 2026-06-12 **考虑中**，未决（D-038）。无论迁不迁，TeamHub 只消费 git 的 `gitCommit` 信号、不改 git 唯一真相（G2）。
+- `PULL-CLOUD-CODE`（定期 pull 云端代码/EDA 到本地备份）= 用户 2026-06-12 **考虑中**，未决（D-038，与电路 EDA 云端引用相关）。
 
 ## 当前不做
 
