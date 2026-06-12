@@ -4,18 +4,17 @@
 
 ```yaml
 mode: governance_design
-stage: 2026-06-11 D-032 治理提示层 GovernanceCue 拍定（讨论落地）：把 idle 检测从"贴人标签"reframe 为建设性提示触发器（对本人去学/对队长去聊/颜色中性）；Member.status 全派生（Task 真相、杀双写 G2）、三态 uncovered/blocked/capacityFreed + 私下 silence 信号；idle/静默/Need 升级/过载 收成同一 GovernanceCue 多态层（反排名守一个 schema、audience 路由多态）。spec 落 docs/design/gov-cue-layer.md，GOV-RULES-LAYER 重定义为 Cue 生产者层。受众路由"队长 vs 组长"留 OPEN（CUE-AUDIENCE-ROUTING，配独立讨论提示词）。纯 docs/planning，未动代码
+stage: 2026-06-12 D-033 ROLE-VISIBILITY / CUE-AUDIENCE-ROUTING 拍定（关闭 D-032 §3 OPEN）：role enum 不动；队长/老师=项目级指派（captainMemberId/observerMemberIds[]）、组长=Group.leadMemberId、superAdmin 收窄为配置非受众；audience 最终三值 taskOwnerPrivate/subjectGroupLead/teamCoordinator + 路由表 + 可见性双轴；silence 纯 pull + 问责上移（用户选 A）；两轮对抗审计必修（去名宽视图/factStatement 文本红线/老师 k-anon rollup/良基兜底/dedupe）。spec 落 docs/design/gov-role-visibility.md。本轮续做 D-034 信号分河 + D-035 化解 give-floor + D-036 数据河 build 轨登记。纯 docs/planning，未动代码
 stage_goal: 以 D-026/D-027/D-028/D-029 + 重写中的 docs/design/team-hub-concept.md + AGENTS.md §1/§4/§5 为事实源，按四层架构推进数据真相层（项目/赛季·成员角色资历·组织树·任务依赖·Need·共享资源/占用窗口）→ 规则治理层（卡点/过载/沉默/升级 + 差异化在场派生）→ 展示汇报层 → 触点集成层，并行成长轴（知识图谱/订阅，D-027）；已建 Hub 壳子降为触点/集成+展示底座复用；AI 每轮默认读 AGENTS.md + now.md + agent-state.json + git 状态，backlog/decisions/roadmap/设计文档按条件读取
 current_task: null  # D-031 重排已落；下一步从 frontier 选 HUB-SERVER-GOV-SCAFFOLD(地基，建议先)；GOV-MEMBER-STATUS-DERIVE 的第三态待讨论项4拍
 frontier:                                # 顺序=用户 2026-06-11 选定(D-031 重排)：地基→idle 派生→录入
   - HUB-SERVER-GOV-SCAFFOLD              # 可变内存 GovernanceStore + 治理路由骨架(/api/dep-graph 等) + now=server clock 注入 — 所有真实数据流的物理出入口；server.ts 现仅 broker fixtures 路由，real 模式 GET /api/dep-graph 直接 404
-  - GOV-MEMBER-STATUS-DERIVE             # Member.status 全派生(Task 真相,禁手写,杀双写 G2) + 三态 uncovered/blocked/capacityFreed + 私下 silence 信号 → 收成 GovernanceCue。spec 已落 docs/design/gov-cue-layer.md(D-032)；受众路由(队长vs组长)留 OPEN
+  - GOV-MEMBER-STATUS-DERIVE             # Member.status 全派生(Task 真相,禁手写,杀双写 G2) + 三态 uncovered/blocked/capacityFreed + 私下 silence 信号 → 收成 GovernanceCue。spec 已落 gov-cue-layer.md(D-032) + gov-role-visibility.md(D-033 受众/角色/问责上移)；落地须读 group.kind 分河信号(D-034) + give-floor(D-035) + parity 测试
   - GOV-DEP-INTAKE-DESIGN                # 依赖录入交互(队长顺手连依赖+AI预填) — 前两者落地后才有真实写入/读取出入口；D-031 由 top-1 降为 top-3
 # 退出 top-3(仍 backlog)：GOV-RULES-LAYER-DESIGN(=GovernanceCue 生产者层,D-032 已给图纸) / GOV-CONCEPT-REWRITE / GOV-SCHED-VIZ-DESIGN
 # 新增 backlog(D-031 调研补漏)：OverloadSignal 派生 / Need open→escalated 转换 / LARK-CARD-CHANNEL+LarkMemberBinding(GOV-LARK-DERIVE 两件前置) — 三者 D-032 后均归入 GovernanceCue 生产者
 blocked: []
-open_for_decision:                       # ARCH-PATH(D-028)/提醒(D-026后续)/资源(D-029)/idle三态+静默(D-032) 已拍；以下待用户线下细化
-  - CUE-AUDIENCE-ROUTING                 # GovernanceCue 受众路由：队长(全队)vs组长(子组)在 role enum(superAdmin/groupAdmin/member)+组织树上如何界定、Cue 上给谁（D-032 OPEN，配独立讨论提示词，归 ROLE-VISIBILITY）
+open_for_decision:                       # ARCH-PATH(D-028)/提醒(D-026后续)/资源(D-029)/idle三态+静默(D-032)/受众路由(D-033) 已拍；以下待用户线下细化
   - SCHED-WINDOW-GRANULARITY             # 窗口是否要精确钟点(startsAt/endsAt)，当前粗粒度 windowLabel + orderInWindow
   - SCHED-INVITED-MEMBER-DISPLAY         # 单窗 invitedMemberIds 在 UI 展示到什么程度（可操作 vs 不沉淀出勤档案）
 post_pivot_registry:
@@ -58,9 +57,9 @@ _无。HUB-COMPOSE-SMOKE 已闭环：Docker CLI/Compose 可用后，修复 Hub �
 
 ## 最近完成（详见 `git log`）
 
-- 2026-06-11 D-032 治理提示层 GovernanceCue — 讨论拍定：idle 检测 reframe 为建设性提示触发器（去学/去聊/中性颜色）；`Member.status` 全派生（Task 真相、杀双写 G2）+ 三态 uncovered/blocked/capacityFreed + 私下 silence 信号；idle/静默/Need 升级/过载 收成一个 `GovernanceCue` 多态层（反排名守一个 schema、`audience` 路由多态、受众到人靠送达层即时解析不落人名）。spec 落 `docs/design/gov-cue-layer.md`，`GOV-RULES-LAYER` 重定义为 Cue 生产者层。受众路由"队长 vs 组长"留 OPEN（CUE-AUDIENCE-ROUTING）。纯 docs/planning。验证：`git diff --check` + now.md yaml + agent-state json + skills-sync。
+- 2026-06-12 D-033 ROLE-VISIBILITY / CUE-AUDIENCE-ROUTING — 关闭 D-032 §3 OPEN：role enum 不动；队长/老师=项目级指派（`captainMemberId`/`observerMemberIds[]`）、组长=`Group.leadMemberId`、superAdmin 收窄为配置非受众；audience 最终三值 `taskOwnerPrivate/subjectGroupLead/teamCoordinator` + 路由表 + 可见性双轴；silence 纯 pull + 问责上移（用户选 A：只私发本人、本组 console 事键快照、组长负责注意）；两轮对抗审计（8-agent 宪法 + 3-agent 产品目标）必修硬化：去名宽视图 / factStatement 文本红线 / 老师 k-anon rollup / noticer 老师终极兜底 / owner==lead 上抬 / dedupe / null captain。spec 落 `docs/design/gov-role-visibility.md`；`gov-cue-layer.md` §2/§3/§4/§8 同步。纯 docs/planning。验证：`git diff --check` + now.md yaml + agent-state json + skills-sync。
+- 2026-06-11 D-032 治理提示层 GovernanceCue — 讨论拍定：idle 检测 reframe 为建设性提示触发器（去学/去聊/中性颜色）；`Member.status` 全派生（Task 真相、杀双写 G2）+ 三态 uncovered/blocked/capacityFreed + 私下 silence 信号；idle/静默/Need 升级/过载 收成一个 `GovernanceCue` 多态层（反排名守一个 schema、`audience` 路由多态、受众到人靠送达层即时解析不落人名）。spec 落 `docs/design/gov-cue-layer.md`，`GOV-RULES-LAYER` 重定义为 Cue 生产者层。纯 docs/planning。验证：`git diff --check` + now.md yaml + agent-state json + skills-sync。
 - 2026-06-11 D-031 概念调研 + frontier 重排 — ultracode 9 agent（ground→6 区设计→opus 缺失综合→opus 对抗 critic）调研后续概念设计并找缺失，结论全回源核实。关键发现：数据生命线命门（hub-server 治理路由全空 + `Member.status` 无派生函数却标 derived + 与 Task.status 双写 + freeIdle 把"未录入"误判成摸鱼）比"录入"更深；3 处"看似已 ship 实则空壳"（OverloadSignal 零派生 / Need escalated 死代码 / lark-toolkit 仅 reply）。**frontier 重排（D-031）：地基(HUB-SERVER-GOV-SCAFFOLD)→idle 派生(GOV-MEMBER-STATUS-DERIVE)→录入**。纯 docs/planning。验证：`git diff --check` + now.md yaml + agent-state json + skills-sync。
 - 2026-06-11 GOV-C4-FIX (`17316cc`) — 修两处宪法 C4 破口（`relatedKnowledgeFor` 不过滤 confirmedBy / `computeCriticalSet` 喂全量 deps 而非 liveDeps），各暂被 fixtures 掩盖、接真实 AI 即爆；各配锚定测（在 buggy 代码上会失败：satisfied 边退出关键链、confirmedBy=null 标注不进 relatedKnowledge）。验证：`hub-contracts verify:all` 29 测 + `hub-console verify:all` 4 测+build 全过（mock 经 toDepGraphView 派生，无回归）。
 - 2026-06-11 D-030 文档瘦身 — 文档保留规则立 ADR；`superpowers/plans`(4038 行)归档 + `product-definition` 并入 canonical `concept.md`(杀双写)；活文档 −46%；引用同步(now/connector/decisions)。lark 调研暂留待 GOV-LARK-DERIVE。验证：`git diff --check` + now.md yaml + agent-state json + skills-sync。
-- 2026-06-11 planning-sync — 录入交互补立项（GOV-DEP-INTAKE，DAG 数据命门）+ frontier 重排（录入→规则→concept 回写）+ concept.md 追上 D-028/D-029（修 §6/§8 stale 标记）；纯 docs/planning，未动代码。验证：`git diff --check` + now.md yaml 可解析 + `python3 -m json.tool agent-state.json` + skills-sync。
-- 更早条目（GOV-SCHED-MODEL/**D-029** 差异化在场排班 + `derivePresenceSchedule`、GOV-DATAMODEL-VIZ-ARCHPATH/**D-028** 治理为主轴 + 依赖链归因视图、GOV-REMIND-AXIS-DECIDE/**D-027** 成长轴 + 提醒模型、PF-V03-CLEANUP / HUB-COMPOSE-SMOKE 等）见 `git log` 与 `decisions.md`——已裁剪到 5 条（AGENTS §6）。
+- 更早条目（2026-06-11 planning-sync 录入立项 + frontier 重排、GOV-SCHED-MODEL/**D-029** 差异化在场排班 + `derivePresenceSchedule`、GOV-DATAMODEL-VIZ-ARCHPATH/**D-028** 治理为主轴 + 依赖链归因视图、GOV-REMIND-AXIS-DECIDE/**D-027** 成长轴 + 提醒模型、PF-V03-CLEANUP / HUB-COMPOSE-SMOKE 等）见 `git log` 与 `decisions.md`——已裁剪到 5 条（AGENTS §6）。

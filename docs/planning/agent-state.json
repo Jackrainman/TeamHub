@@ -2,7 +2,7 @@
   "schema_version": 1,
   "authority": "derived-cache-only; now.md/backlog.md/decisions.md remain authoritative",
   "mode": "governance_design",
-  "stage": "2026-06-11 D-032 治理提示层 GovernanceCue 拍定(讨论落地)：idle 检测 reframe 为建设性提示触发器(去学/去聊/中性颜色)；Member.status 全派生(Task 真相、杀双写 G2) + 三态 uncovered/blocked/capacityFreed + 私下 silence 信号；idle/静默/Need 升级/过载 收成同一 GovernanceCue 多态层(反排名守一个 schema)。spec 落 docs/design/gov-cue-layer.md，GOV-RULES-LAYER 重定义为 Cue 生产者层。受众路由队长vs组长留 OPEN(CUE-AUDIENCE-ROUTING)。纯 docs/planning",
+  "stage": "2026-06-12 D-033 ROLE-VISIBILITY / CUE-AUDIENCE-ROUTING 拍定(关闭 D-032 §3 OPEN)：role enum 不动；队长/老师=项目级指派(captainMemberId/observerMemberIds[])、组长=Group.leadMemberId、superAdmin 收窄为配置非受众；audience 三值 taskOwnerPrivate/subjectGroupLead/teamCoordinator + 路由表 + 可见性双轴；silence 纯 pull + 问责上移(用户选 A)；两轮对抗审计必修(去名宽视图/factStatement 文本红线/老师 k-anon rollup/良基兜底/dedupe)。spec 落 docs/design/gov-role-visibility.md。本轮续 D-034 信号分河 + D-035 化解 give-floor + D-036 数据河 build 轨登记。纯 docs/planning",
   "current_task": null,
   "frontier": [
     "HUB-SERVER-GOV-SCAFFOLD",
@@ -11,7 +11,6 @@
   ],
   "blocked": [],
   "open_for_decision": [
-    "CUE-AUDIENCE-ROUTING",
     "SCHED-WINDOW-GRANULARITY",
     "SCHED-INVITED-MEMBER-DISPLAY"
   ]

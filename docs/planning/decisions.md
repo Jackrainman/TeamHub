@@ -401,3 +401,19 @@
 - OPEN（留字段、本轮不定）：**`CUE-AUDIENCE-ROUTING`——队长 vs 组长身份难界定**：role enum 仅 `superAdmin/groupAdmin/member` + 组织树 `parentGroupId`，"队长(全队)"与"组长(子组)"如何落、一个 Cue 上给队长还是停在组长，决定 `audience` 枚举最终形态。单立 open_for_decision，配独立讨论提示词，归 ROLE-VISIBILITY。其余 OPEN：静默是否被读成变相监视（措辞+频率冷却）、阈值是否需 per-赛季 profile。
 - 影响：新增 `docs/design/gov-cue-layer.md`（spec）；`GOV-MEMBER-STATUS-DERIVE`（frontier#2）从此有落地图纸；`GOV-RULES-LAYER` 范围明确为 Cue 生产者层；`now.md`/`agent-state.json` 加 `CUE-AUDIENCE-ROUTING` 入 open_for_decision。本 ADR 不改代码。
 - 事实源：`docs/design/gov-cue-layer.md`；本 ADR；`docs/design/team-hub-concept.md`（canonical）。
+
+## D-033 — ROLE-VISIBILITY / CUE-AUDIENCE-ROUTING：角色模型 + 受众路由 + 问责上移
+
+- 状态：**DECIDED**（spec 落 `docs/design/gov-role-visibility.md`；实现属 frontier `GOV-MEMBER-STATUS-DERIVE` / `GOV-RULES-LAYER` / `HUB-SERVER-GOV-SCAFFOLD`）
+- 日期：2026-06-12
+- 上下文：关闭 D-032 §3 OPEN（`CUE-AUDIENCE-ROUTING`）。`GovernanceCue.audience` 只有 `taskOwnerPrivate/captain/groupAdmin` 三占位、无路由表——因为"队长(全队)"与"组长(子组)"在 role enum `{superAdmin,groupAdmin,member}` + `Group.parentGroupId` 多层自引用树上界定不清（程序大组下电控/视觉子组，电路/机械顶层；汇报按 `reportingGroupId`，D-029）。经两轮对抗式审计核实（8-agent 宪法审计 + 3-agent 产品目标核实），原"schema 反排名足够保证多帽安全"被纠为**对 A1 的范畴错误**——schema 守 C2 聚合排名，但不防 A1 单条点名与 C2 广度×时间重建，必须靠去名 + k-anon + dedupe 在投影/送达层补。
+- 决策（用户 2026-06-12 拍板）：
+  1. **role enum 不动** `{superAdmin, groupAdmin, member}`，零迁移。`superAdmin` 收窄为系统维护者/配置，**非 Cue 受众**；`groupAdmin` = 可 pull 本组事/缺口的可见性能力，子组/大组组长都是 groupAdmin、由 groupId 区分。
+  2. **三处指派拆开 D-026 dec4 的"superAdmin = 维护者 + 队长"合并**（搭建权 ≠ 全队治理权 ≠ 只读观察）：新增 `Group.leadMemberId`（组长权威源，消"一组两 groupAdmin 谁带组"歧义）· `Project.captainMemberId`（队长 → `teamCoordinator`）· `Project.observerMemberIds[]`（老师 → 仅项目级 rollup）。队长/老师不进 enum 因其赛季级 + 与组长正交 + observer 多对多（1:1 enum 装不下、塞进去要 junction = 违 C3）。
+  3. **audience 最终三值（改名取消歧义）**：`taskOwnerPrivate`（本人私发，不存 memberId）/ `subjectGroupLead`（按 subject 取 groupId：task→groupId·group→id·need→providerGroupId·resource→直升队长，经 `leadMemberId` 解析、有界上溯 子组→大组→队长兜底）/ `teamCoordinator`（队长）。配一张「Cue kind × 受众 × 升级链」路由表（见 spec §4）。
+  4. **silence 受众 = 纯 pull（用户选 A）+ 问责上移**：silence 只私发本人「还在做 X 吗?」、**不 push 任何第三方**；停滞以事键快照「任务X·就绪·无进展」在本组 console pull 显示（快照非按人历史、本组组长可见 owner、更宽视图去名）。「如果还没看到就是组长的问题」——问责朝上（管理者注意力可问责）不朝下（监视队员），摸鱼从"抓坏队员"重述为"管理有没有在看"，并分散资历弱者压力（G5）。
+  5. **可见性双轴（广度 × 深度）**：member/组长/队长/老师/superAdmin 分层；**任何层级（含队长、老师）都不见人均完成量排名（C2）**，越高 = 事/缺口广度越宽、绝非人粒度越细，老师深度最浅（仅大组 rollup）。push 升级门控；pull 每个 groupAdmin 只看直属组、大组只见去名 rollup（防大组 lead 旁观子组 silence 绕过门控）。
+  6. **审计必修硬化（红线落投影/送达/测试）**：去名宽视图（ownerLabel 仅私链）· factStatement 文本红线测试（扫 `/静默\d|\d+天/` + 非私发 Cue 无 displayName）· 老师 `toObserverRollup` k-anonymity（子树成员 <k 合并/抑制，挡单人组点名，如 grp-circuit 单人且是 Need.providerGroup）· noticer 良基化（老师终极兜底「顶层未路由」）· owner==lead 上抬不留盲区（修 G5 反转）· owner==lead/captain dedupe 抑制协调面 · null captain → pull-only + superAdmin 配置提示不静默丢。
+- 替代项（增长 role enum 加 captain/observer）未采纳：steelman 结论 keep-enum-unchanged——observer 多对多是致命点，进不了 1:1 enum；项目级字段是赛季级正交指派的正确关系表达；零迁移、天然支持一人多帽（并集可见性，安全靠去名/k-anon/dedupe 而非 enum 互斥）。
+- 影响：新增 `docs/design/gov-role-visibility.md`（spec）；`gov-cue-layer.md` §2 audience 改名、§3 关 OPEN、§4 silence 行改纯 pull、§8 OPEN#1 移除；`now.md`/`agent-state.json` 移除 `CUE-AUDIENCE-ROUTING` 出 open_for_decision；supersede D-026 dec4 的 superAdmin 合并。为 frontier 列出 schema/纯函数/测试落地清单（spec §9）。本 ADR 不改代码。
+- 事实源：`docs/design/gov-role-visibility.md`；本 ADR；`docs/design/gov-cue-layer.md`；`docs/design/gov-oncall-schedule.md`（reportingGroupId，D-029）；`AGENTS.md §5`。

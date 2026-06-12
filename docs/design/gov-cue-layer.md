@@ -32,7 +32,7 @@ note: GOV-MEMBER-STATUS-DERIVE(frontier#2) 与 GOV-RULES-LAYER 的当前 spec。
 GovernanceCueKind  = 'blocked' | 'uncovered' | 'capacityFreed'
                    | 'silence' | 'needEscalation' | 'overload'
 GovernanceCueTone  = 'give' | 'ask' | 'surface'          // 给予 / 询问 / 暴露
-GovernanceCueAudience = 'taskOwnerPrivate' | 'captain' | 'groupAdmin'   // ← §3 OPEN
+GovernanceCueAudience = 'taskOwnerPrivate' | 'subjectGroupLead' | 'teamCoordinator'   // ← 已定，见 gov-role-visibility.md (D-033)
 
 GovernanceCue = {
   id: string
@@ -48,11 +48,11 @@ GovernanceCue = {
 }
 ```
 
-## 3. 受众路由与"不落人名"（关键不变式）
+## 3. 受众路由与"不落人名"（关键不变式；受众边界已定 → gov-role-visibility.md / D-033）
 
 - `audience='taskOwnerPrivate'` **不是存 memberId**，而是"本 Cue 主体任务的 owner"。送达时（触点层）才即时解析 `task.ownerId → larkOpenId` 私发，**不沉淀为 Cue 上可聚合的人维度字段** → 反排名保住（你无法 groupBy 人去数谁被提示最多）。
-- `'groupAdmin'` = 主体所属组的组长；`'captain'` = 全队层级。
-- **OPEN（待 CUE-AUDIENCE-ROUTING / ROLE-VISIBILITY 讨论）**：`captain` 与 `groupAdmin` 的边界。role enum 只有 `superAdmin/groupAdmin/member`，组织树是 `Group.parentGroupId` 自引用——"队长(全队)"是 superAdmin 还是顶层组的 groupAdmin？"组长(子组)"是哪一层的 groupAdmin？一个 Cue 该上给队长还是停在组长？这条决定 `audience` 枚举最终形态，本 spec 先留字段、不定路由表。
+- audience 三值（D-033 关闭 OPEN，改名取消歧义）：`taskOwnerPrivate`（本人私发）/ `subjectGroupLead`（主体所属组的组长，经 `Group.leadMemberId` 解析、有界上溯大组→队长兜底）/ `teamCoordinator`（队长 = `Project.captainMemberId`）。role enum **不动**；队长/老师是项目级指派（`captainMemberId` / `observerMemberIds[]`），superAdmin 收窄为配置、非 Cue 受众。
+- 路由表（Cue kind × 受众 × 升级链）+ 角色模型 + 可见性双轴 + 问责上移（silence 纯 pull）+ 审计必修（去名宽视图 / factStatement 文本红线 / 老师 k-anon rollup / 良基兜底 / dedupe）全部见 **`docs/design/gov-role-visibility.md`**。
 
 ## 4. `Member.status` 全派生 + 状态机（GOV-MEMBER-STATUS-DERIVE）
 
@@ -64,12 +64,12 @@ GovernanceCue = {
 |---|---|---|---|
 | 无 active 分配任务 | `uncovered`（待安排） | 灰虚线 | `{uncovered, captain, surface, "给 X 派活"}` |
 | active 任务被 live 上游卡 | `blocked`（被卡） | 红斜纹+锁 | 复用 `BlockAttribution`（已有），转 `blocked` Cue |
-| active 任务就绪未卡、N 天无进度信号 | （仍标 working）→ 触发 `silence` | working 实线 | `{silence, taskOwnerPrivate, ask, "还在做 X 吗?"}` + `{silence, captain, surface, "X 静默 N 天"}` |
+| active 任务就绪未卡、N 天无进度信号 | （仍标 working）→ 触发 `silence` | working 实线 | `{silence, taskOwnerPrivate, ask, "还在做 X 吗?"}` 仅私发本人；**不 push 任何第三方**——停滞以事键快照「任务X·就绪·无进展」在本组 console pull 显示（问责上移，D-033 §6），永不升级对人可见(A4) |
 | 最近任务 done、无下一个 | `capacityFreed`（腾出手） | 青 | `{capacityFreed, taskOwnerPrivate, give, "看看别的知识?"+relatedKnowledge}` + `{capacityFreed, captain, surface, "X 做完了，去聊聊 / 可匀给过载组"}` |
 | 最近有进度信号 | `working` | 实线 | — |
 
 - **`silence` 与 `capacityFreed` 的区别 = 手里有没有就绪任务**：有（却不动）→ 静默（私下问本人）；没有（做完了）→ 腾出手（去学 + 队长去聊）。两者都**不贴"摸鱼"**。
-- "真摸鱼"只表现为反复 `silence`，靠队长"去聊一聊"的对话发现，不进任何看板计数（升级的是事 / 对话，不是人）。
+- "真摸鱼"不靠系统 push 点名发现：`silence` 只私发本人一条可忽略的询问、第三方零 push；停滞事实在本组 console（事键快照、**不持久化按人历史**）由组长自己注意 + 判定（问责上移）。系统**永不**把"某人反复静默"surface 给第三方（A4 红线 + D-033 §6）。
 
 ## 5. 五个生产者（= GOV-RULES-LAYER 的实体）
 
@@ -94,8 +94,8 @@ GovernanceCue = {
 
 ## 8. OPEN / 待议
 
-1. **受众路由 队长 vs 组长**（§3）→ `CUE-AUDIENCE-ROUTING`，单独讨论。
-2. 静默是否会被本人读成变相监视——措辞口吻 + 同一任务提示频率上限（冷却窗口）。
+1. ~~受众路由 队长 vs 组长~~ → **已定（D-033，`docs/design/gov-role-visibility.md`）**：audience 三值 + 路由表 + 角色模型 + 问责上移。
+2. 静默措辞口吻 + 同一任务提示频率上限（冷却窗口）→ 冷却窗 `silenceCueCooldownDays` 由 D-034 落 `RulesConfig`；口吻仍待打磨。
 3. 阈值默认值是否需 per-赛季 profile。
 
 ## 9. 事实源
