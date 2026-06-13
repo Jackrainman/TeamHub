@@ -4,13 +4,13 @@
 
 ```yaml
 mode: collab_design
-stage: 2026-06-13 HUB-SERVER-GOV-SCAFFOLD 首刀已落地（D-040 收敛版，已 commit）：hub-server 注册 GET /api/dep-graph（新增 GovStore interface + InMemoryGovStore seed governanceScenarioFixture + Clock 注入[默认 FixedClock 钉 GOVERNANCE_SCENARIO_NOW]，DepGraphSchema.parse(toDepGraphView(snapshot,now))），解 hub-console real 模式 404、与 mock 同口径派生；C2 节点无 memberId。hub-server+hub-contracts verify:all 全过（14+29 测）。写入簇/presence/持久层/drizzle 後置。下一可认领=KB-LIBRARY-DESIGN（破冰序 rank2）或 base 写入簇（按 atomic-task 重选）。前序 D-040 分析 / D-039 三支柱见 decisions.md + 最近完成段。
-stage_goal: 以 D-039 + plan file noble-soaring-gem.md + AGENTS.md 为事实源，演进留地基、AI 退出治理（治理只做人读说明视图、大三/学长判断），推进战队内部协作工具三支柱：① 战队知识库（规范+资料+调试归档+跨赛季沉淀，复用 growth.ts KnowledgeNode + 移植 Probe_Flash IssueCard→Archive 闭环）② 项管看板（复用 Task/Dep/Need 补 due/优先级 + 看板·列表页 + 依赖录入）③ 库存/BOM（P1，自保鲜护栏）；共享底座（持久层 + real CRUD 路由）先行、一次三根受益。设计北极星=比死表省事/用着就更新(派生优先)/AI 只当仓管·转译不下判断/人在环/小作坊轻量。治理 AI 派生整簇（D-032~035）挂起、想法不丢，复活触发=未来确认要 AI 参与治理判断。AI 每轮默认读 AGENTS.md + now.md + agent-state.json + git 状态，backlog/decisions/roadmap/设计文档按条件读取
+stage: 2026-06-13 D-041 三支柱构建前设计定调已记（docs/planning，已 commit）：中心实体=任务（系统围任务转、不围人转；澄清主键焦虑=每实体各有简单 id、无联合主键，真问题是“围着什么转”=任务）；②项管看板→“项目计划表”（全员可见·依赖图+卡住必带原因·无甘特·不按人天数，推翻上一轮“只管理者看”）；视图解耦（项目进度 vs 个人成长 D-027 只共享任务底座、互不依赖、成长轴后置）；“项目”=标签（不纠结几个项目）；先地基后视图（任务+谁负责+谁依赖谁先行，甘特/按人天数/可见性细分皆后置且改动便宜）；“和人关系”三堆判定尺（事/物=安全｜找谁对接=安全止于找谁｜谁快谁慢·在不在干活=人治封存）。前置 HUB-SERVER-GOV-SCAFFOLD 首刀（GET /api/dep-graph，D-040 收敛版）已落地、verify:all 全过（14+29 测）。下一步=走 atomic-task 选任务开始构建（破冰序 base→kb→pm，base 首刀 done→KB-LIBRARY-DESIGN / base 写入簇 / PM 项目计划表）。权威=decisions.md D-041/D-040/D-039。
+stage_goal: 以 D-039 + plan file noble-soaring-gem.md + AGENTS.md 为事实源，演进留地基、AI 退出治理（治理只做人读说明视图、大三/学长判断），推进战队内部协作工具三支柱：① 战队知识库（规范+资料+调试归档+跨赛季沉淀，复用 growth.ts KnowledgeNode + 移植 Probe_Flash IssueCard→Archive 闭环）② 项目计划表（D-041：任务为核心·全员可见·依赖图+卡住必带原因·无甘特·不按人天数；复用 Task/Dep/Need 补 due/优先级 + 依赖录入）③ 库存/BOM（P1，自保鲜护栏）；共享底座（持久层 + real CRUD 路由）先行、一次三根受益。设计北极星=比死表省事/用着就更新(派生优先)/AI 只当仓管·转译不下判断/人在环/小作坊轻量。D-041 构建定调：中心实体=任务（围任务转不围人转）/视图解耦（项目进度 vs 个人成长共享任务底座）/“项目”=标签/先地基后视图/“和人关系”三堆判定尺（事·物=安全｜找谁对接=安全止于找谁｜谁快谁慢=人治封存）。治理 AI 派生整簇（D-032~035）挂起、想法不丢，复活触发=未来确认要 AI 参与治理判断。AI 每轮默认读 AGENTS.md + now.md + agent-state.json + git 状态，backlog/decisions/roadmap/设计文档按条件读取
 current_task: null  # HUB-SERVER-GOV-SCAFFOLD 首刀(GET /api/dep-graph)已完成并 commit；下一可认领 KB-LIBRARY-DESIGN(rank2) 或 base 写入簇(後置)，按 atomic-task 重选
 frontier:                                # D-039 重排：共享底座→P0 知识库→P0 项管看板；原 frontier#2 治理派生(GOV-MEMBER-STATUS-DERIVE)挂起
   - HUB-SERVER-GOV-SCAFFOLD              # D-039 共享底座：持久层 + real CRUD 路由(知识库/项管/库存 GET·POST /api/...) + now=server clock；现全 mock、real GET /api/dep-graph 404；做一次三根受益。原 GovernanceStore/派生语义随治理挂起，先服务 CRUD
   - KB-LIBRARY-DESIGN                    # P0 战队知识库(最高频痛点：仓库乱要统一规范)：规范入口+资料 findability+调试归档+跨赛季沉淀，一根「找得到的战队知识」；复用 growth.ts KnowledgeNode + 移植 Probe_Flash IssueCard→InvestigationRecord→ErrorEntry→Archive 闭环；写/浏览/搜索+拉飞书 wiki·drive。北极星=用着就沉淀，不做事后填总结
-  - PM-BOARD-DESIGN                      # P0 项管看板(高强度+最省力)：复用 Task/Dep/Need 补 due/优先级+看板·列表页+依赖录入(并入原 GOV-DEP-INTAKE)；治理判断交人(大三/学长看 A 做完/B 忙疯自行协调)，AI 不派活·不排名
+  - PM-BOARD-DESIGN                      # P0 项目计划表(D-041 定调，原"项管看板"；高强度+最省力)：任务为核心·全员可见·依赖图+任务状态+缺口+分工，卡住必带原因(在等谁/等什么，不出"光秃秃天数+人名")·无甘特(预设确定工期/顺序/硬截止皆无，违 G4)·不按人天数；复用 Task/Dep/Need 补 due/优先级+依赖录入(并入原 GOV-DEP-INTAKE)；判断交人、AI 不派活·不排名；人治视图(按人天数/甘特/空闲检测/排班)封存
 # P1：INV-BOM-DESIGN(库存/BOM，自保鲜护栏=等 AI 读出车图核数/算余量再做，绝不再造静态表 P13)+飞书 Bitable·sheets 读写+修 lark-cli bin bug；P2：资料/代码批量整理(AI 安全车道)、给老师项目级汇报
 # 挂起(D-039 AI 退治理，spec 留、复活触发=未来要 AI 参与治理判断)：GOV-MEMBER-STATUS-DERIVE / GOV-RULES-LAYER-DESIGN + D-032~035 治理派生整簇(GovernanceCue/silence 分河/give-floor/k-anon/audience 路由/阈值派生) + 自动派活 + freeIdle·双写债
 blocked: []
@@ -58,6 +58,8 @@ _无。HUB-COMPOSE-SMOKE 已闭环：Docker CLI/Compose 可用后，修复 Hub �
 - 不在未审批情况下写真实服务器、SSH、systemd、80/443 或迁移真实数据。
 
 ## 最近完成（详见 `git log`）
+
+- 2026-06-13 D-041 三支柱构建前设计定调 — 甲方设计对话拍板：**中心实体=任务**（系统围任务转不围人转；澄清主键焦虑=每实体各有简单 id、无联合主键，真问题是“围着什么转”=任务）；**②项管看板→“项目计划表”**（全员可见·依赖图+卡住必带原因·无甘特·不按人天数，推翻上一轮“只管理者看”）；**视图解耦**（项目进度 vs 个人成长 D-027 只共享任务底座·互不依赖·成长轴后置）；**“项目”=标签**（不纠结几个项目）；**先地基后视图**（任务+谁负责+谁依赖谁先行，甘特/按人天数/可见性细分皆后置且改动便宜）；**“和人关系”三堆判定尺**（事·物=安全｜找谁对接=安全止于找谁｜谁快谁慢·在不在干活=人治封存）。细化 D-039/D-040、推翻 D-037 可见性草案、确认 D-027 解耦后置。纯 docs/planning（decisions D-041 + now + agent-state + concept §10 + backlog PM 行）。验证：git diff --check + now.md yaml + agent-state json + skills-sync。
 
 - 2026-06-13 HUB-SERVER-GOV-SCAFFOLD 首刀 — D-040 破冰序 base 第一刀：hub-server 注册 `GET /api/dep-graph`（新增 `GovStore` interface + `InMemoryGovStore`(seed `governanceScenarioFixture`) + `Clock` 注入[默认 `FixedClock` 钉 `GOVERNANCE_SCENARIO_NOW`]，`DepGraphSchema.parse(toDepGraphView(snapshot, clock.now()))`），解 hub-console real 模式 `/api/dep-graph` 404、与 mock 同口径派生；C2 节点无 memberId 维度。写入簇/presence/持久层/drizzle 全部後置(STOP 不顺推)。验证：hub-server verify:all(14 测含新 dep-graph-route)+hub-contracts verify:all(29 测)+git diff --check 全过。
 
