@@ -585,3 +585,23 @@
   - **D-027 成长轴**：确认与项目进度解耦、往后放（不挂起、不阻塞）。
 - 影响：本 ADR + `now.md`（stage / stage_goal / frontier PM 行 / 最近完成）+ `agent-state.json` + `team-hub-concept.md` §10（已拍定 6）+ `backlog.md`（PM-BOARD 行定调）。**纯 docs/planning，不碰代码 / 服务器 / 真实数据**；`verify:all` 应零回归。
 - 事实源：本 ADR；2026-06-13 设计对话（甲方拍板）；`D-039`/`D-040`（被细化）；`D-037`（被推翻的可见性草案）；`D-027`（成长轴解耦后置）；代码实证（`governance.ts` 各实体均 `id: z.string`、无联合主键；`attribution.ts:270 toDepGraphView` 现带 `ownerLabel`=分工，属 ② 堆）。
+
+## D-042 — 需求分析闸门通过 + 可行性裁定 + 三支柱构建定基调（冲突取最新版 / Hermes 最后接 / 库存对话记账防死）
+
+- 状态：**DECIDED**（甲方 2026-06-13 设计对话拍板"冲突直接用最新版、Hermes 最后接、库存留着排最后、修改 commit push 然后开始构建"；本 ADR = 三支柱**开始构建前的最终定基调**权威源；细化 D-039/D-040/D-041、推翻 D-040 一处 PM 指令；纯 docs/planning，代码零改）
+- 日期：2026-06-13
+- 上下文：在 D-041 定调"这次之后开始构建"后，跑 20-agent 闸门式 workflow 做**需求分析（闸门）+ 需求可行性分析**（5 分析器需求闸门[宪法=opus] → opus 裁定 → 5 haiku 实证盘点 → 4 sonnet 逐根评估 → 4 opus 对抗核实 → 1 opus 综合）。需求分析判 **proceed/0 阻断**（14 条全 major/minor），可行性分析出四根裁决；甲方就两处分歧拍板，并新增 Hermes 排序。分析记录 `docs/design/three-pillar-feasibility.md`。
+- 决策：
+  1. **需求合理、可以构建**：需求分析闸门通过（0 阻断）；14 条遗留为构建前收口项（见可行性文档 §7），非需求错。
+  2. **冲突直接取最新版**（裁定唯一真矛盾）：D-040"PM 读 `Member.status` + UI 降级标注「状态待确认」"与 D-041"项目计划表不含在不在干活" 矛盾 → **取最新版 D-041**。落地 = **PM 需求层彻底删去 `Member.status`/freeIdle 任何展示通道，而非"读了再降级"**；`DepGraphPage` 现 `freeIdleCount` 在 PM 页复用须显式去掉。
+  3. **Hermes/openclaw = 统一触点能力、最后做、先搭壳子**：① 能力是真的（Hermes 已接通、能调飞书 CLI，纠正可行性初稿"空架子"判断）；② 缺口在项目侧 → **新需求 = TeamHub 需具备"调用 hermes/openclaw"的能力**；③ 排序 = **先把底座/知识库/进度表/(库存表结构) 壳子搭起来，最后统一接 Hermes/openclaw**（四层架构最上层触点/集成层本就最后接）；④ 一次接、多根受益（库存对话记账 / 知识库随手沉淀 / 进度表随口更新走同一条路），作为统一能力做一次。
+  4. **库存（INV）= 不冻结、留着、排最后、重要**（推翻可行性初稿 not-yet/"这轮不动"）：防死机制 = **对话记账（主力，靠 Hermes：说"坏了一个 3508"助手记一笔）+ 一次性盘点建底（起步，老师也要）+ 看图算量（增强，后续；本地大内存可兜底）**；新增功能 = **缺口主动向用户汇报**；老实定位 = **"大概有什么/还有没有"非精确实时账**（静默拿走的漏认了，"知道本来该有"即值）；锁松一档 = 不禁止做，但**做时必须带"对话记账"低门槛入口、不许做成纯手敲死表**，且真"用着就更新"依赖决策 3 的 Hermes 能力故落最后。
+  5. **构建顺序（破冰序 base→kb→pm→inv 不变，补两处）**：① **base 先补"收口刀"**=`GovStore` 加写方法白名单签名 + `BuildHubServerOptions` 加 `kbStore?/invStore?` 扩展点（接口先行≈30 行，1 atomic-task），化解"四次重建底座"违 C3；补强：`GovernanceSnapshot` 已含 `knowledgeNodes/taskKnowledgeTags`，KB 大体复用同快照、**不必扩 interface**，真正要扩的只有 INV `PartStock`。② **KB 拆 KB-CORE（先，零飞书，最快交付）/ KB-LARK（后，hardblock LARK-BIN-PROBE）**。③ **PM**：`TaskSchema` 必填字段须 server 默认或表单补齐（"title+groupId" 过不了 Zod）；"卡住=在等谁"收敛为**结构键**（在等哪个上游任务/组/Need，点开才见组、对接才见人）；`confirmedBy`=timestamp 非 memberId（守 I0）；blockedBy 走 Dependency 边由 `toDepGraphView` 派生、**不在 Task 上另存**（守 G2）；**`dueDate` 本轮不引入**（D-041 甘特暂缓 + 违 G4），priority 改 `criticalChain` 派生。
+  6. **文档卫生**：`GOV-SCHED-VIZ-DESIGN` 标挂起（D-041 7③ 排班=人治封存）；游离 GOV-*/AXIS 逐行标后置/挂起防误认领；**"P13" 降表述为"C1 死表实证（非独立宪法编号）"**（`AGENTS.md §5` 仅 I0/C1-C5/G1-G5/A1-A4，无 P 系列）。
+- supersedes / 细化：
+  - **推翻 D-040 一处 PM 指令**（"读 Member.status + 降级标注"）→ 取 D-041。**不改 D-040 破冰序与首刀**。
+  - **细化 D-039 库存 P1**：从"等 AI 自保鲜再做、否则不做"细化为"留着排最后 + 对话记账防死 + 大概账定位"（决策 4）；**openclaw=Hermes 类 adapter** 由"数据河方向"升为"统一触点能力、最后做"（决策 3）。
+  - **细化 D-041**：决策 7③ 人治封存逐条落到 PM 需求层删 `Member.status`（决策 2）。
+  - **D-036 数据河 / openclaw adapter 轨**：归入决策 3 的统一 Hermes 能力，方向不变。
+- 影响：本 ADR + `docs/design/three-pillar-feasibility.md`（新建分析记录）+ `backlog.md`（KB 拆 CORE/LARK、PM 行去 Member.status/dueDate 加结构键、INV 行新定位、base 收口刀、新增 HUB-HERMES-ADAPTER 行最后做、GOV-SCHED-VIZ 标挂起）+ `now.md`/`agent-state.json`（stage/frontier/最近完成）。**纯 docs/planning，不碰代码 / 服务器 / 真实数据**；`verify:all` 应零回归。
+- 事实源：本 ADR；workflow 输出（run `wf_0ef0d4cc-4c8`，20 agent / 1.26M token，gate=proceed/0 blocker）；`docs/design/three-pillar-feasibility.md`；grep 实证（`gov-store.ts:9`/`server.ts`/`governance.ts` 无 dueDate·有 criticalChainTaskIds·blockedByLabel/`boundary.ts` 白名单/`cli-bridge.ts:17/47`/无 kb.ts·inv.ts）；2026-06-13 设计对话（甲方拍板冲突取最新版 / Hermes 最后接 / 库存对话记账）；`D-039`/`D-040`/`D-041`（被细化）；`D-037`/`D-036`。

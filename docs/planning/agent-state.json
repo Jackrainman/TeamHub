@@ -2,11 +2,11 @@
   "schema_version": 1,
   "authority": "derived-cache-only; now.md/backlog.md/decisions.md remain authoritative",
   "mode": "collab_design",
-  "stage": "2026-06-13 D-041 三支柱构建前设计定调已记（docs/planning，已 commit）：中心实体=任务（系统围任务转不围人转，澄清主键焦虑=每实体各有简单 id 无联合主键，真问题是围着什么转=任务）；项管看板→项目计划表（全员可见·依赖图+卡住必带原因·无甘特·不按人天数，推翻上一轮只管理者看）；视图解耦（项目进度 vs 个人成长共享任务底座、成长轴后置）；项目=标签；先地基后视图；和人关系三堆判定尺（事·物=安全｜找谁对接=安全止于找谁｜谁快谁慢=人治封存）。前置 HUB-SERVER 首刀（GET /api/dep-graph，D-040）已落地、verify:all 全过（14+29 测）。下一步=走 atomic-task 选任务开始构建（破冰序 base→kb→pm）。权威源=now.md/backlog.md/decisions.md(D-041/D-040/D-039)。",
+  "stage": "2026-06-13 D-042 需求分析(闸门 proceed/0 阻断)+需求可行性分析+构建定基调已记（docs/planning）：20-agent 闸门式 workflow 跑完，需求分析通过(14 条遗留全 major/minor)，可行性裁定 base/kb/pm=conditional、INV 改写为留着排最后。甲方五条定基调：①冲突取最新版(D-041 优先→PM 删 Member.status/freeIdle 展示通道) ②Hermes/openclaw=统一触点能力·最后做·先搭壳子(新需求=项目需具备调用 hermes 能力) ③库存不冻结·留着排最后·对话记账防死+一次盘点建底+缺口汇报+大概账定位 ④base 补收口刀(GovStore 写方法白名单+kbStore?/invStore? 扩展点) ⑤KB 拆 CORE/LARK、PM 结构键、dueDate 不引入(违 G4)。下一步=走 atomic-task 从 frontier#1 base 收口刀开始构建。权威源=now.md/backlog.md/decisions.md(D-042/D-041/D-040/D-039) + docs/design/three-pillar-feasibility.md。",
   "current_task": null,
   "frontier": [
     "HUB-SERVER-GOV-SCAFFOLD",
-    "KB-LIBRARY-DESIGN",
+    "KB-CORE-DESIGN",
     "PM-BOARD-DESIGN"
   ],
   "blocked": [],
