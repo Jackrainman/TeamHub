@@ -544,5 +544,5 @@
   - **D-028 归因视图 / D-029 排班派生** → 视图层**保留为人读说明**；AI 自动判断部分随治理挂起。
   - **D-036 / D-038 数据河·图纸轨** → **不变**：库存/BOM 与机械图纸档案库是同一"战队数据库"家族，归 P1/P2，沿用 archive-first + 自保鲜约束。
 - 记录债：`freeIdle` 语义债 / `Member.status` 双写债（D-031/D-037 已记）随治理派生一并挂起，本轮不修。
-- 影响：本 ADR + `now.md`/`agent-state.json`（stage/frontier/最近完成）+ `backlog.md`（三支柱新行 + 治理派生标挂起 + 新增"挂起·治理 AI 派生"段）+ `team-hub-concept.md`（§10 已拍定 5 + 定位行）。**纯 docs/planning，不碰代码 / 服务器 / 真实数据**；`pnpm verify:all` 应仍全过（零回归）。**草案，待用户复核后再 commit。**
+- 影响：本 ADR + `now.md`/`agent-state.json`（stage/frontier/最近完成）+ `backlog.md`（三支柱新行 + 治理派生标挂起 + 新增"挂起·治理 AI 派生"段）+ `team-hub-concept.md`（§10 已拍定 5 + 定位行）。**纯 docs/planning，不碰代码 / 服务器 / 真实数据**；`pnpm verify:all` 应仍全过（零回归）。
 - 事实源：本 ADR；plan file `~/.claude/plans/noble-soaring-gem.md`（方向 + 轻重缓急 + 复用/挂起/新建三分）；两路 Explore 核实（Probe_Flash 同源 + 地基可复用 + 库存 greenfield + lark-toolkit 仅发消息）；用户痛点二次确认（频率/强度梯度）；`D-037`（被细化的定位）/ `D-032`～`D-035`（被挂起的治理派生）/ `D-027` `growth.ts`（知识库底座）/ `Probe_Flash` `IssueCard` 数据链。
