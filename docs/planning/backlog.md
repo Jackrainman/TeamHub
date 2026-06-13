@@ -10,26 +10,48 @@
 4. 每个代码任务必须先有接口契约或 schema；控制台 UI 任务必须先有页面状态与 API mock 设计。
 5. 候选池只在本文件；`roadmap.md` 不构成候选源。若 `now.md` frontier 项在本文件无对应行，视为脱节，必须先补本文件再认领；不允许"凭空 frontier"。
 
-## P0 — 协作中枢（当前主线，D-026 立魂 / D-037 回中：CASE+交流中心+数据库）
+## P0 — 协作中枢（D-026 立魂 / D-037 回中 / **D-039 治理派生挂起、AI 退治理**）
 
-> 四层架构推进。一项待拍板（架构走法 A/B）只阻塞 concept 深设计与对应 epic 细节，不阻塞数据模型骨架（提醒模型已 2026-06-10 拍定，见 `decisions.md` D-026 后续）。
+> 四层架构推进。**D-039（2026-06-13）**：第一轮治理判断回归人（大三/学长看"人读说明视图"自行协调），**AI 退出治理**——治理派生整簇（D-032～D-035）挂起（见下方"挂起 — 治理 AI 派生"段）；本轮主线转为**三支柱**（见下一节）。下表 GOV-* 派生行已就地标挂起；DAG·阻塞归因视图（D-028）/ 排班视图（D-029）保留为**人读说明**。
 
 | 任务 | 状态 | type | 内容 |
 |------|------|------|------|
 | GOV-REFRAME-DOCS | done | docs | 已落地 2026-06-09；D-026 + 设计宪法 C/G/A 三层重构 + AGENTS §1/§4/§5 + README + roadmap + now + backlog + concept 骨架 + 下游引用迁移；见 `now.md` 最近完成 |
 | GOV-CONCEPT-REWRITE | pending | design | 概念文档完整重写（§6-§8 细化到已落地 schema）；身份段已随 D-037 回中（协作中枢：CASE+交流中心+数据库）；§10/§12 锚点已随 D-028/D-037 回填，余下深写待做 |
 | GOV-DATA-MODEL-DESIGN | done | design | 已落地 2026-06-11（D-028）；`apps/hub-contracts` 新增 `common/governance/growth/attribution`（Season/Project/Group/Member/Task/有向 Dependency/Need/TaskProgressSignal/BlockAttribution/DepGraph 视图 + `deriveBlockAttributions`/`toDepGraphView`）+ 真实场景 fixtures + 11 项归因单测；`verify:all` 全过；设计见 `docs/design/gov-data-model.md` |
-| GOV-RULES-LAYER-DESIGN | pending | design | 规则/协调层：卡点/过载/缺口/沉默判定；进度派生信号阈值（commit 频率 / check-in 形态 / 沉默天数）。注：MVP 已落地结构性"被卡 vs 摸鱼"判别（attribution.ts）；**D-037：silence 等人键信号只回本人 + AI 建议、不上报管理者（I0），结构信号才给协调者**；本任务做完整阈值/沉默检测 |
+| GOV-RULES-LAYER-DESIGN | **挂起 (D-039)** | design | **挂起**（治理 AI 派生；复活触发=未来确认要 AI 参与治理判断）。原设计：规则/协调层：卡点/过载/缺口/沉默判定；进度派生信号阈值（commit 频率 / check-in 形态 / 沉默天数）。注：MVP 已落地结构性"被卡 vs 摸鱼"判别（attribution.ts）；**D-037：silence 等人键信号只回本人 + AI 建议、不上报管理者（I0），结构信号才给协调者**；本任务做完整阈值/沉默检测 |
 | GOV-VIZ-DAG-DESIGN | done | design | 已落地 2026-06-11（D-028）；`apps/hub-console`"依赖链·阻塞归因"视图（`@xyflow/react`，blocked-idle 斜纹+锁/free-idle 虚线/gap/关键链 高亮，被卡去学中性入口）+ DepGraph 视图契约 + mock 由 `toDepGraphView` 派生；`verify:all` + preview 走查通过；设计见 `docs/design/gov-viz-dag.md` |
 | GOV-SCHED-MODEL-DESIGN | done | design | 已落地 2026-06-11（**D-029**，差异化在场排班=杀手锏立项）；`apps/hub-contracts` 新增 `SharedResource`/`ResourceSession`/`PresenceRecommendation`（governance.ts）+ `derivePresenceSchedule` 纯函数（schedule.ts）+ 锚点场景 + 车撞坏 down 变体 fixtures + 12 项排班单测；持有组在场 / live 上游随叫 / 被卡去学 / 资源 down 整片去学 / 无关组沉默，输出无 memberId 维度（反排名）；`verify:all` 全过 26 测；设计见 `docs/design/gov-oncall-schedule.md` |
 | GOV-SCHED-VIZ-DESIGN | pending | design | 控制台"谁该在场"活页面（资源条 + `[改占用]` 入口 + present/onCall/free 分色 + free 行"可看的资料"）；页面状态 + API mock 设计已在 `gov-oncall-schedule.md` §3 前置；mock 由 `derivePresenceSchedule` 从场景派生（同 DAG 页同构）；真实写路径 `POST /api/schedule/sessions` 后置（hub-server mock-first，待服务器审批）|
 | GOV-REPORT-DESIGN | pending | design | 给老师的项目级自动汇报（不含个人比较，C2/A2）|
 | GOV-LARK-DERIVE-DESIGN | pending | design | 触点层：飞书动作→状态派生映射（@ / 卡片 / 一键 check-in）+ 提醒送达（提醒模型已拍定：私聊本人、起草不发送、升级的是事不是人，见 D-026 后续）；复用 Lark 三包 |
-| HUB-SERVER-GOV-SCAFFOLD | pending (frontier#1) | code | 可变内存 `GovernanceStore` + 协调路由骨架（real 模式 `GET /api/dep-graph` 等，现 404）+ `now=server clock` 注入——所有真实数据流的物理出入口（D-031 补立 frontier#1，此前未在 backlog 立行）；store 先 seed fixtures 也能让 real 路由不再 404；与数据源无关，是后续真实写入/派生的地基 |
-| GOV-MEMBER-STATUS-DERIVE | pending (frontier#2) | code | `Member.status` 全派生（Task 真相、禁手写、杀与 Task.status 双写 G2）+ 三态 uncovered/blocked/capacityFreed + 私下 silence（**D-037：只回本人 + AI 建议、不上报管理者 I0**）→ 收成 `GovernanceCue`；spec=`gov-cue-layer.md` + `gov-role-visibility.md`（D-037 收窄）；落地须读 group.kind 分河（D-034 降级）+ give-floor（D-035）+ parity 测试 + **修 freeIdle 语义债（uncovered/真闲拆分、前瞻"可接任务"框架、复核 freeIdleCount/标签）+ Member.status 双写债（fixtures 手填却标 derived）** |
+| HUB-SERVER-GOV-SCAFFOLD | pending (frontier#1, **D-039 共享底座**) | code | **D-039 重定位为三支柱共享底座**：持久层（现全 mock）+ real CRUD 路由骨架（知识库/项管/库存 的 `GET/POST /api/...`；现 real `GET /api/dep-graph` 等 404）+ `now=server clock` 注入——所有真实数据流的物理出入口，**做一次三根受益**；store 先 seed fixtures 让 real 路由不再 404。原"GovernanceStore/派生地基"语义随治理挂起，先服务 CRUD 而非派生 |
+| GOV-MEMBER-STATUS-DERIVE | **挂起 (D-039)** | code | **挂起**（治理 AI 派生，AI 退治理；复活触发=未来确认要 AI 参与治理判断；freeIdle/双写债一并冻此）。原设计：`Member.status` 全派生（Task 真相、禁手写、杀与 Task.status 双写 G2）+ 三态 uncovered/blocked/capacityFreed + 私下 silence（**D-037：只回本人 + AI 建议、不上报管理者 I0**）→ 收成 `GovernanceCue`；spec=`gov-cue-layer.md` + `gov-role-visibility.md`（D-037 收窄）；落地须读 group.kind 分河（D-034 降级）+ give-floor（D-035）+ parity 测试 + **修 freeIdle 语义债（uncovered/真闲拆分、前瞻"可接任务"框架、复核 freeIdleCount/标签）+ Member.status 双写债（fixtures 手填却标 derived）** |
 | GOV-DEP-INTAKE-DESIGN | pending | design | **DAG 数据命门（此前未立项的脱节，2026-06-11 补立）**：队长布置任务那一下顺手连依赖 + AI 预填建议依赖 / Need 的一屏录入交互（页面状态 + API mock）；目标 = DAG 录入即长出、不额外打卡（C1 低录入 / G2 不双写）；用锚点场景（视觉A采集→电控B调底盘→机械C装臂→电路D配合）当样例；真实写路径 `POST /api/tasks` + `POST /api/deps` 后置 mock-first（待服务器审批）。无此项则归因 / 排班 / 知识树全在 fixtures 上演 |
 | ARCH-PATH-DECISION | done | design | 已于 2026-06-11 拍定（**D-028**）：治理为主轴——治理实体进 hub-contracts 核心域（common/governance/growth/attribution），hub-\* 壳子降为触点/展示底座，成长轴落同包独立文件域 |
 | REMIND-MODEL-DECISION | done | design | 已于 2026-06-10 拍定；提醒=队长轮询自动化、私聊本人、升级的是事不是人、AI 起草不发送/建议不判定/检索不评价；见 `decisions.md` D-026 后续 |
+
+## P0 — 三支柱（D-039 第一轮落地，演进留地基 / AI 不碰治理）
+
+> 三根全 P0，先后由"真实痛点（频率/强度）+ 破冰快慢"定（用户暂不指定唯一首发）。设计北极星：比死掉的表格更省事 ｜ 用着就更新（派生优先）｜ AI 只当仓管·转译不下判断 ｜ 人在环 ｜ 小作坊轻量。共享底座 = `HUB-SERVER-GOV-SCAFFOLD`（持久层 + real CRUD 路由），任一根先做都先过它。
+
+| 任务 | 状态 | type | 内容 |
+|------|------|------|------|
+| KB-LIBRARY-DESIGN | pending (P0, frontier) | design | **战队知识库**（最高频痛点："仓库乱、要统一规范"）= 规范入口 + 资料 findability + 调试归档 + 跨赛季沉淀，一根「找得到的战队知识」。复用 `growth.ts KnowledgeNode/TaskKnowledgeTag`（树从标注长出、不预设本体 C3）+ **移植 Probe_Flash `IssueCard→InvestigationRecord→ErrorEntry→ArchiveDocument` 闭环**（低摩擦捕获 + archive-as-side-effect + symptom→AI 检查单，Zod schema 可直接抄）；写/浏览/搜索 + 拉飞书 wiki·drive 资料。北极星：用着就沉淀，不做"事后填总结" |
+| PM-BOARD-DESIGN | pending (P0, frontier) | design | **项管看板**（高强度 + 最省力）= 进度透明 + 对接找谁 + 平衡队内关系。复用 `Task/Dependency/Need/Group/Member`（状态机/owner 已齐），补 due date / 优先级两字段 + 一个看板·列表页 + 依赖录入（并入原 `GOV-DEP-INTAKE`：布置任务顺手连依赖 + AI 预填）。治理判断交人（大三/学长看"A 做完/B 忙疯"自行协调），AI 不派活、不排名 |
+| INV-BOM-DESIGN | pending (P1) | design | **库存/BOM**（低频但找一次要命；旧资源表没人用 = **P13** 警示）：零件台账（3508/达妙6220/备件/坏件/每车 BOM 用量余量）。**护栏 = 必须自保鲜，绝不再做静态表**——等 AI 仓管层（读出车图核电机数 / 算用量余量 / 核发票 / 接飞书 Bitable·sheets）一起做，让它"用着就更新"。先决：飞书 Bitable/sheets 读写适配 + 修 `cli-bridge.ts:17,47` bin bug（`'lark'→'lark-cli'`）。归战队数据库家族（同机械图纸档案库 D-038）|
+
+## 挂起 — 治理 AI 派生（D-039：AI 退出治理，想法不丢）
+
+> D-039：第一轮治理判断回归人（大三/学长看"人读说明视图"自行协调），AI 不参与治理。以下整簇 spec 保留、代码本就近零、**不删**，冻在此处。**复活触发条件 = 未来确认要让 AI 参与治理判断**（自动分辨 blocked-idle vs lazy-idle / 自动派活 / 自动 silence）；届时从这里取回图纸。
+
+- `GovernanceCue` 多态 schema + `deriveMemberStatus` 五态（uncovered/blocked/capacityFreed/silence/working）— D-032
+- silence 分河（机械/电路=artifactUpload、程序=git、兜底=check-in）+ 保守过渡铁律 + presence 佐证 — D-034
+- give-floor + 暴露必带给予不变式 + 修正测量四段 — D-035
+- 受众路由（audience 三值 taskOwnerPrivate/subjectGroupLead/teamCoordinator）+ k-anon + I0 机器实现 — D-033/D-037
+- `RulesConfig` 阈值（kind-keyed silenceDays/cooldown）/ `deriveNeedEscalations` / `deriveOverloadSignals` 完整阈值派生 — D-032/D-031
+- 自动派活（远期 AI 辅助派活）
+- 关联代码债（随挂起）：`freeIdle` uncovered/真闲拆分 + `Member.status` 双写
 
 ## P0 — 数据河 build 轨（D-036，方向已定，实现审批门后）
 

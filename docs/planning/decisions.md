@@ -514,3 +514,35 @@
 - 落地顺序（frontier 在新 thesis 下重评，第一刀不变）：`HUB-SERVER-GOV-SCAFFOLD`（第一纵切破设计-only 循环）→ schema 补齐（`artifactUpload`/角色字段/`ArtifactRef` cad·eda）→ `GOV-MEMBER-STATUS-DERIVE`（修 freeIdle C2/A1 破口）→ `boundary.ts` 白名单+修 bin bug → 个人详情页+SchedulePage → 飞书被动 bot+`LarkMemberBinding` → `GOV-DEP-INTAKE`（DAG 数据命门）→ Forgejo（若迁本地）+`HUB-ARTIFACT-STORE-MECH`+图纸引用接口。
 - 影响：本 ADR + `now.md`/`agent-state.json`（stage/frontier/最近完成）+ `gov-data-model.md` §1.1（图纸按组分治）+ `backlog.md`（新增 `HUB-ARTIFACT-STORE-MECH` + `PULL-CLOUD-CODE` 考虑中）。计划全文 = `~/.claude/plans/dynamic-workflows-tender-crayon.md`（含逐域分配表 + 参考 repo + 否决记录）。**纯 docs/planning**，不碰服务器、不碰真实数据。
 - 事实源：本 ADR；plan file（结构确认全文）；两个 workflow 输出（结构对抗核实 + 公开前例调研）；`D-034`（数据河）/ `D-036`（图纸轨）/ `D-025`（路线 A/栈）/ `D-037`（定位回中）；飞书能力实测（lark-cli 146 scope，记于 memory `teamhub-feishu-capability`）。
+
+## D-039 — 方向重新瞄准：演进留地基 + AI 退出治理（治理降为人读说明）+ 三支柱轻重缓急
+
+- 状态：**DECIDED**（本 ADR = 第一轮落地方向 + 轻重缓急的权威源；把 D-032～D-035 治理派生整簇**挂起**而非删除；refine D-037 定位；纯 docs/planning，代码零改）
+- 日期：2026-06-13
+- 上下文：在"未确认/待补全"盘点中（plan file `noble-soaring-gem.md`），用户给出真正的方向判断：**第一轮把 AI 的"治理判断"暂缓**——不是不用 AI，而是 AI 只留**仓管/转译安全车道**（整理 / 检索 / 拉资料 / 读图核对 / 算量 / 起草核对），**完全不参与治理**（不判定谁卡了 / 不自动派活 / 不算 silence·排名）。先做一个**实用的战队内部协作工具**（项管 + 知识库 + 库存/BOM），并融入旧项目 **Probe_Flash** 的思路；演进不重写；轻重缓急要写清楚；**先写文档、二次确认真实痛点，不立即写代码**。两路 Explore 核实：① **Probe_Flash 与 TeamHub 同源**——Probe_Flash v0.3 是**已交付**的"调试知识中枢"（`IssueCard→InvestigationRecord→ErrorEntry→ArchiveDocument`，低摩擦捕获 + archive-as-side-effect + symptom→AI 检查单），且已 pivot 到 "Team Hub"，两者共享 skills / lark-toolkit / 宪法 / "飞书是脸·git 是真相"；**不必从零重写**。② TeamHub 地基**领域中性、可直接复用**（`Task/Dependency/Need/Group/Member` + `KnowledgeNode/MemberKnowledge/TaskKnowledgeTag`、`hub-console` 壳、`hub-server` Fastify 壳）；过度旋转的只是**治理派生层**（attribution/Presence/Overload/silence/Cue）。
+- 核心洞察：
+  1. **AI 退出治理 → 反监视机器整套失去存在理由。** D-037 为"让 silence 不像监视"堆了 I0 机器实现 / k-anon / give-floor / audience 三值路由 / Cue 派生——那套复杂度全部源于"**让 AI 去判断人的状态**"。一旦治理判断的主体**回归人**（系统只如实显示"A 做完了 / B 快忙疯了"，由**大三/学长**人工判断协调；AI 不下判断），去名机器就不再需要：人看人本来就知道是谁，护栏从"匿名算法"变成"判断在人、AI 不碰、人在环"。这比 D-037 的"拔牙"更彻底——直接不长那颗牙。
+  2. **知识根合并。** 痛点二次确认显示：规范 + 资料 + 知识 + 调试归档其实是**同一件事「找得到的战队知识」**，"统一规范"（最高频）是它的入口。合成一根**战队知识库**，建在 `growth.ts KnowledgeNode` + 移植 Probe_Flash `IssueCard→Archive` 闭环。
+  3. **死表格教训 = 头号设计约束（登记 P13）。** 用户实证："曾经的统计实验室资源表格从来没用上过" + 飞书多维表格当年推广失败 = **同一死法**（C1：录入成本必须被当下回报抵消）。**每根都必须比那张死掉的表更省事、最好"用着用着就更新"（派生 / 副产品）**，否则白做。
+- 痛点二次确认（用户实证，频率/强度梯度，作为轻重缓急依据）：
+  - **统一规范 / 资料 findability = 最高频**（"仓库乱但勉强能找，有统一规范能好很多"）——即用户最初"SPEC 工具"直觉，真北。
+  - **项管看板 = 高强度**（"平衡队内关系 + 进度不懵逼 + 对接找谁"），且**最省力**（Task 模型已 ~80% 齐）。
+  - **知识库 + 调试归档 = 中**，**用户已在做**（Probe_Flash，"调试经验口口相传"）。
+  - **库存/BOM = 低频但找一次要命**；**决定性负面信号 = 旧资源表没人用**（→ 见 P13）。
+- 决策（用户 2026-06-13 拍板）：
+  1. **演进不重写**：保留中性地基（schema + `hub-console` 壳 + `hub-server` 壳 + lark-toolkit + 全套 skills）；治理派生层挂起、不删。
+  2. **治理降为"人读说明视图" + AI 不参与治理**：系统只如实显示原始状态，**大三/学长人工**判断协调；AI 不判定 / 不自动派活 / 不算 silence·排名。已落地的 DAG 依赖·阻塞归因视图（D-028）、排班视图（D-029）**作为"人读说明"保留可用**，其 AI 派生判断语义随治理挂起。
+  3. **产品 = 战队内部协作工具三支柱**：① 战队知识库（规范 + 资料 + 调试归档）② 项管看板 ③ 库存/BOM；**全部 P0 候选**，先后由"真实痛点 + 破冰快慢"定（用户暂不指定唯一首发）。
+  4. **知识根合并**（见核心洞察 2）。
+  5. **死表格头号约束**（登记 **P13**，见核心洞察 3）：库存/BOM 纯手录版大概率重蹈覆辙 → **应等 AI 能帮它自保鲜**（读出车图核电机数 / 算用量余量 / 核发票）再做，排 **P1**，不先建一张没人填的静态表。
+  6. **AI 安全车道**：AI 限于仓管 / 转译（整理 / 检索 / 拉资料 / 读图核对 / 算量 / 起草核对），**人始终在环**。"龙虾"=`openclaw`（D-036 Hermes 类 adapter）。
+  7. **轻重缓急（定稿）**：**共享底座**（持久层 + `hub-server` real 路由，现全 mock / 404，做一次三根受益）→ **P0 知识库 / P0 项管看板** → **P1 库存/BOM（自保鲜）+ 飞书 Bitable/wiki/sheets 读写 + 修 lark-cli bin bug** → **P2 资料/代码批量整理（AI 安全车道）+ 项目级/给老师汇报** → **挂起：治理 AI 派生**。
+  8. **设计北极星（每根都守）**：比死掉的表格更省事 ｜ 用着就更新（派生优先）｜ AI 只当仓管·转译、不下判断 ｜ 人始终在环 ｜ 小作坊轻量（不做完整 PLM / RBAC / 大型 PM）。
+- supersedes / park（逐条，写明改 / 保 / 挂）：
+  - **D-037 定位词** "CASE + 交流中心 + 数据库" → 细化为"战队内部协作工具三支柱"（知识库 / 项管 / 库存）。**保** I0 的精神（第三方不暴露人），但**实现路径改变**：从"AI 判断 + 去名机器"改为"治理判断主体是人、AI 根本不碰治理"——I0 由结构自然满足，不再需要 k-anon/audience 路由那套机器。
+  - **D-032～D-035 治理派生整簇**（`GovernanceCue` 多态 schema / `deriveMemberStatus` 五态 / silence 分河 / give-floor / `RulesConfig` 阈值 / k-anon / audience 三值路由 / 暴露必带给予不变式）→ **全部挂起（spec 保留、代码本就近零、不删）**。**复活触发条件**：若未来确认要让 AI 参与治理判断（自动分辨 blocked-idle vs lazy-idle、自动派活），再从挂起区取回这套图纸。
+  - **D-028 归因视图 / D-029 排班派生** → 视图层**保留为人读说明**；AI 自动判断部分随治理挂起。
+  - **D-036 / D-038 数据河·图纸轨** → **不变**：库存/BOM 与机械图纸档案库是同一"战队数据库"家族，归 P1/P2，沿用 archive-first + 自保鲜约束。
+- 记录债：`freeIdle` 语义债 / `Member.status` 双写债（D-031/D-037 已记）随治理派生一并挂起，本轮不修。
+- 影响：本 ADR + `now.md`/`agent-state.json`（stage/frontier/最近完成）+ `backlog.md`（三支柱新行 + 治理派生标挂起 + 新增"挂起·治理 AI 派生"段）+ `team-hub-concept.md`（§10 已拍定 5 + 定位行）。**纯 docs/planning，不碰代码 / 服务器 / 真实数据**；`pnpm verify:all` 应仍全过（零回归）。**草案，待用户复核后再 commit。**
+- 事实源：本 ADR；plan file `~/.claude/plans/noble-soaring-gem.md`（方向 + 轻重缓急 + 复用/挂起/新建三分）；两路 Explore 核实（Probe_Flash 同源 + 地基可复用 + 库存 greenfield + lark-toolkit 仅发消息）；用户痛点二次确认（频率/强度梯度）；`D-037`（被细化的定位）/ `D-032`～`D-035`（被挂起的治理派生）/ `D-027` `growth.ts`（知识库底座）/ `Probe_Flash` `IssueCard` 数据链。

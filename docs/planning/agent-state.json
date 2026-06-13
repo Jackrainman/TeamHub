@@ -2,12 +2,12 @@
   "schema_version": 1,
   "authority": "derived-cache-only; now.md/backlog.md/decisions.md remain authoritative",
   "mode": "collab_design",
-  "stage": "2026-06-12 D-038 目标结构最终确认：拆飞书命门(lark-cli 146 scope ready)+两 workflow(对抗核实10/前例调研7)→真相分域边界(关系·派生·按组横比→本地;通知文档→飞书;图纸按组分治)、否决飞书base当业务真相(三透镜 G2双写+I0/C2横比+bitable无有向边)、飞书纯被动薄集成(@才答~1天webhook+卡片不碰Base/Task API真相不入飞书Hermes被动)、图纸按组分治(机械SolidWorks无云端→本地存储/版本管理第4样自建/电路EDA云端引用/程序git当前GitHub迁本地Forgejo考虑中)、只自建四样(DAG引擎/阻塞归因负载/节点图全员+个人详情/机械图纸本地库)、DAG给所有人+个人详情弥补;前例佐证聊天当脸+本地后端成熟、全自建负价值(Huly)。pull云端代码+GitHub迁本地=考虑中。计划全文=plan file。纯docs/planning未碰服务器/真实数据。【前序 D-037】用户触底反思'为让 silence 不像监视堆了 D-032~035 一整套去名机器=诊断它根上是监视形状'，拍板彻底改。定位从'制度化进度治理系统'→ CASE 工具 + 团队交流中心 + 战队数据库(给学长减负/给学弟指引/项目同步进度表)。核心不变式 I0=人键输出只回本人当帮助、第三方只见结构键。silence 收纯自指(只回本人+AI 建议、砍问责上移/管理者面)；开放问题'没派活+被卡+没主动接'=机会导向协调视图(管理者只看待派活+过载组+组级前瞻余力，不点个人)；A3 重述纯给予；D-034 k-anon/保守铁律重机器降级；图纸轨重心移到战队数据库(archive-first)。子 agent 审计证 D-032~036 几乎全 spec-only→本轮近纯文档：decisions(D-037 ADR)/AGENTS §1·§4·§5(顶置 I0)/gov-cue-layer/gov-role-visibility(大幅收窄)/team-hub-concept/gov-data-model(图纸档案)/planning。freeIdle 代码债记归 GOV-MEMBER-STATUS-DERIVE。frontier 顺序待新 thesis 下重评。未碰服务器、未碰真实数据",
+  "stage": "2026-06-13 D-039 方向重新瞄准：第一轮 AI 退出治理(治理判断回归人/大三看人读说明视图、AI 不判定·派活·排名→反监视机器失去存在理由一并挂起)、演进留地基(schema/console/server/lark-toolkit/skills 复用、过度旋转只在治理派生层)；产品=战队内部协作工具三支柱(知识库=规范+资料+调试归档/项管看板/库存-BOM 全 P0)；知识根合并(规范=最高频入口、建 KnowledgeNode+移植 Probe_Flash IssueCard→Archive)；死表格 P13(旧资源表没人用+飞书多维表格失败=同 C1 死法→库存等 AI 自保鲜读图核数/算余量再做 P1)；轻重缓急=共享底座(持久层+real CRUD,现 mock/404,一次三根受益)→P0 知识库/P0 看板→P1 库存→P2 整理/汇报→挂起治理派生。Probe_Flash 与 TeamHub 同源(已交付 IssueCard 闭环)。纯 docs/planning 草案待用户复核 commit。【前序 D-038 目标结构最终确认】拆飞书命门(lark-cli 146 scope ready)+两 workflow(对抗核实10/前例调研7)→真相分域边界(关系·派生·按组横比→本地;通知文档→飞书;图纸按组分治)、否决飞书base当业务真相(三透镜 G2双写+I0/C2横比+bitable无有向边)、飞书纯被动薄集成(@才答~1天webhook+卡片不碰Base/Task API真相不入飞书Hermes被动)、图纸按组分治(机械SolidWorks无云端→本地存储/版本管理第4样自建/电路EDA云端引用/程序git当前GitHub迁本地Forgejo考虑中)、只自建四样(DAG引擎/阻塞归因负载/节点图全员+个人详情/机械图纸本地库)、DAG给所有人+个人详情弥补;前例佐证聊天当脸+本地后端成熟、全自建负价值(Huly)。pull云端代码+GitHub迁本地=考虑中。计划全文=plan file。纯docs/planning未碰服务器/真实数据。【前序 D-037】用户触底反思'为让 silence 不像监视堆了 D-032~035 一整套去名机器=诊断它根上是监视形状'，拍板彻底改。定位从'制度化进度治理系统'→ CASE 工具 + 团队交流中心 + 战队数据库(给学长减负/给学弟指引/项目同步进度表)。核心不变式 I0=人键输出只回本人当帮助、第三方只见结构键。silence 收纯自指(只回本人+AI 建议、砍问责上移/管理者面)；开放问题'没派活+被卡+没主动接'=机会导向协调视图(管理者只看待派活+过载组+组级前瞻余力，不点个人)；A3 重述纯给予；D-034 k-anon/保守铁律重机器降级；图纸轨重心移到战队数据库(archive-first)。子 agent 审计证 D-032~036 几乎全 spec-only→本轮近纯文档：decisions(D-037 ADR)/AGENTS §1·§4·§5(顶置 I0)/gov-cue-layer/gov-role-visibility(大幅收窄)/team-hub-concept/gov-data-model(图纸档案)/planning。freeIdle 代码债记归 GOV-MEMBER-STATUS-DERIVE。frontier 顺序待新 thesis 下重评。未碰服务器、未碰真实数据",
   "current_task": null,
   "frontier": [
     "HUB-SERVER-GOV-SCAFFOLD",
-    "GOV-MEMBER-STATUS-DERIVE",
-    "GOV-DEP-INTAKE-DESIGN"
+    "KB-LIBRARY-DESIGN",
+    "PM-BOARD-DESIGN"
   ],
   "blocked": [],
   "open_for_decision": [
