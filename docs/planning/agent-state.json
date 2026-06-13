@@ -11,8 +11,6 @@
   ],
   "blocked": [],
   "open_for_decision": [
-    "SCHED-WINDOW-GRANULARITY",
-    "SCHED-INVITED-MEMBER-DISPLAY",
     "ARTIFACT-VERSION-SEMANTICS",
     "REMOTE-ACCESS-DEPLOY",
     "GITHUB-TO-LOCAL",
