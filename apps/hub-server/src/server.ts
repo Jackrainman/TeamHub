@@ -20,7 +20,7 @@ import {
 import { FixedClock } from './clock.js';
 import type { Clock } from './clock.js';
 import { InMemoryGovStore } from './store/mock-gov-store.js';
-import type { GovStore } from './store/gov-store.js';
+import type { GovStore, InvStore } from './store/gov-store.js';
 import { listMockAdapters } from './mock-adapters.js';
 import {
   getMockAiAdapterCapabilities,
@@ -36,13 +36,28 @@ import { tryServeStaticConsole } from './static-console.js';
 
 export interface BuildHubServerOptions {
   consoleDistDir?: string;
-  /** 治理读取出入口（默认 InMemoryGovStore，seed 真实锚点场景 fixtures）。 */
+  /** 治理读取出入口（默认 InMemoryGovStore，seed 真实锚点场景 fixtures）。可注入 SqliteGovStore 切持久层。 */
   store?: GovStore;
   /**
    * 派生快照求值时刻。mock-first 阶段默认钉在 fixture 场景时间 GOVERNANCE_SCENARIO_NOW，
    * 让 real 模式 /api/dep-graph 与 hub-console mock 同口径；真实数据接入后注入 RealClock。
    */
   clock?: Clock;
+  /**
+   * 战队知识库读写出入口扩展点（frontier#2 KB-CORE）。**D-042 决策 1 补强（含对抗核实修正）**：结案派生
+   * KnowledgeNode + knowledgeNodes/taskKnowledgeTags 读路径复用同一 GovernanceSnapshot、不必扩 interface
+   * ——该半 KB-CORE 路由消费时缺省复用同一 `store` 实例。但 `GET /api/kb/similar` 的 IssueCard 排序语料不在
+   * 快照内，KB-CORE 落地时需把 kbStore 类型从 GovStore 收窄为独立 KbStore（加 getIssueCards 读口，对称
+   * InvStore 占位）——属预期内小回炉，仅触本字段、不动 store/路由签名。结案派生路由随 KB-CORE 落地接，
+   * 本刀只钉扩展点、不接路由（C3 不一把梭）。
+   */
+  kbStore?: GovStore;
+  /**
+   * 库存 / BOM 读写出入口扩展点（reserved，D-042 决策 4）。INV 是唯一需扩 schema 的支柱（PartStock 不在
+   * GovernanceSnapshot 内），故走独立 `InvStore` 而非复用 GovStore。本刀只钉扩展点、不建 PartStock；
+   * 缺省 undefined，INV 支柱落地时注入实现 InvStore 的实例（对话记账 / 盘点 / 缺口汇报）。
+   */
+  invStore?: InvStore;
 }
 
 export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInstance {
@@ -50,6 +65,9 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   const store: GovStore = options.store ?? new InMemoryGovStore();
   const clock: Clock =
     options.clock ?? new FixedClock(new Date(GOVERNANCE_SCENARIO_NOW));
+  // kbStore/invStore 本刀只钉 options 字段、不在此 body 解析 = 路由后置（C3 不一把梭，非遗漏）：
+  // 当前无消费方，解析无处可去；KB-CORE/INV 路由落地时各自 `options.kbStore ?? store` / 透传 options.invStore，
+  // 只在 body 加解析行、签名不变，不迫使重切 base。
 
   app.get('/health', async () => {
     return HealthResponseSchema.parse(buildHealthResponse());
