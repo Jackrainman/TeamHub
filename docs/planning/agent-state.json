@@ -2,7 +2,7 @@
   "schema_version": 1,
   "authority": "derived-cache-only; now.md/backlog.md/decisions.md remain authoritative",
   "mode": "collab_design",
-  "stage": "2026-06-13 D-039 方向重新瞄准（已 commit，纯 docs/planning）：第一轮 AI 退出治理（治理判断回归人/大三看人读说明视图、AI 不判定·派活·排名→反监视派生整簇 D-032~035 一并挂起，spec 留、复活触发=未来要 AI 参与治理判断）、演进留地基（schema/console/server/lark-toolkit/skills 复用）；产品=战队内部协作工具三支柱（知识库/项管看板/库存-BOM 全 P0），知识根合并，死表格 P13（库存须等 AI 自保鲜再做 P1）；轻重缓急=共享底座(持久层+real CRUD)→P0 知识库·看板→P1 库存→P2 整理·汇报→挂起治理派生。权威源=now.md/backlog.md/decisions.md(D-039)，前序 D-037/D-038 见 decisions.md。",
+  "stage": "2026-06-13 D-040 三支柱需求设计分析完成（14-agent workflow）：采纳破冰序 base→kb→pm→inv + 首任务收敛=GET /api/dep-graph（MockStore+Clock+toDepGraphView，解 real 模式 404，写入簇/presence 后置，对抗核实推翻初稿 8-GET）。7 跨根风险（lark bin 债→LARK-BIN-PROBE WSL2 实测先行）。下一步=认领 dep-graph 首任务。权威源=now.md/backlog.md/decisions.md(D-040)+docs/design/three-pillar-reqdesign.md。",
   "current_task": null,
   "frontier": [
     "HUB-SERVER-GOV-SCAFFOLD",

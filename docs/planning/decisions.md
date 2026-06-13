@@ -546,3 +546,17 @@
 - 记录债：`freeIdle` 语义债 / `Member.status` 双写债（D-031/D-037 已记）随治理派生一并挂起，本轮不修。
 - 影响：本 ADR + `now.md`/`agent-state.json`（stage/frontier/最近完成）+ `backlog.md`（三支柱新行 + 治理派生标挂起 + 新增"挂起·治理 AI 派生"段）+ `team-hub-concept.md`（§10 已拍定 5 + 定位行）。**纯 docs/planning，不碰代码 / 服务器 / 真实数据**；`pnpm verify:all` 应仍全过（零回归）。
 - 事实源：本 ADR；plan file `~/.claude/plans/noble-soaring-gem.md`（方向 + 轻重缓急 + 复用/挂起/新建三分）；两路 Explore 核实（Probe_Flash 同源 + 地基可复用 + 库存 greenfield + lark-toolkit 仅发消息）；用户痛点二次确认（频率/强度梯度）；`D-037`（被细化的定位）/ `D-032`～`D-035`（被挂起的治理派生）/ `D-027` `growth.ts`（知识库底座）/ `Probe_Flash` `IssueCard` 数据链。
+
+## D-040 — 三支柱需求设计分析：采纳破冰顺序 + 共享底座首任务收敛
+
+- 状态：**DECIDED**（用户 2026-06-13 "1+2+3 可行" 采纳；本 ADR = 落地路径权威源；详细分析见 `docs/design/three-pillar-reqdesign.md`）
+- 日期：2026-06-13
+- 上下文：D-039 定三支柱但留口"先做哪根暂不指定"。跑 14-agent dynamic workflow（5 haiku 资产盘点 → 4 sonnet 逐根需求/接口设计 → 4 对抗核实[base=opus] → 1 opus 综合）做需求设计分析；对抗核实层用 grep 实证抓出初稿设计错误，综合据此收敛。
+- 决策：
+  1. **破冰顺序 = `base → kb → pm → inv`**：底座 grep 实证唯一无争议起点（`server.ts` 零治理路由，`client.ts:87` real 模式打的 `GET /api/dep-graph` 未注册=404）；kb 痛点最高频最锐但有移植债；pm 最省力但录入自我引用+依赖底座；inv 自保鲜上游未落地（P1 不变）。
+  2. **共享底座首任务收敛为最小一刀**：注册 `GET /api/dep-graph`（`DepGraphSchema.parse(toDepGraphView(snapshot, clock.now()...))` + `MockStore(seed governanceScenarioFixture)` + `Clock` 注入）。**推翻初稿**的 8 条 `/api/governance/*` GET（实证前端只缺 `/api/dep-graph` 这一条，初稿反铺一堆无消费方端点+写入簇+双 drizzle stub，违 C3）。POST/PUT 写入簇、presence、drizzle stub 全部后置。DoD/边界/接口契约见设计文档 §2。
+  3. **7 条跨根风险**（见设计文档 §4）落地前必处理；其中 **lark bin 双语义债**（`cli-bridge.ts:17/47` execa 用 `'lark'` 但报错写 `'lark-cli'`，KB/INV 修复方向相反）单拆 **`LARK-BIN-PROBE`** 微任务，WSL2 实测 `which` 定论后统一修，先于任何飞书 CLI 功能（KB R5 / INV bitable）。
+  4. **freeIdle/C2 测量错误**属已挂起治理派生债（D-031/D-039 边界），PM 本轮只 UI 降级标注「状态待确认」、不修底层。
+- supersedes / 细化：D-039 的"先后由真实痛点+破冰快慢定（暂不指定首发）" → 本 ADR 定 `base→kb→pm→inv` + 首任务。`HUB-SERVER-GOV-SCAFFOLD` 初稿的"8 GET 一把梭"被收敛。
+- 影响：本 ADR + `docs/design/three-pillar-reqdesign.md`（新建分析记录）+ `backlog.md`（base 行首任务收敛 + 新增 `LARK-BIN-PROBE` + 三支柱破冰序指针）+ `now.md`/`agent-state.json`（最近完成 + stage_goal）。**纯 docs/planning**（首任务实现是后续单独 atomic-task）。
+- 事实源：本 ADR；workflow 输出（run `wf_67b54169-c3f`，14 agent / 853K token）；grep 实证（`server.ts`/`client.ts:87`/`attribution.ts:270`/`governance.ts:306`/`fixtures.ts:237`）；`D-039`（被细化）。
