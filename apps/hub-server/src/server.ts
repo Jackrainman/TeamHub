@@ -8,12 +8,19 @@ import {
   AdapterInvokeResponseSchema,
   ArtifactsResponseSchema,
   BridgeMembersResponseSchema,
+  DepGraphSchema,
   GitReposResponseSchema,
+  GOVERNANCE_SCENARIO_NOW,
   HealthResponseSchema,
   HubEventsResponseSchema,
   SystemStatusResponseSchema,
+  toDepGraphView,
   apiContractFixtures,
 } from './contracts.js';
+import { FixedClock } from './clock.js';
+import type { Clock } from './clock.js';
+import { InMemoryGovStore } from './store/mock-gov-store.js';
+import type { GovStore } from './store/gov-store.js';
 import { listMockAdapters } from './mock-adapters.js';
 import {
   getMockAiAdapterCapabilities,
@@ -29,10 +36,20 @@ import { tryServeStaticConsole } from './static-console.js';
 
 export interface BuildHubServerOptions {
   consoleDistDir?: string;
+  /** 治理读取出入口（默认 InMemoryGovStore，seed 真实锚点场景 fixtures）。 */
+  store?: GovStore;
+  /**
+   * 派生快照求值时刻。mock-first 阶段默认钉在 fixture 场景时间 GOVERNANCE_SCENARIO_NOW，
+   * 让 real 模式 /api/dep-graph 与 hub-console mock 同口径；真实数据接入后注入 RealClock。
+   */
+  clock?: Clock;
 }
 
 export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInstance {
   const app = Fastify({ logger: false });
+  const store: GovStore = options.store ?? new InMemoryGovStore();
+  const clock: Clock =
+    options.clock ?? new FixedClock(new Date(GOVERNANCE_SCENARIO_NOW));
 
   app.get('/health', async () => {
     return HealthResponseSchema.parse(buildHealthResponse());
@@ -95,6 +112,13 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
 
   app.get('/api/artifacts', async () => {
     return ArtifactsResponseSchema.parse(apiContractFixtures.artifacts);
+  });
+
+  // 依赖链 · 阻塞归因视图：治理快照经纯函数 toDepGraphView 实时派生（D-040 首任务收敛）。
+  // 解 hub-console real 模式 GET /api/dep-graph 的 404；输出主键为 task/group/dependency，无 memberId 维度（C2）。
+  app.get('/api/dep-graph', async () => {
+    const snapshot = await store.getSnapshot();
+    return DepGraphSchema.parse(toDepGraphView(snapshot, clock.now().toISOString()));
   });
 
   app.setNotFoundHandler(async (request, reply) => {

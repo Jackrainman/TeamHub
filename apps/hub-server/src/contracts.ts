@@ -14,6 +14,9 @@ export {
   GitReposResponseSchema,
   HubEventsResponseSchema,
   HubEventSchema,
+  DepGraphSchema,
+  toDepGraphView,
+  GOVERNANCE_SCENARIO_NOW,
   apiContractFixtures,
 } from '@teamhub/hub-contracts';
 export type {
