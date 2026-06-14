@@ -2,6 +2,7 @@ import {
   CONTRACT_FIXTURE_TIME,
   apiContractFixtures,
 } from '@teamhub/hub-contracts';
+import { version as consoleVersion } from '../../../package.json';
 import {
   OverviewSnapshotSchema,
   type OverviewSnapshot,
@@ -18,7 +19,7 @@ export const mockOverviewSnapshot: OverviewSnapshot =
     },
     system: {
       service: 'teamhub-hub-server',
-      version: '0.0.1',
+      version: consoleVersion,
       mode: 'mock-first',
       generatedAt: CONTRACT_FIXTURE_TIME,
       uptimeSeconds: 824,

@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 import type {
   AdapterDescriptor,
   HealthResponse,
@@ -5,7 +6,10 @@ import type {
 } from './contracts.js';
 
 const SERVICE_NAME = 'teamhub-hub-server' as const;
-const VERSION = '0.0.1';
+// 版本号跟随 package.json（单一源），避免手写常量长期停在 0.0.1。
+// createRequire 在 src 与编译后的 dist 下 `../package.json` 都指向包根 package.json。
+const require = createRequire(import.meta.url);
+const { version: VERSION } = require('../package.json') as { version: string };
 
 export function buildHealthResponse(now = new Date()): HealthResponse {
   return {
