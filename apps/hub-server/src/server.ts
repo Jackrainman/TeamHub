@@ -283,6 +283,13 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     }
     // 结案派生知识节点持久到治理快照（复用同一 GovernanceSnapshot，对抗核实确认成立）
     const knowledgeNode = await store.closeoutKbNode(result.knowledgeNodeDraft);
+    // 回灌相似检索语料（AI+知识库闭环）：archived 卡 / 错误表 / 归档写回 kbStore，
+    // 否则本次上传后下次 GET /api/kb/similar 查不到（闭环断）。无人维度（C2）：主键 issue/errorCode。
+    await kbStore.appendCloseout({
+      issueCard: result.updatedIssueCard,
+      errorEntry: result.errorEntry,
+      archiveDocument: result.archiveDocument,
+    });
     return KbCloseoutResponseSchema.parse({
       archiveDocument: result.archiveDocument,
       errorEntry: result.errorEntry,

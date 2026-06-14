@@ -1,6 +1,9 @@
 import type {
+  ArchiveDocument,
   Dependency,
+  ErrorEntry,
   GovernanceSnapshot,
+  IssueCard,
   KbSnapshot,
   KnowledgeNode,
   Need,
@@ -96,10 +99,29 @@ export interface GovStore {
  * `GovernanceSnapshot`**（经 `GovStore.closeoutKbNode`）——那半对抗核实确认成立、不在本接口；本接口只管
  * 相似检索所需的 IssueCard 语料快照（`KbSnapshot`）。
  *
- * 护栏（AGENTS §5）：只读语料、无人维度（C2）；相似检索只列候选不断言同因（A4，见 rankSimilarIssues）。
+ * 写（`appendCloseout`，AI+知识库闭环 MVP）：结案的三件派生物（archived 卡 / 错误表 / 归档）**回灌进检索语料**——
+ * 否则 closeout 上传后下次 `GET /api/kb/similar` 查不到（闭环断）。仍**无人维度**（C2）：写入主键是 issue/errorCode，
+ * 不引入「谁结的案」（I0：generatedBy=ai/manual/hybrid 非人名）。
+ *
+ * 护栏（AGENTS §5）：语料无人维度（C2）；相似检索只列候选不断言同因（A4，见 rankSimilarIssues）。
  */
 export interface KbStore {
   getKbSnapshot(): Promise<KbSnapshot>;
+  /**
+   * 结案回灌：把一次 `POST /api/kb/closeout` 派生的三件物追加进相似检索语料。
+   * issueCard 按 id upsert（结案后是 `archived` 版，替换原卡）；errorEntry / archiveDocument 追加。
+   */
+  appendCloseout(input: KbCloseoutAppend): Promise<void>;
+}
+
+/**
+ * `KbStore.appendCloseout` 入参：一次结案派生的三件物（来自 `buildCloseoutFromIssue` 结果）。
+ * issueCard = `updatedIssueCard`（status=archived）。
+ */
+export interface KbCloseoutAppend {
+  issueCard: IssueCard;
+  errorEntry: ErrorEntry;
+  archiveDocument: ArchiveDocument;
 }
 
 /**

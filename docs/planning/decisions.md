@@ -683,3 +683,23 @@
 - 影响 / 落地：`hub-console/src/{App,i18n/translations,api/client}.tsx?` + `features/{kb,pm,overview,dep-graph}` + `components/layout/ConsoleLayout` + `api/{schemas/kb,mock/{kb,tasks}}` + `styles.css` + `test/client.test.ts`（+3 测）。verify：hub-console verify:all（typecheck + 7 测 + build）全过。
 - 后续（backlog/frontier）：PM/KB **写侧 mutation 表单**（建任务/依赖/Need + 结案录入，调 POST 路由）/ 依赖录入 AI 预填 / 真实 status 派生上游随触点层 / 远程部署正式化（D-036 REMOTE-ACCESS-DEPLOY）。
 - 事实源：本 ADR；`docs/design/{pm-board,kb-core}.md`；对抗审计 `wf_64a78d61-109`；用户 2026-06-14「整体汉化 + 继续完成其他功能 + 用 workflow」请求。
+
+## D-047 — AI + 知识库闭环 MVP：closeout 回灌 + JSON 落盘 + kb-debug skill（服务器为单一真相）
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-14；plan mode 设计 → 落地；hub-server verify:all 42 测绿；本地真机端到端闭环+持久化实测过）
+- 日期：2026-06-14
+- 上下文：用户要"一个简单的 AI+知识库"——本地 Claude Code 排 bug 时查团队相似历史、解完上传沉淀。相似检索（ProbeFlash 已做、TeamHub 已移植 `rankSimilarIssues`）和网页给人看（D-046 KB 页）已就绪，但 Explore 实证**闭环是断的**：`KbStore` 只读无写、`POST /api/kb/closeout` 只写 KnowledgeNode 不回灌检索语料（上传完下次 similar 查不到）、InMemory 重启全丢。**ProbeFlash 关键教训**：v0.3"服务器+SQLite"形态因"填的成本没当下回报"无人用；本设计让 skill **排障完自动归档**破此局。
+- 用户拍板（2026-06-14，plan mode 两问）：
+  - **三件全做**：持久化 + closeout 回灌 + skill。
+  - **检索=关键词重合**：沿用 `rankSimilarIssues`，零依赖、ProbeFlash 同路、故意不用向量；留 embedding 扩展点本轮不做。
+  - **服务器为单一真相**：skill POST 到服务器，**本地不再产 `.debug_archive`、信息全留服务器**（用户明确）；服务器已能渲染 `markdownContent` 供导出，不双写（G2）。
+- 决策（落地形态）：
+  1. **闭环（回灌）**：`KbStore` 接口加 `appendCloseout({issueCard,errorEntry,archiveDocument})`（gov-store.ts）；closeout 路由派生成功后回灌检索语料（server.ts，issueCard 按 id upsert 成 archived 版）——上传后下次 similar 即可召回。
+  2. **持久化**：新 `FileKbStore`（JSON 落盘、原子写 tmp+rename、fail-closed 加载：文件损坏抛不静默覆盖）；`main.ts` 读 `TEAMHUB_KB_DATA_FILE` 注入（注入点 `options.kbStore` 现成），未设维持 InMemory（mock-first 不变）。**不引 sqlite**（SQLite 留扩展，照 sqlite-gov-store stub）。
+  3. **skill `kb-debug`**（`.agents/skills/kb-debug/{SKILL.md,kb-client.sh}` 源 + `.claude/skills/` 镜像）：`debug-checklist` 的**服务器版进化**——recall（症状→`/api/kb/similar`，A4 候选不断言同因）+ archive（解完组装 closeout payload→`/api/kb/closeout`，`generatedBy=ai` 不记人名）；瘦客户端 `kb-client.sh`（ping/similar/closeout，`KB_BASE_URL` 环境配，curl→服务器无 CORS）；**不写任何本地文件**。
+- 宪法守恒：C2（语料/回灌主键 issue/errorCode 无人维度）；I0（generatedBy=ai/manual/hybrid 不记结案人）；A4（recall 只列候选，note+reasons 原样，不断言同因）；G2（服务器单一真相，不双写本地 markdown）。
+- 老实定位（不过度声称）：**写侧仍是 AI 组装 IssueCard**（无简化 archive 端点）；**时钟仍是 FixedClock**（mock-first）→ closeout 的 errorCode 日期/时间戳钉在场景时刻 2026-06-11，真实时钟是部署 follow-up（errorCode 仍按 issueId 哈希唯一）；ProbeFlash `.debug-archive`（7 md）批量导入后置（Part C，用户"可讨论"）；embedding 语义检索后置；LAN 托管 + 飞书登录独立基础设施轨（REMOTE-ACCESS-DEPLOY）。
+- 验证：hub-server `verify:all`（typecheck + 42 测 + build）全过，含**往返测**（closeout→similar 召回）+ **落盘测**（FileKbStore append→新实例加载仍在）；**本地真机端到端**：`TEAMHUB_KB_DATA_FILE` 起服务 → `kb-client.sh` ping/similar(空)/closeout/similar(召回 iss-e2e-1) → 杀进程重启 → similar **仍召回**（持久化实证）；skills-sync + `git diff --check` 干净。
+- 影响 / 落地：`apps/hub-server/src/{main,server}.ts` + `store/{gov-store,mock-kb-store,file-kb-store}.ts` + 2 测试文件 + `.agents/skills/kb-debug/`。
+- 后续（backlog/frontier）：ProbeFlash `.debug-archive` 一次性导入（markdown→IssueCard best-effort 解析器）；真实时钟注入（持久模式配 RealClock，需调和治理 fixture 冻结）；简化 archive 端点（server 端建 IssueCard 让 skill payload 更瘦）；embedding 重排；LAN 托管 + 飞书登录。
+- 事实源：本 ADR；plan file `linear-herding-blanket.md`；Explore 调研（TeamHub KB 后端两洞 + ProbeFlash 设计参考）；用户 2026-06-14「AI+知识库 / skill / 服务器为单一真相」请求。

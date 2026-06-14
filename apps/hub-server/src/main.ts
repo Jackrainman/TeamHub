@@ -1,11 +1,20 @@
 import { buildHubServer } from './server.js';
+import { FileKbStore } from './store/file-kb-store.js';
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 4177;
 
 async function main(): Promise<void> {
+  // 设了 TEAMHUB_KB_DATA_FILE → 知识库语料落盘（重启不丢、closeout 回灌累积）；
+  // 未设则维持 InMemoryKbStore（mock-first 不变）。单一真相在服务器。
+  const kbDataFile = process.env.TEAMHUB_KB_DATA_FILE;
+  const kbStore = kbDataFile
+    ? await FileKbStore.create(kbDataFile)
+    : undefined;
+
   const app = buildHubServer({
     consoleDistDir: process.env.TEAMHUB_CONSOLE_DIST_DIR,
+    kbStore,
   });
   const host = process.env.HUB_HOST ?? DEFAULT_HOST;
   const port = Number.parseInt(process.env.HUB_PORT ?? String(DEFAULT_PORT), 10);

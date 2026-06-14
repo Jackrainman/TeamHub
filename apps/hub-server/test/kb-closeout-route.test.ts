@@ -55,6 +55,44 @@ describe('POST /api/kb/closeout', () => {
     }
   });
 
+  test('闭环：结案上传后下次 similar 能召回（回灌检索语料）', async () => {
+    const app = buildHubServer();
+    const url =
+      '/api/kb/similar?symptom=' +
+      encodeURIComponent('云台舵机抖动') +
+      '&tags=' +
+      encodeURIComponent('云台,舵机') +
+      '&minScore=0';
+    const hasLive = (res: { json(): { items: { issueId: string }[] } }) =>
+      res.json().items.some((item) => item.issueId === liveIssue.id);
+    try {
+      // 上传前：seed 语料（CAN/3508/MicroROS）里查不到这条云台舵机问题
+      const before = await app.inject({ method: 'GET', url });
+      expect(before.statusCode).toBe(200);
+      expect(hasLive(before)).toBe(false);
+
+      // 结案上传
+      const closeout = await app.inject({
+        method: 'POST',
+        url: '/api/kb/closeout',
+        payload: {
+          issue: liveIssue,
+          category: '云台',
+          rootCause: 'PID 比例项过大',
+          resolution: '下调 Kp + 加滤波',
+        },
+      });
+      expect(closeout.statusCode).toBe(200);
+
+      // 上传后：同症状现在召回到刚结案那条（闭环闭上）
+      const after = await app.inject({ method: 'GET', url });
+      expect(after.statusCode).toBe(200);
+      expect(hasLive(after)).toBe(true);
+    } finally {
+      await app.close();
+    }
+  });
+
   test('errorCode 确定性：同 issue 同结案时刻可复现', async () => {
     const app = buildHubServer();
     try {
