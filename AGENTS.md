@@ -92,6 +92,19 @@
 - **可连续构建多个原子单元、不强制 commit 后 STOP**；但**每个原子单元仍各自走 §6.0 completion gate**（验证 + planning sync + 单独 commit），原子提交卫生不丢。
 - commit 后可直接接续下一个原子单元、不必重走 skill 第 1 步（与 §6.A 相反）；每串构建仍受 §3 / §8 安全边界与 M1/M2/M3 约束。完整流程见 `.agents/skills/continuous-build/SKILL.md`。
 
+### 6.C 自迭代外环（具 workflow 能力的 agent，叠在 §6.B 之上）
+
+> **D-053（2026-06-14）**：在 §6.B 之上加一层**循环外壳**——frontier 与 backlog 都无 ready 候选时不停手，而是查完成度、按需自设大目标、再交回 §6.B 驱动。**§6.C 不替换 §6.B**，只拥有「选择 + 完成度检查 + 合成 + 物化 + 守门」外环逻辑；驱动步**引用交回** §6.B（不复写其分解/gate 文字，物理隔离不漂移）。仅给具 `Workflow` 能力的 agent；弱工具（§6.A）不可达，串行轨不受影响。完整 8 步循环见 `.agents/skills/self-iterate/SKILL.md`。
+
+- **触发**：`current_task=null` / frontier 空，且 frontier 与全 backlog **双重耗尽** ready 候选（M1 正常闭口选择仍优先；只要还有 ready 行，外环不开合成）。
+- **完成度检查**：读 `docs/planning/completion-model.yaml`（derived-spec，权威性低于 backlog/decisions）；对每个 `required:true` deliverable 跑机器谓词，gap = 谓词失败或 not-started，按 priority 排。**交叉核对**每个 pending backlog 行都能对账到谓词，否则模型不完整、不得宣称 done（§10）。
+- **M1 逃生阀 = materialize-before-action（三锁）**：① 仅双重耗尽 + 有 gap 才合成；② `roadmap.md` 只在 gap 存在性已被现存 backlog 行 / 已 accepted ADR 锚定后、**为措辞边界**打开，绝不作候选源（M1 不破）；③ 合成的 epic **先写成 backlog 行（带 M2 谓词、状态 pending）+ 追 ADR + 进 frontier 并 commit**，唯此 commit 后才作普通 in-backlog 候选驱动。「凭空 frontier」仍禁。
+- **§5 宪法门（合成第一关，硬封）**：任何 auto-set 的 gap/epic 必须先过 `AGENTS §5`——触及 confirmedBy 外露 / 谁快谁慢 / 完成计数 / 按人排名 / 成员互比 / 硬截止甘特 / 飞书流程双写（I0/A1/C2/G2/G4），或映射到**挂起治理簇**（D-032~D-035 / GOV-*）→ `open_for_decision`、STOP。**自迭代外环永不复活「复活触发=人类确认要 AI 参与治理判断」的挂起项。**
+- **EPIC CAP**：每次 invocation 至多合成+物化 1 个 epic，驱动完即 STOP 上报、等人审 checkpoint（双重耗尽不是重填许可）。
+- **保守默认**：`completion-model.yaml.audited:false` 时合成只 **propose-and-stop**（写 `open_for_decision` 提议 + STOP），人审 completion-model 一次后置 `audited:true` 才 **propose-and-drive**。
+- **驱动**：交回 §6.B continuous-build；每原子单元起手重跑 §8 边界筛 + §5 宪法筛，各自过 §6.0 completion gate。budget 每次 fan-out 前重查，硬守 finder≤8 / verifier≤3 / pipeline>parallel。
+- **STOP（与 §8 完全一致 + §5/产品 fork/budget）**：§8 安全门、§5 宪法门、产品方向拍板、epic cap、budget/cycle 上限、脱节不可解、origin 分叉不可快进、模型未对账——命中即 STOP 出夜跑式报告。**§8 边界对外环每一步、每一原子单元同样硬，自迭代不得越界。**
+
 ### DoD type 对照表（§6.0 M2 引用；双轨共享单一源）
 `backlog.md` 中每个任务标注一个 `type` 字段；认领任务时按下表查 DoD 必须形式。
 

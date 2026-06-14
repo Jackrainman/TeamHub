@@ -797,3 +797,25 @@
 - 影响 / 落地：新 `apps/hub-console/src/features/settings/SettingsPage.tsx` + `docs/planning/code-audit-2026-06-14.md`；改 `apps/hub-console/src/{App,api/client,components/layout/ConsoleLayout,i18n/translations,styles.css}` + `docs/planning/backlog.md`。
 - 后续（backlog/frontier）：**AUDIT-FIXES-2026-06-14** 修复批次（部署前必修 7 条优先）；CONSOLE-COPY-HUMANIZE（文案去 AI 味，姊妹 P1 未做）；其余灰占位（适配器/事件/桥/git/图纸）待定优先级/设计。
 - 事实源：本 ADR；`docs/planning/code-audit-2026-06-14.md`；`backlog.md` CONSOLE-SETTINGS-PAGE/AUDIT-FIXES；plan `~/.claude/plans/rosy-giggling-dolphin.md`；用户 2026-06-14「记录审计 + 设置页优先 + git diff 审计」请求。
+
+## D-053 — 自迭代外环（§6.C）+ 完成度模型 + M1 逃生阀（materialize-before-action）
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-14；3-opus 设计→对抗红队 workflow `wf_3845c9c0-aa2` 硬化后落地；docs/skill/planning 纯文，verify 见下）
+- 日期：2026-06-14
+- 上下文：用户「搭建一个自迭代骨架，没任务时自行查看项目完成度，完成度不够则自动设立大目标、用 workflow 推进，atom-task 只用于提正确率+拆子 agent，让你能自己自然迭代而不是一直停下来等我看」。D-052 已注记**自迭代引擎其实已在**（§6.B continuous-build），过去每轮收尾即停的直接原因是 **frontier 空**（§6.0 M1 候选池闭口规定候选只在 backlog、不发散）+ 安全门 + 方向待拍。痛点不是缺引擎，是缺**外环**：frontier 空时谁来「找下一个大目标」。
+- 核心张力与化解：「自动设立大目标」表面与 **M1 候选池闭口**（不读 roadmap 找候选、不凭空 frontier）冲突。化解 = **materialize-before-action 逃生阀**：外环不直接驱动凭空目标，而是先把合成的 epic **写成真 backlog 行（带 M2 工程谓词、状态 pending）+ 追本类 ADR + 进 frontier 并单独 commit**，唯此 commit 后该 epic 才成为「与人立项无异的普通 in-backlog M1 候选」再驱动。M1 的「候选只在 backlog」由此守住（外环只是**合规地往闭池里加**，不是绕过它）。
+- 决策（落地形态）：
+  1. **新增 §6.C 自迭代外环**（`AGENTS.md` §6 下，与 §6.0/§6.A/§6.B 并列，单一源）：8 步循环（读状态→frontier ready?→backlog ready?→**双重耗尽**则完成度检查→有 gap 合成 epic→物化进 backlog→交回 §6.B 驱动→守门重入），叠在 §6.B 之上、**驱动步引用交回 §6.B 不复写**（物理隔离不漂移）。
+  2. **新建 `docs/planning/completion-model.yaml`**（derived-spec，低于 backlog/decisions）：每 deliverable 一条**机器可判谓词**（cmd_exit0/file_exists/grep_hit/…），gap = 谓词失败或 not-started，按 priority 排，gaps[0] = 下一大目标。seeded：KB/PM 读写 + KB-IMPORT + 设置页 = done（谓词当前过）；DEPGRAPH-* / INTEGRATIONS / COPY-HUMANIZE / AUDIT-H1·H3 = gap；INV-BOM/DEPLOY/AI-AUTODRAW = 产品门/§8 门（required 但合成时 open_for_decision）。
+  3. **新建 skill `.agents/skills/self-iterate/SKILL.md`**：外环完整协议（8 硬化步 + 三锁逃生阀 + §5 门 + epic cap + budget/repair/cycle 守门 + must-stop + 输出 schema）；走 §9 镜像（Write 触发 sync hook）。
+- **对抗红队硬化（`wf_3845c9c0-aa2` 裁「ship-able ONLY after guards」）——未硬化前不可夜跑**，三处致命缺陷已补：
+  - **§5 宪法门缺失**（致命）：原设计 §8/§6.0 筛**不含 §5**，opus 合成的「大目标」由 roadmap 措辞、紧邻**挂起治理簇**（D-032~D-035：deriveMemberStatus/silence/谁慢了/受众路由），可能合成出违 I0/A1/C2/G2/G4 的 epic（如「完成计数看板」「成员状态派生」）而过掉所有现有筛 → **补：§5 门作合成第 0 子步 + 挂起治理簇硬封为 must-stop（自迭代永不复活，其复活触发是人类显式决策）**。
+  - **EPIC CAP 缺失**：「双重耗尽」非真终止——逃生阀重填它刚抽干的池，无 cap 会整晚跨 roadmap 造活且「什么都没可信地完成」→ **补：每 invocation ≤1 合成，驱动完 STOP 等人审 checkpoint**。
+  - **completion-model 自著可伪造 done**：自己写的 yaml + 弱 grep 谓词可让真 gap（AUDIT-H3 零鉴权、INV 支柱未建）读成 done 而早停 → **补：交叉核对每个 pending backlog 行 + done-flip 时 Bash 重跑谓词读 exit 0 + 禁 haiku 步写 'done'**。
+  - 另补：M1「framing-not-harvesting」靠 **anchor 检查**钉死（gap 须溯到现存 backlog 行/已 accepted ADR，roadmap 只措辞）；§8+§5 **逐原子单元**重筛（非逐 epic）；每轮 fetch-before-push 防跨机分叉。
+- 保守默认：`completion-model.yaml.audited:false` ⇒ 合成只 **propose-and-stop**（提议 epic + open_for_decision + STOP），**人审 completion-model 一次**（确认谓词打在真接缝、required/优先级合理）后置 `audited:true` 才 **propose-and-drive**。红队明确建议首版如此。
+- 宪法守恒：纯 docs/skill/planning，无领域/契约/代码改动。**§5 宪法对外环每一步、每一原子单元同样硬**；I0/A1/C2/G2/G4 任何 auto-set 的 epic 必须照样过 §5 闸（与人立项同门）；M1 由 materialize-before-action 守、不凭空 frontier；§8 边界不变、自迭代不得越界；§10 完成度只认谓词通过、不认状态文字（物化 commit ≠ 功能 done）。
+- 老实定位：① 外环在**单次 invocation 内**连续自迭代，**不是**跨进程永动机（agent 仍由调用触发；跨 invocation 续跑靠 `/loop` 或 ScheduleWakeup，本轮不建）；② 首版合成为 propose-and-stop（待 completion-model 人审），用户要的「全自动设目标+驱动」在 `audited:true` 后生效，一行翻转；③ completion-model 谓词是**近似**完成度信号（grep/exit code），非形式化证明，故须人审一次 + 交叉对账兜底。
+- 验证：`git diff --check` 干净；`python3 -c yaml.safe_load` 解析 now.md + completion-model.yaml；`bash .agents/scripts/verify-skills-sync.sh`（新 skill 镜像一致）；grep 无悬挂引用（§6.C/D-053/self-iterate 交叉引用闭合）。
+- 影响 / 落地：新 `.agents/skills/self-iterate/SKILL.md`（+ 镜像 `.claude/skills/`）、`docs/planning/completion-model.yaml`；改 `AGENTS.md`（§6.C）、`docs/planning/{decisions.md（本 ADR）, backlog.md, now.md, agent-state.json}`。**未来自迭代外环合成的 epic ADR 从 D-054 起编号。**
+- 事实源：本 ADR；`AGENTS.md §6.C`；`.agents/skills/self-iterate/SKILL.md`；`docs/planning/completion-model.yaml`；workflow `wf_3845c9c0-aa2`（设计+红队）；用户 2026-06-14「搭建自迭代骨架」请求。

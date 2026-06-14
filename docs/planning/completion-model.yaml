@@ -1,0 +1,143 @@
+# 完成度模型（completion-model）— AGENTS §6.C 自迭代外环 第 4 步「完成度检查」读此文件
+#
+# 权威性：derived-spec，**低于** now.md / backlog.md / decisions.md（范围以它们为准）；
+#         与 agent-state.json 同档（机器可读派生索引），冲突时先修本文件或权威源。
+# 用途：每个 deliverable 带一条**机器可判**谓词（无人工判断）。自迭代外环在 frontier+backlog
+#       双重耗尽时跑每条 required 谓词：done = 谓词过；gap = 谓词失败或 not-started。
+#       按 priority（小=更紧急）排 gap，gaps[0] 即下一个待合成大目标。
+# §10 守则：deliverable 翻 done 只能靠「写入时用 Bash 重跑谓词读 exit 0」，绝不凭 status 文字。
+# audited：completion-model 须人审一次（确认谓词都打在真接缝上、required/优先级合理）后置 true；
+#          audited:false 时第 5 步合成只 **propose-and-stop**（提议 epic + 写 open_for_decision + STOP），
+#          不自动驱动；audited:true 后才 **propose-and-drive**（合成→物化→§6.B 驱动）。
+
+schema_version: 1
+authority: "derived-spec; now.md/backlog.md/decisions.md authoritative for scope"
+audited: false                       # 人审 completion-model 一次后置 true，合成才自动驱动
+synthesis_mode: propose-and-stop     # propose-and-stop（默认/未审计）| propose-and-drive（审计后）
+epic_cap_per_invocation: 1           # 每次 invocation 至多合成+物化 1 个 epic，然后 STOP 等人审
+last_checked: null                   # 第 8 步可记录上次跑谓词的提交/时间（人填或外环填）
+
+# predicate_kind 取值：cmd_exit0 | file_exists | grep_hit | schema_safeparse | yaml_parses | test_count_gte
+# done iff: cmd_exit0→exit 0；file_exists→文件存在；grep_hit→grep 命中；其余同义。
+deliverables:
+  # ---- 已 done（谓词当前应通过；done 仍以重跑谓词为准，不认本字段文字）----
+  - id: PILLAR-KB-READWRITE
+    pillar: kb
+    required: true
+    priority: 30
+    backlog_id: KB-CORE
+    status: done
+    predicate_kind: grep_hit
+    predicate: "grep -rq 'api/kb/closeout' apps/hub-server/src"
+
+  - id: KB-IMPORT-PROBEFLASH
+    pillar: kb
+    required: true
+    priority: 32
+    backlog_id: KB-IMPORT-PROBEFLASH
+    status: done
+    predicate_kind: grep_hit
+    predicate: "grep -q 'kb:import' apps/hub-server/package.json"
+
+  - id: PILLAR-PM-READWRITE
+    pillar: pm
+    required: true
+    priority: 30
+    backlog_id: PM-KB-WRITE-FORMS
+    status: done
+    predicate_kind: file_exists
+    predicate: "apps/hub-console/src/features/pm/PmCreatePanel.tsx"
+
+  - id: CONSOLE-SETTINGS-PAGE
+    pillar: console
+    required: true
+    priority: 35
+    backlog_id: CONSOLE-SETTINGS-PAGE
+    status: done
+    predicate_kind: file_exists
+    predicate: "apps/hub-console/src/features/settings/SettingsPage.tsx"
+
+  # ---- gap（谓词当前应失败 → 排进 gap 列表）----
+  - id: DEPGRAPH-DRAG-CONNECT
+    pillar: console
+    required: true
+    priority: 10                     # 用户最想要的下一项
+    backlog_id: DEPGRAPH-DRAG-CONNECT
+    status: pending
+    predicate_kind: grep_hit
+    predicate: "grep -q 'nodesConnectable={true}' apps/hub-console/src/features/dep-graph/DepGraphPage.tsx"
+
+  - id: DEPGRAPH-ENTRY-OVERLAY
+    pillar: console
+    required: true
+    priority: 12
+    backlog_id: DEPGRAPH-ENTRY-OVERLAY
+    status: pending
+    predicate_kind: grep_hit
+    predicate: "grep -q 'PmCreatePanel' apps/hub-console/src/features/dep-graph/DepGraphPage.tsx"
+
+  - id: INTEGRATIONS-TO-SETTINGS
+    pillar: console
+    required: true
+    priority: 20
+    backlog_id: INTEGRATIONS-TO-SETTINGS
+    status: pending
+    predicate_kind: grep_hit
+    predicate: "grep -qi 'integration' apps/hub-console/src/features/settings/SettingsPage.tsx"
+
+  - id: CONSOLE-COPY-HUMANIZE
+    pillar: console
+    required: true
+    priority: 25
+    backlog_id: CONSOLE-COPY-HUMANIZE
+    status: pending
+    predicate_kind: cmd_exit0        # done iff 治理黑话已清（grep 不再命中）
+    predicate: "! grep -q '归组不归人' apps/hub-console/src/i18n/translations.ts"
+
+  - id: AUDIT-H1-CYCLE-GUARD
+    pillar: infra
+    required: true
+    priority: 28                     # 部署前必修（拖拽连线也依赖前端环守卫）
+    backlog_id: AUDIT-FIXES-2026-06-14
+    status: pending
+    predicate_kind: cmd_exit0
+    predicate: "grep -rqE 'wouldCreateCycle|hasCycle|detectCycle|visited' apps/hub-server/src apps/hub-console/src"
+
+  - id: AUDIT-H3-WRITE-AUTH
+    pillar: infra
+    required: true
+    priority: 29                     # 部署前必修：写端点零鉴权（现只内网 demo 安全）
+    backlog_id: AUDIT-FIXES-2026-06-14
+    status: pending
+    predicate_kind: cmd_exit0
+    predicate: "grep -rqE 'rateLimit|bodyLimit|requireAuth' apps/hub-server/src"
+
+  - id: DEPGRAPH-AI-AUTODRAW
+    pillar: console
+    required: false                  # 依赖 Hermes 触点（产品门）；非部署阻断
+    priority: 40
+    backlog_id: DEPGRAPH-AI-AUTODRAW
+    status: pending
+    note: "依赖 Hermes 触点能力（§8 产品方向 fork）；合成时第 5c 应 open_for_decision"
+    predicate_kind: grep_hit
+    predicate: "grep -rqi 'autodraw\\|suggestEdges' apps/hub-console/src"
+
+  - id: PILLAR-INV-BOM
+    pillar: inv
+    required: true
+    priority: 50                     # 第三支柱、用户定「排最后」+ 自保鲜护栏（需 AI 读车图核数才做）
+    backlog_id: INV-BOM-DESIGN
+    status: not-started
+    note: "产品门：等 AI 能读出车图核数/算余量再做，绝不再造静态表（P13 死表教训）→ 合成时第 5c open_for_decision"
+    predicate_kind: file_exists
+    predicate: "apps/hub-contracts/src/inv.ts"
+
+  - id: DEPLOY-PRODUCTION
+    pillar: deploy
+    required: true
+    priority: 60
+    backlog_id: REMOTE-ACCESS-DEPLOY
+    status: not-started
+    note: "§8 边界：真实服务器写入/SSH/systemd/80·443 → 永不自动合成，第 5c open_for_decision、等人白天审批"
+    predicate_kind: file_exists
+    predicate: "docs/deploy/PRODUCTION-RUNBOOK.md"
