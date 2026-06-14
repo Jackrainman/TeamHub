@@ -1,11 +1,13 @@
 import type { PropsWithChildren } from 'react';
 import {
   Activity,
+  BookOpen,
   Boxes,
   Database,
   GitBranch,
   Home,
   Languages,
+  LayoutGrid,
   Network,
   RadioTower,
   Settings,
@@ -13,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useI18n, type TranslationKey } from '../../i18n';
 
-export type ConsolePage = 'overview' | 'dep-graph';
+export type ConsolePage = 'overview' | 'dep-graph' | 'kb' | 'pm';
 export type DataSource = 'real' | 'mock';
 
 interface NavItem {
@@ -25,6 +27,8 @@ interface NavItem {
 const navItems: NavItem[] = [
   { labelKey: 'nav.overview', icon: Home, page: 'overview' },
   { labelKey: 'nav.depGraph', icon: Network, page: 'dep-graph' },
+  { labelKey: 'nav.kb', icon: BookOpen, page: 'kb' },
+  { labelKey: 'nav.pm', icon: LayoutGrid, page: 'pm' },
   { labelKey: 'nav.adapters', icon: RadioTower },
   { labelKey: 'nav.events', icon: Activity },
   { labelKey: 'nav.bridge', icon: Users },
@@ -53,7 +57,7 @@ export function ConsoleLayout({
 
   return (
     <div className="console-shell">
-      <aside className="console-sidebar" aria-label="Console navigation">
+      <aside className="console-sidebar" aria-label={t('layout.sidebar.nav')}>
         <div className="console-brand">
           <span className="brand-mark">TH</span>
           <div>
@@ -97,7 +101,11 @@ export function ConsoleLayout({
             <Languages aria-hidden="true" size={15} />
             <span className="control-toggle__label">{t('control.language')}</span>
             <span className="control-toggle__value">
-              {lang === 'zh' ? '中文' : 'EN'}
+              {t(
+                lang === 'zh'
+                  ? 'control.language.value.zh'
+                  : 'control.language.value.en',
+              )}
             </span>
           </button>
           <button
@@ -117,7 +125,7 @@ export function ConsoleLayout({
           </button>
         </div>
       </aside>
-      <main className="console-main" id="overview">
+      <main className="console-main" id="console-main">
         {children}
       </main>
     </div>

@@ -168,7 +168,7 @@ export function DepGraphPage({
 
   return (
     <div className="dep-graph-page">
-      <section className="dep-graph-summary" aria-label="dependency summary">
+      <section className="dep-graph-summary" aria-label={t('depgraph.summary.aria')}>
         <Metric label={t('depgraph.summary.critical')} value={String(graph.summary.criticalCount)} />
         <Metric label={t('depgraph.summary.blocked')} value={String(graph.summary.blockedCount)} />
         <Metric label={t('depgraph.summary.blockedIdle')} value={String(graph.summary.blockedIdleCount)} accent="red" />

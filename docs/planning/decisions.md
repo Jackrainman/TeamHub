@@ -667,3 +667,19 @@
 - 影响 / 落地：`hub-server/src/{server,contracts}.ts` + `store/{gov-store,mock-gov-store}.ts` + 3 测试文件。verify：hub-server verify:all 37 测 / git diff --check / skills-sync 全过。commit PM-U1`7218a67` + 录入簇`6cb38c8` + cleanup`3bbf919`。
 - 后续（backlog/frontier）：**console PM 看板页**（下一轮 frontier，复用 @xyflow DAG 页模式 + mutation 表单 + 冷启动引导）/ 依赖录入 AI 预填（confirmedBy=null 不归因）/ criticalChain→priority 派生 / 真实 status 派生上游随触点层。
 - 事实源：本 ADR；`docs/design/pm-board.md`（设计 + 落地说明）；`docs/design/three-pillar-feasibility.md` D-042 §3 / `decisions.md` D-041（定调）；对抗核实 `wf_86ad9d6b-45a`；用户 2026-06-14 Q1/Q2 拍板。
+
+## D-046 — hub-console 两支柱页落地 + 整体汉化（frontier#1 console UI done）
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-14；§6.B 连续构建；3-lens 对抗审计 ship；verify:all 绿；本地 Playwright 真机视觉验收）
+- 日期：2026-06-14
+- 上下文：D-044(KB-CORE)/D-045(PM 后端) 落地后，frontier#1 仅剩 console 读视图 UI（PM 看板 + KB 检索），且用户要求「整体汉化（中文默认可切英文）」。后端 `GET /api/kb/similar`·`/api/tasks` 已就绪，前端只消费、不新增写路由（写侧 mutation 表单仍后置）。
+- 决策（落地形态）：
+  1. **KB 相似检索页**（`features/kb/KbSearchPage.tsx`）：症状 + 标签表单 → `client.getKbSimilar` → 候选卡（title/status/匹配度/tags/重合依据 reasons/errorCode/根因·处理摘要/归档）。**A4 护栏可见**：原样呈现后端 `note`（「只列候选、不断言同因、由人选用」）+ reasons 客观重合依据，无「系统判定同因」措辞。Mock 模式复用**同一后端纯函数** `rankSimilarIssues` 跑 `kbScenarioFixture`（离线可演示）。
+  2. **PM 任务看板页**（`features/pm/PmBoardPage.tsx`）：`client.getTasks` → 5 列（pending/inProgress/blocked/done/shelved）看板。**C2 反排名**：卡片只显 title/rawSummary（人原话）/robotTarget/intrinsicComplexity，**无 ownerId/负责人/完成量**；列计数与汇总只按 status（任务键），永不 groupBy(memberId)。无写流程故 A2 未触发。
+  3. **整体汉化**：i18n 扩 enum 映射（adapter/member/event/artifact/health 状态）+ aria-label landmark（控制台导航/系统摘要/依赖摘要/任务摘要）+ 语言自名（中文/EN）全过 `t()`；总览残留后端枚举裸串收口；zh/en **143:143 键严格对称**。用户数据（displayName/uri/branch/capabilities/rawSummary）保持后端原样不机翻。
+  4. **接线**：client 扩 `getKbSimilar/getTasks`（real fetch + mock 双轨，均过 Zod fail-closed）；console-local `schemas/kb.ts` 镜像响应契约（沿用 system.ts 做法）；ConsoleLayout 加两导航项 + App 四路路由 + TITLE_KEY。
+- 宪法守恒（3-lens 对抗审计 `wf_64a78d61-109`，1 opus[I0/宪法] + 2 sonnet[i18n 完整/UX 正确]）：**I0/C2/A2/A4 = ship**（KB 全 issue/errorCode 键无人维度、note+reasons 原样；PM 无人维度、列计数按 status）；i18n 初判 mustFix（4 处硬编码 aria/语言自名绕过 t()）已全部收口 + 补 DepGraph aria；UX = ship（5 nit：0 命中计数冗余 / dup-key 兜底 / 路由末支显式 / 死键清理 全修）。
+- 老实定位（不过度声称）：**写侧 mutation 表单（建任务/依赖/Need）未做**——两页均为读视图（KB 含 1 次检索交互）；真实 status 派生上游仍未接通（看板 status 来自 mock-first 锚点场景）；持久层 InMemory 重启丢失为预期。
+- 影响 / 落地：`hub-console/src/{App,i18n/translations,api/client}.tsx?` + `features/{kb,pm,overview,dep-graph}` + `components/layout/ConsoleLayout` + `api/{schemas/kb,mock/{kb,tasks}}` + `styles.css` + `test/client.test.ts`（+3 测）。verify：hub-console verify:all（typecheck + 7 测 + build）全过。
+- 后续（backlog/frontier）：PM/KB **写侧 mutation 表单**（建任务/依赖/Need + 结案录入，调 POST 路由）/ 依赖录入 AI 预填 / 真实 status 派生上游随触点层 / 远程部署正式化（D-036 REMOTE-ACCESS-DEPLOY）。
+- 事实源：本 ADR；`docs/design/{pm-board,kb-core}.md`；对抗审计 `wf_64a78d61-109`；用户 2026-06-14「整体汉化 + 继续完成其他功能 + 用 workflow」请求。

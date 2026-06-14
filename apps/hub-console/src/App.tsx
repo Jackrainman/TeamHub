@@ -9,9 +9,18 @@ import {
 } from './components/layout/ConsoleLayout';
 import { OverviewPage } from './features/overview/OverviewPage';
 import { DepGraphPage } from './features/dep-graph/DepGraphPage';
-import { useI18n } from './i18n';
+import { KbSearchPage } from './features/kb/KbSearchPage';
+import { PmBoardPage } from './features/pm/PmBoardPage';
+import { useI18n, type TranslationKey } from './i18n';
 
 const SOURCE_KEY = 'teamhub.dataSource';
+
+const TITLE_KEY: Record<ConsolePage, TranslationKey> = {
+  overview: 'toolbar.title.overview',
+  'dep-graph': 'toolbar.title.depGraph',
+  kb: 'toolbar.title.kb',
+  pm: 'toolbar.title.pm',
+};
 
 function readInitialSource(): DataSource {
   if (typeof window === 'undefined') return 'real';
@@ -53,11 +62,7 @@ export function App() {
       <div className="console-toolbar">
         <div>
           <p className="eyebrow">{t('toolbar.eyebrow')}</p>
-          <h1>
-            {page === 'overview'
-              ? t('toolbar.title.overview')
-              : t('toolbar.title.depGraph')}
-          </h1>
+          <h1>{t(TITLE_KEY[page])}</h1>
         </div>
         {page === 'overview' ? (
           <button
@@ -77,9 +82,13 @@ export function App() {
           error={overviewQuery.error}
           snapshot={overviewQuery.data}
         />
-      ) : (
+      ) : page === 'dep-graph' ? (
         <DepGraphPage client={apiClient} source={source} />
-      )}
+      ) : page === 'kb' ? (
+        <KbSearchPage client={apiClient} source={source} />
+      ) : page === 'pm' ? (
+        <PmBoardPage client={apiClient} source={source} />
+      ) : null}
     </ConsoleLayout>
   );
 }

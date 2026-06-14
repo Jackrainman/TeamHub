@@ -5,16 +5,25 @@ import {
   DepGraphSchema,
   GitReposResponseSchema,
   HubEventsResponseSchema,
+  TasksResponseSchema,
   type DepGraph,
+  type Task,
 } from '@teamhub/hub-contracts';
 import { mockDepGraph } from './mock/dep-graph';
+import { mockKbSimilar } from './mock/kb';
 import { mockOverviewSnapshot } from './mock/overview';
+import { mockTasks } from './mock/tasks';
 import {
   HealthResponseSchema,
   OverviewSnapshotSchema,
   SystemStatusResponseSchema,
   type OverviewSnapshot,
 } from './schemas/system';
+import {
+  KbSimilarResponseSchema,
+  type KbSimilarParams,
+  type KbSimilarResponse,
+} from './schemas/kb';
 
 type FetchLike = typeof fetch;
 
@@ -27,6 +36,8 @@ export interface HubApiClient {
   mode: 'mock' | 'real';
   getOverview(): Promise<OverviewSnapshot>;
   getDepGraph(): Promise<DepGraph>;
+  getKbSimilar(params: KbSimilarParams): Promise<KbSimilarResponse>;
+  getTasks(): Promise<{ tasks: Task[] }>;
 }
 
 export function createHubApiClient(options: HubApiClientOptions = {}): HubApiClient {
@@ -39,6 +50,12 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
       },
       async getDepGraph() {
         return DepGraphSchema.parse(mockDepGraph);
+      },
+      async getKbSimilar(params: KbSimilarParams) {
+        return mockKbSimilar(params);
+      },
+      async getTasks() {
+        return TasksResponseSchema.parse(mockTasks);
       },
     };
   }
@@ -85,6 +102,23 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
     },
     async getDepGraph() {
       return fetchJson(`${baseUrl}/api/dep-graph`, DepGraphSchema, fetcher);
+    },
+    async getKbSimilar(params: KbSimilarParams) {
+      const qs = new URLSearchParams();
+      qs.set('symptom', params.symptom);
+      if (params.tags && params.tags.length > 0) {
+        qs.set('tags', params.tags.join(','));
+      }
+      if (params.limit != null) qs.set('limit', String(params.limit));
+      if (params.minScore != null) qs.set('minScore', String(params.minScore));
+      return fetchJson(
+        `${baseUrl}/api/kb/similar?${qs.toString()}`,
+        KbSimilarResponseSchema,
+        fetcher,
+      );
+    },
+    async getTasks() {
+      return fetchJson(`${baseUrl}/api/tasks`, TasksResponseSchema, fetcher);
     },
   };
 }

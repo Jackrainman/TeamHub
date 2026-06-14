@@ -6,7 +6,50 @@ import type {
   HubEvent,
 } from '@teamhub/hub-contracts';
 import type { OverviewSnapshot } from '../../api/schemas/system';
-import { useI18n } from '../../i18n';
+import { useI18n, type TranslationKey } from '../../i18n';
+
+// 后端枚举 → 文案键（类型安全：枚举变更会在此处编译报错）。仅翻译状态/类型等「界面语义」，
+// 用户数据（displayName / uri / branch / capabilities 等）保持后端原样。
+const HEALTH_KEY: Record<OverviewSnapshot['health']['status'], TranslationKey> = {
+  ok: 'enum.health.ok',
+};
+
+const ADAPTER_STATUS_KEY: Record<AdapterDescriptor['status'], TranslationKey> = {
+  enabled: 'enum.adapter.enabled',
+  disabled: 'enum.adapter.disabled',
+  degraded: 'enum.adapter.degraded',
+  unconfigured: 'enum.adapter.unconfigured',
+};
+
+const MEMBER_STATUS_KEY: Record<BridgeMemberState['status'], TranslationKey> = {
+  idle: 'enum.member.idle',
+  working: 'enum.member.working',
+  blocked: 'enum.member.blocked',
+  offline: 'enum.member.offline',
+};
+
+const EVENT_TYPE_KEY: Record<HubEvent['type'], TranslationKey> = {
+  'message.received': 'enum.event.message.received',
+  'command.received': 'enum.event.command.received',
+  'skill.requested': 'enum.event.skill.requested',
+  'skill.completed': 'enum.event.skill.completed',
+  'bridge.status.updated': 'enum.event.bridge.status.updated',
+  'git.push': 'enum.event.git.push',
+  'release.created': 'enum.event.release.created',
+  'artifact.uploaded': 'enum.event.artifact.uploaded',
+  'adapter.health.changed': 'enum.event.adapter.health.changed',
+  'system.health.checked': 'enum.event.system.health.checked',
+};
+
+const ARTIFACT_KIND_KEY: Record<ArtifactRef['kind'], TranslationKey> = {
+  firmware: 'enum.artifact.firmware',
+  log: 'enum.artifact.log',
+  rosbag: 'enum.artifact.rosbag',
+  image: 'enum.artifact.image',
+  video: 'enum.artifact.video',
+  report: 'enum.artifact.report',
+  other: 'enum.artifact.other',
+};
 
 interface OverviewPageProps {
   snapshot: OverviewSnapshot | undefined;
@@ -33,10 +76,10 @@ export function OverviewPage({ snapshot, isLoading, error }: OverviewPageProps) 
 
   return (
     <div className="overview-grid">
-      <section className="summary-strip" aria-label="System summary">
+      <section className="summary-strip" aria-label={t('overview.section.summary')}>
         <Metric
           label={t('overview.metric.system')}
-          value={snapshot.health.status.toUpperCase()}
+          value={t(HEALTH_KEY[snapshot.health.status])}
         />
         <Metric
           label={t('overview.metric.adapters')}
@@ -156,21 +199,23 @@ function AdapterRow({ adapter }: { adapter: AdapterDescriptor }) {
 }
 
 function EventRow({ event }: { event: HubEvent }) {
+  const { t } = useI18n();
   return (
     <article className="data-row">
-      <strong>{event.type}</strong>
+      <strong>{t(EVENT_TYPE_KEY[event.type])}</strong>
       <span>{event.source}</span>
     </article>
   );
 }
 
 function BridgeRow({ member }: { member: BridgeMemberState }) {
+  const { t } = useI18n();
   return (
     <article className="data-row">
       <strong>{member.displayName}</strong>
       <span>
-        {member.status}
-        {member.blockedOn ? ` - ${member.blockedOn}` : ''}
+        {t(MEMBER_STATUS_KEY[member.status])}
+        {member.blockedOn ? ` · ${member.blockedOn}` : ''}
       </span>
     </article>
   );
@@ -189,16 +234,22 @@ function RepoRow({ repo }: { repo: GitRepoRef }) {
 }
 
 function ArtifactRow({ artifact }: { artifact: ArtifactRef }) {
+  const { t } = useI18n();
   return (
     <article className="data-row">
       <strong>{artifact.name}</strong>
       <span>
-        {artifact.kind} / {artifact.uri}
+        {t(ARTIFACT_KIND_KEY[artifact.kind])} / {artifact.uri}
       </span>
     </article>
   );
 }
 
 function StatusPill({ status }: { status: AdapterDescriptor['status'] }) {
-  return <span className={`status-pill status-${status}`}>{status}</span>;
+  const { t } = useI18n();
+  return (
+    <span className={`status-pill status-${status}`}>
+      {t(ADAPTER_STATUS_KEY[status])}
+    </span>
+  );
 }

@@ -74,6 +74,61 @@ describe('hub console API client', () => {
 
     await expect(client.getOverview()).rejects.toThrow();
   });
+
+  test('mock mode recalls similar issues for a symptom', async () => {
+    const client = createHubApiClient();
+    const result = await client.getKbSimilar({
+      symptom: '底盘电机偶发失控、CAN 报文丢失',
+      tags: ['CAN', '电机'],
+    });
+
+    expect(client.mode).toBe('mock');
+    expect(result.note.length).toBeGreaterThan(0);
+    expect(result.items.length).toBeGreaterThan(0);
+    // 按词重合召回到 CAN 历史卡（候选，不断言同因）
+    expect(result.items.some((item) => item.tags.includes('CAN'))).toBe(true);
+  });
+
+  test('mock mode returns the task board snapshot', async () => {
+    const client = createHubApiClient();
+    const result = await client.getTasks();
+
+    expect(client.mode).toBe('mock');
+    expect(result.tasks.length).toBeGreaterThan(0);
+  });
+
+  test('real mode fetches tasks and kb similar from the API', async () => {
+    const fetcher = vi.fn(async (url: string) => {
+      const parsed = new URL(url, 'http://teamhub.local');
+      return {
+        ok: true,
+        status: 200,
+        json: async () => responseByPath(parsed.pathname),
+      } as Response;
+    });
+
+    const client = createHubApiClient({
+      baseUrl: 'http://127.0.0.1:4177',
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+
+    const tasks = await client.getTasks();
+    expect(client.mode).toBe('real');
+    expect(tasks.tasks).toEqual([]);
+
+    const similar = await client.getKbSimilar({
+      symptom: 'CAN 丢包',
+      tags: ['CAN'],
+    });
+    expect(similar.items).toEqual([]);
+
+    const kbCall = fetcher.mock.calls.find(([url]) =>
+      String(url).includes('/api/kb/similar'),
+    );
+    expect(kbCall).toBeTruthy();
+    expect(String(kbCall?.[0])).toContain('symptom=');
+    expect(String(kbCall?.[0])).toContain('tags=CAN');
+  });
 });
 
 function responseByPath(path: string): unknown {
@@ -108,6 +163,10 @@ function responseByPath(path: string): unknown {
       return apiContractFixtures.gitRepos;
     case '/api/artifacts':
       return apiContractFixtures.artifacts;
+    case '/api/tasks':
+      return { tasks: [] };
+    case '/api/kb/similar':
+      return { query: { symptom: '', tags: [] }, items: [], note: 'mock note' };
     default:
       return { detail: 'Not found' };
   }
