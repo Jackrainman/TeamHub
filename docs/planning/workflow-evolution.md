@@ -1,15 +1,17 @@
 ---
-status: forward-looking
+status: superseded-by D-043
 written_at: 2026-05-17
+superseded_at: 2026-06-14
 activated_by: 写 ADR D-020 + 修改 AGENTS.md §6 + 更新 atomic-task skill,三者全齐
 note: 本文档仅是范式判断存档,激活前不构成任何工作流约束
+superseded_note: D-043（2026-06-14）以「现实已用上 workflow」取代本文档旧立场——当年因「还没用上 workflow」保留 STOP、不引入 continuous、设想「人写 plan → 串行执行」的 epic 两层模式；现实演进为 workflow 连续编排（AGENTS §6.B + continuous-build skill），两层「拆解」思想被 workflow fan-out 吸收。留原位追溯，不再构成约束。
 ---
 
 # 工作流范式演进（forward-looking）
 
-> 状态：**forward-looking，未生效**。
-> 当前生效范式：`AGENTS.md §6` + `.agents/skills/atomic-task/SKILL.md`。
-> 激活条件：必须先写 ADR D-020 + 修改 `AGENTS.md §6` + 更新 `atomic-task` skill；在那之前本文档只是判断存档，不构成任何工作流约束。
+> 状态：**superseded-by D-043（2026-06-14），未按本文档原方案激活**。
+> 当前生效范式：`AGENTS.md §6`（D-043 双轨）+ `.agents/skills/atomic-task/SKILL.md`（§6.A 串行轨）+ `.agents/skills/continuous-build/SKILL.md`（§6.B 连续/编排轨）。
+> 历史激活条件（已不适用）：原设想「写 ADR D-020 + 改 §6 + 更新 atomic-task skill」三者全齐才激活 epic 两层模式；D-043 走了不同路径——以 workflow 连续编排取代「人写 plan 串行执行」，本文档转为追溯存档，不再构成约束。下文 §3–§10 为历史范式判断，保留追溯。
 > 默认读取链：**不在**。与 `visuals.md` 同位阶——仅在讨论范式演进时按需读取。
 
 ## 1. 为何写这份文档

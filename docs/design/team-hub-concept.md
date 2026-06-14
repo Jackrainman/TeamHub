@@ -32,7 +32,7 @@ Teamhub = 机器人战队的协作中枢（CASE 工具 + 团队交流中心 + �
 
 > **D-039 第一轮落地（2026-06-13）**：**AI 退出治理**——规则/协调层（②，魂）本轮**降为"人读说明视图"**（系统只如实显示"A 做完了 / B 忙疯了"，由**大三/学长**人工判断协调，AI 不判定·不派活·不算 silence·排名）；其 AI 派生整簇（D-032～D-035 `GovernanceCue`/silence/give-floor/k-anon/audience 路由）**挂起、想法不丢**（复活触发=未来确认要 AI 参与治理判断）。本轮主线转为**战队内部协作工具三支柱**：① 战队知识库（规范+资料+调试归档，复用 §6 `KnowledgeNode` + 移植 Probe_Flash `IssueCard→Archive` 闭环）② 项管看板（复用 §6 `Task/Dependency/Need`）③ 库存/BOM（P1，自保鲜护栏）。详见 `decisions.md` D-039 + `backlog.md`。
 
-执行顺序沿用原子任务纪律：先写概念与接口契约 → 每次只认领一个原子任务 → 先详细设计再写代码与验证。
+执行顺序沿用 `AGENTS §6` 构建纪律（D-043 双轨）：先写概念与接口契约 → 拆原子单元（弱工具 §6.A 串行一次一个；Claude Code §6.B 可连续/编排）→ 先详细设计再写代码与验证；每原子单元仍各自验证 + 单独 commit。
 
 ## 2. 背景
 
@@ -143,7 +143,7 @@ Teamhub = 机器人战队的协作中枢（CASE 工具 + 团队交流中心 + �
 
 ## 12. 工作流
 
-沿用 `AGENTS.md §6` 原子任务纪律：每次一个原子任务，代码任务先有接口契约 / schema，adapter mock-first，真实写入审批。
+沿用 `AGENTS.md §6` 构建纪律（D-043 双轨：弱工具走 §6.A 串行、Claude Code 走 §6.B 连续编排，共享 §6.0 底座）：代码任务先有接口契约 / schema，adapter mock-first，真实写入审批。
 后续候选见 `backlog.md`。**已落地**：GOV-DATA-MODEL（D-028）/ GOV-VIZ-DAG（D-028）/ GOV-SCHED-MODEL（D-029）/ ARCH-PATH（D-028）/ REMIND-MODEL。**当前 frontier（D-031 重排）**：HUB-SERVER-GOV-SCAFFOLD → GOV-MEMBER-STATUS-DERIVE → GOV-DEP-INTAKE（**D-037 后顺序待重评**）。其余 pending：GOV-RULES-LAYER / GOV-SCHED-VIZ / GOV-REPORT / GOV-LARK-DERIVE / 成长轴 AXIS-*。
 
 ## 13. 历史

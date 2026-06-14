@@ -68,13 +68,44 @@
 - **A3** 面向个人 = **纯给予**（AI 知识 + 找对人 + **帮你开口：AI 起草、发送键本人按**）。D-037 后系统不再对第三方暴露人，故给予**不再是"补偿暴露"**、而就是产品对个人的全部关系；成长轴 / 知识树（D-027）是给学弟**指引**的主要载体。
 - **A4** 无 deadline，只轻推；**人-silence 永不升级给除本人外任何人**（D-037 强化"沉默不升级为对人信号"）；只有"Need 持续无人认领"作为**事**（不挂人名）升级为缺口可见。配套四条 AI / 反排名边界：**建议不判定**（"疑似卡住"对人只出疑问句、不出结论）、**检索不评价**（知识 / 历史 / 找对人放开做，因检索过去不评价现在的人）、**AI 数据边界**（AI 读任务 / 知识上下文来帮你，**绝不计算"你被提醒过几次"**，D-037）、**自指 Cue 不沉淀按人历史**（不能事后 `groupBy` 出"谁被提醒最多"，D-037）。详见 `decisions.md` D-026 后续（2026-06-10）+ D-037。
 
-## 6. Atomic Task Discipline
-- 同一时刻只允许一个原子任务处于执行中。
-- Completion gate 三件套：最小验证通过 + `now.md` planning sync + 单任务 commit。三者全齐才允许选下一任务。
-- planning sync = 覆盖式更新 `now.md`（current_task / frontier / blocked / 最近完成裁剪到 5 条）并同步 `agent-state.json` 活状态字段；候选池增删改名重排时同步 `backlog.md`；长期决策变化时追加 `decisions.md`。
-- **提交习惯（用户 2026-06-11 授权）**：completion gate（验证 + planning sync + 单任务 commit）通过后，**直接 `commit` 并 `push` 到 `origin/master`，无需等用户 review**（trunk-based，全在 `master`）。push 前先 `git fetch` 看 `origin/master` 有无分叉（跨机器 WSL2 测试机 vs 本地可能造成远端分叉）；有分叉先 rebase/合并再 push。此授权仅限 git 提交/推送（代码 + docs + planning）；**真实服务器写入 / 部署 / SSH / systemd / 80·443 / 密钥仍需用户审批（§3 / §8 边界不变）**。
-- 禁止凭旧计划机械顺推；禁止 commit 后自动续推下一任务，必须重新走 `atomic-task` skill 第 1 步。
-- 完整循环规则见 `.agents/skills/atomic-task/SKILL.md`。
+## 6. Build Discipline（构建纪律：双轨）
+
+> **D-043（2026-06-14）**：把原「单原子任务 + commit 后 STOP」从**全员硬律**改为**双轨**。**§6.0 共享底座**工具无关、所有 agent 必守；执行节奏按**能力**分两轨：**§6.A 串行轨**给无 workflow/编排能力的工具（Codex / OpenCode），**§6.B 连续 / 编排轨**给具 workflow 编排能力的 agent（如 Claude Code）。两轨各有独立 skill、**只依赖本节 §6.0 底座、互不依赖**（物理隔离、单一源、不漂移）。
+
+### 6.0 共享底座（工具无关，所有 agent 必守）
+- **原子单元**：工作的最小粒度 = 一个可独立验证 + 单独 commit 的改动。无论走哪轨，commit 都以原子单元为单位。
+- **Completion gate 三件套**：每个原子单元落地前自检 (a) 最小验证已通过（按 §7）(b) planning sync 已做 (c) 单任务 commit 已落；三者全齐才算该原子单元完成。
+- **planning sync** = 覆盖式更新 `now.md`（current_task / frontier / blocked / 最近完成裁剪到 5 条）并同步 `agent-state.json` 活状态字段；候选池增删改名重排时同步 `backlog.md`；长期决策变化时追加 `decisions.md`。
+- **提交 / 推送授权（用户 2026-06-11）**：completion gate 通过后**直接 `commit` 并 `push` 到 `origin/master`，无需等用户 review**（trunk-based，全在 `master`）。push 前先 `git fetch` 看 `origin/master` 有无分叉（跨机器 WSL2 测试机 vs 本地可能造成远端分叉）；有分叉先 rebase/合并再 push。授权仅限 git 提交/推送（代码 + docs + planning）；**真实服务器写入 / 部署 / SSH / systemd / 80·443 / 密钥仍需用户审批（§3 / §8 边界不变）**。
+- **M1 候选池闭口**：选 frontier / current_task 时候选池**只在 `docs/planning/backlog.md`**；不读 `roadmap.md` 找候选、不在 frontier 之外自由发散。`now.md` 的 frontier 项在 backlog 无对应行 = 脱节，必须先补 backlog 再认领；不允许「凭空 frontier」。
+- **M2 DoD 工程谓词**：认领任务时按 backlog 的 `type` 字段查下方「DoD type 对照表」确认 DoD 形式合法；DoD 必须至少含 1 条工程谓词（文件存在 / 命令 exit 0 / grep 命中 / schema safeParse 通过 / yaml 可解析）。「积累 N 条 / 用过 N 次 / 了解了 X / 对齐了 Y / 沉淀价值」等不可机器验证描述**不构成 DoD**，视为非原子任务、拒认领并退回用户重新定义。
+- **M3 commit 误提交自检**：`git commit` 前跑 `git diff --cached --stat`，扣除自动生成内容（`*.lock` / `dist/` / `build/` 等）算净改动行数。净行数 > **1000** 触发自检：(1) 扫 `git diff --cached --name-only` 匹配高置信度模式（`node_modules/` / `dist/` / `build/` / `.next/` / `.nuxt/` / `.cache/` / `*.log` / `*.tmp` / `*.pyc` / `__pycache__/` / `.DS_Store` / `Thumbs.db` / `.env*`（除 `.env.example` / `.env.template`）/ `*.swp` / `*.swo` / >= 5 MB 二进制），命中则自动追加 `.gitignore` + `git rm --cached` + 复核后 commit；(2) 命中低置信度（>500KB / 异常资产）→ 停下问用户；(3) 全正常 → 直接 commit。1000 行只是触发阈值、**非 commit 上限**，自检通过的大 commit 一律放行。
+- **真实性（与 §10 互引）**：禁止把「规划中」写成「已完成」、把占位壳说成真实功能；验证失败不得伪造完成，应创建 repair task 或回退；连续两次修复仍失败必须升级人工确认。
+
+### 6.A 串行轨（无 workflow/编排能力的工具：Codex / OpenCode）
+- **一次只允许一个原子单元处于执行中**：选唯一原子单元 → 执行 → 验证 → planning sync → 单任务 commit → **STOP**。
+- commit 后**不自动续推**；下一个原子单元必须重新进入 `atomic-task` skill 第 1 步（读真实状态 → 选任务）。禁止凭旧计划机械顺推。
+- 完整循环见 `.agents/skills/atomic-task/SKILL.md`。
+
+### 6.B 连续 / 编排轨（具 workflow 编排能力的 agent：如 Claude Code）
+- 按**原子单元粒度（§6.0 定义）**把目标拆成清单（每单元带 DoD + 验证命令 + 依赖），**喂给 workflow 连续 / 并行构建**；大任务用 `Workflow` fan-out / pipeline，**单个小改动直接做**（向下兼容，不强起 workflow，守 token 纪律）。
+- **可连续构建多个原子单元、不强制 commit 后 STOP**；但**每个原子单元仍各自走 §6.0 completion gate**（验证 + planning sync + 单独 commit），原子提交卫生不丢。
+- commit 后可直接接续下一个原子单元、不必重走 skill 第 1 步（与 §6.A 相反）；每串构建仍受 §3 / §8 安全边界与 M1/M2/M3 约束。完整流程见 `.agents/skills/continuous-build/SKILL.md`。
+
+### DoD type 对照表（§6.0 M2 引用；双轨共享单一源）
+`backlog.md` 中每个任务标注一个 `type` 字段；认领任务时按下表查 DoD 必须形式。
+
+| type | DoD 必含 | 验证命令样例 |
+|---|---|---|
+| code | 代码文件落地 + 任务对应 verify 通过 | `cd apps/X && npm run verify:Y`（exit 0） |
+| skill | `.agents/skills/X/SKILL.md` 落地 + `verify:skills-sync` 通过 | `bash .agents/scripts/verify-skills-sync.sh`（exit 0） |
+| design | `docs/design/X.md` 落地 + `decisions.md` 追加 ADR 或文档自标 `status:` | `test -f docs/design/X.md && grep -q "^status:" docs/design/X.md`（exit 0） |
+| research | `docs/research/X.md` 落地 + `decisions.md` 追加 1 条结论 | 同 design 形式 |
+| docs | `git diff --check` 干净 + yaml 可解析 + grep 旧路径无残留 | `git diff --check`；`python3 -c "import yaml; yaml.safe_load(open('X').read())"` |
+| forward-looking | 单文档 + 自标 `status: forward-looking` + 自写激活条件 | `grep -q "status: forward-looking" docs/X.md`（exit 0） |
+| misc | 认领时**明确写出**至少 1 条工程谓词式 DoD 与对应验证命令 | 任务级声明（由认领者填） |
+
+- DoD 形式不符合表中任一行 = 非原子任务，AI **拒认领**；类型枚举可扩展，新增类型必须同时在本表和 `backlog.md` 出现；`misc` 是兜底应尽量避免。
 
 ## 7. Verify Matrix
 | 任务类型 | 必跑 |

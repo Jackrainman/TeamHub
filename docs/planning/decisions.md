@@ -605,3 +605,26 @@
   - **D-036 数据河 / openclaw adapter 轨**：归入决策 3 的统一 Hermes 能力，方向不变。
 - 影响：本 ADR + `docs/design/three-pillar-feasibility.md`（新建分析记录）+ `backlog.md`（KB 拆 CORE/LARK、PM 行去 Member.status/dueDate 加结构键、INV 行新定位、base 收口刀、新增 HUB-HERMES-ADAPTER 行最后做、GOV-SCHED-VIZ 标挂起）+ `now.md`/`agent-state.json`（stage/frontier/最近完成）。**纯 docs/planning，不碰代码 / 服务器 / 真实数据**；`verify:all` 应零回归。
 - 事实源：本 ADR；workflow 输出（run `wf_0ef0d4cc-4c8`，20 agent / 1.26M token，gate=proceed/0 blocker）；`docs/design/three-pillar-feasibility.md`；grep 实证（`gov-store.ts:9`/`server.ts`/`governance.ts` 无 dueDate·有 criticalChainTaskIds·blockedByLabel/`boundary.ts` 白名单/`cli-bridge.ts:17/47`/无 kb.ts·inv.ts）；2026-06-13 设计对话（甲方拍板冲突取最新版 / Hermes 最后接 / 库存对话记账）；`D-039`/`D-040`/`D-041`（被细化）；`D-037`/`D-036`。
+
+## D-043 — 构建纪律双轨化：连续构建（Claude Code/workflow）vs 串行 atomic-task（弱工具），共享底座抽 §6.0 单一源
+
+- 状态：**DECIDED**（甲方 2026-06-14 设计对话拍板；本 ADR = 构建纪律范式权威源；**supersede** `docs/planning/workflow-evolution.md` 的「保留 STOP / 不引入 continuous」旧立场；纯 docs/planning/skills，代码零改）
+- 日期：2026-06-14
+- 上下文：D-042 后开始三支柱连续构建，暴露旧 `AGENTS §6 Atomic Task Discipline` 的张力——它把「一次一个原子任务 + commit 后 STOP + 重走 atomic-task skill 第 1 步」当成**全员硬律**。但 `atomic-task` 是 `.agents/skills/` 三方共用权威源（§9：Codex / OpenCode / Claude Code 共读），而**只有 Claude Code 有 `Workflow` 工具**。这套串行 STOP 节流阀本是给「无编排能力工具」防跑飞的，当成全员硬律就**拖累 Claude Code 的连续构建 / workflow 编排**。甲方明确：**还会用弱工具**（Codex/OpenCode），故不能只留一套；倾向**物理隔离**两套，但担心「两份会漂移」。`workflow-evolution.md`（2026-05-17 forward-looking）当年因「还没用上 workflow」而明确**保留 STOP、不引入 continuous**，并设想「人写 plan → 串行执行」的 epic 两层模式——这一前提已被「现在用 workflow 自动 fan-out / 编排」的现实推翻。
+- 核心洞察：
+  1. **STOP 是「无编排能力」的护栏，不是普世真理。** 串行 + commit 后 STOP 防的是没有编排器的工具一路跑飞；有了 workflow（能确定性 fan-out / pipeline / 对抗核实）的 agent，连续构建是安全的，STOP 反成枷锁。故分档依据 = **能力**（有无 workflow/编排），不绑工具名。
+  2. **「物理隔离怕漂移」的解 = 共享底座抽到中立单一源。** 把两套**共有**的工程卫生（原子单元定义 / completion gate 三件套 / 提交推送授权 / M1 候选池闭口 / M2 DoD 谓词 / M3 误提交自检 / DoD type 对照表）从 `atomic-task/SKILL.md` 抽到 `AGENTS §6.0`，两个 skill **只引用 §6.0、互不依赖** → 物理隔离（各读各的 skill）+ 单一源（底座不重复）→ 化解漂移担忧。
+  3. **原子提交卫生与 STOP 是两件事。** 甲方拍板：保留「每原子单元各自验证通过 + 单独 commit/push」，只取消「全员硬 STOP / commit 后必须重走 skill」。连续 ≠ 大杂烩提交。
+- 决策（甲方 2026-06-14 拍板）：
+  1. **`AGENTS §6` 重写为双轨三段**：**§6.0 共享底座**（工具无关、所有 agent 必守，吸收 M1/M2/M3 + DoD 对照表 + completion gate + 提交授权）；**§6.A 串行轨**（无编排能力工具 Codex/OpenCode：一次一个 → 验证 → sync → commit → **STOP** → 重入）；**§6.B 连续/编排轨**（具 workflow 能力的 agent 如 Claude Code：拆原子单元清单喂 workflow 连续/并行、**不强制 STOP**、每单元仍各自 completion gate、小改动直接做不强起 workflow）。
+  2. **分档按能力**（有无 workflow/编排），举例工具名但不绑死（将来弱工具有了编排自动适用）。
+  3. **物理隔离两个 skill**：`atomic-task`（§6.A 串行，保留+收窄定位，M1/M2/M3/DoD 表改为引用 §6.0）；新建 `continuous-build`（§6.B 连续，引用 §6.0）。二者只依赖 §6.0、互不交叉引用。
+  4. **保留每原子单元验证+单独 commit 卫生**；取消全员硬 STOP。
+  5. **supersede `workflow-evolution.md` 旧立场**：当年「保留 STOP / 不引入 continuous / 人写 plan 串行执行 epic 两层」被本 ADR 取代——两层「拆解」思想被 workflow fan-out 吸收（continuous-build 的「分解→喂 workflow」），但执行引擎从「串行 STOP」换成「workflow 连续编排」。该文档标 `superseded-by D-043`、留原位追溯。
+- supersedes / 细化：
+  - **`AGENTS §6 Atomic Task Discipline`** → 重写为 `§6 Build Discipline（双轨）`；旧「同一时刻只允许一个原子任务」「commit 后必须重走 skill」降级为 §6.A 串行轨专属。
+  - **`workflow-evolution.md`**（forward-looking，未激活）→ 旧立场被 supersede（见决策 5）。
+  - **`.agents/skills/atomic-task/SKILL.md`** → 收窄为串行轨；底座外移引用 §6.0。
+  - **不改** §5 设计宪法 / §7 Verify Matrix / §8 安全门 / §9 Skills Mirror 机制；DoD 对照表的历史抄录（`docs/superpowers/specs/` / `docs/archive/`，过去记录）。
+- 影响：本 ADR + `AGENTS.md §6`（重写）+ `.agents/skills/atomic-task/SKILL.md`（收窄）+ `.agents/skills/continuous-build/SKILL.md`（新建，镜像 `.claude/skills/`）+ `docs/planning/workflow-evolution.md`（标 superseded）+ `docs/agents/workflow/README.md`（footer「当前生效工作流权威源」更新为双轨）+ `docs/design/team-hub-concept.md`（§12 + 概念段 §6 引用软化为双轨）+ `now.md`/`agent-state.json`（最近完成 + stage + 口径对齐双轨）。**纯 docs/planning/skills，不碰代码 / 服务器 / 真实数据**；hub `verify:all` 不涉及（未碰 apps/）。
+- 事实源：本 ADR；2026-06-14 设计对话（甲方拍板：保留每单元验证+commit、取消全员 STOP、还用弱工具→双轨、物理隔离）；Explore 全仓交叉引用扫描（atomic-task / STOP / completion gate / DoD 对照表 / §6↔§7§8§9 / skill-library 同步）；`workflow-evolution.md`（被 supersede 的旧范式）；`AGENTS §6`/`§9`（被改）；`~/.claude/CLAUDE.md`（workflow 模型分档与 token 纪律）。
