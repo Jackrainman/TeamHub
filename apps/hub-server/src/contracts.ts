@@ -10,6 +10,9 @@ import {
   TaskSchema,
   TaskStatusSchema,
   GovActorSourceSchema,
+  DependencySchema,
+  NeedSchema,
+  TasksResponseSchema,
 } from '@teamhub/hub-contracts';
 export {
   AdapterCapabilitiesResponseSchema,
@@ -33,6 +36,7 @@ export {
   SimilarIssueMatchSchema,
   rankSimilarIssues,
   buildCloseoutFromIssue,
+  TasksResponseSchema,
 } from '@teamhub/hub-contracts';
 export type {
   AdapterCapabilitiesResponse,
@@ -159,3 +163,35 @@ export const CreateTaskResponseSchema = z.object({ task: TaskSchema });
 
 export type CreateTaskRequest = z.infer<typeof CreateTaskRequestSchema>;
 export type CreateTaskResponse = z.infer<typeof CreateTaskResponseSchema>;
+
+/**
+ * PM `POST /api/dependencies` 路由契约（人手建依赖边）。请求 = 人本字段；server clamp status=`active`（D-042 初始态）、
+ * 补 id/时间戳。`confirmedBy`（用户 Q1=ActorRef 内部凭证）随请求传入、仅内部归因——**读视图不回此对象**（创建响应回给
+ * 建边本人非第三方，不构成 I0 暴露）。`fromTaskId`=上游、`toTaskId`=被卡的下游。
+ */
+export const CreateDependencyRequestSchema = DependencySchema.omit({
+  id: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const CreateDependencyResponseSchema = z.object({
+  dependency: DependencySchema,
+});
+
+/**
+ * PM `POST /api/needs` 路由契约（前置需求一等公民 G3）。server clamp status=`open`、openedAt=now、escalatedAt=null。
+ * **A1**：providerGroupId 归组不归人；claimedByMemberId 仅本人主动认领才填。
+ */
+export const CreateNeedRequestSchema = NeedSchema.omit({
+  id: true,
+  status: true,
+  openedAt: true,
+  escalatedAt: true,
+});
+export const CreateNeedResponseSchema = z.object({ need: NeedSchema });
+
+export type CreateDependencyRequest = z.infer<
+  typeof CreateDependencyRequestSchema
+>;
+export type CreateNeedRequest = z.infer<typeof CreateNeedRequestSchema>;

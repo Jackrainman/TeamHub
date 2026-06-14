@@ -74,12 +74,40 @@ export class InMemoryGovStore implements GovStore {
     return task;
   }
 
-  async createDependency(_draft: DependencyDraft): Promise<Dependency> {
-    throw new Error(WRITE_IMPL_DEFERRED);
+  /**
+   * PM 依赖边录入（POST /api/dependencies）。**D-042 clamp 初始态**：status 钉 `active`（人建边=断言上游卡下游，
+   * satisfied/waived 由派生/人工 waive 转）。**confirmedBy（用户 Q1=ActorRef 内部凭证）**：人建边的 confirmedBy
+   * 仅内部归因用，永不经读视图暴露/排名（toDepGraphView 不输出 confirmedBy）。**G2**：blockedBy 不在 Task 上另存，
+   * 卡住原因纯由本边经 toDepGraphView 派生为结构键（上游任务名）。
+   */
+  async createDependency(draft: DependencyDraft): Promise<Dependency> {
+    const now = this.clock.now().toISOString();
+    const dependency: Dependency = {
+      ...draft,
+      id: `dep-new-${this.snapshot.dependencies.length + 1}`,
+      status: 'active',
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.snapshot.dependencies.push(dependency);
+    return dependency;
   }
 
-  async createNeed(_draft: NeedDraft): Promise<Need> {
-    throw new Error(WRITE_IMPL_DEFERRED);
+  /**
+   * PM 前置需求录入（POST /api/needs，G3 一等公民）。**D-042 clamp 初始态**：status 钉 `open`、openedAt=now、
+   * escalatedAt=null。**A1**：缺口归组 providerGroupId、不归人；claimedByMemberId 仅本人主动认领才填（非派单 C4/A2）。
+   */
+  async createNeed(draft: NeedDraft): Promise<Need> {
+    const now = this.clock.now().toISOString();
+    const need: Need = {
+      ...draft,
+      id: `need-new-${this.snapshot.needs.length + 1}`,
+      status: 'open',
+      openedAt: now,
+      escalatedAt: null,
+    };
+    this.snapshot.needs.push(need);
+    return need;
   }
 
   /**

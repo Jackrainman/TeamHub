@@ -26,14 +26,25 @@ export type TaskDraft = Omit<
 /**
  * createDependency 入参：人手建的有向边——「卡住 = 在等哪个上游任务」是结构键（G2：blockedBy 由
  * Dependency 边经 toDepGraphView 派生、永不在 Task 上另存）。aiSuggested 边 confirmedBy=null 时只进建议视图。
+ * **status 不由调用方给**（D-042 clamp 初始态）：新边 Store 钉 `active`（上游未满足=被卡），satisfied/waived 由
+ * 后续派生/人工 waive 转。**confirmedBy（用户拍板 Q1=ActorRef 作内部凭证）**：人建边记 {id:memberId, source}，
+ * 仅作内部归因凭证——**永不经读视图对第三方暴露、永不用于排名**（toDepGraphView 不输出 confirmedBy；I0/A4）。
  */
-export type DependencyDraft = Omit<Dependency, 'id' | 'createdAt' | 'updatedAt'>;
+export type DependencyDraft = Omit<
+  Dependency,
+  'id' | 'status' | 'createdAt' | 'updatedAt'
+>;
 
 /**
  * createNeed 入参：前置需求一等公民（G3）。缺口归组 providerGroupId、不归人（A1）；
  * claimedByMemberId 仅本人主动认领才填，非派单（C4 / A2）。
+ * **status/openedAt/escalatedAt 不由调用方给**（D-042 clamp 初始态）：新 Need Store 钉 `open`、openedAt=now、
+ * escalatedAt=null；escalated 仅「事持续无人认领」升级（A4：升级的是事不是人）。confirmedBy 同 Dependency=内部凭证。
  */
-export type NeedDraft = Omit<Need, 'id' | 'openedAt' | 'escalatedAt'>;
+export type NeedDraft = Omit<
+  Need,
+  'id' | 'status' | 'openedAt' | 'escalatedAt'
+>;
 
 /**
  * closeoutKbNode 入参：KB-CORE 结案派生的知识节点（IssueCard→…→Archive 闭环的源 payload 类型

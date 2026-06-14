@@ -3,7 +3,7 @@
   "authority": "derived-cache-only; now.md/backlog.md/decisions.md remain authoritative",
   "mode": "collab_design",
   "stage": "2026-06-14 KB-CORE 战队知识库·核心已落地(frontier#1 done，D-044，§6.B continuous-build 连续构建 U1~U6b 各自 verify+单独 commit+push 45bbeaf→226e838)：移植 Probe_Flash IssueCard→…→ArchiveDocument 调试闭环 Zod 链(kb.ts，去 repoSnapshot/保留三字段)+rankSimilarIssues 相似检索纯函数(kb-similar.ts)+buildCloseoutFromIssue/deriveKnowledgeNodeFromIssue 结案派生(kb-closeout.ts)+kbStore 收窄独立 KbStore(兑现 base 收口刀对抗核实)+InMemoryKbStore+GET /api/kb/similar(A4 note)+POST /api/kb/closeout(InMemoryGovStore.closeoutKbNode 写实现 I0 安全)。4-opus 对抗核实(wf_fc3f1282-bbf，231K token)裁 ship/mustFix=0。设计+落地=docs/design/kb-core.md(触发表/死表基线/findability/护栏)。老实定位：录入交互未接通(等 Hermes 统一触点)、不宣称已解 C1。前序 base 两刀+D-043 双轨化 done。verify=hub-contracts 41 测/hub-server 28 测/git diff --check/skills-sync 全过。下一步=frontier#1 PM-BOARD-DESIGN(写侧从零，承接 GovStore 录入簇实现)。权威源=now.md/backlog.md/decisions.md(D-044/D-043/D-042/D-041) + AGENTS §6 + docs/design/{kb-core,three-pillar-feasibility}.md。",
-  "current_task": "PM-BOARD-DESIGN (KB-CORE done 后顺推；PM-U1 createTask+POST /api/tasks 已落 hub-server verify 31 测；已触 §8 设计闸=createDependency/createNeed confirmedBy↔I0 待拍板)",
+  "current_task": "PM-BOARD-DESIGN (KB-CORE done 后顺推；PM 后端录入簇+读视图已落 hub-server verify 36 测(createTask/Dependency/Need 写实现+POST 路由+GET /api/tasks，Q1=confirmedBy ActorRef 内部凭证/Q2=后端优先)；在途 opus 对抗核实+PM 设计文档+ADR；console UI 下一轮)",
   "frontier": [
     "PM-BOARD-DESIGN"
   ],

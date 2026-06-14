@@ -17,9 +17,6 @@ describe('base 收口刀: GovStore 写白名单 + 扩展点 + 持久化切换合
     const snapshot = await store.getSnapshot();
     expect(snapshot.tasks.length).toBeGreaterThan(0);
 
-    // createDependency/createNeed 仍后置（confirmedBy↔I0 设计待拍板）→ throw
-    await expect(store.createDependency({} as never)).rejects.toThrow(/后置/);
-    await expect(store.createNeed({} as never)).rejects.toThrow(/后置/);
     // createTask 已由 PM 落地：补 id/时间戳/默认（status=pending/statusSource=console）
     const task = await store.createTask({
       projectId: 'prj-robots',
@@ -36,6 +33,33 @@ describe('base 收口刀: GovStore 写白名单 + 扩展点 + 持久化切换合
     expect(task.statusSource).toBe('console');
     expect(task.lastProgressAt).toBeNull();
     expect(task).not.toHaveProperty('dueDate');
+
+    // createDependency：clamp status=active（D-042 初始态）、补 id/时间戳
+    const dep = await store.createDependency({
+      projectId: 'prj-robots',
+      fromTaskId: 't-r1-newboard',
+      toTaskId: 't-r1-chassis',
+      type: 'blocks',
+      source: 'human',
+      confirmedBy: { id: 'm-ecB', displayName: '电控B', source: 'console' },
+    });
+    expect(dep.id).toMatch(/^dep-new-/);
+    expect(dep.status).toBe('active');
+
+    // createNeed：clamp status=open、openedAt 补、escalatedAt=null
+    const need = await store.createNeed({
+      projectId: 'prj-robots',
+      onTaskId: 't-r1-chassis',
+      description: '需要懂 CAN 的人',
+      providerGroupId: 'grp-program',
+      claimedByMemberId: null,
+      neededSkills: ['CAN'],
+      source: 'human',
+      confirmedBy: { id: 'm-ecB', displayName: '电控B', source: 'console' },
+    });
+    expect(need.id).toMatch(/^need-new-/);
+    expect(need.status).toBe('open');
+    expect(need.escalatedAt).toBeNull();
 
     // closeoutKbNode 已由 KB-CORE 实现：补 id + createdAt、追加节点、I0 无人维度
     const node = await store.closeoutKbNode({

@@ -20,6 +20,11 @@ import {
   KbSimilarResponseSchema,
   CreateTaskRequestSchema,
   CreateTaskResponseSchema,
+  CreateDependencyRequestSchema,
+  CreateDependencyResponseSchema,
+  CreateNeedRequestSchema,
+  CreateNeedResponseSchema,
+  TasksResponseSchema,
   SystemStatusResponseSchema,
   buildCloseoutFromIssue,
   rankSimilarIssues,
@@ -171,6 +176,37 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     const task = await store.createTask(parsed.data);
     void reply.code(201);
     return CreateTaskResponseSchema.parse({ task });
+  });
+
+  // PM 读视图：任务列表（看板列 / 列表双视图的读原语）。Task 无 confirmedBy、ownerId 只表「谁负责」(D-041 安全堆)，
+  // 无完成量维度（C2/I0 安全）；依赖/缺口的结构视图走 GET /api/dep-graph（blockedByLabel 上游任务名，不暴露人）。
+  app.get('/api/tasks', async () => {
+    const snapshot = await store.getSnapshot();
+    return TasksResponseSchema.parse({ tasks: snapshot.tasks });
+  });
+
+  // PM 依赖边录入（人手建有向边）。server clamp status=active（D-042 初始态）；confirmedBy 内部凭证不经读视图暴露。
+  app.post('/api/dependencies', async (request, reply) => {
+    const parsed = CreateDependencyRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      return;
+    }
+    const dependency = await store.createDependency(parsed.data);
+    void reply.code(201);
+    return CreateDependencyResponseSchema.parse({ dependency });
+  });
+
+  // PM 前置需求录入（G3 一等公民）。server clamp status=open；A1 缺口归组不归人。
+  app.post('/api/needs', async (request, reply) => {
+    const parsed = CreateNeedRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      return;
+    }
+    const need = await store.createNeed(parsed.data);
+    void reply.code(201);
+    return CreateNeedResponseSchema.parse({ need });
   });
 
   // KB-CORE：症状 → top-N 相似历史 bug（跨赛季同类 bug 召回）。纯函数 rankSimilarIssues 在 KbStore 语料上排序。
