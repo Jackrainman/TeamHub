@@ -3,7 +3,7 @@
   "authority": "derived-cache-only; now.md/backlog.md/decisions.md remain authoritative",
   "mode": "collab_design",
   "stage": "2026-06-13 base 收口刀已落地(HUB-SERVER-GOV-SCAFFOLD frontier#1 done，commit+push)：GovStore 加写方法白名单签名(createTask/createDependency/createNeed/closeoutKbNode，draft=Omit 派生·仅签名实现后置=throw)+BuildHubServerOptions 加 kbStore?:GovStore/invStore?:InvStore 扩展点+持久化切换合约 SqliteGovStore stub(同接口全 throw not-implemented)，化解四次重建底座违 C3。workflow 实现→4-opus 对抗核实(ts 健全/宪法 C2·G2·I0·C3/sqlite·INV·KB 三方可扩展不重建)裁 ship、mustFix=0；deferToNextKnife=KB 相似检索语料 IssueCard 不在快照→KB-CORE 收窄 kbStore→KbStore、写入簇 body 解析、confirmedBy 记{source,at}、Draft status clamp、Sqlite 接 better-sqlite3。verify=hub-server 18 测(+4)/hub-contracts 29 测零回归/git diff --check/skills-sync 全过。随后 D-043 构建纪律双轨化(2026-06-14)：AGENTS §6 重写为 §6.0 共享底座+§6.A 串行轨(atomic-task,弱工具)+§6.B 连续/编排轨(continuous-build,Claude Code)，取消全员硬 STOP、保留每单元验证+单独 commit、底座抽 §6.0 单一源(两 skill 物理隔离不漂移)、分档按能力、workflow-evolution.md 标 superseded。下一步=按 §6.B 连续构建三支柱 frontier#1 KB-CORE-DESIGN。权威源=now.md/backlog.md/decisions.md(D-043/D-042/D-041/D-040) + AGENTS §6 + docs/design/three-pillar-feasibility.md。",
-  "current_task": "KB-CORE-DESIGN (§6.B continuous-build 连续构建中；U1 kb.ts schema 链+kbScenarioFixture 已落，hub-contracts verify 33 测；在途 U2~U7)",
+  "current_task": "KB-CORE-DESIGN (§6.B continuous-build 连续构建中；U1 kb.ts schema 链+U2 rankSimilarIssues 已落，hub-contracts verify 37 测；在途 U3~U7)",
   "frontier": [
     "KB-CORE-DESIGN",
     "PM-BOARD-DESIGN"
