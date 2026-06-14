@@ -722,6 +722,24 @@
 - 后续（backlog/frontier）：ProbeFlash `.debug-archive` 一次性导入（markdown→IssueCard best-effort 解析器）；真实时钟注入（持久模式配 RealClock，需调和治理 fixture 冻结）；简化 archive 端点（server 端建 IssueCard 让 skill payload 更瘦）；embedding 重排；LAN 托管 + 飞书登录。
 - 事实源：本 ADR；plan file `linear-herding-blanket.md`；Explore 调研（TeamHub KB 后端两洞 + ProbeFlash 设计参考）；用户 2026-06-14「AI+知识库 / skill / 服务器为单一真相」请求。
 
+## D-050 — KB-IMPORT-PROBEFLASH：ProbeFlash .debug-archive 一次性导入（frontier#1 done）
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-14；hub-server verify:all 绿[typecheck+65 测含 23 新解析测+build]；6 真实归档实跑 5 导入 + 召回实证；3-lens 对抗核实 wf_a52195b7-44e 裁 ship[block 仅 DoD/流程非正确性，3 mustFix 已闭]）
+- 日期：2026-06-14
+- 上下文：frontier#1 最后一项。把 `debug-checklist` skill 攒的历史调试归档（`Probe_Flash/.debug-archive`，6 md：异构——部分 YAML frontmatter、部分裸检查清单、单文件常汇总多 bug）一次性灌进 KB 检索语料，让历史经验跨赛季可召回。**一次性非长期同步**（用户已定后续本地不再产 archive、全留服务器）。
+- 决策（落地形态，纯 hub-server，零 contracts/console 改动）：
+  1. **纯解析器** `src/import/parse-debug-archive.ts`（零 IO 可单测）：frontmatter 拆分 + 文件名→ascii slug + 日期派生（frontmatter date→文件名日期→正文「生成于」→兜底常量）+ 领域词表 TAG_VOCAB 客观打标 + best-effort 抽根因/修复/预防段。**一文件=一张归档卡**（汇总文档无可靠 bug 边界，best-effort 下「整篇可召回」比「假装精确拆分」诚实，rawInput 存全文供关键词扫描）。
+  2. **导入 CLI** `src/import/import-debug-archive.ts`：读归档目录→解析→组 IssueCard(status=resolved)→canonical `buildCloseoutFromIssue`（**注入历史时戳**：errorCode/归档名反映 bug 当年日期 `DBG-<历史日期>-NNN` 而非 server 当前钟）→`FileKbStore.appendCloseout`（与 server `TEAMHUB_KB_DATA_FILE` 同一落盘文件）。skip-existing 幂等（重跑跳过已导）。README 跳过。**为何独立 CLI 非走 POST /api/kb/closeout**：那条路由用当前钟戳（丢历史）；CLI 复用同一 canonical 纯函数 + 同一持久层，不复刻派生逻辑（§10/G2）。
+  3. **重构** `deriveErrorCode` 从 `server.ts` 抽到 `src/kb/error-code.ts`（CLI 与 server 共用同一确定性派生，DRY）。
+  4. **npm 脚本** `kb:import`（`node dist/import/import-debug-archive.js`）+ 操作流程入档（见下「运行」）。
+- 宪法守恒：**C2/I0 无人维度**——`generatedBy='hybrid'`（来源枚举非人名）、主键 issue/errorCode、标签是客观 TAG_VOCAB 正则命中、绝不写 memberId/MemberKnowledge；**C4/§10 不杜撰**——抽不到根因/修复段给诚实指向性兜底（「详见归档正文」）+ warning 不静默；**G2 单一真相**——只 append 到 server 读的同一语料、不双写。
+- **对抗核实**（`wf_a52195b7-44e`，3-lens[I0/C2 + 解析保真/写安全 + 诚实/DoD]→综合）：两技术 lens 均 ship、仅 nit；裁 **block 仅因 DoD/流程**（未提交/无 ADR/无脚本），三项已闭即 ship。**H2（FileKbStore writeChain 无 .catch）判 stays-deferred**——顺序 one-shot CLI + skip-existing 重跑可恢复，咬不到；留 AUDIT-FIXES 批次（服务器长驻路径才需修）。
+- 老实定位（不过度声称）：① 汇总文档的结构化 rootCause 是多 bug 串接（`；` 连）非单一结论，全文留 rawInput 故召回无损但结构字段是 mash-up；② IMPORT_FORCE=1 重导会重复 errorEntry/archiveDocument（默认 skip-existing 幂等不受影响，已记 nit）；③ extractSection 有残留 markdown 加粗/表格行（仅影响展示、不影响关键词召回）；④ SKIP_FILES 大小写鲁棒性 gap（真实档案仅 README.md 不受影响）。以上 4 nit 入 backlog `KB-IMPORT-FOLLOWUP`，非阻塞。
+- 运行（一次性，operator 在部署机跑）：`cd apps/hub-server && npm run build && npm run kb:import -- <archiveDir> <permanent-dataFile>`（如 WSL2：`~/projects/TeamHub/.../Probe_Flash/.debug-archive` → `~/teamhub-data/kb.json`），再以 `TEAMHUB_KB_DATA_FILE=<同一文件>` 起 server，`/api/kb/similar` 即召回。**实证**：本地跑 6 档案 5 导入 0 失败，errorCode 历史化（DBG-20260515-714 等），4 条代表查询（FreeRTOS HardFault / 夹爪抬升 / 串口 IDLE DMA / 达妙上电）均召回 iss-pf-* 历史 bug。
+- 影响 / 落地：新 `apps/hub-server/src/import/{parse,import}-debug-archive.ts` + `src/kb/error-code.ts` + `test/parse-debug-archive.test.ts`（23 测）；改 `src/server.ts`（deriveErrorCode 抽出）+ `package.json`（kb:import）。
+- 后续（backlog）：`KB-IMPORT-FOLLOWUP`（4 nit）；真实时钟注入；embedding 重排；console KB 页加「上传归档」入口（当前只有检索+结案表单，批量导入是 CLI）。
+- 事实源：本 ADR；`docs/planning/backlog.md` KB-IMPORT-PROBEFLASH；对抗核实 `wf_a52195b7-44e`；用户 2026-06-14「直接连做直到功能做完，用 workflow」+「连 WSL 展示 + 说明剩余」请求。
+
 ## D-049 — Console 设置页落地 + 代码审计落档（CONSOLE-SETTINGS-PAGE done / AUDIT 记录）
 
 - 状态：**DECIDED / IMPLEMENTED**（2026-06-14；hub-console verify:all 绿 + 本地 Playwright 真机视觉验收；审计为落档非修复）
