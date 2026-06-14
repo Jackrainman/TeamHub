@@ -647,3 +647,23 @@
 - 影响 / 落地：`hub-contracts/src/{kb,kb-similar,kb-closeout}.ts` + `fixtures.ts`(kbScenarioFixture) + `index.ts`；`hub-server/src/{server,contracts}.ts` + `store/{gov-store,mock-gov-store,mock-kb-store}.ts` + 4 测试文件。verify：hub-contracts 41 测 / hub-server 28 测 / git diff --check / skills-sync 全过。commit U1~U6b（`45bbeaf`→`226e838`）。
 - 后续（backlog/frontier）：**KB-LARK**（飞书拉资料，hardblock `LARK-BIN-PROBE`）/ 录入交互（随 Hermes 统一触点）/ IssueCard↔Task 关联 + `TaskKnowledgeTag` 派生（随 PM）/ 真实持久层（待审批）/ console KB 页（复用 @xyflow）。
 - 事实源：本 ADR；`docs/design/kb-core.md`（设计 + 落地说明）；`docs/design/three-pillar-feasibility.md` D-042 §3；对抗核实 `wf_fc3f1282-bbf`；Probe_Flash `apps/desktop/src/{search/similar-issues,domain/closeout,domain/schemas/issue-card}.ts`（移植源，v0.3 冻结）。
+
+## D-045 — PM 项目计划表后端落地：录入簇 + 读视图 + confirmedBy 内部凭证（I0 读写边界拍板）
+
+- 状态：**DECIDED / IMPLEMENTED-PARTIAL**（2026-06-14；§6.B 连续构建 PM-U1 + 录入簇 slice + cleanup 各自 verify+commit；2-opus 对抗核实 ship/mustFix=0；**console 看板 UI 后置**）
+- 日期：2026-06-14
+- 上下文：KB-CORE done 后顺推 frontier#1 PM（D-041 定调「任务为核心·全员可见·依赖图+卡住带原因·无甘特·不按人」/ D-042 收口）。PM 复用现有 `Task/Dependency/Need` 不新建领域模型，承接 base 收口刀「录入簇 createTask/createDependency/createNeed 实现后置」。连续构建即触一个 **§8 设计闸**：依赖/Need 的 `confirmedBy` 在现 schema 是 `ActorRef{id,displayName,source}`（含可 groupBy 的 memberId），与 D-042「confirmedBy=timestamp 非 memberId 守 I0」字面冲突——planning↔代码冲突 + 涉 I0 反监视核心不变式，**不可静默猜**，故 AskUserQuestion 拍板。
+- 用户拍板（2026-06-14）：
+  - **Q1 = ActorRef 作内部凭证**：confirmedBy 保持 `ActorRef`，作**内部归因凭证**（`isLiveEdge` 判 `!== null` 决定是否参与归因 C4）；I0 靠**永不经读视图对第三方暴露、永不用于排名**守，而非靠 schema 去掉人 id。与现有 fixture + base 收口刀 4-opus 核实一致。（备选「source-only 凭证」未采。）
+  - **Q2 = 本轮后端录入簇 + 读视图 API**；console 写侧 UI（@xyflow 板 + mutation 表单 + 冷启动空板）后置下一轮。
+- 决策（落地形态）：
+  1. **写实现（mock-gov-store.ts）**：`createTask`（补 id/时间戳 + 默认 status=pending/statusSource=console C5、lastProgressAt=null）/ `createDependency`（**clamp status=active** D-042 初始态）/ `createNeed`（**clamp status=open/openedAt=now/escalatedAt=null/claimedByMemberId=null** —— A2 反派单：新缺口必未认领）；构造期克隆 tasks/deps/needs/knowledgeNodes 不污染共享 fixture。
+  2. **Draft 类型（gov-store.ts）**：`DependencyDraft` 去 status、`NeedDraft` 去 status/claimedByMemberId（clamp 初始态归 Store）。
+  3. **路由（server.ts）**：`POST /api/tasks`·`/api/dependencies`·`/api/needs`（201/400）+ `GET /api/tasks` 读视图。
+  4. **I0 读写边界（命门）**：写入侧 confirmedBy 记 ActorRef 内部凭证；**读出侧任何第三方可见路由永不输出 confirmedBy**——`GET /api/dep-graph`（toDepGraphView 只带 ownerLabel/blockedByLabel 结构键）、`GET /api/tasks`（Task 本无 confirmedBy）；**不提供** `GET /api/dependencies`/`GET /api/needs` 裸对象读路由；创建响应回完整对象=回给建边本人（非第三方），不构成暴露。
+- 宪法守恒（2-opus 对抗核实 clean，含**对抗探针实证**）：探针 POST `confirmedBy={id:'m-secret-leaker',displayName:'SECRET_NAME_LEAK'}` 后 `GET /api/dep-graph`+`/api/tasks` 响应体均不含泄露标记 → **I0 守住**。C2（无完成量维度，ownerId 仅「谁负责」D-041 安全堆）/ G2（blockedBy 不在 Task 上另存、纯 Dependency 边派生）/ A1（缺口归组 providerGroupId）/ A2（claimedByMemberId clamp null 反派单）/ G4（不引入 dueDate）。
+- 老实定位（不过度声称）：**console 看板 UI 未做**；真实 status 派生上游（git/lark→status）未接通，`statusSource=console` 是兜底录入、**不宣称已解 C1/C5**；持久层 InMemory 重启丢失为预期（SqliteGovStore stub 待部署审批 §8）；`criticalChain→priority`/双视图/AI 预填依赖录入后置。
+- 对抗核实：`wf_86ad9d6b-45a`（2 lens[I0 暴露面 / 写实现健全]→1 综合，152K token）裁 **ship、mustFix=0**；nit（死代码+失真注释 / 创建可夹带 claimedByMemberId 派单 / 往返测覆盖）已由 PM-cleanup 收口。
+- 影响 / 落地：`hub-server/src/{server,contracts}.ts` + `store/{gov-store,mock-gov-store}.ts` + 3 测试文件。verify：hub-server verify:all 37 测 / git diff --check / skills-sync 全过。commit PM-U1`7218a67` + 录入簇`6cb38c8` + cleanup`3bbf919`。
+- 后续（backlog/frontier）：**console PM 看板页**（下一轮 frontier，复用 @xyflow DAG 页模式 + mutation 表单 + 冷启动引导）/ 依赖录入 AI 预填（confirmedBy=null 不归因）/ criticalChain→priority 派生 / 真实 status 派生上游随触点层。
+- 事实源：本 ADR；`docs/design/pm-board.md`（设计 + 落地说明）；`docs/design/three-pillar-feasibility.md` D-042 §3 / `decisions.md` D-041（定调）；对抗核实 `wf_86ad9d6b-45a`；用户 2026-06-14 Q1/Q2 拍板。
