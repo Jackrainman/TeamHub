@@ -1,7 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Task, TaskStatus } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n, type TranslationKey } from '../../i18n';
+import { PmCreatePanel } from './PmCreatePanel';
 
 // 看板列固定顺序（任务流向，不按人）。反排名（C2）：看板主键是 task/status，无 memberId 维度、
 // 不展示「谁完成多少」；任务自身难度让「本来简单却被卡」可见。
@@ -35,6 +36,7 @@ export function PmBoardPage({
   source: string;
 }) {
   const { t } = useI18n();
+  const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: ['tasks', source],
     queryFn: () => client.getTasks(),
@@ -50,9 +52,13 @@ export function PmBoardPage({
   const tasks = query.data.tasks;
   const byStatus = (status: TaskStatus) =>
     tasks.filter((task) => task.status === status);
+  // 写表单成功后失效任务查询 → 看板即时刷新（mock 闭包持久 / real 命中后端读视图）。
+  const refreshTasks = () =>
+    void queryClient.invalidateQueries({ queryKey: ['tasks', source] });
 
   return (
     <div className="pm-page">
+      <PmCreatePanel client={client} tasks={tasks} onCreated={refreshTasks} />
       <section className="pm-summary" aria-label={t('pm.section.summary')}>
         <Metric label={t('pm.summary.total')} value={String(tasks.length)} />
         <Metric
@@ -67,7 +73,10 @@ export function PmBoardPage({
         />
       </section>
       {tasks.length === 0 ? (
-        <div className="state-band">{t('pm.empty')}</div>
+        <div className="pm-coldstart">
+          <h3>{t('pm.coldstart.title')}</h3>
+          <p>{t('pm.coldstart.body')}</p>
+        </div>
       ) : (
         <div className="pm-board">
           {COLUMN_ORDER.map((status) => {

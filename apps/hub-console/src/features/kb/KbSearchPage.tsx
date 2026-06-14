@@ -1,9 +1,53 @@
 import { useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Info, Search } from 'lucide-react';
+import { Info, Search, Archive } from 'lucide-react';
 import type { SimilarIssueMatch } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n, type TranslationKey } from '../../i18n';
+import { KbCloseoutForm } from './KbCloseoutForm';
+
+type KbTab = 'search' | 'closeout';
+
+// KB 页：两个标签——相似检索（读）/ 结案归档（写）。两者同属一支柱「战队知识库」。
+export function KbSearchPage({
+  client,
+  source,
+}: {
+  client: HubApiClient;
+  source: string;
+}) {
+  const { t } = useI18n();
+  const [tab, setTab] = useState<KbTab>('search');
+  return (
+    <div className="kb-page">
+      <div className="seg kb-tabs" role="tablist" aria-label={t('toolbar.title.kb')}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'search'}
+          className={tab === 'search' ? 'seg__btn seg__btn--active' : 'seg__btn'}
+          onClick={() => setTab('search')}
+        >
+          <Search size={14} aria-hidden="true" /> {t('kb.tab.search')}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'closeout'}
+          className={tab === 'closeout' ? 'seg__btn seg__btn--active' : 'seg__btn'}
+          onClick={() => setTab('closeout')}
+        >
+          <Archive size={14} aria-hidden="true" /> {t('kb.tab.closeout')}
+        </button>
+      </div>
+      {tab === 'search' ? (
+        <KbSearchPanel client={client} source={source} />
+      ) : (
+        <KbCloseoutForm client={client} source={source} />
+      )}
+    </div>
+  );
+}
 
 // IssueStatus → 文案键（候选记录的状态徽标）。
 const KB_STATUS_KEY: Record<SimilarIssueMatch['status'], TranslationKey> = {
@@ -19,7 +63,7 @@ interface SubmittedQuery {
   tags: string[];
 }
 
-export function KbSearchPage({
+function KbSearchPanel({
   client,
   source,
 }: {
@@ -58,7 +102,7 @@ export function KbSearchPage({
   }
 
   return (
-    <div className="kb-page">
+    <div className="kb-search-panel">
       <form className="panel kb-search-form" onSubmit={handleSubmit}>
         <label className="kb-field">
           <span>{t('kb.search.symptomLabel')}</span>

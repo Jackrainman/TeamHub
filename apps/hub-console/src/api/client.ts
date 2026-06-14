@@ -6,6 +6,10 @@ import {
   GitReposResponseSchema,
   HubEventsResponseSchema,
   TasksResponseSchema,
+  TaskSchema,
+  DependencySchema,
+  NeedSchema,
+  buildCloseoutFromIssue,
   type DepGraph,
   type Task,
 } from '@teamhub/hub-contracts';
@@ -21,9 +25,23 @@ import {
 } from './schemas/system';
 import {
   KbSimilarResponseSchema,
+  KbCloseoutResponseSchema,
   type KbSimilarParams,
   type KbSimilarResponse,
+  type KbCloseoutRequest,
+  type KbCloseoutResponse,
 } from './schemas/kb';
+import {
+  CreateTaskResponseSchema,
+  CreateDependencyResponseSchema,
+  CreateNeedResponseSchema,
+  type CreateTaskRequest,
+  type CreateTaskResponse,
+  type CreateDependencyRequest,
+  type CreateDependencyResponse,
+  type CreateNeedRequest,
+  type CreateNeedResponse,
+} from './schemas/pm';
 
 type FetchLike = typeof fetch;
 
@@ -38,11 +56,24 @@ export interface HubApiClient {
   getDepGraph(): Promise<DepGraph>;
   getKbSimilar(params: KbSimilarParams): Promise<KbSimilarResponse>;
   getTasks(): Promise<{ tasks: Task[] }>;
+  // 写侧（PM 录入簇 + KB 结案）。I0：confirmedBy 随依赖/需求请求传入但读视图永不回显；
+  // 创建响应回完整对象（回给录入本人，非第三方）。
+  createTask(req: CreateTaskRequest): Promise<CreateTaskResponse>;
+  createDependency(
+    req: CreateDependencyRequest,
+  ): Promise<CreateDependencyResponse>;
+  createNeed(req: CreateNeedRequest): Promise<CreateNeedResponse>;
+  closeoutKb(req: KbCloseoutRequest): Promise<KbCloseoutResponse>;
 }
 
 export function createHubApiClient(options: HubApiClientOptions = {}): HubApiClient {
   const baseUrl = normalizeBaseUrl(options.baseUrl);
   if (baseUrl === null) {
+    // Mock 模式：闭包内可变任务表，让写表单在无后端时也能即时反映在看板上（演示/视觉验收用）。
+    // 切换数据源会重建 client → 重置演示数据，符合预期。
+    const mockTaskStore: Task[] = TasksResponseSchema.parse(mockTasks).tasks.slice();
+    let mockSeq = 0;
+    const nextId = (prefix: string) => `${prefix}-mock-${(mockSeq += 1)}`;
     return {
       mode: 'mock',
       async getOverview() {
@@ -55,7 +86,79 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         return mockKbSimilar(params);
       },
       async getTasks() {
-        return TasksResponseSchema.parse(mockTasks);
+        return { tasks: mockTaskStore.slice() };
+      },
+      async createTask(req: CreateTaskRequest) {
+        const now = nowIso();
+        const task = TaskSchema.parse({
+          ...req,
+          id: nextId('task'),
+          status: req.status ?? 'pending',
+          statusSource: req.statusSource ?? 'console',
+          lastProgressAt: null,
+          createdAt: now,
+          updatedAt: now,
+        });
+        mockTaskStore.push(task);
+        return CreateTaskResponseSchema.parse({ task });
+      },
+      async createDependency(req: CreateDependencyRequest) {
+        const now = nowIso();
+        const dependency = DependencySchema.parse({
+          ...req,
+          id: nextId('dep'),
+          status: 'active',
+          createdAt: now,
+          updatedAt: now,
+        });
+        return CreateDependencyResponseSchema.parse({ dependency });
+      },
+      async createNeed(req: CreateNeedRequest) {
+        const now = nowIso();
+        const need = NeedSchema.parse({
+          ...req,
+          id: nextId('need'),
+          status: 'open',
+          claimedByMemberId: null,
+          openedAt: now,
+          escalatedAt: null,
+        });
+        return CreateNeedResponseSchema.parse({ need });
+      },
+      async closeoutKb(req: KbCloseoutRequest) {
+        // Mock 复用「与后端同一份」纯函数 buildCloseoutFromIssue（不在前端复刻派生逻辑），
+        // 仅补后端 server.ts/Store 那两步：deriveErrorCode（DBG-YYYYMMDD-NNN）+ draft→node 注入 id/createdAt。
+        const now = nowIso();
+        const result = buildCloseoutFromIssue(
+          req.issue,
+          req.records ?? [],
+          {
+            category: req.category ?? '',
+            rootCause: req.rootCause,
+            resolution: req.resolution,
+            prevention: req.prevention ?? '',
+          },
+          {
+            now,
+            errorEntryId: `err-${req.issue.id}`,
+            errorCode: deriveErrorCode(now, req.issue.id),
+            generatedBy: req.generatedBy ?? 'hybrid',
+          },
+        );
+        if (!result.ok) {
+          // 与后端 422 同义（缺 rootCause/resolution、卡已归档）：透出给表单错误条，不伪造完成。
+          throw new Error(`422: ${result.reason}`);
+        }
+        return KbCloseoutResponseSchema.parse({
+          archiveDocument: result.archiveDocument,
+          errorEntry: result.errorEntry,
+          updatedIssueCard: result.updatedIssueCard,
+          knowledgeNode: {
+            ...result.knowledgeNodeDraft,
+            id: `kn-${req.issue.id}`,
+            createdAt: now,
+          },
+        });
       },
     };
   }
@@ -120,6 +223,38 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
     async getTasks() {
       return fetchJson(`${baseUrl}/api/tasks`, TasksResponseSchema, fetcher);
     },
+    async createTask(req: CreateTaskRequest) {
+      return postJson(
+        `${baseUrl}/api/tasks`,
+        req,
+        CreateTaskResponseSchema,
+        fetcher,
+      );
+    },
+    async createDependency(req: CreateDependencyRequest) {
+      return postJson(
+        `${baseUrl}/api/dependencies`,
+        req,
+        CreateDependencyResponseSchema,
+        fetcher,
+      );
+    },
+    async createNeed(req: CreateNeedRequest) {
+      return postJson(
+        `${baseUrl}/api/needs`,
+        req,
+        CreateNeedResponseSchema,
+        fetcher,
+      );
+    },
+    async closeoutKb(req: KbCloseoutRequest) {
+      return postJson(
+        `${baseUrl}/api/kb/closeout`,
+        req,
+        KbCloseoutResponseSchema,
+        fetcher,
+      );
+    },
   };
 }
 
@@ -144,4 +279,47 @@ async function fetchJson<T>(
     throw new Error(`Hub API ${response.status}: ${url}`);
   }
   return schema.parse(await response.json());
+}
+
+async function postJson<T>(
+  url: string,
+  body: unknown,
+  schema: { parse(value: unknown): T },
+  fetcher: FetchLike,
+): Promise<T> {
+  const response = await fetcher(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    // 后端校验失败（400/422）带 { detail }：透出给表单错误条，便于人看清缺了什么。
+    const detail = await readDetail(response);
+    throw new Error(
+      detail ? `${response.status}: ${detail}` : `Hub API ${response.status}: ${url}`,
+    );
+  }
+  return schema.parse(await response.json());
+}
+
+async function readDetail(response: Response): Promise<string | null> {
+  try {
+    const body = (await response.json()) as { detail?: unknown };
+    return typeof body.detail === 'string' ? body.detail : null;
+  } catch {
+    return null;
+  }
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+// 与 hub-server/server.ts 的本地 deriveErrorCode 同义（mock 落库前补 errorCode）。
+// 确定性：同 now+issueId → 同码，匹配 ERROR_CODE_PATTERN = /^DBG-\d{8}-\d{3}$/。
+function deriveErrorCode(now: string, issueId: string): string {
+  const datePart = now.slice(0, 10).replace(/-/g, '');
+  let hash = 0;
+  for (const ch of issueId) hash = (hash * 31 + ch.charCodeAt(0)) % 1000;
+  return `DBG-${datePart}-${String(hash).padStart(3, '0')}`;
 }
