@@ -15,7 +15,7 @@ authority: "derived-spec; now.md/backlog.md/decisions.md authoritative for scope
 audited: false                       # 人审 completion-model 一次后置 true，合成才自动驱动
 synthesis_mode: propose-and-stop     # propose-and-stop（默认/未审计）| propose-and-drive（审计后）
 epic_cap_per_invocation: 1           # 每次 invocation 至多合成+物化 1 个 epic，然后 STOP 等人审
-last_checked: null                   # 第 8 步可记录上次跑谓词的提交/时间（人填或外环填）
+last_checked: "2026-06-14 (DRAG-CONNECT done-flip; AUDIT-H1 谓词收口为后端专测)"  # 第 8 步记录上次跑谓词
 
 # predicate_kind 取值：cmd_exit0 | file_exists | grep_hit | schema_safeparse | yaml_parses | test_count_gte
 # done iff: cmd_exit0→exit 0；file_exists→文件存在；grep_hit→grep 命中；其余同义。
@@ -61,9 +61,9 @@ deliverables:
   - id: DEPGRAPH-DRAG-CONNECT
     pillar: console
     required: true
-    priority: 10                     # 用户最想要的下一项
+    priority: 10
     backlog_id: DEPGRAPH-DRAG-CONNECT
-    status: pending
+    status: done                     # 2026-06-14 实现（Option A，用户拍板）；谓词重跑 PASS + console verify:all 绿
     predicate_kind: grep_hit
     predicate: "grep -q 'nodesConnectable={true}' apps/hub-console/src/features/dep-graph/DepGraphPage.tsx"
 
@@ -97,11 +97,14 @@ deliverables:
   - id: AUDIT-H1-CYCLE-GUARD
     pillar: infra
     required: true
-    priority: 28                     # 部署前必修（拖拽连线也依赖前端环守卫）
+    priority: 28                     # 部署前必修：后端 POST /dependencies + computeCriticalSet 拒/防环
     backlog_id: AUDIT-FIXES-2026-06-14
     status: pending
+    # 谓词只看后端（hub-server + hub-contracts/attribution.ts）的环检测——前端 DepGraphPage 的
+    # wouldCreateCycle 是 demo 期止血、不算 H1 修复，故**不**扫 console（否则会被前端守卫误判为已修）。
+    note: "前端环守卫已随 DEPGRAPH-DRAG-CONNECT 落地，但 H1 部署前必修是后端拒环——此谓词专测后端"
     predicate_kind: cmd_exit0
-    predicate: "grep -rqE 'wouldCreateCycle|hasCycle|detectCycle|visited' apps/hub-server/src apps/hub-console/src"
+    predicate: "grep -rqiE 'wouldCreateCycle|hasCycle|detectCycle|rejectCycle|acyclic' apps/hub-server/src apps/hub-contracts/src"
 
   - id: AUDIT-H3-WRITE-AUTH
     pillar: infra

@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useCallback, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dagre from '@dagrejs/dagre';
 import {
   Background,
@@ -8,6 +8,7 @@ import {
   MarkerType,
   Position,
   ReactFlow,
+  type Connection,
   type Edge,
   type Node,
   type NodeProps,
@@ -27,6 +28,7 @@ import {
 } from 'lucide-react';
 import type { DepEdge, DepGraph, DepNode } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
+import type { CreateDependencyRequest } from '../../api/schemas/pm';
 import { useI18n, type TranslationKey } from '../../i18n';
 
 const NODE_W = 212;
@@ -135,6 +137,28 @@ function layoutGraph(graph: DepGraph): { nodes: DepFlowNode[]; edges: Edge[] } {
   return { nodes, edges };
 }
 
+// 从 `to` 出发能否经现有边回到 `from`：若能，则新加的 `from→to` 会成环。
+// 后端 POST /api/dependencies 不做环校验（AUDIT H1 未修），故前端必须守，
+// 否则一条成环边会让下次 getDepGraph 的派生死循环、卡死服务端事件循环。
+function wouldCreateCycle(edges: DepEdge[], from: string, to: string): boolean {
+  const adj = new Map<string, string[]>();
+  for (const e of edges) {
+    const list = adj.get(e.source);
+    if (list) list.push(e.target);
+    else adj.set(e.source, [e.target]);
+  }
+  const stack: string[] = [to];
+  const seen = new Set<string>();
+  while (stack.length > 0) {
+    const cur = stack.pop() as string;
+    if (cur === from) return true;
+    if (seen.has(cur)) continue;
+    seen.add(cur);
+    for (const n of adj.get(cur) ?? []) stack.push(n);
+  }
+  return false;
+}
+
 export function DepGraphPage({
   client,
   source,
@@ -153,6 +177,65 @@ export function DepGraphPage({
   const { nodes, edges } = useMemo(
     () => (graph ? layoutGraph(graph) : { nodes: [], edges: [] }),
     [graph],
+  );
+
+  const queryClient = useQueryClient();
+  const [rejectMsg, setRejectMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const connectMutation = useMutation({
+    mutationFn: (req: CreateDependencyRequest) => client.createDependency(req),
+    onSuccess: () => {
+      setRejectMsg(null);
+      setSuccessMsg(t('depgraph.connect.success'));
+      void queryClient.invalidateQueries({ queryKey: ['dep-graph', source] });
+    },
+    onError: (e) =>
+      setRejectMsg(
+        t('depgraph.connect.error', {
+          detail: e instanceof Error ? e.message : String(e),
+        }),
+      ),
+  });
+
+  // 拖拽连线：源 handle(底) → 目标 handle(顶) = 源阻塞目标。Option A（用户拍板）：
+  // 固定 type='blocks' + 非 null console confirmedBy（使边显红）→ mutate → invalidate 重取重绘，
+  // 后端为单一真相、不在前端复刻 kind 派生。三条语义守卫在 POST 前完成（后端零校验，AUDIT H1）。
+  const onConnect = useCallback(
+    (conn: Connection) => {
+      const from = conn.source;
+      const to = conn.target;
+      if (!from || !to || !graph) return;
+      if (from === to) {
+        setSuccessMsg(null);
+        setRejectMsg(t('depgraph.connect.selfEdge'));
+        return;
+      }
+      if (graph.edges.some((e) => e.source === from && e.target === to)) {
+        setSuccessMsg(null);
+        setRejectMsg(t('depgraph.connect.duplicate'));
+        return;
+      }
+      if (wouldCreateCycle(graph.edges, from, to)) {
+        setSuccessMsg(null);
+        setRejectMsg(t('depgraph.connect.cycle'));
+        return;
+      }
+      setRejectMsg(null);
+      connectMutation.mutate({
+        projectId: graph.projectId,
+        fromTaskId: from, // 源 = 阻塞方（上游）
+        toTaskId: to, // 目标 = 被阻（下游）
+        type: 'blocks', // 保留拖拽语义：源阻塞目标
+        source: 'human',
+        confirmedBy: {
+          id: 'console-drag',
+          displayName: t('depgraph.connect.actor'),
+          source: 'console',
+        },
+      });
+    },
+    [graph, source, t, connectMutation],
   );
 
   if (query.isLoading) {
@@ -176,15 +259,33 @@ export function DepGraphPage({
       </section>
       <div className="dep-graph-shell">
         <div className="dep-graph-canvas">
+          {rejectMsg ? (
+            <div
+              className="form-banner form-banner--err dep-graph-banner"
+              role="alert"
+              onClick={() => setRejectMsg(null)}
+            >
+              {rejectMsg}
+            </div>
+          ) : successMsg ? (
+            <div
+              className="form-banner form-banner--ok dep-graph-banner"
+              role="status"
+              onClick={() => setSuccessMsg(null)}
+            >
+              {successMsg}
+            </div>
+          ) : null}
           <ReactFlow
             nodes={nodes}
             edges={edges}
             nodeTypes={nodeTypes}
             onNodeClick={(_, node) => setSelectedId(node.id)}
             onPaneClick={() => setSelectedId(null)}
+            onConnect={onConnect}
             fitView
             minZoom={0.4}
-            nodesConnectable={false}
+            nodesConnectable={true}
           >
             <Background gap={18} color="#d8e0d6" />
             <Controls showInteractive={false} />

@@ -95,6 +95,14 @@ const zh = {
   'depgraph.detail.learnTitle': '这段时间可以看的资料',
   'depgraph.detail.myMap': '查看我的知识地图',
 
+  // 拖拽连线建依赖（DEPGRAPH-DRAG-CONNECT）
+  'depgraph.connect.selfEdge': '不能把任务连到它自己。',
+  'depgraph.connect.duplicate': '这条依赖已经存在了。',
+  'depgraph.connect.cycle': '这样会绕成环（A 卡 B、B 又卡 A），不允许。',
+  'depgraph.connect.success': '已建立依赖——卡住它的任务现在显示在图上了。',
+  'depgraph.connect.error': '没能建立连线：{detail}',
+  'depgraph.connect.actor': '画布连线',
+
   // 新增页面导航 / 标题
   'nav.kb': '知识库检索',
   'nav.pm': '项目看板',
@@ -349,6 +357,14 @@ const en: Record<TranslationKey, string> = {
   'depgraph.detail.criticalChainValue': 'On the main path converging to integration',
   'depgraph.detail.learnTitle': 'What to read while waiting',
   'depgraph.detail.myMap': 'View my knowledge map',
+
+  // drag-to-connect (DEPGRAPH-DRAG-CONNECT)
+  'depgraph.connect.selfEdge': 'A task cannot depend on itself.',
+  'depgraph.connect.duplicate': 'That dependency already exists.',
+  'depgraph.connect.cycle': 'That would create a cycle (A blocks B and B blocks A) and is not allowed.',
+  'depgraph.connect.success': 'Dependency created — the blocker now shows on the graph.',
+  'depgraph.connect.error': 'Could not create the link: {detail}',
+  'depgraph.connect.actor': 'Canvas link',
 
   'nav.kb': 'KB Search',
   'nav.pm': 'PM Board',

@@ -417,6 +417,17 @@ button {
   background: var(--surface-muted);
   box-shadow: var(--shadow);
   overflow: hidden;
+  position: relative;
+}
+
+.dep-graph-banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  max-width: 80%;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
 }
 
 .dep-graph-detail {
