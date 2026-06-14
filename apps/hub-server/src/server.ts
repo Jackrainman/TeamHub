@@ -20,7 +20,7 @@ import {
 import { FixedClock } from './clock.js';
 import type { Clock } from './clock.js';
 import { InMemoryGovStore } from './store/mock-gov-store.js';
-import type { GovStore, InvStore } from './store/gov-store.js';
+import type { GovStore, InvStore, KbStore } from './store/gov-store.js';
 import { listMockAdapters } from './mock-adapters.js';
 import {
   getMockAiAdapterCapabilities,
@@ -44,14 +44,13 @@ export interface BuildHubServerOptions {
    */
   clock?: Clock;
   /**
-   * 战队知识库读写出入口扩展点（frontier#2 KB-CORE）。**D-042 决策 1 补强（含对抗核实修正）**：结案派生
-   * KnowledgeNode + knowledgeNodes/taskKnowledgeTags 读路径复用同一 GovernanceSnapshot、不必扩 interface
-   * ——该半 KB-CORE 路由消费时缺省复用同一 `store` 实例。但 `GET /api/kb/similar` 的 IssueCard 排序语料不在
-   * 快照内，KB-CORE 落地时需把 kbStore 类型从 GovStore 收窄为独立 KbStore（加 getIssueCards 读口，对称
-   * InvStore 占位）——属预期内小回炉，仅触本字段、不动 store/路由签名。结案派生路由随 KB-CORE 落地接，
-   * 本刀只钉扩展点、不接路由（C3 不一把梭）。
+   * 战队知识库相似检索语料读出入口（KB-CORE）。**base 收口刀对抗核实修正已兑现**：相似检索语料
+   * （IssueCard/ErrorEntry/ArchiveDocument）不在 GovernanceSnapshot 内，故 kbStore 由 GovStore 收窄为
+   * 独立 `KbStore`（getKbSnapshot；见 store/gov-store.ts）。结案派生 KnowledgeNode 那半仍走 `store`
+   * （GovStore.closeoutKbNode，复用同一 GovernanceSnapshot）。缺省 InMemoryKbStore(seed kbScenarioFixture)，
+   * 由 `GET /api/kb/similar` 消费（见下方路由）。
    */
-  kbStore?: GovStore;
+  kbStore?: KbStore;
   /**
    * 库存 / BOM 读写出入口扩展点（reserved，D-042 决策 4）。INV 是唯一需扩 schema 的支柱（PartStock 不在
    * GovernanceSnapshot 内），故走独立 `InvStore` 而非复用 GovStore。本刀只钉扩展点、不建 PartStock；

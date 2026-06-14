@@ -1,6 +1,7 @@
 import type {
   Dependency,
   GovernanceSnapshot,
+  KbSnapshot,
   KnowledgeNode,
   Need,
   Task,
@@ -46,12 +47,11 @@ export type KnowledgeNodeDraft = Omit<KnowledgeNode, 'id' | 'createdAt'>;
  * 读：`getSnapshot()`（D-040 首刀，已实现）。
  * 写（白名单，本刀只定签名、实现后置=throw）：按 frontier#2 KB-CORE / #3 PM 即将需要的**最小集**推导——
  *   - `createTask` / `createDependency` / `createNeed`：PM 项目计划表 C1 兜底录入（任务、依赖图人手建边、缺口暴露）。
- *   - `closeoutKbNode`：KB-CORE 结案派生 `KnowledgeNode`。**D-042 决策 1 补强（含对抗核实修正）**：结案派生 +
- *     `knowledgeNodes/taskKnowledgeTags` 读路径复用同一 `GovernanceSnapshot`、**不必扩本 interface**——这半成立；
- *     但相似 bug 检索（KB-CORE 的 `GET /api/kb/similar` 走 `rankSimilarIssues`）排序语料是 IssueCard
- *     （normalizedSummary/relatedFiles/relatedCommits），**不在本快照内** → KB-CORE 落地时需另立 KbStore 读口
- *     （getIssueCards 等），把 kbStore 类型从 GovStore 收窄为 KbStore（对称 InvStore 占位，仅触该字段、不动
- *     store/路由签名，PM 不受影响）。INV 的 `PartStock` 仍是唯一需扩 schema 的根（走 invStore? 扩展点，本刀不建）。
+ *   - `closeoutKbNode`：KB-CORE 结案派生 `KnowledgeNode`（POST /api/kb/closeout 消费，实现见 InMemoryGovStore）。
+ *     **D-042 决策 1（含对抗核实修正，KB-CORE 已兑现）**：结案派生 + `knowledgeNodes/taskKnowledgeTags`
+ *     读路径复用同一 `GovernanceSnapshot`、**不必扩本 interface**——这半成立、仍在本接口；相似 bug 检索的
+ *     IssueCard 语料**不在本快照内**，已收窄到独立 `KbStore`（见下方）——base 收口刀的「kbStore 暂记 GovStore」
+ *     由 KB-CORE 收窄为 KbStore 兑现。INV 的 `PartStock` 仍是唯一需扩 schema 的根（走 invStore? 扩展点）。
  *
  * 宪法护栏（写入实现时必须延续，见 AGENTS §5）：
  *   - **C2 反排名**：白名单永不暴露 memberId 完成量横比维度；Task.ownerId 只表「谁负责」分工（D-041 ② 安全堆）。
@@ -69,6 +69,24 @@ export interface GovStore {
   createDependency(draft: DependencyDraft): Promise<Dependency>;
   createNeed(draft: NeedDraft): Promise<Need>;
   closeoutKbNode(draft: KnowledgeNodeDraft): Promise<KnowledgeNode>;
+}
+
+/**
+ * 战队知识库读出入口契约（KB-CORE；承接 base 收口刀 4-opus 对抗核实结论）。
+ *
+ * **为何独立于 GovStore**：相似 bug 检索（`GET /api/kb/similar` 走 `rankSimilarIssues`）的排序语料是
+ * IssueCard / ErrorEntry / ArchiveDocument，**不在 `GovernanceSnapshot` 内**——base 收口刀把 kbStore
+ * 暂记为 `GovStore`，对抗核实标注该处过早收窄、应在 KB-CORE 落地时收窄为独立 `KbStore`（仅触本字段、
+ * 不动 GovStore / 路由签名，PM 不受影响）。本刀兑现：kbStore 类型 GovStore → KbStore。
+ *
+ * 注意：结案派生 `KnowledgeNode` + `knowledgeNodes/taskKnowledgeTags` 读路径**仍复用同一
+ * `GovernanceSnapshot`**（经 `GovStore.closeoutKbNode`）——那半对抗核实确认成立、不在本接口；本接口只管
+ * 相似检索所需的 IssueCard 语料快照（`KbSnapshot`）。
+ *
+ * 护栏（AGENTS §5）：只读语料、无人维度（C2）；相似检索只列候选不断言同因（A4，见 rankSimilarIssues）。
+ */
+export interface KbStore {
+  getKbSnapshot(): Promise<KbSnapshot>;
 }
 
 /**
