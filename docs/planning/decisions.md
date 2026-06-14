@@ -819,3 +819,16 @@
 - 验证：`git diff --check` 干净；`python3 -c yaml.safe_load` 解析 now.md + completion-model.yaml；`bash .agents/scripts/verify-skills-sync.sh`（新 skill 镜像一致）；grep 无悬挂引用（§6.C/D-053/self-iterate 交叉引用闭合）。
 - 影响 / 落地：新 `.agents/skills/self-iterate/SKILL.md`（+ 镜像 `.claude/skills/`）、`docs/planning/completion-model.yaml`；改 `AGENTS.md`（§6.C）、`docs/planning/{decisions.md（本 ADR）, backlog.md, now.md, agent-state.json}`。**未来自迭代外环合成的 epic ADR 从 D-054 起编号。**
 - 事实源：本 ADR；`AGENTS.md §6.C`；`.agents/skills/self-iterate/SKILL.md`；`docs/planning/completion-model.yaml`；workflow `wf_3845c9c0-aa2`（设计+红队）；用户 2026-06-14「搭建自迭代骨架」请求。
+
+## D-055 — 4 弱完成度谓词收口为 verify:all + 人审置 `audited:true`（自驱动启用）
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-14）
+- 日期：2026-06-14
+- 上下文：D-053 把自驱动收在 `completion-model.yaml.audited` 一个开关后——`false` 时外环找到 gap 也只 propose-and-stop，须人审 completion-model 一次（确认谓词都打在真接缝上）后置 `true` 才 propose-and-drive。审计时发现 4 个标 `done` 的交付物谓词过弱（只验"文件/字符串在不在"，验不到功能真过）：`PILLAR-KB-READWRITE`（grep `api/kb/closeout`）、`KB-IMPORT-PROBEFLASH`（grep `kb:import`）、`PILLAR-PM-READWRITE`（file_exists `PmCreatePanel.tsx`）、`CONSOLE-SETTINGS-PAGE`（file_exists `SettingsPage.tsx`）。这正是 `now.md` 记录的 AUDIT-H1 弱谓词诈胡（谓词含前端路径被误判 PASS）同一失败模式——`audited:true` 下让外环信弱谓词,可能把伪 done 当真、拿假基线合成下一目标。
+- 决策：
+  1. **4 条谓词换硬（AND 形式，非纯替换）**：`predicate_kind` 统一改 `cmd_exit0`，谓词 = `<原接缝锚点检查> && npm --prefix <包> run verify:all`。保留接缝特异性（否则 PM/SETTINGS 会塌成同一条 console verify:all，违反"谓词打在真接缝"），把判据从"存在"升到"存在且该包 typecheck+test+build 全绿"。
+  2. **人审一次完成 → `audited: false→true`、`synthesis_mode: propose-and-stop→propose-and-drive`**。自此外环在双重耗尽找到 gap 时自动 合成→物化→交回 §6.B 驱动；**§5 宪法门 / §8 安全门 / `epic_cap_per_invocation:1` 三道闸门不变**，干完 1 个 epic 仍 STOP 上报。
+- 取舍 / 老实定位：① PM/SETTINGS 共用 console verify:all、KB-CORE/KB-IMPORT 共用 server verify:all，完成度检查时各跑 2 次重复 suite——仅"双重耗尽"（罕见）触发，可接受。② verify:all 是包级（typecheck+test+build），非该 feature 的端到端行为测——但已远强于 file_exists/grep，且包内任何回归都会把它翻回 gap（更保守、更诚实）。③ 翻 `true` 不等于"现在立刻自动跑"：frontier 现有 5 条收尾活，外环短期走不到第 5 步；首个会被自动合成的 gap 是 `DEPGRAPH-ENTRY-OVERLAY`（priority 12，将编号 D-054——D-053 已为外环自合成 epic 预留 D-054 起）。
+- 验证：4 条新谓词从 repo 根逐条 `bash -c '<predicate>'; echo $?` 全 = 0（hub-console 7 测+build 绿、hub-server 74 测+typecheck+build 绿）；`grep audited\|synthesis_mode completion-model.yaml` 确认 true / propose-and-drive。
+- 宪法守恒：纯 planning 改动（completion-model.yaml + 本 ADR），无领域/契约/代码改动；§5/§8/epic_cap 闸门一字未动。
+- 事实源：本 ADR；`docs/planning/completion-model.yaml`（行 15-16 开关 + 4 条 cmd_exit0 谓词）；`AGENTS.md §6.C` / `D-053`；`now.md` 第 7 行 AUDIT-H1 弱谓词教训；用户 2026-06-14 选「先换硬 4 谓词再翻 true」。

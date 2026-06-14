@@ -12,10 +12,10 @@
 
 schema_version: 1
 authority: "derived-spec; now.md/backlog.md/decisions.md authoritative for scope"
-audited: false                       # 人审 completion-model 一次后置 true，合成才自动驱动
-synthesis_mode: propose-and-stop     # propose-and-stop（默认/未审计）| propose-and-drive（审计后）
+audited: true                        # 人审一次完成（D-055，2026-06-14）：4 弱谓词收口为 verify:all + 谓词全重跑 PASS
+synthesis_mode: propose-and-drive    # propose-and-stop（默认/未审计）| propose-and-drive（审计后）
 epic_cap_per_invocation: 1           # 每次 invocation 至多合成+物化 1 个 epic，然后 STOP 等人审
-last_checked: "2026-06-14 (DRAG-CONNECT done-flip; AUDIT-H1 谓词收口为后端专测)"  # 第 8 步记录上次跑谓词
+last_checked: "2026-06-14 (D-055: 4 弱谓词 file_exists/grep → cmd_exit0+verify:all，全重跑 exit0；audited 人审置 true)"  # 第 8 步记录上次跑谓词
 
 # predicate_kind 取值：cmd_exit0 | file_exists | grep_hit | schema_safeparse | yaml_parses | test_count_gte
 # done iff: cmd_exit0→exit 0；file_exists→文件存在；grep_hit→grep 命中；其余同义。
@@ -27,8 +27,8 @@ deliverables:
     priority: 30
     backlog_id: KB-CORE
     status: done
-    predicate_kind: grep_hit
-    predicate: "grep -rq 'api/kb/closeout' apps/hub-server/src"
+    predicate_kind: cmd_exit0          # 接缝锚点 + 该包 verify:all 真绿（D-055 弱谓词收口）
+    predicate: "grep -rq 'api/kb/closeout' apps/hub-server/src && npm --prefix apps/hub-server run verify:all"
 
   - id: KB-IMPORT-PROBEFLASH
     pillar: kb
@@ -36,8 +36,8 @@ deliverables:
     priority: 32
     backlog_id: KB-IMPORT-PROBEFLASH
     status: done
-    predicate_kind: grep_hit
-    predicate: "grep -q 'kb:import' apps/hub-server/package.json"
+    predicate_kind: cmd_exit0          # 接缝锚点 + 该包 verify:all 真绿（D-055 弱谓词收口）
+    predicate: "grep -q 'kb:import' apps/hub-server/package.json && npm --prefix apps/hub-server run verify:all"
 
   - id: PILLAR-PM-READWRITE
     pillar: pm
@@ -45,8 +45,8 @@ deliverables:
     priority: 30
     backlog_id: PM-KB-WRITE-FORMS
     status: done
-    predicate_kind: file_exists
-    predicate: "apps/hub-console/src/features/pm/PmCreatePanel.tsx"
+    predicate_kind: cmd_exit0          # 接缝锚点 + 该包 verify:all 真绿（D-055 弱谓词收口）
+    predicate: "test -f apps/hub-console/src/features/pm/PmCreatePanel.tsx && npm --prefix apps/hub-console run verify:all"
 
   - id: CONSOLE-SETTINGS-PAGE
     pillar: console
@@ -54,8 +54,8 @@ deliverables:
     priority: 35
     backlog_id: CONSOLE-SETTINGS-PAGE
     status: done
-    predicate_kind: file_exists
-    predicate: "apps/hub-console/src/features/settings/SettingsPage.tsx"
+    predicate_kind: cmd_exit0          # 接缝锚点 + 该包 verify:all 真绿（D-055 弱谓词收口）
+    predicate: "test -f apps/hub-console/src/features/settings/SettingsPage.tsx && npm --prefix apps/hub-console run verify:all"
 
   # ---- gap（谓词当前应失败 → 排进 gap 列表）----
   - id: DEPGRAPH-DRAG-CONNECT
