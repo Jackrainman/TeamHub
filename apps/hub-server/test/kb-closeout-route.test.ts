@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import { buildHubServer } from '../src/server.js';
 import { KbCloseoutResponseSchema } from '../src/contracts.js';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';

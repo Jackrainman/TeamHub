@@ -16,6 +16,9 @@ import { isoDateTimeSchema } from './common.js';
  * - **时间字段统一** `isoDateTimeSchema`（offset 必带），与 common.ts 一致；不再各文件重声明。
  * - **保留 `normalizedSummary/relatedFiles/relatedCommits` 三字段**：`buildCloseoutFromIssue`
  *   读这三者，删则 TS2339（backlog KB-CORE-DESIGN 明列）。
+ * - **`IssueStatus` 值改 camelCase**（Probe_Flash `needs_manual_review` → `needsManualReview`），对齐
+ *   TeamHub 枚举约定（如 TaskStatus `inProgress`）。本仓无分支引用该值（similar/closeout 只判 archived/resolved）、
+ *   Probe_Flash v0.3 已冻结无活数据互通，故安全；仅未来与 Probe_Flash 历史数据互通时留意值不兼容。
  *
  * 护栏（AGENTS §5）：
  * - **A4 / C4**：相似检索（见 `kb-similar.ts`）只列候选、给「疑似同因」检查单条目，**不断言同因、由人选用**；
