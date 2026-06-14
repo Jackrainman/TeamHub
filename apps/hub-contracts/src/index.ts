@@ -64,3 +64,4 @@ export * from './attribution.js';
 export * from './schedule.js';
 export * from './kb.js';
 export * from './kb-similar.js';
+export * from './kb-closeout.js';
