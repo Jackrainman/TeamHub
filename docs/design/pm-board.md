@@ -1,11 +1,11 @@
 ---
-status: implemented-partial
+status: implemented
 date: 2026-06-14
 owner: Teamhub
-scope: 项目计划表（PM-BOARD）设计 + 后端录入簇/读视图落地说明
-decision: D-045（PM 后端录入簇 + 读视图落地；console 看板 UI 后置）
-frontier: '#1 PM-BOARD（KB-CORE 后第二支柱；本轮后端，console UI 下一轮）'
-source: §6.B continuous-build 连续构建（PM-U1 + 录入簇 slice 各自 verify+commit）+ 2-opus 对抗核实 + 用户拍板 Q1/Q2
+scope: 项目计划表（PM-BOARD）设计 + 后端录入簇/读视图 + console 读视图/写侧表单落地说明
+decision: D-045（后端录入簇+读视图）+ D-046（console 读视图/汉化）+ D-048（console 写侧表单）
+frontier: 'PM-BOARD done（后端 D-045 / 读视图 D-046 / 写侧表单 D-048）'
+source: §6.B continuous-build 连续构建（PM-U1 + 录入簇 + console 读视图 + 写侧表单 PmCreatePanel）+ 2-opus/2-lens 对抗核实 + 用户拍板 Q1/Q2
 ---
 
 # 项目计划表（PM-BOARD）设计
@@ -84,12 +84,12 @@ PM **不引入新 schema**——只补 GovStore 写实现 + 录入路由 + 读�
 的依赖后，`GET /api/dep-graph` 与 `GET /api/tasks` 响应体均**不含** confirmedBy/泄露标记——「永不经读视图暴露」
 保证成立。两 nit（死代码+失真注释 / 创建可夹带 claimedByMemberId 派单）已由 PM-cleanup 收口（后者硬化为 A2 反派单）。
 
-## 7. 本轮边界（老实定位，不过度声称）
+## 7. 落地边界（老实定位，不过度声称）
 
-- **console 看板 UI 未做**（用户 Q2=本轮后端录入簇+读视图优先）：写侧从零的 React mutation UI（@xyflow 板 + 任务/依赖表单）+ 冷启动空板处理留**下一轮**。
-- `criticalChain` 派生 priority、列表/看板双视图、依赖录入 AI 预填均后置。
-- 持久层 InMemory 重启丢失为预期（SqliteGovStore stub 待部署审批 §8）。
-- 真实进度派生上游（git/lark→status）未接通——本轮 `statusSource=console` 是兜底录入，**不宣称已解 C1/C5**。
+- **console 写侧表单已落地（D-048）**：`features/pm/PmCreatePanel.tsx` 段控三表单（布置任务/连依赖/暴露需求），依赖/需求的 from/to/onTask 走 **live 任务下拉**，成功 `invalidateQueries(['tasks',source])` 看板即刷，自edge 守卫，冷启动空板引导（`PmBoardPage` `pm-coldstart`）。请求 schema（`api/schemas/pm.ts`）**与后端同法从 hub-contracts 派生**（`TaskSchema.omit(...)` 等），结构天然同步、不手抄字段。**I0 实证**：confirmedBy 只收集/POST/回建边本人，读视图/UI 零渲染（SECRET 探针 + 代码自审）；ownerId 仅「谁负责」、看板无完成量/快慢维度。2-lens 对抗核实 `wf_af4c88df-309` ship/i0Clean/mustFix=0。
+- `criticalChain` 派生 priority、列表/看板双视图（当前仅看板列）、依赖录入 AI 预填均后置。
+- 持久层 InMemory 重启丢失为预期（SqliteGovStore stub 待部署审批 §8）；console mock 模式的任务表是闭包态、切数据源即重置。
+- 真实进度派生上游（git/lark→status）未接通——`statusSource=console` 是兜底录入，**不宣称已解 C1/C5**。
 
 ## 8. 后续（backlog/frontier）
 

@@ -684,6 +684,24 @@
 - 后续（backlog/frontier）：PM/KB **写侧 mutation 表单**（建任务/依赖/Need + 结案录入，调 POST 路由）/ 依赖录入 AI 预填 / 真实 status 派生上游随触点层 / 远程部署正式化（D-036 REMOTE-ACCESS-DEPLOY）。
 - 事实源：本 ADR；`docs/design/{pm-board,kb-core}.md`；对抗审计 `wf_64a78d61-109`；用户 2026-06-14「整体汉化 + 继续完成其他功能 + 用 workflow」请求。
 
+## D-048 — PM/KB 写侧 web 表单：console 录入口落地（frontier#1 PM-KB-WRITE-FORMS done）
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-14；§6.B 连续构建 → 落地；hub-console verify:all 绿；本地真机端到端（real 后端 + Playwright）四表单全过 + 闭环召回实证 + 2-lens 对抗核实 ship/mustFix=0）
+- 日期：2026-06-14
+- 上下文：base 两刀 + KB-CORE（D-044）+ PM 后端（D-045）+ console 读视图/汉化（D-046）+ KB 闭环/skill（D-047）已就绪，但**两支柱的「人在浏览器里录入」通道仍缺**：PM 后端 `POST /api/tasks·dependencies·needs` 与 KB `POST /api/kb/closeout` 只有 skill/curl 口，无 web 表单（D-045 §7 用户 Q2 明确 console UI 留下一轮）。用户本轮指令：「还有什么没做完的自己认领去做，然后 ssh 到我电脑上展示」——认领 frontier#1 PM-KB-WRITE-FORMS。
+- 决策（落地形态，纯 hub-console 写侧，零后端改动）：
+  1. **API client 写侧**（`api/client.ts` + 新 `api/schemas/pm.ts`）：`createTask`/`createDependency`/`createNeed`/`closeoutKb` 四 mutation。请求 schema **与后端同法从 hub-contracts 派生**（`TaskSchema.omit(...)` 等，结构天然同步、不手抄字段）。**mock 模式闭包内可变任务表**（写表单无后端也即时反映在看板，演示/视觉验收用）；mock closeout **复用 canonical `buildCloseoutFromIssue` 纯函数**（不在前端复刻派生逻辑）+ 补 deriveErrorCode/draft→node 两步。
+  2. **PM 录入面板**（新 `features/pm/PmCreatePanel.tsx`）：段控切换 布置任务/连依赖/暴露需求 三表单；依赖/需求的 from/to/onTask 走 **live 任务下拉**；成功后 `invalidateQueries(['tasks',source])` 看板即时刷新；自edge 守卫；冷启动空板引导（`PmBoardPage` `pm-coldstart`）。
+  3. **KB 结案表单**（新 `features/kb/KbCloseoutForm.tsx` + `KbSearchPage` 加 检索/结案 标签）：最小人本字段合成 IssueCard（status=resolved）+ rootCause/resolution 必填；成功展示 errorCode/归档文件/派生知识点 + `invalidateQueries(['kb-similar',source])`（D-047 回灌后刷新检索）。
+  4. **整体汉化**：新增 ~75 文案键 **zh/en 同步**（`Record<TranslationKey,string>` 类型强制 parity，typecheck 即守）；select/datalist/段控/banner CSS。
+- **I0 命门（PM 写侧最敏感）**：`confirmedBy`（依赖/需求）= 录入本人凭证、**只在写表单收集 + POST 入参 + 回建边本人的创建响应**，**任何第三方读视图/UI 永不渲染**；UI 不显谁快谁慢/完成量；ownerId 仅「谁负责」(D-041 安全堆)。**对抗探针实证**：POST `confirmedBy={id:m-secret-leaker, displayName:SECRET_NAME_LEAK}` 后 `GET /api/dep-graph`+`/api/tasks` 响应体均无泄露；代码自审 `confirmedBy` 仅出现在注释 + 请求构造，零渲染路径。
+- 宪法守恒：I0（confirmedBy 不暴露/不排名）；C2（看板主键 task/status 无 memberId 维度、无完成量）；A1（Need 归组 providerGroupId 不归人）；A2（创建 Need omit claimedByMemberId，后端强制 null=反派单）；G2（卡住原因走 Dependency 边派生不在 Task 另存）；G4（无 dueDate/甘特）；A4（KB 检索 note 候选不断言同因）。
+- 验证：hub-console `verify:all`（typecheck/7 测/build）全过；**本地真机端到端**（hub-server:4177 真实后端 + Playwright real 模式）：建任务→看板出现 / 连依赖→成功 / 暴露需求→201 / 结案→errorCode+归档+知识点 → **切检索同症状召回刚归档的卡（closeout→corpus→similar 闭环实证）**；四 POST 路由 curl 往返全过；I0 SECRET 探针读视图干净；**2-lens 对抗核实**（`wf_af4c88df-309`：opus I0 + sonnet 正确性 → opus 综合）裁 **ship、i0Clean=true、mustFix=0**，2 nit（KbCloseoutForm `source` 死 prop + 结案后未失效 kb-similar 缓存）已合并修复（接 source 进 invalidate）。
+- 老实定位（不过度声称）：mock task 表是闭包态、切数据源即重置（非真持久）；冷启动空板引导仅 PM（KB 一向有空态文案）；真实 status 派生上游（git/lark→status）仍未接通，`statusSource=console` 是兜底录入，**不宣称已解 C1/C5**；ProbeFlash `.debug-archive` 一次性导入（KB-IMPORT-PROBEFLASH）仍后置。
+- 影响 / 落地：`apps/hub-console/src/`：新 `api/schemas/pm.ts` + `features/pm/PmCreatePanel.tsx` + `features/kb/KbCloseoutForm.tsx`；改 `api/client.ts`/`api/schemas/kb.ts`/`features/pm/PmBoardPage.tsx`/`features/kb/KbSearchPage.tsx`/`i18n/translations.ts`/`styles.css`。
+- 后续（backlog/frontier）：KB-IMPORT-PROBEFLASH（`.debug-archive` 7 md best-effort 导入）；依赖录入 AI 预填（GOV-DEP-INTAKE 并入）；criticalChain→priority 派生展示；真实 status 派生上游随触点层；KB-LARK / INV / Hermes 后置。
+- 事实源：本 ADR；`docs/design/{pm-board,kb-core}.md`；对抗核实 `wf_af4c88df-309`；用户 2026-06-14「认领未完成 + ssh 展示」请求。
+
 ## D-047 — AI + 知识库闭环 MVP：closeout 回灌 + JSON 落盘 + kb-debug skill（服务器为单一真相）
 
 - 状态：**DECIDED / IMPLEMENTED**（2026-06-14；plan mode 设计 → 落地；hub-server verify:all 42 测绿；本地真机端到端闭环+持久化实测过）
