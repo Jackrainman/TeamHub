@@ -11,6 +11,7 @@ import type {
   HubEvent,
 } from './schemas.js';
 import type { MemberKnowledge } from './growth.js';
+import type { KbSnapshot } from './kb.js';
 
 export const CONTRACT_FIXTURE_TIME = '2026-06-06T00:00:00.000Z';
 
@@ -319,5 +320,119 @@ export const scheduleResourceDownFixture: ScheduleSnapshot = {
   resources: [
     { ...scheduleScenarioFixture.resources[0], status: 'down', statusReason: '撞坏维修中' },
     scheduleScenarioFixture.resources[1],
+  ],
+};
+
+/**
+ * 战队知识库锚点场景（KB-CORE）：跨赛季重踩的真实 bug 历史（CAN / 3508 电机 / MicroROS），
+ * 让 `GET /api/kb/similar` 从第一个请求起就能演示「同类 bug 跨赛季召回」的核心价值。
+ * 全部 resolved/archived（isHistoricalIssue 通过）；error 表带根因/处理术语，喂相似度打分。
+ */
+export const kbScenarioFixture: KbSnapshot = {
+  projectId: 'prj-robots',
+  issueCards: [
+    {
+      id: 'iss-can-2025',
+      projectId: 'prj-robots',
+      title: 'CAN 总线丢包导致底盘电机失控',
+      rawInput: '底盘跑着跑着突然一个电机不转，CAN 报文像是丢了',
+      normalizedSummary: 'CAN 总线在高负载下丢包，底盘电机收不到指令偶发失控',
+      symptomSummary: '底盘电机偶发失控、CAN 报文丢失',
+      suspectedDirections: ['CAN 波特率/采样点配置', '总线终端电阻', '报文发送频率过高'],
+      suggestedActions: ['示波器看 CAN_H/CAN_L 波形', '降低非关键报文频率', '检查 120Ω 终端电阻'],
+      status: 'archived',
+      severity: 'high',
+      tags: ['CAN', '底盘', '通信', '电机'],
+      relatedFiles: ['src/chassis/can_bus.c', 'src/chassis/motor.c'],
+      relatedCommits: ['a1b2c3d'],
+      relatedHistoricalIssueIds: [],
+      createdAt: '2025-05-10T08:00:00.000Z',
+      updatedAt: '2025-05-12T10:00:00.000Z',
+    },
+    {
+      id: 'iss-motor-3508-2025',
+      projectId: 'prj-robots',
+      title: '3508 电机过热烧毁',
+      rawInput: '连续跑了半小时，3508 烫手然后冒烟烧了',
+      normalizedSummary: '3508 电机长时间堵转 + 散热不足导致绕组过热烧毁',
+      symptomSummary: '3508 电机过热、烧毁',
+      suspectedDirections: ['电流环限幅过高', '机械结构卡涩堵转', '散热不足'],
+      suggestedActions: ['下调电流限幅', '检查传动是否卡涩', '加散热/降占空比'],
+      status: 'resolved',
+      severity: 'critical',
+      tags: ['电机', '3508', '散热', '过热'],
+      relatedFiles: ['src/chassis/motor.c'],
+      relatedCommits: ['d4e5f6a'],
+      relatedHistoricalIssueIds: [],
+      createdAt: '2025-04-02T09:00:00.000Z',
+      updatedAt: '2025-04-03T09:00:00.000Z',
+    },
+    {
+      id: 'iss-microros-2025',
+      projectId: 'prj-robots',
+      title: 'MicroROS 串口握手超时连不上 agent',
+      rawInput: 'microros 一直连不上 agent，串口好像握手超时',
+      normalizedSummary: 'MicroROS 串口传输层波特率不匹配导致与 agent 握手超时',
+      symptomSummary: 'MicroROS 与 agent 握手超时、连接失败',
+      suspectedDirections: ['串口波特率不匹配', 'DMA 缓冲区配置', 'agent 端 transport 参数'],
+      suggestedActions: ['核对两端波特率', '检查串口 DMA', '换 udp transport 对照'],
+      status: 'archived',
+      severity: 'medium',
+      tags: ['MicroROS', '串口', '通信'],
+      relatedFiles: ['src/comm/microros_transport.c'],
+      relatedCommits: ['b7c8d9e'],
+      relatedHistoricalIssueIds: [],
+      createdAt: '2025-03-15T07:00:00.000Z',
+      updatedAt: '2025-03-16T07:00:00.000Z',
+    },
+  ],
+  errorEntries: [
+    {
+      id: 'err-can-2025',
+      projectId: 'prj-robots',
+      sourceIssueId: 'iss-can-2025',
+      errorCode: 'DBG-20250512-001',
+      title: 'CAN 总线丢包导致底盘电机失控',
+      category: '通信',
+      symptom: '底盘电机偶发失控、CAN 报文丢失',
+      rootCause: 'CAN 采样点配置偏移 + 高频报文塞满总线导致仲裁丢包',
+      resolution: '重算波特率采样点 + 把非关键遥测报文降到 50Hz',
+      prevention: '关键控制报文与遥测报文分优先级，遥测限频',
+      tags: ['CAN', '通信', '底盘'],
+      relatedFiles: ['src/chassis/can_bus.c'],
+      relatedCommits: ['a1b2c3d'],
+      archiveFilePath: '.debug_workspace/archive/2025-05-12_can-bus-packet-loss.md',
+      createdAt: '2025-05-12T10:00:00.000Z',
+      updatedAt: '2025-05-12T10:00:00.000Z',
+    },
+    {
+      id: 'err-motor-3508-2025',
+      projectId: 'prj-robots',
+      sourceIssueId: 'iss-motor-3508-2025',
+      errorCode: 'DBG-20250403-001',
+      title: '3508 电机过热烧毁',
+      category: '电机',
+      symptom: '3508 电机过热、烧毁',
+      rootCause: '电流环限幅设置过高，机械卡涩时长时间堵转绕组过热',
+      resolution: '下调电流限幅到安全值 + 加堵转检测自动降扭',
+      prevention: '电流限幅按电机规格设上限，加堵转保护',
+      tags: ['电机', '3508', '散热'],
+      relatedFiles: ['src/chassis/motor.c'],
+      relatedCommits: ['d4e5f6a'],
+      archiveFilePath: '.debug_workspace/archive/2025-04-03_motor-3508-overheat.md',
+      createdAt: '2025-04-03T09:00:00.000Z',
+      updatedAt: '2025-04-03T09:00:00.000Z',
+    },
+  ],
+  archiveDocuments: [
+    {
+      issueId: 'iss-can-2025',
+      projectId: 'prj-robots',
+      fileName: '2025-05-12_can-bus-packet-loss.md',
+      filePath: '.debug_workspace/archive/2025-05-12_can-bus-packet-loss.md',
+      markdownContent: '# CAN 总线丢包导致底盘电机失控\n\n根因：采样点偏移 + 总线拥塞。处理：重算采样点 + 遥测限频。',
+      generatedBy: 'hybrid',
+      generatedAt: '2025-05-12T10:00:00.000Z',
+    },
   ],
 };
