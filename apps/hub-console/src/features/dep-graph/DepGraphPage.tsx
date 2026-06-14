@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import type { DepEdge, DepGraph, DepNode } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
+import { useI18n, type TranslationKey } from '../../i18n';
 
 const NODE_W = 212;
 const NODE_H = 96;
@@ -36,13 +37,13 @@ type DepFlowNode = Node<DepNodeData, 'dep'>;
 
 const STATUS_META: Record<
   DepNode['status'],
-  { label: string; pill: string; modifier: string; Icon: typeof Activity }
+  { labelKey: TranslationKey; pill: string; modifier: string; Icon: typeof Activity }
 > = {
-  working: { label: '进行中', pill: 'status-working', modifier: 'dag-node--working', Icon: Activity },
-  blockedIdle: { label: '被卡 · 等待', pill: 'status-blocked-idle', modifier: 'dag-node--blocked-idle', Icon: Lock },
-  freeIdle: { label: '可接任务', pill: 'status-free-idle', modifier: 'dag-node--free-idle', Icon: CircleDashed },
-  done: { label: '完成', pill: 'status-done', modifier: 'dag-node--done', Icon: CheckCircle2 },
-  gap: { label: '缺口', pill: 'status-gap', modifier: 'dag-node--gap', Icon: AlertCircle },
+  working: { labelKey: 'depgraph.status.working', pill: 'status-working', modifier: 'dag-node--working', Icon: Activity },
+  blockedIdle: { labelKey: 'depgraph.status.blockedIdle', pill: 'status-blocked-idle', modifier: 'dag-node--blocked-idle', Icon: Lock },
+  freeIdle: { labelKey: 'depgraph.status.freeIdle', pill: 'status-free-idle', modifier: 'dag-node--free-idle', Icon: CircleDashed },
+  done: { labelKey: 'depgraph.status.done', pill: 'status-done', modifier: 'dag-node--done', Icon: CheckCircle2 },
+  gap: { labelKey: 'depgraph.status.gap', pill: 'status-gap', modifier: 'dag-node--gap', Icon: AlertCircle },
 };
 
 const EDGE_COLORS: Record<DepEdge['kind'], string> = {
@@ -52,13 +53,14 @@ const EDGE_COLORS: Record<DepEdge['kind'], string> = {
   normal: '#b8c6b4',
 };
 
-function complexityCn(c: DepNode['intrinsicComplexity']): string {
-  if (c === 'trivial') return '简单';
-  if (c === 'normal') return '常规';
-  return '复杂';
+function complexityKey(c: DepNode['intrinsicComplexity']): TranslationKey {
+  if (c === 'trivial') return 'depgraph.complexity.trivial';
+  if (c === 'normal') return 'depgraph.complexity.normal';
+  return 'depgraph.complexity.hard';
 }
 
 function DepNodeCard({ data, selected }: NodeProps<DepFlowNode>) {
+  const { t } = useI18n();
   const n = data.depNode;
   const meta = STATUS_META[n.status];
   const Icon = meta.Icon;
@@ -78,16 +80,18 @@ function DepNodeCard({ data, selected }: NodeProps<DepFlowNode>) {
         <span className="dag-node__title">{n.label}</span>
       </div>
       <div className="dag-node__owner">
-        {n.ownerLabel ?? '未指派'} · {n.groupName} · {n.robotTarget}
+        {n.ownerLabel ?? t('depgraph.node.unassigned')} · {n.groupName} · {n.robotTarget}
       </div>
       {n.status === 'blockedIdle' && n.blockedByLabel ? (
-        <div className="dag-node__blocked">被「{n.blockedByLabel}」卡住</div>
+        <div className="dag-node__blocked">
+          {t('depgraph.node.blockedBy', { label: n.blockedByLabel })}
+        </div>
       ) : null}
       <div className="dag-node__badges">
-        <span className={`dag-node__tag ${meta.pill}`}>{meta.label}</span>
+        <span className={`dag-node__tag ${meta.pill}`}>{t(meta.labelKey)}</span>
         {n.isCritical ? (
           <span className="dag-node__tag dag-node__tag--critical">
-            <Zap size={10} aria-hidden="true" /> 关键链
+            <Zap size={10} aria-hidden="true" /> {t('depgraph.node.criticalChain')}
           </span>
         ) : null}
       </div>
@@ -131,9 +135,16 @@ function layoutGraph(graph: DepGraph): { nodes: DepFlowNode[]; edges: Edge[] } {
   return { nodes, edges };
 }
 
-export function DepGraphPage({ client }: { client: HubApiClient }) {
+export function DepGraphPage({
+  client,
+  source,
+}: {
+  client: HubApiClient;
+  source: string;
+}) {
+  const { t } = useI18n();
   const query = useQuery({
-    queryKey: ['dep-graph'],
+    queryKey: ['dep-graph', source],
     queryFn: () => client.getDepGraph(),
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -145,11 +156,11 @@ export function DepGraphPage({ client }: { client: HubApiClient }) {
   );
 
   if (query.isLoading) {
-    return <div className="state-band">Loading dependency graph</div>;
+    return <div className="state-band">{t('depgraph.loading')}</div>;
   }
   if (query.error || !graph) {
     return (
-      <div className="state-band state-band-error">Dependency graph unavailable</div>
+      <div className="state-band state-band-error">{t('depgraph.unavailable')}</div>
     );
   }
 
@@ -157,11 +168,11 @@ export function DepGraphPage({ client }: { client: HubApiClient }) {
 
   return (
     <div className="dep-graph-page">
-      <section className="dep-graph-summary" aria-label="依赖链汇总">
-        <Metric label="关键链" value={String(graph.summary.criticalCount)} />
-        <Metric label="缺口 / 卡点" value={String(graph.summary.blockedCount)} />
-        <Metric label="空闲 · 被卡" value={String(graph.summary.blockedIdleCount)} accent="red" />
-        <Metric label="空闲 · 自由" value={String(graph.summary.freeIdleCount)} accent="amber" />
+      <section className="dep-graph-summary" aria-label="dependency summary">
+        <Metric label={t('depgraph.summary.critical')} value={String(graph.summary.criticalCount)} />
+        <Metric label={t('depgraph.summary.blocked')} value={String(graph.summary.blockedCount)} />
+        <Metric label={t('depgraph.summary.blockedIdle')} value={String(graph.summary.blockedIdleCount)} accent="red" />
+        <Metric label={t('depgraph.summary.freeIdle')} value={String(graph.summary.freeIdleCount)} accent="amber" />
       </section>
       <div className="dep-graph-shell">
         <div className="dep-graph-canvas">
@@ -212,16 +223,15 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 function DetailPanel({ node }: { node: DepNode | null }) {
+  const { t } = useI18n();
   if (!node) {
     return (
       <aside className="panel dep-graph-detail">
         <div className="panel-header">
-          <h2>节点详情</h2>
-          <span>点击任意任务</span>
+          <h2>{t('depgraph.detail.title')}</h2>
+          <span>{t('depgraph.detail.clickAny')}</span>
         </div>
-        <div className="detail-empty">
-          点击图中的任务节点，查看 owner、状态、被谁卡住，以及被卡时这段时间可以看的资料。
-        </div>
+        <div className="detail-empty">{t('depgraph.detail.empty')}</div>
       </aside>
     );
   }
@@ -232,28 +242,40 @@ function DetailPanel({ node }: { node: DepNode | null }) {
     <aside className="panel dep-graph-detail">
       <div className="panel-header">
         <h2>{node.label}</h2>
-        <span className={`status-pill ${meta.pill}`}>{meta.label}</span>
+        <span className={`status-pill ${meta.pill}`}>{t(meta.labelKey)}</span>
       </div>
       <div className="detail-list">
-        <DetailRow label="负责人 · 组" value={`${node.ownerLabel ?? '未指派'} · ${node.groupName}`} />
         <DetailRow
-          label="机器人 · 难度"
-          value={`${node.robotTarget} · ${complexityCn(node.intrinsicComplexity)}`}
+          label={t('depgraph.detail.ownerGroup')}
+          value={`${node.ownerLabel ?? t('depgraph.node.unassigned')} · ${node.groupName}`}
+        />
+        <DetailRow
+          label={t('depgraph.detail.robotComplexity')}
+          value={`${node.robotTarget} · ${t(complexityKey(node.intrinsicComplexity))}`}
         />
         {node.status === 'blockedIdle' && node.blockedByLabel ? (
-          <DetailRow label="被什么卡住" value={`「${node.blockedByLabel}」未完成（卡的是任务，不是人）`} />
+          <DetailRow
+            label={t('depgraph.detail.blockedBy')}
+            value={t('depgraph.detail.blockedByValue', { label: node.blockedByLabel })}
+          />
         ) : null}
         {node.unmetNeedLabels.length > 0 ? (
-          <DetailRow label="未满足的需求" value={node.unmetNeedLabels.join('；')} />
+          <DetailRow
+            label={t('depgraph.detail.unmetNeeds')}
+            value={node.unmetNeedLabels.join('；')}
+          />
         ) : null}
         {node.isCritical ? (
-          <DetailRow label="关键链" value="在收敛到总联调的主链上" />
+          <DetailRow
+            label={t('depgraph.detail.criticalChain')}
+            value={t('depgraph.detail.criticalChainValue')}
+          />
         ) : null}
       </div>
       {showLearn ? (
         <div className="learn-block">
           <h4>
-            <BookOpen size={13} aria-hidden="true" /> 这段时间可以看的资料
+            <BookOpen size={13} aria-hidden="true" /> {t('depgraph.detail.learnTitle')}
           </h4>
           <ul>
             {node.relatedKnowledge.map((k) => (
@@ -268,7 +290,7 @@ function DetailPanel({ node }: { node: DepNode | null }) {
       ) : null}
       {showMyMap ? (
         <a className="my-map-link" href="#" onClick={(e) => e.preventDefault()}>
-          <MapPin size={13} aria-hidden="true" /> 查看我的知识地图
+          <MapPin size={13} aria-hidden="true" /> {t('depgraph.detail.myMap')}
         </a>
       ) : null}
     </aside>
