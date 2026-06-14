@@ -722,6 +722,26 @@
 - 后续（backlog/frontier）：ProbeFlash `.debug-archive` 一次性导入（markdown→IssueCard best-effort 解析器）；真实时钟注入（持久模式配 RealClock，需调和治理 fixture 冻结）；简化 archive 端点（server 端建 IssueCard 让 skill payload 更瘦）；embedding 重排；LAN 托管 + 飞书登录。
 - 事实源：本 ADR；plan file `linear-herding-blanket.md`；Explore 调研（TeamHub KB 后端两洞 + ProbeFlash 设计参考）；用户 2026-06-14「AI+知识库 / skill / 服务器为单一真相」请求。
 
+## D-051 — KB-IMPORT 独立二次对抗审计 + 正确性硬化（KB-IMPORT-FOLLOWUP 部分收口）
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-14；hub-server verify:all 绿[typecheck + 74 测含 +9 新 + build]；6 真实归档重跑 5 导入 + 召回/I0 实证）
+- 日期：2026-06-14
+- 上下文：D-050 落地后另起一轮**独立**多维对抗审计（`wf_74dee37d-59b`，4 finder 按档分模型[parser/schema-recall/I0-constitution=opus、cli-io=sonnet] → 每条候选 3 票 majority 核实，61 agent / 1.99M token），对**已提交的** KB-IMPORT 代码做第二意见。该轮抓出 D-050 那轮（`wf_a52195b7-44e`）**漏掉的 3 条真实正确性 / §10 缺陷**——独立二审的价值实证：
+  - **fileNameToSlug 撞 slug → 静默丢档**（confirmed 3/3，§10）：旧算法 `ascii.length>=3` 直接返回前缀、`.slice(0,48)` 截断、非 ascii 丢字，使 `CAN问题归档甲.md`/`…乙.md`→同 `can`、`26R2历史Bug归档-CAN甲/乙.md`→同 `26r2-bug-can`、`a_b`/`a-b`→同串；同 `issueId` → 第二份归档被 CLI 当「已导入」`skipped-existing` **静默丢弃**（无 warning、退出码 0、与良性「重跑跳过」同形），语料缺失。
+  - **toIsoDateTime 不查日历有效性 → 整档 failed 而非兜底**（confirmed 3/3，§10）：`2026-02-30`/`2026-04-31` 范围内但不存在，旧实现返回非法 ISO → 下游 Zod 拒 → 整张档案 `failed`，而非按 best-effort 落兜底日期导入；违文档自述「解析失败返回 null」。
+  - **readFile/readdir EISDIR 崩整批**（confirmed 3/3）：名字以 `.md` 结尾的子目录 / 不可读文件使 `readFile` 抛 EISDIR/EACCES，**未捕获 → 整批导入中断**、后续文件全丢、无 summary。
+- 决策（落地形态，纯 hub-server import 层硬化，零 contracts/console 改动）：
+  1. **slug 单射**：`fileNameToSlug` 无条件拼**全名确定性哈希后缀**（`<可读前缀>-<6 字符 base36>`），截断/非 ascii/标点折叠都不再撞。代价（诚实标注）：与旧算法 slug 不同 → 仅影响**未来**导入；部署语料已冻结、一次性工具不回灌冲突。
+  2. **日历校验**：`toIsoDateTime` 加 `Date.UTC` 反查（`Date.UTC` 确定性、非 `Date.now`/`Math.random`），非法日历日返回 null → `deriveDate` 续试后续日期源最终落兜底。
+  3. **IO 健壮**：`readdir(_, {withFileTypes:true})` + `dirent.isFile()` 跳子目录；`readFile` 包 try/catch（失败记 `failed` + continue，不中断整批）。
+  4. **顺手收口**：`SKIP_FILES` 改小写比较（覆盖 `Readme.md`/`README.MD` 变体，KB-IMPORT-FOLLOWUP nit ④）；`extractSection` 先剥 marker 再剥前导符号 + 清残留 `**`（nit ③）；删 `toInputIssueCard` 死代码 `if(!parsed)throw`（参数收紧为非 null `ParseResult`）；`isCli` 正则匹配 `.js`/`.ts` 两入口。
+- 宪法守恒：纯正确性 / IO 硬化，**不触人维度**——I0 探针（`GET /api/kb/similar` 重跑 grep `memberId/ownerId/confirmedBy/m-*`）CLEAN；C2/A4/G2 不变（generatedBy=hybrid、客观 TAG_VOCAB、只 append 同一语料）。**驳回项**（majority 未过）：markdownContent/fileName 偶含人名外露（条件性、by-design 自由文本回显，非违宪，且依赖未证实的 rawInput 脱敏前提）；IMPORT_FORCE 重导无去重（仅磁盘膨胀、召回零影响，降为 nit）。
+- 老实定位：① KB-IMPORT-FOLLOWUP 的 nit ①（IMPORT_FORCE 去重）②（汇总文档 rootCause `；`串接）**仍未做**——前者本轮二审确认仅存储卫生、召回无损，后者全文留 rawInput 故召回无损，均非阻塞保留；② `extractSection` 仍可能留 `(commit xxx):` 片段（commit 哈希是有用召回信号、by-design 外露，不再清）；③ 名字含人名的自由文本若进归档正文会随 rawInput/rootCause 进语料（团队自著调试笔记、当前数据是 commit 哈希；非本轮范围）。
+- 验证：hub-server `verify:all`（typecheck + 74 测 + build）全过，新增 9 测（toIsoDateTime 日历边界 / fileNameToSlug 撞区消歧 4 例 / runImport IO：子目录跳过·README 大小写·撞 slug 两卡·重跑幂等）；6 真实归档重跑 5 导入 0 失败、slug 哈希后缀化、debug-checklist 日期由文件名正确解析（不再落兜底）、CAN/UART 查询召回 iss-pf-*、I0 探针 CLEAN。
+- 影响 / 落地：改 `apps/hub-server/src/import/{parse,import}-debug-archive.ts` + `test/parse-debug-archive.test.ts`；新 `test/import-debug-archive.test.ts`。
+- 后续（backlog）：`KB-IMPORT-FOLLOWUP` 收窄为剩余 nit ①②（非阻塞）；H2（FileKbStore writeChain）仍归 `AUDIT-FIXES`（长驻服务器路径）。
+- 事实源：本 ADR；独立二审 `wf_74dee37d-59b`（vs D-050 的 `wf_a52195b7-44e`）；`docs/planning/backlog.md` KB-IMPORT-FOLLOWUP；D-050。
+
 ## D-050 — KB-IMPORT-PROBEFLASH：ProbeFlash .debug-archive 一次性导入（frontier#1 done）
 
 - 状态：**DECIDED / IMPLEMENTED**（2026-06-14；hub-server verify:all 绿[typecheck+65 测含 23 新解析测+build]；6 真实归档实跑 5 导入 + 召回实证；3-lens 对抗核实 wf_a52195b7-44e 裁 ship[block 仅 DoD/流程非正确性，3 mustFix 已闭]）

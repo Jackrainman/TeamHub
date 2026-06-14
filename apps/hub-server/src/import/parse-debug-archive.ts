@@ -119,36 +119,65 @@ export function splitFrontmatter(markdown: string): Frontmatter {
   return { fields, arrays, body };
 }
 
-/** 文件名 → ascii slug（去扩展名、非 [a-z0-9] 转 `-`、压缩、截断）；中文文件名退化为含 ascii 段或哈希。 */
+/** 全名确定性哈希（6 字符 base36）；用于 slug 消歧后缀，保证不同文件名不撞 issueId。 */
+function stableHash(value: string): string {
+  let hash = 0;
+  for (const ch of value) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return hash.toString(36).padStart(6, '0').slice(0, 6);
+}
+
+/**
+ * 文件名 → ascii slug（去扩展名、非 [a-z0-9] 转 `-`、压缩、截断）+ **全名哈希后缀**。
+ *
+ * 后缀**无条件**拼接：保证 slug 对不同文件名**单射**——截断（>40 共同前缀）/ 非 ascii 丢字
+ * （`CAN问题归档甲` 与 `…乙` 都退化成 `can`）/ 标点折叠（`a_b` 与 `a-b`）等都不会再撞。
+ * 否则两份不同历史归档映射到同一 `issueId`，第二份会被 CLI 当「已导入」**静默丢弃**（违 §10 + 语料缺失，
+ * 见 KB-IMPORT 对抗审计 confirmed）。读性靠保留 ascii 前缀。
+ * 代价（诚实标注）：与旧算法 slug 不同——已部署语料用旧 id，本算法仅影响**未来**导入；一次性导入工具、
+ * 部署语料已冻结，故不回灌冲突。
+ */
 export function fileNameToSlug(fileName: string): string {
   const base = fileName.replace(/\.md$/i, '');
-  const ascii = base
+  const prefix = base
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-    .slice(0, 48)
+    .slice(0, 40)
     .replace(/-+$/g, '');
-  if (ascii.length >= 3) return ascii;
-  // 纯中文 / 过短：用确定性哈希兜底，保证 issueId 唯一且可 sluggable
-  let hash = 0;
-  for (const ch of base) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
-  const suffix = hash.toString(36).slice(0, 8);
-  return ascii.length > 0 ? `${ascii}-${suffix}` : `doc-${suffix}`;
+  const suffix = stableHash(base);
+  return prefix.length > 0 ? `${prefix}-${suffix}` : `doc-${suffix}`;
 }
 
-/** 把 "YYYY-MM-DD HH:MM" / "YYYY-MM-DD" 归一成带 Z 的 ISO8601；解析失败返回 null。 */
+/**
+ * 把 "YYYY-MM-DD HH:MM" / "YYYY-MM-DD" 归一成带 Z 的 ISO8601；解析失败返回 null。
+ * 含**日历有效性**校验（UTC 反查）：2026-02-30 / 2026-04-31 这类范围内但不存在的日期返回 null，
+ * 让 deriveDate 继续尝试后续日期源并最终落兜底——否则非法 ISO 会被下游 Zod 拒、整张档案 failed 而非兜底导入
+ * （违 best-effort / §10「解析失败返回 null」契约，见对抗审计 confirmed）。
+ */
 export function toIsoDateTime(raw: string | undefined): string | null {
   if (!raw) return null;
   const trimmed = raw.trim();
   const dt = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
   if (!dt) return null;
   const [, y, mo, d, hh, mm] = dt;
+  const year = Number(y);
   const month = Number(mo);
   const day = Number(d);
-  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
-  const hour = hh ?? '00';
-  const min = mm ?? '00';
-  return `${y}-${mo}-${d}T${hour}:${min}:00.000Z`;
+  const hour = hh ? Number(hh) : 0;
+  const min = mm ? Number(mm) : 0;
+  if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || min > 59) {
+    return null;
+  }
+  // 日历反查：Date.UTC 会把 2/30 滚到 3/2，反查不一致即拒（Date.UTC 确定性，非 Date.now/Math.random）
+  const probe = new Date(Date.UTC(year, month - 1, day, hour, min));
+  if (
+    probe.getUTCFullYear() !== year ||
+    probe.getUTCMonth() !== month - 1 ||
+    probe.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return `${y}-${mo}-${d}T${hh ?? '00'}:${mm ?? '00'}:00.000Z`;
 }
 
 function firstHeading(body: string): string | null {
@@ -248,15 +277,20 @@ function extractSection(body: string, markers: RegExp, limit = 700): string {
     const line = lines[i];
     // 标题行 `### 根因` / 加粗行 `**根因**：xxx` / `**修复方案**:`
     if (!markers.test(line)) continue;
-    // 同行冒号后的内容
-    const inline = line.replace(/^[#*\s>-]+/, '').replace(markers, '').replace(/^[）)：:\s*]+/, '').trim();
+    // 同行冒号后的内容：**先剥 marker**（连同其 `**` 包裹），再剥前导符号，最后清残留加粗。
+    // 顺序很关键——若先剥前导 `**`，`**根因分析**` 的 marker 锚点会失配、把 `根因分析**` 留在正文（审计 nit）。
+    const inline = line
+      .replace(markers, '')
+      .replace(/^[#*\s>（）()：:>-]+/, '')
+      .replace(/\*\*/g, '')
+      .trim();
     if (inline.length > 0) chunks.push(inline);
     // 续行直到下一个标题 / 连续空行 / 代码块围栏
     for (let j = i + 1; j < lines.length; j++) {
       const next = lines[j];
       if (/^#{1,6}\s/.test(next) || /^---\s*$/.test(next) || /^```/.test(next)) break;
       if (next.trim().length === 0) break;
-      chunks.push(next.replace(/^[*\s>-]+/, '').trim());
+      chunks.push(next.replace(/^[*\s>-]+/, '').replace(/\*\*/g, '').trim());
     }
     if (chunks.join(' ').length >= limit) break;
   }

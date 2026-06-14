@@ -5,6 +5,7 @@ import type { IssueCard } from '@teamhub/hub-contracts';
 import { FileKbStore } from '../store/file-kb-store.js';
 import { deriveErrorCode } from '../kb/error-code.js';
 import { parseDebugArchive } from './parse-debug-archive.js';
+import type { ParseResult } from './parse-debug-archive.js';
 
 /**
  * ProbeFlash `.debug-archive` → KB 检索语料 **一次性**导入 CLI（KB-IMPORT-PROBEFLASH，frontier#1）。
@@ -48,15 +49,15 @@ export interface ImportSummary {
 }
 
 const DEFAULT_PROJECT_ID = 'prj-robots';
-const SKIP_FILES = new Set(['README.md', 'readme.md']);
+// 小写比较：覆盖 README.md / Readme.md / README.MD 等全部大小写变体（filter 处对 name 先 toLowerCase）。
+const SKIP_FILES = new Set(['readme.md']);
 
 /** 组 best-effort 输入 IssueCard（status=resolved 非 archived，buildCloseoutFromIssue 据此产 archived 版）。 */
 function toInputIssueCard(
   issueId: string,
   projectId: string,
-  parsed: ReturnType<typeof parseDebugArchive>,
+  parsed: ParseResult,
 ): IssueCard {
-  if (!parsed) throw new Error('parsed is null');
   const p = parsed.parsed;
   return {
     id: issueId,
@@ -85,14 +86,33 @@ export async function runImport(options: ImportOptions): Promise<ImportSummary> 
     (await store.getKbSnapshot()).issueCards.map((card) => card.id),
   );
 
-  const entries = (await readdir(options.archiveDir))
-    .filter((name) => name.toLowerCase().endsWith('.md') && !SKIP_FILES.has(name))
+  // withFileTypes + isFile()：跳过名字恰好以 .md 结尾的子目录（否则 readFile 抛 EISDIR、整批崩溃）。
+  const entries = (await readdir(options.archiveDir, { withFileTypes: true }))
+    .filter(
+      (d) =>
+        d.isFile() &&
+        d.name.toLowerCase().endsWith('.md') &&
+        !SKIP_FILES.has(d.name.toLowerCase()),
+    )
+    .map((d) => d.name)
     .sort();
 
   const results: ImportFileResult[] = [];
 
   for (const fileName of entries) {
-    const markdown = await readFile(join(options.archiveDir, fileName), 'utf8');
+    // 单文件读失败（EISDIR / EACCES / 断链 symlink）只记 failed + 继续，不让一个坏文件中断整批导入。
+    let markdown: string;
+    try {
+      markdown = await readFile(join(options.archiveDir, fileName), 'utf8');
+    } catch (err) {
+      results.push({
+        fileName,
+        status: 'failed',
+        warnings: [],
+        detail: `读取失败：${(err as Error).message}`,
+      });
+      continue;
+    }
     const parsed = parseDebugArchive(markdown, fileName);
     if (!parsed) {
       results.push({ fileName, status: 'skipped-empty', warnings: [] });
@@ -202,8 +222,8 @@ async function main(): Promise<void> {
   if (summary.failed > 0) process.exitCode = 1;
 }
 
-// 仅作为 CLI 入口执行时跑 main（被 import 时不跑）。
-const isCli = process.argv[1]?.endsWith('import-debug-archive.js');
+// 仅作为 CLI 入口执行时跑 main（被 import 时不跑）。匹配 .js（npm kb:import 跑 dist）与 .ts（tsx 直跑源）两种入口。
+const isCli = /import-debug-archive\.[jt]s$/.test(process.argv[1] ?? '');
 if (isCli) {
   main().catch((error) => {
     console.error(`[kb-import] ${(error as Error).message}`);

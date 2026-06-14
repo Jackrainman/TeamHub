@@ -114,15 +114,26 @@ describe('toIsoDateTime', () => {
     expect(toIsoDateTime(undefined)).toBeNull();
     expect(toIsoDateTime('not a date')).toBeNull();
   });
+  test('范围内但不存在的日历日 → null（让 deriveDate 回退兜底，不产非法 ISO）', () => {
+    expect(toIsoDateTime('2026-02-30')).toBeNull(); // 2 月没有 30 日
+    expect(toIsoDateTime('2026-04-31')).toBeNull(); // 4 月没有 31 日
+    expect(toIsoDateTime('2025-02-29')).toBeNull(); // 非闰年没有 2/29
+    expect(toIsoDateTime('2026-13-01')).toBeNull();
+    expect(toIsoDateTime('2026-01-01 25:00')).toBeNull(); // 小时越界
+  });
+  test('合法边界日历日 → 有效 ISO', () => {
+    expect(toIsoDateTime('2026-02-28')).toBe('2026-02-28T00:00:00.000Z');
+    expect(toIsoDateTime('2024-02-29')).toBe('2024-02-29T00:00:00.000Z'); // 闰年
+    expect(toIsoDateTime('2026-12-31')).toBe('2026-12-31T00:00:00.000Z');
+  });
 });
 
 describe('fileNameToSlug', () => {
-  test('ascii 文件名 → slug', () => {
-    expect(fileNameToSlug('2026-05-15-uart-idle-systick-heap.md')).toBe(
-      '2026-05-15-uart-idle-systick-heap',
-    );
+  test('ascii 文件名 → 可读前缀 + 哈希后缀', () => {
+    const slug = fileNameToSlug('2026-05-15-uart-idle-systick-heap.md');
+    expect(slug).toMatch(/^2026-05-15-uart-idle-systick-heap-[a-z0-9]{1,6}$/);
   });
-  test('纯中文文件名 → 确定性哈希兜底（稳定、可 slug）', () => {
+  test('纯中文文件名 → 确定性、可 slug', () => {
     const a = fileNameToSlug('26R2历史Bug归档清单.md');
     const b = fileNameToSlug('26R2历史Bug归档清单.md');
     expect(a).toBe(b); // 确定性
@@ -131,6 +142,27 @@ describe('fileNameToSlug', () => {
   });
   test('不同中文名 → 不同 slug（不撞）', () => {
     expect(fileNameToSlug('甲.md')).not.toBe(fileNameToSlug('乙.md'));
+  });
+  // 对抗审计 confirmed：旧算法 ascii≥3 直接返回前缀，下列真实风格文件名会撞 slug → issueId 撞 → 静默丢档
+  test('ascii 前缀同、差异在中文 → 不撞（哈希后缀消歧）', () => {
+    expect(fileNameToSlug('CAN问题归档甲.md')).not.toBe(
+      fileNameToSlug('CAN问题归档乙.md'),
+    );
+    expect(fileNameToSlug('26R2历史Bug归档-CAN甲.md')).not.toBe(
+      fileNameToSlug('26R2历史Bug归档-CAN乙.md'),
+    );
+  });
+  test('>40 字符共同 ascii 前缀（截断区不同）→ 不撞', () => {
+    const a = fileNameToSlug(
+      '2026R2-historical-bug-archive-checklist-for-chassis-motor.md',
+    );
+    const b = fileNameToSlug(
+      '2026R2-historical-bug-archive-checklist-for-chassis-arm.md',
+    );
+    expect(a).not.toBe(b);
+  });
+  test('标点折叠（a_b vs a-b）→ 不撞', () => {
+    expect(fileNameToSlug('can_loss.md')).not.toBe(fileNameToSlug('can-loss.md'));
   });
 });
 
