@@ -10,6 +10,7 @@ import {
   DependencySchema,
   NeedSchema,
   buildCloseoutFromIssue,
+  deriveErrorCode,
   type DepGraph,
   type Task,
 } from '@teamhub/hub-contracts';
@@ -325,13 +326,4 @@ async function readDetail(response: Response): Promise<string | null> {
 
 function nowIso(): string {
   return new Date().toISOString();
-}
-
-// 与 hub-server/server.ts 的本地 deriveErrorCode 同义（mock 落库前补 errorCode）。
-// 确定性：同 now+issueId → 同码，匹配 ERROR_CODE_PATTERN = /^DBG-\d{8}-\d{3}$/。
-function deriveErrorCode(now: string, issueId: string): string {
-  const datePart = now.slice(0, 10).replace(/-/g, '');
-  let hash = 0;
-  for (const ch of issueId) hash = (hash * 31 + ch.charCodeAt(0)) % 1000;
-  return `DBG-${datePart}-${String(hash).padStart(3, '0')}`;
 }

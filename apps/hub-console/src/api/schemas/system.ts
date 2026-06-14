@@ -5,29 +5,12 @@ import {
   BridgeMembersResponseSchema,
   GitReposResponseSchema,
   HubEventsResponseSchema,
-  isoDateTimeSchema,
+  HealthResponseSchema,
+  SystemStatusResponseSchema,
 } from '@teamhub/hub-contracts';
 
-export const HealthResponseSchema = z.object({
-  status: z.literal('ok'),
-  service: z.literal('teamhub-hub-server'),
-  checkedAt: isoDateTimeSchema,
-});
-
-export const SystemStatusResponseSchema = z.object({
-  service: z.literal('teamhub-hub-server'),
-  version: z.string().min(1),
-  mode: z.literal('mock-first'),
-  generatedAt: isoDateTimeSchema,
-  uptimeSeconds: z.number().nonnegative(),
-  adapters: z.object({
-    total: z.number().int().nonnegative(),
-    enabled: z.number().int().nonnegative(),
-    degraded: z.number().int().nonnegative(),
-    unconfigured: z.number().int().nonnegative(),
-  }),
-});
-
+// D-052 重复真相收口：Health / SystemStatus 契约下沉 hub-contracts（与 hub-server 共用同一源），
+// 此前本文件与 hub-server/contracts.ts 各声明一份、字段逐字重复。OverviewSnapshot 是 console 专有聚合视图，留此。
 export const OverviewSnapshotSchema = z.object({
   health: HealthResponseSchema,
   system: SystemStatusResponseSchema,
@@ -38,6 +21,13 @@ export const OverviewSnapshotSchema = z.object({
   artifacts: ArtifactsResponseSchema,
 });
 
-export type HealthResponse = z.infer<typeof HealthResponseSchema>;
-export type SystemStatusResponse = z.infer<typeof SystemStatusResponseSchema>;
+// re-export 维持既有 import 路径（client.ts / overview.ts 仍 from './schemas/system'）。
+export {
+  HealthResponseSchema,
+  SystemStatusResponseSchema,
+} from '@teamhub/hub-contracts';
+export type {
+  HealthResponse,
+  SystemStatusResponse,
+} from '@teamhub/hub-contracts';
 export type OverviewSnapshot = z.infer<typeof OverviewSnapshotSchema>;

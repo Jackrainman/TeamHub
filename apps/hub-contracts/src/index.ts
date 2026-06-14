@@ -65,3 +65,7 @@ export * from './schedule.js';
 export * from './kb.js';
 export * from './kb-similar.js';
 export * from './kb-closeout.js';
+// 跨端单一源（D-052 重复真相收口）：errorCode 派生 / 系统状态契约 / PM 写请求契约
+export * from './error-code.js';
+export * from './system-status.js';
+export * from './pm-requests.js';

@@ -7,12 +7,6 @@ import {
   ArchiveGeneratedBySchema,
   ErrorEntrySchema,
   KnowledgeNodeSchema,
-  TaskSchema,
-  TaskStatusSchema,
-  GovActorSourceSchema,
-  DependencySchema,
-  NeedSchema,
-  TasksResponseSchema,
 } from '@teamhub/hub-contracts';
 export {
   AdapterCapabilitiesResponseSchema,
@@ -37,6 +31,18 @@ export {
   rankSimilarIssues,
   buildCloseoutFromIssue,
   TasksResponseSchema,
+  // D-052 重复真相收口：以下契约下沉 hub-contracts 单一源，此处仅 re-export 维持既有 import 路径
+  // （server.ts / index.ts / 测试 仍 from './contracts.js'），不再本地重声明 → 不会与 console 漂移。
+  isoDateTimeSchema,
+  deriveErrorCode,
+  HealthResponseSchema,
+  SystemStatusResponseSchema,
+  CreateTaskRequestSchema,
+  CreateTaskResponseSchema,
+  CreateDependencyRequestSchema,
+  CreateDependencyResponseSchema,
+  CreateNeedRequestSchema,
+  CreateNeedResponseSchema,
 } from '@teamhub/hub-contracts';
 export type {
   AdapterCapabilitiesResponse,
@@ -53,32 +59,19 @@ export type {
   GitReposResponse,
   HubEvent,
   HubEventsResponse,
+  HealthResponse,
+  SystemStatusResponse,
+  CreateTaskRequest,
+  CreateTaskResponse,
+  CreateDependencyRequest,
+  CreateDependencyResponse,
+  CreateNeedRequest,
+  CreateNeedResponse,
 } from '@teamhub/hub-contracts';
 
-export const isoDateTimeSchema = z.string().datetime({ offset: true });
-
-export const HealthResponseSchema = z.object({
-  status: z.literal('ok'),
-  service: z.literal('teamhub-hub-server'),
-  checkedAt: isoDateTimeSchema,
-});
-
-export const SystemStatusResponseSchema = z.object({
-  service: z.literal('teamhub-hub-server'),
-  version: z.string().min(1),
-  mode: z.literal('mock-first'),
-  generatedAt: isoDateTimeSchema,
-  uptimeSeconds: z.number().nonnegative(),
-  adapters: z.object({
-    total: z.number().int().nonnegative(),
-    enabled: z.number().int().nonnegative(),
-    degraded: z.number().int().nonnegative(),
-    unconfigured: z.number().int().nonnegative(),
-  }),
-});
-
-export type HealthResponse = z.infer<typeof HealthResponseSchema>;
-export type SystemStatusResponse = z.infer<typeof SystemStatusResponseSchema>;
+// ──────────────────────────────────────────────────────────────────────────
+// 以下为 hub-server **专有**路由契约（KB 检索 / 结案）——非跨端重复、不下沉，留在 server。
+// ──────────────────────────────────────────────────────────────────────────
 
 /**
  * KB-CORE `GET /api/kb/similar` 路由契约。querystring 全为字符串：tags 逗号分隔、limit/minScore coerce 成数。
@@ -140,60 +133,3 @@ export const KbCloseoutResponseSchema = z.object({
 
 export type KbCloseoutRequest = z.infer<typeof KbCloseoutRequestSchema>;
 export type KbCloseoutResponse = z.infer<typeof KbCloseoutResponseSchema>;
-
-/**
- * PM 项目计划表 `POST /api/tasks` 路由契约（单条任务录入）。请求 = TaskDraft 的人本字段
- * （server 补 id/时间戳/派生默认）；`status/statusSource` 可省略（默认 pending/console）。
- * **D-042**：必填 projectId/groupId/title/rawSummary/robotTarget/intrinsicComplexity（Zod 强制，「title+groupId」过不了）；
- * **不引入 `dueDate`**（G4 无硬截止 / 甘特暂缓）。Task 无 confirmedBy 字段，本路由不触 I0 确认语义。
- */
-export const CreateTaskRequestSchema = TaskSchema.omit({
-  id: true,
-  status: true,
-  statusSource: true,
-  lastProgressAt: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  status: TaskStatusSchema.optional(),
-  statusSource: GovActorSourceSchema.optional(),
-});
-
-export const CreateTaskResponseSchema = z.object({ task: TaskSchema });
-
-export type CreateTaskRequest = z.infer<typeof CreateTaskRequestSchema>;
-export type CreateTaskResponse = z.infer<typeof CreateTaskResponseSchema>;
-
-/**
- * PM `POST /api/dependencies` 路由契约（人手建依赖边）。请求 = 人本字段；server clamp status=`active`（D-042 初始态）、
- * 补 id/时间戳。`confirmedBy`（用户 Q1=ActorRef 内部凭证）随请求传入、仅内部归因——**读视图不回此对象**（创建响应回给
- * 建边本人非第三方，不构成 I0 暴露）。`fromTaskId`=上游、`toTaskId`=被卡的下游。
- */
-export const CreateDependencyRequestSchema = DependencySchema.omit({
-  id: true,
-  status: true,
-  createdAt: true,
-  updatedAt: true,
-});
-export const CreateDependencyResponseSchema = z.object({
-  dependency: DependencySchema,
-});
-
-/**
- * PM `POST /api/needs` 路由契约（前置需求一等公民 G3）。server clamp status=`open`、openedAt=now、escalatedAt=null、
- * **claimedByMemberId=null**（A2 反派单：新缺口必未认领，认领是本人后续动作；故请求 omit 之，不给队长创建即指派的口子）。
- * **A1**：providerGroupId 归组不归人。
- */
-export const CreateNeedRequestSchema = NeedSchema.omit({
-  id: true,
-  status: true,
-  openedAt: true,
-  escalatedAt: true,
-  claimedByMemberId: true,
-});
-export const CreateNeedResponseSchema = z.object({ need: NeedSchema });
-
-export type CreateDependencyRequest = z.infer<
-  typeof CreateDependencyRequestSchema
->;
-export type CreateNeedRequest = z.infer<typeof CreateNeedRequestSchema>;
