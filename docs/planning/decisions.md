@@ -722,6 +722,28 @@
 - 后续（backlog/frontier）：ProbeFlash `.debug-archive` 一次性导入（markdown→IssueCard best-effort 解析器）；真实时钟注入（持久模式配 RealClock，需调和治理 fixture 冻结）；简化 archive 端点（server 端建 IssueCard 让 skill payload 更瘦）；embedding 重排；LAN 托管 + 飞书登录。
 - 事实源：本 ADR；plan file `linear-herding-blanket.md`；Explore 调研（TeamHub KB 后端两洞 + ProbeFlash 设计参考）；用户 2026-06-14「AI+知识库 / skill / 服务器为单一真相」请求。
 
+## D-052 — 提案审查裁决 + Q1–Q4 拍板 + 低风险收尾批落地 + 依赖图新功能立项
+
+- 状态：**DECIDED**（裁决 + 立项）/ **低风险批 IMPLEMENTED**（2026-06-14；hub-contracts 41 测 / hub-server 74 测 / hub-console typecheck+7 测+build 全绿；3 code commit `8ab93cf`/`44b7fcc`/`8ea6579`）
+- 日期：2026-06-14
+- 上下文：用户一次性提一批诉求（5 个灰导航项语义 / 适配器改名 / 看板≈依赖图能否合并 / 暴露需求是什么 / 全项目石山梳理 / skill 适配 workflow 自迭代 / 版本不更新 / mock 是什么），要求**先用 workflow 探明合理性再讨论**。9-agent 调研 workflow `wf_def55d4d-916`（5 survey[sonnet] + 3 石山审计[opus] → 1 opus 综合，~62 万 token）产逐条裁决 + 22 条石山 finding + 自迭代方案。基于综合结论问 4 题（Q1–Q4），用户拍板如下。
+- 关键发现（纠偏）：5 个灰导航项**非空壳**——后端路由 `GET /api/{adapters,events,bridge/members,git/repos,artifacts}` 均已实现、数据已在总览五面板渲染；真正"死"的只是侧栏 5 个 `page===undefined` 的禁用按钮（把已有内容当"即将上线"占位）。
+- 决策（用户拍板）：
+  1. **命名（Q1）**：「适配器」→ **集成 / Integrations**，且**归入设置页**（非主页）。语义 = 连接到社媒 / 外部应用（飞书 / Hermes / git / 未来 QQ 微信钉钉等触点）。
+  2. **看板 × 依赖图（Q2）**：**不合并**（两页交互范式不同：看板=线性状态流"做了多少"、依赖图=空间 DAG"为什么卡"；硬合并触 I0 反排名风险=完成数×负责人姓名同屏可读出"谁干得多"）。但**依赖图升为主舞台**——录入做成**右上角按钮 → 近全屏遮罩浮层**叠在依赖图之上、点空白处退回；并新增 **AI 自动画大致 DAG + 人手动微调**。
+  3. **连依赖（Q3）**：用户要的"连线"**不是改按钮名**，是**在画布上拖拽连线建依赖**（从节点 A 拖到节点 B → 自动建边 + 重绘 DAG，xyflow `onConnect`）。
+  4. **暴露需求（澄清）**：= "制度化替你开口"——被卡的人登记缺口挂到任务、卡点自动进依赖图全员可见、不催某个人；A2 反派单（缺口归组不归人、接口层物理拒收"指派给谁"）。建议 UI 标签改「登记缺口」（"暴露"有"被揭穿"负面语感）。
+  5. **自迭代（Q6 诉求）**：引擎**已落地**（`continuous-build` skill + AGENTS §6.B 连续/编排轨，D-043；D-044~D-052 全走它）。频繁停下是**制度刻意设计的人在环**三类：① §6.0 M1 候选池闭口（frontier 空就停，当前正是）② §8 安全门（SSH/sudo/部署/密钥 blocked）③ 产品方向待拍。后两类不该自动化绕过。**解锁 = 保持 frontier 非空（本 ADR 已补）+ 可选补带 budget 守门的 frontier-loop 编排骨架**。
+- 低风险收尾批（Q4 拍板"直接连续跑"，本 ADR 已实现 3 commit）：
+  1. **版本跟随 package.json**（诉求7）：hub-server/status.ts `createRequire` 读包根 version、console mock 导入 package.json version；不再写死 0.0.1（`8ab93cf`）。
+  2. **删 5 死导航 + Mock 文案白话化**（诉求4 一刀 + 诉求8）：ConsoleLayout 删 适配器/事件/协作桥/git/图纸 5 禁用项 + unused 图标 + 5 个 nav.* i18n 键；"Mock 数据"→"演示数据"、"真实 API"→"真实数据"、错误提示同步（`44b7fcc`）。
+  3. **重复真相下沉 hub-contracts**（石山重灾区②）：deriveErrorCode / Health·SystemStatus / Create\*Request 三组跨包逐字复刻下沉单一源、两端 re-export 保路径、零行为变化（`8ea6579`）。
+- 新功能立项（→ backlog P1，未实现，下一批 frontier）：`INTEGRATIONS-TO-SETTINGS`（集成面板进设置 + 适配器→集成 标签 + 主页精简到"最近事件+指标"）、`DEPGRAPH-ENTRY-OVERLAY`（依赖图右上角录入遮罩浮层 + 看板→依赖图跳转 + I0 ownerLabel 降级到 DetailPanel）、`DEPGRAPH-DRAG-CONNECT`（xyflow 拖拽连线建依赖 + 自动重绘）、`DEPGRAPH-AI-AUTODRAW`（AI 自动布大致 DAG + 人微调）。
+- 石山热力图（调研产，供 AUDIT/重构排期，非本轮全修）：① **挂起域死重量**（D-039 治理派生簇 schedule.ts 272 行 + governance schema + SqliteGovStore 靠测试锁活，零运行时引用、虚胖 3-4×）② **重复真相**（本轮已收口 deriveErrorCode/Create\*/Health）③ **模型口径分叉 + 谎标**（两套 Member；statusSource derived/git/lark 无生产者纯装饰；mode=z.literal 切真即崩）④ **前端结构债**（死导航[本轮已删]/死链接 href=#/source prop drill 4 层/孤儿字段）。
+- 老实定位：本 ADR 只落地"低风险批"3 项；命名进设置 / 依赖图浮层 / 拖拽连线 / AI 布图 **均未实现**（立项 backlog）；石山①③④ 多数未修（AUDIT-FIXES / 后续重构）；真实 status 派生上游仍未接通。
+- 验证：三包 verify:all 全绿（见状态行）；git diff --check 干净；3 commit 各自过 gate。
+- 事实源：本 ADR；调研 workflow `wf_def55d4d-916`；用户 Q1–Q4 拍板；`docs/planning/backlog.md`（新立项 4 项 + 低风险批 done 行）；`code-audit-2026-06-14.md`（石山交叉引用）。
+
 ## D-051 — KB-IMPORT 独立二次对抗审计 + 正确性硬化（KB-IMPORT-FOLLOWUP 部分收口）
 
 - 状态：**DECIDED / IMPLEMENTED**（2026-06-14；hub-server verify:all 绿[typecheck + 74 测含 +9 新 + build]；6 真实归档重跑 5 导入 + 召回/I0 实证）
