@@ -628,3 +628,22 @@
   - **不改** §5 设计宪法 / §7 Verify Matrix / §8 安全门 / §9 Skills Mirror 机制；DoD 对照表的历史抄录（`docs/superpowers/specs/` / `docs/archive/`，过去记录）。
 - 影响：本 ADR + `AGENTS.md §6`（重写）+ `.agents/skills/atomic-task/SKILL.md`（收窄）+ `.agents/skills/continuous-build/SKILL.md`（新建，镜像 `.claude/skills/`）+ `docs/planning/workflow-evolution.md`（标 superseded）+ `docs/agents/workflow/README.md`（footer「当前生效工作流权威源」更新为双轨）+ `docs/design/team-hub-concept.md`（§12 + 概念段 §6 引用软化为双轨）+ `now.md`/`agent-state.json`（最近完成 + stage + 口径对齐双轨）。**纯 docs/planning/skills，不碰代码 / 服务器 / 真实数据**；hub `verify:all` 不涉及（未碰 apps/）。
 - 事实源：本 ADR；2026-06-14 设计对话（甲方拍板：保留每单元验证+commit、取消全员 STOP、还用弱工具→双轨、物理隔离）；Explore 全仓交叉引用扫描（atomic-task / STOP / completion gate / DoD 对照表 / §6↔§7§8§9 / skill-library 同步）；`workflow-evolution.md`（被 supersede 的旧范式）；`AGENTS §6`/`§9`（被改）；`~/.claude/CLAUDE.md`（workflow 模型分档与 token 纪律）。
+
+## D-044 — KB-CORE 落地：移植 Probe_Flash 调试闭环 + 相似检索 + 结案派生知识节点（frontier#1 done）
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-14；§6.B continuous-build 连续构建 U1~U6 各自 verify+单独 commit+push；4-opus 对抗核实裁 ship/mustFix=0）
+- 日期：2026-06-14
+- 上下文：D-042 定基调「KB 拆 CORE/LARK、KB-CORE 零飞书可立即开工、四根里最快交付」+ base 收口刀 done。KB-CORE = 三支柱第一支柱第一刀，痛点 = 同一 CAN/MicroROS/电机 bug 跨赛季重踩（D-039 用户原声）。资产 = Probe_Flash（同源）`IssueCard→InvestigationRecord→ErrorEntry→ArchiveDocument` 调试闭环 + `rankSimilarIssues`/`buildCloseoutFromIssue` 纯函数可移植 + `growth.ts KnowledgeNode` 复用。
+- 决策（落地形态）：
+  1. **移植调试闭环 schema 链**到 `hub-contracts/src/kb.ts`：保留 `normalizedSummary/relatedFiles/relatedCommits`（否则 `buildCloseoutFromIssue` TS2339）；**去掉 `repoSnapshot`**（Probe_Flash desktop 专用 git 快照，TeamHub git 关联走治理 gitCommit 信号 + relatedCommits，不内嵌、不双写 G2）；时间统一 `isoDateTimeSchema`；`IssueStatus` 值 camelCase 对齐 TeamHub 约定（诚实标注，无活数据互通）。
+  2. **移植 `rankSimilarIssues` 纯函数**（`kb-similar.ts`，逐字等价打分/排序）；Probe_Flash 的 `findSimilarIssuesForIssue`（StorageRepository IO）**不移植**——IO 由 `GET /api/kb/similar` 路由读 `KbStore` 后喂纯函数，本层保持全纯可单测。
+  3. **移植 `buildCloseoutFromIssue` 纯函数 + 新增 `deriveKnowledgeNodeFromIssue`**（`kb-closeout.ts`）：结案派生归档+错误表+已归档卡+知识节点 draft（「用着就沉淀」）；`now/errorEntryId/errorCode/generatedBy` 由 opts 注入（不移植 Date.now/Math.random helper，路由用 clock 确定性派生）。
+  4. **兑现 base 收口刀对抗核实 deferToNextKnife**：相似检索语料 IssueCard 不在 `GovernanceSnapshot` 内 → `kbStore` 类型由 `GovStore` **收窄为独立 `KbStore`**（`getKbSnapshot`；`InMemoryKbStore` seed `kbScenarioFixture`）；结案派生 `KnowledgeNode` 那半仍走 `GovStore.closeoutKbNode` 复用同快照（对抗核实确认成立）。
+  5. **实现 `InMemoryGovStore.closeoutKbNode`**（base 收口刀只钉签名 throw 的写白名单，本刀落 KB 这一项）：补 id+createdAt（clock 注入）、追加节点、构造期克隆 `knowledgeNodes` 不污染共享 fixture；`createTask/createDependency/createNeed` 仍后置（PM 落地补）。
+  6. **路由**：`GET /api/kb/similar`（症状→top-N，A4 护栏 `note` 焊进响应）+ `POST /api/kb/closeout`（缺 rootCause→422 不伪造完成、body 非法→400；errorCode 由 clock+issue.id 确定性派生匹配 `DBG-YYYYMMDD-NNN`）。
+- 宪法守恒（4-opus 对抗核实逐条核实 clean）：**I0**（KnowledgeNode/归档无人维度，generatedBy=ai/manual/hybrid 非人名，不可 groupBy「谁结案最多」）/ **C2**（召回项+语料无 memberId/ownerId）/ **A4·C4**（相似检索只列候选+客观 reasons、不断言同因、由人选用）/ **G2**（不回写飞书、blockedBy 不另存）/ **C1**（写入兜底、不退化主录入死表）/ **C3**（不过度建设，PM 录入簇仍后置）。
+- 老实定位（不过度声称）：真实录入上游（调试动作→时间线录入交互）**未接通**（等 §5 Hermes 统一触点层），**不宣称已解 C1**；当前落地 = 读召回 + 结案派生 + 写出入口 + 锚点语料。持久层 InMemory 重启丢失为预期（SqliteGovStore stub 待部署审批）。
+- 对抗核实：`wf_fc3f1282-bbf`（3 lens[移植保真+TS / 宪法 / 路由·Store 集成]=opus → 1 opus 综合，231K token）裁 **ship、mustFix=0**；3 条 nit（IssueStatus camelCase 改名 / derivePrevention 中文+errorEntryId 确定性[均 §10 标注] / 测试未用 import）——后两条已顺手收口（U6b），第一条诚实标注留存。
+- 影响 / 落地：`hub-contracts/src/{kb,kb-similar,kb-closeout}.ts` + `fixtures.ts`(kbScenarioFixture) + `index.ts`；`hub-server/src/{server,contracts}.ts` + `store/{gov-store,mock-gov-store,mock-kb-store}.ts` + 4 测试文件。verify：hub-contracts 41 测 / hub-server 28 测 / git diff --check / skills-sync 全过。commit U1~U6b（`45bbeaf`→`226e838`）。
+- 后续（backlog/frontier）：**KB-LARK**（飞书拉资料，hardblock `LARK-BIN-PROBE`）/ 录入交互（随 Hermes 统一触点）/ IssueCard↔Task 关联 + `TaskKnowledgeTag` 派生（随 PM）/ 真实持久层（待审批）/ console KB 页（复用 @xyflow）。
+- 事实源：本 ADR；`docs/design/kb-core.md`（设计 + 落地说明）；`docs/design/three-pillar-feasibility.md` D-042 §3；对抗核实 `wf_fc3f1282-bbf`；Probe_Flash `apps/desktop/src/{search/similar-issues,domain/closeout,domain/schemas/issue-card}.ts`（移植源，v0.3 冻结）。

@@ -105,8 +105,11 @@ source: §6.B continuous-build 连续构建（U1~U6 各自 verify+单独 commit�
 | U4 | `KbStore` 收窄（兑现 base 收口刀对抗核实）+ `InMemoryKbStore` | fe1123c |
 | U5 | `GET /api/kb/similar`（症状→top-N + A4 note）| a7c2337 |
 | U6 | `POST /api/kb/closeout` + `InMemoryGovStore.closeoutKbNode` 实现（I0 安全）| 3901b91 |
+| U6b | 对抗核实顺手收口（删未用 import + 标注枚举改名）| 226e838 |
 
 验证：`hub-contracts verify:all` 41 测 / `hub-server verify:all` 28 测 / `git diff --check` / `skills-sync` 全过。
+
+**对抗核实**：`wf_fc3f1282-bbf`（3 opus lens[移植保真+TS / 宪法 §5 / 路由·Store 集成] → 1 opus 综合，231K token）逐条 grep+typecheck+test 实证后裁 **ship、mustFix=0**——3 条 nit（IssueStatus camelCase 改名 / derivePrevention 中文+errorEntryId 确定性[均 §10 标注] / 测试未用 import）均诚实标注或已收口（U6b），无真违宪/真 bug/真 TS 错。
 
 ## 9. 后续承接（不在本刀，已记 backlog/frontier）
 
