@@ -52,13 +52,13 @@ describe('base 收口刀: GovStore 写白名单 + 扩展点 + 持久化切换合
       onTaskId: 't-r1-chassis',
       description: '需要懂 CAN 的人',
       providerGroupId: 'grp-program',
-      claimedByMemberId: null,
       neededSkills: ['CAN'],
       source: 'human',
       confirmedBy: { id: 'm-ecB', displayName: '电控B', source: 'console' },
     });
     expect(need.id).toMatch(/^need-new-/);
     expect(need.status).toBe('open');
+    expect(need.claimedByMemberId).toBeNull(); // A2：新缺口必未认领
     expect(need.escalatedAt).toBeNull();
 
     // closeoutKbNode 已由 KB-CORE 实现：补 id + createdAt、追加节点、I0 无人维度

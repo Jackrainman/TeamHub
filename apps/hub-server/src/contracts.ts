@@ -180,14 +180,16 @@ export const CreateDependencyResponseSchema = z.object({
 });
 
 /**
- * PM `POST /api/needs` 路由契约（前置需求一等公民 G3）。server clamp status=`open`、openedAt=now、escalatedAt=null。
- * **A1**：providerGroupId 归组不归人；claimedByMemberId 仅本人主动认领才填。
+ * PM `POST /api/needs` 路由契约（前置需求一等公民 G3）。server clamp status=`open`、openedAt=now、escalatedAt=null、
+ * **claimedByMemberId=null**（A2 反派单：新缺口必未认领，认领是本人后续动作；故请求 omit 之，不给队长创建即指派的口子）。
+ * **A1**：providerGroupId 归组不归人。
  */
 export const CreateNeedRequestSchema = NeedSchema.omit({
   id: true,
   status: true,
   openedAt: true,
   escalatedAt: true,
+  claimedByMemberId: true,
 });
 export const CreateNeedResponseSchema = z.object({ need: NeedSchema });
 

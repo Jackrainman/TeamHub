@@ -36,6 +36,24 @@ describe('POST /api/tasks', () => {
     }
   });
 
+  test('端到端往返：POST 新建的任务出现在 GET /api/tasks 列表（同 app 同 store）', async () => {
+    const app = buildHubServer();
+    try {
+      const before = await app.inject({ method: 'GET', url: '/api/tasks' });
+      const beforeCount = before.json().tasks.length;
+
+      const created = await app.inject({ method: 'POST', url: '/api/tasks', payload: validBody });
+      const newId = created.json().task.id;
+
+      const after = await app.inject({ method: 'GET', url: '/api/tasks' });
+      const tasks = after.json().tasks as Array<{ id: string }>;
+      expect(tasks.length).toBe(beforeCount + 1);
+      expect(tasks.some((t) => t.id === newId)).toBe(true);
+    } finally {
+      await app.close();
+    }
+  });
+
   test('显式 status/statusSource 生效（如 git 派生信号建任务）', async () => {
     const app = buildHubServer();
     try {

@@ -75,7 +75,7 @@ describe('PM 读视图 + 依赖/缺口录入', () => {
     }
   });
 
-  test('POST /api/needs → 201；clamp status=open / escalatedAt=null；A1 缺口归组', async () => {
+  test('POST /api/needs → 201；clamp status=open / claimedByMemberId=null（A2 反派单）/ A1 归组', async () => {
     const app = buildHubServer();
     try {
       const res = await app.inject({
@@ -86,7 +86,7 @@ describe('PM 读视图 + 依赖/缺口录入', () => {
           onTaskId: 't-r1-chassis',
           description: '需要懂 RTOS 的人协助中断时序',
           providerGroupId: 'grp-program',
-          claimedByMemberId: null,
+          claimedByMemberId: 'm-victim', // 试图创建即派单 → 应被 omit + clamp 为 null
           neededSkills: ['RTOS'],
           source: 'human',
           confirmedBy: { id: 'm-ecB', displayName: '电控B', source: 'console' },
@@ -96,9 +96,10 @@ describe('PM 读视图 + 依赖/缺口录入', () => {
       const body = CreateNeedResponseSchema.parse(res.json());
       expect(body.need.status).toBe('open');
       expect(body.need.escalatedAt).toBeNull();
+      // A2：创建即派单被拒——新缺口必未认领
+      expect(body.need.claimedByMemberId).toBeNull();
       // A1：缺口归组不归人
       expect(body.need.providerGroupId).toBe('grp-program');
-      expect(body.need.claimedByMemberId).toBeNull();
     } finally {
       await app.close();
     }

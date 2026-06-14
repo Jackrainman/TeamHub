@@ -23,13 +23,9 @@ import type {
  * 内存实现：默认 seed 真实锚点场景 fixtures，让 real 路由从第一个请求起就有可派生的真实场景
  * （进程重启丢失为预期行为，SQLite/Postgres 持久层见 SqliteGovStore）。
  *
- * PM 录入簇（createTask/createDependency/createNeed）**仍实现后置**（PM 支柱落地时补）：方法体 throw
- * 而非静默吞或就地实现，避免在 PM 录入路由落地前过早成主录入口、退化成新死表（C1）。
- * `closeoutKbNode` 由 KB-CORE 落地实现（POST /api/kb/closeout 消费）。
+ * 写白名单全部已落地：createTask/createDependency/createNeed（PM 录入簇）+ closeoutKbNode（KB-CORE）。
+ * 每个写方法 Store 负责补 id/时间戳/派生默认 + clamp 初始态（C1 兜底录入、不取代 git/lark 派生信号）。
  */
-const WRITE_IMPL_DEFERRED =
-  'InMemoryGovStore: PM 录入写入实现后置（PM 支柱路由落地时补内存写入）';
-
 export class InMemoryGovStore implements GovStore {
   private readonly snapshot: GovernanceSnapshot;
   private readonly clock: Clock;
@@ -94,8 +90,9 @@ export class InMemoryGovStore implements GovStore {
   }
 
   /**
-   * PM 前置需求录入（POST /api/needs，G3 一等公民）。**D-042 clamp 初始态**：status 钉 `open`、openedAt=now、
-   * escalatedAt=null。**A1**：缺口归组 providerGroupId、不归人；claimedByMemberId 仅本人主动认领才填（非派单 C4/A2）。
+   * PM 前置需求录入（POST /api/needs，G3 一等公民）。**D-042 clamp 初始态 + A2 反派单**：status 钉 `open`、
+   * openedAt=now、escalatedAt=null、**claimedByMemberId=null**（新缺口必未认领，认领是本人后续主动动作、非创建即派单）。
+   * **A1**：缺口归组 providerGroupId、不归人。
    */
   async createNeed(draft: NeedDraft): Promise<Need> {
     const now = this.clock.now().toISOString();
@@ -103,6 +100,7 @@ export class InMemoryGovStore implements GovStore {
       ...draft,
       id: `need-new-${this.snapshot.needs.length + 1}`,
       status: 'open',
+      claimedByMemberId: null,
       openedAt: now,
       escalatedAt: null,
     };

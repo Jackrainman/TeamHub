@@ -38,12 +38,14 @@ export type DependencyDraft = Omit<
 /**
  * createNeed 入参：前置需求一等公民（G3）。缺口归组 providerGroupId、不归人（A1）；
  * claimedByMemberId 仅本人主动认领才填，非派单（C4 / A2）。
- * **status/openedAt/escalatedAt 不由调用方给**（D-042 clamp 初始态）：新 Need Store 钉 `open`、openedAt=now、
- * escalatedAt=null；escalated 仅「事持续无人认领」升级（A4：升级的是事不是人）。confirmedBy 同 Dependency=内部凭证。
+ * **status/openedAt/escalatedAt/claimedByMemberId 不由调用方给**（D-042 clamp 初始态 + A2 反派单）：新 Need
+ * Store 钉 `open`、openedAt=now、escalatedAt=null、**claimedByMemberId=null**——新缺口必为「未认领」，
+ * 认领是本人后续主动动作（非创建时由队长直接指派=派单，违 A2/C4）；escalated 仅「事持续无人认领」升级
+ * （A4：升级的是事不是人）。confirmedBy 同 Dependency=内部凭证。
  */
 export type NeedDraft = Omit<
   Need,
-  'id' | 'status' | 'openedAt' | 'escalatedAt'
+  'id' | 'status' | 'openedAt' | 'escalatedAt' | 'claimedByMemberId'
 >;
 
 /**
