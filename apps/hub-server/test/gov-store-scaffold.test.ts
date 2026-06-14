@@ -17,10 +17,25 @@ describe('base 收口刀: GovStore 写白名单 + 扩展点 + 持久化切换合
     const snapshot = await store.getSnapshot();
     expect(snapshot.tasks.length).toBeGreaterThan(0);
 
-    // PM 录入簇仍实现后置 → throw（而非静默吞 / 就地实现成死表）
-    await expect(store.createTask({} as never)).rejects.toThrow(/后置/);
+    // createDependency/createNeed 仍后置（confirmedBy↔I0 设计待拍板）→ throw
     await expect(store.createDependency({} as never)).rejects.toThrow(/后置/);
     await expect(store.createNeed({} as never)).rejects.toThrow(/后置/);
+    // createTask 已由 PM 落地：补 id/时间戳/默认（status=pending/statusSource=console）
+    const task = await store.createTask({
+      projectId: 'prj-robots',
+      groupId: 'grp-mech',
+      title: '新任务',
+      rawSummary: '随手建一条',
+      ownerId: null,
+      collaboratorIds: [],
+      robotTarget: 'R1',
+      intrinsicComplexity: 'normal',
+    });
+    expect(task.id).toMatch(/^task-new-/);
+    expect(task.status).toBe('pending');
+    expect(task.statusSource).toBe('console');
+    expect(task.lastProgressAt).toBeNull();
+    expect(task).not.toHaveProperty('dueDate');
 
     // closeoutKbNode 已由 KB-CORE 实现：补 id + createdAt、追加节点、I0 无人维度
     const node = await store.closeoutKbNode({

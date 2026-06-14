@@ -7,6 +7,9 @@ import {
   ArchiveGeneratedBySchema,
   ErrorEntrySchema,
   KnowledgeNodeSchema,
+  TaskSchema,
+  TaskStatusSchema,
+  GovActorSourceSchema,
 } from '@teamhub/hub-contracts';
 export {
   AdapterCapabilitiesResponseSchema,
@@ -133,3 +136,26 @@ export const KbCloseoutResponseSchema = z.object({
 
 export type KbCloseoutRequest = z.infer<typeof KbCloseoutRequestSchema>;
 export type KbCloseoutResponse = z.infer<typeof KbCloseoutResponseSchema>;
+
+/**
+ * PM 项目计划表 `POST /api/tasks` 路由契约（单条任务录入）。请求 = TaskDraft 的人本字段
+ * （server 补 id/时间戳/派生默认）；`status/statusSource` 可省略（默认 pending/console）。
+ * **D-042**：必填 projectId/groupId/title/rawSummary/robotTarget/intrinsicComplexity（Zod 强制，「title+groupId」过不了）；
+ * **不引入 `dueDate`**（G4 无硬截止 / 甘特暂缓）。Task 无 confirmedBy 字段，本路由不触 I0 确认语义。
+ */
+export const CreateTaskRequestSchema = TaskSchema.omit({
+  id: true,
+  status: true,
+  statusSource: true,
+  lastProgressAt: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  status: TaskStatusSchema.optional(),
+  statusSource: GovActorSourceSchema.optional(),
+});
+
+export const CreateTaskResponseSchema = z.object({ task: TaskSchema });
+
+export type CreateTaskRequest = z.infer<typeof CreateTaskRequestSchema>;
+export type CreateTaskResponse = z.infer<typeof CreateTaskResponseSchema>;

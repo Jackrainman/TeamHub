@@ -18,6 +18,8 @@ import {
   KbCloseoutResponseSchema,
   KbSimilarQuerySchema,
   KbSimilarResponseSchema,
+  CreateTaskRequestSchema,
+  CreateTaskResponseSchema,
   SystemStatusResponseSchema,
   buildCloseoutFromIssue,
   rankSimilarIssues,
@@ -156,6 +158,19 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   app.get('/api/dep-graph', async () => {
     const snapshot = await store.getSnapshot();
     return DepGraphSchema.parse(toDepGraphView(snapshot, clock.now().toISOString()));
+  });
+
+  // PM 项目计划表：单条任务录入（C1 兜底录入口）。server 补 id/时间戳/派生默认（status=pending/statusSource=console）。
+  // 卡住原因走人建 Dependency 边由 toDepGraphView 派生（G2 不在 Task 上另存 blockedBy）；不引入 dueDate（G4）。
+  app.post('/api/tasks', async (request, reply) => {
+    const parsed = CreateTaskRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      return;
+    }
+    const task = await store.createTask(parsed.data);
+    void reply.code(201);
+    return CreateTaskResponseSchema.parse({ task });
   });
 
   // KB-CORE：症状 → top-N 相似历史 bug（跨赛季同类 bug 召回）。纯函数 rankSimilarIssues 在 KbStore 语料上排序。

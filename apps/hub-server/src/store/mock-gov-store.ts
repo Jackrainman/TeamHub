@@ -38,8 +38,14 @@ export class InMemoryGovStore implements GovStore {
     seed: GovernanceSnapshot = governanceScenarioFixture,
     clock: Clock = new FixedClock(new Date(GOVERNANCE_SCENARIO_NOW)),
   ) {
-    // 浅克隆 + 克隆被写入的 knowledgeNodes 数组：closeoutKbNode 追加节点时不污染共享 fixture。
-    this.snapshot = { ...seed, knowledgeNodes: [...seed.knowledgeNodes] };
+    // 浅克隆 + 克隆被写入的数组（tasks/dependencies/needs/knowledgeNodes）：写方法追加时不污染共享 fixture。
+    this.snapshot = {
+      ...seed,
+      tasks: [...seed.tasks],
+      dependencies: [...seed.dependencies],
+      needs: [...seed.needs],
+      knowledgeNodes: [...seed.knowledgeNodes],
+    };
     this.clock = clock;
   }
 
@@ -47,8 +53,25 @@ export class InMemoryGovStore implements GovStore {
     return this.snapshot;
   }
 
-  async createTask(_draft: TaskDraft): Promise<Task> {
-    throw new Error(WRITE_IMPL_DEFERRED);
+  /**
+   * PM 项目计划表单条任务录入（C1 兜底录入口，POST /api/tasks）。Store 补 id + 时间戳 + 派生默认：
+   * `status` 默认 `pending`、`statusSource` 默认 `console`（C5：真实进度优先 git/lark 派生，console 录入兜底）、
+   * `lastProgressAt` 初始 null（由 commit/check-in 派生信号回填）。**C2/I0**：Task.ownerId 只表「谁负责」分工
+   * （D-041 ② 安全堆），无完成量横比维度；不引入 dueDate（D-042 / G4 无硬截止）。
+   */
+  async createTask(draft: TaskDraft): Promise<Task> {
+    const now = this.clock.now().toISOString();
+    const task: Task = {
+      ...draft,
+      id: `task-new-${this.snapshot.tasks.length + 1}`,
+      status: draft.status ?? 'pending',
+      statusSource: draft.statusSource ?? 'console',
+      lastProgressAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.snapshot.tasks.push(task);
+    return task;
   }
 
   async createDependency(_draft: DependencyDraft): Promise<Dependency> {
