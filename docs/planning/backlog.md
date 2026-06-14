@@ -45,6 +45,15 @@
 | LARK-BIN-PROBE | pending（跨根前置，D-040） | probe/fix | **lark bin 双语义债实测 + 统一修**（KB R5 拉飞书资料 / INV bitable 的前置）：`cli-bridge.ts:17,47` 调 `execa('lark', …)` 但 `:22` 报错写 `'lark-cli not found'`，KB/INV 设计修复方向相反、无法从代码判定。**实测由用户在 WSL2（100.78.202.84）跑**（那台是测试机、不默认 SSH）：`which lark && which lark-cli && lark --version`；bin 名错→改 execa 参数，否则→改 message。顺带可实测 `wiki.v1.documents.get` / `bitable…record.search` method 名（风险5）。详见 `docs/design/three-pillar-reqdesign.md` §4 |
 | HUB-HERMES-ADAPTER | pending (**最后做**, D-042) | code/design | **统一触点能力：项目调用 Hermes/openclaw**（四层架构最上层，先搭壳子→最后接，一次接多根受益）。能力是真的（Hermes 已接通能调飞书 CLI），缺口在项目侧"去调用助手"的对接代码。接上后：库存**对话记账**（"坏了一个 3508"→助手记一笔同步表）+ 知识库随手沉淀 + 进度表随口更新 走同一条路。接时核 `LARK-BIN-PROBE` 细节、mock-first、§3/§8 审批门后。归 D-036 openclaw=Hermes 类 adapter 轨（≠ 否决的 openclaw-lark 协议桥）|
 
+## P1 — Console 收尾 / UI 打磨（D-048 后，2026-06-14 立项；当轮只记录未实现）
+
+> 用户 2026-06-14：humanizer-zh skill 已装（全局 `~/.claude/skills/humanizer-zh`，是去 AI 味改写指南）；下面两项**只先记录**、本轮不实现，等用户排期。完整执行细节见 plan `~/.claude/plans/git-humanizer-zh-skill-dapper-pearl.md` 第 2/3 步。
+
+| 任务 | 状态 | type | 内容 |
+|------|------|------|------|
+| CONSOLE-COPY-HUMANIZE | pending (P1, 记录待做) | chore | **清理用户可见文案的"AI 味/治理黑话"**，用 humanizer-zh 原则改写（保留真信息如"全员可见"，删口号+宪法代号 C2/I0/A1+度量黑话"词重合度/同因/派生/归组不归人"；**只改 value 不动 key**，zh/en 两处同步）。约 8 处必改：`apps/hub-console/src/i18n/translations.ts` 的 `pm.create.title`(录入·全员可见的协作真相)/`pm.create.subtitle`(不记谁快谁慢、不排名)/`pm.field.needDescription`(归组不归人)/`kb.empty`/`kb.closeout.intro`/`kb.closeout.success.knowledge`(派生知识点)；后端可见串 `apps/hub-server/src/contracts.ts` `KB_SIMILAR_NOTE` + `apps/hub-contracts/src/kb-closeout.ts` `deriveKnowledgeNodeFromIssue` 的 `踩过的坑：` 前缀。**连带**：grep 改字面量的测试同步改；hub-console/hub-server/hub-contracts verify:all |
+| CONSOLE-SETTINGS-PAGE | pending (P1, 记录待做；灰项其余先留) | code | **把侧栏灰占位「设置」做成真页面** `features/settings/SettingsPage.tsx`：收纳 数据源(real/mock，复用 App `source`/`setSource`)/语言(`useI18n` lang)/后端地址(`localStorage['teamhub.apiBase']` 覆盖 VITE_API_BASE + 重置)/关于(service·version·mode 取 `/api/system/status`)。接线：`ConsoleLayout` `ConsolePage` 加 `'settings'` + 给设置项 `page:'settings'`(**只解禁这一个**)；`App.tsx` 路由 + 下传 setSource；i18n settings.* 键 zh/en 同步。**用户定：适配器/事件/协作桥/git/图纸 这些灰占位先留着不动**，等定优先级/设计。赛季/项目切换器无后端、不做 |
+
 ## 挂起 — 治理 AI 派生（D-039：AI 退出治理，想法不丢）
 
 > D-039：第一轮治理判断回归人（大三/学长看"人读说明视图"自行协调），AI 不参与治理。以下整簇 spec 保留、代码本就近零、**不删**，冻在此处。**复活触发条件 = 未来确认要让 AI 参与治理判断**（自动分辨 blocked-idle vs lazy-idle / 自动派活 / 自动 silence）；届时从这里取回图纸。
