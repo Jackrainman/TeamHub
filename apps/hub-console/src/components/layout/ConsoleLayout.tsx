@@ -1,16 +1,5 @@
 import type { PropsWithChildren } from 'react';
-import {
-  Activity,
-  BookOpen,
-  Boxes,
-  GitBranch,
-  Home,
-  LayoutGrid,
-  Network,
-  RadioTower,
-  Settings,
-  Users,
-} from 'lucide-react';
+import { BookOpen, Home, LayoutGrid, Network, Settings } from 'lucide-react';
 import { useI18n, type TranslationKey } from '../../i18n';
 
 export type ConsolePage = 'overview' | 'dep-graph' | 'kb' | 'pm' | 'settings';
@@ -27,11 +16,6 @@ const navItems: NavItem[] = [
   { labelKey: 'nav.depGraph', icon: Network, page: 'dep-graph' },
   { labelKey: 'nav.kb', icon: BookOpen, page: 'kb' },
   { labelKey: 'nav.pm', icon: LayoutGrid, page: 'pm' },
-  { labelKey: 'nav.adapters', icon: RadioTower },
-  { labelKey: 'nav.events', icon: Activity },
-  { labelKey: 'nav.bridge', icon: Users },
-  { labelKey: 'nav.git', icon: GitBranch },
-  { labelKey: 'nav.artifacts', icon: Boxes },
   { labelKey: 'nav.settings', icon: Settings, page: 'settings' },
 ];
 

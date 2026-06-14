@@ -6,15 +6,10 @@ export type Lang = 'zh' | 'en';
 
 const zh = {
   // 品牌 / 导航
-  'brand.subtitle.mock': 'Mock 数据',
-  'brand.subtitle.real': '真实 API',
+  'brand.subtitle.mock': '演示数据 · 不连后端',
+  'brand.subtitle.real': '真实数据 · 连服务器',
   'nav.overview': '总览',
   'nav.depGraph': '依赖图',
-  'nav.adapters': '适配器',
-  'nav.events': '事件',
-  'nav.bridge': '协作桥',
-  'nav.git': 'Git 仓库',
-  'nav.artifacts': '图纸档案',
   'nav.settings': '设置',
   'nav.soon': '即将上线',
 
@@ -30,9 +25,9 @@ const zh = {
   'settings.section.language': '界面语言',
   'settings.section.apiBase': '后端地址',
   'settings.section.about': '关于',
-  'settings.dataSource.desc': '真实 API 连后端；Mock 用内置演示数据（无需后端也能看界面）。',
-  'settings.dataSource.real': '真实 API',
-  'settings.dataSource.mock': 'Mock 演示',
+  'settings.dataSource.desc': '「真实数据」连服务器、改动会保存；「演示数据」用内置示例、不连后端，刷新后复位。',
+  'settings.dataSource.real': '真实数据',
+  'settings.dataSource.mock': '演示数据',
   'settings.language.desc': '只切界面文案；任务名 / 负责人等数据保持原样。',
   'settings.language.zh': '中文',
   'settings.language.en': 'English',
@@ -42,7 +37,7 @@ const zh = {
   'settings.apiBase.current': '当前生效：{value}',
   'settings.apiBase.apply': '应用并重载',
   'settings.apiBase.reset': '恢复默认',
-  'settings.apiBase.mockNote': '当前是 Mock 模式，后端地址不生效——切到真实 API 后再设。',
+  'settings.apiBase.mockNote': '当前是演示数据模式，后端地址不生效——切到真实数据后再设。',
   'settings.about.service': '服务',
   'settings.about.version': '版本',
   'settings.about.mode': '运行模式',
@@ -50,7 +45,7 @@ const zh = {
 
   // 总览
   'overview.loading': '正在加载控制台状态…',
-  'overview.unavailable': '控制台状态不可用（后端没连上？可切到 Mock 看界面）',
+  'overview.unavailable': '控制台状态不可用（后端没连上？可切到演示数据看界面）',
   'overview.metric.system': '系统',
   'overview.metric.adapters': '适配器',
   'overview.metric.bridge': '协作桥',
@@ -70,7 +65,7 @@ const zh = {
 
   // 依赖图
   'depgraph.loading': '正在加载依赖图…',
-  'depgraph.unavailable': '依赖图不可用（后端没连上？可切到 Mock 看界面）',
+  'depgraph.unavailable': '依赖图不可用（后端没连上？可切到演示数据看界面）',
   'depgraph.status.working': '进行中',
   'depgraph.status.blockedIdle': '被卡 · 等待',
   'depgraph.status.freeIdle': '可接任务',
@@ -150,7 +145,7 @@ const zh = {
   'kb.empty':
     '输入症状后检索：系统按词重合度召回跨赛季的同类历史 bug，只列候选、不替你下「同因」结论。',
   'kb.loading': '正在检索相似历史…',
-  'kb.error': '检索失败（后端没连上？可切到 Mock 看界面）',
+  'kb.error': '检索失败（后端没连上？可切到演示数据看界面）',
   'kb.noResults': '没有命中的历史记录（可放宽标签或换个说法再试）。',
   'kb.result.count': '{n} 条候选',
   'kb.result.score': '匹配度 {n}',
@@ -168,7 +163,7 @@ const zh = {
 
   // 项目看板页
   'pm.loading': '正在加载任务看板…',
-  'pm.error': '任务看板不可用（后端没连上？可切到 Mock 看界面）',
+  'pm.error': '任务看板不可用（后端没连上？可切到演示数据看界面）',
   'pm.empty': '暂无任务。',
   'pm.summary.total': '任务总数',
   'pm.summary.blocked': '被卡',
@@ -264,15 +259,10 @@ const zh = {
 export type TranslationKey = keyof typeof zh;
 
 const en: Record<TranslationKey, string> = {
-  'brand.subtitle.mock': 'Mock data',
-  'brand.subtitle.real': 'Live API',
+  'brand.subtitle.mock': 'Demo data · offline',
+  'brand.subtitle.real': 'Live data · connected',
   'nav.overview': 'Overview',
   'nav.depGraph': 'Dep graph',
-  'nav.adapters': 'Adapters',
-  'nav.events': 'Events',
-  'nav.bridge': 'Bridge',
-  'nav.git': 'Git repos',
-  'nav.artifacts': 'Artifacts',
   'nav.settings': 'Settings',
   'nav.soon': 'Coming soon',
 
@@ -287,9 +277,9 @@ const en: Record<TranslationKey, string> = {
   'settings.section.apiBase': 'Backend address',
   'settings.section.about': 'About',
   'settings.dataSource.desc':
-    'Live API talks to the backend; Mock uses built-in demo data (preview the UI with no backend).',
-  'settings.dataSource.real': 'Live API',
-  'settings.dataSource.mock': 'Mock demo',
+    '"Live data" connects to the server and persists changes; "Demo data" uses built-in samples, needs no backend, and resets on refresh.',
+  'settings.dataSource.real': 'Live data',
+  'settings.dataSource.mock': 'Demo data',
   'settings.language.desc': 'Switches UI copy only; task names / owners stay as-is.',
   'settings.language.zh': '中文',
   'settings.language.en': 'English',
@@ -301,7 +291,7 @@ const en: Record<TranslationKey, string> = {
   'settings.apiBase.apply': 'Apply & reload',
   'settings.apiBase.reset': 'Reset to default',
   'settings.apiBase.mockNote':
-    'Mock mode is on — backend address has no effect. Switch to Live API first.',
+    'Demo-data mode is on — backend address has no effect. Switch to Live data first.',
   'settings.about.service': 'Service',
   'settings.about.version': 'Version',
   'settings.about.mode': 'Server mode',
@@ -309,7 +299,7 @@ const en: Record<TranslationKey, string> = {
 
   'overview.loading': 'Loading console state…',
   'overview.unavailable':
-    'Console state unavailable (backend not reachable? switch to Mock to preview the UI)',
+    'Console state unavailable (backend not reachable? switch to Demo data to preview the UI)',
   'overview.metric.system': 'System',
   'overview.metric.adapters': 'Adapters',
   'overview.metric.bridge': 'Bridge',
@@ -329,7 +319,7 @@ const en: Record<TranslationKey, string> = {
 
   'depgraph.loading': 'Loading dependency graph…',
   'depgraph.unavailable':
-    'Dependency graph unavailable (backend not reachable? switch to Mock to preview the UI)',
+    'Dependency graph unavailable (backend not reachable? switch to Demo data to preview the UI)',
   'depgraph.status.working': 'In progress',
   'depgraph.status.blockedIdle': 'Blocked · waiting',
   'depgraph.status.freeIdle': 'Available',
@@ -406,7 +396,7 @@ const en: Record<TranslationKey, string> = {
   'kb.empty':
     'Enter a symptom to search: the system recalls same-class historical bugs across seasons by term overlap — candidates only, it never concludes "same cause" for you.',
   'kb.loading': 'Searching similar history…',
-  'kb.error': 'Search failed (backend not reachable? switch to Mock to preview the UI)',
+  'kb.error': 'Search failed (backend not reachable? switch to Demo data to preview the UI)',
   'kb.noResults': 'No matching history (loosen tags or rephrase and retry).',
   'kb.result.count': '{n} candidates',
   'kb.result.score': 'Match {n}',
@@ -423,7 +413,7 @@ const en: Record<TranslationKey, string> = {
   'kb.status.needsManualReview': 'Needs review',
 
   'pm.loading': 'Loading task board…',
-  'pm.error': 'Task board unavailable (backend not reachable? switch to Mock to preview the UI)',
+  'pm.error': 'Task board unavailable (backend not reachable? switch to Demo data to preview the UI)',
   'pm.empty': 'No tasks yet.',
   'pm.summary.total': 'Total tasks',
   'pm.summary.blocked': 'Blocked',
