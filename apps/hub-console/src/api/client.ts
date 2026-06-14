@@ -22,6 +22,7 @@ import {
   OverviewSnapshotSchema,
   SystemStatusResponseSchema,
   type OverviewSnapshot,
+  type SystemStatusResponse,
 } from './schemas/system';
 import {
   KbSimilarResponseSchema,
@@ -53,6 +54,7 @@ export interface HubApiClientOptions {
 export interface HubApiClient {
   mode: 'mock' | 'real';
   getOverview(): Promise<OverviewSnapshot>;
+  getSystemStatus(): Promise<SystemStatusResponse>;
   getDepGraph(): Promise<DepGraph>;
   getKbSimilar(params: KbSimilarParams): Promise<KbSimilarResponse>;
   getTasks(): Promise<{ tasks: Task[] }>;
@@ -78,6 +80,9 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
       mode: 'mock',
       async getOverview() {
         return OverviewSnapshotSchema.parse(mockOverviewSnapshot);
+      },
+      async getSystemStatus() {
+        return SystemStatusResponseSchema.parse(mockOverviewSnapshot.system);
       },
       async getDepGraph() {
         return DepGraphSchema.parse(mockDepGraph);
@@ -202,6 +207,13 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         gitRepos,
         artifacts,
       });
+    },
+    async getSystemStatus() {
+      return fetchJson(
+        `${baseUrl}/api/system/status`,
+        SystemStatusResponseSchema,
+        fetcher,
+      );
     },
     async getDepGraph() {
       return fetchJson(`${baseUrl}/api/dep-graph`, DepGraphSchema, fetcher);

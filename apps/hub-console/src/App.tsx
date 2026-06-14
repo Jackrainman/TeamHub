@@ -11,20 +11,30 @@ import { OverviewPage } from './features/overview/OverviewPage';
 import { DepGraphPage } from './features/dep-graph/DepGraphPage';
 import { KbSearchPage } from './features/kb/KbSearchPage';
 import { PmBoardPage } from './features/pm/PmBoardPage';
+import { SettingsPage } from './features/settings/SettingsPage';
 import { useI18n, type TranslationKey } from './i18n';
 
 const SOURCE_KEY = 'teamhub.dataSource';
+const APIBASE_KEY = 'teamhub.apiBase';
 
 const TITLE_KEY: Record<ConsolePage, TranslationKey> = {
   overview: 'toolbar.title.overview',
   'dep-graph': 'toolbar.title.depGraph',
   kb: 'toolbar.title.kb',
   pm: 'toolbar.title.pm',
+  settings: 'toolbar.title.settings',
 };
 
 function readInitialSource(): DataSource {
   if (typeof window === 'undefined') return 'real';
   return window.localStorage.getItem(SOURCE_KEY) === 'mock' ? 'mock' : 'real';
+}
+
+// 真实模式后端地址：localStorage 覆盖（设置页可改）> VITE_API_BASE > 同源 '/'。
+function readApiBase(): string {
+  const override = window.localStorage.getItem(APIBASE_KEY)?.trim();
+  if (override) return override;
+  return import.meta.env.VITE_API_BASE ?? '/';
 }
 
 export function App() {
@@ -41,7 +51,7 @@ export function App() {
   const apiClient = useMemo(
     () =>
       createHubApiClient({
-        baseUrl: source === 'real' ? import.meta.env.VITE_API_BASE ?? '/' : undefined,
+        baseUrl: source === 'real' ? readApiBase() : undefined,
       }),
     [source],
   );
@@ -52,13 +62,7 @@ export function App() {
   });
 
   return (
-    <ConsoleLayout
-      mode={apiClient.mode}
-      source={source}
-      onToggleSource={() => setSource((p) => (p === 'real' ? 'mock' : 'real'))}
-      page={page}
-      onNavigate={setPage}
-    >
+    <ConsoleLayout mode={apiClient.mode} page={page} onNavigate={setPage}>
       <div className="console-toolbar">
         <div>
           <p className="eyebrow">{t('toolbar.eyebrow')}</p>
@@ -88,6 +92,12 @@ export function App() {
         <KbSearchPage client={apiClient} source={source} />
       ) : page === 'pm' ? (
         <PmBoardPage client={apiClient} source={source} />
+      ) : page === 'settings' ? (
+        <SettingsPage
+          client={apiClient}
+          source={source}
+          onChangeSource={setSource}
+        />
       ) : null}
     </ConsoleLayout>
   );

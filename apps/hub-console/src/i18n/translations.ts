@@ -24,13 +24,29 @@ const zh = {
   'toolbar.title.depGraph': '依赖链 · 阻塞归因',
   'toolbar.refresh': '刷新总览',
 
-  // 侧栏开关
-  'control.language': '语言',
-  'control.language.title': '切换语言（中文 / English）',
-  'control.source': '数据源',
-  'control.source.live': '真实',
-  'control.source.mock': 'Mock',
-  'control.source.title': '切换数据源（真实 API / Mock 演示）',
+  // 设置页
+  'toolbar.title.settings': '设置',
+  'settings.section.dataSource': '数据源',
+  'settings.section.language': '界面语言',
+  'settings.section.apiBase': '后端地址',
+  'settings.section.about': '关于',
+  'settings.dataSource.desc': '真实 API 连后端；Mock 用内置演示数据（无需后端也能看界面）。',
+  'settings.dataSource.real': '真实 API',
+  'settings.dataSource.mock': 'Mock 演示',
+  'settings.language.desc': '只切界面文案；任务名 / 负责人等数据保持原样。',
+  'settings.language.zh': '中文',
+  'settings.language.en': 'English',
+  'settings.apiBase.desc': '覆盖默认后端地址，仅真实模式生效；改动后会重新加载页面。',
+  'settings.apiBase.label': '后端地址',
+  'settings.apiBase.placeholder': '例如 http://100.78.202.84:4177',
+  'settings.apiBase.current': '当前生效：{value}',
+  'settings.apiBase.apply': '应用并重载',
+  'settings.apiBase.reset': '恢复默认',
+  'settings.apiBase.mockNote': '当前是 Mock 模式，后端地址不生效——切到真实 API 后再设。',
+  'settings.about.service': '服务',
+  'settings.about.version': '版本',
+  'settings.about.mode': '运行模式',
+  'settings.about.unavailable': '后端状态不可用（未连上？）',
 
   // 总览
   'overview.loading': '正在加载控制台状态…',
@@ -90,9 +106,7 @@ const zh = {
   'toolbar.title.kb': '相似 Bug 检索 · 跨赛季召回',
   'toolbar.title.pm': '项目计划表 · 任务看板',
 
-  // 无障碍 landmark 标签（aria-label）+ 语言自名（随界面语言走，整体汉化）
-  'control.language.value.zh': '中文',
-  'control.language.value.en': 'EN',
+  // 无障碍 landmark 标签（aria-label）
   'layout.sidebar.nav': '控制台导航',
   'overview.section.summary': '系统摘要',
   'depgraph.summary.aria': '依赖摘要',
@@ -267,12 +281,31 @@ const en: Record<TranslationKey, string> = {
   'toolbar.title.depGraph': 'Dependency · Blocking',
   'toolbar.refresh': 'Refresh overview',
 
-  'control.language': 'Language',
-  'control.language.title': 'Switch language (中文 / English)',
-  'control.source': 'Data source',
-  'control.source.live': 'Live',
-  'control.source.mock': 'Mock',
-  'control.source.title': 'Toggle data source (Live API / Mock demo)',
+  'toolbar.title.settings': 'Settings',
+  'settings.section.dataSource': 'Data source',
+  'settings.section.language': 'Language',
+  'settings.section.apiBase': 'Backend address',
+  'settings.section.about': 'About',
+  'settings.dataSource.desc':
+    'Live API talks to the backend; Mock uses built-in demo data (preview the UI with no backend).',
+  'settings.dataSource.real': 'Live API',
+  'settings.dataSource.mock': 'Mock demo',
+  'settings.language.desc': 'Switches UI copy only; task names / owners stay as-is.',
+  'settings.language.zh': '中文',
+  'settings.language.en': 'English',
+  'settings.apiBase.desc':
+    'Override the default backend address (Live mode only); the page reloads after applying.',
+  'settings.apiBase.label': 'Backend address',
+  'settings.apiBase.placeholder': 'e.g. http://100.78.202.84:4177',
+  'settings.apiBase.current': 'In effect: {value}',
+  'settings.apiBase.apply': 'Apply & reload',
+  'settings.apiBase.reset': 'Reset to default',
+  'settings.apiBase.mockNote':
+    'Mock mode is on — backend address has no effect. Switch to Live API first.',
+  'settings.about.service': 'Service',
+  'settings.about.version': 'Version',
+  'settings.about.mode': 'Server mode',
+  'settings.about.unavailable': 'Backend status unavailable (not connected?)',
 
   'overview.loading': 'Loading console state…',
   'overview.unavailable':
@@ -332,8 +365,6 @@ const en: Record<TranslationKey, string> = {
   'toolbar.title.kb': 'Similar-bug Search · Cross-season Recall',
   'toolbar.title.pm': 'Project Plan · Task Board',
 
-  'control.language.value.zh': '中文',
-  'control.language.value.en': 'EN',
   'layout.sidebar.nav': 'Console navigation',
   'overview.section.summary': 'System summary',
   'depgraph.summary.aria': 'Dependency summary',

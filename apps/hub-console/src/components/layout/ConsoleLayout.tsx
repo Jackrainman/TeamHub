@@ -3,10 +3,8 @@ import {
   Activity,
   BookOpen,
   Boxes,
-  Database,
   GitBranch,
   Home,
-  Languages,
   LayoutGrid,
   Network,
   RadioTower,
@@ -15,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useI18n, type TranslationKey } from '../../i18n';
 
-export type ConsolePage = 'overview' | 'dep-graph' | 'kb' | 'pm';
+export type ConsolePage = 'overview' | 'dep-graph' | 'kb' | 'pm' | 'settings';
 export type DataSource = 'real' | 'mock';
 
 interface NavItem {
@@ -34,13 +32,11 @@ const navItems: NavItem[] = [
   { labelKey: 'nav.bridge', icon: Users },
   { labelKey: 'nav.git', icon: GitBranch },
   { labelKey: 'nav.artifacts', icon: Boxes },
-  { labelKey: 'nav.settings', icon: Settings },
+  { labelKey: 'nav.settings', icon: Settings, page: 'settings' },
 ];
 
 interface ConsoleLayoutProps {
   mode: 'mock' | 'real';
-  source: DataSource;
-  onToggleSource: () => void;
   page: ConsolePage;
   onNavigate: (page: ConsolePage) => void;
 }
@@ -48,12 +44,10 @@ interface ConsoleLayoutProps {
 export function ConsoleLayout({
   children,
   mode,
-  source,
-  onToggleSource,
   page,
   onNavigate,
 }: PropsWithChildren<ConsoleLayoutProps>) {
-  const { t, lang, toggleLang } = useI18n();
+  const { t } = useI18n();
 
   return (
     <div className="console-shell">
@@ -89,41 +83,6 @@ export function ConsoleLayout({
             );
           })}
         </nav>
-
-        <div className="console-controls">
-          <button
-            className="control-toggle"
-            type="button"
-            onClick={toggleLang}
-            title={t('control.language.title')}
-            aria-label={t('control.language.title')}
-          >
-            <Languages aria-hidden="true" size={15} />
-            <span className="control-toggle__label">{t('control.language')}</span>
-            <span className="control-toggle__value">
-              {t(
-                lang === 'zh'
-                  ? 'control.language.value.zh'
-                  : 'control.language.value.en',
-              )}
-            </span>
-          </button>
-          <button
-            className="control-toggle"
-            type="button"
-            onClick={onToggleSource}
-            title={t('control.source.title')}
-            aria-label={t('control.source.title')}
-          >
-            <Database aria-hidden="true" size={15} />
-            <span className="control-toggle__label">{t('control.source')}</span>
-            <span
-              className={`control-toggle__value control-toggle__value--${source}`}
-            >
-              {source === 'real' ? t('control.source.live') : t('control.source.mock')}
-            </span>
-          </button>
-        </div>
       </aside>
       <main className="console-main" id="console-main">
         {children}
