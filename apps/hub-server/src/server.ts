@@ -13,13 +13,19 @@ import {
   GOVERNANCE_SCENARIO_NOW,
   HealthResponseSchema,
   HubEventsResponseSchema,
+  KB_SIMILAR_NOTE,
+  KbSimilarQuerySchema,
+  KbSimilarResponseSchema,
   SystemStatusResponseSchema,
+  rankSimilarIssues,
   toDepGraphView,
   apiContractFixtures,
 } from './contracts.js';
+import type { IssueCard } from '@teamhub/hub-contracts';
 import { FixedClock } from './clock.js';
 import type { Clock } from './clock.js';
 import { InMemoryGovStore } from './store/mock-gov-store.js';
+import { InMemoryKbStore } from './store/mock-kb-store.js';
 import type { GovStore, InvStore, KbStore } from './store/gov-store.js';
 import { listMockAdapters } from './mock-adapters.js';
 import {
@@ -64,9 +70,9 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   const store: GovStore = options.store ?? new InMemoryGovStore();
   const clock: Clock =
     options.clock ?? new FixedClock(new Date(GOVERNANCE_SCENARIO_NOW));
-  // kbStore/invStore 本刀只钉 options 字段、不在此 body 解析 = 路由后置（C3 不一把梭，非遗漏）：
-  // 当前无消费方，解析无处可去；KB-CORE/INV 路由落地时各自 `options.kbStore ?? store` / 透传 options.invStore，
-  // 只在 body 加解析行、签名不变，不迫使重切 base。
+  // KB-CORE：知识库相似检索语料读出入口（缺省 InMemoryKbStore seed kbScenarioFixture），由 GET /api/kb/similar 消费。
+  // invStore 仍只钉 options 字段、无消费方（INV 支柱落地时透传），符合 base 收口刀「扩展点先行、路由后置」节奏。
+  const kbStore: KbStore = options.kbStore ?? new InMemoryKbStore();
 
   app.get('/health', async () => {
     return HealthResponseSchema.parse(buildHealthResponse());
@@ -136,6 +142,51 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   app.get('/api/dep-graph', async () => {
     const snapshot = await store.getSnapshot();
     return DepGraphSchema.parse(toDepGraphView(snapshot, clock.now().toISOString()));
+  });
+
+  // KB-CORE：症状 → top-N 相似历史 bug（跨赛季同类 bug 召回）。纯函数 rankSimilarIssues 在 KbStore 语料上排序。
+  // A4 护栏：响应 note 明示「只列候选、不断言同因、由人选用」；返回主键是 issue/errorCode，无人维度（C2）。
+  app.get('/api/kb/similar', async (request, reply) => {
+    const parsed = KbSimilarQuerySchema.safeParse(request.query ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid query' });
+      return;
+    }
+    const { symptom, tags, projectId, limit, minScore } = parsed.data;
+    const kb = await kbStore.getKbSnapshot();
+    const now = clock.now().toISOString();
+    // 用症状构造一张「当前问题卡」喂排序纯函数；id 不与历史撞、projectId 默认对齐语料库
+    const currentIssue: IssueCard = {
+      id: 'iss-probe',
+      projectId: projectId ?? kb.projectId,
+      title: symptom,
+      rawInput: symptom,
+      normalizedSummary: symptom,
+      symptomSummary: symptom,
+      suspectedDirections: [],
+      suggestedActions: [],
+      status: 'open',
+      severity: 'medium',
+      tags,
+      relatedFiles: [],
+      relatedCommits: [],
+      relatedHistoricalIssueIds: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    const items = rankSimilarIssues({
+      currentIssue,
+      issues: kb.issueCards,
+      errorEntries: kb.errorEntries,
+      archives: kb.archiveDocuments,
+      limit,
+      minScore,
+    });
+    return KbSimilarResponseSchema.parse({
+      query: { symptom, tags },
+      items,
+      note: KB_SIMILAR_NOTE,
+    });
   });
 
   app.setNotFoundHandler(async (request, reply) => {
