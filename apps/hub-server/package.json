@@ -15,6 +15,7 @@
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js",
+    "kb:import": "node dist/import/import-debug-archive.js",
     "build": "npm run build:contracts && npm run build:local",
     "build:contracts": "tsc -p ../hub-contracts/tsconfig.json",
     "build:local": "tsc -p tsconfig.json",

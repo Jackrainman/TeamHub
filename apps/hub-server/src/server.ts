@@ -32,6 +32,7 @@ import {
   apiContractFixtures,
 } from './contracts.js';
 import type { IssueCard } from '@teamhub/hub-contracts';
+import { deriveErrorCode } from './kb/error-code.js';
 import { FixedClock } from './clock.js';
 import type { Clock } from './clock.js';
 import { InMemoryGovStore } from './store/mock-gov-store.js';
@@ -73,17 +74,6 @@ export interface BuildHubServerOptions {
    * 缺省 undefined，INV 支柱落地时注入实现 InvStore 的实例（对话记账 / 盘点 / 缺口汇报）。
    */
   invStore?: InvStore;
-}
-
-/**
- * 由结案时刻 + issue.id 确定性派生 `DBG-YYYYMMDD-NNN` 错误码（不引入 Math.random，可单测复现）。
- * NNN = issue.id 简单哈希 mod 1000；同一 issue 同一天稳定。
- */
-function deriveErrorCode(now: string, issueId: string): string {
-  const datePart = now.slice(0, 10).replace(/-/g, '');
-  let hash = 0;
-  for (const ch of issueId) hash = (hash * 31 + ch.charCodeAt(0)) % 1000;
-  return `DBG-${datePart}-${String(hash).padStart(3, '0')}`;
 }
 
 export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInstance {
