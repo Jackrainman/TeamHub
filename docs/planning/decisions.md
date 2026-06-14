@@ -721,3 +721,19 @@
 - 影响 / 落地：`apps/hub-server/src/{main,server}.ts` + `store/{gov-store,mock-kb-store,file-kb-store}.ts` + 2 测试文件 + `.agents/skills/kb-debug/`。
 - 后续（backlog/frontier）：ProbeFlash `.debug-archive` 一次性导入（markdown→IssueCard best-effort 解析器）；真实时钟注入（持久模式配 RealClock，需调和治理 fixture 冻结）；简化 archive 端点（server 端建 IssueCard 让 skill payload 更瘦）；embedding 重排；LAN 托管 + 飞书登录。
 - 事实源：本 ADR；plan file `linear-herding-blanket.md`；Explore 调研（TeamHub KB 后端两洞 + ProbeFlash 设计参考）；用户 2026-06-14「AI+知识库 / skill / 服务器为单一真相」请求。
+
+## D-049 — Console 设置页落地 + 代码审计落档（CONSOLE-SETTINGS-PAGE done / AUDIT 记录）
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-14；hub-console verify:all 绿 + 本地 Playwright 真机视觉验收；审计为落档非修复）
+- 日期：2026-06-14
+- 上下文：D-048 后用户先要一次代码级审计（15-agent 对抗，产出 confirmed 42），再把已立项的 `CONSOLE-SETTINGS-PAGE`（commit 4c65b61 记录待做）提为优先级 #1 做出来；审计修复按用户定「等彻底构建完统一批次」后置。
+- 决策（落地形态）：
+  1. **设置页**（新 `features/settings/SettingsPage.tsx`）四节：数据源（real/mock 段控，复用 App `source`/`setSource`）/ 语言（zh/en 段控，`useI18n().setLang`）/ 后端地址（`localStorage['teamhub.apiBase']` 覆盖 `VITE_API_BASE`，Apply/Reset 走 `reload`，mock 模式置灰）/ 关于（`client.getSystemStatus()` 取 service·version·mode + 回显 `client.mode`）。
+  2. **接线**：`ConsoleLayout` `ConsolePage` 加 `'settings'` + nav 项 `page:'settings'`（**只解禁这一个灰项**，其余灰项按用户定先留）；侧栏底部「语言/数据源」两快捷切换**移进设置页、侧栏移除**（用户选）；`App.tsx` `readApiBase()` + `TITLE_KEY` + 路由分支下传 client/source/setSource；`api/client.ts` 加 `getSystemStatus()`（接口 + mock + real）；i18n +23 `settings.*`（zh/en 对称）− 8 孤儿 `control.*`；`styles.css` 删 `.console-controls/.control-toggle*` + 加 `.settings-*`。
+  3. **审计落档**：`docs/planning/code-audit-2026-06-14.md`（confirmed 42：High 5/Med 16/Low 12/Nit 3 + 部署前必修 7 条）；`backlog.md` 加 `AUDIT-FIXES-2026-06-14` 索引行（修复后置）。
+- 宪法守恒：纯前端设置 + 文档，无领域/契约改动；I0/C2 等不触（设置页无人维度、不写治理数据）。审计本身确认读路径 I0 守住（dep-graph 边不带 actor 字段、`toDepGraphView` 只出结构键）。
+- 老实定位（不过度声称）：**审计 42 条仅落档、未修**（含 H1 依赖环卡死 / H2 FileKbStore 写链中毒 / H3 写端点零鉴权 等部署前必修，归 AUDIT-FIXES 批次，真开工可起新 ADR）；后端地址覆盖靠 `reload` 重建 client（非热切）；设置页不含赛季/项目切换（无后端、不做）。
+- 验证：hub-console `verify:all`（typecheck + 7 测 + build）全过；本地 Playwright 真机：设置页四节齐全、`getSystemStatus` real 路径拉到 teamhub-hub-server/0.0.1/mock-first、侧栏旧切换消失、「设置」可点其余灰项仍禁、唯一 console error 为 favicon 404（无关）；git diff 自审 6 改 2 新无杂散、`grep control.*` 0 残留。
+- 影响 / 落地：新 `apps/hub-console/src/features/settings/SettingsPage.tsx` + `docs/planning/code-audit-2026-06-14.md`；改 `apps/hub-console/src/{App,api/client,components/layout/ConsoleLayout,i18n/translations,styles.css}` + `docs/planning/backlog.md`。
+- 后续（backlog/frontier）：**AUDIT-FIXES-2026-06-14** 修复批次（部署前必修 7 条优先）；CONSOLE-COPY-HUMANIZE（文案去 AI 味，姊妹 P1 未做）；其余灰占位（适配器/事件/桥/git/图纸）待定优先级/设计。
+- 事实源：本 ADR；`docs/planning/code-audit-2026-06-14.md`；`backlog.md` CONSOLE-SETTINGS-PAGE/AUDIT-FIXES；plan `~/.claude/plans/rosy-giggling-dolphin.md`；用户 2026-06-14「记录审计 + 设置页优先 + git diff 审计」请求。
