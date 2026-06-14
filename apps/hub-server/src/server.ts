@@ -14,9 +14,12 @@ import {
   HealthResponseSchema,
   HubEventsResponseSchema,
   KB_SIMILAR_NOTE,
+  KbCloseoutRequestSchema,
+  KbCloseoutResponseSchema,
   KbSimilarQuerySchema,
   KbSimilarResponseSchema,
   SystemStatusResponseSchema,
+  buildCloseoutFromIssue,
   rankSimilarIssues,
   toDepGraphView,
   apiContractFixtures,
@@ -63,6 +66,17 @@ export interface BuildHubServerOptions {
    * 缺省 undefined，INV 支柱落地时注入实现 InvStore 的实例（对话记账 / 盘点 / 缺口汇报）。
    */
   invStore?: InvStore;
+}
+
+/**
+ * 由结案时刻 + issue.id 确定性派生 `DBG-YYYYMMDD-NNN` 错误码（不引入 Math.random，可单测复现）。
+ * NNN = issue.id 简单哈希 mod 1000；同一 issue 同一天稳定。
+ */
+function deriveErrorCode(now: string, issueId: string): string {
+  const datePart = now.slice(0, 10).replace(/-/g, '');
+  let hash = 0;
+  for (const ch of issueId) hash = (hash * 31 + ch.charCodeAt(0)) % 1000;
+  return `DBG-${datePart}-${String(hash).padStart(3, '0')}`;
 }
 
 export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInstance {
@@ -186,6 +200,43 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
       query: { symptom, tags },
       items,
       note: KB_SIMILAR_NOTE,
+    });
+  });
+
+  // KB-CORE：结案闭环（用着就沉淀）。结案输入 → 归档 + 错误表 + 已归档卡 + 结案派生 KnowledgeNode（持久到 store）。
+  // I0：errorCode/id 由 clock + issue.id 确定性派生（不记结案人）；派生节点无人维度，来源凭证是结构。
+  app.post('/api/kb/closeout', async (request, reply) => {
+    const parsed = KbCloseoutRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      return;
+    }
+    const { issue, records, category, rootCause, resolution, prevention, generatedBy } =
+      parsed.data;
+    const now = clock.now().toISOString();
+    const result = buildCloseoutFromIssue(
+      issue,
+      records,
+      { category, rootCause, resolution, prevention },
+      {
+        now,
+        errorEntryId: `err-${issue.id}`,
+        errorCode: deriveErrorCode(now, issue.id),
+        generatedBy,
+      },
+    );
+    if (!result.ok) {
+      // 结案校验失败（如缺 rootCause / 卡已归档）→ 422，不伪造完成（§10）
+      void reply.code(422).send({ detail: result.reason });
+      return;
+    }
+    // 结案派生知识节点持久到治理快照（复用同一 GovernanceSnapshot，对抗核实确认成立）
+    const knowledgeNode = await store.closeoutKbNode(result.knowledgeNodeDraft);
+    return KbCloseoutResponseSchema.parse({
+      archiveDocument: result.archiveDocument,
+      errorEntry: result.errorEntry,
+      updatedIssueCard: result.updatedIssueCard,
+      knowledgeNode,
     });
   });
 

@@ -1,5 +1,13 @@
 import { z } from 'zod';
-import { SimilarIssueMatchSchema } from '@teamhub/hub-contracts';
+import {
+  SimilarIssueMatchSchema,
+  IssueCardSchema,
+  InvestigationRecordSchema,
+  ArchiveDocumentSchema,
+  ArchiveGeneratedBySchema,
+  ErrorEntrySchema,
+  KnowledgeNodeSchema,
+} from '@teamhub/hub-contracts';
 export {
   AdapterCapabilitiesResponseSchema,
   AdapterDescriptorSchema,
@@ -21,6 +29,7 @@ export {
   apiContractFixtures,
   SimilarIssueMatchSchema,
   rankSimilarIssues,
+  buildCloseoutFromIssue,
 } from '@teamhub/hub-contracts';
 export type {
   AdapterCapabilitiesResponse,
@@ -99,3 +108,28 @@ export const KbSimilarResponseSchema = z.object({
 });
 
 export type KbSimilarResponse = z.infer<typeof KbSimilarResponseSchema>;
+
+/**
+ * KB-CORE `POST /api/kb/closeout` 路由契约。结案输入（issue + 时间线 + 根因/处理）→ 归档 + 错误表 +
+ * 已归档卡 + 结案派生知识节点。`rootCause/resolution` 仍需手填（可行性 §2）；server 用 clock + issue.id
+ * 派生 errorCode/errorEntryId（确定性、可测）。**I0**：generatedBy 是 ai/manual/hybrid，不记结案人。
+ */
+export const KbCloseoutRequestSchema = z.object({
+  issue: IssueCardSchema,
+  records: z.array(InvestigationRecordSchema).default([]),
+  category: z.string().default(''),
+  rootCause: z.string(),
+  resolution: z.string(),
+  prevention: z.string().default(''),
+  generatedBy: ArchiveGeneratedBySchema.default('hybrid'),
+});
+
+export const KbCloseoutResponseSchema = z.object({
+  archiveDocument: ArchiveDocumentSchema,
+  errorEntry: ErrorEntrySchema,
+  updatedIssueCard: IssueCardSchema,
+  knowledgeNode: KnowledgeNodeSchema,
+});
+
+export type KbCloseoutRequest = z.infer<typeof KbCloseoutRequestSchema>;
+export type KbCloseoutResponse = z.infer<typeof KbCloseoutResponseSchema>;

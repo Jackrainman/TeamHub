@@ -17,11 +17,31 @@ describe('base 收口刀: GovStore 写白名单 + 扩展点 + 持久化切换合
     const snapshot = await store.getSnapshot();
     expect(snapshot.tasks.length).toBeGreaterThan(0);
 
-    // 写白名单四方法齐：实现后置 → throw（而非静默吞 / 就地实现成死表）
+    // PM 录入簇仍实现后置 → throw（而非静默吞 / 就地实现成死表）
     await expect(store.createTask({} as never)).rejects.toThrow(/后置/);
     await expect(store.createDependency({} as never)).rejects.toThrow(/后置/);
     await expect(store.createNeed({} as never)).rejects.toThrow(/后置/);
-    await expect(store.closeoutKbNode({} as never)).rejects.toThrow(/后置/);
+
+    // closeoutKbNode 已由 KB-CORE 实现：补 id + createdAt、追加节点、I0 无人维度
+    const node = await store.closeoutKbNode({
+      name: '踩过的坑：测试',
+      groupId: null,
+      parentNodeId: null,
+      resourceLinks: [],
+    });
+    expect(node.id).toMatch(/^kn-cl-/);
+    expect(node.createdAt).toMatch(/\dT\d/);
+    expect(node).not.toHaveProperty('memberId');
+    expect((await store.getSnapshot()).knowledgeNodes).toContainEqual(node);
+  });
+
+  test('closeoutKbNode 不污染共享 fixture：两个 store 各自独立', async () => {
+    const a = new InMemoryGovStore();
+    const b = new InMemoryGovStore();
+    const baseLen = (await b.getSnapshot()).knowledgeNodes.length;
+    await a.closeoutKbNode({ name: 'x', groupId: null, parentNodeId: null, resourceLinks: [] });
+    // b 的快照不受 a 写入影响（构造时已克隆 knowledgeNodes 数组）
+    expect((await b.getSnapshot()).knowledgeNodes.length).toBe(baseLen);
   });
 
   test('SqliteGovStore: 同一 GovStore interface 可落持久层（切换合约 stub，全 throw not implemented）', async () => {
