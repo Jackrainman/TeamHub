@@ -30,6 +30,8 @@ HUB_PORT="${HUB_PORT:-4177}"
 TEAMHUB_KB_DATA_FILE="${TEAMHUB_KB_DATA_FILE:-${HOME}/teamhub-data/kb.json}"
 TEAMHUB_GOV_DATA_FILE="${TEAMHUB_GOV_DATA_FILE:-${HOME}/teamhub-data/gov.json}"
 TEAMHUB_WRITE_TOKEN="${TEAMHUB_WRITE_TOKEN:-}"
+# 活体戳：注入 git short SHA 进 /health.buildId，重启后一行 curl 即知在服哪个构建（feiyue ?v= 校验等价）。
+TEAMHUB_BUILD_ID="${TEAMHUB_BUILD_ID:-$(git -C "${ROOT_DIR}" rev-parse --short HEAD 2>/dev/null || echo nogit)}"
 SKIP_BUILD="${TEAMHUB_SKIP_BUILD:-0}"
 
 # AUDIT H3：绑非 loopback 暴露写端点必须配 token，否则 server 拒启动。未配则自动生成并打印（演示便利 + 安全）。
@@ -70,12 +72,13 @@ fi
 
 # console 静态产物交给 server 单端口托管
 export TEAMHUB_CONSOLE_DIST_DIR="${CONSOLE_DIR}/dist"
-export TEAMHUB_KB_DATA_FILE TEAMHUB_GOV_DATA_FILE HUB_HOST HUB_PORT TEAMHUB_WRITE_TOKEN
+export TEAMHUB_KB_DATA_FILE TEAMHUB_GOV_DATA_FILE HUB_HOST HUB_PORT TEAMHUB_WRITE_TOKEN TEAMHUB_BUILD_ID
 
 echo "──────────────────────────────────────────────"
 echo " Team Hub 启动 → http://${HUB_HOST}:${HUB_PORT}  (console + API 同端口)"
 echo " 语料文件：${TEAMHUB_KB_DATA_FILE}"
 echo " 治理文件：${TEAMHUB_GOV_DATA_FILE}（PM/图纸/结案重启不丢）"
+echo " 构建戳：${TEAMHUB_BUILD_ID}　活体校验：curl -s http://127.0.0.1:${HUB_PORT}/health | grep buildId"
 if [[ "${HUB_HOST}" != "127.0.0.1" && "${HUB_HOST}" != "localhost" && "${HUB_HOST}" != "::1" ]]; then
   echo " 已绑 ${HUB_HOST}：写端点 POST /api/* 须带 Authorization: Bearer <token>（读端点不限）。"
   if [[ "${AUTO_TOKEN:-0}" == "1" ]]; then

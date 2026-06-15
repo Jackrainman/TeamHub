@@ -14,6 +14,10 @@ export const HealthResponseSchema = z.object({
   status: z.literal('ok'),
   service: z.literal('teamhub-hub-server'),
   checkedAt: isoDateTimeSchema,
+  // 活体戳（feiyue `?v=<ver>` + cache MISS 的等价）：区分「同 version 不同构建」。运行进程注入
+  // TEAMHUB_BUILD_ID（git SHA / 构建时戳），缺省回落 package.json version。重启后一行
+  // `curl /health | grep buildId` 即知在服的是哪个构建，不必靠日志猜。
+  buildId: z.string().min(1),
 });
 
 export const SystemStatusResponseSchema = z.object({

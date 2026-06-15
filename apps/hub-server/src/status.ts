@@ -16,6 +16,8 @@ export function buildHealthResponse(now = new Date()): HealthResponse {
     status: 'ok',
     service: SERVICE_NAME,
     checkedAt: now.toISOString(),
+    // 活体戳：运行进程注入 TEAMHUB_BUILD_ID（start-teamhub.sh 填 git SHA），缺省回落 package.json version。
+    buildId: process.env.TEAMHUB_BUILD_ID ?? VERSION,
   };
 }
 

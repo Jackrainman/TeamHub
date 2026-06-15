@@ -293,6 +293,7 @@ function responseByPath(path: string): unknown {
         status: 'ok',
         service: 'teamhub-hub-server',
         checkedAt: '2026-06-06T00:00:00.000Z',
+        buildId: 'test-build',
       };
     case '/api/system/status':
       return {
