@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "authority": "derived-cache-only; now.md/backlog.md/decisions.md remain authoritative",
+  "mode": "collab_design",
+  "stage": "2026-06-15 v1 能跑产品 done(D-061)：①治理快照落盘 FileGovStore(镜像 FileKbStore)+main.ts 接 TEAMHUB_GOV_DATA_FILE+compose 卷——PM/治理数据重启不丢 ②图纸提交日志(ArtifactRef 加 mechanism/revision/submittedVia+GovernanceSnapshot.artifacts+GET 读快照+8 条版本日志种子+console 图纸档案页按机构/版本/日期时间线) ③删 mock 单后端(删 api/mock/*+数据源开关，重写 client 测)。7-agent workflow wf_eb55b2ca-8fe(design-lock→后端→删mock→档案页→3-lens 对抗核实全 ship/mustFix=0)，6 原子 commit 5a2c96d→01d06f4 push。主循环独立核实三包 verify:all 绿(47/89/6)+真机 smoke(4199 单端口 /api/artifacts 8 条·落盘重启不丢·档案页视觉)。老实定位：真实 status/图纸上游派生未接(seam 留 statusSource/submittedVia+store? 注入口)·种子=测试数据(空板 1-flag 后置)·2 测断言强度 nit。权威=now.md/decisions.md D-061；前序 D-044~D-059。",
+  "current_task": null,
+  "frontier": [
+    "V1-FOLLOWUPS",
+    "DEPGRAPH-AI-AUTODRAW"
+  ],
+  "blocked": [],
+  "open_for_decision": [
+    "ARTIFACT-VERSION-SEMANTICS",
+    "REMOTE-ACCESS-DEPLOY",
+    "GITHUB-TO-LOCAL",
+    "PULL-CLOUD-CODE"
+  ]
+}
