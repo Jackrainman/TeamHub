@@ -15,6 +15,7 @@ frontier:                                # D-052 提案审查后重排(用户 Q1
   # ✅ AUDIT-FIXES-2026-06-14 done (D-059, 2026-06-15)：7 部署前必修全做——H1 依赖环(computeCriticalSet visited 守卫+wouldCreateCycle 纯函数+POST /dependencies 拒自环/成环)/H2 FileKbStore 写链失败隔离(catch reset+清 tmp)/H3 写端点 Bearer 鉴权+每 IP 限流+bodyLimit 256KB+main.ts 拒非 loopback 裸暴露/H4 status/statusSource 钳到安全 enum(拒 done/shelved/derived)/M6 create 响应剥 confirmedBy(I0)/H5+M11 compose 删幻影 Postgres+接 KB 持久卷/M9 errorCode 改同日单调序号防碰撞；+11 测(audit-fixes 10+H2 1+cycle-guard 6)；**3-lens 对抗核实(wf_99ea69cb：安全绕过/正确性/回归完整)全 ship·mustFix=0**(无可绕过、7 条全落、无回归、compose 闭环可启动)；三包 verify:all 绿
   # frontier 可执行项已耗尽：剩 DEPGRAPH-AI-AUTODRAW(Hermes 门·跳过) + 后置 KB-IMPORT-FOLLOWUP nit①②/INV 第三支柱(P1 最后)/正式部署上线/Hermes·KB-LARK(hardblock LARK-BIN-PROBE)/治理派生 仍挂起
 # P1：INV-BOM-DESIGN(库存/BOM，自保鲜护栏=等 AI 读出车图核数/算余量再做，绝不再造静态表 P13)+飞书 Bitable·sheets 读写+修 lark-cli bin bug；P2：资料/代码批量整理(AI 安全车道)、给老师项目级汇报
+# 2026-06-15 小 chore(fb228a5)：console 侧栏加「库存/BOM」灰色「开发中」导航占位(Boxes 图标·复用 page===undefined 灰禁用机制·tooltip nav.inv.soon·zh/en parity)——纯 UI「在做」信号，**不接后端/不建 INV schema·不翻 PILLAR-INV-BOM 的 done**，真正第三支柱仍按 P1 自保鲜护栏后置(completion-model PILLAR-INV-BOM 仍 not-started)
 # 挂起(D-039 AI 退治理，spec 留、复活触发=未来要 AI 参与治理判断)：GOV-MEMBER-STATUS-DERIVE / GOV-RULES-LAYER-DESIGN + D-032~035 治理派生整簇(GovernanceCue/silence 分河/give-floor/k-anon/audience 路由/阈值派生) + 自动派活 + freeIdle·双写债
 blocked: []
 open_for_decision:                       # ARCH-PATH(D-028)/提醒(D-026后续)/资源(D-029)/idle三态+静默(D-032)/受众路由(D-033) 已拍；SCHED-WINDOW/INVITED 排班可视化细项随 D-039 治理挂起(见 decisions.md D-029)；以下待用户线下细化
