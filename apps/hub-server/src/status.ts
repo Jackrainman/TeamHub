@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module';
 import type {
-  AdapterDescriptor,
+  AgentBackend,
   HealthResponse,
   SystemStatusResponse,
 } from './contracts.js';
@@ -19,8 +19,10 @@ export function buildHealthResponse(now = new Date()): HealthResponse {
   };
 }
 
+// 系统状态的 adapters 计数现按 Agent 后端统计（集成三分后，唯一仍用 enabled/degraded/unconfigured
+// 生命周期枚举的物种）。响应字段名沿用 `adapters` 不改，避免 console / 测试连锁；语义靠 i18n 标签消解。
 export function buildSystemStatusResponse(
-  adapters: AdapterDescriptor[],
+  agentBackends: AgentBackend[],
   now = new Date(),
   uptimeSeconds = process.uptime(),
 ): SystemStatusResponse {
@@ -31,17 +33,17 @@ export function buildSystemStatusResponse(
     generatedAt: now.toISOString(),
     uptimeSeconds,
     adapters: {
-      total: adapters.length,
-      enabled: countByStatus(adapters, 'enabled'),
-      degraded: countByStatus(adapters, 'degraded'),
-      unconfigured: countByStatus(adapters, 'unconfigured'),
+      total: agentBackends.length,
+      enabled: countByStatus(agentBackends, 'enabled'),
+      degraded: countByStatus(agentBackends, 'degraded'),
+      unconfigured: countByStatus(agentBackends, 'unconfigured'),
     },
   };
 }
 
 function countByStatus(
-  adapters: AdapterDescriptor[],
-  status: AdapterDescriptor['status'],
+  backends: AgentBackend[],
+  status: AgentBackend['status'],
 ): number {
-  return adapters.filter((adapter) => adapter.status === status).length;
+  return backends.filter((backend) => backend.status === status).length;
 }

@@ -1,12 +1,14 @@
 import type { GovernanceSnapshot } from './attribution.js';
 import type { ScheduleSnapshot } from './schedule.js';
 import type {
-  AdapterCapabilitiesResponse,
-  AdapterDescriptor,
-  AdapterHealthResponse,
-  AdapterInvokeResponse,
+  AgentBackend,
+  AgentBackendCapabilitiesResponse,
+  AgentBackendHealthResponse,
+  AgentBackendInvokeResponse,
   ArtifactRef,
+  BotChannel,
   BridgeMemberState,
+  DataSource,
   GitRepoRef,
   HubEvent,
 } from './schemas.js';
@@ -38,86 +40,110 @@ export const hubEventFixtures: HubEvent[] = [
     type: 'adapter.health.changed',
     createdAt: CONTRACT_FIXTURE_TIME,
     payload: {
-      adapterId: 'pf-skills',
+      backendId: 'hermes',
       status: 'enabled',
     },
   },
 ];
 
-export const adapterDescriptorFixtures: AdapterDescriptor[] = [
+// 公共 BOT 接口：飞书是真的（lark-gateway/toolkit 已实现收发，但 hub 侧未配置 → status 诚实）；
+// 微信 / QQ 为占位，未接入。
+export const botChannelFixtures: BotChannel[] = [
   {
-    id: 'lark',
-    kind: 'ingress',
-    displayName: 'Feishu / Lark Ingress',
+    id: 'feishu',
+    platform: 'feishu',
+    displayName: '飞书 / Feishu',
     status: 'unconfigured',
-    capabilities: ['event.ingress', 'message.reply'],
+    credentialsConfigured: false,
+    inbound: true,
+    outbound: true,
   },
   {
-    id: 'pf-skills',
-    kind: 'tool',
-    displayName: 'Teamhub pf-skills',
-    status: 'enabled',
-    capabilities: ['debug.checklist.mock'],
-    healthCheckedAt: CONTRACT_FIXTURE_TIME,
+    id: 'wechat',
+    platform: 'wechat',
+    displayName: '微信 / WeChat',
+    status: 'unconfigured',
+    credentialsConfigured: false,
+    inbound: false,
+    outbound: false,
   },
+  {
+    id: 'qq',
+    platform: 'qq',
+    displayName: 'QQ',
+    status: 'unconfigured',
+    credentialsConfigured: false,
+    inbound: false,
+    outbound: false,
+  },
+];
+
+// Agent 接口：hermes / openclaw / claude-code，全 mock 桩，未接真 provider。
+export const agentBackendFixtures: AgentBackend[] = [
   {
     id: 'hermes',
-    kind: 'ai',
     displayName: 'Hermes',
+    mode: 'mock',
     status: 'unconfigured',
     capabilities: ['skill.invoke.stub'],
   },
   {
-    id: 'xiaolongxia',
-    kind: 'ai',
-    displayName: 'Xiaolongxia',
+    id: 'openclaw',
+    displayName: 'OpenClaw',
+    mode: 'mock',
     status: 'unconfigured',
     capabilities: ['skill.invoke.stub'],
   },
   {
     id: 'claude-code',
-    kind: 'ai',
     displayName: 'Claude Code',
+    mode: 'mock',
     status: 'unconfigured',
     capabilities: ['code.context.stub', 'skill.invoke.stub'],
   },
+];
+
+// 数据源（只读出处锚）：git 仓库源 / 图纸-产物库。artifact-store 预留 Filebrowser 落点。
+export const dataSourceFixtures: DataSource[] = [
   {
     id: 'git-forge',
-    kind: 'git',
     displayName: 'Git Forge',
+    kind: 'git',
     status: 'unconfigured',
-    capabilities: ['repo.index.stub', 'release.index.stub'],
+    sourceRef: 'ssh://git.local/team',
   },
   {
     id: 'artifact-store',
-    kind: 'artifact',
     displayName: 'Artifact Store',
+    kind: 'artifact',
     status: 'unconfigured',
-    capabilities: ['artifact.index.stub'],
+    sourceRef: 'filebrowser://artifacts',
   },
 ];
 
-export const adapterHealthFixture: AdapterHealthResponse = {
-  adapterId: 'hermes',
+export const agentBackendHealthFixture: AgentBackendHealthResponse = {
+  backendId: 'hermes',
   status: 'unconfigured',
   checkedAt: CONTRACT_FIXTURE_TIME,
-  detail: 'mock adapter only; real provider is not configured',
+  detail: 'mock agent backend only; real provider is not configured',
 };
 
-export const adapterCapabilitiesFixture: AdapterCapabilitiesResponse = {
-  adapterId: 'hermes',
-  mode: 'mock',
-  capabilities: ['skill.invoke.stub', 'health.mock', 'capabilities.mock'],
-};
+export const agentBackendCapabilitiesFixture: AgentBackendCapabilitiesResponse =
+  {
+    backendId: 'hermes',
+    mode: 'mock',
+    capabilities: ['skill.invoke.stub', 'health.mock', 'capabilities.mock'],
+  };
 
-export const adapterInvokeResponseFixture: AdapterInvokeResponse = {
-  adapterId: 'hermes',
+export const agentBackendInvokeResponseFixture: AgentBackendInvokeResponse = {
+  backendId: 'hermes',
   mode: 'mock',
   status: 'accepted',
   createdAt: CONTRACT_FIXTURE_TIME,
   correlationId: 'corr-debug-001',
   output: {
-    message: 'Hermes mock adapter received the request; no real provider was called.',
+    message:
+      'Hermes mock agent backend received the request; no real provider was called.',
     inputEcho: {
       symptom: 'Chassis CAN bus is unstable after power-on',
     },
@@ -285,12 +311,18 @@ export const apiContractFixtures = {
     events: hubEventFixtures,
     nextCursor: null,
   },
-  adapters: {
-    adapters: adapterDescriptorFixtures,
+  botChannels: {
+    botChannels: botChannelFixtures,
   },
-  adapterHealth: adapterHealthFixture,
-  adapterCapabilities: adapterCapabilitiesFixture,
-  adapterInvoke: adapterInvokeResponseFixture,
+  agentBackends: {
+    agentBackends: agentBackendFixtures,
+  },
+  dataSources: {
+    dataSources: dataSourceFixtures,
+  },
+  agentBackendHealth: agentBackendHealthFixture,
+  agentBackendCapabilities: agentBackendCapabilitiesFixture,
+  agentBackendInvoke: agentBackendInvokeResponseFixture,
   bridgeMembers: {
     members: bridgeMemberStateFixtures,
   },

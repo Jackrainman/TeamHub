@@ -4,12 +4,14 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { buildHubServer } from '../src/server.js';
 import {
-  AdapterCapabilitiesResponseSchema,
-  AdaptersResponseSchema,
-  AdapterHealthResponseSchema,
-  AdapterInvokeResponseSchema,
+  AgentBackendCapabilitiesResponseSchema,
+  AgentBackendHealthResponseSchema,
+  AgentBackendInvokeResponseSchema,
+  AgentBackendsResponseSchema,
   ArtifactsResponseSchema,
+  BotChannelsResponseSchema,
   BridgeMembersResponseSchema,
+  DataSourcesResponseSchema,
   GitReposResponseSchema,
   HealthResponseSchema,
   HubEventsResponseSchema,
@@ -35,7 +37,7 @@ describe('hub-server routes', () => {
     expect(body.service).toBe('teamhub-hub-server');
   });
 
-  test('GET /api/system/status summarizes mock adapters', async () => {
+  test('GET /api/system/status summarizes mock agent backends', async () => {
     const response = await app.inject({
       method: 'GET',
       url: '/api/system/status',
@@ -48,61 +50,82 @@ describe('hub-server routes', () => {
     expect(body.adapters.unconfigured).toBeGreaterThan(0);
   });
 
-  test('GET /api/adapters returns mock adapter descriptors', async () => {
+  test('GET /api/bot-channels returns mock bot channels', async () => {
     const response = await app.inject({
       method: 'GET',
-      url: '/api/adapters',
+      url: '/api/bot-channels',
     });
 
     expect(response.statusCode).toBe(200);
-    const body = AdaptersResponseSchema.parse(response.json());
-    expect(body.adapters.map((adapter) => adapter.id)).toEqual(
-      expect.arrayContaining([
-        'lark',
-        'pf-skills',
-        'hermes',
-        'xiaolongxia',
-        'claude-code',
-        'git-forge',
-        'artifact-store',
-      ]),
+    const body = BotChannelsResponseSchema.parse(response.json());
+    expect(body.botChannels.map((channel) => channel.id)).toEqual(
+      expect.arrayContaining(['feishu', 'wechat', 'qq']),
     );
   });
 
-  test('GET /api/adapters/:id/health returns mock health for AI adapters', async () => {
+  test('GET /api/agent-backends returns mock agent backends (no xiaolongxia/pf-skills)', async () => {
     const response = await app.inject({
       method: 'GET',
-      url: '/api/adapters/hermes/health',
+      url: '/api/agent-backends',
     });
 
     expect(response.statusCode).toBe(200);
-    const body = AdapterHealthResponseSchema.parse(response.json());
-    expect(body.adapterId).toBe('hermes');
-    expect(body.status).toBe('unconfigured');
-    expect(body.detail).toContain('mock adapter');
+    const body = AgentBackendsResponseSchema.parse(response.json());
+    const ids = body.agentBackends.map((backend) => backend.id);
+    expect(ids).toEqual(
+      expect.arrayContaining(['hermes', 'openclaw', 'claude-code']),
+    );
+    expect(ids).not.toContain('xiaolongxia');
+    expect(ids).not.toContain('pf-skills');
   });
 
-  test('GET /api/adapters/:id/capabilities returns mock capabilities', async () => {
+  test('GET /api/data-sources returns mock data sources', async () => {
     const response = await app.inject({
       method: 'GET',
-      url: '/api/adapters/claude-code/capabilities',
+      url: '/api/data-sources',
     });
 
     expect(response.statusCode).toBe(200);
-    const body = AdapterCapabilitiesResponseSchema.parse(response.json());
-    expect(body.adapterId).toBe('claude-code');
+    const body = DataSourcesResponseSchema.parse(response.json());
+    expect(body.dataSources.map((source) => source.id)).toEqual(
+      expect.arrayContaining(['git-forge', 'artifact-store']),
+    );
+  });
+
+  test('GET /api/agent-backends/:id/health returns mock health', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/agent-backends/hermes/health',
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = AgentBackendHealthResponseSchema.parse(response.json());
+    expect(body.backendId).toBe('hermes');
+    expect(body.status).toBe('unconfigured');
+    expect(body.detail).toContain('mock agent backend');
+  });
+
+  test('GET /api/agent-backends/:id/capabilities returns mock capabilities', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/agent-backends/claude-code/capabilities',
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = AgentBackendCapabilitiesResponseSchema.parse(response.json());
+    expect(body.backendId).toBe('claude-code');
     expect(body.mode).toBe('mock');
     expect(body.capabilities).toEqual(
       expect.arrayContaining(['skill.invoke.stub']),
     );
   });
 
-  test('POST /api/adapters/:id/invoke returns a mock invocation response', async () => {
+  test('POST /api/agent-backends/:id/invoke returns a mock invocation response', async () => {
     const response = await app.inject({
       method: 'POST',
-      url: '/api/adapters/xiaolongxia/invoke',
+      url: '/api/agent-backends/openclaw/invoke',
       payload: {
-        correlationId: 'corr-adapter-001',
+        correlationId: 'corr-backend-001',
         input: {
           symptom: 'auto aim drifts',
         },
@@ -110,27 +133,27 @@ describe('hub-server routes', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    const body = AdapterInvokeResponseSchema.parse(response.json());
+    const body = AgentBackendInvokeResponseSchema.parse(response.json());
     expect(body).toMatchObject({
-      adapterId: 'xiaolongxia',
+      backendId: 'openclaw',
       mode: 'mock',
       status: 'accepted',
-      correlationId: 'corr-adapter-001',
+      correlationId: 'corr-backend-001',
     });
-    expect(body.output.message).toContain('mock adapter');
+    expect(body.output.message).toContain('mock agent backend');
     expect(body.output.inputEcho).toMatchObject({
       symptom: 'auto aim drifts',
     });
   });
 
-  test('mock adapter endpoints reject unsupported adapters', async () => {
+  test('agent backend endpoints reject non-backend ids', async () => {
     const response = await app.inject({
       method: 'GET',
-      url: '/api/adapters/lark/health',
+      url: '/api/agent-backends/feishu/health',
     });
 
     expect(response.statusCode).toBe(404);
-    expect(response.json()).toEqual({ detail: 'Adapter not found' });
+    expect(response.json()).toEqual({ detail: 'Agent backend not found' });
   });
 
   test('GET /api/events returns mock-first event fixtures', async () => {

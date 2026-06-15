@@ -35,6 +35,9 @@ export const HubEventSchema = z.object({
   payload: z.unknown(),
 });
 
+// @deprecated 仅供 bot 自描述（lark-gateway / lark-toolkit / pf-skills 的 hub.ts），
+// 非 hub 集成列表。集成列表已三分为 BotChannel / AgentBackend / DataSource（见下）。
+// 同理下方 AdapterHealth/Capabilities/Invoke*ResponseSchema 与 AdaptersResponseSchema 一并弃用保留。
 export const AdapterDescriptorSchema = z.object({
   id: z.string().min(1),
   kind: z.enum(['ai', 'tool', 'ingress', 'git', 'artifact']),
@@ -64,6 +67,76 @@ export const AdapterInvokeRequestSchema = z.object({
 
 export const AdapterInvokeResponseSchema = z.object({
   adapterId: z.string().min(1),
+  mode: z.literal('mock'),
+  status: z.literal('accepted'),
+  createdAt: isoDateTimeSchema,
+  correlationId: z.string().min(1).optional(),
+  output: z.object({
+    message: z.string().min(1),
+    inputEcho: z.unknown().optional(),
+  }),
+});
+
+// ---------------------------------------------------------------------------
+// 集成模型三分（地基重建）：BotChannel（IM 通信渠道）/ AgentBackend（技能执行器）/
+// DataSource（只读数据源）。三者本质不同，各自建模，不再共用扁平 AdapterDescriptor。
+// ---------------------------------------------------------------------------
+
+// 公共 BOT 接口：飞书 / 微信 / QQ。双向（inbound 收命令 + outbound 推通知/回复）。
+// status 用连接型枚举（诚实反映连没连，而非占位 enabled）。
+export const BotChannelSchema = z.object({
+  id: z.string().min(1),
+  platform: z.enum(['feishu', 'wechat', 'qq']),
+  displayName: z.string().min(1),
+  status: z.enum(['connected', 'disconnected', 'unconfigured']),
+  credentialsConfigured: z.boolean(),
+  inbound: z.boolean(),
+  outbound: z.boolean(),
+  healthCheckedAt: isoDateTimeSchema.optional(),
+});
+
+// Agent 接口：hermes / openclaw / claude-code。出站调用执行技能。
+// 唯一拥有 invoke/health/capabilities 契约的物种（见 AgentBackend*ResponseSchema）。
+export const AgentBackendSchema = z.object({
+  id: z.string().min(1),
+  displayName: z.string().min(1),
+  mode: z.enum(['mock', 'real']),
+  status: z.enum(['enabled', 'disabled', 'degraded', 'unconfigured']),
+  capabilities: z.array(z.string().min(1)),
+  healthCheckedAt: isoDateTimeSchema.optional(),
+});
+
+// 数据源（出处锚）：git-forge / artifact-store。只读，无 invoke/health。
+// artifact-store 的 sourceRef 预留 Filebrowser 落点（filebrowser://…）。
+export const DataSourceSchema = z.object({
+  id: z.string().min(1),
+  displayName: z.string().min(1),
+  kind: z.enum(['git', 'artifact']),
+  status: z.enum(['enabled', 'disabled', 'degraded', 'unconfigured']),
+  sourceRef: z.string().min(1),
+});
+
+// AgentBackend invoke/health/capabilities 契约（由旧 Adapter* 迁移，字段 adapterId→backendId）。
+export const AgentBackendHealthResponseSchema = z.object({
+  backendId: z.string().min(1),
+  status: z.enum(['enabled', 'disabled', 'degraded', 'unconfigured']),
+  checkedAt: isoDateTimeSchema,
+  detail: z.string().min(1).optional(),
+});
+
+export const AgentBackendCapabilitiesResponseSchema = z.object({
+  backendId: z.string().min(1),
+  mode: z.literal('mock'),
+  capabilities: z.array(z.string().min(1)),
+});
+
+export const AgentBackendInvokeRequestSchema = z.object({
+  input: z.unknown().optional(),
+  correlationId: z.string().min(1).optional(),
+});
+
+export const AgentBackendInvokeResponseSchema = z.object({
+  backendId: z.string().min(1),
   mode: z.literal('mock'),
   status: z.literal('accepted'),
   createdAt: isoDateTimeSchema,
@@ -129,6 +202,18 @@ export const AdaptersResponseSchema = z.object({
   adapters: z.array(AdapterDescriptorSchema),
 });
 
+export const BotChannelsResponseSchema = z.object({
+  botChannels: z.array(BotChannelSchema),
+});
+
+export const AgentBackendsResponseSchema = z.object({
+  agentBackends: z.array(AgentBackendSchema),
+});
+
+export const DataSourcesResponseSchema = z.object({
+  dataSources: z.array(DataSourceSchema),
+});
+
 export const BridgeMembersResponseSchema = z.object({
   members: z.array(BridgeMemberStateSchema),
 });
@@ -153,12 +238,30 @@ export type AdapterCapabilitiesResponse = z.infer<
 >;
 export type AdapterInvokeRequest = z.infer<typeof AdapterInvokeRequestSchema>;
 export type AdapterInvokeResponse = z.infer<typeof AdapterInvokeResponseSchema>;
+export type BotChannel = z.infer<typeof BotChannelSchema>;
+export type AgentBackend = z.infer<typeof AgentBackendSchema>;
+export type DataSource = z.infer<typeof DataSourceSchema>;
+export type AgentBackendHealthResponse = z.infer<
+  typeof AgentBackendHealthResponseSchema
+>;
+export type AgentBackendCapabilitiesResponse = z.infer<
+  typeof AgentBackendCapabilitiesResponseSchema
+>;
+export type AgentBackendInvokeRequest = z.infer<
+  typeof AgentBackendInvokeRequestSchema
+>;
+export type AgentBackendInvokeResponse = z.infer<
+  typeof AgentBackendInvokeResponseSchema
+>;
 export type BridgeMemberState = z.infer<typeof BridgeMemberStateSchema>;
 export type GitRepoRef = z.infer<typeof GitRepoRefSchema>;
 export type ArtifactRef = z.infer<typeof ArtifactRefSchema>;
 export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;
 export type HubEventsResponse = z.infer<typeof HubEventsResponseSchema>;
 export type AdaptersResponse = z.infer<typeof AdaptersResponseSchema>;
+export type BotChannelsResponse = z.infer<typeof BotChannelsResponseSchema>;
+export type AgentBackendsResponse = z.infer<typeof AgentBackendsResponseSchema>;
+export type DataSourcesResponse = z.infer<typeof DataSourcesResponseSchema>;
 export type BridgeMembersResponse = z.infer<
   typeof BridgeMembersResponseSchema
 >;

@@ -1,26 +1,32 @@
 import { describe, expect, test } from 'vitest';
 import {
-  AdapterDescriptorSchema,
-  AdapterCapabilitiesResponseSchema,
-  AdapterHealthResponseSchema,
-  AdapterInvokeResponseSchema,
-  AdaptersResponseSchema,
+  AgentBackendSchema,
+  AgentBackendCapabilitiesResponseSchema,
+  AgentBackendHealthResponseSchema,
+  AgentBackendInvokeResponseSchema,
+  AgentBackendsResponseSchema,
   ArtifactRefSchema,
   ArtifactsResponseSchema,
+  BotChannelSchema,
+  BotChannelsResponseSchema,
   BridgeMemberStateSchema,
   BridgeMembersResponseSchema,
+  DataSourceSchema,
+  DataSourcesResponseSchema,
   ErrorResponseSchema,
   GitRepoRefSchema,
   GitReposResponseSchema,
   HubEventSchema,
   HubEventsResponseSchema,
-  adapterCapabilitiesFixture,
-  adapterDescriptorFixtures,
-  adapterHealthFixture,
-  adapterInvokeResponseFixture,
+  agentBackendCapabilitiesFixture,
+  agentBackendFixtures,
+  agentBackendHealthFixture,
+  agentBackendInvokeResponseFixture,
   apiContractFixtures,
   artifactRefFixtures,
+  botChannelFixtures,
   bridgeMemberStateFixtures,
+  dataSourceFixtures,
   gitRepoRefFixtures,
   hubEventFixtures,
 } from '../src/index.js';
@@ -30,18 +36,28 @@ describe('Team Hub contract fixtures', () => {
     for (const event of hubEventFixtures) {
       expect(HubEventSchema.safeParse(event).success).toBe(true);
     }
-    for (const adapter of adapterDescriptorFixtures) {
-      expect(AdapterDescriptorSchema.safeParse(adapter).success).toBe(true);
+    for (const channel of botChannelFixtures) {
+      expect(BotChannelSchema.safeParse(channel).success).toBe(true);
     }
-    expect(AdapterHealthResponseSchema.safeParse(adapterHealthFixture).success)
-      .toBe(true);
+    for (const backend of agentBackendFixtures) {
+      expect(AgentBackendSchema.safeParse(backend).success).toBe(true);
+    }
+    for (const source of dataSourceFixtures) {
+      expect(DataSourceSchema.safeParse(source).success).toBe(true);
+    }
     expect(
-      AdapterCapabilitiesResponseSchema.safeParse(adapterCapabilitiesFixture)
+      AgentBackendHealthResponseSchema.safeParse(agentBackendHealthFixture)
         .success,
     ).toBe(true);
     expect(
-      AdapterInvokeResponseSchema.safeParse(adapterInvokeResponseFixture)
-        .success,
+      AgentBackendCapabilitiesResponseSchema.safeParse(
+        agentBackendCapabilitiesFixture,
+      ).success,
+    ).toBe(true);
+    expect(
+      AgentBackendInvokeResponseSchema.safeParse(
+        agentBackendInvokeResponseFixture,
+      ).success,
     ).toBe(true);
     for (const member of bridgeMemberStateFixtures) {
       expect(BridgeMemberStateSchema.safeParse(member).success).toBe(true);
@@ -58,20 +74,31 @@ describe('Team Hub contract fixtures', () => {
     expect(HubEventsResponseSchema.safeParse(apiContractFixtures.events).success)
       .toBe(true);
     expect(
-      AdaptersResponseSchema.safeParse(apiContractFixtures.adapters).success,
-    ).toBe(true);
-    expect(
-      AdapterHealthResponseSchema.safeParse(apiContractFixtures.adapterHealth)
+      BotChannelsResponseSchema.safeParse(apiContractFixtures.botChannels)
         .success,
     ).toBe(true);
     expect(
-      AdapterCapabilitiesResponseSchema.safeParse(
-        apiContractFixtures.adapterCapabilities,
+      AgentBackendsResponseSchema.safeParse(apiContractFixtures.agentBackends)
+        .success,
+    ).toBe(true);
+    expect(
+      DataSourcesResponseSchema.safeParse(apiContractFixtures.dataSources)
+        .success,
+    ).toBe(true);
+    expect(
+      AgentBackendHealthResponseSchema.safeParse(
+        apiContractFixtures.agentBackendHealth,
       ).success,
     ).toBe(true);
     expect(
-      AdapterInvokeResponseSchema.safeParse(apiContractFixtures.adapterInvoke)
-        .success,
+      AgentBackendCapabilitiesResponseSchema.safeParse(
+        apiContractFixtures.agentBackendCapabilities,
+      ).success,
+    ).toBe(true);
+    expect(
+      AgentBackendInvokeResponseSchema.safeParse(
+        apiContractFixtures.agentBackendInvoke,
+      ).success,
     ).toBe(true);
     expect(
       BridgeMembersResponseSchema.safeParse(apiContractFixtures.bridgeMembers)
@@ -87,10 +114,10 @@ describe('Team Hub contract fixtures', () => {
 
   test('schemas reject invalid status and empty identifiers', () => {
     expect(
-      AdapterDescriptorSchema.safeParse({
-        id: 'bad-adapter',
-        kind: 'ai',
-        displayName: 'Bad Adapter',
+      AgentBackendSchema.safeParse({
+        id: 'bad-backend',
+        displayName: 'Bad Backend',
+        mode: 'mock',
         status: 'ready',
         capabilities: [],
       }).success,

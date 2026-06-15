@@ -241,6 +241,21 @@ button {
   background: var(--border);
 }
 
+/* 集成三分：每个物种一组（BOT 渠道 / Agent 后端 / 数据源），标题 + 自有 grid。 */
+.integration-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.integration-group__title {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
 .adapter-row,
 .data-row {
   display: flex;

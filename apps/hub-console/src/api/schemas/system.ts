@@ -1,8 +1,10 @@
 import { z } from 'zod';
 import {
-  AdaptersResponseSchema,
+  AgentBackendsResponseSchema,
   ArtifactsResponseSchema,
+  BotChannelsResponseSchema,
   BridgeMembersResponseSchema,
+  DataSourcesResponseSchema,
   GitReposResponseSchema,
   HubEventsResponseSchema,
   HealthResponseSchema,
@@ -14,7 +16,10 @@ import {
 export const OverviewSnapshotSchema = z.object({
   health: HealthResponseSchema,
   system: SystemStatusResponseSchema,
-  adapters: AdaptersResponseSchema,
+  // 集成三分（地基重建）：扁平 adapters 拆成 BOT 渠道 / Agent 后端 / 数据源三块。
+  botChannels: BotChannelsResponseSchema,
+  agentBackends: AgentBackendsResponseSchema,
+  dataSources: DataSourcesResponseSchema,
   events: HubEventsResponseSchema,
   bridgeMembers: BridgeMembersResponseSchema,
   gitRepos: GitReposResponseSchema,

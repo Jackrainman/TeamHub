@@ -1,7 +1,9 @@
 import {
-  AdaptersResponseSchema,
+  AgentBackendsResponseSchema,
   ArtifactsResponseSchema,
+  BotChannelsResponseSchema,
   BridgeMembersResponseSchema,
+  DataSourcesResponseSchema,
   DepGraphSchema,
   GitReposResponseSchema,
   HubEventsResponseSchema,
@@ -71,7 +73,9 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
       const [
         health,
         system,
-        adapters,
+        botChannels,
+        agentBackends,
+        dataSources,
         events,
         bridgeMembers,
         gitRepos,
@@ -83,7 +87,21 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
           SystemStatusResponseSchema,
           fetcher,
         ),
-        fetchJson(`${baseUrl}/api/adapters`, AdaptersResponseSchema, fetcher),
+        fetchJson(
+          `${baseUrl}/api/bot-channels`,
+          BotChannelsResponseSchema,
+          fetcher,
+        ),
+        fetchJson(
+          `${baseUrl}/api/agent-backends`,
+          AgentBackendsResponseSchema,
+          fetcher,
+        ),
+        fetchJson(
+          `${baseUrl}/api/data-sources`,
+          DataSourcesResponseSchema,
+          fetcher,
+        ),
         fetchJson(`${baseUrl}/api/events`, HubEventsResponseSchema, fetcher),
         fetchJson(
           `${baseUrl}/api/bridge/members`,
@@ -97,7 +115,9 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
       return OverviewSnapshotSchema.parse({
         health,
         system,
-        adapters,
+        botChannels,
+        agentBackends,
+        dataSources,
         events,
         bridgeMembers,
         gitRepos,

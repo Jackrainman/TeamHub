@@ -1,12 +1,14 @@
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 import {
-  AdapterCapabilitiesResponseSchema,
-  AdaptersResponseSchema,
-  AdapterHealthResponseSchema,
-  AdapterInvokeRequestSchema,
-  AdapterInvokeResponseSchema,
+  AgentBackendCapabilitiesResponseSchema,
+  AgentBackendHealthResponseSchema,
+  AgentBackendInvokeRequestSchema,
+  AgentBackendInvokeResponseSchema,
+  AgentBackendsResponseSchema,
   ArtifactsResponseSchema,
+  BotChannelsResponseSchema,
+  DataSourcesResponseSchema,
   BridgeMembersResponseSchema,
   DepGraphSchema,
   GitReposResponseSchema,
@@ -39,13 +41,17 @@ import type { Clock } from './clock.js';
 import { InMemoryGovStore } from './store/mock-gov-store.js';
 import { InMemoryKbStore } from './store/mock-kb-store.js';
 import type { GovStore, InvStore, KbStore } from './store/gov-store.js';
-import { listMockAdapters } from './mock-adapters.js';
 import {
-  getMockAiAdapterCapabilities,
-  getMockAiAdapterHealth,
-  invokeMockAiAdapter,
-  isMockAiAdapterId,
-} from './mock-ai-adapters.js';
+  listMockAgentBackends,
+  listMockBotChannels,
+  listMockDataSources,
+} from './mock-integrations.js';
+import {
+  getMockAgentBackendCapabilities,
+  getMockAgentBackendHealth,
+  invokeMockAgentBackend,
+  isMockAgentBackendId,
+} from './mock-agent-backends.js';
 import {
   buildHealthResponse,
   buildSystemStatusResponse,
@@ -127,45 +133,68 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   });
 
   app.get('/api/system/status', async () => {
-    const adapters = listMockAdapters();
+    const agentBackends = listMockAgentBackends();
     return SystemStatusResponseSchema.parse(
-      buildSystemStatusResponse(adapters),
+      buildSystemStatusResponse(agentBackends),
     );
   });
 
-  app.get('/api/adapters', async () => {
-    return AdaptersResponseSchema.parse({ adapters: listMockAdapters() });
+  // 集成模型三分（地基重建）：BotChannel / AgentBackend / DataSource 各自只读端点。
+  app.get('/api/bot-channels', async () => {
+    return BotChannelsResponseSchema.parse({
+      botChannels: listMockBotChannels(),
+    });
   });
 
-  app.get('/api/adapters/:adapterId/health', async (request, reply) => {
-    const { adapterId } = request.params as { adapterId: string };
-    if (!isMockAiAdapterId(adapterId)) {
-      void reply.code(404).send({ detail: 'Adapter not found' });
-      return;
-    }
-    return AdapterHealthResponseSchema.parse(getMockAiAdapterHealth(adapterId));
+  app.get('/api/agent-backends', async () => {
+    return AgentBackendsResponseSchema.parse({
+      agentBackends: listMockAgentBackends(),
+    });
   });
 
-  app.get('/api/adapters/:adapterId/capabilities', async (request, reply) => {
-    const { adapterId } = request.params as { adapterId: string };
-    if (!isMockAiAdapterId(adapterId)) {
-      void reply.code(404).send({ detail: 'Adapter not found' });
+  app.get('/api/data-sources', async () => {
+    return DataSourcesResponseSchema.parse({
+      dataSources: listMockDataSources(),
+    });
+  });
+
+  // invoke/health/capabilities 是 Agent 后端**专属**契约（其余物种无此动词）。
+  app.get('/api/agent-backends/:backendId/health', async (request, reply) => {
+    const { backendId } = request.params as { backendId: string };
+    if (!isMockAgentBackendId(backendId)) {
+      void reply.code(404).send({ detail: 'Agent backend not found' });
       return;
     }
-    return AdapterCapabilitiesResponseSchema.parse(
-      getMockAiAdapterCapabilities(adapterId),
+    return AgentBackendHealthResponseSchema.parse(
+      getMockAgentBackendHealth(backendId),
     );
   });
 
-  app.post('/api/adapters/:adapterId/invoke', async (request, reply) => {
-    const { adapterId } = request.params as { adapterId: string };
-    if (!isMockAiAdapterId(adapterId)) {
-      void reply.code(404).send({ detail: 'Adapter not found' });
+  app.get(
+    '/api/agent-backends/:backendId/capabilities',
+    async (request, reply) => {
+      const { backendId } = request.params as { backendId: string };
+      if (!isMockAgentBackendId(backendId)) {
+        void reply.code(404).send({ detail: 'Agent backend not found' });
+        return;
+      }
+      return AgentBackendCapabilitiesResponseSchema.parse(
+        getMockAgentBackendCapabilities(backendId),
+      );
+    },
+  );
+
+  app.post('/api/agent-backends/:backendId/invoke', async (request, reply) => {
+    const { backendId } = request.params as { backendId: string };
+    if (!isMockAgentBackendId(backendId)) {
+      void reply.code(404).send({ detail: 'Agent backend not found' });
       return;
     }
-    const invokeRequest = AdapterInvokeRequestSchema.parse(request.body ?? {});
-    return AdapterInvokeResponseSchema.parse(
-      invokeMockAiAdapter(adapterId, invokeRequest),
+    const invokeRequest = AgentBackendInvokeRequestSchema.parse(
+      request.body ?? {},
+    );
+    return AgentBackendInvokeResponseSchema.parse(
+      invokeMockAgentBackend(backendId, invokeRequest),
     );
   });
 

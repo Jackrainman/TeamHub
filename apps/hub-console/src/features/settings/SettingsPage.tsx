@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { AdapterDescriptor } from '@teamhub/hub-contracts';
+import type { AgentBackend, BotChannel } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n, type TranslationKey } from '../../i18n';
 
@@ -8,13 +8,34 @@ import { useI18n, type TranslationKey } from '../../i18n';
 // 语言复用 i18n 的同一份状态（无本地副本，故无同步问题）。单一真实后端，无数据源切换。
 const APIBASE_KEY = 'teamhub.apiBase';
 
-// 集成状态枚举 → 文案键（与总览同一份枚举；枚举变更会在此处编译报错）。
-const INTEGRATION_STATUS_KEY: Record<AdapterDescriptor['status'], TranslationKey> = {
+// Agent 后端 / 数据源共用生命周期状态枚举 → 文案键（枚举变更会在此处编译报错）。
+const LIFECYCLE_STATUS_KEY: Record<AgentBackend['status'], TranslationKey> = {
   enabled: 'enum.adapter.enabled',
   disabled: 'enum.adapter.disabled',
   degraded: 'enum.adapter.degraded',
   unconfigured: 'enum.adapter.unconfigured',
 };
+
+// BOT 渠道用连接型状态枚举（独立文案）。pill 颜色复用既有 status-* 样式，无需改 CSS。
+const BOT_CHANNEL_STATUS_KEY: Record<BotChannel['status'], TranslationKey> = {
+  connected: 'enum.botChannel.connected',
+  disconnected: 'enum.botChannel.disconnected',
+  unconfigured: 'enum.botChannel.unconfigured',
+};
+
+const BOT_CHANNEL_PILL_CLASS: Record<BotChannel['status'], string> = {
+  connected: 'status-enabled',
+  disconnected: 'status-disabled',
+  unconfigured: 'status-unconfigured',
+};
+
+interface IntegrationRow {
+  key: string;
+  name: string;
+  meta: string;
+  statusLabel: string;
+  pillClass: string;
+}
 
 function segClass(active: boolean): string {
   return active ? 'seg__btn seg__btn--active' : 'seg__btn';
@@ -67,8 +88,8 @@ export function SettingsPage({
   );
 }
 
-// 集成（只读）：飞书 / Hermes / Git 等外部应用对接状态。复用总览的 adapter 数据
-// （同 queryKey 共享缓存），但展示挪到设置页——总览只留指标 + 一行「去设置查看」。
+// 集成（只读）：地基重建后按物种三分——BOT 渠道（飞书/微信/QQ）/ Agent 后端（Hermes/OpenClaw/
+// Claude Code）/ 数据源（Git/图纸库）。复用总览数据（同 queryKey 共享缓存），展示在设置页。
 function IntegrationsSection({
   client,
   source,
@@ -81,7 +102,7 @@ function IntegrationsSection({
     queryKey: ['hub-overview', source],
     queryFn: () => client.getOverview(),
   });
-  const adapters = overviewQuery.data?.adapters.adapters ?? [];
+  const data = overviewQuery.data;
 
   return (
     <section className="panel settings-panel">
@@ -92,29 +113,92 @@ function IntegrationsSection({
         <p className="settings-desc">{t('settings.integrations.desc')}</p>
         {overviewQuery.isLoading ? (
           <p className="settings-desc">…</p>
-        ) : overviewQuery.error || !overviewQuery.data ? (
+        ) : overviewQuery.error || !data ? (
           <p className="form-hint form-hint--warn">
             {t('settings.integrations.unavailable')}
           </p>
-        ) : adapters.length === 0 ? (
-          <p className="settings-desc">{t('settings.integrations.empty')}</p>
         ) : (
-          <div className="adapter-grid">
-            {adapters.map((adapter) => (
-              <article className="adapter-row" key={adapter.id}>
-                <div>
-                  <strong>{adapter.displayName}</strong>
-                  <span>{adapter.capabilities.join(', ')}</span>
-                </div>
-                <span className={`status-pill status-${adapter.status}`}>
-                  {t(INTEGRATION_STATUS_KEY[adapter.status])}
-                </span>
-              </article>
-            ))}
-          </div>
+          <>
+            <IntegrationGroup
+              title={t('settings.integrations.botChannels')}
+              rows={data.botChannels.botChannels.map(
+                (channel): IntegrationRow => ({
+                  key: channel.id,
+                  name: channel.displayName,
+                  meta: botChannelMeta(channel),
+                  statusLabel: t(BOT_CHANNEL_STATUS_KEY[channel.status]),
+                  pillClass: BOT_CHANNEL_PILL_CLASS[channel.status],
+                }),
+              )}
+            />
+            <IntegrationGroup
+              title={t('settings.integrations.agentBackends')}
+              rows={data.agentBackends.agentBackends.map(
+                (backend): IntegrationRow => ({
+                  key: backend.id,
+                  name: backend.displayName,
+                  meta: `${backend.mode} · ${backend.capabilities.join(', ')}`,
+                  statusLabel: t(LIFECYCLE_STATUS_KEY[backend.status]),
+                  pillClass: `status-${backend.status}`,
+                }),
+              )}
+            />
+            <IntegrationGroup
+              title={t('settings.integrations.dataSources')}
+              rows={data.dataSources.dataSources.map(
+                (ds): IntegrationRow => ({
+                  key: ds.id,
+                  name: ds.displayName,
+                  meta: `${ds.kind} · ${ds.sourceRef}`,
+                  statusLabel: t(LIFECYCLE_STATUS_KEY[ds.status]),
+                  pillClass: `status-${ds.status}`,
+                }),
+              )}
+            />
+          </>
         )}
       </div>
     </section>
+  );
+}
+
+// BOT 渠道副标题：平台 + 收/发能力（数据值，不翻译）。
+function botChannelMeta(channel: BotChannel): string {
+  const dirs = [channel.inbound ? '收' : null, channel.outbound ? '发' : null]
+    .filter((d): d is string => d !== null)
+    .join('/');
+  return dirs ? `${channel.platform} · ${dirs}` : channel.platform;
+}
+
+function IntegrationGroup({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: IntegrationRow[];
+}) {
+  const { t } = useI18n();
+  return (
+    <div className="integration-group">
+      <h3 className="integration-group__title">{title}</h3>
+      {rows.length === 0 ? (
+        <p className="settings-desc">{t('settings.integrations.empty')}</p>
+      ) : (
+        <div className="adapter-grid">
+          {rows.map((row) => (
+            <article className="adapter-row" key={row.key}>
+              <div>
+                <strong>{row.name}</strong>
+                <span>{row.meta}</span>
+              </div>
+              <span className={`status-pill ${row.pillClass}`}>
+                {row.statusLabel}
+              </span>
+            </article>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

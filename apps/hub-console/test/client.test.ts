@@ -21,10 +21,12 @@ describe('hub console API client', () => {
     });
     const snapshot = await client.getOverview();
 
-    expect(fetcher).toHaveBeenCalledTimes(7);
+    expect(fetcher).toHaveBeenCalledTimes(9);
     expect(OverviewSnapshotSchema.safeParse(snapshot).success).toBe(true);
     expect(snapshot.health.status).toBe('ok');
-    expect(snapshot.adapters.adapters.length).toBeGreaterThan(0);
+    expect(snapshot.botChannels.botChannels.length).toBeGreaterThan(0);
+    expect(snapshot.agentBackends.agentBackends.length).toBeGreaterThan(0);
+    expect(snapshot.dataSources.dataSources.length).toBeGreaterThan(0);
     expect(snapshot.events.events.length).toBeGreaterThan(0);
     expect(snapshot.gitRepos.repos).toHaveLength(
       apiContractFixtures.gitRepos.repos.length,
@@ -154,14 +156,18 @@ function responseByPath(path: string): unknown {
         generatedAt: '2026-06-06T00:00:00.000Z',
         uptimeSeconds: 12,
         adapters: {
-          total: apiContractFixtures.adapters.adapters.length,
-          enabled: 1,
+          total: apiContractFixtures.agentBackends.agentBackends.length,
+          enabled: 0,
           degraded: 0,
-          unconfigured: apiContractFixtures.adapters.adapters.length - 1,
+          unconfigured: apiContractFixtures.agentBackends.agentBackends.length,
         },
       };
-    case '/api/adapters':
-      return apiContractFixtures.adapters;
+    case '/api/bot-channels':
+      return apiContractFixtures.botChannels;
+    case '/api/agent-backends':
+      return apiContractFixtures.agentBackends;
+    case '/api/data-sources':
+      return apiContractFixtures.dataSources;
     case '/api/events':
       return apiContractFixtures.events;
     case '/api/bridge/members':
