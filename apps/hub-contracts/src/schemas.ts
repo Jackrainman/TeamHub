@@ -107,6 +107,12 @@ export const ArtifactRefSchema = z.object({
   uri: z.string().min(1),
   relatedRepo: z.string().min(1).optional(),
   relatedCommit: z.string().min(1).optional(),
+  // 图纸提交日志/时间线维度（v1 新增，全可选、向后兼容）：
+  // mechanism = 机构/部件（底盘 / 抬升机构 / 夹爪），是日志的分组键——同一机构多条迭代记录。
+  // revision = 第几版（"v3" / "R2-v1.2"）。submittedVia = 来源 seam（console / git 录入为主）。
+  mechanism: z.string().min(1).optional(),
+  revision: z.string().min(1).optional(),
+  submittedVia: z.enum(['git', 'lark', 'console']).optional(),
   createdAt: isoDateTimeSchema,
 });
 

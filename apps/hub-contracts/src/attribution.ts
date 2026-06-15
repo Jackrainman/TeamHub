@@ -15,6 +15,7 @@ import type {
   TaskComplexity,
 } from './governance.js';
 import type { KnowledgeNode, TaskKnowledgeTag } from './growth.js';
+import type { ArtifactRef } from './schemas.js';
 
 /**
  * 治理真相快照 → 阻塞归因 / DepGraph 视图的纯派生函数（无 IO、可单测）。
@@ -35,6 +36,10 @@ export interface GovernanceSnapshot {
   needs: Need[];
   knowledgeNodes: KnowledgeNode[];
   taskKnowledgeTags: TaskKnowledgeTag[];
+  // 图纸提交日志/时间线（v1）：每条 = 某机构某版的归档物（图纸 / 固件 / 报告）。
+  // 多条/机构、按 createdAt 倒序即时间线。无人维度——记录主键是机构 + 版本 + 归档物，
+  // 不存"谁提交"作排名依据（I0/A4）。GET /api/artifacts 读这个数组。
+  artifacts: ArtifactRef[];
 }
 
 const COMPLEXITY_CN: Record<TaskComplexity, string> = {

@@ -180,6 +180,106 @@ export const artifactRefFixtures: ArtifactRef[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// 图纸提交日志 / 版本时间线 seed（v1）：跨机构跨日期的真实迭代历史，让档案页时间线一上来就有料。
+//
+// 机构分组键 mechanism + 版本 revision + 归档物（kind/name/uri）+ 日期 createdAt（自然处带 relatedCommit）。
+// 底盘 v1(6/1)/v2(6/4)/v3(6/6)、抬升机构 v1(6/2)/v2(6/8)、夹爪 v1(6/5)、视觉模组固件 v1(6/3)/v2(6/7)。
+// 无人维度：记录主键是机构 + 版本，不存"谁提交"作排名依据（I0/A4）。
+// ---------------------------------------------------------------------------
+export const artifactVersionLogFixtures: ArtifactRef[] = [
+  {
+    id: 'artifact-chassis-v1',
+    kind: 'report',
+    name: '底盘结构图纸 v1',
+    uri: 'artifact://drawings/chassis/v1.pdf',
+    mechanism: '底盘',
+    revision: 'v1',
+    submittedVia: 'console',
+    relatedRepo: 'repo-infantry',
+    createdAt: '2026-06-01T09:00:00.000Z',
+  },
+  {
+    id: 'artifact-lift-v1',
+    kind: 'report',
+    name: '抬升机构图纸 v1',
+    uri: 'artifact://drawings/lift/v1.pdf',
+    mechanism: '抬升机构',
+    revision: 'v1',
+    submittedVia: 'console',
+    createdAt: '2026-06-02T10:30:00.000Z',
+  },
+  {
+    id: 'artifact-vision-fw-v1',
+    kind: 'firmware',
+    name: '视觉模组固件 v1',
+    uri: 'artifact://firmware/vision-module-v1.bin',
+    mechanism: '视觉模组固件',
+    revision: 'v1',
+    submittedVia: 'git',
+    relatedRepo: 'repo-sentry',
+    relatedCommit: 'fa11ce0',
+    createdAt: '2026-06-03T14:00:00.000Z',
+  },
+  {
+    id: 'artifact-chassis-v2',
+    kind: 'report',
+    name: '底盘结构图纸 v2',
+    uri: 'artifact://drawings/chassis/v2.pdf',
+    mechanism: '底盘',
+    revision: 'v2',
+    submittedVia: 'console',
+    relatedRepo: 'repo-infantry',
+    relatedCommit: 'c0ffee1',
+    createdAt: '2026-06-04T11:15:00.000Z',
+  },
+  {
+    id: 'artifact-gripper-v1',
+    kind: 'report',
+    name: '夹爪图纸 v1',
+    uri: 'artifact://drawings/gripper/v1.pdf',
+    mechanism: '夹爪',
+    revision: 'v1',
+    submittedVia: 'console',
+    createdAt: '2026-06-05T16:45:00.000Z',
+  },
+  {
+    id: 'artifact-chassis-v3',
+    kind: 'report',
+    name: '底盘结构图纸 v3',
+    uri: 'artifact://drawings/chassis/v3.pdf',
+    mechanism: '底盘',
+    revision: 'v3',
+    submittedVia: 'console',
+    relatedRepo: 'repo-infantry',
+    relatedCommit: 'd00d1ee',
+    createdAt: '2026-06-06T08:30:00.000Z',
+  },
+  {
+    id: 'artifact-vision-fw-v2',
+    kind: 'firmware',
+    name: '视觉模组固件 v2',
+    uri: 'artifact://firmware/vision-module-v2.bin',
+    mechanism: '视觉模组固件',
+    revision: 'v2',
+    submittedVia: 'git',
+    relatedRepo: 'repo-sentry',
+    relatedCommit: 'b0bca7e',
+    createdAt: '2026-06-07T13:20:00.000Z',
+  },
+  {
+    id: 'artifact-lift-v2',
+    kind: 'report',
+    name: '抬升机构图纸 v2',
+    uri: 'artifact://drawings/lift/v2.pdf',
+    mechanism: '抬升机构',
+    revision: 'v2',
+    submittedVia: 'console',
+    relatedCommit: 'e1e7a70',
+    createdAt: '2026-06-08T09:50:00.000Z',
+  },
+];
+
 export const apiContractFixtures = {
   events: {
     events: hubEventFixtures,
@@ -287,6 +387,8 @@ export const governanceScenarioFixture: GovernanceSnapshot = {
     { id: 'tkt-2', taskId: 't-r1-chassis', knowledgeNodeId: 'kn-can', source: 'human', confirmedBy: PROVIDER_EC_B },
     { id: 'tkt-3', taskId: 't-r1-vision-stream', knowledgeNodeId: 'kn-vision-cal', source: 'human', confirmedBy: PROVIDER_VISION_A },
   ],
+  // 图纸提交日志/时间线 seed（v1，A6）：8 条跨机构跨日期迭代历史，GET /api/artifacts 读这个。
+  artifacts: artifactVersionLogFixtures,
 };
 
 // 私有兴趣关系样例（D-027 护栏：visibility 默认 private，无 score/完成率）。
