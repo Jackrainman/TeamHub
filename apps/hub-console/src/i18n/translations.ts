@@ -112,8 +112,19 @@ const zh = {
   // 新增页面导航 / 标题
   'nav.kb': '知识库检索',
   'nav.pm': '项目看板',
+  'nav.archive': '图纸档案',
   'toolbar.title.kb': '相似 Bug 检索 · 跨赛季召回',
   'toolbar.title.pm': '项目计划表 · 任务看板',
+  'toolbar.title.archive': '图纸提交日志 · 版本时间线',
+
+  // 图纸档案页（A8）：按机构分组的提交日志/版本时间线。
+  'archive.loading': '正在载入图纸档案…',
+  'archive.error': '档案暂时取不到，请检查后端地址或服务状态。',
+  'archive.empty': '还没有图纸提交记录。',
+  'archive.ungrouped': '未分组',
+  'archive.group.count': '{n} 个版本',
+  'archive.meta.commit': '关联提交',
+  'archive.meta.uri': '地址',
 
   // 无障碍 landmark 标签（aria-label）
   'layout.sidebar.nav': '控制台导航',
@@ -378,8 +389,18 @@ const en: Record<TranslationKey, string> = {
 
   'nav.kb': 'KB Search',
   'nav.pm': 'PM Board',
+  'nav.archive': 'Artifacts',
   'toolbar.title.kb': 'Similar-bug Search · Cross-season Recall',
   'toolbar.title.pm': 'Project Plan · Task Board',
+  'toolbar.title.archive': 'Artifact Submission Log · Version Timeline',
+
+  'archive.loading': 'Loading artifact archive…',
+  'archive.error': 'Archive unavailable — check the backend address or service status.',
+  'archive.empty': 'No artifact submissions yet.',
+  'archive.ungrouped': 'Ungrouped',
+  'archive.group.count': '{n} versions',
+  'archive.meta.commit': 'Related commit',
+  'archive.meta.uri': 'URI',
 
   'layout.sidebar.nav': 'Console navigation',
   'overview.section.summary': 'System summary',

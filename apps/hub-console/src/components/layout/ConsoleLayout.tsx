@@ -1,8 +1,22 @@
 import type { PropsWithChildren } from 'react';
-import { BookOpen, Boxes, Home, LayoutGrid, Network, Settings } from 'lucide-react';
+import {
+  BookOpen,
+  Boxes,
+  FileStack,
+  Home,
+  LayoutGrid,
+  Network,
+  Settings,
+} from 'lucide-react';
 import { useI18n, type TranslationKey } from '../../i18n';
 
-export type ConsolePage = 'overview' | 'dep-graph' | 'kb' | 'pm' | 'settings';
+export type ConsolePage =
+  | 'overview'
+  | 'dep-graph'
+  | 'kb'
+  | 'pm'
+  | 'archive'
+  | 'settings';
 
 interface NavItem {
   labelKey: TranslationKey;
@@ -17,6 +31,8 @@ const navItems: NavItem[] = [
   { labelKey: 'nav.depGraph', icon: Network, page: 'dep-graph' },
   { labelKey: 'nav.kb', icon: BookOpen, page: 'kb' },
   { labelKey: 'nav.pm', icon: LayoutGrid, page: 'pm' },
+  // 图纸提交日志 / 版本时间线（A8）：真实页面，读治理快照 artifacts。
+  { labelKey: 'nav.archive', icon: FileStack, page: 'archive' },
   // 第三支柱占位：库存/BOM 开发中——无 page → 复用灰禁用机制（D-052 保留），不接后端
   { labelKey: 'nav.inv', icon: Boxes, tooltipKey: 'nav.inv.soon' },
   { labelKey: 'nav.settings', icon: Settings, page: 'settings' },

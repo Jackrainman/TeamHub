@@ -10,6 +10,7 @@ import { OverviewPage } from './features/overview/OverviewPage';
 import { DepGraphPage } from './features/dep-graph/DepGraphPage';
 import { KbSearchPage } from './features/kb/KbSearchPage';
 import { PmBoardPage } from './features/pm/PmBoardPage';
+import { ArchivePage } from './features/archive/ArchivePage';
 import { SettingsPage } from './features/settings/SettingsPage';
 import { useI18n, type TranslationKey } from './i18n';
 
@@ -23,6 +24,7 @@ const TITLE_KEY: Record<ConsolePage, TranslationKey> = {
   'dep-graph': 'toolbar.title.depGraph',
   kb: 'toolbar.title.kb',
   pm: 'toolbar.title.pm',
+  archive: 'toolbar.title.archive',
   settings: 'toolbar.title.settings',
 };
 
@@ -92,6 +94,8 @@ export function App() {
             setPage('dep-graph');
           }}
         />
+      ) : page === 'archive' ? (
+        <ArchivePage client={apiClient} source={SOURCE} />
       ) : page === 'settings' ? (
         <SettingsPage client={apiClient} source={SOURCE} />
       ) : null}

@@ -116,6 +116,26 @@ describe('hub console API client', () => {
     expect(String(kbCall?.[0])).toContain('symptom=');
     expect(String(kbCall?.[0])).toContain('tags=CAN');
   });
+
+  test('fetches and parses the artifact version log', async () => {
+    const fetcher = vi.fn(async (url: string) => {
+      const path = new URL(url, 'http://teamhub.local').pathname;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => responseByPath(path),
+      } as Response;
+    });
+
+    const client = createHubApiClient({
+      baseUrl: 'http://127.0.0.1:4177',
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+
+    const result = await client.getArtifacts();
+    expect(fetcher).toHaveBeenCalledWith('http://127.0.0.1:4177/api/artifacts');
+    expect(result.artifacts).toEqual(apiContractFixtures.artifacts.artifacts);
+  });
 });
 
 function responseByPath(path: string): unknown {

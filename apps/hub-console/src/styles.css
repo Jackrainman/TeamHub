@@ -937,6 +937,83 @@ button {
   font-size: 12px;
 }
 
+/* ===== 图纸档案页（A8：提交日志 / 版本时间线） ===== */
+.archive-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.archive-row {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.archive-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
+}
+
+.archive-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: normal;
+}
+
+.archive-row__meta > span {
+  display: inline-flex;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+}
+
+.archive-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.archive-row__detail {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  width: 100%;
+}
+
+.archive-meta__row {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.archive-meta__row dt {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.archive-meta__row dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
 /* ===== 项目看板页 ===== */
 .pm-page {
   display: flex;

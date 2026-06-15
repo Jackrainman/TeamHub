@@ -6,6 +6,7 @@ import {
   GitReposResponseSchema,
   HubEventsResponseSchema,
   TasksResponseSchema,
+  type ArtifactsResponse,
   type DepGraph,
   type Task,
 } from '@teamhub/hub-contracts';
@@ -49,6 +50,8 @@ export interface HubApiClient {
   getDepGraph(): Promise<DepGraph>;
   getKbSimilar(params: KbSimilarParams): Promise<KbSimilarResponse>;
   getTasks(): Promise<{ tasks: Task[] }>;
+  // 图纸提交日志/版本时间线（档案页）：与总览第 7 个 fetch 同源 /api/artifacts，读治理快照。
+  getArtifacts(): Promise<ArtifactsResponse>;
   // 写侧（PM 录入簇 + KB 结案）。I0：confirmedBy 随依赖/需求请求传入但读视图永不回显；
   // 创建响应回完整对象（回给录入本人，非第三方）。
   createTask(req: CreateTaskRequest): Promise<CreateTaskResponse>;
@@ -127,6 +130,13 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
     },
     async getTasks() {
       return fetchJson(`${baseUrl}/api/tasks`, TasksResponseSchema, fetcher);
+    },
+    async getArtifacts() {
+      return fetchJson(
+        `${baseUrl}/api/artifacts`,
+        ArtifactsResponseSchema,
+        fetcher,
+      );
     },
     async createTask(req: CreateTaskRequest) {
       return postJson(
