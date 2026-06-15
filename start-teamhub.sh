@@ -12,6 +12,8 @@
 #   HUB_HOST              监听地址（默认 127.0.0.1；内网演示用 0.0.0.0）
 #   HUB_PORT              端口（默认 4177）
 #   TEAMHUB_KB_DATA_FILE  知识库语料落盘文件（默认 ~/teamhub-data/kb.json，重启不丢、closeout 累积）
+#   TEAMHUB_WRITE_TOKEN   写端点鉴权密钥（AUDIT H3）。绑非 loopback（0.0.0.0）时必填，未填则本脚本自动生成并打印；
+#                         写端点 POST /api/* 须带 `Authorization: Bearer <token>`，读端点不受影响。
 #   TEAMHUB_SKIP_BUILD=1  跳过构建（只重启时用）
 #
 set -euo pipefail
@@ -23,7 +25,20 @@ SERVER_DIR="${ROOT_DIR}/apps/hub-server"
 HUB_HOST="${HUB_HOST:-127.0.0.1}"
 HUB_PORT="${HUB_PORT:-4177}"
 TEAMHUB_KB_DATA_FILE="${TEAMHUB_KB_DATA_FILE:-${HOME}/teamhub-data/kb.json}"
+TEAMHUB_WRITE_TOKEN="${TEAMHUB_WRITE_TOKEN:-}"
 SKIP_BUILD="${TEAMHUB_SKIP_BUILD:-0}"
+
+# AUDIT H3：绑非 loopback 暴露写端点必须配 token，否则 server 拒启动。未配则自动生成并打印（演示便利 + 安全）。
+case "${HUB_HOST}" in
+  127.0.0.1 | localhost | ::1) ;;
+  *)
+    if [[ -z "${TEAMHUB_WRITE_TOKEN}" ]]; then
+      TEAMHUB_WRITE_TOKEN="$(openssl rand -hex 16 2>/dev/null \
+        || node -e 'process.stdout.write(require("crypto").randomBytes(16).toString("hex"))')"
+      AUTO_TOKEN=1
+    fi
+    ;;
+esac
 
 require_tool() {
   command -v "$1" >/dev/null 2>&1 || { echo "缺少必需工具：$1" >&2; exit 127; }
@@ -51,13 +66,17 @@ fi
 
 # console 静态产物交给 server 单端口托管
 export TEAMHUB_CONSOLE_DIST_DIR="${CONSOLE_DIR}/dist"
-export TEAMHUB_KB_DATA_FILE HUB_HOST HUB_PORT
+export TEAMHUB_KB_DATA_FILE HUB_HOST HUB_PORT TEAMHUB_WRITE_TOKEN
 
 echo "──────────────────────────────────────────────"
 echo " Team Hub 启动 → http://${HUB_HOST}:${HUB_PORT}  (console + API 同端口)"
 echo " 语料文件：${TEAMHUB_KB_DATA_FILE}"
-if [[ "${HUB_HOST}" == "0.0.0.0" ]]; then
-  echo " ⚠ 已绑 0.0.0.0：写端点当前零鉴权（AUDIT H3），仅限可信内网/Tailscale"
+if [[ "${HUB_HOST}" != "127.0.0.1" && "${HUB_HOST}" != "localhost" && "${HUB_HOST}" != "::1" ]]; then
+  echo " 已绑 ${HUB_HOST}：写端点 POST /api/* 须带 Authorization: Bearer <token>（读端点不限）。"
+  if [[ "${AUTO_TOKEN:-0}" == "1" ]]; then
+    echo "   ⚠ 自动生成的写鉴权 token（仅本进程，重启会变；要固定就预设 TEAMHUB_WRITE_TOKEN）："
+    echo "   TEAMHUB_WRITE_TOKEN=${TEAMHUB_WRITE_TOKEN}"
+  fi
 fi
 echo "──────────────────────────────────────────────"
 

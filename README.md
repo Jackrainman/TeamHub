@@ -229,7 +229,7 @@ HUB_HOST=0.0.0.0 ./start-teamhub.sh       # 暴露到内网 / Tailscale 演示
 
 知识库语料默认落在 `~/teamhub-data/kb.json`，重启不丢，结案会累积回灌；要换路径设 `TEAMHUB_KB_DATA_FILE`。
 
-> ⚠️ 写端点（`POST /api/*`）现在还没鉴权（见 `docs/planning/code-audit-2026-06-14.md` 的 H3），暂时只在可信内网里开，别 bind 到公网 `0.0.0.0`。
+> 🔐 写端点（`POST /api/*`）已加鉴权（AUDIT H3）：绑 loopback（默认 `127.0.0.1`）时本机直接用；绑 `0.0.0.0` 暴露到内网时**必须**配 `TEAMHUB_WRITE_TOKEN`，否则 server 拒绝启动——`start-teamhub.sh` 未配会自动生成并打印一个 token。之后写请求要带 `Authorization: Bearer <token>`，读端点不受影响。暴露前把 token 换成强随机串（`openssl rand -hex 32`）。
 
 ### 导入历史调试归档（可选）
 
@@ -281,7 +281,7 @@ v0.3 本质是"跨组需求单"——为大组织异步协作 + 责任划分 + a
 - v0.3 SPA / SQLite / 旧 server 全部冻结，仅致命补丁。
 - 三支柱里库存 / BOM 尚未落地（排最后，等 AI 能自保鲜再做）。
 - 真实状态派生上游（Git / 飞书 → 进度）未接通，PM 的 `statusSource` 暂兜底 `console`，不宣称已解 C1 / C5。
-- 写端点暂无鉴权 / 限流，只在可信内网 demo，未做正式部署。
+- 写端点已加 Bearer 鉴权 + 限流（AUDIT H3），但仍未做正式部署上线（缺固定 IP / 战队服务器）。
 - 治理 AI 派生整簇挂起，不判谁卡 / 不自动派活 / 不算排名。
 - 不做权限系统、多租户、产能排名、绩效统计；不做完整 PLM / 大型 PM。
 - 不做 RAG / embedding / 向量库（纯文本检索够用，到不够用再说）。
