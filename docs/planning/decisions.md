@@ -608,6 +608,7 @@
 
 ## D-043 — 构建纪律双轨化：连续构建（Claude Code/workflow）vs 串行 atomic-task（弱工具），共享底座抽 §6.0 单一源
 
+- 状态：**SUPERSEDED-BY D-066**（2026-06-15 harness 全改：主手册精简为 CC-centric、双轨/self-iterate 退役进 `archive/legacy-harness/`；串行轨 fallback = `archive/legacy-harness/AGENTS-serial.md` §6.A。原 DECIDED 全文留存追溯）
 - 状态：**DECIDED**（甲方 2026-06-14 设计对话拍板；本 ADR = 构建纪律范式权威源；**supersede** `docs/planning/workflow-evolution.md` 的「保留 STOP / 不引入 continuous」旧立场；纯 docs/planning/skills，代码零改）
 - 日期：2026-06-14
 - 上下文：D-042 后开始三支柱连续构建，暴露旧 `AGENTS §6 Atomic Task Discipline` 的张力——它把「一次一个原子任务 + commit 后 STOP + 重走 atomic-task skill 第 1 步」当成**全员硬律**。但 `atomic-task` 是 `.agents/skills/` 三方共用权威源（§9：Codex / OpenCode / Claude Code 共读），而**只有 Claude Code 有 `Workflow` 工具**。这套串行 STOP 节流阀本是给「无编排能力工具」防跑飞的，当成全员硬律就**拖累 Claude Code 的连续构建 / workflow 编排**。甲方明确：**还会用弱工具**（Codex/OpenCode），故不能只留一套；倾向**物理隔离**两套，但担心「两份会漂移」。`workflow-evolution.md`（2026-05-17 forward-looking）当年因「还没用上 workflow」而明确**保留 STOP、不引入 continuous**，并设想「人写 plan → 串行执行」的 epic 两层模式——这一前提已被「现在用 workflow 自动 fan-out / 编排」的现实推翻。
@@ -800,6 +801,7 @@
 
 ## D-053 — 自迭代外环（§6.C）+ 完成度模型 + M1 逃生阀（materialize-before-action）
 
+- 状态：**SUPERSEDED-BY D-066**（2026-06-15 harness 全改：自迭代外环退役进 `archive/legacy-harness/`，`completion-model.yaml`/`agent-state.json`/`self-iterate` skill 一并冻结；D-039 AI 已退治理，外环不再驱动产品方向。原 IMPLEMENTED 全文留存追溯）
 - 状态：**DECIDED / IMPLEMENTED**（2026-06-14；3-opus 设计→对抗红队 workflow `wf_3845c9c0-aa2` 硬化后落地；docs/skill/planning 纯文，verify 见下）
 - 日期：2026-06-14
 - 上下文：用户「搭建一个自迭代骨架，没任务时自行查看项目完成度，完成度不够则自动设立大目标、用 workflow 推进，atom-task 只用于提正确率+拆子 agent，让你能自己自然迭代而不是一直停下来等我看」。D-052 已注记**自迭代引擎其实已在**（§6.B continuous-build），过去每轮收尾即停的直接原因是 **frontier 空**（§6.0 M1 候选池闭口规定候选只在 backlog、不发散）+ 安全门 + 方向待拍。痛点不是缺引擎，是缺**外环**：frontier 空时谁来「找下一个大目标」。
@@ -977,3 +979,19 @@
   3. **不在本批动**：bridge/members（用户拍暂留）、ownerId/ownerLabel（D-041 安全堆设计张力非泄漏，待 AGENTS §5 措辞对账）、前端 a11y 簇（M14/15/16）、M20 workspace 工具、KB schema 双声明等长尾 → 留后续 console 批 / 部署批。
 - 验证：三包 verify:all 全绿（hub-contracts 48 / hub-server **102**[+1 invoke-400] / hub-console **9**[+2 写侧]）+ git diff --check 干净 + 真机 smoke（`TEAMHUB_DEMO_SEED=false` → /api/tasks·/api/artifacts 空、season 元信息留；默认 → 8 任务 + 8 图纸；mode 仍 mock-first 正常解析）。
 - 事实源：本 ADR；审计 workflow `wf_2f92f9cc-bd7`；`apps/hub-contracts/src/system-status.ts` / `apps/hub-server/src/{server,status,main,store/mock-gov-store}.ts` + `test/{routes,kb-closeout-route}.test.ts` / `apps/hub-console/test/client.test.ts` / `deploy/teamhub.env.example`；`code-audit-2026-06-14.md`（M8/L4/M13/M17/M20/M21 源）/ `D-059`（H1~M9 部署前必修首批）/ `D-061`（V1-FOLLOWUPS）。
+
+## D-066 — harness 全改：Ops 重做 + 编排纯化精简 + Codex/OpenCode archive fallback
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-15）
+- 日期：2026-06-15
+- 上下文：用户对照 `xju-feiyue-scripts` 的 harness 工程，定调对 TeamHub 做**整体 harness 全改**（非 cherry-pick）。结论：TeamHub 架构（Zod 契约 / Vitest 三包 / I0 不变式）已比 feiyue 成熟，要学的全在**运维纪律**维度；同时把重型 agent 编排（双轨 §6.A/B/C + self-iterate 外环 + completion-model + 3 编排 skill）瘦成 feiyue-style 精简、CC-centric 主手册。导火索 = 实测发现 `start-teamhub.sh` 漏 export `TEAMHUB_GOV_DATA_FILE` → 真实启动路径上治理落盘（D-061）形同虚设（测试机现仅演示数据，未丢真数据）。
+- 决策：
+  1. **Ops harness 全量重做**（吸收 feiyue 运维纪律，已落地）：start-teamhub.sh 接 gov 落盘（活体证重启存活）；`scripts/backup-teamhub-data.sh`（备份读回校验）；`verify-hub-compose.sh` 抹卷护栏（只许 `*smoke*`）；`/health` 加 buildId 活体戳（feiyue `?v=` 等价）；`scripts/pre-commit.sh`（密钥 grep + 空白）；`apps/hub-server/test/e2e-pillars.test.ts`（驱动真 `dist/main.js`/`tsx src/main.ts` + 真杀进程重启，断言跨 reload 内容往返——`app.inject` 证不了的层）；`docs/deploy/RUNBOOK.md`；`docs/dev-debug-archive/` 把审计 H1-H5 写成 KB 卡（吃自己的狗粮、bug→铁律可追溯）。
+  2. **编排纯化精简**：`AGENTS.md` 从 ~156 行双轨重型改写为精简 CC-centric 主手册（§1 是什么 + I0/C 不变式 / §2 铁律 / §3 命令 / §4 验证门 / §5 安全边界 / §6 踩坑→铁律）；M1/M2/M3 + completion gate 精华折成铁律，不再展开 apparatus。退役（移进 `archive/legacy-harness/`）：3 编排 skill（atomic-task/continuous-build/self-iterate）、`completion-model.yaml`、`agent-state.json`。
+  3. **archive fallback**：`archive/legacy-harness/AGENTS-serial.md` = 冻结的原 `AGENTS.md` 全文（自含 §6.0+§6.A+验证+安全+宪法+真实性），作**非 Claude Code 串行轨（Codex/OpenCode）的 fallback**——它们无 workflow 编排能力，照 §6.A 跟随、不依赖新 CC 主手册。
+  4. **必活不变式**（精简≠失纪律，feiyue 的精简是「少而钉死」）：I0 / C1-C5 / 反监视 A1/A2/A4 / verify:all 绿才 commit / 非 loopback 必配 token / 安全边界（无审批不写真服务器·SSH·systemd·80·443）/ commit+push 默认（D-064）—— 全进新铁律段、不退。
+  5. **不动**：hub-contracts/Zod 契约 + Vitest 三包测试架构（已比 feiyue 成熟，照抄单文件/零依赖=倒退）。**不做**：全套 CI（feiyue 自己拒绝、LAN-only，本地 verify:all 即上限）、systemd 上线 runbook（`REMOTE-ACCESS-DEPLOY` 未拍，批了从 git 历史捞 v0.3 模板）、2-hop scp 部署编排（死绑 feiyue 拓扑）。
+  6. **保留（执行期安全决定）**：`.agents/skills` ↔ `.claude/skills` 双源镜像机器（`sync-skills.sh` hook / `verify-skills-sync.sh` 哨兵）+ 4 产品 skill（debug-checklist/kb-debug/personal-daily-summary/pre-match-checklist）。镜像 hook 疑似挂全局 PostToolUse（repo 内无 settings.json 注册）、贸然删有破坏面，本轮**不动**；archive 已留副本，「单一 skills 位置」收口列为低优先后续。
+- supersede：**D-043**（双轨构建纪律）、**D-053**（自迭代外环 §6.C）——范式被精简 CC 主手册取代；两者全文 + skill + completion-model 冻结在 `archive/legacy-harness/`，复活路径见其 README。
+- 验证：三包 verify:all 全绿（hub-contracts 48 / hub-server **105**[+3 e2e] / hub-console 9）；A1 重启存活活体证；backup 三分支（valid→0/corrupt→1/missing→0）；抹卷护栏拒真项目 exit2；buildId 注入 deadbeef/回落 0.0.1；kb:import 5 imported/0 failed + 召回 H1/H3；archive 自含校验（6 § 锚点齐、无悬挂引用）。
+- 事实源：本 ADR；plan file `feiyue-script-harness-team-hub-synchronous-eich.md`；`AGENTS.md`（精简）/ `archive/legacy-harness/`（冻结全文 + 退役件）；`start-teamhub.sh` / `scripts/{backup-teamhub-data,pre-commit,verify-hub-compose}.sh` / `apps/hub-server/{src/status.ts,test/e2e-pillars.test.ts}` / `apps/hub-contracts/src/system-status.ts` / `docs/deploy/RUNBOOK.md` / `docs/dev-debug-archive/`。
