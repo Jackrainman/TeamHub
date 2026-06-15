@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from 'react';
-import { BookOpen, Home, LayoutGrid, Network, Settings } from 'lucide-react';
+import { BookOpen, Boxes, Home, LayoutGrid, Network, Settings } from 'lucide-react';
 import { useI18n, type TranslationKey } from '../../i18n';
 
 export type ConsolePage = 'overview' | 'dep-graph' | 'kb' | 'pm' | 'settings';
@@ -9,6 +9,8 @@ interface NavItem {
   labelKey: TranslationKey;
   icon: typeof Home;
   page?: ConsolePage;
+  // 无 page 时该项灰禁用；tooltipKey 覆盖默认的 nav.soon 提示（如库存/BOM 标「开发中」）
+  tooltipKey?: TranslationKey;
 }
 
 const navItems: NavItem[] = [
@@ -16,6 +18,8 @@ const navItems: NavItem[] = [
   { labelKey: 'nav.depGraph', icon: Network, page: 'dep-graph' },
   { labelKey: 'nav.kb', icon: BookOpen, page: 'kb' },
   { labelKey: 'nav.pm', icon: LayoutGrid, page: 'pm' },
+  // 第三支柱占位：库存/BOM 开发中——无 page → 复用灰禁用机制（D-052 保留），不接后端
+  { labelKey: 'nav.inv', icon: Boxes, tooltipKey: 'nav.inv.soon' },
   { labelKey: 'nav.settings', icon: Settings, page: 'settings' },
 ];
 
@@ -59,7 +63,7 @@ export function ConsoleLayout({
                 key={item.labelKey}
                 onClick={() => item.page && onNavigate(item.page)}
                 disabled={disabled}
-                title={disabled ? t('nav.soon') : undefined}
+                title={disabled ? t(item.tooltipKey ?? 'nav.soon') : undefined}
               >
                 <Icon aria-hidden="true" size={17} />
                 <span>{t(item.labelKey)}</span>

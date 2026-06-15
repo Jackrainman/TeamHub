@@ -12,6 +12,8 @@ const zh = {
   'nav.depGraph': '依赖图',
   'nav.settings': '设置',
   'nav.soon': '即将上线',
+  'nav.inv': '库存/BOM',
+  'nav.inv.soon': '库存/BOM 开发中',
 
   // 顶部工具条
   'toolbar.eyebrow': 'Team Hub',
@@ -284,6 +286,8 @@ const en: Record<TranslationKey, string> = {
   'nav.depGraph': 'Dep graph',
   'nav.settings': 'Settings',
   'nav.soon': 'Coming soon',
+  'nav.inv': 'Inventory/BOM',
+  'nav.inv.soon': 'Inventory/BOM — in development',
 
   'toolbar.eyebrow': 'Team Hub',
   'toolbar.title.overview': 'Operations Console',
