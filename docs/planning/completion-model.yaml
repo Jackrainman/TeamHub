@@ -15,7 +15,7 @@ authority: "derived-spec; now.md/backlog.md/decisions.md authoritative for scope
 audited: true                        # 人审一次完成（D-055，2026-06-14）：4 弱谓词收口为 verify:all + 谓词全重跑 PASS
 synthesis_mode: propose-and-drive    # propose-and-stop（默认/未审计）| propose-and-drive（审计后）
 epic_cap_per_invocation: 1           # 每次 invocation 至多合成+物化 1 个 epic，然后 STOP 等人审
-last_checked: "2026-06-15 (D-059: AUDIT-FIXES 7 条部署前必修全做，AUDIT-H1/H3 翻 done，谓词=接缝锚+hub-server verify:all，重跑 exit0)"  # 第 8 步记录上次跑谓词
+last_checked: "2026-06-15 (D-061: v1 能跑产品——治理快照落盘 FileGovStore + 图纸提交日志 + 删 mock 单后端；GOV-PERSISTENCE/ARTIFACT-VERSION-LOG 翻 done，谓词=接缝锚+包 verify:all，重跑 exit0)"  # 第 8 步记录上次跑谓词
 
 # predicate_kind 取值：cmd_exit0 | file_exists | grep_hit | schema_safeparse | yaml_parses | test_count_gte
 # done iff: cmd_exit0→exit 0；file_exists→文件存在；grep_hit→grep 命中；其余同义。
@@ -56,6 +56,26 @@ deliverables:
     status: done
     predicate_kind: cmd_exit0          # 接缝锚点 + 该包 verify:all 真绿（D-055 弱谓词收口）
     predicate: "test -f apps/hub-console/src/features/settings/SettingsPage.tsx && npm --prefix apps/hub-console run verify:all"
+
+  - id: GOV-PERSISTENCE
+    pillar: server
+    required: true
+    priority: 22
+    backlog_id: V1-FOLLOWUPS
+    status: done                       # 2026-06-15 实现（FileGovStore 治理快照落盘+main.ts 接 TEAMHUB_GOV_DATA_FILE，PM/治理数据重启不丢），D-061；接缝锚 + hub-server verify:all 重跑 PASS + 真机 smoke 落盘实证
+    note: "PM/gov 数据落盘补硬伤（原 InMemoryGovStore 重启回演示假数据）；FileGovStore 1:1 镜像 FileKbStore（H2 写链隔离/fail-closed）；空板起步是后置 1-flag（V1-FOLLOWUPS）"
+    predicate_kind: cmd_exit0          # 接缝锚（FileGovStore 存在）+ 该包 verify:all 真绿（含 gov-store-persist 测）
+    predicate: "test -f apps/hub-server/src/store/file-gov-store.ts && npm --prefix apps/hub-server run verify:all"
+
+  - id: ARTIFACT-VERSION-LOG
+    pillar: server
+    required: true
+    priority: 24
+    backlog_id: V1-FOLLOWUPS
+    status: done                       # 2026-06-15 实现（ArtifactRef 加 mechanism/revision/submittedVia + GovernanceSnapshot.artifacts + GET 读快照 + 8 条版本日志种子 + console 图纸档案页），D-061；接缝锚 + 两包 verify:all 重跑 PASS + 真机 smoke 8 条版本日志
+    note: "图纸提交日志/版本时间线最小落地（机构/版本/日期可查可存档）；进阶语义（权威版指针/自动 bump/按车分支/回退）仍在 ARTIFACT-VERSION-SEMANTICS open_for_decision；登记新版写入口在 V1-FOLLOWUPS"
+    predicate_kind: cmd_exit0          # 接缝锚（mechanism 字段 + 档案页）+ 两包 verify:all 真绿
+    predicate: "grep -q 'mechanism' apps/hub-contracts/src/schemas.ts && test -f apps/hub-console/src/features/archive/ArchivePage.tsx && npm --prefix apps/hub-console run verify:all"
 
   # ---- gap（谓词当前应失败 → 排进 gap 列表）----
   - id: DEPGRAPH-DRAG-CONNECT
