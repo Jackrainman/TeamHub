@@ -928,3 +928,18 @@
 - **我（主循环）独立验证**：三包 `verify:all` 重跑 exit 0（hub-contracts 47 测 / hub-server 89 测[+4 gov-store-persist：seed-on-fresh/重启不丢/corrupt fail-closed/H2 写链不中毒] / hub-console 6 测 + build）；`git diff --check` 干净；**真机 smoke**（4199 单端口 console+API+`TEAMHUB_GOV_DATA_FILE`）：`GET /api/artifacts` 返 8 条版本日志（机构/版本/来源/日期/关联commit）、FileGovStore 落盘 15KB 文件含 8 artifacts+8 tasks（重启不丢实证）、Playwright 视觉档案页按机构分组时间线正确、mock 文案/开关消失、4177 旧实例未碰。
 - 老实定位（非阻塞）：真实 status / 图纸上游派生仍未接（seam 留 `statusSource`/`submittedVia` 枚举 + `store?: GovStore` 注入口，等 Hermes/飞书/Git 触点）；fresh 文件 seed 测试数据、空板起步是后置 1-flag；2 条测试断言强度 nit 待排（功能已实证）；OverviewPage→档案页链接（低优先级）未加。
 - 事实源：本 ADR；`apps/hub-contracts/src/{schemas,attribution,fixtures}.ts` / `apps/hub-server/src/{server,main}.ts` + `store/file-gov-store.ts` + `test/gov-store-persist.test.ts` / `apps/hub-console/src/features/archive/ArchivePage.tsx` + `api/client.ts` + `App.tsx` + `components/layout/ConsoleLayout.tsx` + `i18n/translations.ts` / `compose.yaml` / `deploy/teamhub.env.example`；workflow `wf_eb55b2ca-8fe`；`D-042`（base 收口刀 GovStore 扩展点）/ `D-059`（FileKbStore H2/H5 同法）/ `D-049`（设置页）。
+
+## D-062 — 集成模型地基重建：扁平 AdapterDescriptor → BotChannel / AgentBackend / DataSource 三分
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-15）
+- 日期：2026-06-15
+- 上下文：旧的扁平 `AdapterDescriptor` 把"机器人触点 / AI 后端 / 只读数据源"三类语义混成一张表——`kind` 字段是装饰、无人 switch、invoke 契约错配、status 假值、lark 有三个互不相连化身，难以演进真实接入。同时认证模型拍定 = **A「公共后端、无登录」**（服务端无账号/session/JWT，唯一鉴权是全队共用 `TEAMHUB_WRITE_TOKEN` 仅挡非 loopback 的 POST；飞书/微信/QQ 当通知渠道、非登录方式；"我的视图/按人记账"才需上 B 登录，已推迟）。详见 memory `teamhub-integration-model` + 计划文件 `a-qq-bot-hermes-openclaw-agent-shimmering-cherny.md`。
+- 决策（实现定调）：
+  1. 拆成三个一等公民：**`BotChannel`**（飞书/微信/QQ，连接型 status，动词 receive/reply/push）/ **`AgentBackend`**（hermes/openclaw/claude-code，唯一有 invoke/health/capabilities，字段 `backendId`）/ **`DataSource`**（git-forge/artifact-store，只读，`sourceRef`；artifact-store=`filebrowser://artifacts` 预留 Filebrowser 落点）。
+  2. 路由：`/api/adapters*` → `/api/bot-channels` + `/api/agent-backends`（+ `:backendId/health|capabilities|invoke`）+ `/api/data-sources`。
+  3. `AdapterDescriptorSchema` **弃用保留**（lark-gateway/lark-toolkit/pf-skills 三个真 app 的 hub.ts 仍用它自描述，删了得罪 3 个 app）。删 xiaolongxia、pf-skills 移出集成列表。
+  4. mock：`mock-adapters.ts` → `mock-integrations.ts`（bot-channel + data-source），`mock-ai-adapters.ts` → `mock-agent-backends.ts`。
+  5. console 设置页集成子节按三类分小节渲染；i18n zh+en + styles。
+- 老实定位（非阻塞）：`HubEventSourceSchema` 仍混 bot/agent/内部源（事件源枚举清理推迟）；飞书真实连接状态探测推迟（`BotChannel.status` 现为诚实占位）；系统状态 `adapters` 字段语义漂移为 agent-backend 计数（靠 i18n 标签消解）；真实触点接入仍 mock-first。
+- 验证：hub-contracts 47 测 / hub-server 91 测 / hub-console 6 测 全绿 + 三包 build + 活体 curl 三组新端点过；3 个 bot app 未装 vitest 跑不了但未改其源、依赖符号保留。
+- 事实源：本 ADR；`apps/hub-contracts/src/{schemas,fixtures,index}.ts` / `apps/hub-server/src/{contracts,server,status}.ts` + `mock-integrations.ts` + `mock-agent-backends.ts` / `apps/hub-console/src/{api,features/settings/SettingsPage,i18n/translations,styles}`；memory `teamhub-integration-model`；`D-057`（适配器→集成进设置）/ `D-061`（v1 能跑产品）。
