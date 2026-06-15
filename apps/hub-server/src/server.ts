@@ -181,8 +181,11 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     return GitReposResponseSchema.parse(apiContractFixtures.gitRepos);
   });
 
+  // 图纸提交日志 / 版本时间线（v1，A2）：从治理快照读 artifacts（持久化时由 FileGovStore 落盘累积），
+  // 不再读 apiContractFixtures.artifacts。无人维度——记录主键是机构 + 版本 + 归档物（I0/A4）。
   app.get('/api/artifacts', async () => {
-    return ArtifactsResponseSchema.parse(apiContractFixtures.artifacts);
+    const snapshot = await store.getSnapshot();
+    return ArtifactsResponseSchema.parse({ artifacts: snapshot.artifacts });
   });
 
   // 依赖链 · 阻塞归因视图：治理快照经纯函数 toDepGraphView 实时派生（D-040 首任务收敛）。

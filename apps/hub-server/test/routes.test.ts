@@ -166,7 +166,7 @@ describe('hub-server routes', () => {
     expect(body.repos.length).toBeGreaterThan(0);
   });
 
-  test('GET /api/artifacts returns mock-first artifact fixtures', async () => {
+  test('GET /api/artifacts returns the snapshot artifact version log', async () => {
     const response = await app.inject({
       method: 'GET',
       url: '/api/artifacts',

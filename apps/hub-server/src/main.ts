@@ -1,10 +1,19 @@
 import { buildHubServer } from './server.js';
+import { FileGovStore } from './store/file-gov-store.js';
 import { FileKbStore } from './store/file-kb-store.js';
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 4177;
 
 async function main(): Promise<void> {
+  // 设了 TEAMHUB_GOV_DATA_FILE → 治理快照落盘（重启不丢，PM 录入 / 图纸提交日志 / 结案知识节点累积）；
+  // 文件不存在时 seed 真实锚点场景 + 图纸版本日志（A6）。未设则维持 InMemoryGovStore（mock-first 不变）。
+  // 单一真相在服务器，与 TEAMHUB_KB_DATA_FILE / FileKbStore 同一套落盘纪律。
+  const govDataFile = process.env.TEAMHUB_GOV_DATA_FILE;
+  const store = govDataFile
+    ? await FileGovStore.create(govDataFile)
+    : undefined;
+
   // 设了 TEAMHUB_KB_DATA_FILE → 知识库语料落盘（重启不丢、closeout 回灌累积）；
   // 未设则维持 InMemoryKbStore（mock-first 不变）。单一真相在服务器。
   const kbDataFile = process.env.TEAMHUB_KB_DATA_FILE;
@@ -33,6 +42,7 @@ async function main(): Promise<void> {
 
   const app = buildHubServer({
     consoleDistDir: process.env.TEAMHUB_CONSOLE_DIST_DIR,
+    store,
     kbStore,
     writeToken,
   });
