@@ -965,3 +965,15 @@
 - 上下文：`AGENTS §6.0`（用户 2026-06-11）早已授权「completion gate 通过即直接 commit+push、无需 review」，但措辞落在 §6.A/§6.B/§6.C 自迭代 / 双轨构建语境。交互式（用户当面逐轮指挥）会话里 agent 仍按全局「问了才提交」默认，反复问「要不要 commit+push」，用户嫌烦、明确要求改默认。
 - 决策：把该授权**扩展为对一切改动的默认**——含交互式会话。做完一个可验证改动（最小验证通过 + planning sync）即**默认 commit+push**，不再每次问；仅当用户对某次明确叫停才暂缓。push 前 `git fetch` 查分叉、有叉先 rebase/合并。**§3/§8 安全边界（真实服务器 / SSH / 部署 / 80·443 / 密钥）不在授权内，仍需审批**。
 - 事实源：本 ADR；`AGENTS.md §6.0`；memory `teamhub-autonomy-loop` / 新增 commit-default feedback；`D-043`（双轨构建纪律）。
+
+## D-065 — 审计后 server 硬化 + 写侧正确性批（写侧小批 + 预写部署代码合并 pass）
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-15）
+- 日期：2026-06-15
+- 上下文：用户问「项目还有哪些可优化 / 构建」→ 跑 14-agent 审计 workflow（`wf_2f92f9cc-bd7`：6 finder[审计项重对账 / 新代码 bug / I0 安全 / 架构工具 / 前端 / 构建路线图]→对抗核实→综合）产 38 优化 + 24 构建。用户拍板：先做两批无外部门、可立即落地的——「写侧正确性小批」+「预写部署代码」，因都改 `server.ts`/契约层，合并成一次 pass。bridge/members 逐人状态板（唯一确认 I0 违反）用户拍**暂时保留**、标真实部署前必处理（fixture-only + 治理层 D-039 已挂起，现不急）。
+- 决策（实现定调）：
+  1. **写侧正确性（已对抗核实）**：`POST /api/agent-backends/:id/invoke` `.parse`→`safeParse`+400（M8 旧账，D-062 改路由名漏补，全 POST 唯一抛错处）；`POST /api/kb/closeout` 补 `reply.code(201)`（L4）；`InMemoryGovStore` 构造器补全克隆 groups/members/taskKnowledgeTags（M13，8 数组与 `FileGovStore.cloneSnapshot` 对齐）；补 console 写侧测试 createTask/createDependency/createNeed/closeoutKb + 400-detail 透出（M21）+ hub-server invoke-400 回归。
+  2. **预写部署代码（上线等 §8 审批、代码先就位）**：`SystemStatusResponseSchema.mode` `z.literal('mock-first')`→`z.enum(['mock-first','real','hybrid'])`（real/hybrid 部署 server 自解析自身响应不再 500）+ `buildSystemStatusResponse` 加 mode 参默认 mock-first；`buildHubServer` 加 `trustProxy?` 透传 Fastify + `TEAMHUB_TRUST_PROXY=true`（4177 反代/隧道后面不开则写限流塌成全队单桶=DoS）；`TEAMHUB_DEMO_SEED=false` 空板起步（V1-FOLLOWUP-2，fresh 落盘文件 seed 空板、不进演示假数据，仅影响新建文件）+ env.example 补 token 强随机提示 / TRUST_PROXY / DEMO_SEED。
+  3. **不在本批动**：bridge/members（用户拍暂留）、ownerId/ownerLabel（D-041 安全堆设计张力非泄漏，待 AGENTS §5 措辞对账）、前端 a11y 簇（M14/15/16）、M20 workspace 工具、KB schema 双声明等长尾 → 留后续 console 批 / 部署批。
+- 验证：三包 verify:all 全绿（hub-contracts 48 / hub-server **102**[+1 invoke-400] / hub-console **9**[+2 写侧]）+ git diff --check 干净 + 真机 smoke（`TEAMHUB_DEMO_SEED=false` → /api/tasks·/api/artifacts 空、season 元信息留；默认 → 8 任务 + 8 图纸；mode 仍 mock-first 正常解析）。
+- 事实源：本 ADR；审计 workflow `wf_2f92f9cc-bd7`；`apps/hub-contracts/src/system-status.ts` / `apps/hub-server/src/{server,status,main,store/mock-gov-store}.ts` + `test/{routes,kb-closeout-route}.test.ts` / `apps/hub-console/test/client.test.ts` / `deploy/teamhub.env.example`；`code-audit-2026-06-14.md`（M8/L4/M13/M17/M20/M21 源）/ `D-059`（H1~M9 部署前必修首批）/ `D-061`（V1-FOLLOWUPS）。

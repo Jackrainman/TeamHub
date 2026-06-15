@@ -6,8 +6,9 @@ import { isoDateTimeSchema } from './common.js';
  * 此前 hub-server/src/contracts.ts 与 hub-console/src/api/schemas/system.ts 各声明一份、字段逐字重复，
  * 且 hub-server 还本地重声明 isoDateTimeSchema（common.ts 已是单一源）；现下沉至此，两端 import 同一份。
  *
- * 注：`mode: z.literal('mock-first')` 维持现状（本次仅去重、不改行为）；放宽为 z.string/z.enum 以容纳
- * 真实运行模式属独立决策（见 code-audit「模型口径分叉」/ now.md open_for_decision）。
+ * `mode` 放宽为 `z.enum(['mock-first','real','hybrid'])`：此前锁死 `z.literal('mock-first')`，real / hybrid
+ * 部署时 server 自解析自身响应即 500、总览页随之崩——部署前必改。当前仍只产出 `mock-first`（见 status.ts
+ * buildSystemStatusResponse 的 mode 默认值），真实运行模式由部署方注入，schema 先放行以解部署阻断。
  */
 export const HealthResponseSchema = z.object({
   status: z.literal('ok'),
@@ -18,7 +19,7 @@ export const HealthResponseSchema = z.object({
 export const SystemStatusResponseSchema = z.object({
   service: z.literal('teamhub-hub-server'),
   version: z.string().min(1),
-  mode: z.literal('mock-first'),
+  mode: z.enum(['mock-first', 'real', 'hybrid']),
   generatedAt: isoDateTimeSchema,
   uptimeSeconds: z.number().nonnegative(),
   adapters: z.object({

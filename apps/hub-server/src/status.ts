@@ -25,11 +25,13 @@ export function buildSystemStatusResponse(
   agentBackends: AgentBackend[],
   now = new Date(),
   uptimeSeconds = process.uptime(),
+  // 默认 'mock-first'（当前唯一产出）；real/hybrid 部署由调用方注入。schema 已放宽（system-status.ts）。
+  mode: SystemStatusResponse['mode'] = 'mock-first',
 ): SystemStatusResponse {
   return {
     service: SERVICE_NAME,
     version: VERSION,
-    mode: 'mock-first',
+    mode,
     generatedAt: now.toISOString(),
     uptimeSeconds,
     adapters: {

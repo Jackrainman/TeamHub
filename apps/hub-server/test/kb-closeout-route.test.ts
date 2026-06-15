@@ -38,7 +38,7 @@ describe('POST /api/kb/closeout', () => {
           resolution: '下调 Kp + 加滤波',
         },
       });
-      expect(res.statusCode).toBe(200);
+      expect(res.statusCode).toBe(201); // L4：结案创建归档/错误表/知识节点 → 201
       const body = KbCloseoutResponseSchema.parse(res.json());
 
       expect(body.updatedIssueCard.status).toBe('archived');
@@ -82,7 +82,7 @@ describe('POST /api/kb/closeout', () => {
           resolution: '下调 Kp + 加滤波',
         },
       });
-      expect(closeout.statusCode).toBe(200);
+      expect(closeout.statusCode).toBe(201); // L4：结案 → 201
 
       // 上传后：同症状现在召回到刚结案那条（闭环闭上）
       const after = await app.inject({ method: 'GET', url });

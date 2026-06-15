@@ -2,7 +2,14 @@ import { describe, expect, test, vi } from 'vitest';
 import {
   apiContractFixtures,
   governanceScenarioFixture,
+  kbScenarioFixture,
 } from '@teamhub/hub-contracts';
+import type {
+  CreateTaskRequest,
+  CreateDependencyRequest,
+  CreateNeedRequest,
+} from '@teamhub/hub-contracts';
+import type { KbCloseoutRequest } from '../src/api/schemas/kb';
 import { createHubApiClient } from '../src/api/client';
 import { OverviewSnapshotSchema } from '../src/api/schemas/system';
 
@@ -176,7 +183,99 @@ describe('hub console API client', () => {
     expect(waiveCall).toBeTruthy();
     expect(waiveCall?.[1]?.method).toBe('POST');
   });
+
+  test('写侧 create* / closeoutKb POST 到正确路径、带 body、解析响应（M21）', async () => {
+    const fetcher = vi.fn(async (url: string, _init?: RequestInit) => {
+      const path = new URL(url, 'http://teamhub.local').pathname;
+      return {
+        ok: true,
+        status: 201,
+        json: async () => writeResponseByPath(path),
+      } as Response;
+    });
+
+    const client = createHubApiClient({
+      baseUrl: 'http://127.0.0.1:4177',
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+
+    // client 不校验请求体（postJson 只 stringify）——这里验 URL/method/body 透传 + 响应 schema 解析。
+    const taskReq = { title: 'write-test-task' } as unknown as CreateTaskRequest;
+    const taskRes = await client.createTask(taskReq);
+    expect(taskRes.task.id).toBeTruthy();
+    const taskCall = fetcher.mock.calls.find(([u]) =>
+      String(u).endsWith('/api/tasks'),
+    );
+    expect(taskCall?.[1]?.method).toBe('POST');
+    expect(JSON.parse(String(taskCall?.[1]?.body))).toEqual(taskReq);
+
+    const depReq = { fromTaskId: 'a', toTaskId: 'b' } as unknown as CreateDependencyRequest;
+    const depRes = await client.createDependency(depReq);
+    expect(depRes.dependency.id).toBeTruthy();
+    // I0：响应 schema 剥 confirmedBy（M6）
+    expect(depRes.dependency).not.toHaveProperty('confirmedBy');
+    const depCall = fetcher.mock.calls.find(([u]) =>
+      String(u).endsWith('/api/dependencies'),
+    );
+    expect(depCall?.[1]?.method).toBe('POST');
+
+    const needReq = { providerGroupId: 'g' } as unknown as CreateNeedRequest;
+    const needRes = await client.createNeed(needReq);
+    expect(needRes.need.id).toBeTruthy();
+    // I0：响应 schema 剥 confirmedBy（M6）
+    expect(needRes.need).not.toHaveProperty('confirmedBy');
+    const needCall = fetcher.mock.calls.find(([u]) =>
+      String(u).endsWith('/api/needs'),
+    );
+    expect(needCall?.[1]?.method).toBe('POST');
+
+    const closeoutReq = { rootCause: 'r', resolution: 'fix' } as unknown as KbCloseoutRequest;
+    const closeoutRes = await client.closeoutKb(closeoutReq);
+    expect(closeoutRes.knowledgeNode.id).toBeTruthy();
+    expect(closeoutRes.errorEntry.errorCode.length).toBeGreaterThan(0);
+    const closeoutCall = fetcher.mock.calls.find(([u]) =>
+      String(u).endsWith('/api/kb/closeout'),
+    );
+    expect(closeoutCall?.[1]?.method).toBe('POST');
+  });
+
+  test('postJson 把后端 400 的 detail 透出到抛错（表单错误条）', async () => {
+    const fetcher = vi.fn(async () => ({
+      ok: false,
+      status: 400,
+      json: async () => ({ detail: 'invalid body' }),
+    })) as unknown as typeof fetch;
+
+    const client = createHubApiClient({
+      baseUrl: 'http://127.0.0.1:4177',
+      fetcher,
+    });
+
+    await expect(
+      client.createTask({} as unknown as CreateTaskRequest),
+    ).rejects.toThrow('400: invalid body');
+  });
 });
+
+function writeResponseByPath(path: string): unknown {
+  switch (path) {
+    case '/api/tasks':
+      return { task: governanceScenarioFixture.tasks[0] };
+    case '/api/dependencies':
+      return { dependency: governanceScenarioFixture.dependencies[0] };
+    case '/api/needs':
+      return { need: governanceScenarioFixture.needs[0] };
+    case '/api/kb/closeout':
+      return {
+        archiveDocument: kbScenarioFixture.archiveDocuments[0],
+        errorEntry: kbScenarioFixture.errorEntries[0],
+        updatedIssueCard: kbScenarioFixture.issueCards[0],
+        knowledgeNode: governanceScenarioFixture.knowledgeNodes[0],
+      };
+    default:
+      return { detail: 'Not found' };
+  }
+}
 
 function responseByPath(path: string): unknown {
   // 受限状态机迁移路由（动态 id）：状态流转 / 连线作废。

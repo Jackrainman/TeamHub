@@ -35,14 +35,18 @@ export class InMemoryGovStore implements GovStore {
     seed: GovernanceSnapshot = governanceScenarioFixture,
     clock: Clock = new FixedClock(new Date(GOVERNANCE_SCENARIO_NOW)),
   ) {
-    // 浅克隆 + 克隆数组（tasks/dependencies/needs/knowledgeNodes/artifacts）：写方法追加时不污染共享 fixture。
-    // artifacts 当前无写方法触及（图纸版本日志只读），克隆是为与其他数组字段保持隔离一致性（防未来写入串台）。
+    // 浅克隆 + 克隆全部 8 个数组（M13）：写方法追加时不污染共享 fixture。与 FileGovStore.cloneSnapshot 对齐——
+    // groups/members/taskKnowledgeTags 当前无写方法触及，但一并克隆保证隔离一致性（防未来写入串台污染共享 fixture，
+    // 进而影响后续实例与依赖 fixture 的测试）；artifacts 同理（图纸版本日志当前只读）。
     this.snapshot = {
       ...seed,
+      groups: [...seed.groups],
+      members: [...seed.members],
       tasks: [...seed.tasks],
       dependencies: [...seed.dependencies],
       needs: [...seed.needs],
       knowledgeNodes: [...seed.knowledgeNodes],
+      taskKnowledgeTags: [...seed.taskKnowledgeTags],
       artifacts: [...seed.artifacts],
     };
     this.clock = clock;

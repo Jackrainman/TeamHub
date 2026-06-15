@@ -146,6 +146,19 @@ describe('hub-server routes', () => {
     });
   });
 
+  test('POST /api/agent-backends/:id/invoke rejects a bad body with 400 (M8: safeParse not throwing parse)', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/agent-backends/openclaw/invoke',
+      // correlationId 是 z.string().min(1).optional() → 空串非法。修前 .parse 抛 ZodError → Fastify 500；
+      // 修后 safeParse → 400（与其余 POST 路由一致），不泄漏 Zod 内部、不破坏错误契约。
+      payload: { correlationId: '' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(typeof response.json().detail).toBe('string');
+  });
+
   test('agent backend endpoints reject non-backend ids', async () => {
     const response = await app.inject({
       method: 'GET',

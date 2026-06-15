@@ -91,12 +91,25 @@ export interface BuildHubServerOptions {
   writeToken?: string;
   /** H3：写端点每 IP 固定窗口限流（默认 120 次 / 60s）。测试可调小触发 429。 */
   writeRateLimit?: { max: number; windowMs: number };
+  /**
+   * 反代信任。默认 false（request.ip = 直连源）。在文档化的单端口 4177 反代 / SSH 隧道部署后面，
+   * 不开则所有客户端的 request.ip 都塌成代理 / loopback，限流退化成**全队共用一个桶**（任一客户端可耗尽、
+   * DoS 全队写入）。运维在可信代理后应设为 `true`（或代理地址 / 跳数），令 request.ip 解析为转发来的真实
+   * 客户端 IP，限流按客户端分桶。直连暴露时保持 false（否则 X-Forwarded-For 可伪造）。透传给 Fastify。
+   */
+  trustProxy?: boolean | string;
 }
 
 export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInstance {
   // H3（AUDIT-FIXES）：显式 bodyLimit 收口写端点请求体上限（默认 Fastify 1MB 仍偏大，配合 KB 整文件重写是
   // 低成本资源耗尽面，见 M17）；256KB 足够任务 / 结案录入。
-  const app = Fastify({ logger: false, bodyLimit: 256 * 1024 });
+  const app = Fastify({
+    logger: false,
+    bodyLimit: 256 * 1024,
+    // 反代信任（默认 false）：开启后 request.ip 解析为转发的真实客户端 IP，限流才按客户端分桶
+    // （见 BuildHubServerOptions.trustProxy；4177 反代部署须开，否则限流塌成全局单桶）。
+    trustProxy: options.trustProxy ?? false,
+  });
   const store: GovStore = options.store ?? new InMemoryGovStore();
   const clock: Clock =
     options.clock ?? new FixedClock(new Date(GOVERNANCE_SCENARIO_NOW));
@@ -117,7 +130,8 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
       void reply.code(401).send({ detail: 'unauthorized' });
       return reply;
     }
-    // 限流（真实墙钟 Date.now，与派生用的 clock 解耦；每实例独立、重启即重置）
+    // 限流（真实墙钟 Date.now，与派生用的 clock 解耦；每实例独立、重启即重置）。
+    // 分桶键 = request.ip：直连=源 IP；反代后须开 trustProxy（见上）才是真实客户端 IP，否则塌成全局单桶。
     const ip = request.ip;
     const nowMs = Date.now();
     const hit = rateHits.get(ip);
@@ -193,11 +207,15 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
       void reply.code(404).send({ detail: 'Agent backend not found' });
       return;
     }
-    const invokeRequest = AgentBackendInvokeRequestSchema.parse(
-      request.body ?? {},
-    );
+    // 与其余写路由一致：坏 body 走 safeParse → 400（客户端输入错误），不让 ZodError 冒泡成 500
+    // （此前唯一仍用抛错 .parse 的 POST；correlationId:'' / 非串都会触发 500 泄漏 Zod 内部、破坏错误契约）。
+    const parsed = AgentBackendInvokeRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      return;
+    }
     return AgentBackendInvokeResponseSchema.parse(
-      invokeMockAgentBackend(backendId, invokeRequest),
+      invokeMockAgentBackend(backendId, parsed.data),
     );
   });
 
@@ -403,6 +421,8 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
       errorEntry: result.errorEntry,
       archiveDocument: result.archiveDocument,
     });
+    // L4：与其余 create 路由（tasks/dependencies/needs）一致，结案创建归档/错误表/知识节点 → 201。
+    void reply.code(201);
     return KbCloseoutResponseSchema.parse({
       archiveDocument: result.archiveDocument,
       errorEntry: result.errorEntry,
