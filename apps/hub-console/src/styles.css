@@ -1364,3 +1364,29 @@ button {
   font-weight: 700;
   cursor: pointer;
 }
+
+/* 总览「集成已移到设置页」一行入口（INTEGRATIONS-TO-SETTINGS） */
+.overview-integrations-hint {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.overview-integrations-hint .link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.overview-integrations-hint span {
+  color: var(--muted);
+  font-size: 13px;
+}

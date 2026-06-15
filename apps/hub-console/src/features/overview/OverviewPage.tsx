@@ -1,24 +1,17 @@
 import type {
-  AdapterDescriptor,
   ArtifactRef,
   BridgeMemberState,
   GitRepoRef,
   HubEvent,
 } from '@teamhub/hub-contracts';
 import type { OverviewSnapshot } from '../../api/schemas/system';
+import type { ConsolePage } from '../../components/layout/ConsoleLayout';
 import { useI18n, type TranslationKey } from '../../i18n';
 
 // 后端枚举 → 文案键（类型安全：枚举变更会在此处编译报错）。仅翻译状态/类型等「界面语义」，
 // 用户数据（displayName / uri / branch / capabilities 等）保持后端原样。
 const HEALTH_KEY: Record<OverviewSnapshot['health']['status'], TranslationKey> = {
   ok: 'enum.health.ok',
-};
-
-const ADAPTER_STATUS_KEY: Record<AdapterDescriptor['status'], TranslationKey> = {
-  enabled: 'enum.adapter.enabled',
-  disabled: 'enum.adapter.disabled',
-  degraded: 'enum.adapter.degraded',
-  unconfigured: 'enum.adapter.unconfigured',
 };
 
 const MEMBER_STATUS_KEY: Record<BridgeMemberState['status'], TranslationKey> = {
@@ -55,9 +48,15 @@ interface OverviewPageProps {
   snapshot: OverviewSnapshot | undefined;
   isLoading: boolean;
   error: unknown;
+  onNavigate?: (page: ConsolePage) => void;
 }
 
-export function OverviewPage({ snapshot, isLoading, error }: OverviewPageProps) {
+export function OverviewPage({
+  snapshot,
+  isLoading,
+  error,
+  onNavigate,
+}: OverviewPageProps) {
   const { t } = useI18n();
 
   if (isLoading) {
@@ -99,19 +98,20 @@ export function OverviewPage({ snapshot, isLoading, error }: OverviewPageProps) 
         />
       </section>
 
-      <section className="panel panel-wide">
-        <PanelHeader
-          title={t('overview.panel.adapters')}
-          meta={t('overview.meta.unconfigured', {
-            n: snapshot.system.adapters.unconfigured,
-          })}
-        />
-        <div className="adapter-grid">
-          {snapshot.adapters.adapters.map((adapter) => (
-            <AdapterRow adapter={adapter} key={adapter.id} />
-          ))}
-        </div>
-      </section>
+      {/* 集成详情已移到设置页（INTEGRATIONS-TO-SETTINGS）：总览只留一行入口，主体精简到指标 + 最近事件。 */}
+      <div className="overview-integrations-hint">
+        {onNavigate ? (
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => onNavigate('settings')}
+          >
+            {t('overview.integrations.toSettings')}
+          </button>
+        ) : (
+          <span>{t('overview.integrations.toSettings')}</span>
+        )}
+      </div>
 
       <section className="panel">
         <PanelHeader
@@ -186,18 +186,6 @@ function PanelHeader({ title, meta }: { title: string; meta: string }) {
   );
 }
 
-function AdapterRow({ adapter }: { adapter: AdapterDescriptor }) {
-  return (
-    <article className="adapter-row">
-      <div>
-        <strong>{adapter.displayName}</strong>
-        <span>{adapter.capabilities.join(', ')}</span>
-      </div>
-      <StatusPill status={adapter.status} />
-    </article>
-  );
-}
-
 function EventRow({ event }: { event: HubEvent }) {
   const { t } = useI18n();
   return (
@@ -242,14 +230,5 @@ function ArtifactRow({ artifact }: { artifact: ArtifactRef }) {
         {t(ARTIFACT_KIND_KEY[artifact.kind])} / {artifact.uri}
       </span>
     </article>
-  );
-}
-
-function StatusPill({ status }: { status: AdapterDescriptor['status'] }) {
-  const { t } = useI18n();
-  return (
-    <span className={`status-pill status-${status}`}>
-      {t(ADAPTER_STATUS_KEY[status])}
-    </span>
   );
 }

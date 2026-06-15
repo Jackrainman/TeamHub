@@ -87,6 +87,7 @@ export function App() {
           isLoading={overviewQuery.isLoading}
           error={overviewQuery.error}
           snapshot={overviewQuery.data}
+          onNavigate={setPage}
         />
       ) : page === 'dep-graph' ? (
         <DepGraphPage

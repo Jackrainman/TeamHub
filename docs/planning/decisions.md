@@ -847,3 +847,18 @@
 - 老实定位：DEPGRAPH-AI-AUTODRAW（AI 自动布大致 DAG）仍后置（依赖 Hermes 触点产品门，跳过）；真实 status 派生上游未接通；浮层未做 Esc 关闭（非必需）。
 - 验证：hub-console `verify:all`（typecheck + 7 测 + vite build）全绿；完成度谓词硬化为 `grep PmCreatePanel … && npm --prefix apps/hub-console run verify:all`（D-055 同法），从 repo 根重跑 exit 0 才翻 done。纯 hub-console 前端，零 contracts/server/契约改动。
 - 事实源：本 ADR；`apps/hub-console/src/features/dep-graph/DepGraphPage.tsx`（录入浮层 + getTasks + focus useEffect + ownerLabel 降级）/ `features/pm/PmBoardPage.tsx`（卡片跳转）/ `App.tsx`（focusTaskId）/ `i18n/translations.ts`（+6 键 zh/en）/ `styles.css`（浮层样式）；`D-052`（立项 + Q2 拍板）/ `D-048`（复用 PmCreatePanel）/ `D-055`（谓词硬化同法）；workflow `wf_9a77daa8`。
+
+## D-057 — INTEGRATIONS-TO-SETTINGS：适配器→集成 + 设置页只读集成子节 + 总览精简（frontier done）
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-15）
+- 日期：2026-06-15
+- 上下文：D-052 提案审查 Q1 拍板的 console 收尾批第 2 项（完成度模型 priority 20）。诉求 4：「适配器」是技术黑话，用户语义是「集成 / 连外部应用」（飞书 / Hermes / git / 未来 QQ 微信钉钉）；且总览首屏被一排对接状态占住、喧宾夺主。
+- 决策（实现定调）：
+  1. **「适配器」→「集成」（仅文案，zh+en）**：所有面向用户的 `适配器`/`Adapters` 标签改 `集成`/`Integrations`（`overview.metric.adapters`、`overview.panel.adapters`、`enum.event.adapter.health.changed`）。**只改 value 不动 key**；状态枚举（已启用/已禁用/降级/未配置）是状态词、保留不动。
+  2. **设置页新增「集成」只读子节**：`SettingsPage.IntegrationsSection` 用 `useQuery(['hub-overview',source])`——**与总览同 queryKey、复用同一份 getOverview 缓存、不双取**——只读渲染 `adapters.adapters`（displayName/capabilities/status pill），isLoading/error/empty 三态降级。**不引入真实触点接入**（仍 mock-first，语义是"对接状态只读展示"）。
+  3. **总览精简到「指标 + 最近事件」**：删 adapter 详情 `panel-wide` 区，连带删只服务它的 `AdapterRow`/`StatusPill`/`ADAPTER_STATUS_KEY`/`AdapterDescriptor` import（全转移到设置页，避免 `noUnusedLocals` 报错），改成一行「集成对接状态已移到设置页 →」链接（`onNavigate('settings')`，App 传 `setPage`）；summary-strip 的「集成」指标 tile（enabled/total）保留。
+- 对抗核实：`wf_f40f5aea`（2-lens：opus I0 暴露面 + opus React/TS 正确性，并行）双裁 **ship / mustFix=0**。I0 lens grep 实证 IntegrationsSection **只渲染 adapters 外部应用描述符**（`AdapterDescriptorSchema` 无 memberId，fixtures displayName 全是应用名 Feishu/Hermes/Git）、对 bridgeMember/memberId/rank 零命中——「集成」是连应用不是人，无人维度泄漏；relabel 未动任何含人字段（面向人的 bridge tile 原样保留）。正确性 lens 实证 queryKey byte 一致共享缓存无双取、删的 4 个 helper 零残留引用（typecheck 绿坐实）、`INTEGRATION_STATUS_KEY` 覆盖 4 枚举（Record 编译期强制）、5 新键 zh/en parity、`status-disabled` CSS 类存在不崩。
+- 顺手收口：核实指出删 adapter panel 后 `overview.panel.adapters`/`overview.meta.unconfigured` 成孤儿 key（无消费方）→ grep 确认零引用后从 zh+en 删除（i18n 不留死键）。
+- 老实定位：仍 mock-first；真实飞书/Hermes/git 触点接入后置（Hermes 统一触点门，本批不碰）。
+- 验证：hub-console `verify:all`（typecheck + 7 测 + vite build）全绿（含孤儿 key 清理后重跑）；完成度谓词硬化为 `grep -qi 'integration' SettingsPage.tsx && npm --prefix apps/hub-console run verify:all`，从 repo 根重跑 exit 0 才翻 done。纯 hub-console 前端，零 contracts/server 改动。
+- 事实源：本 ADR；`apps/hub-console/src/features/settings/SettingsPage.tsx`（IntegrationsSection）/ `features/overview/OverviewPage.tsx`（删 panel + 一行链接）/ `App.tsx`（onNavigate）/ `i18n/translations.ts`（relabel + 5 新键 − 2 孤儿）/ `styles.css`；`D-052`（立项 Q1）；workflow `wf_f40f5aea`。

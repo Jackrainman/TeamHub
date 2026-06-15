@@ -1,12 +1,21 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import type { AdapterDescriptor } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import type { DataSource } from '../../components/layout/ConsoleLayout';
-import { useI18n } from '../../i18n';
+import { useI18n, type TranslationKey } from '../../i18n';
 
-// 设置页：收纳此前散落各处的运行时设置——数据源 / 语言 / 后端地址 / 关于。
+// 设置页：收纳此前散落各处的运行时设置——数据源 / 语言 / 集成 / 后端地址 / 关于。
 // 数据源、语言复用 App / i18n 的同一份状态（无本地副本，故无同步问题）。
 const APIBASE_KEY = 'teamhub.apiBase';
+
+// 集成状态枚举 → 文案键（与总览同一份枚举；枚举变更会在此处编译报错）。
+const INTEGRATION_STATUS_KEY: Record<AdapterDescriptor['status'], TranslationKey> = {
+  enabled: 'enum.adapter.enabled',
+  disabled: 'enum.adapter.disabled',
+  degraded: 'enum.adapter.degraded',
+  unconfigured: 'enum.adapter.unconfigured',
+};
 
 function segClass(active: boolean): string {
   return active ? 'seg__btn seg__btn--active' : 'seg__btn';
@@ -83,9 +92,61 @@ export function SettingsPage({
         </div>
       </section>
 
+      <IntegrationsSection client={client} source={source} />
       <ApiBaseSection source={source} />
       <AboutSection client={client} source={source} />
     </div>
+  );
+}
+
+// 集成（只读）：飞书 / Hermes / Git 等外部应用对接状态。复用总览的 adapter 数据
+// （同 queryKey 共享缓存），但展示挪到设置页——总览只留指标 + 一行「去设置查看」。
+function IntegrationsSection({
+  client,
+  source,
+}: {
+  client: HubApiClient;
+  source: DataSource;
+}) {
+  const { t } = useI18n();
+  const overviewQuery = useQuery({
+    queryKey: ['hub-overview', source],
+    queryFn: () => client.getOverview(),
+  });
+  const adapters = overviewQuery.data?.adapters.adapters ?? [];
+
+  return (
+    <section className="panel settings-panel">
+      <div className="panel-header">
+        <h2>{t('settings.section.integrations')}</h2>
+      </div>
+      <div className="settings-section">
+        <p className="settings-desc">{t('settings.integrations.desc')}</p>
+        {overviewQuery.isLoading ? (
+          <p className="settings-desc">…</p>
+        ) : overviewQuery.error || !overviewQuery.data ? (
+          <p className="form-hint form-hint--warn">
+            {t('settings.integrations.unavailable')}
+          </p>
+        ) : adapters.length === 0 ? (
+          <p className="settings-desc">{t('settings.integrations.empty')}</p>
+        ) : (
+          <div className="adapter-grid">
+            {adapters.map((adapter) => (
+              <article className="adapter-row" key={adapter.id}>
+                <div>
+                  <strong>{adapter.displayName}</strong>
+                  <span>{adapter.capabilities.join(', ')}</span>
+                </div>
+                <span className={`status-pill status-${adapter.status}`}>
+                  {t(INTEGRATION_STATUS_KEY[adapter.status])}
+                </span>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
