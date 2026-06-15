@@ -23,6 +23,7 @@ open_for_decision:                       # ARCH-PATH(D-028)/提醒(D-026后续)/
   - REMOTE-ACCESS-DEPLOY                 # 远程部署=实验室 LAN+隧道方案与鉴权（D-036，§8 审批门后，独立基础设施轨）
   - GITHUB-TO-LOCAL                      # 程序代码 GitHub→本地 Forgejo 迁移=考虑中（D-038，2026-06-12）；TeamHub 只消费 gitCommit 信号、不改 git 唯一真相
   - PULL-CLOUD-CODE                      # 定期 pull 云端代码/EDA 到本地备份=考虑中（D-038，与电路 EDA 云端引用相关）
+  - UI-RESTYLE-AURASH                    # console 换 Aurash 暖纸风=PILOT-FIRST 已评估、**低优先级延后**（D-060，docs/research/aurash-restyle-assessment.md）；动手须先过决策门，业务逻辑先行
 post_pivot_registry:
   - SKILL-PROTOCOL-V1                    # 已落地草稿；作为治理触点层 skill 契约底座保留
   - BRIDGE-01-ROSTER-SCHEMA              # 模型并入治理 Task/progress；数据载体被 D-026 路线 A 反转（系统库做真相）

@@ -895,3 +895,18 @@
 - 老实定位（非部署阻断）：rate-limit key=`request.ip` 在反代后塌成单桶（无 trustProxy/X-Forwarded-For）；Bearer 非定长比较（时序攻击 out-of-scope）；`TEAMHUB_WRITE_TOKEN` 出厂占位值，env 注释明示暴露前改强随机串（`openssl rand -hex 32`）。`wouldCreateCycle` 已补 hub-contracts 直接单测（核实建议的传递环用例）。
 - 验证：`hub-contracts` 47 测 / `hub-server` 85 测 / `hub-console` 7 测 + build 三包 `verify:all` 全绿；`git diff --check` 干净；AUDIT-H1-CYCLE-GUARD / AUDIT-H3-WRITE-AUTH 完成度谓词硬化为「接缝锚 grep + hub-server verify:all」，从 repo 根重跑 exit 0 才翻 done。
 - 事实源：本 ADR；`code-audit-2026-06-14.md`（7 条必修清单）；`apps/hub-contracts/src/{attribution,error-code,pm-requests}.ts` / `apps/hub-server/src/{server,main,contracts,store/file-kb-store}.ts` / `compose.yaml` / `deploy/teamhub.env.example` / 4 测试文件；`D-049`（落档）/ `D-055`（谓词硬化同法）；workflow `wf_99ea69cb`。
+
+## D-060 — console 换 Aurash 风格 UI 评估：PILOT-FIRST，当前低优先级延后（业务逻辑先行）
+
+- 状态：**DECIDED / DEFERRED**（2026-06-15）——结论已定、暂不动手；优先级靠后，先理业务逻辑。
+- 日期：2026-06-15
+- 上下文：用户问「换 Aurash 风格 UI 是否可行/合适」。Aurash 前端（`/home/winbeau/wenbiao_zhao/Aurash/frontend`，= AGENTS §2 警告的 `xju-feiyue` 参考项目，业务模型禁搬入）栈 = Tailwind 3.4 + shadcn/ui(new-york/stone) + 19 Radix primitive + tokens.css 单色源 HSL 桥 + next-themes + sonner；console 现状 = 单一手写 `styles.css`(1392 行) + CSS-var 主题、无 Tailwind/Radix/router/暗色/toast、`App.tsx` useState 切页、@xyflow 画依赖图、zh/en 双语、I0 反排名读视图。先出结论给用户拍板、不直接重写。
+- 调研：6-agent workflow `wf_0d35c8af-968`（2 sonnet 侦察 + 3 opus 对立视角[拥护/质疑/务实] + 1 opus 综合）；结论关键事实经 orchestrator 对代码核实（OverviewPage 零共享 primitive / @xyflow style import + EDGE_COLORS JS 常量 / 3 条 I0 串行号 / styles.css 1392 行 / 五库全无）。
+- 决策（结论）：**PILOT-FIRST**。
+  1. **Phase 0（换 ~15 个 `:root` token + 2 字体，<1 天，0 .tsx/0 依赖/0 框架风险）拿 ~80% 暖纸风视觉收益**——只想要"好看"到此为止。
+  2. 全套 Tailwind+Radix+shadcn = **7–14 人天**，唯一真工程收益 a11y（录入浮层无焦点陷阱/Esc/焦点恢复）只在浮层/表单 + 设置页 select **两处**有意义 → 对一个在跑/双语/~10–20 人用的 5 页内部工具**默认不做**；先用 **OverviewPage** 试点（~1–1.5 天）+ 决策门（verify:all 绿 + 团队主观签字 + bundle 增量可接受 + 其余四页无回归）验证再决定整站。
+  3. 全套 19-Radix Option C（2–4 人周，+60–100KB gzip JS）= 过度工程，不做。
+  4. **共存关键开关 `corePlugins:{preflight:false}`**（否则砸烂 @xyflow + styles.css 盒模型）。
+- 护栏（重写时不可破）：① I0 反排名 3 条承重串（`depgraph.entry.note`/`depgraph.detail.ownerNote`/`pm.create.subtitle`）+ ownerLabel 不上节点脸 + 看板无人均列 + `claimedByMemberId` 强制 null（AGENTS §5 / D-056）；② zh/en 编译期 parity（`Record<TranslationKey>`）；③ @xyflow 契约（preflight:false + `.dag-node--blocked-idle` 斜纹手写 CSS + EDGE_COLORS/NODE_W/H 手改）；④ **绝不搬 xju-feiyue 业务模型**（`cat-*`/`tag-*`/`ai-*` token、credits/conferences/schools/admin 组件、飞跃品牌文案——AGENTS §2）。
+- 老实定位：本条是**"优化"类，排名靠后**；用户明示先把业务逻辑理清（"业务也有点问题"）。UI 评估只落档不驱动，动手前须过决策门。
+- 事实源：本 ADR；`docs/research/aurash-restyle-assessment.md`（status: deferred，完整 ①②③④ + 分歧）；workflow `wf_0d35c8af-968`；`AGENTS §2`（xju-feiyue 禁搬入）/ `D-056`（I0 读视图）。
