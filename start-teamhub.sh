@@ -12,6 +12,9 @@
 #   HUB_HOST              监听地址（默认 127.0.0.1；内网演示用 0.0.0.0）
 #   HUB_PORT              端口（默认 4177）
 #   TEAMHUB_KB_DATA_FILE  知识库语料落盘文件（默认 ~/teamhub-data/kb.json，重启不丢、closeout 累积）
+#   TEAMHUB_GOV_DATA_FILE 治理快照落盘文件（默认 ~/teamhub-data/gov.json，重启不丢；PM 任务/依赖/图纸提交日志/
+#                         结案知识节点）。**漏设则 main.ts 回落 InMemoryGovStore、每次重启清回演示 fixture**——
+#                         D-061 治理落盘在真实启动路径上失效。本脚本默认接好，与 KB 落盘同纪律。
 #   TEAMHUB_WRITE_TOKEN   写端点鉴权密钥（AUDIT H3）。绑非 loopback（0.0.0.0）时必填，未填则本脚本自动生成并打印；
 #                         写端点 POST /api/* 须带 `Authorization: Bearer <token>`，读端点不受影响。
 #   TEAMHUB_SKIP_BUILD=1  跳过构建（只重启时用）
@@ -25,6 +28,7 @@ SERVER_DIR="${ROOT_DIR}/apps/hub-server"
 HUB_HOST="${HUB_HOST:-127.0.0.1}"
 HUB_PORT="${HUB_PORT:-4177}"
 TEAMHUB_KB_DATA_FILE="${TEAMHUB_KB_DATA_FILE:-${HOME}/teamhub-data/kb.json}"
+TEAMHUB_GOV_DATA_FILE="${TEAMHUB_GOV_DATA_FILE:-${HOME}/teamhub-data/gov.json}"
 TEAMHUB_WRITE_TOKEN="${TEAMHUB_WRITE_TOKEN:-}"
 SKIP_BUILD="${TEAMHUB_SKIP_BUILD:-0}"
 
@@ -54,8 +58,8 @@ for dir in "${CONSOLE_DIR}" "${SERVER_DIR}"; do
   fi
 done
 
-# 语料目录就位（落盘文件，server 启动即读、/api/kb/similar 可召回）
-mkdir -p "$(dirname "${TEAMHUB_KB_DATA_FILE}")"
+# 语料 / 治理落盘目录就位（server 启动即读：/api/kb/similar 召回 + PM 录入 / 图纸日志重启不丢）
+mkdir -p "$(dirname "${TEAMHUB_KB_DATA_FILE}")" "$(dirname "${TEAMHUB_GOV_DATA_FILE}")"
 
 if [[ "${SKIP_BUILD}" != "1" ]]; then
   echo "[1/2] 构建 console（产出静态站 dist/）…"
@@ -66,11 +70,12 @@ fi
 
 # console 静态产物交给 server 单端口托管
 export TEAMHUB_CONSOLE_DIST_DIR="${CONSOLE_DIR}/dist"
-export TEAMHUB_KB_DATA_FILE HUB_HOST HUB_PORT TEAMHUB_WRITE_TOKEN
+export TEAMHUB_KB_DATA_FILE TEAMHUB_GOV_DATA_FILE HUB_HOST HUB_PORT TEAMHUB_WRITE_TOKEN
 
 echo "──────────────────────────────────────────────"
 echo " Team Hub 启动 → http://${HUB_HOST}:${HUB_PORT}  (console + API 同端口)"
 echo " 语料文件：${TEAMHUB_KB_DATA_FILE}"
+echo " 治理文件：${TEAMHUB_GOV_DATA_FILE}（PM/图纸/结案重启不丢）"
 if [[ "${HUB_HOST}" != "127.0.0.1" && "${HUB_HOST}" != "localhost" && "${HUB_HOST}" != "::1" ]]; then
   echo " 已绑 ${HUB_HOST}：写端点 POST /api/* 须带 Authorization: Bearer <token>（读端点不限）。"
   if [[ "${AUTO_TOKEN:-0}" == "1" ]]; then
