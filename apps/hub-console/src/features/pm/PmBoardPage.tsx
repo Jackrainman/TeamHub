@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Network } from 'lucide-react';
 import type { Task, TaskStatus } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n, type TranslationKey } from '../../i18n';
@@ -31,9 +32,11 @@ const PM_COMPLEXITY_KEY: Record<Task['intrinsicComplexity'], TranslationKey> = {
 export function PmBoardPage({
   client,
   source,
+  onOpenInDepGraph,
 }: {
   client: HubApiClient;
   source: string;
+  onOpenInDepGraph?: (taskId: string) => void;
 }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
@@ -92,7 +95,11 @@ export function PmBoardPage({
                     <p className="pm-column__empty">{t('pm.col.empty')}</p>
                   ) : (
                     columnTasks.map((task) => (
-                      <PmTaskCard task={task} key={task.id} />
+                      <PmTaskCard
+                        task={task}
+                        onOpenInDepGraph={onOpenInDepGraph}
+                        key={task.id}
+                      />
                     ))
                   )}
                 </div>
@@ -122,7 +129,13 @@ function Metric({
   );
 }
 
-function PmTaskCard({ task }: { task: Task }) {
+function PmTaskCard({
+  task,
+  onOpenInDepGraph,
+}: {
+  task: Task;
+  onOpenInDepGraph?: (taskId: string) => void;
+}) {
   const { t } = useI18n();
   const robot =
     task.robotTarget === 'shared' ? t('pm.robot.shared') : task.robotTarget;
@@ -137,6 +150,15 @@ function PmTaskCard({ task }: { task: Task }) {
           {t(PM_COMPLEXITY_KEY[task.intrinsicComplexity])}
         </span>
       </div>
+      {onOpenInDepGraph ? (
+        <button
+          type="button"
+          className="pm-card__link"
+          onClick={() => onOpenInDepGraph(task.id)}
+        >
+          <Network size={12} aria-hidden="true" /> {t('pm.card.openInDepGraph')}
+        </button>
+      ) : null}
     </article>
   );
 }

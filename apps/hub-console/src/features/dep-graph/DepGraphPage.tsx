@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dagre from '@dagrejs/dagre';
 import {
@@ -24,12 +24,15 @@ import {
   CircleDashed,
   Lock,
   MapPin,
+  Plus,
+  X,
   Zap,
 } from 'lucide-react';
 import type { DepEdge, DepGraph, DepNode } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import type { CreateDependencyRequest } from '../../api/schemas/pm';
 import { useI18n, type TranslationKey } from '../../i18n';
+import { PmCreatePanel } from '../pm/PmCreatePanel';
 
 const NODE_W = 212;
 const NODE_H = 96;
@@ -81,8 +84,9 @@ function DepNodeCard({ data, selected }: NodeProps<DepFlowNode>) {
         <Icon size={14} aria-hidden="true" />
         <span className="dag-node__title">{n.label}</span>
       </div>
+      {/* I0：负责人(ownerLabel)降级到 DetailPanel，不在节点上常显——节点只显结构键(组·车)。 */}
       <div className="dag-node__owner">
-        {n.ownerLabel ?? t('depgraph.node.unassigned')} · {n.groupName} · {n.robotTarget}
+        {n.groupName} · {n.robotTarget}
       </div>
       {n.status === 'blockedIdle' && n.blockedByLabel ? (
         <div className="dag-node__blocked">
@@ -162,16 +166,26 @@ function wouldCreateCycle(edges: DepEdge[], from: string, to: string): boolean {
 export function DepGraphPage({
   client,
   source,
+  focusTaskId,
+  onConsumeFocus,
 }: {
   client: HubApiClient;
   source: string;
+  focusTaskId?: string | null;
+  onConsumeFocus?: () => void;
 }) {
   const { t } = useI18n();
   const query = useQuery({
     queryKey: ['dep-graph', source],
     queryFn: () => client.getDepGraph(),
   });
+  // 录入浮层共用看板的任务列表（填依赖 / 需求下拉）；与看板同 queryKey，缓存共享。
+  const tasksQuery = useQuery({
+    queryKey: ['tasks', source],
+    queryFn: () => client.getTasks(),
+  });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [entryOpen, setEntryOpen] = useState(false);
 
   const graph = query.data;
   const { nodes, edges } = useMemo(
@@ -238,6 +252,21 @@ export function DepGraphPage({
     [graph, source, t, connectMutation],
   );
 
+  // 录入浮层建任务 / 依赖 / 需求后：同时失效看板任务表 + 依赖图，两个查询都重取才即时重绘。
+  const handleEntryCreated = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['tasks', source] });
+    void queryClient.invalidateQueries({ queryKey: ['dep-graph', source] });
+  }, [queryClient, source]);
+
+  // 从看板「在依赖图查看此节点」跳转过来：图加载后选中该节点，再消费掉 focus（防重复触发）。
+  useEffect(() => {
+    if (!focusTaskId || !graph) return;
+    if (graph.nodes.some((n) => n.id === focusTaskId)) {
+      setSelectedId(focusTaskId);
+    }
+    onConsumeFocus?.();
+  }, [focusTaskId, graph, onConsumeFocus]);
+
   if (query.isLoading) {
     return <div className="state-band">{t('depgraph.loading')}</div>;
   }
@@ -251,6 +280,16 @@ export function DepGraphPage({
 
   return (
     <div className="dep-graph-page">
+      <div className="dep-graph-topbar">
+        <span className="dep-graph-topbar__note">{t('depgraph.entry.note')}</span>
+        <button
+          type="button"
+          className="dep-graph-entry-btn"
+          onClick={() => setEntryOpen(true)}
+        >
+          <Plus size={15} aria-hidden="true" /> {t('depgraph.entry.open')}
+        </button>
+      </div>
       <section className="dep-graph-summary" aria-label={t('depgraph.summary.aria')}>
         <Metric label={t('depgraph.summary.critical')} value={String(graph.summary.criticalCount)} />
         <Metric label={t('depgraph.summary.blocked')} value={String(graph.summary.blockedCount)} />
@@ -293,6 +332,41 @@ export function DepGraphPage({
         </div>
         <DetailPanel node={selected} />
       </div>
+      {entryOpen ? (
+        <div
+          className="entry-overlay"
+          role="presentation"
+          onClick={() => setEntryOpen(false)}
+        >
+          <div
+            className="entry-overlay__drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('depgraph.entry.title')}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="entry-overlay__head">
+              <h2>{t('depgraph.entry.title')}</h2>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => setEntryOpen(false)}
+                aria-label={t('depgraph.entry.close')}
+                title={t('depgraph.entry.close')}
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            </header>
+            <div className="entry-overlay__body">
+              <PmCreatePanel
+                client={client}
+                tasks={tasksQuery.data?.tasks ?? []}
+                onCreated={handleEntryCreated}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -350,6 +424,8 @@ function DetailPanel({ node }: { node: DepNode | null }) {
           label={t('depgraph.detail.ownerGroup')}
           value={`${node.ownerLabel ?? t('depgraph.node.unassigned')} · ${node.groupName}`}
         />
+        {/* I0：负责人只表分工，明确不暗示进度快慢。 */}
+        <p className="detail-note">{t('depgraph.detail.ownerNote')}</p>
         <DetailRow
           label={t('depgraph.detail.robotComplexity')}
           value={`${node.robotTarget} · ${t(complexityKey(node.intrinsicComplexity))}`}

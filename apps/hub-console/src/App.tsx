@@ -41,6 +41,8 @@ export function App() {
   const { t } = useI18n();
   const [page, setPage] = useState<ConsolePage>('overview');
   const [source, setSource] = useState<DataSource>(readInitialSource);
+  // 看板「在依赖图查看此节点」跳转：暂存目标任务 id，DepGraphPage 加载后选中并消费掉。
+  const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     window.localStorage.setItem(SOURCE_KEY, source);
@@ -87,11 +89,23 @@ export function App() {
           snapshot={overviewQuery.data}
         />
       ) : page === 'dep-graph' ? (
-        <DepGraphPage client={apiClient} source={source} />
+        <DepGraphPage
+          client={apiClient}
+          source={source}
+          focusTaskId={focusTaskId}
+          onConsumeFocus={() => setFocusTaskId(null)}
+        />
       ) : page === 'kb' ? (
         <KbSearchPage client={apiClient} source={source} />
       ) : page === 'pm' ? (
-        <PmBoardPage client={apiClient} source={source} />
+        <PmBoardPage
+          client={apiClient}
+          source={source}
+          onOpenInDepGraph={(id) => {
+            setFocusTaskId(id);
+            setPage('dep-graph');
+          }}
+        />
       ) : page === 'settings' ? (
         <SettingsPage
           client={apiClient}

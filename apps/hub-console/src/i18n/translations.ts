@@ -102,6 +102,12 @@ const zh = {
   'depgraph.connect.success': '已建立依赖——卡住它的任务现在显示在图上了。',
   'depgraph.connect.error': '没能建立连线：{detail}',
   'depgraph.connect.actor': '画布连线',
+  // 录入浮层（DEPGRAPH-ENTRY-OVERLAY）+ I0 负责人说明
+  'depgraph.entry.open': '录入',
+  'depgraph.entry.note': '图上只显任务、组和卡点，不排个人。',
+  'depgraph.entry.title': '录入到项目计划表',
+  'depgraph.entry.close': '关闭',
+  'depgraph.detail.ownerNote': '负责人只表明分工，不代表进度快慢。',
 
   // 新增页面导航 / 标题
   'nav.kb': '知识库检索',
@@ -187,6 +193,7 @@ const zh = {
   'pm.complexity.normal': '常规',
   'pm.complexity.hard': '复杂',
   'pm.card.complexity': '难度',
+  'pm.card.openInDepGraph': '在依赖图查看',
 
   // PM 录入（写侧表单）
   'pm.create.title': '录入 · 全员可见的协作真相',
@@ -365,6 +372,11 @@ const en: Record<TranslationKey, string> = {
   'depgraph.connect.success': 'Dependency created — the blocker now shows on the graph.',
   'depgraph.connect.error': 'Could not create the link: {detail}',
   'depgraph.connect.actor': 'Canvas link',
+  'depgraph.entry.open': 'Add entry',
+  'depgraph.entry.note': 'The graph shows tasks, groups and blockers, not a ranking of people.',
+  'depgraph.entry.title': 'Add to the project plan',
+  'depgraph.entry.close': 'Close',
+  'depgraph.detail.ownerNote': 'Owner shows who is on it, not who is fast or slow.',
 
   'nav.kb': 'KB Search',
   'nav.pm': 'PM Board',
@@ -445,6 +457,7 @@ const en: Record<TranslationKey, string> = {
   'pm.complexity.normal': 'Normal',
   'pm.complexity.hard': 'Hard',
   'pm.card.complexity': 'Complexity',
+  'pm.card.openInDepGraph': 'View in dependency graph',
 
   // PM entry (write-side forms)
   'pm.create.title': 'Entry · everyone-visible collaboration truth',

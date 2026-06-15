@@ -15,7 +15,7 @@ authority: "derived-spec; now.md/backlog.md/decisions.md authoritative for scope
 audited: true                        # 人审一次完成（D-055，2026-06-14）：4 弱谓词收口为 verify:all + 谓词全重跑 PASS
 synthesis_mode: propose-and-drive    # propose-and-stop（默认/未审计）| propose-and-drive（审计后）
 epic_cap_per_invocation: 1           # 每次 invocation 至多合成+物化 1 个 epic，然后 STOP 等人审
-last_checked: "2026-06-14 (D-055: 4 弱谓词 file_exists/grep → cmd_exit0+verify:all，全重跑 exit0；audited 人审置 true)"  # 第 8 步记录上次跑谓词
+last_checked: "2026-06-15 (D-056: DEPGRAPH-ENTRY-OVERLAY 翻 done，谓词硬化为接缝锚+console verify:all，重跑 exit0)"  # 第 8 步记录上次跑谓词
 
 # predicate_kind 取值：cmd_exit0 | file_exists | grep_hit | schema_safeparse | yaml_parses | test_count_gte
 # done iff: cmd_exit0→exit 0；file_exists→文件存在；grep_hit→grep 命中；其余同义。
@@ -72,9 +72,9 @@ deliverables:
     required: true
     priority: 12
     backlog_id: DEPGRAPH-ENTRY-OVERLAY
-    status: pending
-    predicate_kind: grep_hit
-    predicate: "grep -q 'PmCreatePanel' apps/hub-console/src/features/dep-graph/DepGraphPage.tsx"
+    status: done                     # 2026-06-15 实现（录入浮层承载 PmCreatePanel + 看板↔依赖图跳转 + I0 ownerLabel 降级），D-056；接缝锚 + verify:all 重跑 PASS
+    predicate_kind: cmd_exit0          # 接缝锚点（PmCreatePanel 嵌入依赖图）+ 该包 verify:all 真绿（D-055 弱谓词收口同法）
+    predicate: "grep -q 'PmCreatePanel' apps/hub-console/src/features/dep-graph/DepGraphPage.tsx && npm --prefix apps/hub-console run verify:all"
 
   - id: INTEGRATIONS-TO-SETTINGS
     pillar: console

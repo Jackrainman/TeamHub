@@ -832,3 +832,18 @@
 - 验证：4 条新谓词从 repo 根逐条 `bash -c '<predicate>'; echo $?` 全 = 0（hub-console 7 测+build 绿、hub-server 74 测+typecheck+build 绿）；`grep audited\|synthesis_mode completion-model.yaml` 确认 true / propose-and-drive。
 - 宪法守恒：纯 planning 改动（completion-model.yaml + 本 ADR），无领域/契约/代码改动；§5/§8/epic_cap 闸门一字未动。
 - 事实源：本 ADR；`docs/planning/completion-model.yaml`（行 15-16 开关 + 4 条 cmd_exit0 谓词）；`AGENTS.md §6.C` / `D-053`；`now.md` 第 7 行 AUDIT-H1 弱谓词教训；用户 2026-06-14 选「先换硬 4 谓词再翻 true」。
+
+## D-056 — DEPGRAPH-ENTRY-OVERLAY：依赖图录入浮层 + 看板↔依赖图互通 + I0 负责人降级（frontier done）
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-15）
+- 日期：2026-06-15
+- 上下文：D-052 提案审查后立项的 console 收尾批第 1 项（完成度模型 gaps[0]，priority 12）。用户「按顺序做 frontier 能执行的所有任务、用 workflow 连续执行」。承接 D-052 Q2 拍板：依赖图升主舞台、录入做近全屏遮罩浮层（非新页面）、看板与依赖图不合并但互通。
+- 决策（实现定调）：
+  1. **录入浮层（非内嵌、非跳页）**：依赖图右上角「录入」按钮 → `position:fixed inset:0` 遮罩 + 居中 drawer 承载现成 `PmCreatePanel`（复用 D-048 写侧表单，零后端改动）。backdrop `role=presentation`+onClick 关、drawer `role=dialog`+`aria-modal`+stopPropagation。点空白/遮罩退回（用户诉求）。
+  2. **依赖图补 `getTasks`**：原只调 `getDepGraph`；嵌入 PmCreatePanel 后补 `useQuery(['tasks',source])`（**与 `PmBoardPage` 同 queryKey、缓存共享、不双取**）填依赖/需求下拉。`onCreated` **同时失效 `['tasks',source]`+`['dep-graph',source]` 两查询**才即时重绘（少一个则图或看板滞后）。
+  3. **看板↔依赖图互通（结构键路由，守 I0）**：`PmTaskCard` 加「在依赖图查看」按钮 → `onOpenInDepGraph(task.id)` → `App.focusTaskId` 暂存 → 切 dep-graph → `DepGraphPage` useEffect 图加载后按 `graph.nodes[].id===task.id` 选中并消费 focus。**传的是 task.id 结构键、非人 id**；早返回守卫（`!focusTaskId||!graph` return）防 onConsumeFocus 内联箭头换引用导致的重复触发。
+  4. **I0 负责人降级（核心护栏）**：节点卡片 `dag-node__owner` **去掉 ownerLabel**、只留结构键（组·车）；`ownerLabel` 降级到 DetailPanel 按需显 + 新增「负责人只表分工·不代表进度快慢」反排名说明；topbar 加「图上只显任务/组/卡点·不排个人」。从「人维度画布常显」降到「按需显+反排名免责」。
+- 对抗核实：`wf_9a77daa8`（2-lens：opus I0 暴露面 + opus React/TS 正确性，并行）双裁 **ship / mustFix=0**。I0 lens 实证净改善（移除一项画布常显人维度 + 反排名说明、focusTaskId 走结构键、PmCreatePanel confirmedBy 仅写侧不回显、无新 rank/快慢字段进读视图）；正确性 lens 实证 useEffect 无无限循环（focusTaskId 置 null 早返回幂等）、queryKey 共享无双取、空 tasks 各表单降级（needTwoTasks/needOneTask/optional chaining）不崩、props 可选缺省安全、无未用 import、既有 onConnect/拖拽连线未动。唯一非阻塞 note（onConnect useCallback deps 列了未读的 `source`）属**既有**、非本批引入，不在本 PR 修。
+- 老实定位：DEPGRAPH-AI-AUTODRAW（AI 自动布大致 DAG）仍后置（依赖 Hermes 触点产品门，跳过）；真实 status 派生上游未接通；浮层未做 Esc 关闭（非必需）。
+- 验证：hub-console `verify:all`（typecheck + 7 测 + vite build）全绿；完成度谓词硬化为 `grep PmCreatePanel … && npm --prefix apps/hub-console run verify:all`（D-055 同法），从 repo 根重跑 exit 0 才翻 done。纯 hub-console 前端，零 contracts/server/契约改动。
+- 事实源：本 ADR；`apps/hub-console/src/features/dep-graph/DepGraphPage.tsx`（录入浮层 + getTasks + focus useEffect + ownerLabel 降级）/ `features/pm/PmBoardPage.tsx`（卡片跳转）/ `App.tsx`（focusTaskId）/ `i18n/translations.ts`（+6 键 zh/en）/ `styles.css`（浮层样式）；`D-052`（立项 + Q2 拍板）/ `D-048`（复用 PmCreatePanel）/ `D-055`（谓词硬化同法）；workflow `wf_9a77daa8`。
