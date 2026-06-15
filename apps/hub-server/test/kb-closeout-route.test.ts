@@ -93,7 +93,10 @@ describe('POST /api/kb/closeout', () => {
     }
   });
 
-  test('errorCode 确定性：同 issue 同结案时刻可复现', async () => {
+  // M9（AUDIT-FIXES 部署前必修）：errorCode 改单调序号后，同日多次结案得**不同**码——
+  // 原「同 issue 同时刻复现同码」恰是审计指出的碰撞 bug（~38 次/日生日碰撞 → 静默覆盖、污染 kb-similar
+  // 跨赛季查找）。新契约：每次结案占一个递增序号，格式仍 DBG-YYYYMMDD-NNN、不碰撞。
+  test('errorCode 单调不碰撞（M9）：同日多次结案产出不同的码', async () => {
     const app = buildHubServer();
     try {
       const payload = {
@@ -104,7 +107,11 @@ describe('POST /api/kb/closeout', () => {
       };
       const r1 = await app.inject({ method: 'POST', url: '/api/kb/closeout', payload });
       const r2 = await app.inject({ method: 'POST', url: '/api/kb/closeout', payload });
-      expect(r1.json().errorEntry.errorCode).toBe(r2.json().errorEntry.errorCode);
+      const c1 = r1.json().errorEntry.errorCode as string;
+      const c2 = r2.json().errorEntry.errorCode as string;
+      expect(c1).toMatch(/^DBG-\d{8}-\d{3}$/);
+      expect(c2).toMatch(/^DBG-\d{8}-\d{3}$/);
+      expect(c1).not.toBe(c2);
     } finally {
       await app.close();
     }

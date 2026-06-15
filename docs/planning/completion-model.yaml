@@ -15,7 +15,7 @@ authority: "derived-spec; now.md/backlog.md/decisions.md authoritative for scope
 audited: true                        # 人审一次完成（D-055，2026-06-14）：4 弱谓词收口为 verify:all + 谓词全重跑 PASS
 synthesis_mode: propose-and-drive    # propose-and-stop（默认/未审计）| propose-and-drive（审计后）
 epic_cap_per_invocation: 1           # 每次 invocation 至多合成+物化 1 个 epic，然后 STOP 等人审
-last_checked: "2026-06-15 (D-058: CONSOLE-COPY-HUMANIZE 翻 done，谓词=归组不归人清+两包 verify:all，重跑 exit0)"  # 第 8 步记录上次跑谓词
+last_checked: "2026-06-15 (D-059: AUDIT-FIXES 7 条部署前必修全做，AUDIT-H1/H3 翻 done，谓词=接缝锚+hub-server verify:all，重跑 exit0)"  # 第 8 步记录上次跑谓词
 
 # predicate_kind 取值：cmd_exit0 | file_exists | grep_hit | schema_safeparse | yaml_parses | test_count_gte
 # done iff: cmd_exit0→exit 0；file_exists→文件存在；grep_hit→grep 命中；其余同义。
@@ -99,21 +99,22 @@ deliverables:
     required: true
     priority: 28                     # 部署前必修：后端 POST /dependencies + computeCriticalSet 拒/防环
     backlog_id: AUDIT-FIXES-2026-06-14
-    status: pending
+    status: done                     # 2026-06-15 实现（H1：computeCriticalSet visited 守卫 + wouldCreateCycle 纯函数 + POST /dependencies 拒自环/成环），D-059；接缝锚 + hub-server verify:all 重跑 PASS
     # 谓词只看后端（hub-server + hub-contracts/attribution.ts）的环检测——前端 DepGraphPage 的
     # wouldCreateCycle 是 demo 期止血、不算 H1 修复，故**不**扫 console（否则会被前端守卫误判为已修）。
-    note: "前端环守卫已随 DEPGRAPH-DRAG-CONNECT 落地，但 H1 部署前必修是后端拒环——此谓词专测后端"
-    predicate_kind: cmd_exit0
-    predicate: "grep -rqiE 'wouldCreateCycle|hasCycle|detectCycle|rejectCycle|acyclic' apps/hub-server/src apps/hub-contracts/src"
+    note: "后端拒环：wouldCreateCycle 在 hub-contracts、POST /dependencies 调它；computeCriticalSet visited 守卫防已有环死循环"
+    predicate_kind: cmd_exit0          # 接缝锚（后端环检测标识）+ 该包 verify:all 真绿（含 audit-fixes/cycle-guard 测）
+    predicate: "grep -rqiE 'wouldCreateCycle|hasCycle|detectCycle|rejectCycle|acyclic' apps/hub-server/src apps/hub-contracts/src && npm --prefix apps/hub-server run verify:all"
 
   - id: AUDIT-H3-WRITE-AUTH
     pillar: infra
     required: true
     priority: 29                     # 部署前必修：写端点零鉴权（现只内网 demo 安全）
     backlog_id: AUDIT-FIXES-2026-06-14
-    status: pending
-    predicate_kind: cmd_exit0
-    predicate: "grep -rqE 'rateLimit|bodyLimit|requireAuth' apps/hub-server/src"
+    status: done                     # 2026-06-15 实现（H3：写路由 Bearer 鉴权 + 每 IP 限流 + bodyLimit + main.ts 拒非 loopback 裸暴露），D-059；接缝锚 + verify:all 重跑 PASS
+    note: "H3 + 同批 H2/H4/M6/H5/M9 一并落地（7 条部署前必修全做）；3-lens 对抗核实 wf_99ea69cb 无可绕过/无回归"
+    predicate_kind: cmd_exit0          # 接缝锚（bodyLimit/限流）+ 该包 verify:all 真绿（含 audit-fixes 鉴权/限流测）
+    predicate: "grep -rqE 'rateLimit|bodyLimit|requireAuth' apps/hub-server/src && npm --prefix apps/hub-server run verify:all"
 
   - id: DEPGRAPH-AI-AUTODRAW
     pillar: console

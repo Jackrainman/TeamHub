@@ -25,6 +25,7 @@ export {
   HubEventSchema,
   DepGraphSchema,
   toDepGraphView,
+  wouldCreateCycle,
   GOVERNANCE_SCENARIO_NOW,
   apiContractFixtures,
   SimilarIssueMatchSchema,

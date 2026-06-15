@@ -10,15 +10,19 @@ services:
       HUB_HOST: 0.0.0.0
       HUB_PORT: 4177
       TEAMHUB_CONSOLE_DIST_DIR: /opt/teamhub/console
-      DATABASE_URL: postgres://teamhub:teamhub_dev_password@postgres:5432/teamhub
+      # M11（AUDIT-FIXES 部署前必修）：容器内 KB 落盘到挂卷——否则每次重启静默丢全部
+      # IssueCard/ErrorEntry/ArchiveDocument，破「AI+知识库闭环」前提。
+      TEAMHUB_KB_DATA_FILE: /var/lib/teamhub/kb/kb-data.json
       ARTIFACT_ROOT: /var/lib/teamhub/artifacts
     ports:
       - "${TEAMHUB_HOST_PORT:-4177}:4177"
     volumes:
       - hub_artifacts:/var/lib/teamhub/artifacts
-    depends_on:
-      postgres:
-        condition: service_healthy
+      - hub_kb:/var/lib/teamhub/kb
+    # H5（AUDIT-FIXES 部署前必修）：删幻影 Postgres——hub-server 无 PG 客户端、从不读 DATABASE_URL，
+    # 唯三 store 是 InMemoryGovStore / FileKbStore / 抛错的 SqliteGovStore stub。原 depends_on+DATABASE_URL
+    # 只是白等 ~60s 健康重试 + 一个没用的容器，并误导运维以为治理数据进了 PG。SQLite 真上时再挂卷。
+    # H3：HUB_HOST=0.0.0.0 暴露写端点，故 deploy/teamhub.env.example 必须配 TEAMHUB_WRITE_TOKEN（否则拒启动）。
     healthcheck:
       test:
         - CMD-SHELL
@@ -28,23 +32,6 @@ services:
       retries: 6
       start_period: 10s
 
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: teamhub
-      POSTGRES_USER: teamhub
-      POSTGRES_PASSWORD: teamhub_dev_password
-    volumes:
-      - pg_data:/var/lib/postgresql/data
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - pg_isready -U teamhub -d teamhub
-      interval: 10s
-      timeout: 5s
-      retries: 6
-      start_period: 10s
-
 volumes:
   hub_artifacts:
-  pg_data:
+  hub_kb:

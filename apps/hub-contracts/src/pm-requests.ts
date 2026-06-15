@@ -1,8 +1,6 @@
 import { z } from 'zod';
 import {
   TaskSchema,
-  TaskStatusSchema,
-  GovActorSourceSchema,
   DependencySchema,
   NeedSchema,
 } from './governance.js';
@@ -26,8 +24,12 @@ export const CreateTaskRequestSchema = TaskSchema.omit({
   createdAt: true,
   updatedAt: true,
 }).extend({
-  status: TaskStatusSchema.optional(),
-  statusSource: GovActorSourceSchema.optional(),
+  // H4（AUDIT-FIXES 部署前必修）：写端点信任边界。客户端只能建「未启动 / 进行中」任务，
+  // statusSource 只能是真实录入渠道（lark/git/console）。**不收 `done`/`shelved`（跳过工作伪造完成）
+  // 也不收 `derived`（冒充系统派生信号、违 C5 派生优先铁律）**——非法值 Zod 直接 400 拒，不静默落库。
+  // git/lark 派生信号建 `inProgress` 任务的合法用法仍允许（见 create-task-route.test）。
+  status: z.enum(['pending', 'inProgress']).optional(),
+  statusSource: z.enum(['lark', 'git', 'console']).optional(),
 });
 export const CreateTaskResponseSchema = z.object({ task: TaskSchema });
 
@@ -43,7 +45,9 @@ export const CreateDependencyRequestSchema = DependencySchema.omit({
   updatedAt: true,
 });
 export const CreateDependencyResponseSchema = z.object({
-  dependency: DependencySchema,
+  // M6（AUDIT-FIXES / I0）：创建响应剥掉 confirmedBy（ActorRef）。读视图永不回人键——「把 ActorRef
+  // 送过边界」正是本库禁止的 I0 泄漏形状，也避免成为未来 GET /api/dependencies 照抄的模板。
+  dependency: DependencySchema.omit({ confirmedBy: true }),
 });
 
 /**
@@ -58,7 +62,10 @@ export const CreateNeedRequestSchema = NeedSchema.omit({
   escalatedAt: true,
   claimedByMemberId: true,
 });
-export const CreateNeedResponseSchema = z.object({ need: NeedSchema });
+export const CreateNeedResponseSchema = z.object({
+  // M6（AUDIT-FIXES / I0）：同 Dependency——创建响应剥掉 confirmedBy，读视图永不回人键。
+  need: NeedSchema.omit({ confirmedBy: true }),
+});
 
 export type CreateTaskRequest = z.infer<typeof CreateTaskRequestSchema>;
 export type CreateTaskResponse = z.infer<typeof CreateTaskResponseSchema>;

@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { z } from 'zod';
 import {
@@ -82,12 +82,24 @@ export class FileKbStore implements KbStore {
 
   /** 原子写：写 tmp 再 rename，串行化避免并发覆盖。 */
   private async persist(): Promise<void> {
-    this.writeChain = this.writeChain.then(async () => {
-      await mkdir(dirname(this.filePath), { recursive: true });
-      const tmp = `${this.filePath}.tmp`;
+    const op = this.writeChain.then(() => this.writeOnce());
+    // H2（AUDIT-FIXES 部署前必修）：失败隔离。推进写链时**吞掉本次错误**（reset 为 resolved），
+    // 否则一次瞬时磁盘抖动（ENOSPC/EACCES）会让 writeChain 永久 rejected → 之后每次 persist 的
+    // .then 回调被静默跳过、内存与磁盘分叉、store 以为存了却再不落盘。调用方仍拿到本次真实错误（op）。
+    this.writeChain = op.catch(() => undefined);
+    return op;
+  }
+
+  private async writeOnce(): Promise<void> {
+    await mkdir(dirname(this.filePath), { recursive: true });
+    const tmp = `${this.filePath}.tmp`;
+    try {
       await writeFile(tmp, JSON.stringify(this.snapshot, null, 2), 'utf8');
       await rename(tmp, this.filePath);
-    });
-    return this.writeChain;
+    } catch (err) {
+      // L2：rename 后失败会漏 .tmp；写失败也清残留，避免孤儿临时文件堆积。
+      await unlink(tmp).catch(() => {});
+      throw err;
+    }
   }
 }

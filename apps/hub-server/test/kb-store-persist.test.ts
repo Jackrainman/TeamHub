@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'vitest';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { kbScenarioFixture } from '@teamhub/hub-contracts';
@@ -138,5 +138,34 @@ describe('FileKbStore 落盘', () => {
 
     const onDisk = JSON.parse(await readFile(file, 'utf8'));
     expect(onDisk.projectId).toBe(kbScenarioFixture.projectId);
+  });
+
+  // H2（AUDIT-FIXES 部署前必修）：一次写失败不能永久毒化写链。原实现 writeChain 变 rejected 后，
+  // 之后每次 persist 的 .then 被静默跳过、内存与磁盘分叉。修复后：失败被隔离（链 reset 为 resolved），
+  // 下一次 append 仍能真正落盘。
+  test('写失败后写链不中毒：恢复后下一次 append 仍能落盘', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'kb-h2-'));
+    const sub = join(dir, 'kbdir');
+    await mkdir(sub);
+    const file = join(sub, 'kb.json');
+    const store = await FileKbStore.create(file); // 初次 persist OK
+
+    // 制造一次确定性写失败：把承载目录换成普通文件 → 下次 persist 的 mkdir(sub) 抛 EEXIST（跨平台、root 也抛）。
+    await rm(sub, { recursive: true, force: true });
+    await writeFile(sub, 'blocker');
+    await expect(store.appendCloseout(append)).rejects.toThrow();
+
+    // 修复目录后再写——若写链被毒化，这次会「报成功却不落盘」；修复后必须真正写到磁盘。
+    await rm(sub);
+    await mkdir(sub);
+    await store.appendCloseout({
+      ...append,
+      issueCard: { ...issue, id: 'iss-after-fail' },
+    });
+
+    const onDisk = JSON.parse(await readFile(file, 'utf8'));
+    expect(
+      onDisk.issueCards.some((c: { id: string }) => c.id === 'iss-after-fail'),
+    ).toBe(true);
   });
 });

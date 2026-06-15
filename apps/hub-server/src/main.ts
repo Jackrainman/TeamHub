@@ -12,16 +12,30 @@ async function main(): Promise<void> {
     ? await FileKbStore.create(kbDataFile)
     : undefined;
 
-  const app = buildHubServer({
-    consoleDistDir: process.env.TEAMHUB_CONSOLE_DIST_DIR,
-    kbStore,
-  });
   const host = process.env.HUB_HOST ?? DEFAULT_HOST;
   const port = Number.parseInt(process.env.HUB_PORT ?? String(DEFAULT_PORT), 10);
 
   if (!Number.isInteger(port) || port <= 0 || port > 65535) {
     throw new Error('invalid HUB_PORT');
   }
+
+  // H3（AUDIT-FIXES 部署前必修）：非 loopback 暴露写端点必须配 TEAMHUB_WRITE_TOKEN，否则拒绝启动——
+  // 避免裸暴露未鉴权的 POST /api/*（任意可达者污染治理数据 / 撑爆 KB / 回环 actor 身份）。
+  // 默认 127.0.0.1 / ::1 / localhost 放行（本机 dev）。
+  const writeToken = process.env.TEAMHUB_WRITE_TOKEN;
+  const isLoopback =
+    host === '127.0.0.1' || host === '::1' || host === 'localhost';
+  if (!isLoopback && !writeToken) {
+    throw new Error(
+      `refusing to bind non-loopback host ${host} without TEAMHUB_WRITE_TOKEN (write endpoints would be unauthenticated)`,
+    );
+  }
+
+  const app = buildHubServer({
+    consoleDistDir: process.env.TEAMHUB_CONSOLE_DIST_DIR,
+    kbStore,
+    writeToken,
+  });
 
   await app.listen({ host, port });
   app.log.info(`teamhub hub-server listening on http://${host}:${port}`);

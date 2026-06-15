@@ -227,11 +227,46 @@ function computeCriticalSet(tasks: Task[], deps: Dependency[]): Set<string> {
 
   const critical = new Set<string>();
   let cursor = endId;
-  while (cursor) {
+  // H1（AUDIT-FIXES 部署前必修）：回溯防环守卫。longestTo 的 cycle-guard 占位可能让 parent 链含环，
+  // 无 visited 会在有环依赖图上死循环、卡死整个 server 事件循环（单请求 DoS）。
+  const visited = new Set<string>();
+  while (cursor && !visited.has(cursor)) {
+    visited.add(cursor);
     critical.add(cursor);
     cursor = parent.get(cursor) ?? null;
   }
   return critical;
+}
+
+/**
+ * H1（AUDIT-FIXES 部署前必修）：判断新增依赖边 `fromTaskId → toTaskId` 是否会在依赖图里成环。
+ * 后端 `POST /api/dependencies` 落库前必须调用——一条成环边会让 `computeCriticalSet` / `toDepGraphView`
+ * 的派生卡死（任意未鉴权请求即可造环 → DoS）。边方向 = fromTaskId 阻塞 toTaskId；成环 iff 图里已存在
+ * `toTaskId → … → fromTaskId` 的有向路径（或自环 from===to）。纯函数、可单测。
+ */
+export function wouldCreateCycle(
+  dependencies: ReadonlyArray<Pick<Dependency, 'fromTaskId' | 'toTaskId'>>,
+  fromTaskId: string,
+  toTaskId: string,
+): boolean {
+  if (fromTaskId === toTaskId) return true; // 自环
+  const adj = new Map<string, string[]>();
+  for (const d of dependencies) {
+    const list = adj.get(d.fromTaskId);
+    if (list) list.push(d.toTaskId);
+    else adj.set(d.fromTaskId, [d.toTaskId]);
+  }
+  // 从 toTaskId 出发能否经现有边回到 fromTaskId（DFS）；能 → 加 from→to 会闭环。
+  const stack: string[] = [toTaskId];
+  const seen = new Set<string>();
+  while (stack.length > 0) {
+    const cur = stack.pop()!;
+    if (cur === fromTaskId) return true;
+    if (seen.has(cur)) continue;
+    seen.add(cur);
+    for (const next of adj.get(cur) ?? []) stack.push(next);
+  }
+  return false;
 }
 
 function inferKnowledgeKind(uri: string): DepNodeKnowledge['kind'] {

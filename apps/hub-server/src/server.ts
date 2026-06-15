@@ -29,6 +29,7 @@ import {
   buildCloseoutFromIssue,
   rankSimilarIssues,
   toDepGraphView,
+  wouldCreateCycle,
   apiContractFixtures,
 } from './contracts.js';
 import type { IssueCard } from '@teamhub/hub-contracts';
@@ -74,16 +75,52 @@ export interface BuildHubServerOptions {
    * 缺省 undefined，INV 支柱落地时注入实现 InvStore 的实例（对话记账 / 盘点 / 缺口汇报）。
    */
   invStore?: InvStore;
+  /**
+   * H3（AUDIT-FIXES 部署前必修）：写端点共享密钥。配了则所有 `POST /api/*` 须带 `Authorization: Bearer <token>`；
+   * 未配则放行（loopback dev 默认）。非 loopback 暴露**必须**配（main.ts 拒绝裸暴露）。
+   */
+  writeToken?: string;
+  /** H3：写端点每 IP 固定窗口限流（默认 120 次 / 60s）。测试可调小触发 429。 */
+  writeRateLimit?: { max: number; windowMs: number };
 }
 
 export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInstance {
-  const app = Fastify({ logger: false });
+  // H3（AUDIT-FIXES）：显式 bodyLimit 收口写端点请求体上限（默认 Fastify 1MB 仍偏大，配合 KB 整文件重写是
+  // 低成本资源耗尽面，见 M17）；256KB 足够任务 / 结案录入。
+  const app = Fastify({ logger: false, bodyLimit: 256 * 1024 });
   const store: GovStore = options.store ?? new InMemoryGovStore();
   const clock: Clock =
     options.clock ?? new FixedClock(new Date(GOVERNANCE_SCENARIO_NOW));
   // KB-CORE：知识库相似检索语料读出入口（缺省 InMemoryKbStore seed kbScenarioFixture），由 GET /api/kb/similar 消费。
   // invStore 仍只钉 options 字段、无消费方（INV 支柱落地时透传），符合 base 收口刀「扩展点先行、路由后置」节奏。
   const kbStore: KbStore = options.kbStore ?? new InMemoryKbStore();
+
+  // H3（AUDIT-FIXES 部署前必修）：写端点信任边界 = 共享密钥鉴权 + 每 IP 限流。
+  // 仅作用于 POST /api/*（读路由 / 静态站 / health 不受影响）。这是让 I0 泄漏 / 环卡死 / KB 撑爆
+  // 被第三方真正触达的边界缺口——未鉴权客户端不能刷爆全队要读的 dep-graph、不能猛打 closeout 撑爆 KB 文件。
+  const writeToken = options.writeToken;
+  const rateLimit = options.writeRateLimit ?? { max: 120, windowMs: 60_000 };
+  const rateHits = new Map<string, { count: number; resetAt: number }>();
+  app.addHook('onRequest', async (request, reply) => {
+    if (request.method !== 'POST' || !request.url.startsWith('/api/')) return;
+    // 鉴权（配了 token 才强制 Bearer；未配=loopback dev 放行）
+    if (writeToken && request.headers.authorization !== `Bearer ${writeToken}`) {
+      void reply.code(401).send({ detail: 'unauthorized' });
+      return reply;
+    }
+    // 限流（真实墙钟 Date.now，与派生用的 clock 解耦；每实例独立、重启即重置）
+    const ip = request.ip;
+    const nowMs = Date.now();
+    const hit = rateHits.get(ip);
+    if (!hit || nowMs >= hit.resetAt) {
+      rateHits.set(ip, { count: 1, resetAt: nowMs + rateLimit.windowMs });
+    } else if (hit.count >= rateLimit.max) {
+      void reply.code(429).send({ detail: 'rate limit exceeded' });
+      return reply;
+    } else {
+      hit.count += 1;
+    }
+  });
 
   app.get('/health', async () => {
     return HealthResponseSchema.parse(buildHealthResponse());
@@ -182,6 +219,19 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
       void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
       return;
     }
+    // H1（AUDIT-FIXES 部署前必修）：落库前拒自环 / 成环。后端原零语义校验——一条成环边会让下次
+    // GET /api/dep-graph 的 computeCriticalSet / toDepGraphView 派生死循环、卡死整个 server（单请求 DoS）。
+    const snapshot = await store.getSnapshot();
+    const { fromTaskId, toTaskId } = parsed.data;
+    if (wouldCreateCycle(snapshot.dependencies, fromTaskId, toTaskId)) {
+      void reply.code(400).send({
+        detail:
+          fromTaskId === toTaskId
+            ? 'self dependency not allowed'
+            : 'dependency would create a cycle',
+      });
+      return;
+    }
     const dependency = await store.createDependency(parsed.data);
     void reply.code(201);
     return CreateDependencyResponseSchema.parse({ dependency });
@@ -255,6 +305,12 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     const { issue, records, category, rootCause, resolution, prevention, generatedBy } =
       parsed.data;
     const now = clock.now().toISOString();
+    // M9（AUDIT-FIXES 部署前必修）：errorCode NNN 用「同日既有 ErrorEntry 数 + 1」的单调序号，
+    // 避免哈希 mod 1000 在 ~38 次/日时生日碰撞 → 静默覆盖、污染 kb-similar 跨赛季查找。
+    const kbSnapshot = await kbStore.getKbSnapshot();
+    const dayPrefix = `DBG-${now.slice(0, 10).replace(/-/g, '')}-`;
+    const sameDaySeq =
+      kbSnapshot.errorEntries.filter((e) => e.errorCode.startsWith(dayPrefix)).length + 1;
     const result = buildCloseoutFromIssue(
       issue,
       records,
@@ -262,7 +318,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
       {
         now,
         errorEntryId: `err-${issue.id}`,
-        errorCode: deriveErrorCode(now, issue.id),
+        errorCode: deriveErrorCode(now, issue.id, sameDaySeq),
         generatedBy,
       },
     );

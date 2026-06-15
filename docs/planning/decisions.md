@@ -876,3 +876,22 @@
 - 对抗核实：`wf_8c5051bf`（2-lens：opus 护栏语义保全 + sonnet 保真 / 测试安全）双裁 **ship / mustFix=0**。护栏 lens 逐条确认反监视语义保留；保真 lens 确认零测试断言被撞（`不断言`/`踩过的坑：` 都还在）、`归组不归人` 已从 translations.ts 彻底消失（仅余源码注释）、zh/en parity、无事实增删。
 - 验证：`hub-console` + `hub-server` 双 `verify:all` 全绿（hub-server 74 测含 kb-similar-route、hub-console 7 测 + build）；完成度谓词硬化为 `! grep -q '归组不归人' translations.ts && npm --prefix apps/hub-console run verify:all && npm --prefix apps/hub-server run verify:all`，从 repo 根重跑 exit 0 才翻 done。
 - 事实源：本 ADR；`apps/hub-console/src/i18n/translations.ts`（6 键 zh/en）/ `api/mock/kb.ts`（mock note）/ `apps/hub-server/src/contracts.ts`（KB_SIMILAR_NOTE）；`D-052`（立项）/ `humanizer-zh` 技能；workflow `wf_8c5051bf`。
+
+## D-059 — AUDIT-FIXES：7 条联网部署前必修一次落地（frontier done）
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-15）
+- 日期：2026-06-15
+- 上下文：`code-audit-2026-06-14.md`（15-agent 对抗审计、confirmed 42）列「部署前必修 7 条」，D-049 落档时定「本轮只落档、修复后置」。三支柱读写 + console 收尾批跑通后，本批一次性补齐这 7 条信任边界 / 可用性 / 持久性缺陷——目标是把「现只内网 demo 安全」抬到可联网部署。
+- 决策（逐条修复定调）：
+  1. **H1 依赖环 → DoS**：`attribution.ts` `computeCriticalSet` 回溯加 `visited` 守卫（防 parent 链成环死循环卡死整个 server 事件循环——这是**已有环**的读路径兜底）；新增纯函数 `wouldCreateCycle(deps, from, to)`（自环 + 从 to DFS 可达 from，自身有 `seen` 守卫故对已含环的图也 DoS 安全）；`POST /api/dependencies` 落库前调它拒自环/成环（400）——后端原零语义校验、是新边的防线。
+  2. **H2 写链中毒**：`FileKbStore.persist` 拆成 `op = writeChain.then(writeOnce)` + `writeChain = op.catch(()=>undefined)`（失败隔离、链 reset 为 resolved，避免一次磁盘抖动后每次 persist 静默跳过、内存与磁盘分叉）+ 返回 `op` 给调用方拿真实错误；`writeOnce` 失败 `unlink` 残留 .tmp（L2）。
+  3. **H3 写端点零鉴权**：Fastify 构造 `bodyLimit:256KB`（M17）+ `onRequest` 钩子（仅 `POST /api/*`）——配了 `TEAMHUB_WRITE_TOKEN` 则强制 `Bearer`（401），每 IP 固定窗口限流（429，用真实墙钟 `Date.now` 与派生 clock 解耦、每实例独立）；`main.ts` 非 loopback（≠127.0.0.1/::1/localhost）且未配 token → **拒绝启动**（避免裸暴露未鉴权写端点）。`BuildHubServerOptions` 加 `writeToken?`/`writeRateLimit?`。
+  4. **H4 字段注入**：`CreateTaskRequestSchema`（hub-contracts 单一源）status 钳到 `z.enum(['pending','inProgress'])`、statusSource 钳到 `z.enum(['lark','git','console'])`——拒客户端注入 `done`/`shelved`（跳过工作伪造完成）/ `derived`（冒充系统派生信号、违 C5）。**保留** git/lark 派生信号建 `inProgress` 任务的合法用法（取「限制 enum」而非「整删字段」，正是为不破该合法用例 + 既有测试）。
+  5. **M6 I0**：`CreateDependency/NeedResponseSchema` `omit({confirmedBy:true})`——创建响应不把 ActorRef 送过边界（读视图永不回人键，也不给未来 GET 路由留照抄模板）。
+  6. **H5/M11 compose**：删幻影 Postgres（服务 / `depends_on` / `DATABASE_URL` / `pg_data` 卷——hub-server 无 PG 客户端、从不读，原配置白等 ~60s + 误导运维）；接 KB 持久（`TEAMHUB_KB_DATA_FILE` + `hub_kb` 卷，否则容器重启丢全部 IssueCard/ErrorEntry/Archive）；`deploy/teamhub.env.example` 补 `TEAMHUB_KB_DATA_FILE` + `TEAMHUB_WRITE_TOKEN`（compose bind 0.0.0.0 故必须非空，与 H3 拒启动逻辑闭环）。
+  7. **M9 errorCode 碰撞**：`deriveErrorCode(now, issueId, sequence?)` 加可选单调序号（省略回退哈希，供 CLI 历史导入 / console mock 无 store 访问处用）；结案路由用「同日既有 ErrorEntry 数 + 1」传入——消除哈希 mod 1000 在 ~38 次/日生日碰撞 → 静默覆盖污染 `kb-similar` 跨赛季查找。
+- 测试：`+11` 测——新 `audit-fixes.test.ts`（10：H1 自环/成环不落库、M6 dep/need 响应无 confirmedBy、H4 done/derived→400 + 合法 inProgress/git→201、H3 401/正确 Bearer→201/GET 放行/限流 429）+ `kb-store-persist.test.ts` H2 失败隔离（1，确定性失败注入=父目录换文件让 mkdir 抛 EEXIST）+ 新 `cycle-guard.test.ts`（6：自环/空图/2 节点回边/传递环 A→B→C+C→A/DAG 不环/已含环 DoS 安全）；**更新** `kb-closeout-route.test.ts` errorCode 测试从 `.toBe`（同码复现=审计指出的碰撞 bug）改 `.not.toBe`（M9 单调不碰撞契约，诚实反映新行为）。
+- 对抗核实：`wf_99ea69cb`（3-lens：opus 安全/绕过 + opus 正确性 + opus 回归/完整，并行）**全 ship、mustFix=0**。安全 lens 实证无可绕过（`wouldCreateCycle` DFS 方向对、`computeCriticalSet`/`findRoot` 读路径都有 visited 守卫、唯一依赖写入口走环检测、`onRequest` 钩子覆盖全部 5 个 `POST /api/*`、`isLoopback` 判定把 0.0.0.0 正确视为需 token、bodyLimit 在构造生效、H4 store 无旁路）；正确性 lens 用独立脚本实证 H2 链 reset+串行化保留、M9 两次结案不同码且格式不破、H4 enum 拒注入、M6 Zod 默认 strip 真剥 confirmedBy；回归 lens 实证 7 条全落、现有 POST 测试不被鉴权/限流误伤（都无 token + 默认 120/窗）、compose env_file+0.0.0.0+main.ts 拒启动闭环（容器能起）。
+- 老实定位（非部署阻断）：rate-limit key=`request.ip` 在反代后塌成单桶（无 trustProxy/X-Forwarded-For）；Bearer 非定长比较（时序攻击 out-of-scope）；`TEAMHUB_WRITE_TOKEN` 出厂占位值，env 注释明示暴露前改强随机串（`openssl rand -hex 32`）。`wouldCreateCycle` 已补 hub-contracts 直接单测（核实建议的传递环用例）。
+- 验证：`hub-contracts` 47 测 / `hub-server` 85 测 / `hub-console` 7 测 + build 三包 `verify:all` 全绿；`git diff --check` 干净；AUDIT-H1-CYCLE-GUARD / AUDIT-H3-WRITE-AUTH 完成度谓词硬化为「接缝锚 grep + hub-server verify:all」，从 repo 根重跑 exit 0 才翻 done。
+- 事实源：本 ADR；`code-audit-2026-06-14.md`（7 条必修清单）；`apps/hub-contracts/src/{attribution,error-code,pm-requests}.ts` / `apps/hub-server/src/{server,main,contracts,store/file-kb-store}.ts` / `compose.yaml` / `deploy/teamhub.env.example` / 4 测试文件；`D-049`（落档）/ `D-055`（谓词硬化同法）；workflow `wf_99ea69cb`。
