@@ -16,7 +16,7 @@ import {
  * 「症状 → 跨赛季同类 bug 召回」。note 与后端 A4 措辞保持一致（只列候选、不断言同因）。
  */
 const MOCK_KB_NOTE =
-  '以下为候选相似记录（按 reasons 词重合排序）；系统只列候选、不断言「同因」，请按 reasons 自行判断后选用。';
+  '下面是几条相似的历史记录，按匹配程度排序。系统只给候选、不断言「就是同一个原因」，每条的 reasons 写了为什么像，合不合用你自己判断。';
 
 export function mockKbSimilar(params: KbSimilarParams): KbSimilarResponse {
   const { symptom } = params;

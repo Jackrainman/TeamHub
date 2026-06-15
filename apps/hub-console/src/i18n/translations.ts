@@ -161,7 +161,7 @@ const zh = {
   'kb.search.tagsPlaceholder': '例如 CAN, 电机, 底盘',
   'kb.search.submit': '检索相似历史',
   'kb.empty':
-    '输入症状后检索：系统按词重合度召回跨赛季的同类历史 bug，只列候选、不替你下「同因」结论。',
+    '输入症状就能查：把以前几个赛季撞过的同类 bug 按匹配程度翻出来。这些只是候选，要不要采用你自己定。',
   'kb.loading': '正在检索相似历史…',
   'kb.error': '检索失败（后端没连上？可切到演示数据看界面）',
   'kb.noResults': '没有命中的历史记录（可放宽标签或换个说法再试）。',
@@ -200,8 +200,8 @@ const zh = {
   'pm.card.openInDepGraph': '在依赖图查看',
 
   // PM 录入（写侧表单）
-  'pm.create.title': '录入 · 全员可见的协作真相',
-  'pm.create.subtitle': '只记任务 / 依赖 / 缺口；不记谁快谁慢、不排名。',
+  'pm.create.title': '录入 · 全员都看得到',
+  'pm.create.subtitle': '只记任务、依赖和缺口，不比谁快谁慢。',
   'pm.create.tab.task': '布置任务',
   'pm.create.tab.dependency': '连依赖',
   'pm.create.tab.need': '暴露需求',
@@ -219,7 +219,7 @@ const zh = {
   'pm.field.source': '来源',
   'pm.field.confirmer': '你的名字（确认这条，可选）',
   'pm.field.onTask': '挂在哪个任务上',
-  'pm.field.needDescription': '缺什么（归组不归人）',
+  'pm.field.needDescription': '缺什么（按组，不点人）',
   'pm.field.providerGroup': '由哪个组提供（可选）',
   'pm.field.neededSkills': '需要的技能（可选，逗号分隔）',
   'pm.field.selectTask': '— 选择任务 —',
@@ -247,7 +247,7 @@ const zh = {
   'kb.tab.search': '相似检索',
   'kb.tab.closeout': '结案归档',
   'kb.closeout.intro':
-    '把一次排障结案沉淀进知识库：归档 + 错误码 + 派生知识点，下次同类症状可被检索到。',
+    '把一次排障结案存进知识库：留下归档、错误码和一条知识点，下次撞到同样的症状能搜回来。',
   'kb.closeout.field.title': '问题标题',
   'kb.closeout.field.projectId': '项目 ID',
   'kb.closeout.field.symptom': '症状 / 现象',
@@ -270,7 +270,7 @@ const zh = {
   'kb.closeout.success.title': '已归档结案',
   'kb.closeout.success.archive': '归档文件',
   'kb.closeout.success.errorCode': '错误码',
-  'kb.closeout.success.knowledge': '派生知识点',
+  'kb.closeout.success.knowledge': '存下的知识点',
   'kb.closeout.success.searchable': '已写回检索语料，下次同类症状可召回。',
   'kb.closeout.error': '归档失败：{detail}',
 } as const;
@@ -430,7 +430,7 @@ const en: Record<TranslationKey, string> = {
   'kb.search.tagsPlaceholder': 'e.g. CAN, motor, chassis',
   'kb.search.submit': 'Search history',
   'kb.empty':
-    'Enter a symptom to search: the system recalls same-class historical bugs across seasons by term overlap — candidates only, it never concludes "same cause" for you.',
+    'Type a symptom to search: it pulls up similar bugs from past seasons, ranked by how well they match. These are only candidates; you decide which one fits.',
   'kb.loading': 'Searching similar history…',
   'kb.error': 'Search failed (backend not reachable? switch to Demo data to preview the UI)',
   'kb.noResults': 'No matching history (loosen tags or rephrase and retry).',
@@ -468,9 +468,9 @@ const en: Record<TranslationKey, string> = {
   'pm.card.openInDepGraph': 'View in dependency graph',
 
   // PM entry (write-side forms)
-  'pm.create.title': 'Entry · everyone-visible collaboration truth',
+  'pm.create.title': 'Add an entry · everyone can see it',
   'pm.create.subtitle':
-    'Records tasks / dependencies / gaps only; never who is faster or slower, no ranking.',
+    'Just tasks, dependencies and gaps. Never who is faster or slower.',
   'pm.create.tab.task': 'New task',
   'pm.create.tab.dependency': 'Link dependency',
   'pm.create.tab.need': 'Raise a need',
@@ -488,7 +488,7 @@ const en: Record<TranslationKey, string> = {
   'pm.field.source': 'Source',
   'pm.field.confirmer': 'Your name (confirming this, optional)',
   'pm.field.onTask': 'On which task',
-  'pm.field.needDescription': 'What is missing (by group, not person)',
+  'pm.field.needDescription': "What's missing (by group, not a person)",
   'pm.field.providerGroup': 'Which group provides it (optional)',
   'pm.field.neededSkills': 'Skills needed (optional, comma-separated)',
   'pm.field.selectTask': '— select a task —',
@@ -517,7 +517,7 @@ const en: Record<TranslationKey, string> = {
   'kb.tab.search': 'Similar search',
   'kb.tab.closeout': 'Archive a closeout',
   'kb.closeout.intro':
-    'Settle a debugging session into the knowledge base: archive + error code + a derived knowledge node, searchable next time the same symptom appears.',
+    'Save a finished debugging session to the knowledge base: an archive, an error code and a knowledge note, so the same symptom can be found again next time.',
   'kb.closeout.field.title': 'Issue title',
   'kb.closeout.field.projectId': 'Project ID',
   'kb.closeout.field.symptom': 'Symptom',
@@ -540,7 +540,7 @@ const en: Record<TranslationKey, string> = {
   'kb.closeout.success.title': 'Closeout archived',
   'kb.closeout.success.archive': 'Archive file',
   'kb.closeout.success.errorCode': 'Error code',
-  'kb.closeout.success.knowledge': 'Derived knowledge node',
+  'kb.closeout.success.knowledge': 'Saved knowledge note',
   'kb.closeout.success.searchable':
     'Written back to the search corpus — the same symptom can be recalled next time.',
   'kb.closeout.error': 'Archive failed: {detail}',

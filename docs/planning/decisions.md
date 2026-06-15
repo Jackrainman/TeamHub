@@ -862,3 +862,17 @@
 - 老实定位：仍 mock-first；真实飞书/Hermes/git 触点接入后置（Hermes 统一触点门，本批不碰）。
 - 验证：hub-console `verify:all`（typecheck + 7 测 + vite build）全绿（含孤儿 key 清理后重跑）；完成度谓词硬化为 `grep -qi 'integration' SettingsPage.tsx && npm --prefix apps/hub-console run verify:all`，从 repo 根重跑 exit 0 才翻 done。纯 hub-console 前端，零 contracts/server 改动。
 - 事实源：本 ADR；`apps/hub-console/src/features/settings/SettingsPage.tsx`（IntegrationsSection）/ `features/overview/OverviewPage.tsx`（删 panel + 一行链接）/ `App.tsx`（onNavigate）/ `i18n/translations.ts`（relabel + 5 新键 − 2 孤儿）/ `styles.css`；`D-052`（立项 Q1）；workflow `wf_f40f5aea`。
+
+## D-058 — CONSOLE-COPY-HUMANIZE：用户可见文案去 AI 味 / 治理黑话（护栏语义保留，frontier done）
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-15）
+- 日期：2026-06-15
+- 上下文：D-052 提案审查后 console 收尾批第 3 项（完成度模型 priority 25）。三支柱读写跑通后，UI 文案积了一批"治理黑话 / AI 味"——「协作真相」「词重合度」「同因」「派生知识点」「归组不归人」——对外行用户费解。用 humanizer-zh 原则去味，但**死守一条线：去黑话不能丢护栏语义**（A4 相似检索免责 / C2 反排名 / A1 缺口归组不归人 都是反监视铁律的用户可见落点）。
+- 决策（实现定调）：
+  1. **只改 value 不动 key、zh/en 同步**：6 处 console i18n——`pm.create.title`（删「协作真相」→「全员都看得到」）/`pm.create.subtitle`（「不记谁快谁慢、不排名」→「不比谁快谁慢」）/`pm.field.needDescription`（「归组不归人」→「按组，不点人」）/`kb.empty`（去「词重合度/同因」黑话）/`kb.closeout.intro`（去「派生知识点」）/`kb.closeout.success.knowledge`（「派生知识点」→「存下的知识点」）。
+  2. **后端可见串同步**：`hub-server` `KB_SIMILAR_NOTE` 去「词重合」黑话改「匹配程度」、「同因」→「就是同一个原因」，**显式保留「不断言」**（`kb-similar-route.test.ts:22` 断言 `body.note` 含「不断言」）；连带把 console `api/mock/kb.ts` 的演示 note 对齐同句（其注释本就承诺"与后端 A4 措辞一致"）。
+  3. **刻意保留不动**：`deriveKnowledgeNodeFromIssue` 的「踩过的坑：」知识节点名前缀——既是 `gov-store-scaffold.test.ts:66` 的测试输入数据，又本就是地道人话（非黑话），改它有害无益；源码注释 / `pm-routes.test.ts` 注释里的「归组不归人」是内部 A1 原则说明、非用户可见 copy，不动。
+- 护栏语义保全（本任务红线）：逐条核实去黑话后 A4（只列候选·不断言同因·由人选用）、C2（不比快慢·反排名）、A1（缺口按组不点人）实质全部保留、无削弱无反转，未引入任何「谁快谁慢/排名/盯人」暗示。
+- 对抗核实：`wf_8c5051bf`（2-lens：opus 护栏语义保全 + sonnet 保真 / 测试安全）双裁 **ship / mustFix=0**。护栏 lens 逐条确认反监视语义保留；保真 lens 确认零测试断言被撞（`不断言`/`踩过的坑：` 都还在）、`归组不归人` 已从 translations.ts 彻底消失（仅余源码注释）、zh/en parity、无事实增删。
+- 验证：`hub-console` + `hub-server` 双 `verify:all` 全绿（hub-server 74 测含 kb-similar-route、hub-console 7 测 + build）；完成度谓词硬化为 `! grep -q '归组不归人' translations.ts && npm --prefix apps/hub-console run verify:all && npm --prefix apps/hub-server run verify:all`，从 repo 根重跑 exit 0 才翻 done。
+- 事实源：本 ADR；`apps/hub-console/src/i18n/translations.ts`（6 键 zh/en）/ `api/mock/kb.ts`（mock note）/ `apps/hub-server/src/contracts.ts`（KB_SIMILAR_NOTE）；`D-052`（立项）/ `humanizer-zh` 技能；workflow `wf_8c5051bf`。
