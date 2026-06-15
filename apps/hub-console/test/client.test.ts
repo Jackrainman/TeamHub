@@ -4,16 +4,6 @@ import { createHubApiClient } from '../src/api/client';
 import { OverviewSnapshotSchema } from '../src/api/schemas/system';
 
 describe('hub console API client', () => {
-  test('uses parsed mock overview data by default', async () => {
-    const client = createHubApiClient();
-    const snapshot = await client.getOverview();
-
-    expect(client.mode).toBe('mock');
-    expect(OverviewSnapshotSchema.safeParse(snapshot).success).toBe(true);
-    expect(snapshot.adapters.adapters.length).toBeGreaterThan(0);
-    expect(snapshot.events.events.length).toBeGreaterThan(0);
-  });
-
   test('fetches and parses the real API split when baseUrl is set', async () => {
     const fetcher = vi.fn(async (url: string) => {
       const path = new URL(url, 'http://teamhub.local').pathname;
@@ -31,15 +21,17 @@ describe('hub console API client', () => {
     });
     const snapshot = await client.getOverview();
 
-    expect(client.mode).toBe('real');
     expect(fetcher).toHaveBeenCalledTimes(7);
+    expect(OverviewSnapshotSchema.safeParse(snapshot).success).toBe(true);
     expect(snapshot.health.status).toBe('ok');
+    expect(snapshot.adapters.adapters.length).toBeGreaterThan(0);
+    expect(snapshot.events.events.length).toBeGreaterThan(0);
     expect(snapshot.gitRepos.repos).toHaveLength(
       apiContractFixtures.gitRepos.repos.length,
     );
   });
 
-  test('uses same-origin real API mode when baseUrl is slash', async () => {
+  test('uses same-origin relative paths when baseUrl is slash', async () => {
     const fetcher = vi.fn(async (url: string) => {
       const path = new URL(url, 'http://teamhub.local').pathname;
       return {
@@ -55,9 +47,26 @@ describe('hub console API client', () => {
     });
     const snapshot = await client.getOverview();
 
-    expect(client.mode).toBe('real');
     expect(fetcher).toHaveBeenCalledWith('/health');
     expect(snapshot.system.service).toBe('teamhub-hub-server');
+  });
+
+  test('treats an empty baseUrl as same-origin relative paths', async () => {
+    const fetcher = vi.fn(async (url: string) => {
+      const path = new URL(url, 'http://teamhub.local').pathname;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => responseByPath(path),
+      } as Response;
+    });
+
+    const client = createHubApiClient({
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+    await client.getOverview();
+
+    expect(fetcher).toHaveBeenCalledWith('/health');
   });
 
   test('fails closed on invalid API responses', async () => {
@@ -75,29 +84,7 @@ describe('hub console API client', () => {
     await expect(client.getOverview()).rejects.toThrow();
   });
 
-  test('mock mode recalls similar issues for a symptom', async () => {
-    const client = createHubApiClient();
-    const result = await client.getKbSimilar({
-      symptom: '底盘电机偶发失控、CAN 报文丢失',
-      tags: ['CAN', '电机'],
-    });
-
-    expect(client.mode).toBe('mock');
-    expect(result.note.length).toBeGreaterThan(0);
-    expect(result.items.length).toBeGreaterThan(0);
-    // 按词重合召回到 CAN 历史卡（候选，不断言同因）
-    expect(result.items.some((item) => item.tags.includes('CAN'))).toBe(true);
-  });
-
-  test('mock mode returns the task board snapshot', async () => {
-    const client = createHubApiClient();
-    const result = await client.getTasks();
-
-    expect(client.mode).toBe('mock');
-    expect(result.tasks.length).toBeGreaterThan(0);
-  });
-
-  test('real mode fetches tasks and kb similar from the API', async () => {
+  test('fetches and parses tasks and kb similar from the API', async () => {
     const fetcher = vi.fn(async (url: string) => {
       const parsed = new URL(url, 'http://teamhub.local');
       return {
@@ -113,7 +100,6 @@ describe('hub console API client', () => {
     });
 
     const tasks = await client.getTasks();
-    expect(client.mode).toBe('real');
     expect(tasks.tasks).toEqual([]);
 
     const similar = await client.getKbSimilar({
@@ -121,6 +107,7 @@ describe('hub console API client', () => {
       tags: ['CAN'],
     });
     expect(similar.items).toEqual([]);
+    expect(similar.note.length).toBeGreaterThan(0);
 
     const kbCall = fetcher.mock.calls.find(([url]) =>
       String(url).includes('/api/kb/similar'),

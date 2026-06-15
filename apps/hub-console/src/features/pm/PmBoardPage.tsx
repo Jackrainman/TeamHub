@@ -55,7 +55,7 @@ export function PmBoardPage({
   const tasks = query.data.tasks;
   const byStatus = (status: TaskStatus) =>
     tasks.filter((task) => task.status === status);
-  // 写表单成功后失效任务查询 → 看板即时刷新（mock 闭包持久 / real 命中后端读视图）。
+  // 写表单成功后失效任务查询 → 看板即时刷新（命中后端读视图）。
   const refreshTasks = () =>
     void queryClient.invalidateQueries({ queryKey: ['tasks', source] });
 

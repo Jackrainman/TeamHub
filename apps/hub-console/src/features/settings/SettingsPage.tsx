@@ -2,11 +2,10 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { AdapterDescriptor } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
-import type { DataSource } from '../../components/layout/ConsoleLayout';
 import { useI18n, type TranslationKey } from '../../i18n';
 
-// 设置页：收纳此前散落各处的运行时设置——数据源 / 语言 / 集成 / 后端地址 / 关于。
-// 数据源、语言复用 App / i18n 的同一份状态（无本地副本，故无同步问题）。
+// 设置页：收纳此前散落各处的运行时设置——语言 / 集成 / 后端地址 / 关于。
+// 语言复用 i18n 的同一份状态（无本地副本，故无同步问题）。单一真实后端，无数据源切换。
 const APIBASE_KEY = 'teamhub.apiBase';
 
 // 集成状态枚举 → 文案键（与总览同一份枚举；枚举变更会在此处编译报错）。
@@ -24,45 +23,14 @@ function segClass(active: boolean): string {
 export function SettingsPage({
   client,
   source,
-  onChangeSource,
 }: {
   client: HubApiClient;
-  source: DataSource;
-  onChangeSource: (next: DataSource) => void;
+  source: string;
 }) {
   const { t, lang, setLang } = useI18n();
 
   return (
     <div className="settings-page">
-      <section className="panel settings-panel">
-        <div className="panel-header">
-          <h2>{t('settings.section.dataSource')}</h2>
-        </div>
-        <div className="settings-section">
-          <p className="settings-desc">{t('settings.dataSource.desc')}</p>
-          <div
-            className="seg"
-            role="group"
-            aria-label={t('settings.section.dataSource')}
-          >
-            <button
-              type="button"
-              className={segClass(source === 'real')}
-              onClick={() => onChangeSource('real')}
-            >
-              {t('settings.dataSource.real')}
-            </button>
-            <button
-              type="button"
-              className={segClass(source === 'mock')}
-              onClick={() => onChangeSource('mock')}
-            >
-              {t('settings.dataSource.mock')}
-            </button>
-          </div>
-        </div>
-      </section>
-
       <section className="panel settings-panel">
         <div className="panel-header">
           <h2>{t('settings.section.language')}</h2>
@@ -93,7 +61,7 @@ export function SettingsPage({
       </section>
 
       <IntegrationsSection client={client} source={source} />
-      <ApiBaseSection source={source} />
+      <ApiBaseSection />
       <AboutSection client={client} source={source} />
     </div>
   );
@@ -106,7 +74,7 @@ function IntegrationsSection({
   source,
 }: {
   client: HubApiClient;
-  source: DataSource;
+  source: string;
 }) {
   const { t } = useI18n();
   const overviewQuery = useQuery({
@@ -151,11 +119,10 @@ function IntegrationsSection({
 }
 
 // 后端地址：localStorage 覆盖 VITE_API_BASE。改动后 reload 让 client 按新 base 重建。
-function ApiBaseSection({ source }: { source: DataSource }) {
+function ApiBaseSection() {
   const { t } = useI18n();
   const stored = window.localStorage.getItem(APIBASE_KEY) ?? '';
   const [value, setValue] = useState(stored);
-  const isMock = source === 'mock';
   const effective = stored.trim() || (import.meta.env.VITE_API_BASE ?? '/');
 
   function apply() {
@@ -177,9 +144,6 @@ function ApiBaseSection({ source }: { source: DataSource }) {
       </div>
       <div className="settings-section">
         <p className="settings-desc">{t('settings.apiBase.desc')}</p>
-        {isMock ? (
-          <p className="form-hint form-hint--warn">{t('settings.apiBase.mockNote')}</p>
-        ) : null}
         <label className="kb-field">
           <span>{t('settings.apiBase.label')}</span>
           <input
@@ -187,7 +151,6 @@ function ApiBaseSection({ source }: { source: DataSource }) {
             value={value}
             onChange={(event) => setValue(event.target.value)}
             placeholder={t('settings.apiBase.placeholder')}
-            disabled={isMock}
           />
         </label>
         <p className="settings-current">
@@ -198,7 +161,7 @@ function ApiBaseSection({ source }: { source: DataSource }) {
             type="button"
             className="kb-submit"
             onClick={apply}
-            disabled={isMock || value.trim() === stored.trim()}
+            disabled={value.trim() === stored.trim()}
           >
             {t('settings.apiBase.apply')}
           </button>
@@ -206,7 +169,7 @@ function ApiBaseSection({ source }: { source: DataSource }) {
             type="button"
             className="settings-btn"
             onClick={reset}
-            disabled={isMock || stored.trim() === ''}
+            disabled={stored.trim() === ''}
           >
             {t('settings.apiBase.reset')}
           </button>
@@ -216,13 +179,13 @@ function ApiBaseSection({ source }: { source: DataSource }) {
   );
 }
 
-// 关于：service · version · 服务端模式取 /api/system/status；数据源回显 client.mode。
+// 关于：service · version · 服务端模式取 /api/system/status。单一真实后端，无数据源回显。
 function AboutSection({
   client,
   source,
 }: {
   client: HubApiClient;
-  source: DataSource;
+  source: string;
 }) {
   const { t } = useI18n();
   const statusQuery = useQuery({
@@ -256,11 +219,6 @@ function AboutSection({
             <AboutRow
               label={t('settings.about.mode')}
               value={statusQuery.data.mode}
-              mono
-            />
-            <AboutRow
-              label={t('settings.section.dataSource')}
-              value={client.mode}
               mono
             />
           </dl>

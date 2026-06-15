@@ -3,7 +3,6 @@ import { BookOpen, Boxes, Home, LayoutGrid, Network, Settings } from 'lucide-rea
 import { useI18n, type TranslationKey } from '../../i18n';
 
 export type ConsolePage = 'overview' | 'dep-graph' | 'kb' | 'pm' | 'settings';
-export type DataSource = 'real' | 'mock';
 
 interface NavItem {
   labelKey: TranslationKey;
@@ -24,14 +23,12 @@ const navItems: NavItem[] = [
 ];
 
 interface ConsoleLayoutProps {
-  mode: 'mock' | 'real';
   page: ConsolePage;
   onNavigate: (page: ConsolePage) => void;
 }
 
 export function ConsoleLayout({
   children,
-  mode,
   page,
   onNavigate,
 }: PropsWithChildren<ConsoleLayoutProps>) {
@@ -44,11 +41,7 @@ export function ConsoleLayout({
           <span className="brand-mark">TH</span>
           <div>
             <strong>Team Hub</strong>
-            <span>
-              {mode === 'mock'
-                ? t('brand.subtitle.mock')
-                : t('brand.subtitle.real')}
-            </span>
+            <span>{t('brand.subtitle.real')}</span>
           </div>
         </div>
         <nav className="console-nav">

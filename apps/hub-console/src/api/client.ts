@@ -6,18 +6,9 @@ import {
   GitReposResponseSchema,
   HubEventsResponseSchema,
   TasksResponseSchema,
-  TaskSchema,
-  DependencySchema,
-  NeedSchema,
-  buildCloseoutFromIssue,
-  deriveErrorCode,
   type DepGraph,
   type Task,
 } from '@teamhub/hub-contracts';
-import { mockDepGraph } from './mock/dep-graph';
-import { mockKbSimilar } from './mock/kb';
-import { mockOverviewSnapshot } from './mock/overview';
-import { mockTasks } from './mock/tasks';
 import {
   HealthResponseSchema,
   OverviewSnapshotSchema,
@@ -53,7 +44,6 @@ export interface HubApiClientOptions {
 }
 
 export interface HubApiClient {
-  mode: 'mock' | 'real';
   getOverview(): Promise<OverviewSnapshot>;
   getSystemStatus(): Promise<SystemStatusResponse>;
   getDepGraph(): Promise<DepGraph>;
@@ -70,108 +60,10 @@ export interface HubApiClient {
 }
 
 export function createHubApiClient(options: HubApiClientOptions = {}): HubApiClient {
+  // 单一真实后端：baseUrl 为空 / '/' → 同源相对路径；否则用给定绝对地址。
   const baseUrl = normalizeBaseUrl(options.baseUrl);
-  if (baseUrl === null) {
-    // Mock 模式：闭包内可变任务表，让写表单在无后端时也能即时反映在看板上（演示/视觉验收用）。
-    // 切换数据源会重建 client → 重置演示数据，符合预期。
-    const mockTaskStore: Task[] = TasksResponseSchema.parse(mockTasks).tasks.slice();
-    let mockSeq = 0;
-    const nextId = (prefix: string) => `${prefix}-mock-${(mockSeq += 1)}`;
-    return {
-      mode: 'mock',
-      async getOverview() {
-        return OverviewSnapshotSchema.parse(mockOverviewSnapshot);
-      },
-      async getSystemStatus() {
-        return SystemStatusResponseSchema.parse(mockOverviewSnapshot.system);
-      },
-      async getDepGraph() {
-        return DepGraphSchema.parse(mockDepGraph);
-      },
-      async getKbSimilar(params: KbSimilarParams) {
-        return mockKbSimilar(params);
-      },
-      async getTasks() {
-        return { tasks: mockTaskStore.slice() };
-      },
-      async createTask(req: CreateTaskRequest) {
-        const now = nowIso();
-        const task = TaskSchema.parse({
-          ...req,
-          id: nextId('task'),
-          status: req.status ?? 'pending',
-          statusSource: req.statusSource ?? 'console',
-          lastProgressAt: null,
-          createdAt: now,
-          updatedAt: now,
-        });
-        mockTaskStore.push(task);
-        return CreateTaskResponseSchema.parse({ task });
-      },
-      async createDependency(req: CreateDependencyRequest) {
-        const now = nowIso();
-        const dependency = DependencySchema.parse({
-          ...req,
-          id: nextId('dep'),
-          status: 'active',
-          createdAt: now,
-          updatedAt: now,
-        });
-        return CreateDependencyResponseSchema.parse({ dependency });
-      },
-      async createNeed(req: CreateNeedRequest) {
-        const now = nowIso();
-        const need = NeedSchema.parse({
-          ...req,
-          id: nextId('need'),
-          status: 'open',
-          claimedByMemberId: null,
-          openedAt: now,
-          escalatedAt: null,
-        });
-        return CreateNeedResponseSchema.parse({ need });
-      },
-      async closeoutKb(req: KbCloseoutRequest) {
-        // Mock 复用「与后端同一份」纯函数 buildCloseoutFromIssue（不在前端复刻派生逻辑），
-        // 仅补后端 server.ts/Store 那两步：deriveErrorCode（DBG-YYYYMMDD-NNN）+ draft→node 注入 id/createdAt。
-        const now = nowIso();
-        const result = buildCloseoutFromIssue(
-          req.issue,
-          req.records ?? [],
-          {
-            category: req.category ?? '',
-            rootCause: req.rootCause,
-            resolution: req.resolution,
-            prevention: req.prevention ?? '',
-          },
-          {
-            now,
-            errorEntryId: `err-${req.issue.id}`,
-            errorCode: deriveErrorCode(now, req.issue.id),
-            generatedBy: req.generatedBy ?? 'hybrid',
-          },
-        );
-        if (!result.ok) {
-          // 与后端 422 同义（缺 rootCause/resolution、卡已归档）：透出给表单错误条，不伪造完成。
-          throw new Error(`422: ${result.reason}`);
-        }
-        return KbCloseoutResponseSchema.parse({
-          archiveDocument: result.archiveDocument,
-          errorEntry: result.errorEntry,
-          updatedIssueCard: result.updatedIssueCard,
-          knowledgeNode: {
-            ...result.knowledgeNodeDraft,
-            id: `kn-${req.issue.id}`,
-            createdAt: now,
-          },
-        });
-      },
-    };
-  }
-
   const fetcher = options.fetcher ?? fetch;
   return {
-    mode: 'real',
     async getOverview() {
       const [
         health,
@@ -271,12 +163,10 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
   };
 }
 
-function normalizeBaseUrl(value: string | undefined): string | null {
+function normalizeBaseUrl(value: string | undefined): string {
   const trimmed = value?.trim();
-  if (!trimmed) {
-    return null;
-  }
-  if (trimmed === '/') {
+  // 空或 '/' → 同源相对路径（dev 走 vite proxy，同源部署直接命中 /api）。
+  if (!trimmed || trimmed === '/') {
     return '';
   }
   return trimmed.replace(/\/+$/, '');
@@ -322,8 +212,4 @@ async function readDetail(response: Response): Promise<string | null> {
   } catch {
     return null;
   }
-}
-
-function nowIso(): string {
-  return new Date().toISOString();
 }

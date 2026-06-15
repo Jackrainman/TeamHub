@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { RefreshCw } from 'lucide-react';
 import { createHubApiClient } from './api/client';
 import {
   ConsoleLayout,
   type ConsolePage,
-  type DataSource,
 } from './components/layout/ConsoleLayout';
 import { OverviewPage } from './features/overview/OverviewPage';
 import { DepGraphPage } from './features/dep-graph/DepGraphPage';
@@ -14,8 +13,10 @@ import { PmBoardPage } from './features/pm/PmBoardPage';
 import { SettingsPage } from './features/settings/SettingsPage';
 import { useI18n, type TranslationKey } from './i18n';
 
-const SOURCE_KEY = 'teamhub.dataSource';
 const APIBASE_KEY = 'teamhub.apiBase';
+// 单一真实后端：queryKey 维度保留稳定常量（曾区分 mock/real，现恒为 real），
+// 避免改动各页 queryKey 形状。
+const SOURCE = 'real';
 
 const TITLE_KEY: Record<ConsolePage, TranslationKey> = {
   overview: 'toolbar.title.overview',
@@ -25,12 +26,7 @@ const TITLE_KEY: Record<ConsolePage, TranslationKey> = {
   settings: 'toolbar.title.settings',
 };
 
-function readInitialSource(): DataSource {
-  if (typeof window === 'undefined') return 'real';
-  return window.localStorage.getItem(SOURCE_KEY) === 'mock' ? 'mock' : 'real';
-}
-
-// 真实模式后端地址：localStorage 覆盖（设置页可改）> VITE_API_BASE > 同源 '/'。
+// 后端地址：localStorage 覆盖（设置页可改）> VITE_API_BASE > 同源 '/'。
 function readApiBase(): string {
   const override = window.localStorage.getItem(APIBASE_KEY)?.trim();
   if (override) return override;
@@ -40,31 +36,20 @@ function readApiBase(): string {
 export function App() {
   const { t } = useI18n();
   const [page, setPage] = useState<ConsolePage>('overview');
-  const [source, setSource] = useState<DataSource>(readInitialSource);
   // 看板「在依赖图查看此节点」跳转：暂存目标任务 id，DepGraphPage 加载后选中并消费掉。
   const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
 
-  useEffect(() => {
-    window.localStorage.setItem(SOURCE_KEY, source);
-  }, [source]);
-
-  // 真实模式默认相对路径同源（dev 走 vite proxy → 本地 hub-server；同源部署直接命中 /api）。
-  // VITE_API_BASE 可覆盖为绝对地址。Mock 模式 baseUrl=undefined → 用内置演示数据。
-  const apiClient = useMemo(
-    () =>
-      createHubApiClient({
-        baseUrl: source === 'real' ? readApiBase() : undefined,
-      }),
-    [source],
-  );
+  // 单一真实后端：默认相对路径同源（dev 走 vite proxy → 本地 hub-server；同源部署直接命中 /api）。
+  // VITE_API_BASE / 设置页 localStorage 可覆盖为绝对地址。
+  const apiClient = useMemo(() => createHubApiClient({ baseUrl: readApiBase() }), []);
 
   const overviewQuery = useQuery({
-    queryKey: ['hub-overview', source],
+    queryKey: ['hub-overview', SOURCE],
     queryFn: () => apiClient.getOverview(),
   });
 
   return (
-    <ConsoleLayout mode={apiClient.mode} page={page} onNavigate={setPage}>
+    <ConsoleLayout page={page} onNavigate={setPage}>
       <div className="console-toolbar">
         <div>
           <p className="eyebrow">{t('toolbar.eyebrow')}</p>
@@ -92,27 +77,23 @@ export function App() {
       ) : page === 'dep-graph' ? (
         <DepGraphPage
           client={apiClient}
-          source={source}
+          source={SOURCE}
           focusTaskId={focusTaskId}
           onConsumeFocus={() => setFocusTaskId(null)}
         />
       ) : page === 'kb' ? (
-        <KbSearchPage client={apiClient} source={source} />
+        <KbSearchPage client={apiClient} source={SOURCE} />
       ) : page === 'pm' ? (
         <PmBoardPage
           client={apiClient}
-          source={source}
+          source={SOURCE}
           onOpenInDepGraph={(id) => {
             setFocusTaskId(id);
             setPage('dep-graph');
           }}
         />
       ) : page === 'settings' ? (
-        <SettingsPage
-          client={apiClient}
-          source={source}
-          onChangeSource={setSource}
-        />
+        <SettingsPage client={apiClient} source={SOURCE} />
       ) : null}
     </ConsoleLayout>
   );

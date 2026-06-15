@@ -6,7 +6,6 @@ export type Lang = 'zh' | 'en';
 
 const zh = {
   // 品牌 / 导航
-  'brand.subtitle.mock': '演示数据 · 不连后端',
   'brand.subtitle.real': '真实数据 · 连服务器',
   'nav.overview': '总览',
   'nav.depGraph': '依赖图',
@@ -23,13 +22,9 @@ const zh = {
 
   // 设置页
   'toolbar.title.settings': '设置',
-  'settings.section.dataSource': '数据源',
   'settings.section.language': '界面语言',
   'settings.section.apiBase': '后端地址',
   'settings.section.about': '关于',
-  'settings.dataSource.desc': '「真实数据」连服务器、改动会保存；「演示数据」用内置示例、不连后端，刷新后复位。',
-  'settings.dataSource.real': '真实数据',
-  'settings.dataSource.mock': '演示数据',
   'settings.language.desc': '只切界面文案；任务名 / 负责人等数据保持原样。',
   'settings.language.zh': '中文',
   'settings.language.en': 'English',
@@ -39,7 +34,6 @@ const zh = {
   'settings.apiBase.current': '当前生效：{value}',
   'settings.apiBase.apply': '应用并重载',
   'settings.apiBase.reset': '恢复默认',
-  'settings.apiBase.mockNote': '当前是演示数据模式，后端地址不生效——切到真实数据后再设。',
   'settings.about.service': '服务',
   'settings.about.version': '版本',
   'settings.about.mode': '运行模式',
@@ -53,7 +47,7 @@ const zh = {
 
   // 总览
   'overview.loading': '正在加载控制台状态…',
-  'overview.unavailable': '控制台状态不可用（后端没连上？可切到演示数据看界面）',
+  'overview.unavailable': '控制台状态不可用（后端没连上？检查后端地址或服务是否在线）',
   'overview.metric.system': '系统',
   'overview.metric.adapters': '集成',
   'overview.metric.bridge': '协作桥',
@@ -71,7 +65,7 @@ const zh = {
 
   // 依赖图
   'depgraph.loading': '正在加载依赖图…',
-  'depgraph.unavailable': '依赖图不可用（后端没连上？可切到演示数据看界面）',
+  'depgraph.unavailable': '依赖图不可用（后端没连上？检查后端地址或服务是否在线）',
   'depgraph.status.working': '进行中',
   'depgraph.status.blockedIdle': '被卡 · 等待',
   'depgraph.status.freeIdle': '可接任务',
@@ -165,7 +159,7 @@ const zh = {
   'kb.empty':
     '输入症状就能查：把以前几个赛季撞过的同类 bug 按匹配程度翻出来。这些只是候选，要不要采用你自己定。',
   'kb.loading': '正在检索相似历史…',
-  'kb.error': '检索失败（后端没连上？可切到演示数据看界面）',
+  'kb.error': '检索失败（后端没连上？检查后端地址或服务是否在线）',
   'kb.noResults': '没有命中的历史记录（可放宽标签或换个说法再试）。',
   'kb.result.count': '{n} 条候选',
   'kb.result.score': '匹配度 {n}',
@@ -183,7 +177,7 @@ const zh = {
 
   // 项目看板页
   'pm.loading': '正在加载任务看板…',
-  'pm.error': '任务看板不可用（后端没连上？可切到演示数据看界面）',
+  'pm.error': '任务看板不可用（后端没连上？检查后端地址或服务是否在线）',
   'pm.empty': '暂无任务。',
   'pm.summary.total': '任务总数',
   'pm.summary.blocked': '被卡',
@@ -280,7 +274,6 @@ const zh = {
 export type TranslationKey = keyof typeof zh;
 
 const en: Record<TranslationKey, string> = {
-  'brand.subtitle.mock': 'Demo data · offline',
   'brand.subtitle.real': 'Live data · connected',
   'nav.overview': 'Overview',
   'nav.depGraph': 'Dep graph',
@@ -295,14 +288,9 @@ const en: Record<TranslationKey, string> = {
   'toolbar.refresh': 'Refresh overview',
 
   'toolbar.title.settings': 'Settings',
-  'settings.section.dataSource': 'Data source',
   'settings.section.language': 'Language',
   'settings.section.apiBase': 'Backend address',
   'settings.section.about': 'About',
-  'settings.dataSource.desc':
-    '"Live data" connects to the server and persists changes; "Demo data" uses built-in samples, needs no backend, and resets on refresh.',
-  'settings.dataSource.real': 'Live data',
-  'settings.dataSource.mock': 'Demo data',
   'settings.language.desc': 'Switches UI copy only; task names / owners stay as-is.',
   'settings.language.zh': '中文',
   'settings.language.en': 'English',
@@ -313,8 +301,6 @@ const en: Record<TranslationKey, string> = {
   'settings.apiBase.current': 'In effect: {value}',
   'settings.apiBase.apply': 'Apply & reload',
   'settings.apiBase.reset': 'Reset to default',
-  'settings.apiBase.mockNote':
-    'Demo-data mode is on — backend address has no effect. Switch to Live data first.',
   'settings.about.service': 'Service',
   'settings.about.version': 'Version',
   'settings.about.mode': 'Server mode',
@@ -328,7 +314,7 @@ const en: Record<TranslationKey, string> = {
 
   'overview.loading': 'Loading console state…',
   'overview.unavailable':
-    'Console state unavailable (backend not reachable? switch to Demo data to preview the UI)',
+    'Console state unavailable (backend not reachable? check the backend address or whether the service is up)',
   'overview.metric.system': 'System',
   'overview.metric.adapters': 'Integrations',
   'overview.metric.bridge': 'Bridge',
@@ -346,7 +332,7 @@ const en: Record<TranslationKey, string> = {
 
   'depgraph.loading': 'Loading dependency graph…',
   'depgraph.unavailable':
-    'Dependency graph unavailable (backend not reachable? switch to Demo data to preview the UI)',
+    'Dependency graph unavailable (backend not reachable? check the backend address or whether the service is up)',
   'depgraph.status.working': 'In progress',
   'depgraph.status.blockedIdle': 'Blocked · waiting',
   'depgraph.status.freeIdle': 'Available',
@@ -436,7 +422,7 @@ const en: Record<TranslationKey, string> = {
   'kb.empty':
     'Type a symptom to search: it pulls up similar bugs from past seasons, ranked by how well they match. These are only candidates; you decide which one fits.',
   'kb.loading': 'Searching similar history…',
-  'kb.error': 'Search failed (backend not reachable? switch to Demo data to preview the UI)',
+  'kb.error': 'Search failed (backend not reachable? check the backend address or whether the service is up)',
   'kb.noResults': 'No matching history (loosen tags or rephrase and retry).',
   'kb.result.count': '{n} candidates',
   'kb.result.score': 'Match {n}',
@@ -453,7 +439,7 @@ const en: Record<TranslationKey, string> = {
   'kb.status.needsManualReview': 'Needs review',
 
   'pm.loading': 'Loading task board…',
-  'pm.error': 'Task board unavailable (backend not reachable? switch to Demo data to preview the UI)',
+  'pm.error': 'Task board unavailable (backend not reachable? check the backend address or whether the service is up)',
   'pm.empty': 'No tasks yet.',
   'pm.summary.total': 'Total tasks',
   'pm.summary.blocked': 'Blocked',
