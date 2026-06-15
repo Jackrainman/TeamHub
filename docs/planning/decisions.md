@@ -943,3 +943,25 @@
 - 老实定位（非阻塞）：`HubEventSourceSchema` 仍混 bot/agent/内部源（事件源枚举清理推迟）；飞书真实连接状态探测推迟（`BotChannel.status` 现为诚实占位）；系统状态 `adapters` 字段语义漂移为 agent-backend 计数（靠 i18n 标签消解）；真实触点接入仍 mock-first。
 - 验证：hub-contracts 47 测 / hub-server 91 测 / hub-console 6 测 全绿 + 三包 build + 活体 curl 三组新端点过；3 个 bot app 未装 vitest 跑不了但未改其源、依赖符号保留。
 - 事实源：本 ADR；`apps/hub-contracts/src/{schemas,fixtures,index}.ts` / `apps/hub-server/src/{contracts,server,status}.ts` + `mock-integrations.ts` + `mock-agent-backends.ts` / `apps/hub-console/src/{api,features/settings/SettingsPage,i18n/translations,styles}`；memory `teamhub-integration-model`；`D-057`（适配器→集成进设置）/ `D-061`（v1 能跑产品）。
+
+## D-063 — 依赖图运维操作：任务状态流转 + 连线作废（软删除）
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-15）
+- 日期：2026-06-15
+- 上下文：依赖图只能「建任务 / 建依赖」，无法把「进行中」任务标完成、无法删错连的依赖。根因是 `GovStore` 故意的「只建不改」写白名单（C3 小作坊：无 update/delete/list 全家桶），且任务状态本设想由 git/lark 派生信号推出、但该管线尚未接 → 实际部署里状态=创建时手填、永不变化（用户实测「进行中删不掉/标不了完成」）。详见 plan `distributed-rolling-parasol.md`。
+- 决策（实现定调）：
+  1. **不引入通用 CRUD**，框定为「既有枚举上的受限状态机迁移」：`TaskStatus` 用既有 `done`/`shelved`（标完成是合法迁移，区别于建任务期「禁 done」防伪造）；`DependencyStatus` 用既有 `waived`（人工判定作废=**软删除**，保留 confirmedBy/createdAt 可审计，**不物理删**）。
+  2. 新写入全用 **POST 子资源动作**：`POST /api/tasks/:id/status`、`POST /api/dependencies/:id/waive`——因写鉴权钩子（H3）只拦 `POST /api/*`，用 PATCH/DELETE 会**绕过 Bearer 鉴权 + 限流**。
+  3. **C5**：`statusSource` 一律 server 钉 `console`（最低优先源；请求 schema 不收 statusSource，结构上杜绝冒充 derived/git/lark）。**I0**：响应剥 confirmedBy。**视图**：`toDepGraphView` 边循环跳过 `waived`（从图隐藏），`satisfied` 仍可见。waive 只删边不可能成环、无需 cycle 守卫。
+  4. console：`DetailPanel` 加「标记完成 / 重新打开」按钮 + 全状态下拉（搁置走内联二次确认）；连线**点选 → 画布顶部删除确认条**（`deleteKeyCode=null` 禁删除键防误删）；删除条**优先于残留成功/错误横幅**显示（否则建依赖的成功横幅会挡住删除条 = 用户实测「删不掉」根因）；成功/错误横幅 **4s 自动消失**。
+  5. `GovStore` 接口加 `updateTaskStatus`/`waiveDependency`（InMemory/File 实现 + Sqlite stub）；未命中 id 返回 null → 路由 404；File 仅命中才落盘。
+- 验证：hub-contracts **48** 测 / hub-server **101** 测 / hub-console **7** 测 全绿 + 三包 build + 本机活体 curl（200/400/404 + waived 隐藏）+ **WSL2 真机部署活体验收**（rainman@DESKTOP-Jackrainman 127.0.0.1:4177，git-bundle/patch 过 SSH，标完成/删连线浏览器实测）。
+- 事实源：本 ADR；plan `distributed-rolling-parasol.md`；`apps/hub-contracts/src/{pm-requests,attribution}.ts` / `apps/hub-server/src/{store/{gov-store,mock-gov-store,file-gov-store,sqlite-gov-store},contracts,server}.ts` / `apps/hub-console/src/{api/client,api/schemas/pm,features/dep-graph/DepGraphPage,i18n/translations,styles}`；`D-059`（H3 写鉴权 / H4 status clamp）/ `D-042`（写白名单初始态 clamp）。
+
+## D-064 — commit+push 默认化：扩展到交互式会话
+
+- 状态：**DECIDED**（2026-06-15）
+- 日期：2026-06-15
+- 上下文：`AGENTS §6.0`（用户 2026-06-11）早已授权「completion gate 通过即直接 commit+push、无需 review」，但措辞落在 §6.A/§6.B/§6.C 自迭代 / 双轨构建语境。交互式（用户当面逐轮指挥）会话里 agent 仍按全局「问了才提交」默认，反复问「要不要 commit+push」，用户嫌烦、明确要求改默认。
+- 决策：把该授权**扩展为对一切改动的默认**——含交互式会话。做完一个可验证改动（最小验证通过 + planning sync）即**默认 commit+push**，不再每次问；仅当用户对某次明确叫停才暂缓。push 前 `git fetch` 查分叉、有叉先 rebase/合并。**§3/§8 安全边界（真实服务器 / SSH / 部署 / 80·443 / 密钥）不在授权内，仍需审批**。
+- 事实源：本 ADR；`AGENTS.md §6.0`；memory `teamhub-autonomy-loop` / 新增 commit-default feedback；`D-043`（双轨构建纪律）。
