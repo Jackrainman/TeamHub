@@ -1,5 +1,8 @@
 import { describe, expect, test, vi } from 'vitest';
-import { apiContractFixtures } from '@teamhub/hub-contracts';
+import {
+  apiContractFixtures,
+  governanceScenarioFixture,
+} from '@teamhub/hub-contracts';
 import { createHubApiClient } from '../src/api/client';
 import { OverviewSnapshotSchema } from '../src/api/schemas/system';
 
@@ -138,9 +141,53 @@ describe('hub console API client', () => {
     expect(fetcher).toHaveBeenCalledWith('http://127.0.0.1:4177/api/artifacts');
     expect(result.artifacts).toEqual(apiContractFixtures.artifacts.artifacts);
   });
+
+  test('updateTaskStatus / waiveDependency POST 到正确子资源路径', async () => {
+    const fetcher = vi.fn(async (url: string, _init?: RequestInit) => {
+      const path = new URL(url, 'http://teamhub.local').pathname;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => responseByPath(path),
+      } as Response;
+    });
+
+    const client = createHubApiClient({
+      baseUrl: 'http://127.0.0.1:4177',
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+
+    const statusRes = await client.updateTaskStatus('t-r1-dataset', 'done');
+    expect(statusRes.task.id).toBeTruthy();
+    const statusCall = fetcher.mock.calls.find(([u]) =>
+      String(u).endsWith('/api/tasks/t-r1-dataset/status'),
+    );
+    expect(statusCall).toBeTruthy();
+    expect(statusCall?.[1]?.method).toBe('POST');
+    expect(JSON.parse(String(statusCall?.[1]?.body))).toEqual({ status: 'done' });
+
+    const waiveRes = await client.waiveDependency('dep-002');
+    expect(waiveRes.dependency.id).toBeTruthy();
+    // I0：响应剥 confirmedBy
+    expect(waiveRes.dependency).not.toHaveProperty('confirmedBy');
+    const waiveCall = fetcher.mock.calls.find(([u]) =>
+      String(u).endsWith('/api/dependencies/dep-002/waive'),
+    );
+    expect(waiveCall).toBeTruthy();
+    expect(waiveCall?.[1]?.method).toBe('POST');
+  });
 });
 
 function responseByPath(path: string): unknown {
+  // 受限状态机迁移路由（动态 id）：状态流转 / 连线作废。
+  // 注意限定 /api/tasks/ 前缀——否则 /api/system/status 也以 /status 结尾会被误匹配。
+  if (path.startsWith('/api/tasks/') && path.endsWith('/status')) {
+    return { task: governanceScenarioFixture.tasks[0] };
+  }
+  if (path.startsWith('/api/dependencies/') && path.endsWith('/waive')) {
+    // 响应 schema 会剥 confirmedBy（I0）；这里给完整边、parse 时自动 omit。
+    return { dependency: governanceScenarioFixture.dependencies[0] };
+  }
   switch (path) {
     case '/health':
       return {

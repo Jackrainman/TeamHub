@@ -26,6 +26,9 @@ import {
   CreateDependencyResponseSchema,
   CreateNeedRequestSchema,
   CreateNeedResponseSchema,
+  TransitionTaskStatusRequestSchema,
+  TransitionTaskStatusResponseSchema,
+  WaiveDependencyResponseSchema,
   TasksResponseSchema,
   SystemStatusResponseSchema,
   buildCloseoutFromIssue,
@@ -244,6 +247,25 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     return TasksResponseSchema.parse({ tasks: snapshot.tasks });
   });
 
+  // PM 任务状态流转（人工标进度，含 inProgress→done 标真实完成）。POST 子资源动作 → 继承 H3 鉴权+限流
+  // （写钩子只认 POST；用 PATCH/DELETE 会绕过鉴权）。受限状态机迁移、非通用 update。
+  // C5：server 钉 statusSource=console（请求不收 statusSource，结构上杜绝冒充 derived/git/lark）。
+  app.post('/api/tasks/:taskId/status', async (request, reply) => {
+    const { taskId } = request.params as { taskId: string };
+    const parsed = TransitionTaskStatusRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      return;
+    }
+    const task = await store.updateTaskStatus(taskId, parsed.data.status);
+    if (!task) {
+      void reply.code(404).send({ detail: 'task not found' });
+      return;
+    }
+    // 流转非创建 → 默认 200。
+    return TransitionTaskStatusResponseSchema.parse({ task });
+  });
+
   // PM 依赖边录入（人手建有向边）。server clamp status=active（D-042 初始态）；confirmedBy 内部凭证不经读视图暴露。
   app.post('/api/dependencies', async (request, reply) => {
     const parsed = CreateDependencyRequestSchema.safeParse(request.body ?? {});
@@ -267,6 +289,19 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     const dependency = await store.createDependency(parsed.data);
     void reply.code(201);
     return CreateDependencyResponseSchema.parse({ dependency });
+  });
+
+  // PM 连线作废（软删除）。POST 子资源动作 → 继承 H3 鉴权+限流。转 waived 后从 dep-graph edges 隐藏
+  // （toDepGraphView 跳过 waived），但库里保留 confirmedBy/createdAt（G2 可审计）。无 body 字段。
+  // waive 只删边、不可能成环，故无需 wouldCreateCycle 守卫。I0：响应剥 confirmedBy。
+  app.post('/api/dependencies/:depId/waive', async (request, reply) => {
+    const { depId } = request.params as { depId: string };
+    const dependency = await store.waiveDependency(depId);
+    if (!dependency) {
+      void reply.code(404).send({ detail: 'dependency not found' });
+      return;
+    }
+    return WaiveDependencyResponseSchema.parse({ dependency });
   });
 
   // PM 前置需求录入（G3 一等公民）。server clamp status=open；A1 缺口归组不归人。

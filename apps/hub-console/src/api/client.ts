@@ -11,6 +11,7 @@ import {
   type ArtifactsResponse,
   type DepGraph,
   type Task,
+  type TaskStatus,
 } from '@teamhub/hub-contracts';
 import {
   HealthResponseSchema,
@@ -31,12 +32,16 @@ import {
   CreateTaskResponseSchema,
   CreateDependencyResponseSchema,
   CreateNeedResponseSchema,
+  TransitionTaskStatusResponseSchema,
+  WaiveDependencyResponseSchema,
   type CreateTaskRequest,
   type CreateTaskResponse,
   type CreateDependencyRequest,
   type CreateDependencyResponse,
   type CreateNeedRequest,
   type CreateNeedResponse,
+  type TransitionTaskStatusResponse,
+  type WaiveDependencyResponse,
 } from './schemas/pm';
 
 type FetchLike = typeof fetch;
@@ -62,6 +67,12 @@ export interface HubApiClient {
   ): Promise<CreateDependencyResponse>;
   createNeed(req: CreateNeedRequest): Promise<CreateNeedResponse>;
   closeoutKb(req: KbCloseoutRequest): Promise<KbCloseoutResponse>;
+  // 受限状态机迁移（非创建）：任务状态流转 + 连线作废（软删除）。POST 子资源动作，命中后端写鉴权钩子。
+  updateTaskStatus(
+    taskId: string,
+    status: TaskStatus,
+  ): Promise<TransitionTaskStatusResponse>;
+  waiveDependency(depId: string): Promise<WaiveDependencyResponse>;
 }
 
 export function createHubApiClient(options: HubApiClientOptions = {}): HubApiClient {
@@ -187,6 +198,22 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         `${baseUrl}/api/kb/closeout`,
         req,
         KbCloseoutResponseSchema,
+        fetcher,
+      );
+    },
+    async updateTaskStatus(taskId: string, status: TaskStatus) {
+      return postJson(
+        `${baseUrl}/api/tasks/${encodeURIComponent(taskId)}/status`,
+        { status },
+        TransitionTaskStatusResponseSchema,
+        fetcher,
+      );
+    },
+    async waiveDependency(depId: string) {
+      return postJson(
+        `${baseUrl}/api/dependencies/${encodeURIComponent(depId)}/waive`,
+        {},
+        WaiveDependencyResponseSchema,
         fetcher,
       );
     },

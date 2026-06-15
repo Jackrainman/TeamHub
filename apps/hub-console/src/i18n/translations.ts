@@ -112,6 +112,28 @@ const zh = {
   'depgraph.entry.close': '关闭',
   'depgraph.detail.ownerNote': '负责人只表明分工，不代表进度快慢。',
 
+  // 任务状态流转（详情面板，DEPGRAPH-STATUS-TRANSITION）
+  'depgraph.status.markDone': '标记完成',
+  'depgraph.status.reopen': '重新打开',
+  'depgraph.status.changeLabel': '更改状态',
+  'depgraph.status.changePlaceholder': '更改状态…',
+  'depgraph.status.raw.pending': '待启动',
+  'depgraph.status.raw.inProgress': '进行中',
+  'depgraph.status.raw.blocked': '卡住',
+  'depgraph.status.raw.done': '已完成',
+  'depgraph.status.raw.shelved': '已搁置',
+  'depgraph.status.shelveConfirmPrompt': '搁置该任务？它会从活跃流程中移出。',
+  'depgraph.status.shelveConfirm': '确认搁置',
+  'depgraph.status.shelveCancel': '取消',
+  'depgraph.status.changeSuccess': '状态已更新——图已重新计算。',
+  'depgraph.status.changeError': '没能更新状态：{detail}',
+  // 删除连线（软删除，DEPGRAPH-EDGE-DELETE）
+  'depgraph.edge.deletePrompt': '删除这条依赖连线？卡住关系会从图上消失。',
+  'depgraph.edge.deleteConfirm': '删除连线',
+  'depgraph.edge.deleteCancel': '取消',
+  'depgraph.edge.deleteSuccess': '已删除连线——这条依赖不再卡住下游。',
+  'depgraph.edge.deleteError': '没能删除连线：{detail}',
+
   // 新增页面导航 / 标题
   'nav.kb': '知识库检索',
   'nav.pm': '项目看板',
@@ -395,6 +417,31 @@ const en: Record<TranslationKey, string> = {
   'depgraph.entry.title': 'Add to the project plan',
   'depgraph.entry.close': 'Close',
   'depgraph.detail.ownerNote': 'Owner shows who is on it, not who is fast or slow.',
+
+  // Task status transition (DEPGRAPH-STATUS-TRANSITION)
+  'depgraph.status.markDone': 'Mark done',
+  'depgraph.status.reopen': 'Reopen',
+  'depgraph.status.changeLabel': 'Change status',
+  'depgraph.status.changePlaceholder': 'Change status…',
+  'depgraph.status.raw.pending': 'Pending',
+  'depgraph.status.raw.inProgress': 'In progress',
+  'depgraph.status.raw.blocked': 'Blocked',
+  'depgraph.status.raw.done': 'Done',
+  'depgraph.status.raw.shelved': 'Shelved',
+  'depgraph.status.shelveConfirmPrompt':
+    'Shelve this task? It will be moved out of the active flow.',
+  'depgraph.status.shelveConfirm': 'Confirm shelve',
+  'depgraph.status.shelveCancel': 'Cancel',
+  'depgraph.status.changeSuccess': 'Status updated — the graph was recomputed.',
+  'depgraph.status.changeError': 'Could not update status: {detail}',
+  // Delete dependency link (DEPGRAPH-EDGE-DELETE)
+  'depgraph.edge.deletePrompt':
+    'Delete this dependency link? The blocking relation will disappear from the graph.',
+  'depgraph.edge.deleteConfirm': 'Delete link',
+  'depgraph.edge.deleteCancel': 'Cancel',
+  'depgraph.edge.deleteSuccess':
+    'Link deleted — this dependency no longer blocks downstream.',
+  'depgraph.edge.deleteError': 'Could not delete the link: {detail}',
 
   'nav.kb': 'KB Search',
   'nav.pm': 'PM Board',

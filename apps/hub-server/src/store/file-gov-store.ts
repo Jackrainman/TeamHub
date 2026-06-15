@@ -18,6 +18,7 @@ import type {
   KnowledgeNode,
   Need,
   Task,
+  TaskStatus,
 } from '@teamhub/hub-contracts';
 import type { Clock } from '../clock.js';
 import { InMemoryGovStore } from './mock-gov-store.js';
@@ -144,6 +145,19 @@ export class FileGovStore implements GovStore {
     const node = await this.inner.closeoutKbNode(draft);
     await this.persist();
     return node;
+  }
+
+  async updateTaskStatus(taskId: string, status: TaskStatus): Promise<Task | null> {
+    const task = await this.inner.updateTaskStatus(taskId, status);
+    // 仅命中才落盘：未命中（null）不触发无谓写。
+    if (task) await this.persist();
+    return task;
+  }
+
+  async waiveDependency(depId: string): Promise<Dependency | null> {
+    const dependency = await this.inner.waiveDependency(depId);
+    if (dependency) await this.persist();
+    return dependency;
   }
 
   /** 原子写：写 tmp 再 rename，串行化避免并发覆盖。 */

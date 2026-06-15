@@ -367,6 +367,9 @@ export function toDepGraphView(
   const statusById = indexBy(nodes, (n) => n.id);
   const edges: DepEdge[] = [];
   for (const dep of snapshot.dependencies) {
+    // waived = 人工判定作废（软删除），从视图隐藏这条连线（库里仍留、可审计）。
+    // satisfied（已满足）仍可见——只有 waived 才被剔出 edges。
+    if (dep.status === 'waived') continue;
     const from = tasksById.get(dep.fromTaskId);
     const to = tasksById.get(dep.toTaskId);
     if (!from || !to) continue;

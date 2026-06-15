@@ -8,6 +8,7 @@ import type {
   KnowledgeNode,
   Need,
   Task,
+  TaskStatus,
 } from '@teamhub/hub-contracts';
 import { FixedClock } from '../clock.js';
 import type { Clock } from '../clock.js';
@@ -123,5 +124,42 @@ export class InMemoryGovStore implements GovStore {
     };
     this.snapshot.knowledgeNodes.push(node);
     return node;
+  }
+
+  /**
+   * 任务状态流转（POST /api/tasks/:id/status）。受限状态机迁移、非 CRUD：在既有 TaskStatus 枚举内改状态
+   * （含 inProgress→done 标真实完成）。**statusSource 钉 `console`**（C5：人工流转记最低优先源，将来 git/lark
+   * 派生信号可覆盖）；lastProgressAt 不动（仅派生信号回填）。id 不存在 → null（路由转 404）。
+   */
+  async updateTaskStatus(taskId: string, status: TaskStatus): Promise<Task | null> {
+    const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
+    if (idx === -1) return null;
+    const now = this.clock.now().toISOString();
+    const updated: Task = {
+      ...this.snapshot.tasks[idx],
+      status,
+      statusSource: 'console',
+      updatedAt: now,
+    };
+    this.snapshot.tasks[idx] = updated;
+    return updated;
+  }
+
+  /**
+   * 软删除依赖边（POST /api/dependencies/:id/waive）。转 status=`waived`（人工判定作废），bump updatedAt，
+   * **保留** confirmedBy/createdAt（G2 可审计）。waived 边经 toDepGraphView 从图隐藏，但仍留库。
+   * id 不存在 → null（路由转 404）。
+   */
+  async waiveDependency(depId: string): Promise<Dependency | null> {
+    const idx = this.snapshot.dependencies.findIndex((d) => d.id === depId);
+    if (idx === -1) return null;
+    const now = this.clock.now().toISOString();
+    const updated: Dependency = {
+      ...this.snapshot.dependencies[idx],
+      status: 'waived',
+      updatedAt: now,
+    };
+    this.snapshot.dependencies[idx] = updated;
+    return updated;
   }
 }

@@ -8,6 +8,7 @@ import type {
   KnowledgeNode,
   Need,
   Task,
+  TaskStatus,
 } from '@teamhub/hub-contracts';
 
 /**
@@ -75,7 +76,10 @@ export type KnowledgeNodeDraft = Omit<KnowledgeNode, 'id' | 'createdAt'>;
  *   - **I0 / confirmedBy**：确认语义记「何时 / 经哪条渠道」（timestamp / ActorRef.source），不退化成可 `groupBy`
  *     的裸 memberId 历史（不能事后算「谁确认最多」）。
  *   - **C1 派生优先**：写入是兜底录入口，不取代 git/lark 派生信号，不得被上层当主录入口退化成新死表。
- *   - **C3 小作坊**：白名单止于三支柱当下所需，不预铺完整 CRUD / RBAC（故无 update / delete / list 全家桶）。
+ *   - **C3 小作坊**：白名单止于三支柱当下所需，不预铺完整 CRUD / RBAC。除四个 create 外，仅两条**受限状态机
+ *     迁移**：`updateTaskStatus`（在既有 TaskStatus 枚举内流转，含 done=标真实完成）与 `waiveDependency`
+ *     （转 DependencyStatus 的 waived=人工作废，软删除）。**仍无 list 全家桶 / 物理 delete / RBAC / 任意字段
+ *     update**——这两条只在既有枚举上推进文档化的生命周期态，不开通用 CRUD 口子。
  */
 export interface GovStore {
   getSnapshot(): Promise<GovernanceSnapshot>;
@@ -85,6 +89,20 @@ export interface GovStore {
   createDependency(draft: DependencyDraft): Promise<Dependency>;
   createNeed(draft: NeedDraft): Promise<Need>;
   closeoutKbNode(draft: KnowledgeNodeDraft): Promise<KnowledgeNode>;
+
+  // --- 受限状态机迁移（非 CRUD：只在既有枚举内推进生命周期态）---
+  /**
+   * 任务状态流转（POST /api/tasks/:id/status）。在既有 TaskStatus 枚举内迁移（含 done=标真实完成）。
+   * **statusSource 由 Store 钉 `console`**（C5：人工流转是最低优先源，git/lark/derived 派生信号可覆盖）。
+   * bump updatedAt；lastProgressAt 不动（仅派生信号回填）。id 不存在 → 返回 null（路由层转 404）。
+   */
+  updateTaskStatus(taskId: string, status: TaskStatus): Promise<Task | null>;
+  /**
+   * 软删除依赖边（POST /api/dependencies/:id/waive）。转 status=`waived`（人工判定作废），bump updatedAt，
+   * **保留** confirmedBy/createdAt（G2 单一真相可审计）。waived 边经 toDepGraphView 从图隐藏，但仍留库
+   * （区别于物理 delete）。id 不存在 → 返回 null（路由层转 404）。
+   */
+  waiveDependency(depId: string): Promise<Dependency | null>;
 }
 
 /**

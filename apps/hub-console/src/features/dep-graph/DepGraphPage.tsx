@@ -25,10 +25,17 @@ import {
   Lock,
   MapPin,
   Plus,
+  RotateCcw,
+  Trash2,
   X,
   Zap,
 } from 'lucide-react';
-import type { DepEdge, DepGraph, DepNode } from '@teamhub/hub-contracts';
+import type {
+  DepEdge,
+  DepGraph,
+  DepNode,
+  TaskStatus,
+} from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import type { CreateDependencyRequest } from '../../api/schemas/pm';
 import { useI18n, type TranslationKey } from '../../i18n';
@@ -56,6 +63,24 @@ const EDGE_COLORS: Record<DepEdge['kind'], string> = {
   critical: '#2f6f9f',
   need: '#a26a16',
   normal: '#b8c6b4',
+};
+
+// 原始 Task 状态机的五态（详情面板状态下拉）。注意：这是 Task.status 原始值，
+// 与 DepNode.status（working/blockedIdle/freeIdle/done/gap 派生显示态）不是 1:1，故下拉当前值
+// 必须查原始 task 回填、不能从 DepNode 推。
+const TASK_STATUS_ORDER: TaskStatus[] = [
+  'pending',
+  'inProgress',
+  'blocked',
+  'done',
+  'shelved',
+];
+const TASK_STATUS_LABEL: Record<TaskStatus, TranslationKey> = {
+  pending: 'depgraph.status.raw.pending',
+  inProgress: 'depgraph.status.raw.inProgress',
+  blocked: 'depgraph.status.raw.blocked',
+  done: 'depgraph.status.raw.done',
+  shelved: 'depgraph.status.raw.shelved',
 };
 
 function complexityKey(c: DepNode['intrinsicComplexity']): TranslationKey {
@@ -185,12 +210,35 @@ export function DepGraphPage({
     queryFn: () => client.getTasks(),
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // 选中的连线（与节点选中互斥）：用于「点选连线 → 确认删除」。
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [entryOpen, setEntryOpen] = useState(false);
 
   const graph = query.data;
   const { nodes, edges } = useMemo(
     () => (graph ? layoutGraph(graph) : { nodes: [], edges: [] }),
     [graph],
+  );
+  // 选中连线高亮（仅在已 memo 的 edges 上做轻量映射，不重跑 dagre 布局）。
+  const displayEdges = useMemo<Edge[]>(
+    () =>
+      edges.map((e) =>
+        e.id === selectedEdgeId
+          ? {
+              ...e,
+              selected: true,
+              className: 'dag-edge--selected',
+              style: { ...e.style, stroke: '#2f6f9f', strokeWidth: 4 },
+              markerEnd: { type: MarkerType.ArrowClosed, color: '#2f6f9f' },
+            }
+          : e,
+      ),
+    [edges, selectedEdgeId],
+  );
+  // 原始任务表索引：详情面板状态下拉回填当前值（DepNode.status 是派生态、非原始 Task.status）。
+  const tasksById = useMemo(
+    () => new Map((tasksQuery.data?.tasks ?? []).map((tk) => [tk.id, tk] as const)),
+    [tasksQuery.data],
   );
 
   const queryClient = useQueryClient();
@@ -207,6 +255,42 @@ export function DepGraphPage({
     onError: (e) =>
       setRejectMsg(
         t('depgraph.connect.error', {
+          detail: e instanceof Error ? e.message : String(e),
+        }),
+      ),
+  });
+
+  // 任务状态流转（详情面板）。状态变会连带改边 kind / 关键链 / 汇总条，太纠缠不宜乐观更新——
+  // 成功后失效 dep-graph + tasks 两个查询、让图重算重绘（与录入同口径）。复用 reject/success 横幅。
+  const statusMutation = useMutation({
+    mutationFn: (vars: { taskId: string; status: TaskStatus }) =>
+      client.updateTaskStatus(vars.taskId, vars.status),
+    onSuccess: () => {
+      setRejectMsg(null);
+      setSuccessMsg(t('depgraph.status.changeSuccess'));
+      void queryClient.invalidateQueries({ queryKey: ['dep-graph', source] });
+      void queryClient.invalidateQueries({ queryKey: ['tasks', source] });
+    },
+    onError: (e) =>
+      setRejectMsg(
+        t('depgraph.status.changeError', {
+          detail: e instanceof Error ? e.message : String(e),
+        }),
+      ),
+  });
+
+  // 删除连线（软删除转 waived）。成功后边在 refetch 消失——先清 selectedEdgeId 防悬空。
+  const waiveMutation = useMutation({
+    mutationFn: (depId: string) => client.waiveDependency(depId),
+    onSuccess: () => {
+      setSelectedEdgeId(null);
+      setRejectMsg(null);
+      setSuccessMsg(t('depgraph.edge.deleteSuccess'));
+      void queryClient.invalidateQueries({ queryKey: ['dep-graph', source] });
+    },
+    onError: (e) =>
+      setRejectMsg(
+        t('depgraph.edge.deleteError', {
           detail: e instanceof Error ? e.message : String(e),
         }),
       ),
@@ -258,6 +342,17 @@ export function DepGraphPage({
     void queryClient.invalidateQueries({ queryKey: ['dep-graph', source] });
   }, [queryClient, source]);
 
+  // 成功/错误横幅几秒后自动消失：否则它一直占着画布顶部、挡住删除条等后续操作。
+  // 手动点横幅仍可立即关闭；新消息进来会重置计时（依赖数组含两条 msg）。
+  useEffect(() => {
+    if (!successMsg && !rejectMsg) return;
+    const timer = setTimeout(() => {
+      setSuccessMsg(null);
+      setRejectMsg(null);
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [successMsg, rejectMsg]);
+
   // 从看板「在依赖图查看此节点」跳转过来：图加载后选中该节点，再消费掉 focus（防重复触发）。
   useEffect(() => {
     if (!focusTaskId || !graph) return;
@@ -298,7 +393,34 @@ export function DepGraphPage({
       </section>
       <div className="dep-graph-shell">
         <div className="dep-graph-canvas">
-          {rejectMsg ? (
+          {/* 选中连线时，删除确认条优先于任何残留的成功/错误横幅显示（否则建依赖后的
+              success 横幅会一直挡住删除条 → 看起来「删不掉」）。 */}
+          {selectedEdgeId && edges.some((e) => e.id === selectedEdgeId) ? (
+            <div
+              className="form-banner dep-graph-banner dep-graph-edge-action"
+              role="dialog"
+              aria-label={t('depgraph.edge.deletePrompt')}
+            >
+              <span>{t('depgraph.edge.deletePrompt')}</span>
+              <div className="dep-graph-edge-action__btns">
+                <button
+                  type="button"
+                  className="detail-action-btn detail-action-btn--danger"
+                  disabled={waiveMutation.isPending}
+                  onClick={() => waiveMutation.mutate(selectedEdgeId)}
+                >
+                  <Trash2 size={13} aria-hidden="true" /> {t('depgraph.edge.deleteConfirm')}
+                </button>
+                <button
+                  type="button"
+                  className="detail-action-btn detail-action-btn--ghost"
+                  onClick={() => setSelectedEdgeId(null)}
+                >
+                  {t('depgraph.edge.deleteCancel')}
+                </button>
+              </div>
+            </div>
+          ) : rejectMsg ? (
             <div
               className="form-banner form-banner--err dep-graph-banner"
               role="alert"
@@ -317,11 +439,22 @@ export function DepGraphPage({
           ) : null}
           <ReactFlow
             nodes={nodes}
-            edges={edges}
+            edges={displayEdges}
             nodeTypes={nodeTypes}
-            onNodeClick={(_, node) => setSelectedId(node.id)}
-            onPaneClick={() => setSelectedId(null)}
+            onNodeClick={(_, node) => {
+              setSelectedId(node.id);
+              setSelectedEdgeId(null);
+            }}
+            onEdgeClick={(_, edge) => {
+              setSelectedEdgeId(edge.id);
+              setSelectedId(null);
+            }}
+            onPaneClick={() => {
+              setSelectedId(null);
+              setSelectedEdgeId(null);
+            }}
             onConnect={onConnect}
+            deleteKeyCode={null}
             fitView
             minZoom={0.4}
             nodesConnectable={true}
@@ -330,7 +463,15 @@ export function DepGraphPage({
             <Controls showInteractive={false} />
           </ReactFlow>
         </div>
-        <DetailPanel node={selected} />
+        <DetailPanel
+          node={selected}
+          currentStatus={selected ? tasksById.get(selected.id)?.status : undefined}
+          statusPending={statusMutation.isPending}
+          onChangeStatus={(status) => {
+            if (!selected) return;
+            statusMutation.mutate({ taskId: selected.id, status });
+          }}
+        />
       </div>
       {entryOpen ? (
         <div
@@ -397,8 +538,20 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function DetailPanel({ node }: { node: DepNode | null }) {
+function DetailPanel({
+  node,
+  currentStatus,
+  onChangeStatus,
+  statusPending,
+}: {
+  node: DepNode | null;
+  currentStatus?: TaskStatus;
+  onChangeStatus: (status: TaskStatus) => void;
+  statusPending: boolean;
+}) {
   const { t } = useI18n();
+  // 选「搁置」走内联二次确认（搁置=移出活跃流程，唯一值得确认的流转）；其余即时提交。
+  const [pendingShelve, setPendingShelve] = useState(false);
   if (!node) {
     return (
       <aside className="panel dep-graph-detail">
@@ -411,6 +564,15 @@ function DetailPanel({ node }: { node: DepNode | null }) {
     );
   }
   const meta = STATUS_META[node.status];
+  const isDone = node.status === 'done';
+  const onSelectStatus = (next: TaskStatus) => {
+    if (next === 'shelved') {
+      setPendingShelve(true);
+      return;
+    }
+    setPendingShelve(false);
+    onChangeStatus(next);
+  };
   const showLearn = node.status === 'blockedIdle' && node.relatedKnowledge.length > 0;
   const showMyMap = node.status === 'blockedIdle' || node.status === 'freeIdle';
   return (
@@ -447,6 +609,71 @@ function DetailPanel({ node }: { node: DepNode | null }) {
             label={t('depgraph.detail.criticalChain')}
             value={t('depgraph.detail.criticalChainValue')}
           />
+        ) : null}
+      </div>
+      <div className="detail-actions">
+        {isDone ? (
+          <button
+            type="button"
+            className="detail-action-btn detail-action-btn--ghost"
+            disabled={statusPending}
+            onClick={() => onChangeStatus('inProgress')}
+          >
+            <RotateCcw size={14} aria-hidden="true" /> {t('depgraph.status.reopen')}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="detail-action-btn detail-action-btn--primary"
+            disabled={statusPending}
+            onClick={() => onChangeStatus('done')}
+          >
+            <CheckCircle2 size={14} aria-hidden="true" /> {t('depgraph.status.markDone')}
+          </button>
+        )}
+        <label className="detail-status-select">
+          <span>{t('depgraph.status.changeLabel')}</span>
+          <select
+            value={currentStatus ?? ''}
+            disabled={statusPending}
+            onChange={(e) => onSelectStatus(e.target.value as TaskStatus)}
+          >
+            {currentStatus ? null : (
+              <option value="" disabled>
+                {t('depgraph.status.changePlaceholder')}
+              </option>
+            )}
+            {TASK_STATUS_ORDER.map((s) => (
+              <option key={s} value={s}>
+                {t(TASK_STATUS_LABEL[s])}
+              </option>
+            ))}
+          </select>
+        </label>
+        {pendingShelve ? (
+          <div className="detail-confirm">
+            <span>{t('depgraph.status.shelveConfirmPrompt')}</span>
+            <div className="detail-confirm__btns">
+              <button
+                type="button"
+                className="detail-action-btn detail-action-btn--danger"
+                disabled={statusPending}
+                onClick={() => {
+                  setPendingShelve(false);
+                  onChangeStatus('shelved');
+                }}
+              >
+                {t('depgraph.status.shelveConfirm')}
+              </button>
+              <button
+                type="button"
+                className="detail-action-btn detail-action-btn--ghost"
+                onClick={() => setPendingShelve(false)}
+              >
+                {t('depgraph.status.shelveCancel')}
+              </button>
+            </div>
+          </div>
         ) : null}
       </div>
       {showLearn ? (

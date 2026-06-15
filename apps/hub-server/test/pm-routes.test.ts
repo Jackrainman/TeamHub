@@ -3,6 +3,8 @@ import { buildHubServer } from '../src/server.js';
 import {
   CreateDependencyResponseSchema,
   CreateNeedResponseSchema,
+  TransitionTaskStatusResponseSchema,
+  WaiveDependencyResponseSchema,
 } from '../src/contracts.js';
 import { TasksResponseSchema } from '@teamhub/hub-contracts';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
@@ -114,6 +116,126 @@ describe('PM 读视图 + 依赖/缺口录入', () => {
         payload: { fromTaskId: 't-a' },
       });
       expect(res.statusCode).toBe(400);
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+describe('PM 受限状态机迁移：任务状态流转 + 连线作废', () => {
+  test('POST /api/tasks/:id/status：inProgress→done → 200；statusSource clamp 为 console（C5）', async () => {
+    // t-r1-dataset 原 statusSource='git'，人工流转后应被 server 钉为 'console'（最低优先源）。
+    const store = new InMemoryGovStore();
+    const app = buildHubServer({ store });
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/tasks/t-r1-dataset/status',
+        payload: { status: 'done' },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = TransitionTaskStatusResponseSchema.parse(res.json());
+      expect(body.task.id).toBe('t-r1-dataset');
+      expect(body.task.status).toBe('done');
+      expect(body.task.statusSource).toBe('console');
+      expect(body.task).not.toHaveProperty('confirmedBy');
+      // 落库生效
+      const snap = await store.getSnapshot();
+      expect(snap.tasks.find((t) => t.id === 't-r1-dataset')?.status).toBe('done');
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('POST /api/tasks/:id/status：请求夹带 statusSource 被忽略，仍 clamp console', async () => {
+    const app = buildHubServer();
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/tasks/t-r1-newboard/status',
+        payload: { status: 'blocked', statusSource: 'git' }, // 试图冒充 git 派生 → 应被 omit
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().task.statusSource).toBe('console');
+      expect(res.json().task.status).toBe('blocked');
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('POST /api/tasks/:id/status：未知 id → 404', async () => {
+    const app = buildHubServer();
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/tasks/t-does-not-exist/status',
+        payload: { status: 'done' },
+      });
+      expect(res.statusCode).toBe(404);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('POST /api/tasks/:id/status：非法 status → 400', async () => {
+    const app = buildHubServer();
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/tasks/t-r1-newboard/status',
+        payload: { status: 'frobnicate' },
+      });
+      expect(res.statusCode).toBe(400);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('POST /api/dependencies/:id/waive：已有边 → 200；status=waived；响应剥 confirmedBy（I0）', async () => {
+    const store = new InMemoryGovStore();
+    const app = buildHubServer({ store });
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/dependencies/dep-002/waive',
+      });
+      expect(res.statusCode).toBe(200);
+      const body = WaiveDependencyResponseSchema.parse(res.json());
+      expect(body.dependency.id).toBe('dep-002');
+      expect(body.dependency.status).toBe('waived');
+      // I0：读响应永不回 confirmedBy（ActorRef）
+      expect(body.dependency).not.toHaveProperty('confirmedBy');
+      // 落库：仍保留 confirmedBy（G2 可审计），只是状态转 waived
+      const dep = (await store.getSnapshot()).dependencies.find((d) => d.id === 'dep-002');
+      expect(dep?.status).toBe('waived');
+      expect(dep?.confirmedBy).not.toBeNull();
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('POST /api/dependencies/:id/waive：未知 id → 404', async () => {
+    const app = buildHubServer();
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/dependencies/dep-nope/waive',
+      });
+      expect(res.statusCode).toBe(404);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('waive 后 GET /api/dep-graph：该边从图消失，satisfied 边(dep-001)仍在', async () => {
+    const app = buildHubServer();
+    try {
+      await app.inject({ method: 'POST', url: '/api/dependencies/dep-002/waive' });
+      const res = await app.inject({ method: 'GET', url: '/api/dep-graph' });
+      expect(res.statusCode).toBe(200);
+      const ids = res.json().edges.map((e: { id: string }) => e.id);
+      expect(ids).not.toContain('dep-002'); // waived → 隐藏
+      expect(ids).toContain('dep-001'); // satisfied → 仍可见
     } finally {
       await app.close();
     }

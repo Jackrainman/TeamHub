@@ -528,6 +528,113 @@ button {
   text-decoration: none;
 }
 
+/* 详情面板状态操作（标记完成 / 状态下拉 / 搁置确认） */
+.detail-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 14px 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.detail-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.detail-action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.detail-action-btn--primary {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+.detail-action-btn--danger {
+  border-color: var(--red);
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.detail-action-btn--ghost {
+  background: var(--surface);
+  color: var(--faint);
+}
+
+.detail-status-select {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-status-select span {
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.detail-status-select select {
+  padding: 6px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.detail-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--red);
+  border-radius: 7px;
+  background: var(--red-soft);
+}
+
+.detail-confirm span {
+  color: var(--red);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.detail-confirm__btns {
+  display: flex;
+  gap: 8px;
+}
+
+/* 删除连线浮动确认条（点选连线 → 确认删除） */
+.dep-graph-edge-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--blue);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.dep-graph-edge-action__btns {
+  display: flex;
+  gap: 8px;
+}
+
 /* DAG 节点视觉编码（核心：两种空闲一眼可分） */
 .dag-node {
   position: relative;

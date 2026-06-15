@@ -62,6 +62,48 @@ describe('FileGovStore 落盘', () => {
     ).toBe(true);
   });
 
+  test('updateTaskStatus 后落盘 + 重启仍生效（statusSource clamp console）', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'gov-status-'));
+    const file = join(dir, 'gov.json');
+    const store = await FileGovStore.create(file);
+
+    const updated = await store.updateTaskStatus('t-r1-dataset', 'done');
+    expect(updated?.status).toBe('done');
+    expect(updated?.statusSource).toBe('console');
+
+    const reloaded = await FileGovStore.create(file);
+    const t = (await reloaded.getSnapshot()).tasks.find((x) => x.id === 't-r1-dataset');
+    expect(t?.status).toBe('done');
+    expect(t?.statusSource).toBe('console');
+  });
+
+  test('waiveDependency 后落盘：状态转 waived，磁盘行仍保留 confirmedBy（G2 可审计）', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'gov-waive-'));
+    const file = join(dir, 'gov.json');
+    const store = await FileGovStore.create(file);
+
+    const waived = await store.waiveDependency('dep-002');
+    expect(waived?.status).toBe('waived');
+
+    const onDisk = JSON.parse(await readFile(file, 'utf8'));
+    const dep = onDisk.dependencies.find((d: { id: string }) => d.id === 'dep-002');
+    expect(dep.status).toBe('waived');
+    expect(dep.confirmedBy).not.toBeNull(); // 软删除保留内部凭证
+  });
+
+  test('updateTaskStatus / waiveDependency 未命中 id → null 且不落盘', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'gov-miss-'));
+    const file = join(dir, 'gov.json');
+    const store = await FileGovStore.create(file);
+    const before = await readFile(file, 'utf8');
+
+    expect(await store.updateTaskStatus('t-nope', 'done')).toBeNull();
+    expect(await store.waiveDependency('dep-nope')).toBeNull();
+
+    // 未命中不触发写盘：文件内容不变
+    expect(await readFile(file, 'utf8')).toBe(before);
+  });
+
   test('文件存在但损坏 → 抛（fail-closed，不静默用 seed 覆盖团队数据）', async () => {
     dir = await mkdtemp(join(tmpdir(), 'gov-corrupt-'));
     const file = join(dir, 'gov.json');

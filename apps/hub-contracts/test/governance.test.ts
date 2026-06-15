@@ -171,3 +171,21 @@ describe('C4 护栏：未确认 AI 不参与派生（与 isLiveEdge 对称）', 
     expect(titles).toContain('R2 同款视觉代码');
   });
 });
+
+describe('软删除：waived 连线从视图隐藏，satisfied 仍可见', () => {
+  test('把可见边(dep-002)改 waived → 不在 edges；satisfied 边(dep-001)仍在', () => {
+    // 局部 tamper（仿 kn-ghost），不污染共享 fixture。
+    const tampered = {
+      ...F,
+      dependencies: F.dependencies.map((d) =>
+        d.id === 'dep-002' ? { ...d, status: 'waived' as const } : d,
+      ),
+    };
+    const view = toDepGraphView(tampered, NOW);
+    const ids = view.edges.map((e) => e.id);
+    expect(ids).not.toContain('dep-002'); // 软删除 → 隐藏
+    expect(ids).toContain('dep-001'); // satisfied（已满足）→ 仍可见
+    // 节点不受影响（边作废不删任务节点）
+    expect(view.nodes.some((n) => n.id === 't-r1-newboard')).toBe(true);
+  });
+});

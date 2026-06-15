@@ -51,6 +51,9 @@ export {
   CreateDependencyResponseSchema,
   CreateNeedRequestSchema,
   CreateNeedResponseSchema,
+  TransitionTaskStatusRequestSchema,
+  TransitionTaskStatusResponseSchema,
+  WaiveDependencyResponseSchema,
 } from '@teamhub/hub-contracts';
 export type {
   AdapterCapabilitiesResponse,
@@ -85,6 +88,9 @@ export type {
   CreateDependencyResponse,
   CreateNeedRequest,
   CreateNeedResponse,
+  TransitionTaskStatusRequest,
+  TransitionTaskStatusResponse,
+  WaiveDependencyResponse,
 } from '@teamhub/hub-contracts';
 
 // ──────────────────────────────────────────────────────────────────────────

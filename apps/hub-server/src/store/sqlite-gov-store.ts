@@ -4,6 +4,7 @@ import type {
   KnowledgeNode,
   Need,
   Task,
+  TaskStatus,
 } from '@teamhub/hub-contracts';
 import type {
   DependencyDraft,
@@ -44,6 +45,17 @@ export class SqliteGovStore implements GovStore {
   }
 
   async closeoutKbNode(_draft: KnowledgeNodeDraft): Promise<KnowledgeNode> {
+    throw new Error(SQLITE_NOT_IMPLEMENTED);
+  }
+
+  async updateTaskStatus(
+    _taskId: string,
+    _status: TaskStatus,
+  ): Promise<Task | null> {
+    throw new Error(SQLITE_NOT_IMPLEMENTED);
+  }
+
+  async waiveDependency(_depId: string): Promise<Dependency | null> {
     throw new Error(SQLITE_NOT_IMPLEMENTED);
   }
 }

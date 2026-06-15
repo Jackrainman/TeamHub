@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   TaskSchema,
+  TaskStatusSchema,
   DependencySchema,
   NeedSchema,
 } from './governance.js';
@@ -67,6 +68,28 @@ export const CreateNeedResponseSchema = z.object({
   need: NeedSchema.omit({ confirmedBy: true }),
 });
 
+/**
+ * POST /api/tasks/:taskId/status：**既有任务**的人工状态流转（非创建）。
+ * 与 CreateTaskRequest「禁 done/shelved」的区别：那条规则防的是「建任务即伪造完成」（无工作历史就声明 done）；
+ * 这里是既有任务的真实推进，故五态全允许（含 `done`=标真实完成 / `shelved`=搁置）。
+ * **statusSource 不由客户端给**——server 一律钉 `console`（C5：人工流转是最低优先源，git/lark/derived 派生
+ * 信号可覆盖；schema 不暴露 statusSource 字段 = 结构上杜绝冒充 derived/git/lark）。lastProgressAt 不动（仅派生回填）。
+ */
+export const TransitionTaskStatusRequestSchema = z.object({
+  status: TaskStatusSchema,
+});
+export const TransitionTaskStatusResponseSchema = z.object({ task: TaskSchema });
+
+/**
+ * POST /api/dependencies/:depId/waive：**软删除**连线（人工判定作废 → status=`waived`，非物理删除）。
+ * 无 body 字段（depId 在 path、目标态固定 waived）。waived 边经 toDepGraphView 边循环跳过、从图上隐藏，
+ * 但库里**保留** confirmedBy/createdAt（G2 单一真相可审计；区别于 satisfied=已满足、仍可见）。
+ * 响应同 create——剥 confirmedBy（M6/I0：ActorRef 永不过读边界）。
+ */
+export const WaiveDependencyResponseSchema = z.object({
+  dependency: DependencySchema.omit({ confirmedBy: true }),
+});
+
 export type CreateTaskRequest = z.infer<typeof CreateTaskRequestSchema>;
 export type CreateTaskResponse = z.infer<typeof CreateTaskResponseSchema>;
 export type CreateDependencyRequest = z.infer<
@@ -77,3 +100,12 @@ export type CreateDependencyResponse = z.infer<
 >;
 export type CreateNeedRequest = z.infer<typeof CreateNeedRequestSchema>;
 export type CreateNeedResponse = z.infer<typeof CreateNeedResponseSchema>;
+export type TransitionTaskStatusRequest = z.infer<
+  typeof TransitionTaskStatusRequestSchema
+>;
+export type TransitionTaskStatusResponse = z.infer<
+  typeof TransitionTaskStatusResponseSchema
+>;
+export type WaiveDependencyResponse = z.infer<
+  typeof WaiveDependencyResponseSchema
+>;
