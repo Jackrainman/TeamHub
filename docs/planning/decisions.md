@@ -995,3 +995,21 @@
 - supersede：**D-043**（双轨构建纪律）、**D-053**（自迭代外环 §6.C）——范式被精简 CC 主手册取代；两者全文 + skill + completion-model 冻结在 `archive/legacy-harness/`，复活路径见其 README。
 - 验证：三包 verify:all 全绿（hub-contracts 48 / hub-server **105**[+3 e2e] / hub-console 9）；A1 重启存活活体证；backup 三分支（valid→0/corrupt→1/missing→0）；抹卷护栏拒真项目 exit2；buildId 注入 deadbeef/回落 0.0.1；kb:import 5 imported/0 failed + 召回 H1/H3；archive 自含校验（6 § 锚点齐、无悬挂引用）。
 - 事实源：本 ADR；plan file `feiyue-script-harness-team-hub-synchronous-eich.md`；`AGENTS.md`（精简）/ `archive/legacy-harness/`（冻结全文 + 退役件）；`start-teamhub.sh` / `scripts/{backup-teamhub-data,pre-commit,verify-hub-compose}.sh` / `apps/hub-server/{src/status.ts,test/e2e-pillars.test.ts}` / `apps/hub-contracts/src/system-status.ts` / `docs/deploy/RUNBOOK.md` / `docs/dev-debug-archive/`。
+
+## D-067 — 图纸档案可写：POST /api/artifacts + console 登记表单（V1-FOLLOWUPS 收尾）
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-16，commit `b7eaf4b`）
+- 日期：2026-06-16
+- 上下文：用户「teamhub 后续还有什么任务，有的话顺推」。盘点 frontier：可执行项仅剩 V1-FOLLOWUPS（低优先级·非阻塞），余皆卡用户排期或外部基建（INV/Hermes/KB-LARK/正式部署/治理派生挂起）。V1-FOLLOWUPS 四子项中 ②（空板起步）早于 D-065 已 done，①③④ 未做。顺推图纸档案从「只读 + 8 条种子」升为可写。
+- 决策：
+  1. **append-only 提交日志，不解版本进阶语义**：本刀只做「机构能记一条新版本日志」的 append；图纸版本进阶语义（谁 bump / 自动 vs 手动 / 当前权威版指针 / 撞坏回退 / 按车分支）仍是 `ARTIFACT-VERSION-SEMANTICS`（open_for_decision），不在本刀触及。`revision` 是提交者自填自由字符串、无自动版本号语义。
+  2. **写白名单第五个 append 写法 `appendArtifact`**：`GovStore.appendArtifact(draft: ArtifactDraft)`，`ArtifactDraft = Omit<ArtifactRef,'id'|'createdAt'|'submittedVia'>`。三 Store：InMemoryGovStore 补 id/createdAt/`submittedVia:'console'` 后 push（照搬 createTask）；FileGovStore 写后 `persist()`（原子 tmp+rename，落盘累积，`GovernanceSnapshotSchema` 已含 `artifacts` 无需改 schema）；SqliteGovStore throw NOT_IMPLEMENTED stub。
+  3. **请求契约收紧只在写侧**：`CreateArtifactRequestSchema = ArtifactRefSchema.omit({id,createdAt,submittedVia}).extend({mechanism,revision: z.string().min(1)})`——base `ArtifactRefSchema` 三字段保 `optional`（向后兼容 8 条种子 + git 录入的可选字段、不破 fail-closed 加载），仅写侧强制 mechanism/revision 必填。schema 落 `pm-requests.ts`（单一源，非 schemas.ts）；server 经 `contracts.ts` 间接层 re-export。
+  4. **C5 submittedVia 由 server 钉 console**：请求 schema `omit` 掉 submittedVia（客户端注入被 Zod strip），store 在 `...draft` spread 后硬覆盖 `submittedVia:'console'`（防御纵深）。人工录入是最低优先源，git/lark 派生信号未来可覆盖。
+  5. **I0 图纸日志永无人维度**：`ArtifactRef` 无任何 person 字段、不引用 ActorRef；日志主键 = 机构 mechanism + 版本 revision + 归档物 name/uri，绝不加「提交人/确认人」。对抗探针实测：夹带 memberId/submittedBy/confirmedBy 经 Zod 默认 strip，既进不了落盘也回显不出。表单不收人名、读视图（ArchivePage/OverviewPage）不渲染提交人。
+  6. **H3 鉴权自动继承**：POST /api/artifacts 注册在 onRequest 钩子之后，自动受全 POST /api/\* 的 Bearer + 限流 gate，零旁路、不另写鉴权。
+- 落地面：`hub-contracts/pm-requests.ts`（Create*Schema/type）；`hub-server`（contracts.ts re-export / server.ts POST 路由 / store{gov,mock-gov,file-gov,sqlite-gov}.ts）；`hub-console`（api/client.ts + api/schemas/pm.ts barrel / features/archive/ArchivePage.tsx 表单 / features/overview/OverviewPage.tsx 链接 / i18n）。**①** 硬化 2 测（routes 证 store-sourcing / persist 断言 mechanism·revision·submittedVia round-trip）。**写路径测试补全**：pm-routes +2（201·夹带 lark 被 omit·落盘 +1 / 缺字段 400）+ client.test M21 补 createArtifact。
+- 构建：4-phase workflow `wf_1097920a-e67`（design-lock[opus 抓 15 接缝]→后端[opus]→前端[sonnet]→2-lens 对抗核实[opus×2：I0/反排名 + 正确性/回归/DoD]双 **ship·mustFix=0·i0Clean**）；首跑第 2 verify lens 中断、`resumeFromRunId` 续跑命中前序 cache。
+- 验证：三包 verify:all 全绿（hub-contracts 48 / hub-server **109**[+2 artifact 路由测] / hub-console 9）；git diff --check 干净；真机 4188 smoke（POST 夹带 submittedVia=lark→被压成 console、缺 mechanism/revision→400、GET 8→9、落盘文件含新条 round-trip）。
+- 老实定位：图纸版本进阶语义仍 open（ARTIFACT-VERSION-SEMANTICS）；真实图纸上游派生（git/lark 自动登记）未接、靠表单录入兜底；InMemory id `artifact-new-${len+1}` 跨重启非全局唯一（沿用 create* 既有约定、非本刀引入）。**frontier 自此真正见底**——下一步全卡用户排期或外部基建（Hermes/飞书/SSH/§8 审批）。
+- 事实源：本 ADR；`now.md`「最近完成 2026-06-16」；commit `b7eaf4b`；workflow `wf_1097920a-e67`。
