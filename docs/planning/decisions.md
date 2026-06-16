@@ -1013,3 +1013,19 @@
 - 验证：三包 verify:all 全绿（hub-contracts 48 / hub-server **109**[+2 artifact 路由测] / hub-console 9）；git diff --check 干净；真机 4188 smoke（POST 夹带 submittedVia=lark→被压成 console、缺 mechanism/revision→400、GET 8→9、落盘文件含新条 round-trip）。
 - 老实定位：图纸版本进阶语义仍 open（ARTIFACT-VERSION-SEMANTICS）；真实图纸上游派生（git/lark 自动登记）未接、靠表单录入兜底；InMemory id `artifact-new-${len+1}` 跨重启非全局唯一（沿用 create* 既有约定、非本刀引入）。**frontier 自此真正见底**——下一步全卡用户排期或外部基建（Hermes/飞书/SSH/§8 审批）。
 - 事实源：本 ADR；`now.md`「最近完成 2026-06-16」；commit `b7eaf4b`；workflow `wf_1097920a-e67`。
+
+## D-068 — 设置页风格切换器：运行时主题（经典绿 / 暖纸 Aurash），纯 CSS-variable 换肤
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-16）
+- 日期：2026-06-16
+- 上下文：V1-FOLLOWUPS 收尾后用户问「接下来需要排版的部分」。frontier 上唯一视觉/排版条目 = `UI-RESTYLE-AURASH`（D-060，已决策但搁置，PILOT-FIRST）。澄清后用户给的不是「一次性换肤」，而是 **「做一个切换风格的功能，在设置里」**——即运行时主题切换器。这恰把 D-060 Phase 0（换 token，<0.5 天拿 80% 视觉收益）包装成可回退的 opt-in 功能。
+- 决策：
+  1. **纯 CSS-variable 主题，不引框架**：明确**不是** D-060 那条 7–14 人天 Tailwind+Radix 迁移，而是其 token 层的「可切换」版。全站组件早已消费 `var(--*)`，故第二套 token 挂在 `:root[data-theme='warm']`（特异度 0,2,0 > `:root`），切换属性即整站换肤、**绝大多数组件零改动**。无 preflight / 无 @xyflow reset 风险 / 零新依赖。
+  2. **架构逐行镜像 i18n 语言切换**：新 `theme/index.tsx` 照搬 `i18n/index.tsx`——`ThemeProvider`（localStorage `teamhub.theme` 持久 + `documentElement.dataset.theme` + `useEffect` 同步）/ `useTheme()`（未挂 Provider 即 throw）/ 纯函数 `normalizeTheme(value): Theme`（未知值 fallback，供单测，不测 DOM）。`main.tsx` `<ThemeProvider>` 包 `<LanguageProvider>`。
+  3. **默认 classic（现行绿），暖纸 opt-in**：`DEFAULT_THEME='classic'`，无 `data-theme` 属性时与现状像素一致、不惊扰现有用户。暖纸起步调色 = 米色面 `#f7f6f3` + 暖白卡 `#fffdf9` + 近黑字 `#37352f` + 发丝线 + 暖炭侧栏 `#2b2922` + serif 标题（Georgia/Songti/Noto Serif）；accent（绿/红/琥珀/蓝 + `*-soft`）暂留为状态语义色、跨主题通用，起步值可在 4177 实时微调。
+  4. **tokenize 少量硬编码色**：原写死的 `:root` 页底色、`.console-sidebar` bg/text 提升为 `--page-bg`/`--sidebar-bg`/`--sidebar-text`；`h1/h2` 加 `font-family: var(--font-title)`（classic 默认 `inherit` 仍 Inter）。设置页加「外观」section，复用既有 `segClass` + `.seg` 控件（零新 CSS），i18n 加 4 键 zh/en（`Record<TranslationKey>` 编译期强制对称）。
+- 落地面：`hub-console` 新 `theme/index.tsx`、`main.tsx`（挂载）、`styles.css`（tokenize + 暖纸覆盖块）、`features/settings/SettingsPage.tsx`（外观区块）、`i18n/translations.ts`（4 键 ×2）、新 `test/theme.test.ts`（normalizeTheme 2 测）。后端/契约**零改动**。
+- D-060 护栏守住：不引 Tailwind/Radix（无 preflight 风险）；不碰 I0 反排名 3 承重串；zh/en 编译期对称；**未从 xju-feiyue/Aurash 拷 tokens.css**（暖纸值手挑中性结构色）；不引 dueDate、不加排名维度。
+- 验证：hub-console verify:all（typecheck 强制 parity + 11 测[+2 theme] + build）全绿；hub-contracts/hub-server verify:all 零回归（48 / 109）。**头无界面浏览器，故走构建产物 + 活体 serve 核实**：产出 CSS 含暖纸 token 块（`f7f6f3`/`2b2922`/`37352f`/`Georgia` 实测在 dist）+ tokenized `var(--page-bg|sidebar-bg|font-title)`；JS bundle 含 `teamhub.theme`/`dataset.theme`/`ThemeProvider` 守卫 + i18n `teamhub.lang` 未损；hub-server 起 4177 托管 console：`GET /`=200、index 引新 bundle、served CSS 可达 `f7f6f3`、`GET /api/artifacts`=200。
+- 老实定位（已知边界，不假装全覆盖）：**dep-graph 连线色不随主题变**——`DepGraphPage.tsx` 的 `EDGE_COLORS` 与选中边 `stroke:'#2f6f9f'` 是 JS 常量/写死 hex，CSS-variable 主题碰不到，v1 保持原样（红/蓝/琥珀/灰为状态语义色，跨主题可接受）；`.dag-node--*` 斜纹用 token → 随主题变。**真实视觉切换（整站换色 + 侧栏 + serif + 刷新保持）需用户在 4177 浏览器实眼验收**（headless 不可代替）。暖纸调色为起步值、待主观微调。
+- 事实源：本 ADR；`now.md`「最近完成 2026-06-16」；D-060 + `docs/research/aurash-restyle-assessment.md`。

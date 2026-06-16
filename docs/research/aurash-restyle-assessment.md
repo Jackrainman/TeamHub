@@ -14,6 +14,8 @@ related_decisions:
 
 > **结论：PILOT-FIRST（先试点一页，别整站重写）。当前低优先级，业务逻辑先行。**
 > 本文为已完成调研的落档；动手与否见 D-060，须先过决策门。评估期间**零 UI 代码改动**。
+>
+> **更新（2026-06-16，D-068）**：Phase 0（换 token + 字体）已落地，但不是「一次性替换」，而是按用户诉求做成**设置页运行时风格切换器**（经典绿 / 暖纸，opt-in、默认经典）。纯 CSS-variable 双 token（`:root[data-theme='warm']`），架构镜像 i18n 语言切换；**未碰** Tailwind/Radix/试点页/整站迁移——表 1 里 Phase 0 之后的行仍按决策门待定。已知限制：dep-graph `EDGE_COLORS`（JS 常量）不随主题变。
 
 ## 0. 一句话
 
