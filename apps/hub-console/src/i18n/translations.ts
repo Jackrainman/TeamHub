@@ -28,6 +28,10 @@ const zh = {
   'settings.language.desc': '只切界面文案；任务名 / 负责人等数据保持原样。',
   'settings.language.zh': '中文',
   'settings.language.en': 'English',
+  'settings.section.appearance': '外观',
+  'settings.appearance.desc': '切换界面风格；只换配色与字体，数据与布局不变。',
+  'settings.theme.classic': '经典绿',
+  'settings.theme.warm': '暖纸',
   'settings.apiBase.desc': '覆盖默认后端地址，仅真实模式生效；改动后会重新加载页面。',
   'settings.apiBase.label': '后端地址',
   'settings.apiBase.placeholder': '例如 http://100.78.202.84:4177',
@@ -348,6 +352,11 @@ const en: Record<TranslationKey, string> = {
   'settings.language.desc': 'Switches UI copy only; task names / owners stay as-is.',
   'settings.language.zh': '中文',
   'settings.language.en': 'English',
+  'settings.section.appearance': 'Appearance',
+  'settings.appearance.desc':
+    'Switches the visual style; colors and fonts only — data and layout stay the same.',
+  'settings.theme.classic': 'Classic green',
+  'settings.theme.warm': 'Warm paper',
   'settings.apiBase.desc':
     'Override the default backend address (Live mode only); the page reloads after applying.',
   'settings.apiBase.label': 'Backend address',

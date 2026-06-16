@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { AgentBackend, BotChannel } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n, type TranslationKey } from '../../i18n';
+import { useTheme } from '../../theme';
 
 // 设置页：收纳此前散落各处的运行时设置——语言 / 集成 / 后端地址 / 关于。
 // 语言复用 i18n 的同一份状态（无本地副本，故无同步问题）。单一真实后端，无数据源切换。
@@ -49,6 +50,7 @@ export function SettingsPage({
   source: string;
 }) {
   const { t, lang, setLang } = useI18n();
+  const { theme, setTheme } = useTheme();
 
   return (
     <div className="settings-page">
@@ -76,6 +78,35 @@ export function SettingsPage({
               onClick={() => setLang('en')}
             >
               {t('settings.language.en')}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="panel settings-panel">
+        <div className="panel-header">
+          <h2>{t('settings.section.appearance')}</h2>
+        </div>
+        <div className="settings-section">
+          <p className="settings-desc">{t('settings.appearance.desc')}</p>
+          <div
+            className="seg"
+            role="group"
+            aria-label={t('settings.section.appearance')}
+          >
+            <button
+              type="button"
+              className={segClass(theme === 'classic')}
+              onClick={() => setTheme('classic')}
+            >
+              {t('settings.theme.classic')}
+            </button>
+            <button
+              type="button"
+              className={segClass(theme === 'warm')}
+              onClick={() => setTheme('warm')}
+            >
+              {t('settings.theme.warm')}
             </button>
           </div>
         </div>
