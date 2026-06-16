@@ -13,6 +13,7 @@ import {
   governanceScenarioFixture,
 } from '@teamhub/hub-contracts';
 import type {
+  ArtifactRef,
   Dependency,
   GovernanceSnapshot,
   KnowledgeNode,
@@ -23,6 +24,7 @@ import type {
 import type { Clock } from '../clock.js';
 import { InMemoryGovStore } from './mock-gov-store.js';
 import type {
+  ArtifactDraft,
   DependencyDraft,
   GovStore,
   KnowledgeNodeDraft,
@@ -145,6 +147,13 @@ export class FileGovStore implements GovStore {
     const node = await this.inner.closeoutKbNode(draft);
     await this.persist();
     return node;
+  }
+
+  // 图纸提交日志追加（V1-FOLLOWUPS ④）：复用 inner 的 id/createdAt/submittedVia 逻辑 + 落盘累积。
+  async appendArtifact(draft: ArtifactDraft): Promise<ArtifactRef> {
+    const artifact = await this.inner.appendArtifact(draft);
+    await this.persist();
+    return artifact;
   }
 
   async updateTaskStatus(taskId: string, status: TaskStatus): Promise<Task | null> {

@@ -5,6 +5,7 @@ import {
   DependencySchema,
   NeedSchema,
 } from './governance.js';
+import { ArtifactRefSchema } from './schemas.js';
 
 // PM 项目计划表「写侧请求契约」单一源（D-052 重复真相收口）。
 // 此前 hub-server/src/contracts.ts 与 hub-console/src/api/schemas/pm.ts 各从 hub-contracts
@@ -90,6 +91,33 @@ export const WaiveDependencyResponseSchema = z.object({
   dependency: DependencySchema.omit({ confirmedBy: true }),
 });
 
+/**
+ * POST /api/artifacts：图纸/归档物提交日志的「写侧请求契约」（V1-FOLLOWUPS ④，append-only）。
+ * 机构经 UI 记一条图纸提交日志：mechanism（机构/部件，分组键）+ revision（第几版）+ name/uri/kind +
+ * 可选 relatedRepo/relatedCommit。server 补 id/createdAt、**钉 submittedVia=`console`（C5：来源 seam 由
+ * server 钉、不由客户端给）**——故请求 omit submittedVia。
+ *
+ * **I0 图纸日志永无人维度**：ArtifactRef 无任何 person 字段，本请求也绝不收提交人/确认人——日志主键是
+ * 机构 + 版本 + 归档物，不是「谁提交」（与 PmCreatePanel 的 confirmer 不同；ArtifactRef 无 confirmedBy，
+ * 也不得新增）。**C3 append-only**：只追加、不开 update/delete/list、不解 ARTIFACT-VERSION-SEMANTICS
+ * 进阶语义——revision 是提交者自填的自由字符串（无自动版本号语义）。**G4**：不引入 dueDate。
+ *
+ * base ArtifactRefSchema 把 mechanism/revision/submittedVia 标 optional（向后兼容既有 8 条种子 + git 录入），
+ * 故这里用 `.extend` 把 mechanism/revision 收紧为必填 `z.string().min(1)`（写侧才强制；不动 ArtifactRefSchema
+ * 本身——否则旧种子/git 录入的可选字段会破坏 fail-closed 加载与读契约）。
+ */
+export const CreateArtifactRequestSchema = ArtifactRefSchema.omit({
+  id: true,
+  createdAt: true,
+  submittedVia: true,
+}).extend({
+  mechanism: z.string().min(1),
+  revision: z.string().min(1),
+});
+export const CreateArtifactResponseSchema = z.object({
+  artifact: ArtifactRefSchema,
+});
+
 export type CreateTaskRequest = z.infer<typeof CreateTaskRequestSchema>;
 export type CreateTaskResponse = z.infer<typeof CreateTaskResponseSchema>;
 export type CreateDependencyRequest = z.infer<
@@ -108,4 +136,10 @@ export type TransitionTaskStatusResponse = z.infer<
 >;
 export type WaiveDependencyResponse = z.infer<
   typeof WaiveDependencyResponseSchema
+>;
+export type CreateArtifactRequest = z.infer<
+  typeof CreateArtifactRequestSchema
+>;
+export type CreateArtifactResponse = z.infer<
+  typeof CreateArtifactResponseSchema
 >;

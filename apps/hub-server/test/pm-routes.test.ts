@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { buildHubServer } from '../src/server.js';
 import {
+  CreateArtifactResponseSchema,
   CreateDependencyResponseSchema,
   CreateNeedResponseSchema,
   TransitionTaskStatusResponseSchema,
@@ -72,6 +73,52 @@ describe('PM 读视图 + 依赖/缺口录入', () => {
       });
       expect(res.statusCode).toBe(201);
       expect(res.json().dependency.status).toBe('active');
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('POST /api/artifacts → 201；server 钉 submittedVia=console（C5）；落盘累积；夹带来源被 omit', async () => {
+    const store = new InMemoryGovStore();
+    const before = (await store.getSnapshot()).artifacts.length;
+    const app = buildHubServer({ store });
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/artifacts',
+        payload: {
+          kind: 'image',
+          name: '底盘装配图',
+          uri: 'artifact://chassis/v4',
+          mechanism: '底盘',
+          revision: 'v4',
+          relatedCommit: 'abc1234',
+          submittedVia: 'lark', // 试图夹带来源——应被 omit 忽略，server 钉 console（C5）
+        },
+      });
+      expect(res.statusCode).toBe(201);
+      const body = CreateArtifactResponseSchema.parse(res.json());
+      expect(body.artifact.id).toMatch(/^artifact-new-/);
+      // C5：submittedVia 由 server 钉 console（请求夹带的 lark 被 omit）
+      expect(body.artifact.submittedVia).toBe('console');
+      expect(body.artifact.mechanism).toBe('底盘');
+      expect(body.artifact.revision).toBe('v4');
+      // 落盘累积：快照 artifacts +1
+      expect((await store.getSnapshot()).artifacts.length).toBe(before + 1);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('POST /api/artifacts：mechanism/revision 必填，缺失 → 400', async () => {
+    const app = buildHubServer();
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/artifacts',
+        payload: { kind: 'image', name: '无机构图', uri: 'artifact://x' }, // 缺 mechanism/revision
+      });
+      expect(res.statusCode).toBe(400);
     } finally {
       await app.close();
     }

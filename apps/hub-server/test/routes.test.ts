@@ -3,6 +3,9 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { buildHubServer } from '../src/server.js';
+import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
+import { governanceScenarioFixture } from '@teamhub/hub-contracts';
+import type { GovernanceSnapshot } from '@teamhub/hub-contracts';
 import {
   AgentBackendCapabilitiesResponseSchema,
   AgentBackendHealthResponseSchema,
@@ -211,6 +214,43 @@ describe('hub-server routes', () => {
     expect(response.statusCode).toBe(200);
     const body = ArtifactsResponseSchema.parse(response.json());
     expect(body.artifacts.length).toBeGreaterThan(0);
+  });
+
+  // ① 硬化：证明 GET /api/artifacts 的响应确由 store 快照派生（非硬编码 fixture）。
+  // 注入一个自定义 snapshot（含一条独特 id/mechanism 的图纸日志），断言响应原样回出注入值。
+  test('GET /api/artifacts is derived from the injected store snapshot', async () => {
+    const custom: GovernanceSnapshot = {
+      ...governanceScenarioFixture,
+      artifacts: [
+        {
+          id: 'art-probe-xyz',
+          kind: 'firmware',
+          name: 'probe',
+          uri: 'artifact://probe',
+          mechanism: 'PROBE-MECH',
+          revision: 'vTEST',
+          submittedVia: 'console',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    };
+    const app2 = buildHubServer({ store: new InMemoryGovStore(custom) });
+    try {
+      const response = await app2.inject({
+        method: 'GET',
+        url: '/api/artifacts',
+      });
+      expect(response.statusCode).toBe(200);
+      const body = ArtifactsResponseSchema.parse(response.json());
+      // 响应须包含注入的那条记录的 id 与 mechanism（证明派生自 store，而非固定 fixture）。
+      const probe = body.artifacts.find((a) => a.id === 'art-probe-xyz');
+      expect(probe).toBeDefined();
+      expect(probe?.mechanism).toBe('PROBE-MECH');
+      // 注入快照只放了一条 → 响应也只有这一条（进一步排除掺入默认种子的可能）。
+      expect(body.artifacts).toHaveLength(1);
+    } finally {
+      await app2.close();
+    }
   });
 
   test('unknown routes return the standard error body', async () => {

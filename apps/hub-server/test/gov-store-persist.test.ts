@@ -62,6 +62,47 @@ describe('FileGovStore 落盘', () => {
     ).toBe(true);
   });
 
+  // ① 硬化：appendArtifact 图纸提交日志 round-trip——写一条 → 返回钉 submittedVia=console + 有 id；
+  // 读磁盘断言 mechanism/revision/submittedVia 已落盘；重启新实例仍在（持久 + 来源 seam server 钉）。
+  test('appendArtifact 后落盘 + 重启仍在（submittedVia 钉 console，round-trip）', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'gov-artifact-'));
+    const file = join(dir, 'gov.json');
+    const store = await FileGovStore.create(file);
+
+    // draft 不含 id/createdAt/submittedVia（ArtifactDraft 已 Omit；submittedVia 由 server 钉 console，C5）。
+    const art = await store.appendArtifact({
+      kind: 'firmware',
+      name: '底盘图纸',
+      uri: 'artifact://drawings/chassis/v4.pdf',
+      mechanism: '底盘',
+      revision: 'v4',
+      relatedCommit: 'abc1234',
+    });
+    expect(art.submittedVia).toBe('console'); // server 钉来源 seam
+    expect(art.id).toBeTruthy(); // Store 补 id
+
+    // 落盘断言：按新建记录的 id 定位（mechanism 可能与既有种子撞，id 是唯一的），
+    // 断言 mechanism/revision/submittedVia 都已持久化。
+    const onDisk = JSON.parse(await readFile(file, 'utf8'));
+    const diskArt = onDisk.artifacts.find(
+      (a: { id: string }) => a.id === art.id,
+    );
+    expect(diskArt).toBeDefined();
+    expect(diskArt.mechanism).toBe('底盘');
+    expect(diskArt.revision).toBe('v4');
+    expect(diskArt.submittedVia).toBe('console');
+
+    // 模拟重启：新实例从同文件加载，新建图纸日志仍在（round-trip survives restart）。
+    const reloaded = await FileGovStore.create(file);
+    const reloadedArt = (await reloaded.getSnapshot()).artifacts.find(
+      (a) => a.id === art.id,
+    );
+    expect(reloadedArt).toBeDefined();
+    expect(reloadedArt?.mechanism).toBe('底盘');
+    expect(reloadedArt?.revision).toBe('v4');
+    expect(reloadedArt?.submittedVia).toBe('console');
+  });
+
   test('updateTaskStatus 后落盘 + 重启仍生效（statusSource clamp console）', async () => {
     dir = await mkdtemp(join(tmpdir(), 'gov-status-'));
     const file = join(dir, 'gov.json');

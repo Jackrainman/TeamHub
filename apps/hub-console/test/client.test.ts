@@ -8,6 +8,7 @@ import type {
   CreateTaskRequest,
   CreateDependencyRequest,
   CreateNeedRequest,
+  CreateArtifactRequest,
 } from '@teamhub/hub-contracts';
 import type { KbCloseoutRequest } from '../src/api/schemas/kb';
 import { createHubApiClient } from '../src/api/client';
@@ -237,6 +238,22 @@ describe('hub console API client', () => {
       String(u).endsWith('/api/kb/closeout'),
     );
     expect(closeoutCall?.[1]?.method).toBe('POST');
+
+    // 图纸登记写侧（V1-FOLLOWUP ④）：POST /api/artifacts、带 body、解析响应
+    const artifactReq = {
+      kind: 'image',
+      name: '底盘装配图',
+      uri: 'artifact://chassis/v4',
+      mechanism: '底盘',
+      revision: 'v4',
+    } as unknown as CreateArtifactRequest;
+    const artifactRes = await client.createArtifact(artifactReq);
+    expect(artifactRes.artifact.id).toBeTruthy();
+    const artifactCall = fetcher.mock.calls.find(([u]) =>
+      String(u).endsWith('/api/artifacts'),
+    );
+    expect(artifactCall?.[1]?.method).toBe('POST');
+    expect(JSON.parse(String(artifactCall?.[1]?.body))).toEqual(artifactReq);
   });
 
   test('postJson 把后端 400 的 detail 透出到抛错（表单错误条）', async () => {
@@ -272,6 +289,8 @@ function writeResponseByPath(path: string): unknown {
         updatedIssueCard: kbScenarioFixture.issueCards[0],
         knowledgeNode: governanceScenarioFixture.knowledgeNodes[0],
       };
+    case '/api/artifacts':
+      return { artifact: governanceScenarioFixture.artifacts[0] };
     default:
       return { detail: 'Not found' };
   }

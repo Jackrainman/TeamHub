@@ -29,6 +29,8 @@ import {
   TransitionTaskStatusRequestSchema,
   TransitionTaskStatusResponseSchema,
   WaiveDependencyResponseSchema,
+  CreateArtifactRequestSchema,
+  CreateArtifactResponseSchema,
   TasksResponseSchema,
   SystemStatusResponseSchema,
   buildCloseoutFromIssue,
@@ -236,6 +238,20 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   app.get('/api/artifacts', async () => {
     const snapshot = await store.getSnapshot();
     return ArtifactsResponseSchema.parse({ artifacts: snapshot.artifacts });
+  });
+
+  // 图纸提交日志追加（V1-FOLLOWUPS ④，append-only）。机构经 UI 记一条新图纸提交：mechanism/revision/name/uri/kind
+  // + 可选 relatedRepo/relatedCommit。server 补 id/createdAt、**钉 submittedVia=console**（C5；请求 schema 不收）。
+  // POST → 继承 H3 onRequest 鉴权+限流（不另写鉴权）。**I0**：无人维度——主键=机构+版本+归档物，请求无提交人字段。
+  app.post('/api/artifacts', async (request, reply) => {
+    const parsed = CreateArtifactRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      return;
+    }
+    const artifact = await store.appendArtifact(parsed.data);
+    void reply.code(201);
+    return CreateArtifactResponseSchema.parse({ artifact });
   });
 
   // 依赖链 · 阻塞归因视图：治理快照经纯函数 toDepGraphView 实时派生（D-040 首任务收敛）。

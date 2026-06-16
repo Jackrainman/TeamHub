@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState, type FormEvent } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ArtifactRef } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
+import type { CreateArtifactRequest } from '../../api/schemas/pm';
 import { useI18n, type TranslationKey } from '../../i18n';
 
 // ArtifactKind → 文案键（类型安全：后端枚举变更会在此处编译报错）。复用总览已有的 enum.artifact.* 键。
@@ -14,6 +15,16 @@ const ARTIFACT_KIND_KEY: Record<ArtifactRef['kind'], TranslationKey> = {
   report: 'enum.artifact.report',
   other: 'enum.artifact.other',
 };
+
+const ARTIFACT_KINDS: ArtifactRef['kind'][] = [
+  'firmware',
+  'log',
+  'rosbag',
+  'image',
+  'video',
+  'report',
+  'other',
+];
 
 interface MechanismGroup {
   // 分组键：原始 mechanism（保持后端原样）或 null（未分组，渲染时落文案键）。
@@ -31,6 +42,7 @@ export function ArchivePage({
   source: string;
 }) {
   const { t, lang } = useI18n();
+  const queryClient = useQueryClient();
 
   const query = useQuery({
     queryKey: ['artifacts', source],
@@ -42,20 +54,170 @@ export function ArchivePage({
     [query.data],
   );
 
+  // 登记表单状态（I0：无提交人字段）
+  const [mechanism, setMechanism] = useState('');
+  const [revision, setRevision] = useState('');
+  const [name, setName] = useState('');
+  const [uri, setUri] = useState('');
+  const [kind, setKind] = useState<ArtifactRef['kind']>('firmware');
+  const [relatedCommit, setRelatedCommit] = useState('');
+  const [relatedRepo, setRelatedRepo] = useState('');
+
+  const mutation = useMutation({
+    mutationFn: (req: CreateArtifactRequest) => client.createArtifact(req),
+    onSuccess: () => {
+      setMechanism('');
+      setRevision('');
+      setName('');
+      setUri('');
+      setKind('firmware');
+      setRelatedCommit('');
+      setRelatedRepo('');
+      void queryClient.invalidateQueries({ queryKey: ['artifacts'] });
+    },
+  });
+
+  const valid = mechanism.trim() && revision.trim() && name.trim() && uri.trim();
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!valid) return;
+    const req: CreateArtifactRequest = {
+      kind,
+      name: name.trim(),
+      uri: uri.trim(),
+      mechanism: mechanism.trim(),
+      revision: revision.trim(),
+    };
+    if (relatedCommit.trim()) req.relatedCommit = relatedCommit.trim();
+    if (relatedRepo.trim()) req.relatedRepo = relatedRepo.trim();
+    mutation.mutate(req);
+  }
+
+  // 登记表单：始终渲染，不受 groups.length 守门（否则空档案时无法录入第一条）。
+  const form = (
+    <section className="panel pm-create" aria-label={t('archive.form.title')}>
+      <div className="panel-header">
+        <h2>{t('archive.form.title')}</h2>
+      </div>
+      <form className="pm-form" onSubmit={submit}>
+        <div className="pm-form__grid">
+          <label className="kb-field">
+            <span>{t('archive.form.mechanism')}</span>
+            <input
+              value={mechanism}
+              onChange={(e) => setMechanism(e.target.value)}
+            />
+          </label>
+          <label className="kb-field">
+            <span>{t('archive.form.revision')}</span>
+            <input
+              value={revision}
+              onChange={(e) => setRevision(e.target.value)}
+            />
+          </label>
+        </div>
+        <div className="pm-form__grid">
+          <label className="kb-field">
+            <span>{t('archive.form.name')}</span>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </label>
+          <label className="kb-field">
+            <span>{t('archive.form.kind')}</span>
+            <select
+              value={kind}
+              onChange={(e) => setKind(e.target.value as ArtifactRef['kind'])}
+            >
+              {ARTIFACT_KINDS.map((k) => (
+                <option value={k} key={k}>
+                  {t(ARTIFACT_KIND_KEY[k])}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <label className="kb-field">
+          <span>{t('archive.form.uri')}</span>
+          <input
+            value={uri}
+            onChange={(e) => setUri(e.target.value)}
+          />
+        </label>
+        <div className="pm-form__grid">
+          <label className="kb-field">
+            <span>{t('archive.form.relatedCommit')}</span>
+            <input
+              value={relatedCommit}
+              onChange={(e) => setRelatedCommit(e.target.value)}
+            />
+          </label>
+          <label className="kb-field">
+            <span>{t('archive.form.relatedRepo')}</span>
+            <input
+              value={relatedRepo}
+              onChange={(e) => setRelatedRepo(e.target.value)}
+            />
+          </label>
+        </div>
+        <div className="pm-form__footer">
+          <button
+            className="kb-submit"
+            type="submit"
+            disabled={!valid || mutation.isPending}
+          >
+            {mutation.isPending ? t('archive.form.submitting') : t('archive.form.submit')}
+          </button>
+          {mutation.isSuccess ? (
+            <p className="form-banner form-banner--ok">
+              {t('archive.form.success', {
+                name: mutation.data.artifact.name,
+                revision: mutation.data.artifact.revision ?? '',
+              })}
+            </p>
+          ) : null}
+          {mutation.error ? (
+            <p className="form-banner form-banner--err">
+              {t('archive.form.error', { detail: errorDetail(mutation.error) })}
+            </p>
+          ) : null}
+        </div>
+      </form>
+    </section>
+  );
+
   if (query.isLoading) {
-    return <div className="state-band">{t('archive.loading')}</div>;
+    return (
+      <div className="archive-page">
+        {form}
+        <div className="state-band">{t('archive.loading')}</div>
+      </div>
+    );
   }
 
   if (query.error || !query.data) {
-    return <div className="state-band state-band-error">{t('archive.error')}</div>;
+    return (
+      <div className="archive-page">
+        {form}
+        <div className="state-band state-band-error">{t('archive.error')}</div>
+      </div>
+    );
   }
 
   if (groups.length === 0) {
-    return <div className="state-band">{t('archive.empty')}</div>;
+    return (
+      <div className="archive-page">
+        {form}
+        <div className="state-band">{t('archive.empty')}</div>
+      </div>
+    );
   }
 
   return (
     <div className="archive-page">
+      {form}
       {groups.map((group) => (
         <section
           className="panel"
@@ -169,4 +331,8 @@ function formatDate(iso: string, lang: 'zh' | 'en'): string {
     month: '2-digit',
     day: '2-digit',
   });
+}
+
+function errorDetail(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

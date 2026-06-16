@@ -3,6 +3,7 @@ import {
   governanceScenarioFixture,
 } from '@teamhub/hub-contracts';
 import type {
+  ArtifactRef,
   Dependency,
   GovernanceSnapshot,
   KnowledgeNode,
@@ -13,6 +14,7 @@ import type {
 import { FixedClock } from '../clock.js';
 import type { Clock } from '../clock.js';
 import type {
+  ArtifactDraft,
   DependencyDraft,
   GovStore,
   KnowledgeNodeDraft,
@@ -128,6 +130,24 @@ export class InMemoryGovStore implements GovStore {
     };
     this.snapshot.knowledgeNodes.push(node);
     return node;
+  }
+
+  /**
+   * 图纸/归档物提交日志追加（POST /api/artifacts，V1-FOLLOWUPS ④）。Store 补 id + createdAt + **钉
+   * submittedVia=`console`**（C5：来源 seam server 钉，请求不收）。**append-only**：只 push 进 snapshot.artifacts，
+   * 无 update/delete。**I0 守恒**：ArtifactRef 无 person 字段，draft 也不含——日志主键是机构(mechanism)+
+   * 版本(revision)+归档物，永无 memberId，不可事后 groupBy「谁提交最多」。
+   */
+  async appendArtifact(draft: ArtifactDraft): Promise<ArtifactRef> {
+    const now = this.clock.now().toISOString();
+    const artifact: ArtifactRef = {
+      ...draft,
+      id: `artifact-new-${this.snapshot.artifacts.length + 1}`,
+      submittedVia: 'console',
+      createdAt: now,
+    };
+    this.snapshot.artifacts.push(artifact);
+    return artifact;
   }
 
   /**

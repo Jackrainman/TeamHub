@@ -163,6 +163,19 @@ export function OverviewPage({
             <ArtifactRow artifact={artifact} key={artifact.id} />
           ))}
         </div>
+        <div className="overview-integrations-hint">
+          {onNavigate ? (
+            <button
+              type="button"
+              className="link-button"
+              onClick={() => onNavigate('archive')}
+            >
+              {t('overview.artifacts.toArchive')}
+            </button>
+          ) : (
+            <span>{t('overview.artifacts.toArchive')}</span>
+          )}
+        </div>
       </section>
     </div>
   );

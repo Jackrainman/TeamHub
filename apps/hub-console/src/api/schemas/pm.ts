@@ -11,6 +11,8 @@ export {
   TransitionTaskStatusRequestSchema,
   TransitionTaskStatusResponseSchema,
   WaiveDependencyResponseSchema,
+  CreateArtifactRequestSchema,
+  CreateArtifactResponseSchema,
 } from '@teamhub/hub-contracts';
 export type {
   CreateTaskRequest,
@@ -21,4 +23,6 @@ export type {
   CreateNeedResponse,
   TransitionTaskStatusResponse,
   WaiveDependencyResponse,
+  CreateArtifactRequest,
+  CreateArtifactResponse,
 } from '@teamhub/hub-contracts';

@@ -1,4 +1,5 @@
 import type {
+  ArtifactRef,
   Dependency,
   GovernanceSnapshot,
   KnowledgeNode,
@@ -7,6 +8,7 @@ import type {
   TaskStatus,
 } from '@teamhub/hub-contracts';
 import type {
+  ArtifactDraft,
   DependencyDraft,
   GovStore,
   KnowledgeNodeDraft,
@@ -45,6 +47,10 @@ export class SqliteGovStore implements GovStore {
   }
 
   async closeoutKbNode(_draft: KnowledgeNodeDraft): Promise<KnowledgeNode> {
+    throw new Error(SQLITE_NOT_IMPLEMENTED);
+  }
+
+  async appendArtifact(_draft: ArtifactDraft): Promise<ArtifactRef> {
     throw new Error(SQLITE_NOT_IMPLEMENTED);
   }
 

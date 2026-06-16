@@ -1,5 +1,6 @@
 import type {
   ArchiveDocument,
+  ArtifactRef,
   Dependency,
   ErrorEntry,
   GovernanceSnapshot,
@@ -59,12 +60,29 @@ export type NeedDraft = Omit<
 export type KnowledgeNodeDraft = Omit<KnowledgeNode, 'id' | 'createdAt'>;
 
 /**
+ * appendArtifact 入参：图纸/归档物提交日志的一条新记录（V1-FOLLOWUPS ④，append-only）。
+ * 调用方只给人本字段——mechanism（机构/部件分组键）/ revision（第几版）/ name / uri / kind +
+ * 可选 relatedRepo / relatedCommit。Store 补 id + createdAt、**钉 submittedVia=`console`（C5：来源 seam
+ * 由 server 钉、不由调用方给）**，故从 draft 剔除 id / createdAt / submittedVia。
+ * **I0**：本 draft 无任何 person 字段（ArtifactRef 本就无 person 维度），绝不收提交人——
+ * 日志主键 = 机构 + 版本 + 归档物，永无 memberId。
+ */
+export type ArtifactDraft = Omit<
+  ArtifactRef,
+  'id' | 'createdAt' | 'submittedVia'
+>;
+
+/**
  * 三支柱共享底座的读写出入口。
  *
  * 读：`getSnapshot()`（D-040 首刀，已实现）。
  * 写（白名单，本刀只定签名、实现后置=throw）：按 frontier#2 KB-CORE / #3 PM 即将需要的**最小集**推导——
  *   - `createTask` / `createDependency` / `createNeed`：PM 项目计划表 C1 兜底录入（任务、依赖图人手建边、缺口暴露）。
  *   - `closeoutKbNode`：KB-CORE 结案派生 `KnowledgeNode`（POST /api/kb/closeout 消费，实现见 InMemoryGovStore）。
+ *   - `appendArtifact`：图纸/归档物提交日志追加（V1-FOLLOWUPS ④，POST /api/artifacts 消费）。**append-only**：
+ *     只追加、**无 update/delete/list**，不解 ARTIFACT-VERSION-SEMANTICS 进阶语义（revision 是提交者自填的
+ *     自由字符串，无自动版本号）。**I0**：日志主键 = 机构(mechanism) + 版本(revision) + 归档物，**永无 memberId**——
+ *     ArtifactRef 无任何 person 字段，submittedVia 是来源 seam（git/lark/console）非人，server 钉 `console`（C5）。
  *     **D-042 决策 1（含对抗核实修正，KB-CORE 已兑现）**：结案派生 + `knowledgeNodes/taskKnowledgeTags`
  *     读路径复用同一 `GovernanceSnapshot`、**不必扩本 interface**——这半成立、仍在本接口；相似 bug 检索的
  *     IssueCard 语料**不在本快照内**，已收窄到独立 `KbStore`（见下方）——base 收口刀的「kbStore 暂记 GovStore」
@@ -76,10 +94,11 @@ export type KnowledgeNodeDraft = Omit<KnowledgeNode, 'id' | 'createdAt'>;
  *   - **I0 / confirmedBy**：确认语义记「何时 / 经哪条渠道」（timestamp / ActorRef.source），不退化成可 `groupBy`
  *     的裸 memberId 历史（不能事后算「谁确认最多」）。
  *   - **C1 派生优先**：写入是兜底录入口，不取代 git/lark 派生信号，不得被上层当主录入口退化成新死表。
- *   - **C3 小作坊**：白名单止于三支柱当下所需，不预铺完整 CRUD / RBAC。除四个 create 外，仅两条**受限状态机
- *     迁移**：`updateTaskStatus`（在既有 TaskStatus 枚举内流转，含 done=标真实完成）与 `waiveDependency`
+ *   - **C3 小作坊**：白名单止于三支柱当下所需，不预铺完整 CRUD / RBAC。**五条 append**（四个 create +
+ *     `appendArtifact` 图纸日志追加）皆只追加、不开 update/delete/list；另两条**受限状态机迁移**：
+ *     `updateTaskStatus`（在既有 TaskStatus 枚举内流转，含 done=标真实完成）与 `waiveDependency`
  *     （转 DependencyStatus 的 waived=人工作废，软删除）。**仍无 list 全家桶 / 物理 delete / RBAC / 任意字段
- *     update**——这两条只在既有枚举上推进文档化的生命周期态，不开通用 CRUD 口子。
+ *     update**——append 只增不改、状态机两条只在既有枚举上推进文档化的生命周期态，都不开通用 CRUD 口子。
  */
 export interface GovStore {
   getSnapshot(): Promise<GovernanceSnapshot>;
@@ -89,6 +108,11 @@ export interface GovStore {
   createDependency(draft: DependencyDraft): Promise<Dependency>;
   createNeed(draft: NeedDraft): Promise<Need>;
   closeoutKbNode(draft: KnowledgeNodeDraft): Promise<KnowledgeNode>;
+  /**
+   * 图纸/归档物提交日志追加（POST /api/artifacts，V1-FOLLOWUPS ④）。**append-only**：Store 补 id + createdAt、
+   * **钉 submittedVia=`console`**（C5：来源 seam server 钉，请求不收）。**I0**：主键=机构+版本+归档物，永无 memberId。
+   */
+  appendArtifact(draft: ArtifactDraft): Promise<ArtifactRef>;
 
   // --- 受限状态机迁移（非 CRUD：只在既有枚举内推进生命周期态）---
   /**

@@ -34,6 +34,7 @@ import {
   CreateNeedResponseSchema,
   TransitionTaskStatusResponseSchema,
   WaiveDependencyResponseSchema,
+  CreateArtifactResponseSchema,
   type CreateTaskRequest,
   type CreateTaskResponse,
   type CreateDependencyRequest,
@@ -42,6 +43,8 @@ import {
   type CreateNeedResponse,
   type TransitionTaskStatusResponse,
   type WaiveDependencyResponse,
+  type CreateArtifactRequest,
+  type CreateArtifactResponse,
 } from './schemas/pm';
 
 type FetchLike = typeof fetch;
@@ -73,6 +76,8 @@ export interface HubApiClient {
     status: TaskStatus,
   ): Promise<TransitionTaskStatusResponse>;
   waiveDependency(depId: string): Promise<WaiveDependencyResponse>;
+  // 图纸档案写侧（V1-FOLLOWUPS ④，append-only）。I0：请求无人维度，submittedVia 由 server 钉 console（C5）。
+  createArtifact(req: CreateArtifactRequest): Promise<CreateArtifactResponse>;
 }
 
 export function createHubApiClient(options: HubApiClientOptions = {}): HubApiClient {
@@ -214,6 +219,14 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         `${baseUrl}/api/dependencies/${encodeURIComponent(depId)}/waive`,
         {},
         WaiveDependencyResponseSchema,
+        fetcher,
+      );
+    },
+    async createArtifact(req: CreateArtifactRequest) {
+      return postJson(
+        `${baseUrl}/api/artifacts`,
+        req,
+        CreateArtifactResponseSchema,
         fetcher,
       );
     },
