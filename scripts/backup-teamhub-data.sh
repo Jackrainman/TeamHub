@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# TeamHub 数据备份：把知识库 + 治理落盘文件做带时间戳快照，并**读回校验**（可解析 + 非空对象）后才 exit 0。
+# TeamHub 数据备份：把知识库 + 治理落盘文件做带时间戳快照，并**读回校验**（默认复用启动加载器做严格
+# schema 校验——"备份能读回" ⟺ "启动能加载"；server dist 缺失时回落"可解析+非空对象"并显著告警）后才 exit 0。
 # 模型 = feiyue `deploy/deploy-bank.sh`（重建前先确认数据卷）+ AGENTS §10「归档后读回验证」。
 #
 # 铁律（AGENTS §2）：跑 start-teamhub.sh 重启、docker compose 重建、或 verify-hub-compose.sh smoke 之前，
@@ -11,11 +12,13 @@
 #   TEAMHUB_BACKUP_DIR=/mnt/x ./scripts/backup-teamhub-data.sh    # 改备份落点
 #   TEAMHUB_KB_DATA_FILE=... TEAMHUB_GOV_DATA_FILE=... ./scripts/backup-teamhub-data.sh
 #
-# 退出码：任一**存在**的源文件读回校验失败（空 / 损坏 / 非对象）→ 非零退出（备份无效，别继续重建）。
-#         源文件不存在（尚无数据）→ skip、不算失败。
+# 退出码：任一**存在**的源文件读回校验失败（空 / 损坏 / schema 不符 / 启动会加载失败）→ 非零退出
+#         （备份无效，别继续重建）。源文件不存在（尚无数据）→ skip、不算失败。
 #
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SERVER_DIST="${ROOT_DIR}/apps/hub-server/dist/store"
 KB_FILE="${TEAMHUB_KB_DATA_FILE:-${HOME}/teamhub-data/kb.json}"
 GOV_FILE="${TEAMHUB_GOV_DATA_FILE:-${HOME}/teamhub-data/gov.json}"
 BACKUP_DIR="${TEAMHUB_BACKUP_DIR:-${HOME}/teamhub-data/backups}"
@@ -24,8 +27,9 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 command -v node >/dev/null 2>&1 || { echo "缺少 node（读回校验需要）" >&2; exit 127; }
 mkdir -p "$BACKUP_DIR"
 
-# 读回：必须能 JSON.parse 且顶层是非空对象，否则备份无效（feiyue「归档后读回」）。
-verify_json() {
+# 弱校验（仅 dist 缺失时回落）：能 JSON.parse 且顶层非空对象。**比启动加载弱**——放得过缺字段 /
+# 字段类型错（如 tasks 非数组）的快照，这类快照备份「通过」却让 FileXStore.create 启动即崩，故仅兜底。
+verify_json_weak() {
   node -e '
     const fs = require("fs");
     const raw = fs.readFileSync(process.argv[1], "utf8");
@@ -36,16 +40,46 @@ verify_json() {
   ' "$1"
 }
 
+# 强校验（默认）：复用**启动加载器本身**当 oracle。FileXStore.create() 对**已存在**文件 = 严格 zod 解析
+# （KbSnapshotSchema / GovernanceSnapshotSchema，与 main.ts 启动同一条加载路径），且对已存在文件**绝不回写**
+# （实测 mtime 不变）。于是「备份能读回」严格等价「启动能加载」，不再放过弱校验会漏的开机即崩快照。
+# dist 未构建（裸 checkout）时回落弱校验并**显著告警**：此次未做强 schema 校验。
+verify_snapshot() {
+  local file="$1" kind="$2" mod cls
+  case "$kind" in
+    gov) mod="${SERVER_DIST}/file-gov-store.js"; cls="FileGovStore" ;;
+    kb)  mod="${SERVER_DIST}/file-kb-store.js";  cls="FileKbStore"  ;;
+    *)   echo "verify_snapshot: 未知类型 $kind" >&2; return 1 ;;
+  esac
+  if [[ -f "$mod" ]]; then
+    MOD_URL="file://$mod" CLS="$cls" node -e '
+      const url = process.env.MOD_URL, cls = process.env.CLS, file = process.argv[1];
+      import(url)
+        .then((m) => m[cls].create(file))   // 文件已存在 → 仅严格解析，绝不写
+        .then(() => process.exit(0))
+        .catch((e) => {
+          const msg = String((e && e.message) || e).replace(/\s+/g, " ").slice(0, 300);
+          console.error("启动加载校验失败（启动会以同样原因崩，故拒绝此备份）：" + msg);
+          process.exit(1);
+        });
+    ' "$file"
+  else
+    echo "  ⚠ 未构建 server dist（${mod} 缺失）→ 跳过强 schema 校验，仅弱校验（可解析+非空对象）。" >&2
+    echo "    重部署前应先 build，使备份读回与启动加载严格同口径（否则坏快照可能放行却开机即崩）。" >&2
+    verify_json_weak "$file"
+  fi
+}
+
 backed=0
 backup_one() {
-  local src="$1" label="$2"
+  local src="$1" label="$2" kind="$3"
   if [[ ! -f "$src" ]]; then
     echo "  [skip] $label 不存在（$src）——尚无数据，无需备份"
     return 0
   fi
   local dst="$BACKUP_DIR/$(basename "$src").$STAMP"
   cp "$src" "$dst"
-  if verify_json "$dst"; then
+  if verify_snapshot "$dst" "$kind"; then
     echo "  [ok]   $label → $dst（读回校验通过）"
     backed=$((backed + 1))
   else
@@ -56,8 +90,8 @@ backup_one() {
 }
 
 echo "== TeamHub 数据备份 @ $STAMP → $BACKUP_DIR"
-backup_one "$KB_FILE" "知识库 kb"
-backup_one "$GOV_FILE" "治理 gov"
+backup_one "$KB_FILE" "知识库 kb" kb
+backup_one "$GOV_FILE" "治理 gov" gov
 echo "完成：$backed 份已备份并读回校验。"
 
 cat <<EOF

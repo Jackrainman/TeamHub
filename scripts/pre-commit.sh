@@ -13,8 +13,10 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 fail=0
 
-# 1) 密钥扫描：暂存的**新增行**里禁止 sk-... 形态密钥（OpenAI/DeepSeek/Anthropic 等）。
-secret_hits="$(git diff --cached -U0 --no-color | grep -E '^\+' | grep -nE 'sk-[A-Za-z0-9]{20,}' || true)"
+# 1) 密钥扫描：暂存的**新增行**里禁止 sk-... 形态密钥。字符类含 -/_，故现代前缀
+#    （Anthropic sk-ant-api03-…、OpenAI sk-proj-…）与 legacy sk-…(OpenAI/DeepSeek) 一并命中——
+#    旧版 [A-Za-z0-9] 不含连字符会漏掉 sk-ant-/sk-proj- 整类，是真漏洞。
+secret_hits="$(git diff --cached -U0 --no-color | grep -E '^\+' | grep -nE 'sk-[A-Za-z0-9_-]{20,}' || true)"
 if [[ -n "$secret_hits" ]]; then
   echo "✗ 暂存改动疑似含密钥（sk-...），拒绝提交：" >&2
   echo "$secret_hits" >&2

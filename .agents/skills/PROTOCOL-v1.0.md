@@ -223,5 +223,5 @@ v1.0 阶段保留人工 + 抽检，避免过早工程化锁定演化空间。
 - `docs/design/D-023-skill-protocol-v1.md` —— 本协议的详细 ADR 草稿（决策理由 / 放弃方案 / 落地任务）
 - `docs/planning/decisions.md` D-023 —— 聚合 ADR 条目
 - `docs/planning/skill-protocol-migration-gap.md` —— 3 个现有 active 业务 skill 与 v1.0 的迁移差距清单
-- `AGENTS.md` §9 —— SKILL.md mirror rule（hook 同步 + 哨兵 + 退役流程）
-- `.agents/skills/atomic-task/SKILL.md` §DoD type 对照表 —— v1.0 §2.1 末尾「工程谓词式 DoD」参照源
+- `archive/legacy-harness/AGENTS-serial.md` §9 —— SKILL.md mirror rule（hook 同步 + 哨兵 + 退役流程）。**D-066 后镜像机制随串行轨退役下沉，trunk 不再镜像；当前 AGENTS.md（精简版）已无 §9，仅存档备查。**
+- `archive/legacy-harness/AGENTS-serial.md` §6.0「DoD type 对照表」 —— v1.0 §2.1 末尾「工程谓词式 DoD」参照源。**D-066 后随串行轨退役下沉到存档；原 `.agents/skills/atomic-task/SKILL.md` 已不在 trunk，且该对照表本就在 AGENTS（serial）而非该 SKILL.md。**
