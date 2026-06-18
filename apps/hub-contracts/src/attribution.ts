@@ -188,13 +188,19 @@ export function deriveBlockAttributions(
 /** 结构关键链 = DAG 中最长路径（按节点数）上的节点集合，不算精确工期（CPM 远期）。 */
 function computeCriticalSet(tasks: Task[], deps: Dependency[]): Set<string> {
   const ids = new Set(tasks.map((t) => t.id));
+  // 确定化迭代序：含环图里 longestTo 的 cycle-guard 返回未 memoize 的占位 1，
+  // 使最长链结果对「节点访问顺序 / preds 数组顺序」敏感——同一含环图换个 tasks 数组顺序
+  // 就可能翻转 criticalCount。对 taskId 与每个 preds 数组做稳定排序固定迭代序，
+  // 让含环输出确定；DAG（无环）下任何顺序结果本就一致，故不改变 DAG 结果。
+  const taskIds = [...ids].sort();
   const preds = new Map<string, string[]>(); // toTaskId -> fromTaskId[]
-  for (const t of tasks) preds.set(t.id, []);
+  for (const id of taskIds) preds.set(id, []);
   for (const d of deps) {
     if (ids.has(d.fromTaskId) && ids.has(d.toTaskId)) {
       preds.get(d.toTaskId)!.push(d.fromTaskId);
     }
   }
+  for (const list of preds.values()) list.sort();
 
   const length = new Map<string, number>();
   const parent = new Map<string, string | null>();
@@ -222,11 +228,11 @@ function computeCriticalSet(tasks: Task[], deps: Dependency[]): Set<string> {
 
   let endId: string | null = null;
   let endLen = 0;
-  for (const t of tasks) {
-    const l = longestTo(t.id);
+  for (const id of taskIds) {
+    const l = longestTo(id);
     if (l > endLen) {
       endLen = l;
-      endId = t.id;
+      endId = id;
     }
   }
 

@@ -51,6 +51,12 @@ async function main(): Promise<void> {
         demoSeed ? governanceScenarioFixture : emptyGovSnapshot(),
       )
     : undefined;
+  if (!store) {
+    // 内存模式无落盘：PM 录入 / 图纸提交日志 / 结案知识节点重启即丢。提示设 TEAMHUB_GOV_DATA_FILE 落盘。
+    console.warn(
+      '[teamhub-hub-server] TEAMHUB_GOV_DATA_FILE 未设：治理数据走内存（InMemoryGovStore），重启丢失。设该环境变量落盘持久化。',
+    );
+  }
 
   // 设了 TEAMHUB_KB_DATA_FILE → 知识库语料落盘（重启不丢、closeout 回灌累积）；
   // 未设则维持 InMemoryKbStore（mock-first 不变）。单一真相在服务器。
@@ -61,6 +67,12 @@ async function main(): Promise<void> {
         demoSeed ? kbScenarioFixture : emptyKbSnapshot(),
       )
     : undefined;
+  if (!kbStore) {
+    // 内存模式无落盘：结案回灌的 KB 语料重启即丢。提示设 TEAMHUB_KB_DATA_FILE 落盘。
+    console.warn(
+      '[teamhub-hub-server] TEAMHUB_KB_DATA_FILE 未设：知识库语料走内存（InMemoryKbStore），重启丢失。设该环境变量落盘持久化。',
+    );
+  }
 
   const host = process.env.HUB_HOST ?? DEFAULT_HOST;
   const port = Number.parseInt(process.env.HUB_PORT ?? String(DEFAULT_PORT), 10);

@@ -297,4 +297,68 @@ describe('PM 受限状态机迁移：任务状态流转 + 连线作废', () => {
       await app.close();
     }
   });
+
+  // 环检测 #1 回归：waive 后逆向边不应被误拒。建 A→B，waive 掉，再建反向 B→A 应 201
+  // （waived 边已死、从图隐藏、不构成真实阻塞路径，故不与逆向边成环）。修前 wouldCreateCycle 仍把
+  // waived 边算进去 → B→A 被永久 400 误拒。satisfied 边仍参与环检测（见下一条）。
+  test('环检测：A→B → waive → 建反向 B→A 应 201（waived 边不挡逆向边）', async () => {
+    const app = buildHubServer();
+    const dep = {
+      projectId: 'prj-robots',
+      type: 'blocks' as const,
+      source: 'human' as const,
+      confirmedBy: null,
+    };
+    try {
+      // 建 A→B（用 R2 两条 fixture 里彼此无任何路径的任务，避免与种子 R1 边互扰）
+      const ab = await app.inject({
+        method: 'POST',
+        url: '/api/dependencies',
+        payload: { ...dep, fromTaskId: 't-r2-spare', toTaskId: 't-r2-integration' },
+      });
+      expect(ab.statusCode).toBe(201);
+      const depId = ab.json().dependency.id as string;
+
+      // waive 掉这条边
+      const waive = await app.inject({
+        method: 'POST',
+        url: `/api/dependencies/${depId}/waive`,
+      });
+      expect(waive.statusCode).toBe(200);
+
+      // 建反向 B→A：因 A→B 已 waived（图里没这条活边），不构成环 → 201
+      const ba = await app.inject({
+        method: 'POST',
+        url: '/api/dependencies',
+        payload: { ...dep, fromTaskId: 't-r2-integration', toTaskId: 't-r2-spare' },
+      });
+      expect(ba.statusCode).toBe(201);
+    } finally {
+      await app.close();
+    }
+  });
+
+  // 环检测：satisfied / active 边仍参与（只滤 waived）。dep-001 是 satisfied 的 arm-mount→chassis，
+  // 建反向 chassis→arm-mount 应被拒 400（成环），证明修复只放行 waived、未放松真实路径的环防护。
+  test('环检测：satisfied 边仍挡逆向边（chassis→arm-mount 成环 → 400）', async () => {
+    const app = buildHubServer();
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/dependencies',
+        payload: {
+          projectId: 'prj-robots',
+          fromTaskId: 't-r1-chassis', // 反向：dep-001 是 arm-mount→chassis(satisfied)
+          toTaskId: 't-r1-arm-mount',
+          type: 'blocks',
+          source: 'human',
+          confirmedBy: null,
+        },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json().detail).toContain('cycle');
+    } finally {
+      await app.close();
+    }
+  });
 });

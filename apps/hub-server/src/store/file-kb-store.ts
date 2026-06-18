@@ -76,8 +76,28 @@ export class FileKbStore implements KbStore {
   }
 
   async appendCloseout(input: KbCloseoutAppend): Promise<void> {
+    // 修复 #3：先改内存（upsert 三件物）再落盘；persist() 失败时回滚到写前快照再抛——
+    // 否则「内存已变更 + 客户端 500 重试」会在语料里重复。appendCloseoutInto 是按主键 upsert（可能覆盖既有），
+    // 故不能简单 pop；这里浅拷贝三条 live 数组作写前快照，失败时整体还原（内容回到调用前）。
+    const before = {
+      issueCards: [...this.snapshot.issueCards],
+      errorEntries: [...this.snapshot.errorEntries],
+      archiveDocuments: [...this.snapshot.archiveDocuments],
+    };
     appendCloseoutInto(this.snapshot, input);
-    await this.persist();
+    try {
+      await this.persist();
+    } catch (err) {
+      // 原地还原（保持 snapshot 引用不变，splice 回填写前内容）。
+      this.snapshot.issueCards.splice(0, this.snapshot.issueCards.length, ...before.issueCards);
+      this.snapshot.errorEntries.splice(0, this.snapshot.errorEntries.length, ...before.errorEntries);
+      this.snapshot.archiveDocuments.splice(
+        0,
+        this.snapshot.archiveDocuments.length,
+        ...before.archiveDocuments,
+      );
+      throw err;
+    }
   }
 
   /** 原子写：写 tmp 再 rename，串行化避免并发覆盖。 */

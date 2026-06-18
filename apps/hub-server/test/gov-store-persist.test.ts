@@ -167,6 +167,59 @@ describe('FileGovStore 落盘', () => {
     await expect(FileGovStore.create(file)).rejects.toThrow();
   });
 
+  // 修复 #3：persist 失败 → 回滚刚追加的内存元素（避免「内存已变更 + 客户端 500 重试」产生重复）。
+  // 制造确定性写失败：把承载目录换成文件 → persist 的 mkdir 抛 EEXIST。createTask 内存先 push 再 persist，
+  // 失败后那条新任务必须从内存撤回（否则后续读 / 重试会看到这条幽灵记录）。
+  test('createTask persist 失败 → 内存回滚（不留幽灵记录）', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'gov-rollback-'));
+    const sub = join(dir, 'govdir');
+    await mkdir(sub);
+    const file = join(sub, 'gov.json');
+    const store = await FileGovStore.create(file);
+    const before = (await store.getSnapshot()).tasks.length;
+
+    await rm(sub, { recursive: true, force: true });
+    await writeFile(sub, 'blocker'); // 让下次 persist 失败
+
+    await expect(
+      store.createTask({
+        projectId: 'prj-robots',
+        groupId: 'grp-mech',
+        title: '应被回滚',
+        rawSummary: 'x',
+        ownerId: null,
+        collaboratorIds: [],
+        robotTarget: 'R1',
+        intrinsicComplexity: 'normal',
+      }),
+    ).rejects.toThrow();
+
+    // 内存里不应残留那条任务（已回滚）
+    expect((await store.getSnapshot()).tasks.length).toBe(before);
+  });
+
+  // 修复 #3：waiveDependency（idx 类）persist 失败 → 还原写前整条元素（status 不应停在 waived）。
+  test('waiveDependency persist 失败 → 内存还原旧状态（不停在 waived）', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'gov-rollback-waive-'));
+    const sub = join(dir, 'govdir');
+    await mkdir(sub);
+    const file = join(sub, 'gov.json');
+    const store = await FileGovStore.create(file);
+    const beforeStatus = (await store.getSnapshot()).dependencies.find(
+      (d) => d.id === 'dep-002',
+    )?.status;
+
+    await rm(sub, { recursive: true, force: true });
+    await writeFile(sub, 'blocker');
+
+    await expect(store.waiveDependency('dep-002')).rejects.toThrow();
+
+    const afterStatus = (await store.getSnapshot()).dependencies.find(
+      (d) => d.id === 'dep-002',
+    )?.status;
+    expect(afterStatus).toBe(beforeStatus); // 还原写前状态，未停在 waived
+  });
+
   // H2（AUDIT-FIXES）：一次写失败不能永久毒化写链。修复后下一次 createTask 仍能真正落盘。
   test('写失败后写链不中毒：恢复后下一次 createTask 仍能落盘', async () => {
     dir = await mkdtemp(join(tmpdir(), 'gov-h2-'));

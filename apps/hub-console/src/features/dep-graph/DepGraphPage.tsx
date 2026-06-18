@@ -499,11 +499,13 @@ export function DepGraphPage({
               </button>
             </header>
             <div className="entry-overlay__body">
-              <PmCreatePanel
-                client={client}
-                tasks={tasksQuery.data?.tasks ?? []}
-                onCreated={handleEntryCreated}
-              />
+              {tasksQuery.data != null ? (
+                <PmCreatePanel
+                  client={client}
+                  tasks={tasksQuery.data.tasks}
+                  onCreated={handleEntryCreated}
+                />
+              ) : null}
             </div>
           </div>
         </div>
@@ -552,6 +554,10 @@ function DetailPanel({
   const { t } = useI18n();
   // 选「搁置」走内联二次确认（搁置=移出活跃流程，唯一值得确认的流转）；其余即时提交。
   const [pendingShelve, setPendingShelve] = useState(false);
+  // 切换节点时清除未完成的搁置确认，防止在 B 上意外触发在 A 上发起的确认。
+  useEffect(() => {
+    setPendingShelve(false);
+  }, [node?.id ?? null]);
   if (!node) {
     return (
       <aside className="panel dep-graph-detail">

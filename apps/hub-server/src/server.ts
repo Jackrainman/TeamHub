@@ -142,6 +142,11 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     const nowMs = Date.now();
     const hit = rateHits.get(ip);
     if (!hit || nowMs >= hit.resetAt) {
+      // 懒驱逐：rateHits 无 TTL 清理、按 IP 无界增长（长跑 / IP 轮换 / 扫描会撑大内存）。
+      // 仅在 Map 超过阈值时一次性清掉已过窗口的死条目（O(n) 但极少触发），不引新依赖 / 不开后台定时器。
+      if (rateHits.size > 10_000) {
+        for (const [k, v] of rateHits) if (v.resetAt <= nowMs) rateHits.delete(k);
+      }
       rateHits.set(ip, { count: 1, resetAt: nowMs + rateLimit.windowMs });
     } else if (hit.count >= rateLimit.max) {
       void reply.code(429).send({ detail: 'rate limit exceeded' });
@@ -349,7 +354,15 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     // GET /api/dep-graph 的 computeCriticalSet / toDepGraphView 派生死循环、卡死整个 server（单请求 DoS）。
     const snapshot = await store.getSnapshot();
     const { fromTaskId, toTaskId } = parsed.data;
-    if (wouldCreateCycle(snapshot.dependencies, fromTaskId, toTaskId)) {
+    // 只滤 waived 边（已作废、从 dep-graph 隐藏、不构成真实阻塞路径）。否则 waive 一条 A→B 后想建反向
+    // B→A 会被永久误拒——逆向边并不与一条已死的边成环。satisfied 边仍是真实历史路径、必须参与环检测。
+    if (
+      wouldCreateCycle(
+        snapshot.dependencies.filter((d) => d.status !== 'waived'),
+        fromTaskId,
+        toTaskId,
+      )
+    ) {
       void reply.code(400).send({
         detail:
           fromTaskId === toTaskId
@@ -448,6 +461,9 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     // 避免哈希 mod 1000 在 ~38 次/日时生日碰撞 → 静默覆盖、污染 kb-similar 跨赛季查找。
     const kbSnapshot = await kbStore.getKbSnapshot();
     const dayPrefix = `DBG-${now.slice(0, 10).replace(/-/g, '')}-`;
+    // known-low（不在本批处理）：sameDaySeq 的 read-then-write 是 TOCTOU——两个并发 closeout 可能读到同一
+    // count、派生相同 errorCode。需真并发才触发、量小，小作坊（单端口 / 极少并发写）可接受；真要彻底消除得在
+    // store 层把序号分配做成原子计数器。本批只修「同一结案重试」的重复主键（见 appendCloseoutInto upsert）。
     const sameDaySeq =
       kbSnapshot.errorEntries.filter((e) => e.errorCode.startsWith(dayPrefix)).length + 1;
     const result = buildCloseoutFromIssue(
@@ -466,15 +482,28 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
       void reply.code(422).send({ detail: result.reason });
       return;
     }
-    // 结案派生知识节点持久到治理快照（复用同一 GovernanceSnapshot，对抗核实确认成立）
+    // 结案派生知识节点持久到治理快照（复用同一 GovernanceSnapshot，对抗核实确认成立）。
+    // 两步写（GovStore.closeoutKbNode + KbStore.appendCloseout）跨两个独立 store、无分布式事务。
+    // 第一步失败 → 整个请求抛错（无副作用，客户端可安全重试）。第二步失败 → 知识节点已落 GovStore、
+    // 但相似检索语料没回灌 → 两库分叉（GET /api/kb/similar 查不到本次结案）。这种分叉不能静默吞——
+    // app.log.error 记录下来，让运维能发现并补回灌；仍把错误抛给客户端（500，别伪造 201 成功）。
+    // 幂等护栏（见 closeoutKbNode 的 dedup / appendCloseoutInto 的 upsert）：重试同一结案不产生重复主键。
     const knowledgeNode = await store.closeoutKbNode(result.knowledgeNodeDraft);
-    // 回灌相似检索语料（AI+知识库闭环）：archived 卡 / 错误表 / 归档写回 kbStore，
-    // 否则本次上传后下次 GET /api/kb/similar 查不到（闭环断）。无人维度（C2）：主键 issue/errorCode。
-    await kbStore.appendCloseout({
-      issueCard: result.updatedIssueCard,
-      errorEntry: result.errorEntry,
-      archiveDocument: result.archiveDocument,
-    });
+    try {
+      // 回灌相似检索语料（AI+知识库闭环）：archived 卡 / 错误表 / 归档写回 kbStore，
+      // 否则本次上传后下次 GET /api/kb/similar 查不到（闭环断）。无人维度（C2）：主键 issue/errorCode。
+      await kbStore.appendCloseout({
+        issueCard: result.updatedIssueCard,
+        errorEntry: result.errorEntry,
+        archiveDocument: result.archiveDocument,
+      });
+    } catch (err) {
+      app.log.error(
+        { err, issueId: issue.id, knowledgeNodeId: knowledgeNode.id, errorCode: result.errorEntry.errorCode },
+        'kb closeout two-step diverged: knowledge node persisted but corpus reload failed; retry safe (idempotent upsert)',
+      );
+      throw err;
+    }
     // L4：与其余 create 路由（tasks/dependencies/needs）一致，结案创建归档/错误表/知识节点 → 201。
     void reply.code(201);
     return KbCloseoutResponseSchema.parse({

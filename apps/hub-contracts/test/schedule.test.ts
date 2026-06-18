@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import {
+  GOVERNANCE_SCENARIO_NOW,
+  GOVERNANCE_SCENARIO_TIME,
   PresenceRecommendationSchema,
   ResourceSessionSchema,
   SharedResourceSchema,
-  GOVERNANCE_SCENARIO_NOW,
   derivePresenceSchedule,
   scheduleResourceDownFixture,
   scheduleScenarioFixture,
@@ -112,5 +113,53 @@ describe('derivePresenceSchedule — 车撞坏：整片下游今晚作罢', () =
 
   test('只跑 R2 的机械组不受 R1 撞坏影响（沉默）', () => {
     expect(byGroup.has('grp-mech')).toBe(false);
+  });
+});
+
+describe('blockedFree relatedKnowledge 跨 task 去重（URI 唯一）', () => {
+  // 让视觉组两个任务都 blockedIdle 且都挂同一份知识 URI（repo://r2-vision/src）：
+  // 不去重则该组 free 建议的 relatedKnowledge 会把同一条资料列两遍。
+  const visionA = { id: 'm-visionA', displayName: '视觉A', source: 'console' as const };
+  const tampered = {
+    ...scheduleScenarioFixture,
+    members: scheduleScenarioFixture.members.map((m) =>
+      m.id === 'm-visionA' ? { ...m, status: 'idle' as const } : m,
+    ),
+    dependencies: [
+      ...scheduleScenarioFixture.dependencies,
+      {
+        id: 'dep-dataset-blocked',
+        projectId: 'prj-robots',
+        fromTaskId: 't-r1-chassis',
+        toTaskId: 't-r1-dataset',
+        type: 'blocks' as const,
+        status: 'active' as const,
+        source: 'human' as const,
+        confirmedBy: visionA,
+        createdAt: GOVERNANCE_SCENARIO_TIME,
+        updatedAt: GOVERNANCE_SCENARIO_NOW,
+      },
+    ],
+    taskKnowledgeTags: [
+      ...scheduleScenarioFixture.taskKnowledgeTags,
+      // 第二个被卡视觉任务挂同一知识节点（kn-vision-cal → repo://r2-vision/src）。
+      {
+        id: 'tkt-dataset-cal',
+        taskId: 't-r1-dataset',
+        knowledgeNodeId: 'kn-vision-cal',
+        source: 'human' as const,
+        confirmedBy: visionA,
+      },
+    ],
+  };
+
+  test('视觉组 free，relatedKnowledge URI 不重复', () => {
+    const recs = derivePresenceSchedule(tampered, NOW, '今晚');
+    const vision = recs.find((r) => r.groupId === 'grp-vision');
+    expect(vision?.reason).toBe('blockedFree');
+    const uris = vision!.relatedKnowledge.map((k) => k.uri);
+    // 同一 URI 被两个被卡任务带入，去重后只出现一次
+    expect(uris.filter((u) => u === 'repo://r2-vision/src')).toHaveLength(1);
+    expect(new Set(uris).size).toBe(uris.length);
   });
 });

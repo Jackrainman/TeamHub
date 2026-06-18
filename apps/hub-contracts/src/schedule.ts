@@ -231,13 +231,24 @@ export function derivePresenceSchedule(
     const resource = acc.resourceId ? resourcesById.get(acc.resourceId) : undefined;
 
     // blockedFree 挂该组被卡任务的"可看的资料"（复用 DepGraph 已派生的 relatedKnowledge）。
-    let relatedKnowledge: DepNodeKnowledge[] = [];
+    // 跨 task 累积时按 URI 去重（镜像 attribution.ts relatedKnowledgeFor 的 seen-set 模式）：
+    // 同一份资料可能挂在该组多个被卡任务上，不去重会在面板里重复显示同一条。
+    const relatedKnowledge: DepNodeKnowledge[] = [];
     if (acc.reason === 'blockedFree') {
+      const seenUris = new Set<string>();
       for (const taskId of blockedIdleTaskIds) {
         const task = tasksById.get(taskId);
         if (task?.groupId !== groupId) continue;
         const node = nodeById.get(taskId);
-        if (node) relatedKnowledge = relatedKnowledge.concat(node.relatedKnowledge);
+        if (!node) continue;
+        for (const k of node.relatedKnowledge) {
+          // uri 可空（如 person 类无链接）：仅对非空 uri 去重，空 uri 条目原样保留。
+          if (k.uri !== null) {
+            if (seenUris.has(k.uri)) continue;
+            seenUris.add(k.uri);
+          }
+          relatedKnowledge.push(k);
+        }
       }
     }
 

@@ -59,6 +59,15 @@ export class InMemoryGovStore implements GovStore {
   }
 
   /**
+   * @internal 持久层回滚专用：返回**可变的** live 快照引用（即写方法 push/改 idx 的同一对象），
+   * 让 FileGovStore 在 persist() 失败时把刚追加的内存元素撤回（避免「内存已变更 + 客户端 500 重试」产生重复）。
+   * **不对外公开**：仅 FileGovStore 在自身写方法内、捕获写前状态 + persist 失败时调用；正常读路径走 getSnapshot()。
+   */
+  snapshotForRollback(): GovernanceSnapshot {
+    return this.snapshot;
+  }
+
+  /**
    * PM 项目计划表单条任务录入（C1 兜底录入口，POST /api/tasks）。Store 补 id + 时间戳 + 派生默认：
    * `status` 默认 `pending`、`statusSource` 默认 `console`（C5：真实进度优先 git/lark 派生，console 录入兜底）、
    * `lastProgressAt` 初始 null（由 commit/check-in 派生信号回填）。**C2/I0**：Task.ownerId 只表「谁负责」分工
@@ -123,10 +132,21 @@ export class InMemoryGovStore implements GovStore {
    * 提交）+ 归档 generatedBy(ai/manual/hybrid)，**不存裸 memberId、不可事后 groupBy「谁结案最多」**。
    */
   async closeoutKbNode(draft: KnowledgeNodeDraft): Promise<KnowledgeNode> {
+    const now = this.clock.now().toISOString();
+    // 幂等：同一 issue 复结案派生的节点 name 相同（deriveKnowledgeNodeFromIssue 钉
+    // `踩过的坑：${issue.title}`），draft 本身无 id。按 name dedup——命中则**原地覆盖、保留已有 id**
+    // （主键稳定、刷新内容/时间戳），避免 500 重试 / 重复结案在治理快照里堆出重复 KnowledgeNode 主键。
+    const idx = this.snapshot.knowledgeNodes.findIndex((n) => n.name === draft.name);
+    if (idx >= 0) {
+      const existing = this.snapshot.knowledgeNodes[idx];
+      const updated: KnowledgeNode = { ...draft, id: existing.id, createdAt: now };
+      this.snapshot.knowledgeNodes[idx] = updated;
+      return updated;
+    }
     const node: KnowledgeNode = {
       ...draft,
       id: `kn-cl-${this.snapshot.knowledgeNodes.length + 1}`,
-      createdAt: this.clock.now().toISOString(),
+      createdAt: now,
     };
     this.snapshot.knowledgeNodes.push(node);
     return node;

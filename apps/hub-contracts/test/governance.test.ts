@@ -11,6 +11,7 @@ import {
   TaskKnowledgeTagSchema,
   TaskSchema,
   GOVERNANCE_SCENARIO_NOW,
+  GOVERNANCE_SCENARIO_TIME,
   deriveBlockAttributions,
   governanceScenarioFixture,
   memberKnowledgeFixtures,
@@ -187,5 +188,75 @@ describe('软删除：waived 连线从视图隐藏，satisfied 仍可见', () =>
     expect(ids).toContain('dep-001'); // satisfied（已满足）→ 仍可见
     // 节点不受影响（边作废不删任务节点）
     expect(view.nodes.some((n) => n.id === 't-r1-newboard')).toBe(true);
+  });
+});
+
+describe('computeCriticalSet 含环图确定性：criticalCount 不随 tasks 顺序翻转', () => {
+  // 自包含含环图：a→b→c→a（环）+ d→a（入环尾）+ b→e（分支）。
+  // 修复前 longestTo 的 cycle-guard 占位让最长链随访问序漂移，criticalCount 在不同 tasks
+  // 顺序下会在 3 / 4 间翻转（已用 120 种排列实证）；修复后稳定为唯一集合 {a,b,c}。
+  const task = (id: string) => ({
+    id,
+    projectId: 'prj-cy',
+    groupId: 'grp-cy',
+    title: id,
+    rawSummary: id,
+    status: 'inProgress' as const,
+    statusSource: 'console' as const,
+    ownerId: null,
+    collaboratorIds: [],
+    robotTarget: 'R1' as const,
+    intrinsicComplexity: 'normal' as const,
+    lastProgressAt: null,
+    createdAt: GOVERNANCE_SCENARIO_TIME,
+    updatedAt: NOW,
+  });
+  const edge = (id: string, from: string, to: string) => ({
+    id,
+    projectId: 'prj-cy',
+    fromTaskId: from,
+    toTaskId: to,
+    type: 'blocks' as const,
+    status: 'active' as const,
+    source: 'human' as const,
+    confirmedBy: { id: 'm-cy', displayName: 'CY', source: 'console' as const },
+    createdAt: GOVERNANCE_SCENARIO_TIME,
+    updatedAt: NOW,
+  });
+  const baseSnapshot = {
+    seasonId: 'season-cy',
+    projectId: 'prj-cy',
+    stage: 'build',
+    groups: [
+      { id: 'grp-cy', seasonId: 'season-cy', parentGroupId: null, name: 'CY', kind: 'custom' as const },
+    ],
+    members: [],
+    tasks: ['a', 'b', 'c', 'd', 'e'].map(task),
+    dependencies: [
+      edge('e-ab', 'a', 'b'),
+      edge('e-bc', 'b', 'c'),
+      edge('e-ca', 'c', 'a'),
+      edge('e-da', 'd', 'a'),
+      edge('e-be', 'b', 'e'),
+    ],
+    needs: [],
+    knowledgeNodes: [],
+    taskKnowledgeTags: [],
+    artifacts: [],
+  };
+  const withTasks = (order: string[]) => ({
+    ...baseSnapshot,
+    tasks: order.map(task),
+  });
+
+  test('同一含环图打乱 tasks 顺序两次 → criticalCount 一致', () => {
+    const viewA = toDepGraphView(withTasks(['a', 'b', 'c', 'd', 'e']), NOW);
+    const viewB = toDepGraphView(withTasks(['e', 'd', 'c', 'b', 'a']), NOW);
+
+    expect(viewA.summary.criticalCount).toBe(viewB.summary.criticalCount);
+    // critical 节点集合本身也应一致（不仅计数）
+    const setA = viewA.nodes.filter((x) => x.isCritical).map((x) => x.id).sort();
+    const setB = viewB.nodes.filter((x) => x.isCritical).map((x) => x.id).sort();
+    expect(setA).toEqual(setB);
   });
 });

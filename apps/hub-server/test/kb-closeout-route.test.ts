@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { buildHubServer } from '../src/server.js';
 import { KbCloseoutResponseSchema } from '../src/contracts.js';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
+import { InMemoryKbStore } from '../src/store/mock-kb-store.js';
 
 const liveIssue = {
   id: 'iss-live-closeout',
@@ -112,6 +113,51 @@ describe('POST /api/kb/closeout', () => {
       expect(c1).toMatch(/^DBG-\d{8}-\d{3}$/);
       expect(c2).toMatch(/^DBG-\d{8}-\d{3}$/);
       expect(c1).not.toBe(c2);
+    } finally {
+      await app.close();
+    }
+  });
+
+  // 修复 #2：重复结案幂等。同一 issue 复结案（500 重试 / 重复提交）不应在治理快照 / 检索语料堆出重复主键——
+  // KnowledgeNode 按 name dedup、errorEntry 按 id（err-${issue.id}）upsert、archiveDocument 按 issueId upsert、
+  // issueCard 按 id upsert。两次结案后各计数仍是 +1。
+  test('重复结案幂等（#2）：KnowledgeNode / errorEntry / archiveDocument / issueCard 主键不重复', async () => {
+    const store = new InMemoryGovStore();
+    const kbStore = new InMemoryKbStore();
+    const kbBefore = await kbStore.getKbSnapshot();
+    const errBefore = kbBefore.errorEntries.length;
+    const archiveBefore = kbBefore.archiveDocuments.length;
+    const cardBefore = kbBefore.issueCards.length;
+    const nodesBefore = (await store.getSnapshot()).knowledgeNodes.length;
+    const app = buildHubServer({ store, kbStore });
+    const payload = {
+      issue: liveIssue,
+      category: '云台',
+      rootCause: 'PID 比例项过大',
+      resolution: '下调 Kp + 加滤波',
+    };
+    try {
+      const r1 = await app.inject({ method: 'POST', url: '/api/kb/closeout', payload });
+      const r2 = await app.inject({ method: 'POST', url: '/api/kb/closeout', payload });
+      expect(r1.statusCode).toBe(201);
+      expect(r2.statusCode).toBe(201);
+
+      // 治理快照：KnowledgeNode 只 +1（同 name 原地覆盖，id 稳定）
+      const nodes = (await store.getSnapshot()).knowledgeNodes;
+      expect(nodes.length).toBe(nodesBefore + 1);
+      expect(r1.json().knowledgeNode.id).toBe(r2.json().knowledgeNode.id);
+
+      // 检索语料：errorEntry(同 id) / archiveDocument(同 issueId) / issueCard(同 id) 各只 +1
+      const kbAfter = await kbStore.getKbSnapshot();
+      expect(kbAfter.errorEntries.length).toBe(errBefore + 1);
+      expect(kbAfter.archiveDocuments.length).toBe(archiveBefore + 1);
+      expect(kbAfter.issueCards.length).toBe(cardBefore + 1);
+      expect(
+        kbAfter.errorEntries.filter((e) => e.id === `err-${liveIssue.id}`),
+      ).toHaveLength(1);
+      expect(
+        kbAfter.archiveDocuments.filter((d) => d.issueId === liveIssue.id),
+      ).toHaveLength(1);
     } finally {
       await app.close();
     }

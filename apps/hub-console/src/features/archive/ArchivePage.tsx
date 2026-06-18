@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ArtifactRef } from '@teamhub/hub-contracts';
 import { nextArtifactVersionNo } from '@teamhub/hub-contracts';
@@ -168,6 +168,11 @@ export function ArchivePage({
     }
     return Array.from(seen).sort();
   }, [query.data, ownerGroup, season, robotCode]);
+
+  // ownerGroup/season/robotCode 切换时重置 mechanism 下拉选中值，避免残留旧值在新组合下提交写错机构。
+  useEffect(() => {
+    setMechanism('');
+  }, [ownerGroup, season, robotCode]);
 
   // 当前机构值：勾了新机构、或该组合下无既有机构（空档案/新组首条）→ 走文本框；否则走下拉。
   // usingTextInput 必须与下方渲染条件一致，否则空档案时文本框可输入但 effectiveMechanism 恒空 → 无法录第一条。
@@ -522,7 +527,7 @@ function ArtifactLogRow({
           {versionBadge ? (
             <span className="archive-badge">{versionBadge}</span>
           ) : null}
-          {artifact.revision ? (
+          {!(artifact.season && artifact.robotCode) && artifact.revision ? (
             <span className="archive-badge">{artifact.revision}</span>
           ) : null}
           {isCurrent ? (

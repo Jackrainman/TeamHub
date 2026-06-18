@@ -90,6 +90,22 @@ describe('buildCloseoutFromIssue 结案闭环', () => {
     expect(result.ok).toBe(false);
   });
 
+  // 回归护栏：在 TeamHub 模型里 resolved 是「修完、等结案入库」的**输入态**，不是已闭态——
+  // archived 才是闭态。Web 结案表单(KbCloseoutForm 送 status:'resolved')与 ProbeFlash 导入
+  // (import-debug-archive 组卡 status:'resolved')都靠它把 resolved → archived。
+  // 故 buildCloseoutFromIssue 必须接受 resolved 输入；不得对 resolved 加「已结案」拦截。
+  test('resolved 卡 = 结案输入态，结案成功并转 archived（不得拦截 resolved）', () => {
+    const result = buildCloseoutFromIssue(
+      openIssue({ status: 'resolved' }),
+      [],
+      { category: '云台', rootCause: 'PID 比例项过大', resolution: '下调 Kp', prevention: '' },
+      opts,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.updatedIssueCard.status).toBe('archived');
+  });
+
   test('deriveKnowledgeNodeFromIssue：groupId 默认 null（不预设本体 C3）+ resourceLinks 含文件/提交', () => {
     const node = deriveKnowledgeNodeFromIssue({ issue: openIssue() });
     expect(node.groupId).toBeNull();

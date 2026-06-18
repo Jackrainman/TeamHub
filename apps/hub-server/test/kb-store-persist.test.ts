@@ -99,6 +99,24 @@ describe('InMemoryKbStore.appendCloseout', () => {
     expect(cards).toHaveLength(1);
     expect(cards[0].title).toBe('测试问题-改');
   });
+
+  // 修复 #2：errorEntry 按 id upsert、archiveDocument 按 issueId upsert（原为无条件 push → 重复结案堆重复主键）。
+  test('errorEntry 按 id / archiveDocument 按 issueId upsert（重复结案不堆重复、取最新）', async () => {
+    const store = new InMemoryKbStore();
+    await store.appendCloseout(append);
+    await store.appendCloseout({
+      ...append,
+      errorEntry: { ...errorEntry, rootCause: '根因-改' },
+      archiveDocument: { ...archiveDocument, markdownContent: '# 测试-改' },
+    });
+    const snap = await store.getKbSnapshot();
+    const errs = snap.errorEntries.filter((e) => e.id === 'err-test-1');
+    expect(errs).toHaveLength(1);
+    expect(errs[0].rootCause).toBe('根因-改');
+    const docs = snap.archiveDocuments.filter((d) => d.issueId === 'iss-test-1');
+    expect(docs).toHaveLength(1);
+    expect(docs[0].markdownContent).toBe('# 测试-改');
+  });
 });
 
 describe('FileKbStore 落盘', () => {
@@ -138,6 +156,30 @@ describe('FileKbStore 落盘', () => {
 
     const onDisk = JSON.parse(await readFile(file, 'utf8'));
     expect(onDisk.projectId).toBe(kbScenarioFixture.projectId);
+  });
+
+  // 修复 #3：persist 失败 → 回滚到写前语料（避免「内存已变更 + 客户端 500 重试」产生重复）。
+  test('appendCloseout persist 失败 → 内存回滚（不留幽灵语料）', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'kb-rollback-'));
+    const sub = join(dir, 'kbdir');
+    await mkdir(sub);
+    const file = join(sub, 'kb.json');
+    const store = await FileKbStore.create(file);
+    const before = await store.getKbSnapshot();
+    const cardsBefore = before.issueCards.length;
+    const errsBefore = before.errorEntries.length;
+    const docsBefore = before.archiveDocuments.length;
+
+    await rm(sub, { recursive: true, force: true });
+    await writeFile(sub, 'blocker'); // 让下次 persist 失败
+
+    await expect(store.appendCloseout(append)).rejects.toThrow();
+
+    const after = await store.getKbSnapshot();
+    expect(after.issueCards.length).toBe(cardsBefore);
+    expect(after.errorEntries.length).toBe(errsBefore);
+    expect(after.archiveDocuments.length).toBe(docsBefore);
+    expect(after.issueCards.some((c) => c.id === 'iss-test-1')).toBe(false);
   });
 
   // H2（AUDIT-FIXES 部署前必修）：一次写失败不能永久毒化写链。原实现 writeChain 变 rejected 后，

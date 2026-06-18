@@ -125,48 +125,97 @@ export class FileGovStore implements GovStore {
     return this.inner.getSnapshot();
   }
 
+  // 修复 #3：每个写方法先改内存（inner）再落盘；persist() 失败时**回滚刚追加 / 刚改的内存元素**再抛——
+  // 否则「内存已变更 + 客户端拿 500 重试」会在内存里产生重复（重试再 push 一条）。
+  // append 类（create* / appendArtifact）：rollback = 按返回 id 移除刚 push 的那条（inner 必新建唯一 id）。
+  // closeoutKbNode：inner 现按 name upsert（可能覆盖既有节点），故先存「同 name 的写前节点」，失败时按 id 还原
+  //   （命中=还原旧节点；未命中=移除新节点）。
+  // idx 类（updateTaskStatus / waiveDependency）：先存写前整条元素，失败时按 id 原地还原。
+
   async createTask(draft: TaskDraft): Promise<Task> {
     const task = await this.inner.createTask(draft);
-    await this.persist();
+    await this.persistOrRollback(() => this.removeById('tasks', task.id));
     return task;
   }
 
   async createDependency(draft: DependencyDraft): Promise<Dependency> {
     const dependency = await this.inner.createDependency(draft);
-    await this.persist();
+    await this.persistOrRollback(() => this.removeById('dependencies', dependency.id));
     return dependency;
   }
 
   async createNeed(draft: NeedDraft): Promise<Need> {
     const need = await this.inner.createNeed(draft);
-    await this.persist();
+    await this.persistOrRollback(() => this.removeById('needs', need.id));
     return need;
   }
 
   async closeoutKbNode(draft: KnowledgeNodeDraft): Promise<KnowledgeNode> {
+    // closeoutKbNode 按 name upsert：先快照「同 name 的写前节点」（可能不存在）。
+    const snap = this.inner.snapshotForRollback();
+    const priorByName = snap.knowledgeNodes.find((n) => n.name === draft.name);
     const node = await this.inner.closeoutKbNode(draft);
-    await this.persist();
+    await this.persistOrRollback(() => {
+      const idx = snap.knowledgeNodes.findIndex((n) => n.id === node.id);
+      if (idx < 0) return;
+      if (priorByName) snap.knowledgeNodes[idx] = priorByName; // 覆盖 → 还原旧节点
+      else snap.knowledgeNodes.splice(idx, 1); // 新增 → 移除
+    });
     return node;
   }
 
   // 图纸提交日志追加（V1-FOLLOWUPS ④）：复用 inner 的 id/createdAt/submittedVia 逻辑 + 落盘累积。
   async appendArtifact(draft: ArtifactDraft): Promise<ArtifactRef> {
     const artifact = await this.inner.appendArtifact(draft);
-    await this.persist();
+    await this.persistOrRollback(() => this.removeById('artifacts', artifact.id));
     return artifact;
   }
 
   async updateTaskStatus(taskId: string, status: TaskStatus): Promise<Task | null> {
+    const snap = this.inner.snapshotForRollback();
+    const idx = snap.tasks.findIndex((t) => t.id === taskId);
+    const prior = idx >= 0 ? snap.tasks[idx] : undefined; // 写前整条（idx 类回滚需存旧值）
     const task = await this.inner.updateTaskStatus(taskId, status);
     // 仅命中才落盘：未命中（null）不触发无谓写。
-    if (task) await this.persist();
+    if (task) {
+      await this.persistOrRollback(() => {
+        if (prior) snap.tasks[idx] = prior;
+      });
+    }
     return task;
   }
 
   async waiveDependency(depId: string): Promise<Dependency | null> {
+    const snap = this.inner.snapshotForRollback();
+    const idx = snap.dependencies.findIndex((d) => d.id === depId);
+    const prior = idx >= 0 ? snap.dependencies[idx] : undefined; // 写前整条
     const dependency = await this.inner.waiveDependency(depId);
-    if (dependency) await this.persist();
+    if (dependency) {
+      await this.persistOrRollback(() => {
+        if (prior) snap.dependencies[idx] = prior;
+      });
+    }
     return dependency;
+  }
+
+  /** 回滚句柄：从 live 快照按 id 移除一条 append 元素（仅持久层 rollback 用）。 */
+  private removeById<K extends 'tasks' | 'dependencies' | 'needs' | 'artifacts'>(
+    key: K,
+    id: string,
+  ): void {
+    const arr = this.inner.snapshotForRollback()[key];
+    const idx = arr.findIndex((el) => el.id === id);
+    if (idx >= 0) arr.splice(idx, 1);
+  }
+
+  /** 落盘；失败则执行回滚句柄（撤回刚追加/刚改的内存元素）再把原错误抛给调用方（让客户端拿到真实失败）。 */
+  private async persistOrRollback(rollback: () => void): Promise<void> {
+    try {
+      await this.persist();
+    } catch (err) {
+      rollback();
+      throw err;
+    }
   }
 
   /** 原子写：写 tmp 再 rename，串行化避免并发覆盖。 */
