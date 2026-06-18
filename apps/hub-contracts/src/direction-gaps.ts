@@ -67,7 +67,8 @@ export function deriveDirectionGaps(
       groupId: gid,
       neededSkills: skills,
       evidenceTaskIds: [...bucket.taskIds].sort(),
-      evidenceNeedIds: bucket.needIds,
+      evidenceNeedIds: [...bucket.needIds].sort(), // 确定性：与 taskIds/skills 同样排序
+
       severity,
       factStatement,
       detectedBy: 'derived',

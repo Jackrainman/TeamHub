@@ -249,7 +249,7 @@ export const OverloadSignalSchema = z.object({
 
 /**
  * 方向缺口（S2，D-069）：组键"某组缺懂 X 的方向"，逐字对齐 OverloadSignalSchema 范式
- * ——组键 + factStatement + detectedBy:'derived'，**无 memberId/score/percent**。
+ * ——组键 + factStatement + detectedBy:'derived'，**无人维度字段（成员 / 分数 / 百分比）**。
  * A1：缺口归组不归人；`neededSkills` 描述能力方向，**不得用于反推或排序具体人**。
  * 由 `deriveDirectionGaps` 按 `Need.providerGroupId` 聚合 open+escalated 缺口派生。
  */
