@@ -247,6 +247,35 @@ export const OverloadSignalSchema = z.object({
   detectedAt: isoDateTimeSchema,
 });
 
+/**
+ * 方向缺口（S2，D-069）：组键"某组缺懂 X 的方向"，逐字对齐 OverloadSignalSchema 范式
+ * ——组键 + factStatement + detectedBy:'derived'，**无 memberId/score/percent**。
+ * A1：缺口归组不归人；`neededSkills` 描述能力方向，**不得用于反推或排序具体人**。
+ * 由 `deriveDirectionGaps` 按 `Need.providerGroupId` 聚合 open+escalated 缺口派生。
+ */
+export const DirectionGapSeveritySchema = z.enum([
+  'emerging', // 仅有 open 未认领缺口
+  'pressing', // 有 escalated 缺口，或该组正卡住下游（出现在阻塞归因 rootBlocker）
+]);
+
+export const DirectionGapSchema = z.object({
+  id: z.string().min(1),
+  groupId: z.string().min(1), // 缺口归组（A1），永不归人
+  neededSkills: z.array(z.string().min(1)), // 能力方向并集（去重、排序）
+  evidenceTaskIds: z.array(z.string().min(1)),
+  evidenceNeedIds: z.array(z.string().min(1)),
+  severity: DirectionGapSeveritySchema,
+  // 中性事实陈述：只填组名 + 缺口数 + 方向，永不含人名 / "谁慢" / "谁该来"。
+  factStatement: z.string().min(1),
+  detectedBy: z.literal('derived'), // 永远派生，从不是人录入
+  detectedAt: isoDateTimeSchema,
+});
+
+export const GroupGapsResponseSchema = z.object({
+  gaps: z.array(DirectionGapSchema),
+  generatedAt: isoDateTimeSchema,
+});
+
 // ---------------------------------------------------------------------------
 // DepGraph 前端视图（toDepGraphView 投影产物；同样任务键，无人效字段）
 // ---------------------------------------------------------------------------
@@ -466,6 +495,9 @@ export type BlockAttributionReason = z.infer<
 >;
 export type BlockAttribution = z.infer<typeof BlockAttributionSchema>;
 export type OverloadSignal = z.infer<typeof OverloadSignalSchema>;
+export type DirectionGapSeverity = z.infer<typeof DirectionGapSeveritySchema>;
+export type DirectionGap = z.infer<typeof DirectionGapSchema>;
+export type GroupGapsResponse = z.infer<typeof GroupGapsResponseSchema>;
 export type DepNodeStatus = z.infer<typeof DepNodeStatusSchema>;
 export type DepNodeKnowledge = z.infer<typeof DepNodeKnowledgeSchema>;
 export type DepNode = z.infer<typeof DepNodeSchema>;
