@@ -174,6 +174,6 @@ debugArchives: ["<filename>", ...]
 
 - SKILL.md 含：触发示例、输入、模式、输出 markdown 模板、协议、存档 schema、prompt 模板要点、工具调用、反馈闭环、不做的事、与其他 skill 的关系。
 - hook 自动同步到 `.claude/skills/personal-daily-summary/SKILL.md`。
-- `bash .agents/scripts/verify-skills-sync.sh` 通过。
+- `bash .agents/skills/install.sh` 重链通过。
 - `git diff --check` 干净。
 - 备赛期跑通**至少一次真实日报**且自己看了觉得"这能贴出去当汇报"，再考虑迭代 prompt。

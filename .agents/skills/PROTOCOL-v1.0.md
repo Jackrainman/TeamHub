@@ -5,6 +5,8 @@
 > 不适用：流程类 skill（如 `atomic-task`；见 §6.2）
 > 协议版本号：v1.0
 > 起草日期：2026-05-24
+>
+> **⚠️ 同步机制更新（D-066 后）**：本协议起草于「hook 自动同步」时代。`sync-skills.sh` PostToolUse 钩子 + `verify-skills-sync.sh` 哨兵已退役（从未注册、已造成漂移），改为 **`bash .agents/skills/install.sh` 软链**——单一真源 `.agents/skills/`、零拷贝、无哨兵。下文凡「hook 同步 / 哨兵扫 / AGENTS §9 mirror」均按此历史机制理解，当前一律走 install.sh。退役 skill 现归 `archive/legacy-harness/skill-library/`（原 `.agents/skill-library/`）。
 
 本协议定义 ProbeFlash 仓库内 SKILL.md 文件的格式契约：frontmatter 字段集、body section 集、字段语义约定、版本号机制、扩展机制。任何遵循 v1.0 的 SKILL.md 都应能通过本协议的哨兵检查（§7）。
 
@@ -165,7 +167,7 @@ ProbeFlash 仓库当前 3 个 active 业务 skill 均在此覆盖范围内：
 - `personal-daily-summary`
 - `pre-match-checklist`
 
-具体差距盘点见 `docs/planning/skill-protocol-migration-gap.md`；本协议本体不描述如何迁移，仅声明协议契约。
+具体差距盘点见 `docs/archive/skill-protocol-migration-gap.md`；本协议本体不描述如何迁移，仅声明协议契约。
 
 ### 6.2 流程类 skill out-of-scope
 
@@ -222,6 +224,6 @@ v1.0 阶段保留人工 + 抽检，避免过早工程化锁定演化空间。
 
 - `docs/design/D-023-skill-protocol-v1.md` —— 本协议的详细 ADR 草稿（决策理由 / 放弃方案 / 落地任务）
 - `docs/planning/decisions.md` D-023 —— 聚合 ADR 条目
-- `docs/planning/skill-protocol-migration-gap.md` —— 3 个现有 active 业务 skill 与 v1.0 的迁移差距清单
+- `docs/archive/skill-protocol-migration-gap.md` —— 3 个现有 active 业务 skill 与 v1.0 的迁移差距清单
 - `archive/legacy-harness/AGENTS-serial.md` §9 —— SKILL.md mirror rule（hook 同步 + 哨兵 + 退役流程）。**D-066 后镜像机制随串行轨退役下沉，trunk 不再镜像；当前 AGENTS.md（精简版）已无 §9，仅存档备查。**
 - `archive/legacy-harness/AGENTS-serial.md` §6.0「DoD type 对照表」 —— v1.0 §2.1 末尾「工程谓词式 DoD」参照源。**D-066 后随串行轨退役下沉到存档；原 `.agents/skills/atomic-task/SKILL.md` 已不在 trunk，且该对照表本就在 AGENTS（serial）而非该 SKILL.md。**

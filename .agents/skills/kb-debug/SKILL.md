@@ -110,5 +110,5 @@ bash ~/.claude/skills/kb-debug/kb-client.sh ping       # 验连通
 ## DoD（本 skill 自身的完成定义）
 
 - `.agents/skills/kb-debug/{SKILL.md,kb-client.sh}` 为源，`cp -rp .agents/skills/. .claude/skills/` 镜像。
-- `bash .agents/scripts/verify-skills-sync.sh` 通过；`git diff --check` 干净。
+- `bash .agents/skills/install.sh` 重链通过；`git diff --check` 干净。
 - 对一台跑着 hub-server（带 `TEAMHUB_KB_DATA_FILE`）的实例，`ping`/`similar`/`closeout` 三命令均通，且 closeout 后 similar 能召回新条目（闭环实证）。

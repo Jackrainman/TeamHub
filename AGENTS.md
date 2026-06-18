@@ -46,7 +46,7 @@ curl -s http://127.0.0.1:4177/health | grep buildId
 ## 4. 验证门
 | 任务类型 | 必跑 |
 |---|---|
-| docs / planning / skills-only | `git diff --check`；`now.md` yaml 可解析；grep 旧路径无残留；`bash .agents/scripts/verify-skills-sync.sh`（改 skill 时） |
+| docs / planning / skills-only | `git diff --check`；`now.md` yaml 可解析；grep 旧路径无残留；改 skill 后 `bash .agents/skills/install.sh` 重链进 `.claude/skills/`（单一真源 `.agents/skills/`，软链零拷贝、无同步钩子） |
 | hub 后端 / 契约 / 控制台 | 对应包 `npm run verify:all`（exit 0）；`git diff --check` |
 | 部署相关行为 | `apps/hub-server` e2e-pillars 绿；`curl /health` buildId 非空 |
 | compose / 部署冒烟 | `scripts/verify-hub-compose.sh`（需 Docker/Compose） |

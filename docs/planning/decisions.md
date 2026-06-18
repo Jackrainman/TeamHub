@@ -1,6 +1,11 @@
 # 关键决策（Decisions）
 
-> 仅当前生效的长期 ADR；过期或被覆盖的（D-001~D-004、D-007、D-008、D-010~D-013、D-017）已归档到 `docs/archive/pre-slim/decisions.md.preslim`，git 历史与归档文件均可追溯。
+> **决策账本约定（feiyue 式·D-070）**：本文件是**活账本**，只留**仍在约束当前代码/产品方向**的 ADR。被 supersede / 挂起的不在原位留全文，而压成 3 行 stub（状态 + 摘要 + 归档指针）、全文移进归档，保持活文件可扫不膨胀。某 ADR 被 supersede 时，**同一刀**压 stub + 移全文进归档。归档落点：
+> - 早期过期（D-001~D-004、D-007、D-008、D-010~D-013、D-017）→ `docs/archive/pre-slim/decisions.md.preslim`
+> - 被 supersede 的长期 ADR（D-043、D-053…）→ `docs/archive/decisions-archive.md`
+> - 治理派生挂起簇（D-032~D-035）→ `docs/archive/governance-suspended-decisions.md`
+>
+> git 历史与归档文件均可追溯。
 
 ## D-005：schema 校验采用 zod，不走手写 type guard 路线
 - 日期：2026-04-21
@@ -386,66 +391,11 @@
 - 影响：`now.md` / `agent-state.json` frontier 重排；新增上述 pending 区入 backlog。本 ADR 不改代码（范围 2 的代码改动在 17316cc）。
 - 事实源：本 ADR；ultracode 调研产物（本 session task `wu26owofd` 输出，含 6 区设计草案 + 13 条缺失清单 + 对抗 critic 5 条补漏）；`docs/design/team-hub-concept.md`（canonical）。
 
-## D-032 — 治理提示层 GovernanceCue 统一 + Member.status 全派生 + 静默信号
+## D-032 ~ D-035 — 治理派生整簇（GovernanceCue / 受众路由 / silence 分组 / give-floor）【挂起·已归档】
 
-- 状态：**DECIDED**（spec 落 `docs/design/gov-cue-layer.md`；实现属 frontier `GOV-MEMBER-STATUS-DERIVE` + `GOV-RULES-LAYER`）
-- 日期：2026-06-11
-- 上下文：D-031 暴露的"freeIdle 会把'队长还没录入下一个任务'的人误判成摸鱼"——系统自造测量错误。讨论中用户把 idle 检测从"贴人标签"reframe 为"建设性提示触发器"（对本人"去看别的知识?"、对队长"xx 做完了去聊聊"、颜色中性变化），并选定对"有就绪任务却 N 天零进展"这一种（真·摸鱼候选）用**私下静默信号**（事级、对事不对人、看得见但不排名）。进一步发现：idle 三态 + 静默 + Need 升级（A.3 死代码）+ OverloadSignal（#4 空壳）是**同一个形状**，应收成一层。
-- 决策：
-  1. **`Member.status` 完全派生**：Task 是真相、人是投影，禁手写——杀掉与 `Task.status` 的双写（守 G2）。`updatedBy:'derived'` 不再是谎。
-  2. **三个非推进态 + 静默**（`deriveMemberStatus`）：`uncovered` 待安排（无 active 任务→队长去派活，= 录入入口）/ `blocked` 被卡（复用 BlockAttribution）/ `capacityFreed` 腾出手（做完→本人去学 + 队长去聊·匀给过载组）；外加 `silence` 静默（有就绪任务却 N 天零进展→私下问本人 + 给队长事级提示）。`silence` 与 `capacityFreed` 之别 = 手里有没有就绪任务；两者都不贴"摸鱼"。真摸鱼靠队长"去聊"的对话发现，不进看板计数。
-  3. **统一 `GovernanceCue` 层**（多态）：所有派生的"事/缺口/机会"= 一个 schema `{kind, subjectRef(task/group/need/resource), audience, tone(give/ask/surface), factStatement, suggestedAction, relatedKnowledge}`。**反排名红线只守在这一个 schema**（无 memberId 聚合维度、无 count/score/rank）。`GOV-RULES-LAYER` 由此重定义 = "Cue 生产者们（deriveBlockAttributions 已有 + deriveMemberStatus + deriveNeedEscalations + deriveOverloadSignals）+ `RulesConfig` 阈值"。
-  4. **受众到人不落人名**：`audience='taskOwnerPrivate'` 不存 memberId，送达层即时解析 owner→larkOpenId 私发，不沉淀可聚合人维度 → 反排名保住。
-  5. **阈值进 `RulesConfig`**（per-project，全默认值：silenceDays=3 / needEscalationDays=2 / overloadCriticalLimit=3），不强制录入（C1/C3）。
-  6. **idle↔overload 闭环**：`capacityFreed` 与 `overload` 同层，队长一眼配对"谁空了 ↔ 哪组压了 N 项"。
-- OPEN（留字段、本轮不定）：**`CUE-AUDIENCE-ROUTING`——队长 vs 组长身份难界定**：role enum 仅 `superAdmin/groupAdmin/member` + 组织树 `parentGroupId`，"队长(全队)"与"组长(子组)"如何落、一个 Cue 上给队长还是停在组长，决定 `audience` 枚举最终形态。单立 open_for_decision，配独立讨论提示词，归 ROLE-VISIBILITY。其余 OPEN：静默是否被读成变相监视（措辞+频率冷却）、阈值是否需 per-赛季 profile。
-- 影响：新增 `docs/design/gov-cue-layer.md`（spec）；`GOV-MEMBER-STATUS-DERIVE`（frontier#2）从此有落地图纸；`GOV-RULES-LAYER` 范围明确为 Cue 生产者层；`now.md`/`agent-state.json` 加 `CUE-AUDIENCE-ROUTING` 入 open_for_decision。本 ADR 不改代码。
-- 事实源：`docs/design/gov-cue-layer.md`；本 ADR；`docs/design/team-hub-concept.md`（canonical）。
-
-## D-033 — ROLE-VISIBILITY / CUE-AUDIENCE-ROUTING：角色模型 + 受众路由 + 问责上移
-
-- 状态：**DECIDED**（spec 落 `docs/design/gov-role-visibility.md`；实现属 frontier `GOV-MEMBER-STATUS-DERIVE` / `GOV-RULES-LAYER` / `HUB-SERVER-GOV-SCAFFOLD`）
-- 日期：2026-06-12
-- 上下文：关闭 D-032 §3 OPEN（`CUE-AUDIENCE-ROUTING`）。`GovernanceCue.audience` 只有 `taskOwnerPrivate/captain/groupAdmin` 三占位、无路由表——因为"队长(全队)"与"组长(子组)"在 role enum `{superAdmin,groupAdmin,member}` + `Group.parentGroupId` 多层自引用树上界定不清（程序大组下电控/视觉子组，电路/机械顶层；汇报按 `reportingGroupId`，D-029）。经两轮对抗式审计核实（8-agent 宪法审计 + 3-agent 产品目标核实），原"schema 反排名足够保证多帽安全"被纠为**对 A1 的范畴错误**——schema 守 C2 聚合排名，但不防 A1 单条点名与 C2 广度×时间重建，必须靠去名 + k-anon + dedupe 在投影/送达层补。
-- 决策（用户 2026-06-12 拍板）：
-  1. **role enum 不动** `{superAdmin, groupAdmin, member}`，零迁移。`superAdmin` 收窄为系统维护者/配置，**非 Cue 受众**；`groupAdmin` = 可 pull 本组事/缺口的可见性能力，子组/大组组长都是 groupAdmin、由 groupId 区分。
-  2. **三处指派拆开 D-026 dec4 的"superAdmin = 维护者 + 队长"合并**（搭建权 ≠ 全队治理权 ≠ 只读观察）：新增 `Group.leadMemberId`（组长权威源，消"一组两 groupAdmin 谁带组"歧义）· `Project.captainMemberId`（队长 → `teamCoordinator`）· `Project.observerMemberIds[]`（老师 → 仅项目级 rollup）。队长/老师不进 enum 因其赛季级 + 与组长正交 + observer 多对多（1:1 enum 装不下、塞进去要 junction = 违 C3）。
-  3. **audience 最终三值（改名取消歧义）**：`taskOwnerPrivate`（本人私发，不存 memberId）/ `subjectGroupLead`（按 subject 取 groupId：task→groupId·group→id·need→providerGroupId·resource→直升队长，经 `leadMemberId` 解析、有界上溯 子组→大组→队长兜底）/ `teamCoordinator`（队长）。配一张「Cue kind × 受众 × 升级链」路由表（见 spec §4）。
-  4. **silence 受众 = 纯 pull（用户选 A）+ 问责上移**：silence 只私发本人「还在做 X 吗?」、**不 push 任何第三方**；停滞以事键快照「任务X·就绪·无进展」在本组 console pull 显示（快照非按人历史、本组组长可见 owner、更宽视图去名）。「如果还没看到就是组长的问题」——问责朝上（管理者注意力可问责）不朝下（监视队员），摸鱼从"抓坏队员"重述为"管理有没有在看"，并分散资历弱者压力（G5）。
-  5. **可见性双轴（广度 × 深度）**：member/组长/队长/老师/superAdmin 分层；**任何层级（含队长、老师）都不见人均完成量排名（C2）**，越高 = 事/缺口广度越宽、绝非人粒度越细，老师深度最浅（仅大组 rollup）。push 升级门控；pull 每个 groupAdmin 只看直属组、大组只见去名 rollup（防大组 lead 旁观子组 silence 绕过门控）。
-  6. **审计必修硬化（红线落投影/送达/测试）**：去名宽视图（ownerLabel 仅私链）· factStatement 文本红线测试（扫 `/静默\d|\d+天/` + 非私发 Cue 无 displayName）· 老师 `toObserverRollup` k-anonymity（子树成员 <k 合并/抑制，挡单人组点名，如 grp-circuit 单人且是 Need.providerGroup）· noticer 良基化（老师终极兜底「顶层未路由」）· owner==lead 上抬不留盲区（修 G5 反转）· owner==lead/captain dedupe 抑制协调面 · null captain → pull-only + superAdmin 配置提示不静默丢。
-- 替代项（增长 role enum 加 captain/observer）未采纳：steelman 结论 keep-enum-unchanged——observer 多对多是致命点，进不了 1:1 enum；项目级字段是赛季级正交指派的正确关系表达；零迁移、天然支持一人多帽（并集可见性，安全靠去名/k-anon/dedupe 而非 enum 互斥）。
-- 影响：新增 `docs/design/gov-role-visibility.md`（spec）；`gov-cue-layer.md` §2 audience 改名、§3 关 OPEN、§4 silence 行改纯 pull、§8 OPEN#1 移除；`now.md`/`agent-state.json` 移除 `CUE-AUDIENCE-ROUTING` 出 open_for_decision；supersede D-026 dec4 的 superAdmin 合并。为 frontier 列出 schema/纯函数/测试落地清单（spec §9）。本 ADR 不改代码。
-- 事实源：`docs/design/gov-role-visibility.md`；本 ADR；`docs/design/gov-cue-layer.md`；`docs/design/gov-oncall-schedule.md`（reportingGroupId，D-029）；`AGENTS.md §5`。
-
-## D-034 — 数据生命线分组化：silence 信号按组分河（C5）+ 保守过渡铁律
-
-- 状态：**DECIDED**（spec 落 `docs/design/gov-cue-layer.md` §6；实现属 frontier `GOV-MEMBER-STATUS-DERIVE` / `GOV-RULES-LAYER`）
-- 日期：2026-06-12
-- 上下文：对抗式产品核实（3-agent，REJECT「摸鱼可见」）抓到 silence 触发的**信号源偏差是 schema 级宪法破口、非可调阈值**：「零进展」只从 `{gitCommit, larkCheckIn, manualNote}` 判定、**无任何 GroupKind 维度**（governance.ts:50-55 有 enum 但零逻辑 key off）。后果按工作物理性质不对称——程序连续 commit、硬件做物理活（锉件/焊板/台架）几乎零 commit，同样努力对程序"干净"、对机械/电路"静默"。这是 **C2（产能不可比，gitCommit 密度=因角色而异的产能代理）+ A1（"机械组老静默"成可读模式）+ G5（冤枉恰是 fixtures 里 freshman 机械新生 m-mechC/m-mechD）by proxy**。用户校正：硬件/机械"没那么容易卡"，重灾区在程序。reframe：信号偏差不是调阈值，而是**每组一条数据河（C5：治理状态必须有自然上游）**。
-- 决策（用户 2026-06-12：图纸喂信号 + 程序薄封装 git）：
-  1. **silence 按 GroupKind 分河**：机械/电路河 = **图纸版本上传**（新 `ProgressSignalKind='artifactUpload'`，喂硬件进度信号——这才是 §信号偏差的真正修法，对齐用户"机械图纸从微信迁上服务器按天/版本分类"的诉求）；程序河 = **git**（经薄封装 adapter 降门槛，HUB-GIT-ADAPTER-DESIGN，D-036）；通用兜底 = **larkCheckIn**，但须是回 Cue/digest 的**自然副产品**，**不得变日报打卡**（守 C5 禁凭空打卡）。
-  2. **保守过渡铁律**：在各组的"河"真实接入前，**非 program 组的"git 缺失"一律不触发 silence**——宁可漏报不冤枉（硬件本就难卡）。这是过渡期护栏，避免 GOV-MEMBER-STATUS-DERIVE 一上线就用 commit-absence 冤枉硬件组。
-  3. **presence 佐证**：owner 当窗在某 `ResourceSession` present/onCall（物理在场干活的证据）→ 抑制 silence；复用已落地 `derivePresenceSchedule`（schedule.ts），零新录入。
-  4. **`RulesConfig` 阈值改 group-kind-keyed**：`silenceDays` 按 GroupKind 配（硬件更长 + 更强触发）；新增 `silenceCueCooldownDays`（同任务每窗至多一条协调 Cue，杀"反复 silence 累积成对人信号"，A4）。
-  5. **parity 单测要求**：仅差 `group.kind`、相同 larkCheckIn/manualNote 历史的两任务 → 必须出相同 silence 判定（gitCommit 计数对非软件组 silence **可证明不承重**），落进 `governance.test.ts` 反排名 guard 同款体例。
-- 替代项（继续单 project 标量 `silenceDays` + 三信号源不分组）未采纳：审计证其为 C2/A1/G5 三破口、且系统性偏向资历弱的硬件新生，不可调走。
-- 影响：`gov-cue-layer.md` §4（silence 触发条件细化为分河 + 保守铁律）/ §5（deriveMemberStatus 须读 group.kind）/ §6（RulesConfig kind-keyed + cooldown + 分河 + presence 佐证 + parity 测试）同步。新 `ProgressSignalKind='artifactUpload'` 与 kind-keyed RulesConfig schema 由 GOV-MEMBER-STATUS-DERIVE 落代码（本 ADR 不改代码）。图纸上传端点/存储 = 审批门后 server 任务（D-036 登记）。
-- 事实源：本 ADR；`docs/design/gov-cue-layer.md` §6；`docs/design/gov-data-model.md`（TaskProgressSignal/GroupKind）；`AGENTS.md §5`（C2/A1/G5/C5）。
-
-## D-035 — 化解层 give-floor + 修正测量第 4 段意图（A3 暴露必带给予）
-
-- 状态：**DECIDED**（spec 落 `docs/design/gov-cue-layer.md` §4/§5/§7；实现属 frontier `GOV-MEMBER-STATUS-DERIVE` / `GOV-RULES-LAYER`）
-- 日期：2026-06-12
-- 上下文：3-agent 产品核实对"把'让没事的人自己去找事做'后置给知识树（D-027）"判 holds=false——代码证明（attribution.ts:242-267 `relatedKnowledgeFor` 从 `[task.id, rootBlockerTaskId]` 取知识，`capacityFreed` 的人 `currentTaskId→null` 故**无任务键可取**，唯二 relatedKnowledge 生产者都 gated on 被卡）。后果：`capacityFreed` 的 3a（匀过载组）在无过载组时为空，3b（去学）后置给未建知识树 → `deriveMemberStatus` 一上线就把人**暴露成 idle 却零给予** = 破 **A3（系统给得比拿得多 = 观察资格来源，D-031 确立）**，freeIdle 污名换标签复活。另：原 `暴露→问责→化解` 三段漏了 D-031 的核心前提——多数 idle/silence 是**测量错误**（未录入/信号没接）。
-- 决策（用户 2026-06-12："先不去干预[自我成长]"对一半——树后置对，给予地板不可后置）：
-  1. **四段意图**：`修正测量(兜底) → 暴露 → 问责 → 化解`。化解叉 **3a 人力调度**（治理，匀过载组，captain，idle↔overload 闭环）/ **3b 自我成长**（知识树 D-027，**整棵后置**）。
-  2. **第 4 段「修正测量」前置于化解**：`uncovered` 先走"去派活 = 录入入口"、`silence` 先查信号源新鲜度（D-034 分河），别在"未录入/信号没接"的假象上开火。
-  3. **give-floor（不可后置的那块 3b）**：`capacityFreed` 的 3a 为空时，`relatedKnowledge` 从**本人私有** `MemberKnowledge`(relation∈{interested,learning} 的 `KnowledgeNode.resourceLinks`，growth.ts，fixtures.ts:292-295 已 seed) 平铺取，**仅 `taskOwnerPrivate`**（绝不给队长）——即"让他自己挑自己存的兴趣"，agency 留本人（A3），零树结构、不等 D-027 整棵树。`capacityFreed` 队长面 gate on (有过载组 OR cooldown)。
-  4. **暴露必带给予不变式（可测）**：任何发第三方的 `capacityFreed`/`silence`(surface) **必须**配一条同主体 `taskOwnerPrivate`(give, `relatedKnowledge.length>0`)，像反排名一样守在单测里，结构上禁止"暴露 idle 却零给予"。
-- 替代项（3b 整体后置给知识树）未采纳：审计证其在"做完又无过载组可去"分支破 A3、复活 freeIdle 污名；give-floor 是 tree-free、复用已 seed 的私有兴趣链，无须等 D-027。
-- 影响：`gov-cue-layer.md` §4（capacityFreed give-floor + 空-3a 行为 + 修正测量段）/ §5（四段意图）/ §7（暴露必带给予不变式）同步。代码留 GOV-MEMBER-STATUS-DERIVE / GOV-RULES-LAYER 落（本 ADR 不改代码）。
-- 事实源：本 ADR；`docs/design/gov-cue-layer.md` §4/§5/§7；`apps/hub-contracts/src/growth.ts`（MemberKnowledge）；`D-027`（成长轴/知识树后置）；`D-031`（A3 = 观察资格来源 + 测量错误命门）；`AGENTS.md §5`（A3/A4）。
+- 状态：**挂起**（D-039 AI 退出治理后整簇挂起，spec 留待复活；复活触发=未来要 AI 参与治理判断）。**全文已归档 → `docs/archive/governance-suspended-decisions.md`**。
+- 摘要：**D-032** GovernanceCue 统一 + Member.status 全派生 + 静默信号；**D-033** 角色模型 + 受众路由 + 问责上移；**D-034** 数据生命线按组分河（C5）+ 保守过渡铁律；**D-035** 化解层 give-floor + 修正测量第 4 段。
+- 不复活铁律：自驱动/合成目标永不触此簇（见 now.md 挂起段）。
 
 ## D-036 — 数据河 build 轨：方向已定 + 未决项登记（避免重复探索）
 
@@ -606,29 +556,10 @@
 - 影响：本 ADR + `docs/design/three-pillar-feasibility.md`（新建分析记录）+ `backlog.md`（KB 拆 CORE/LARK、PM 行去 Member.status/dueDate 加结构键、INV 行新定位、base 收口刀、新增 HUB-HERMES-ADAPTER 行最后做、GOV-SCHED-VIZ 标挂起）+ `now.md`/`agent-state.json`（stage/frontier/最近完成）。**纯 docs/planning，不碰代码 / 服务器 / 真实数据**；`verify:all` 应零回归。
 - 事实源：本 ADR；workflow 输出（run `wf_0ef0d4cc-4c8`，20 agent / 1.26M token，gate=proceed/0 blocker）；`docs/design/three-pillar-feasibility.md`；grep 实证（`gov-store.ts:9`/`server.ts`/`governance.ts` 无 dueDate·有 criticalChainTaskIds·blockedByLabel/`boundary.ts` 白名单/`cli-bridge.ts:17/47`/无 kb.ts·inv.ts）；2026-06-13 设计对话（甲方拍板冲突取最新版 / Hermes 最后接 / 库存对话记账）；`D-039`/`D-040`/`D-041`（被细化）；`D-037`/`D-036`。
 
-## D-043 — 构建纪律双轨化：连续构建（Claude Code/workflow）vs 串行 atomic-task（弱工具），共享底座抽 §6.0 单一源
+## D-043 — 构建纪律双轨化（连续构建 vs 串行 atomic-task·共享底座 §6.0）【SUPERSEDED-BY D-066·已归档】
 
-- 状态：**SUPERSEDED-BY D-066**（2026-06-15 harness 全改：主手册精简为 CC-centric、双轨/self-iterate 退役进 `archive/legacy-harness/`；串行轨 fallback = `archive/legacy-harness/AGENTS-serial.md` §6.A。原 DECIDED 全文留存追溯）
-- 状态：**DECIDED**（甲方 2026-06-14 设计对话拍板；本 ADR = 构建纪律范式权威源；**supersede** `docs/planning/workflow-evolution.md` 的「保留 STOP / 不引入 continuous」旧立场；纯 docs/planning/skills，代码零改）
-- 日期：2026-06-14
-- 上下文：D-042 后开始三支柱连续构建，暴露旧 `AGENTS §6 Atomic Task Discipline` 的张力——它把「一次一个原子任务 + commit 后 STOP + 重走 atomic-task skill 第 1 步」当成**全员硬律**。但 `atomic-task` 是 `.agents/skills/` 三方共用权威源（§9：Codex / OpenCode / Claude Code 共读），而**只有 Claude Code 有 `Workflow` 工具**。这套串行 STOP 节流阀本是给「无编排能力工具」防跑飞的，当成全员硬律就**拖累 Claude Code 的连续构建 / workflow 编排**。甲方明确：**还会用弱工具**（Codex/OpenCode），故不能只留一套；倾向**物理隔离**两套，但担心「两份会漂移」。`workflow-evolution.md`（2026-05-17 forward-looking）当年因「还没用上 workflow」而明确**保留 STOP、不引入 continuous**，并设想「人写 plan → 串行执行」的 epic 两层模式——这一前提已被「现在用 workflow 自动 fan-out / 编排」的现实推翻。
-- 核心洞察：
-  1. **STOP 是「无编排能力」的护栏，不是普世真理。** 串行 + commit 后 STOP 防的是没有编排器的工具一路跑飞；有了 workflow（能确定性 fan-out / pipeline / 对抗核实）的 agent，连续构建是安全的，STOP 反成枷锁。故分档依据 = **能力**（有无 workflow/编排），不绑工具名。
-  2. **「物理隔离怕漂移」的解 = 共享底座抽到中立单一源。** 把两套**共有**的工程卫生（原子单元定义 / completion gate 三件套 / 提交推送授权 / M1 候选池闭口 / M2 DoD 谓词 / M3 误提交自检 / DoD type 对照表）从 `atomic-task/SKILL.md` 抽到 `AGENTS §6.0`，两个 skill **只引用 §6.0、互不依赖** → 物理隔离（各读各的 skill）+ 单一源（底座不重复）→ 化解漂移担忧。
-  3. **原子提交卫生与 STOP 是两件事。** 甲方拍板：保留「每原子单元各自验证通过 + 单独 commit/push」，只取消「全员硬 STOP / commit 后必须重走 skill」。连续 ≠ 大杂烩提交。
-- 决策（甲方 2026-06-14 拍板）：
-  1. **`AGENTS §6` 重写为双轨三段**：**§6.0 共享底座**（工具无关、所有 agent 必守，吸收 M1/M2/M3 + DoD 对照表 + completion gate + 提交授权）；**§6.A 串行轨**（无编排能力工具 Codex/OpenCode：一次一个 → 验证 → sync → commit → **STOP** → 重入）；**§6.B 连续/编排轨**（具 workflow 能力的 agent 如 Claude Code：拆原子单元清单喂 workflow 连续/并行、**不强制 STOP**、每单元仍各自 completion gate、小改动直接做不强起 workflow）。
-  2. **分档按能力**（有无 workflow/编排），举例工具名但不绑死（将来弱工具有了编排自动适用）。
-  3. **物理隔离两个 skill**：`atomic-task`（§6.A 串行，保留+收窄定位，M1/M2/M3/DoD 表改为引用 §6.0）；新建 `continuous-build`（§6.B 连续，引用 §6.0）。二者只依赖 §6.0、互不交叉引用。
-  4. **保留每原子单元验证+单独 commit 卫生**；取消全员硬 STOP。
-  5. **supersede `workflow-evolution.md` 旧立场**：当年「保留 STOP / 不引入 continuous / 人写 plan 串行执行 epic 两层」被本 ADR 取代——两层「拆解」思想被 workflow fan-out 吸收（continuous-build 的「分解→喂 workflow」），但执行引擎从「串行 STOP」换成「workflow 连续编排」。该文档标 `superseded-by D-043`、留原位追溯。
-- supersedes / 细化：
-  - **`AGENTS §6 Atomic Task Discipline`** → 重写为 `§6 Build Discipline（双轨）`；旧「同一时刻只允许一个原子任务」「commit 后必须重走 skill」降级为 §6.A 串行轨专属。
-  - **`workflow-evolution.md`**（forward-looking，未激活）→ 旧立场被 supersede（见决策 5）。
-  - **`.agents/skills/atomic-task/SKILL.md`** → 收窄为串行轨；底座外移引用 §6.0。
-  - **不改** §5 设计宪法 / §7 Verify Matrix / §8 安全门 / §9 Skills Mirror 机制；DoD 对照表的历史抄录（`docs/superpowers/specs/` / `docs/archive/`，过去记录）。
-- 影响：本 ADR + `AGENTS.md §6`（重写）+ `.agents/skills/atomic-task/SKILL.md`（收窄）+ `.agents/skills/continuous-build/SKILL.md`（新建，镜像 `.claude/skills/`）+ `docs/planning/workflow-evolution.md`（标 superseded）+ `docs/agents/workflow/README.md`（footer「当前生效工作流权威源」更新为双轨）+ `docs/design/team-hub-concept.md`（§12 + 概念段 §6 引用软化为双轨）+ `now.md`/`agent-state.json`（最近完成 + stage + 口径对齐双轨）。**纯 docs/planning/skills，不碰代码 / 服务器 / 真实数据**；hub `verify:all` 不涉及（未碰 apps/）。
-- 事实源：本 ADR；2026-06-14 设计对话（甲方拍板：保留每单元验证+commit、取消全员 STOP、还用弱工具→双轨、物理隔离）；Explore 全仓交叉引用扫描（atomic-task / STOP / completion gate / DoD 对照表 / §6↔§7§8§9 / skill-library 同步）；`workflow-evolution.md`（被 supersede 的旧范式）；`AGENTS §6`/`§9`（被改）；`~/.claude/CLAUDE.md`（workflow 模型分档与 token 纪律）。
+- 状态：**SUPERSEDED-BY D-066**（2026-06-15 harness 全改）。**全文 → `docs/archive/decisions-archive.md`**。
+- 摘要：§6 双轨三段（§6.0 共享底座 / §6.A 串行轨 STOP / §6.B 连续编排轨）+ 物理隔离 atomic-task↔continuous-build；D-066 后串行轨整体下沉 `archive/legacy-harness/`。
 
 ## D-044 — KB-CORE 落地：移植 Probe_Flash 调试闭环 + 相似检索 + 结案派生知识节点（frontier#1 done）
 
@@ -799,28 +730,10 @@
 - 后续（backlog/frontier）：**AUDIT-FIXES-2026-06-14** 修复批次（部署前必修 7 条优先）；CONSOLE-COPY-HUMANIZE（文案去 AI 味，姊妹 P1 未做）；其余灰占位（适配器/事件/桥/git/图纸）待定优先级/设计。
 - 事实源：本 ADR；`docs/planning/code-audit-2026-06-14.md`；`backlog.md` CONSOLE-SETTINGS-PAGE/AUDIT-FIXES；plan `~/.claude/plans/rosy-giggling-dolphin.md`；用户 2026-06-14「记录审计 + 设置页优先 + git diff 审计」请求。
 
-## D-053 — 自迭代外环（§6.C）+ 完成度模型 + M1 逃生阀（materialize-before-action）
+## D-053 — 自迭代外环（§6.C）+ 完成度模型 + M1 逃生阀【SUPERSEDED-BY D-066·已归档】
 
-- 状态：**SUPERSEDED-BY D-066**（2026-06-15 harness 全改：自迭代外环退役进 `archive/legacy-harness/`，`completion-model.yaml`/`agent-state.json`/`self-iterate` skill 一并冻结；D-039 AI 已退治理，外环不再驱动产品方向。原 IMPLEMENTED 全文留存追溯）
-- 状态：**DECIDED / IMPLEMENTED**（2026-06-14；3-opus 设计→对抗红队 workflow `wf_3845c9c0-aa2` 硬化后落地；docs/skill/planning 纯文，verify 见下）
-- 日期：2026-06-14
-- 上下文：用户「搭建一个自迭代骨架，没任务时自行查看项目完成度，完成度不够则自动设立大目标、用 workflow 推进，atom-task 只用于提正确率+拆子 agent，让你能自己自然迭代而不是一直停下来等我看」。D-052 已注记**自迭代引擎其实已在**（§6.B continuous-build），过去每轮收尾即停的直接原因是 **frontier 空**（§6.0 M1 候选池闭口规定候选只在 backlog、不发散）+ 安全门 + 方向待拍。痛点不是缺引擎，是缺**外环**：frontier 空时谁来「找下一个大目标」。
-- 核心张力与化解：「自动设立大目标」表面与 **M1 候选池闭口**（不读 roadmap 找候选、不凭空 frontier）冲突。化解 = **materialize-before-action 逃生阀**：外环不直接驱动凭空目标，而是先把合成的 epic **写成真 backlog 行（带 M2 工程谓词、状态 pending）+ 追本类 ADR + 进 frontier 并单独 commit**，唯此 commit 后该 epic 才成为「与人立项无异的普通 in-backlog M1 候选」再驱动。M1 的「候选只在 backlog」由此守住（外环只是**合规地往闭池里加**，不是绕过它）。
-- 决策（落地形态）：
-  1. **新增 §6.C 自迭代外环**（`AGENTS.md` §6 下，与 §6.0/§6.A/§6.B 并列，单一源）：8 步循环（读状态→frontier ready?→backlog ready?→**双重耗尽**则完成度检查→有 gap 合成 epic→物化进 backlog→交回 §6.B 驱动→守门重入），叠在 §6.B 之上、**驱动步引用交回 §6.B 不复写**（物理隔离不漂移）。
-  2. **新建 `docs/planning/completion-model.yaml`**（derived-spec，低于 backlog/decisions）：每 deliverable 一条**机器可判谓词**（cmd_exit0/file_exists/grep_hit/…），gap = 谓词失败或 not-started，按 priority 排，gaps[0] = 下一大目标。seeded：KB/PM 读写 + KB-IMPORT + 设置页 = done（谓词当前过）；DEPGRAPH-* / INTEGRATIONS / COPY-HUMANIZE / AUDIT-H1·H3 = gap；INV-BOM/DEPLOY/AI-AUTODRAW = 产品门/§8 门（required 但合成时 open_for_decision）。
-  3. **新建 skill `.agents/skills/self-iterate/SKILL.md`**：外环完整协议（8 硬化步 + 三锁逃生阀 + §5 门 + epic cap + budget/repair/cycle 守门 + must-stop + 输出 schema）；走 §9 镜像（Write 触发 sync hook）。
-- **对抗红队硬化（`wf_3845c9c0-aa2` 裁「ship-able ONLY after guards」）——未硬化前不可夜跑**，三处致命缺陷已补：
-  - **§5 宪法门缺失**（致命）：原设计 §8/§6.0 筛**不含 §5**，opus 合成的「大目标」由 roadmap 措辞、紧邻**挂起治理簇**（D-032~D-035：deriveMemberStatus/silence/谁慢了/受众路由），可能合成出违 I0/A1/C2/G2/G4 的 epic（如「完成计数看板」「成员状态派生」）而过掉所有现有筛 → **补：§5 门作合成第 0 子步 + 挂起治理簇硬封为 must-stop（自迭代永不复活，其复活触发是人类显式决策）**。
-  - **EPIC CAP 缺失**：「双重耗尽」非真终止——逃生阀重填它刚抽干的池，无 cap 会整晚跨 roadmap 造活且「什么都没可信地完成」→ **补：每 invocation ≤1 合成，驱动完 STOP 等人审 checkpoint**。
-  - **completion-model 自著可伪造 done**：自己写的 yaml + 弱 grep 谓词可让真 gap（AUDIT-H3 零鉴权、INV 支柱未建）读成 done 而早停 → **补：交叉核对每个 pending backlog 行 + done-flip 时 Bash 重跑谓词读 exit 0 + 禁 haiku 步写 'done'**。
-  - 另补：M1「framing-not-harvesting」靠 **anchor 检查**钉死（gap 须溯到现存 backlog 行/已 accepted ADR，roadmap 只措辞）；§8+§5 **逐原子单元**重筛（非逐 epic）；每轮 fetch-before-push 防跨机分叉。
-- 保守默认：`completion-model.yaml.audited:false` ⇒ 合成只 **propose-and-stop**（提议 epic + open_for_decision + STOP），**人审 completion-model 一次**（确认谓词打在真接缝、required/优先级合理）后置 `audited:true` 才 **propose-and-drive**。红队明确建议首版如此。
-- 宪法守恒：纯 docs/skill/planning，无领域/契约/代码改动。**§5 宪法对外环每一步、每一原子单元同样硬**；I0/A1/C2/G2/G4 任何 auto-set 的 epic 必须照样过 §5 闸（与人立项同门）；M1 由 materialize-before-action 守、不凭空 frontier；§8 边界不变、自迭代不得越界；§10 完成度只认谓词通过、不认状态文字（物化 commit ≠ 功能 done）。
-- 老实定位：① 外环在**单次 invocation 内**连续自迭代，**不是**跨进程永动机（agent 仍由调用触发；跨 invocation 续跑靠 `/loop` 或 ScheduleWakeup，本轮不建）；② 首版合成为 propose-and-stop（待 completion-model 人审），用户要的「全自动设目标+驱动」在 `audited:true` 后生效，一行翻转；③ completion-model 谓词是**近似**完成度信号（grep/exit code），非形式化证明，故须人审一次 + 交叉对账兜底。
-- 验证：`git diff --check` 干净；`python3 -c yaml.safe_load` 解析 now.md + completion-model.yaml；`bash .agents/scripts/verify-skills-sync.sh`（新 skill 镜像一致）；grep 无悬挂引用（§6.C/D-053/self-iterate 交叉引用闭合）。
-- 影响 / 落地：新 `.agents/skills/self-iterate/SKILL.md`（+ 镜像 `.claude/skills/`）、`docs/planning/completion-model.yaml`；改 `AGENTS.md`（§6.C）、`docs/planning/{decisions.md（本 ADR）, backlog.md, now.md, agent-state.json}`。**未来自迭代外环合成的 epic ADR 从 D-054 起编号。**
-- 事实源：本 ADR；`AGENTS.md §6.C`；`.agents/skills/self-iterate/SKILL.md`；`docs/planning/completion-model.yaml`；workflow `wf_3845c9c0-aa2`（设计+红队）；用户 2026-06-14「搭建自迭代骨架」请求。
+- 状态：**SUPERSEDED-BY D-066**（2026-06-15 harness 全改：自迭代外环退役进 `archive/legacy-harness/`）。**全文 → `docs/archive/decisions-archive.md`**。
+- 摘要：§6.C 自迭代外环 + `completion-model.yaml` + materialize-before-action 逃生阀；D-039 AI 退治理后外环不再驱动方向、整套冻结。
 
 ## D-055 — 4 弱完成度谓词收口为 verify:all + 人审置 `audited:true`（自驱动启用）
 
@@ -1046,3 +959,14 @@
 - 护栏（实现期必守，code review 抓不全的纪律项）：S1 课表复用 `ResourceSession.invitedMemberIds` 既有「单窗名单不跨窗累计」边界、明细永不进第三方视图；排班输出永远组键、严禁按人出场次数均衡器；S2 缺口渲染停在 group+robotTarget+neededSkills、绝不下钻到人；S3 窄义边界极易模糊（让队长看到匹配结果 / AI 排序候选人就跨进广义=未经拍板事实复活）；课表「系统持有每个人课表」即便 private 仍带监视气味——是用户信任/收益权衡，靠规范+投影层纪律兜底（schema 不强制）。
 - 老实定位：本轮**只立项、未写一行功能代码**；S1 的「不同上课时间」要求把粗粒度 `windowLabel` 升级为可选锚定时段 `WindowDef`（加重录入、轻触 C1，建议可选+未锚定静默退化），否则课表无法与窗口求交、功能形同虚设；S3 窄义纯函数能做但「私下推本人」依赖飞书/lark-cli 私聊路径（D-042「Hermes 最后做」未完成），渠道接通前只能本人页面被动展示；S2「方向」粒度（按 Group vs neededSkills 聚类）用户未细化、默认 providerGroupId 保留 skill 键。
 - 事实源：本 ADR；workflow `wf_6f935ab0-027`（全量结果在 session tasks 输出）；`backlog.md`「P1 — 差异化排班…(D-069)」；`now.md` frontier + 「最近完成 2026-06-18」；积木 `apps/hub-contracts/src/{schedule,growth,attribution,governance}.ts`；宪法 `AGENTS.md §2/§5` + D-029/D-027/D-039。
+
+## D-070 — Harness 减负：对齐 feiyue 轻量模型（now.md/decisions 瘦身 + skill 单一真源 + 归档死脚手架）
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-18；用户「feiyue / feiyue-script 的 harness 很合适、TeamHub harness 过重，查看怎么减负」+ 拍板 T1+T2+T3 全做）。
+- 上下文：D-066 已精简 AGENTS.md（64 行），但周边仍重——`now.md` 每轮必读 61KB（71% 是 `最近完成` 历史日志）、`decisions.md` 220KB append-only、三套 skill 目录（`.agents/skills` 权威源 + hook 同步 `.claude/skills` + `.agents/skill-library` 冷藏）+ 已坏的同步机制（hook 从未在任何 settings.json 注册、`.claude/skills/PROTOCOL` 已漂移指向 D-066 删掉的 §9/atomic-task）、superseded 脚手架（workflow-evolution / docs/agents/workflow / 2 份 pre-pivot spec）留在活目录。对照 feiyue：443 行单文件 harness、每条规则绑「血泪教训」、`design-decisions.md` 靠「删 superseded」永远小、零同步机制。
+- 决策（三档）：
+  1. **T1 瘦身**：`now.md` `最近完成` 历史 → `docs/archive/completed-log.md`（每轮读 61KB→25KB，留最新 3 条 + 指针）；`decisions.md` 挂起簇 D-032~D-035 → `governance-suspended-decisions.md`（留 stub）；`workflow-evolution.md` / `docs/agents/workflow/` / `.agents/skill-library/` → `archive/legacy-harness/`，2 份 pre-pivot spec → `docs/archive/pre-pivot-specs/`。
+  2. **T2 拆同步机制**：删 `sync-skills.sh` + `verify-skills-sync.sh` + `skill-protocol-migration-gap.md`；skill 收成单一真源 `.agents/skills/` + feiyue 式 `.agents/skills/install.sh` 软链进 `.claude/skills/`（修掉漂移、`.claude/skills` 现为软链视图）；AGENTS §4 DoD 改引 install.sh。
+  3. **T3 账本文化**：`decisions.md` 从 append-only 改「活账本 + 归档」（约定写进顶部 intro）；hard-superseded ADR（D-043 / D-053）压 3 行 stub + 全文 → `decisions-archive.md`。
+- 守恒：全部 `git mv` / `git rm`（git 历史可追溯）、零真相丢失、零代码/数据改动（不碰 `apps/`、不碰 `kb.json`/`gov.json`）。承重件不动：AGENTS.md + I0/C/A 词汇、`archive/legacy-harness` 串行轨 fallback、5 个 ops 脚本、`preview:local` 脚本（仍被 package.json 引用）。
+- 影响：`now.md` −58%、`decisions.md` 220KB→195KB、活目录清掉 ~1700 行死脚手架，修掉 `.claude/skills` 漂移。事实源：本 ADR；用户 2026-06-18 减负请求 + T1+T2+T3 拍板；harness-weight inventory workflow `wf_782c37b4-193`。

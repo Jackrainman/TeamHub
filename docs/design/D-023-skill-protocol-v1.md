@@ -59,7 +59,7 @@ ProbeFlash v0.4 阶段已落地 3 个 active 业务 skill（`debug-checklist` / 
 - §7 验证哨兵（人工抽检谓词；v1.x+ 可考虑自动化）
 - §8 关联文档
 
-迁移差距见 `docs/planning/skill-protocol-migration-gap.md`（3 个 active 业务 skill + 1 个流程类 skill 的差距清单 + 迁移工作量评估）。
+迁移差距见 `docs/archive/skill-protocol-migration-gap.md`（3 个 active 业务 skill + 1 个流程类 skill 的差距清单 + 迁移工作量评估）。
 
 ## 3. 放弃方案
 
@@ -136,7 +136,7 @@ ProbeFlash v0.4 阶段已落地 3 个 active 业务 skill（`debug-checklist` / 
 - 状态：current
 - 产出（4 份变更）：
   - `.agents/skills/PROTOCOL-v1.0.md`（协议本体）
-  - `docs/planning/skill-protocol-migration-gap.md`（迁移差距清单）
+  - `docs/archive/skill-protocol-migration-gap.md`（迁移差距清单）
   - `docs/design/D-023-skill-protocol-v1.md`（本文件，详细 ADR 草稿）
   - `docs/planning/decisions.md` 末尾追 D-023 聚合段
 - DoD：三个产出文件 `test -f` + `grep -q "^status:" docs/design/D-023-skill-protocol-v1.md` + `git diff --check` 干净 + frontmatter yaml 可解析 + `verify:skills-sync` 通过
@@ -159,7 +159,7 @@ ProbeFlash v0.4 阶段已落地 3 个 active 业务 skill（`debug-checklist` / 
 
 - `.agents/skills/PROTOCOL-v1.0.md` —— 协议本体
 - `docs/planning/decisions.md` D-023 —— 聚合 ADR 条目
-- `docs/planning/skill-protocol-migration-gap.md` —— 3 个 active skill 与 v1.0 的迁移差距清单
+- `docs/archive/skill-protocol-migration-gap.md` —— 3 个 active skill 与 v1.0 的迁移差距清单
 - `docs/planning/backlog.md` SKILL-PROTOCOL-V1 —— 当前任务登记行
 - `docs/planning/now.md` —— current_task / frontier 同步源
 - `AGENTS.md` §9 —— SKILL.md mirror rule（hook + 哨兵 + 退役）

@@ -140,7 +140,7 @@
 
 | 任务 | 状态 | type | 内容 |
 |------|------|------|------|
-| SKILL-PROTOCOL-V1 | done | design | 已落地于 2026-05-24；`.agents/skills/PROTOCOL-v1.0.md`（协议本体 8 节）+ `docs/planning/skill-protocol-migration-gap.md`（3 个 active 业务 skill + 1 个流程类 skill 的迁移差距清单，3 个 skill 均评 B 级合规）+ `docs/design/D-023-skill-protocol-v1.md`（详细 ADR 草稿，status: draft）+ `decisions.md` D-023 聚合段；7 项验证全过含 `verify:skills-sync` exit 0；**不动**三个现有 SKILL.md（迁移留 SKILL-MIGRATION-V1-* 系列后续任务，待 D-023 升 DECIDED 后认领） |
+| SKILL-PROTOCOL-V1 | done | design | 已落地于 2026-05-24；`.agents/skills/PROTOCOL-v1.0.md`（协议本体 8 节）+ `docs/archive/skill-protocol-migration-gap.md`（3 个 active 业务 skill + 1 个流程类 skill 的迁移差距清单，3 个 skill 均评 B 级合规）+ `docs/design/D-023-skill-protocol-v1.md`（详细 ADR 草稿，status: draft）+ `decisions.md` D-023 聚合段；7 项验证全过含 `verify:skills-sync` exit 0；**不动**三个现有 SKILL.md（迁移留 SKILL-MIGRATION-V1-* 系列后续任务，待 D-023 升 DECIDED 后认领） |
 
 ## P0 — LARK 飞书接入（备赛期 stage_goal 之一）
 
