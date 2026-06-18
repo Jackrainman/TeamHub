@@ -2,6 +2,7 @@ import type { PropsWithChildren } from 'react';
 import {
   BookOpen,
   Boxes,
+  Compass,
   FileStack,
   Home,
   LayoutGrid,
@@ -13,6 +14,7 @@ import { useI18n, type TranslationKey } from '../../i18n';
 export type ConsolePage =
   | 'overview'
   | 'dep-graph'
+  | 'gaps'
   | 'kb'
   | 'pm'
   | 'archive'
@@ -29,6 +31,8 @@ interface NavItem {
 const navItems: NavItem[] = [
   { labelKey: 'nav.overview', icon: Home, page: 'overview' },
   { labelKey: 'nav.depGraph', icon: Network, page: 'dep-graph' },
+  // 缺人方向（S2，D-069）：组级派生缺口，只到组、不指向人（A1）。
+  { labelKey: 'nav.gaps', icon: Compass, page: 'gaps' },
   { labelKey: 'nav.kb', icon: BookOpen, page: 'kb' },
   { labelKey: 'nav.pm', icon: LayoutGrid, page: 'pm' },
   // 图纸提交日志 / 版本时间线（A8）：真实页面，读治理快照 artifacts。

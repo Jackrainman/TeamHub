@@ -33,6 +33,8 @@ export {
   DepGraphSchema,
   toDepGraphView,
   wouldCreateCycle,
+  GroupGapsResponseSchema,
+  deriveDirectionGaps,
   GOVERNANCE_SCENARIO_NOW,
   apiContractFixtures,
   SimilarIssueMatchSchema,

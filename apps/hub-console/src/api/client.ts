@@ -6,10 +6,12 @@ import {
   DataSourcesResponseSchema,
   DepGraphSchema,
   GitReposResponseSchema,
+  GroupGapsResponseSchema,
   HubEventsResponseSchema,
   TasksResponseSchema,
   type ArtifactsResponse,
   type DepGraph,
+  type GroupGapsResponse,
   type Task,
   type TaskStatus,
 } from '@teamhub/hub-contracts';
@@ -58,6 +60,8 @@ export interface HubApiClient {
   getOverview(): Promise<OverviewSnapshot>;
   getSystemStatus(): Promise<SystemStatusResponse>;
   getDepGraph(): Promise<DepGraph>;
+  // 方向缺口（S2，D-069）：组级缺人方向，只读派生视图。A1：响应无 memberId、永不下钻到人。
+  getGroupGaps(): Promise<GroupGapsResponse>;
   getKbSimilar(params: KbSimilarParams): Promise<KbSimilarResponse>;
   getTasks(): Promise<{ tasks: Task[] }>;
   // 图纸提交日志/版本时间线（档案页）：与总览第 7 个 fetch 同源 /api/artifacts，读治理快照。
@@ -149,6 +153,13 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
     },
     async getDepGraph() {
       return fetchJson(`${baseUrl}/api/dep-graph`, DepGraphSchema, fetcher);
+    },
+    async getGroupGaps() {
+      return fetchJson(
+        `${baseUrl}/api/group-gaps`,
+        GroupGapsResponseSchema,
+        fetcher,
+      );
     },
     async getKbSimilar(params: KbSimilarParams) {
       const qs = new URLSearchParams();

@@ -146,6 +146,20 @@ const zh = {
   'toolbar.title.pm': '项目计划表 · 任务看板',
   'toolbar.title.archive': '图纸提交日志 · 版本时间线',
 
+  // 缺人方向（S2，D-069）：组级派生缺口，永不指向人（A1/I0）
+  'nav.gaps': '缺人方向',
+  'toolbar.title.gaps': '缺人方向 · 组级',
+  'gaps.loading': '正在加载方向缺口…',
+  'gaps.error': '方向缺口不可用（后端没连上？检查后端地址或服务是否在线）',
+  'gaps.intro': '按组显示当前 open / escalated 的缺人方向，帮组长一眼看清哪个组缺什么方向。',
+  'gaps.note': '缺口归组不归人——列的是「哪个组缺什么方向」，不是「谁该来」，不下钻到具体人。',
+  'gaps.empty.title': '暂无方向缺口',
+  'gaps.empty.body': '当前没有待补的 open / escalated 缺口。',
+  'gaps.severity.emerging': '苗头',
+  'gaps.severity.pressing': '紧要',
+  'gaps.card.skills': '缺的方向',
+  'gaps.card.needCountLabel': '个待补缺口',
+
   // 图纸档案页（A8）：按机构分组的提交日志/版本时间线。
   'archive.loading': '正在载入图纸档案…',
   'archive.error': '档案暂时取不到，请检查后端地址或服务状态。',
@@ -473,6 +487,23 @@ const en: Record<TranslationKey, string> = {
   'toolbar.title.kb': 'Similar-bug Search · Cross-season Recall',
   'toolbar.title.pm': 'Project Plan · Task Board',
   'toolbar.title.archive': 'Artifact Submission Log · Version Timeline',
+
+  // Direction gaps (S2, D-069): group-level derived gaps, never tied to a person (A1/I0)
+  'nav.gaps': 'Direction Gaps',
+  'toolbar.title.gaps': 'Direction Gaps · By Group',
+  'gaps.loading': 'Loading direction gaps…',
+  'gaps.error':
+    'Direction gaps unavailable — check the backend address or service status.',
+  'gaps.intro':
+    'Open / escalated skill gaps, grouped — so a lead can see at a glance which group needs what direction.',
+  'gaps.note':
+    'Gaps are grouped, never tied to a person — it shows which group needs what, not who should come. No drill-down to individuals.',
+  'gaps.empty.title': 'No direction gaps',
+  'gaps.empty.body': 'No open or escalated gaps right now.',
+  'gaps.severity.emerging': 'Emerging',
+  'gaps.severity.pressing': 'Pressing',
+  'gaps.card.skills': 'Needed',
+  'gaps.card.needCountLabel': 'open gap(s)',
 
   'archive.loading': 'Loading artifact archive…',
   'archive.error': 'Archive unavailable — check the backend address or service status.',

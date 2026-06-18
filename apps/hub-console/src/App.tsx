@@ -8,6 +8,7 @@ import {
 } from './components/layout/ConsoleLayout';
 import { OverviewPage } from './features/overview/OverviewPage';
 import { DepGraphPage } from './features/dep-graph/DepGraphPage';
+import { GapsPage } from './features/gaps/GapsPage';
 import { KbSearchPage } from './features/kb/KbSearchPage';
 import { PmBoardPage } from './features/pm/PmBoardPage';
 import { ArchivePage } from './features/archive/ArchivePage';
@@ -22,6 +23,7 @@ const SOURCE = 'real';
 const TITLE_KEY: Record<ConsolePage, TranslationKey> = {
   overview: 'toolbar.title.overview',
   'dep-graph': 'toolbar.title.depGraph',
+  gaps: 'toolbar.title.gaps',
   kb: 'toolbar.title.kb',
   pm: 'toolbar.title.pm',
   archive: 'toolbar.title.archive',
@@ -83,6 +85,8 @@ export function App() {
           focusTaskId={focusTaskId}
           onConsumeFocus={() => setFocusTaskId(null)}
         />
+      ) : page === 'gaps' ? (
+        <GapsPage client={apiClient} source={SOURCE} />
       ) : page === 'kb' ? (
         <KbSearchPage client={apiClient} source={SOURCE} />
       ) : page === 'pm' ? (

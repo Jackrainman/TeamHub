@@ -37,6 +37,8 @@ import {
   rankSimilarIssues,
   toDepGraphView,
   wouldCreateCycle,
+  GroupGapsResponseSchema,
+  deriveDirectionGaps,
   apiContractFixtures,
 } from './contracts.js';
 import type { IssueCard } from '@teamhub/hub-contracts';
@@ -259,6 +261,17 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   app.get('/api/dep-graph', async () => {
     const snapshot = await store.getSnapshot();
     return DepGraphSchema.parse(toDepGraphView(snapshot, clock.now().toISOString()));
+  });
+
+  // 方向缺口（S2，D-069）：治理快照经纯函数 deriveDirectionGaps 实时派生组级缺人方向。
+  // A1/I0 安全：响应只含 groupId/能力方向/证据 task·need id，无 memberId/认领人，永不下钻到人。
+  app.get('/api/group-gaps', async () => {
+    const snapshot = await store.getSnapshot();
+    const now = clock.now().toISOString();
+    return GroupGapsResponseSchema.parse({
+      gaps: deriveDirectionGaps(snapshot, now),
+      generatedAt: now,
+    });
   });
 
   // PM 项目计划表：单条任务录入（C1 兜底录入口）。server 补 id/时间戳/派生默认（status=pending/statusSource=console）。
