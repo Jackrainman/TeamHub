@@ -1,8 +1,10 @@
-import type { z } from 'zod';
+import { z } from 'zod';
 
 import {
   ArchiveDocumentSchema,
+  ArchiveGeneratedBySchema,
   ErrorEntrySchema,
+  InvestigationRecordSchema,
   IssueCardSchema,
 } from './kb.js';
 import type {
@@ -12,6 +14,7 @@ import type {
   InvestigationRecord,
   IssueCard,
 } from './kb.js';
+import { KnowledgeNodeSchema } from './growth.js';
 import type { KnowledgeNode } from './growth.js';
 
 /**
@@ -339,3 +342,31 @@ export function buildCloseoutFromIssue(
     }),
   };
 }
+
+/**
+ * `POST /api/kb/closeout` 写侧请求 / 响应契约（跨端单一源，D-052 重复真相收口）。
+ * 此前 hub-server/src/contracts.ts 与 hub-console/src/api/schemas/kb.ts 各声明一份同形 schema、字段逐行重复；
+ * 现下沉至此，两端 re-export，避免漂移。
+ *
+ * `rootCause/resolution` 仍需手填（可行性 §2）；server 用 clock + issue.id 派生 errorCode/errorEntryId
+ * （确定性、可测）。**I0**：`generatedBy` 是 ai/manual/hybrid 来源凭证，不记结案人；派生知识节点无人维度（C2）。
+ */
+export const KbCloseoutRequestSchema = z.object({
+  issue: IssueCardSchema,
+  records: z.array(InvestigationRecordSchema).default([]),
+  category: z.string().default(''),
+  rootCause: z.string(),
+  resolution: z.string(),
+  prevention: z.string().default(''),
+  generatedBy: ArchiveGeneratedBySchema.default('hybrid'),
+});
+
+export const KbCloseoutResponseSchema = z.object({
+  archiveDocument: ArchiveDocumentSchema,
+  errorEntry: ErrorEntrySchema,
+  updatedIssueCard: IssueCardSchema,
+  knowledgeNode: KnowledgeNodeSchema,
+});
+
+export type KbCloseoutRequest = z.infer<typeof KbCloseoutRequestSchema>;
+export type KbCloseoutResponse = z.infer<typeof KbCloseoutResponseSchema>;

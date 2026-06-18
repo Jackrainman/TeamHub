@@ -1,5 +1,6 @@
 import { kbScenarioFixture } from '@teamhub/hub-contracts';
 import type { KbSnapshot } from '@teamhub/hub-contracts';
+import { cloneArrayFields } from './clone-snapshot.js';
 import type { KbCloseoutAppend, KbStore } from './gov-store.js';
 
 /**
@@ -13,13 +14,12 @@ export class InMemoryKbStore implements KbStore {
   private readonly snapshot: KbSnapshot;
 
   constructor(seed: KbSnapshot = kbScenarioFixture) {
-    // 克隆被写入的数组：appendCloseout 追加时不污染共享 fixture（参考 InMemoryGovStore）。
-    this.snapshot = {
-      ...seed,
-      issueCards: [...seed.issueCards],
-      errorEntries: [...seed.errorEntries],
-      archiveDocuments: [...seed.archiveDocuments],
-    };
+    // 克隆被写入的数组：appendCloseout 追加时不污染共享 fixture（参考 InMemoryGovStore，复用 cloneArrayFields）。
+    this.snapshot = cloneArrayFields(seed, [
+      'issueCards',
+      'errorEntries',
+      'archiveDocuments',
+    ]);
   }
 
   async getKbSnapshot(): Promise<KbSnapshot> {

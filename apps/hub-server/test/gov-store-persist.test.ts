@@ -263,4 +263,64 @@ describe('FileGovStore 落盘', () => {
       onDisk.tasks.some((t: { id: string }) => t.id === recovered.id),
     ).toBe(true);
   });
+
+  // 修复 #3：closeoutKbNode（按 name upsert）persist 失败 → 回滚。两条路径：
+  //   ① 新增节点 + persist 失败 → knowledgeNodes 不增（移除刚 push 的新节点）。
+  //   ② 覆盖既有节点 + persist 失败 → 旧节点被还原（不停在被覆盖的新内容）。
+  test('closeoutKbNode 新增节点 persist 失败 → 内存回滚（knowledgeNodes 不增）', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'gov-rollback-kb-new-'));
+    const sub = join(dir, 'govdir');
+    await mkdir(sub);
+    const file = join(sub, 'gov.json');
+    const store = await FileGovStore.create(file);
+    const before = (await store.getSnapshot()).knowledgeNodes.length;
+
+    await rm(sub, { recursive: true, force: true });
+    await writeFile(sub, 'blocker'); // 让下次 persist 失败
+
+    await expect(
+      store.closeoutKbNode({
+        name: '踩过的坑：全新结案节点（应被回滚）',
+        groupId: null,
+        parentNodeId: null,
+        resourceLinks: [],
+      }),
+    ).rejects.toThrow();
+
+    // 新节点已被移除：数量回到写前
+    expect((await store.getSnapshot()).knowledgeNodes.length).toBe(before);
+  });
+
+  test('closeoutKbNode 覆盖既有节点 persist 失败 → 旧节点被还原（不停在新内容）', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'gov-rollback-kb-upsert-'));
+    const sub = join(dir, 'govdir');
+    await mkdir(sub);
+    const file = join(sub, 'gov.json');
+    const store = await FileGovStore.create(file);
+
+    // 取一个 seed 既有节点（按 name upsert 会命中它）
+    const priorNodes = (await store.getSnapshot()).knowledgeNodes;
+    const target = priorNodes.find((n) => n.name === '底盘 CAN 通信协议');
+    expect(target).toBeDefined();
+    const beforeCount = priorNodes.length;
+    const beforeLinks = JSON.stringify(target?.resourceLinks);
+
+    await rm(sub, { recursive: true, force: true });
+    await writeFile(sub, 'blocker');
+
+    await expect(
+      store.closeoutKbNode({
+        name: '底盘 CAN 通信协议', // 同 name → upsert 命中既有节点
+        groupId: 'grp-ec',
+        parentNodeId: null,
+        resourceLinks: [{ label: '本次结案覆盖（应被回滚）', uri: 'archive://should-rollback' }],
+      }),
+    ).rejects.toThrow();
+
+    const after = (await store.getSnapshot()).knowledgeNodes;
+    const restored = after.find((n) => n.name === '底盘 CAN 通信协议');
+    expect(after.length).toBe(beforeCount); // 未新增
+    expect(restored?.id).toBe(target?.id); // 还是同一节点
+    expect(JSON.stringify(restored?.resourceLinks)).toBe(beforeLinks); // 旧内容还原，未停在覆盖值
+  });
 });

@@ -1018,6 +1018,13 @@ button {
   gap: 6px;
 }
 
+/* kb-chips 现为 <ul>（语义列表）：清掉 UA 默认 margin/padding/list-style，视觉与原 <div> 一致。 */
+.kb-chips {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .kb-chip {
   padding: 3px 9px;
   border-radius: 999px;
@@ -1159,6 +1166,37 @@ button {
   color: var(--text);
   font-size: 12.5px;
   line-height: 1.5;
+}
+
+/* Archive mechanism row (extracted from inline styles) */
+.archive-mechanism-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.archive-mechanism-checkbox {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+  font-size: inherit;
+}
+
+.archive-mechanism-input {
+  flex: 1;
+  min-width: 8rem;
+}
+
+/* select 原仅 flex:1（无 min-width）；单列一个类保持与改造前一致。 */
+.archive-mechanism-select {
+  flex: 1;
+}
+
+/* Archive version preview label (extracted from inline styles) */
+.archive-version-preview {
+  opacity: 0.7;
+  font-size: 0.85em;
 }
 
 /* ===== 项目看板页 ===== */

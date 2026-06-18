@@ -39,6 +39,7 @@ import type {
 import type { HubApiClient } from '../../api/client';
 import type { CreateDependencyRequest } from '../../api/schemas/pm';
 import { useI18n, type TranslationKey } from '../../i18n';
+import { MetricTile } from '../../components/MetricTile';
 import { PmCreatePanel } from '../pm/PmCreatePanel';
 
 const NODE_W = 212;
@@ -179,7 +180,7 @@ function wouldCreateCycle(edges: DepEdge[], from: string, to: string): boolean {
   const stack: string[] = [to];
   const seen = new Set<string>();
   while (stack.length > 0) {
-    const cur = stack.pop() as string;
+    const cur = stack.pop()!;
     if (cur === from) return true;
     if (seen.has(cur)) continue;
     seen.add(cur);
@@ -333,7 +334,7 @@ export function DepGraphPage({
         },
       });
     },
-    [graph, source, t, connectMutation],
+    [graph, t, connectMutation],
   );
 
   // 录入浮层建任务 / 依赖 / 需求后：同时失效看板任务表 + 依赖图，两个查询都重取才即时重绘。
@@ -341,6 +342,16 @@ export function DepGraphPage({
     void queryClient.invalidateQueries({ queryKey: ['tasks', source] });
     void queryClient.invalidateQueries({ queryKey: ['dep-graph', source] });
   }, [queryClient, source]);
+
+  // ARIA dialog: Escape key must close the overlay (WCAG 2.1 dialog pattern).
+  useEffect(() => {
+    if (!entryOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setEntryOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [entryOpen]);
 
   // 成功/错误横幅几秒后自动消失：否则它一直占着画布顶部、挡住删除条等后续操作。
   // 手动点横幅仍可立即关闭；新消息进来会重置计时（依赖数组含两条 msg）。
@@ -363,11 +374,11 @@ export function DepGraphPage({
   }, [focusTaskId, graph, onConsumeFocus]);
 
   if (query.isLoading) {
-    return <div className="state-band">{t('depgraph.loading')}</div>;
+    return <div className="state-band" role="status" aria-live="polite">{t('depgraph.loading')}</div>;
   }
   if (query.error || !graph) {
     return (
-      <div className="state-band state-band-error">{t('depgraph.unavailable')}</div>
+      <div className="state-band state-band-error" role="alert">{t('depgraph.unavailable')}</div>
     );
   }
 
@@ -386,10 +397,10 @@ export function DepGraphPage({
         </button>
       </div>
       <section className="dep-graph-summary" aria-label={t('depgraph.summary.aria')}>
-        <Metric label={t('depgraph.summary.critical')} value={String(graph.summary.criticalCount)} />
-        <Metric label={t('depgraph.summary.blocked')} value={String(graph.summary.blockedCount)} />
-        <Metric label={t('depgraph.summary.blockedIdle')} value={String(graph.summary.blockedIdleCount)} accent="red" />
-        <Metric label={t('depgraph.summary.freeIdle')} value={String(graph.summary.freeIdleCount)} accent="amber" />
+        <MetricTile label={t('depgraph.summary.critical')} value={String(graph.summary.criticalCount)} />
+        <MetricTile label={t('depgraph.summary.blocked')} value={String(graph.summary.blockedCount)} />
+        <MetricTile label={t('depgraph.summary.blockedIdle')} value={String(graph.summary.blockedIdleCount)} accent="red" />
+        <MetricTile label={t('depgraph.summary.freeIdle')} value={String(graph.summary.freeIdleCount)} accent="amber" />
       </section>
       <div className="dep-graph-shell">
         <div className="dep-graph-canvas">
@@ -494,6 +505,8 @@ export function DepGraphPage({
                 onClick={() => setEntryOpen(false)}
                 aria-label={t('depgraph.entry.close')}
                 title={t('depgraph.entry.close')}
+                // eslint-disable-next-line jsx-a11y/no-autofocus -- ARIA dialog requires focus to move into the dialog on open
+                autoFocus
               >
                 <X size={18} aria-hidden="true" />
               </button>
@@ -510,23 +523,6 @@ export function DepGraphPage({
           </div>
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent?: 'red' | 'amber';
-}) {
-  return (
-    <div className={`metric-tile${accent ? ` metric-tile--${accent}` : ''}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
     </div>
   );
 }

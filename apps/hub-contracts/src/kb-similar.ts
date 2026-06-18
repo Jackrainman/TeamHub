@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { isoDateTimeSchema } from './common.js';
 import { IssueStatusSchema } from './kb.js';
 import type { ArchiveDocument, ErrorEntry, IssueCard } from './kb.js';
 
@@ -33,10 +34,28 @@ export const SimilarIssueMatchSchema = z.object({
   rootCauseSummary: z.string().optional(),
   resolutionSummary: z.string().optional(),
   archiveFileName: z.string().optional(),
-  updatedAt: z.string(),
+  updatedAt: isoDateTimeSchema,
 });
 
 export type SimilarIssueMatch = z.infer<typeof SimilarIssueMatchSchema>;
+
+/**
+ * `GET /api/kb/similar` 响应契约（跨端单一源，D-052 重复真相收口）。
+ * 此前 hub-server/src/contracts.ts 与 hub-console/src/api/schemas/kb.ts 各声明一份同形 schema、字段逐行重复；
+ * 现下沉至此，两端 re-export，避免漂移。`items` 复用 SimilarIssueMatchSchema；`note` 是 A4 护栏措辞
+ * （「只列候选、不断言同因、由人选用」，后端焊进响应、前端原样呈现）。
+ * 注意：查询入参 `KbSimilarQuerySchema`（含 querystring transform 逻辑）仍留 hub-server，是 server 专用、不跨端。
+ */
+export const KbSimilarResponseSchema = z.object({
+  query: z.object({
+    symptom: z.string(),
+    tags: z.array(z.string()),
+  }),
+  items: z.array(SimilarIssueMatchSchema),
+  note: z.string(),
+});
+
+export type KbSimilarResponse = z.infer<typeof KbSimilarResponseSchema>;
 
 export interface RankSimilarIssuesInput {
   currentIssue: IssueCard;
@@ -196,14 +215,23 @@ function isHistoricalIssue(
 
 function buildReasons(match: Omit<SimilarIssueMatch, 'reasons'>): string[] {
   const reasons: string[] = [];
-  const labels: Array<[keyof typeof match, string]> = [
+  const labels: Array<[
+    keyof Pick<
+      typeof match,
+      | 'matchedTags'
+      | 'matchedKeywords'
+      | 'matchedRootCauseTerms'
+      | 'matchedResolutionTerms'
+    >,
+    string,
+  ]> = [
     ['matchedTags', '标签重合'],
     ['matchedKeywords', '关键词重合'],
     ['matchedRootCauseTerms', '根因术语重合'],
     ['matchedResolutionTerms', '处理方式术语重合'],
   ];
   for (const [key, prefix] of labels) {
-    const list = match[key] as string[];
+    const list = match[key];
     if (list.length > 0) reasons.push(`${prefix}：${list.join('、')}`);
   }
   if (match.errorCode) reasons.push(`已有错误表：${match.errorCode}`);

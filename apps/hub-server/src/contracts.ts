@@ -1,13 +1,4 @@
 import { z } from 'zod';
-import {
-  SimilarIssueMatchSchema,
-  IssueCardSchema,
-  InvestigationRecordSchema,
-  ArchiveDocumentSchema,
-  ArchiveGeneratedBySchema,
-  ErrorEntrySchema,
-  KnowledgeNodeSchema,
-} from '@teamhub/hub-contracts';
 export {
   AdapterCapabilitiesResponseSchema,
   AdapterDescriptorSchema,
@@ -40,6 +31,12 @@ export {
   SimilarIssueMatchSchema,
   rankSimilarIssues,
   buildCloseoutFromIssue,
+  // D-052 重复真相收口（续）：KB 检索响应 + 结案写侧契约下沉 hub-contracts 单一源，server 仅 re-export，
+  // 不再本地重声明 → 不会与 console 漂移。注意 KbSimilarQuerySchema（含 querystring transform）仍是
+  // server 专用、留在本文件下方。
+  KbSimilarResponseSchema,
+  KbCloseoutRequestSchema,
+  KbCloseoutResponseSchema,
   TasksResponseSchema,
   // D-052 重复真相收口：以下契约下沉 hub-contracts 单一源，此处仅 re-export 维持既有 import 路径
   // （server.ts / index.ts / 测试 仍 from './contracts.js'），不再本地重声明 → 不会与 console 漂移。
@@ -101,6 +98,9 @@ export type {
   CreateArtifactRequest,
   CreateArtifactResponse,
   ArtifactVersionKey,
+  KbSimilarResponse,
+  KbCloseoutRequest,
+  KbCloseoutResponse,
 } from '@teamhub/hub-contracts';
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -132,38 +132,5 @@ export const KbSimilarQuerySchema = z.object({
   minScore: z.coerce.number().int().nonnegative().optional(),
 });
 
-export const KbSimilarResponseSchema = z.object({
-  query: z.object({
-    symptom: z.string(),
-    tags: z.array(z.string()),
-  }),
-  items: z.array(SimilarIssueMatchSchema),
-  note: z.string(),
-});
-
-export type KbSimilarResponse = z.infer<typeof KbSimilarResponseSchema>;
-
-/**
- * KB-CORE `POST /api/kb/closeout` 路由契约。结案输入（issue + 时间线 + 根因/处理）→ 归档 + 错误表 +
- * 已归档卡 + 结案派生知识节点。`rootCause/resolution` 仍需手填（可行性 §2）；server 用 clock + issue.id
- * 派生 errorCode/errorEntryId（确定性、可测）。**I0**：generatedBy 是 ai/manual/hybrid，不记结案人。
- */
-export const KbCloseoutRequestSchema = z.object({
-  issue: IssueCardSchema,
-  records: z.array(InvestigationRecordSchema).default([]),
-  category: z.string().default(''),
-  rootCause: z.string(),
-  resolution: z.string(),
-  prevention: z.string().default(''),
-  generatedBy: ArchiveGeneratedBySchema.default('hybrid'),
-});
-
-export const KbCloseoutResponseSchema = z.object({
-  archiveDocument: ArchiveDocumentSchema,
-  errorEntry: ErrorEntrySchema,
-  updatedIssueCard: IssueCardSchema,
-  knowledgeNode: KnowledgeNodeSchema,
-});
-
-export type KbCloseoutRequest = z.infer<typeof KbCloseoutRequestSchema>;
-export type KbCloseoutResponse = z.infer<typeof KbCloseoutResponseSchema>;
+// KbSimilarResponseSchema / KbCloseoutRequestSchema / KbCloseoutResponseSchema（含类型）已下沉
+// hub-contracts（kb-similar.ts / kb-closeout.ts），见上方 re-export 块——此处不再本地重声明。

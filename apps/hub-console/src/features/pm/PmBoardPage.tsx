@@ -3,6 +3,7 @@ import { Network } from 'lucide-react';
 import type { Task, TaskStatus } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n, type TranslationKey } from '../../i18n';
+import { MetricTile } from '../../components/MetricTile';
 import { PmCreatePanel } from './PmCreatePanel';
 
 // 看板列固定顺序（任务流向，不按人）。反排名（C2）：看板主键是 task/status，无 memberId 维度、
@@ -46,15 +47,24 @@ export function PmBoardPage({
   });
 
   if (query.isLoading) {
-    return <div className="state-band">{t('pm.loading')}</div>;
+    return <div className="state-band" role="status" aria-live="polite">{t('pm.loading')}</div>;
   }
   if (query.error || !query.data) {
-    return <div className="state-band state-band-error">{t('pm.error')}</div>;
+    return <div className="state-band state-band-error" role="alert">{t('pm.error')}</div>;
   }
 
   const tasks = query.data.tasks;
-  const byStatus = (status: TaskStatus) =>
-    tasks.filter((task) => task.status === status);
+
+  // O(n) single-pass grouping: build a Map<TaskStatus, Task[]> once, then all
+  // COLUMN_ORDER.map and Metric lookups are O(1) instead of O(n×7).
+  const statusMap = new Map<TaskStatus, Task[]>();
+  for (const task of tasks) {
+    const list = statusMap.get(task.status) ?? [];
+    list.push(task);
+    statusMap.set(task.status, list);
+  }
+  const byStatus = (status: TaskStatus) => statusMap.get(status) ?? [];
+
   // 写表单成功后失效任务查询 → 看板即时刷新（命中后端读视图）。
   const refreshTasks = () =>
     void queryClient.invalidateQueries({ queryKey: ['tasks', source] });
@@ -63,13 +73,13 @@ export function PmBoardPage({
     <div className="pm-page">
       <PmCreatePanel client={client} tasks={tasks} onCreated={refreshTasks} />
       <section className="pm-summary" aria-label={t('pm.section.summary')}>
-        <Metric label={t('pm.summary.total')} value={String(tasks.length)} />
-        <Metric
+        <MetricTile label={t('pm.summary.total')} value={String(tasks.length)} />
+        <MetricTile
           label={t('pm.summary.blocked')}
           value={String(byStatus('blocked').length)}
           accent="red"
         />
-        <Metric
+        <MetricTile
           label={t('pm.summary.done')}
           value={String(byStatus('done').length)}
           accent="green"
@@ -108,23 +118,6 @@ export function PmBoardPage({
           })}
         </div>
       )}
-    </div>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent?: 'red' | 'green';
-}) {
-  return (
-    <div className={`metric-tile${accent ? ` metric-tile--${accent}` : ''}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
     </div>
   );
 }

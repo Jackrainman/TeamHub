@@ -8,6 +8,7 @@ import {
   kbScenarioFixture,
 } from '@teamhub/hub-contracts';
 import type { KbSnapshot } from '@teamhub/hub-contracts';
+import { cloneArrayFields } from './clone-snapshot.js';
 import { appendCloseoutInto } from './mock-kb-store.js';
 import type { KbCloseoutAppend, KbStore } from './gov-store.js';
 
@@ -27,13 +28,15 @@ const KbSnapshotSchema = z.object({
   archiveDocuments: z.array(ArchiveDocumentSchema),
 });
 
+/** 语料快照的三数组字段（appendCloseout upsert 触及的集合）——克隆隔离用。 */
+const KB_ARRAY_FIELDS: (keyof KbSnapshot)[] = [
+  'issueCards',
+  'errorEntries',
+  'archiveDocuments',
+];
+
 function cloneSnapshot(seed: KbSnapshot): KbSnapshot {
-  return {
-    ...seed,
-    issueCards: [...seed.issueCards],
-    errorEntries: [...seed.errorEntries],
-    archiveDocuments: [...seed.archiveDocuments],
-  };
+  return cloneArrayFields(seed, KB_ARRAY_FIELDS);
 }
 
 export class FileKbStore implements KbStore {

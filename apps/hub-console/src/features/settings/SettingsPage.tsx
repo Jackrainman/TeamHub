@@ -4,10 +4,12 @@ import type { AgentBackend, BotChannel } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { useTheme } from '../../theme';
+import { segClass } from '../../utils';
+import { MetaRow } from '../../components/MetaRow';
+import { APIBASE_KEY } from '../../constants';
 
 // 设置页：收纳此前散落各处的运行时设置——语言 / 集成 / 后端地址 / 关于。
 // 语言复用 i18n 的同一份状态（无本地副本，故无同步问题）。单一真实后端，无数据源切换。
-const APIBASE_KEY = 'teamhub.apiBase';
 
 // Agent 后端 / 数据源共用生命周期状态枚举 → 文案键（枚举变更会在此处编译报错）。
 const LIFECYCLE_STATUS_KEY: Record<AgentBackend['status'], TranslationKey> = {
@@ -36,10 +38,6 @@ interface IntegrationRow {
   meta: string;
   statusLabel: string;
   pillClass: string;
-}
-
-function segClass(active: boolean): string {
-  return active ? 'seg__btn seg__btn--active' : 'seg__btn';
 }
 
 export function SettingsPage({
@@ -143,7 +141,7 @@ function IntegrationsSection({
       <div className="settings-section">
         <p className="settings-desc">{t('settings.integrations.desc')}</p>
         {overviewQuery.isLoading ? (
-          <p className="settings-desc">…</p>
+          <p className="settings-desc" role="status" aria-live="polite">…</p>
         ) : overviewQuery.error || !data ? (
           <p className="form-hint form-hint--warn">
             {t('settings.integrations.unavailable')}
@@ -315,23 +313,23 @@ function AboutSection({
       </div>
       <div className="settings-section">
         {statusQuery.isLoading ? (
-          <p className="settings-desc">…</p>
+          <p className="settings-desc" role="status" aria-live="polite">…</p>
         ) : statusQuery.error || !statusQuery.data ? (
           <p className="form-hint form-hint--warn">
             {t('settings.about.unavailable')}
           </p>
         ) : (
           <dl className="kb-meta">
-            <AboutRow
+            <MetaRow
               label={t('settings.about.service')}
               value={statusQuery.data.service}
             />
-            <AboutRow
+            <MetaRow
               label={t('settings.about.version')}
               value={statusQuery.data.version}
               mono
             />
-            <AboutRow
+            <MetaRow
               label={t('settings.about.mode')}
               value={statusQuery.data.mode}
               mono
@@ -340,22 +338,5 @@ function AboutSection({
         )}
       </div>
     </section>
-  );
-}
-
-function AboutRow({
-  label,
-  value,
-  mono,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <div className="kb-meta__row">
-      <dt>{label}</dt>
-      <dd className={mono ? 'kb-mono' : undefined}>{value}</dd>
-    </div>
   );
 }

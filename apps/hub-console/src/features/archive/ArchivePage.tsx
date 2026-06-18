@@ -4,23 +4,10 @@ import type { ArtifactRef } from '@teamhub/hub-contracts';
 import { nextArtifactVersionNo } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import type { CreateArtifactRequest } from '../../api/schemas/pm';
-import { useI18n, type TranslationKey } from '../../i18n';
-
-// ArtifactKind → 文案键（类型安全：后端枚举变更会在此处编译报错）。复用总览已有的 enum.artifact.* 键。
-const ARTIFACT_KIND_KEY: Record<ArtifactRef['kind'], TranslationKey> = {
-  firmware: 'enum.artifact.firmware',
-  log: 'enum.artifact.log',
-  rosbag: 'enum.artifact.rosbag',
-  image: 'enum.artifact.image',
-  video: 'enum.artifact.video',
-  report: 'enum.artifact.report',
-  other: 'enum.artifact.other',
-};
-
-// segClass：复用 SettingsPage 同款分段控件样式（零新 CSS）。
-function segClass(active: boolean): string {
-  return active ? 'seg__btn seg__btn--active' : 'seg__btn';
-}
+import { useI18n } from '../../i18n';
+import { errorDetail, segClass } from '../../utils';
+import { MetaRow } from '../../components/MetaRow';
+import { ARTIFACT_KIND_KEY } from '../../constants';
 
 // guessSeason：纯 UI helper，猜当前赛季年份（后两位数字字符串，如 "25"）。
 // 赛季切换惯例：赛季年份 = 日历年 - 1（赛季到次年前数月结束）。
@@ -96,25 +83,6 @@ function groupArtifacts(artifacts: ArtifactRef[]): OwnerGroupSection[] {
   });
 }
 
-// 在 ownerGroup+season+robotCode+mechanism 四键组内找 max(versionNo) 行
-function isCurrentVersion(artifact: ArtifactRef, all: ArtifactRef[]): boolean {
-  if (
-    !artifact.ownerGroup ||
-    !artifact.season ||
-    !artifact.robotCode ||
-    !artifact.mechanism ||
-    artifact.versionNo === undefined
-  )
-    return false;
-  const maxVer = nextArtifactVersionNo(all, {
-    ownerGroup: artifact.ownerGroup,
-    season: artifact.season,
-    robotCode: artifact.robotCode,
-    mechanism: artifact.mechanism,
-  }) - 1;
-  return artifact.versionNo === maxVer;
-}
-
 // 档案页：图纸提交日志 / 版本时间线（v2 机械/电路分组版本库）。
 // 按学科组 + 机构两级分组，组内 createdAt 倒序，max(versionNo) 行打「当前版」徽章。
 // I0：归档物无人员字段，永不展示人/排名。
@@ -138,6 +106,28 @@ export function ArchivePage({
     () => groupArtifacts(query.data?.artifacts ?? []),
     [query.data],
   );
+
+  // O(n) pre-compute: one pass over all artifacts to find the max versionNo id
+  // per four-key group; render loop uses O(1) Set lookup instead of O(n) scan.
+  const currentVersionIds = useMemo(() => {
+    const maxVer = new Map<string, { id: string; ver: number }>();
+    for (const a of query.data?.artifacts ?? []) {
+      if (
+        !a.ownerGroup ||
+        !a.season ||
+        !a.robotCode ||
+        !a.mechanism ||
+        a.versionNo === undefined
+      )
+        continue;
+      const key = `${a.ownerGroup}|${a.season}|${a.robotCode}|${a.mechanism}`;
+      const cur = maxVer.get(key);
+      if (!cur || a.versionNo > cur.ver) {
+        maxVer.set(key, { id: a.id, ver: a.versionNo });
+      }
+    }
+    return new Set(Array.from(maxVer.values()).map((v) => v.id));
+  }, [query.data]);
 
   // 登记表单状态 v2（I0：无提交人字段）
   const [ownerGroup, setOwnerGroup] = useState<OwnerGroup>('mechanical');
@@ -322,8 +312,8 @@ export function ArchivePage({
         {/* 机构：新机构勾选框切文本 / 否则下拉 */}
         <div className="kb-field">
           <span>{t('archive.form.mechanism')}</span>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <label style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', fontSize: 'inherit' }}>
+          <div className="archive-mechanism-row">
+            <label className="archive-mechanism-checkbox">
               <input
                 type="checkbox"
                 checked={isNewMechanism}
@@ -336,14 +326,14 @@ export function ArchivePage({
             </label>
             {usingTextInput ? (
               <input
-                style={{ flex: 1, minWidth: '8rem' }}
+                className="archive-mechanism-input"
                 value={mechanismNew}
                 placeholder={t('archive.form.mechanism')}
                 onChange={(e) => setMechanismNew(e.target.value)}
               />
             ) : (
               <select
-                style={{ flex: 1 }}
+                className="archive-mechanism-select"
                 value={mechanism}
                 onChange={(e) => setMechanism(e.target.value)}
                 aria-label={t('archive.form.mechanismSelect')}
@@ -362,7 +352,7 @@ export function ArchivePage({
         {/* 版本预览（只读）*/}
         {versionPreview ? (
           <div className="kb-field">
-            <span style={{ opacity: 0.7, fontSize: '0.85em' }}>
+            <span className="archive-version-preview">
               {t('archive.form.versionPreview', { label: versionPreview })}
             </span>
           </div>
@@ -435,7 +425,7 @@ export function ArchivePage({
     return (
       <div className="archive-page">
         {form}
-        <div className="state-band">{t('archive.loading')}</div>
+        <div className="state-band" role="status" aria-live="polite">{t('archive.loading')}</div>
       </div>
     );
   }
@@ -444,12 +434,10 @@ export function ArchivePage({
     return (
       <div className="archive-page">
         {form}
-        <div className="state-band state-band-error">{t('archive.error')}</div>
+        <div className="state-band state-band-error" role="alert">{t('archive.error')}</div>
       </div>
     );
   }
-
-  const allArtifacts = query.data.artifacts;
 
   if (sections.length === 0) {
     return (
@@ -491,7 +479,7 @@ export function ArchivePage({
                       artifact={artifact}
                       key={artifact.id}
                       lang={lang}
-                      isCurrent={isCurrentVersion(artifact, allArtifacts)}
+                      isCurrent={currentVersionIds.has(artifact.id)}
                     />
                   ))}
                 </div>
@@ -542,32 +530,16 @@ function ArtifactLogRow({
       </div>
       <dl className="archive-row__detail">
         {artifact.relatedCommit ? (
-          <ArchiveMeta
+          <MetaRow
             label={t('archive.meta.commit')}
             value={artifact.relatedCommit}
             mono
+            rowClass="archive-meta__row"
           />
         ) : null}
-        <ArchiveMeta label={t('archive.meta.uri')} value={artifact.uri} mono />
+        <MetaRow label={t('archive.meta.uri')} value={artifact.uri} mono rowClass="archive-meta__row" />
       </dl>
     </article>
-  );
-}
-
-function ArchiveMeta({
-  label,
-  value,
-  mono,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <div className="archive-meta__row">
-      <dt>{label}</dt>
-      <dd className={mono ? 'kb-mono' : undefined}>{value}</dd>
-    </div>
   );
 }
 
@@ -579,8 +551,4 @@ function formatDate(iso: string, lang: 'zh' | 'en'): string {
     month: '2-digit',
     day: '2-digit',
   });
-}
-
-function errorDetail(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

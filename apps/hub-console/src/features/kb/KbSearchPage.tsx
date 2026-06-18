@@ -4,6 +4,7 @@ import { Info, Search, Archive } from 'lucide-react';
 import type { SimilarIssueMatch } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n, type TranslationKey } from '../../i18n';
+import { MetaRow } from '../../components/MetaRow';
 import { KbCloseoutForm } from './KbCloseoutForm';
 
 type KbTab = 'search' | 'closeout';
@@ -25,6 +26,7 @@ export function KbSearchPage({
           type="button"
           role="tab"
           aria-selected={tab === 'search'}
+          aria-controls="kb-tab-search"
           className={tab === 'search' ? 'seg__btn seg__btn--active' : 'seg__btn'}
           onClick={() => setTab('search')}
         >
@@ -34,6 +36,7 @@ export function KbSearchPage({
           type="button"
           role="tab"
           aria-selected={tab === 'closeout'}
+          aria-controls="kb-tab-closeout"
           className={tab === 'closeout' ? 'seg__btn seg__btn--active' : 'seg__btn'}
           onClick={() => setTab('closeout')}
         >
@@ -41,9 +44,13 @@ export function KbSearchPage({
         </button>
       </div>
       {tab === 'search' ? (
-        <KbSearchPanel client={client} source={source} />
+        <div role="tabpanel" id="kb-tab-search" tabIndex={0}>
+          <KbSearchPanel client={client} source={source} />
+        </div>
       ) : (
-        <KbCloseoutForm client={client} source={source} />
+        <div role="tabpanel" id="kb-tab-closeout" tabIndex={0}>
+          <KbCloseoutForm client={client} source={source} />
+        </div>
       )}
     </div>
   );
@@ -132,11 +139,11 @@ function KbSearchPanel({
       </form>
 
       {submitted == null ? (
-        <div className="state-band">{t('kb.empty')}</div>
+        <div className="state-band" role="status" aria-live="polite">{t('kb.empty')}</div>
       ) : query.isLoading ? (
-        <div className="state-band">{t('kb.loading')}</div>
+        <div className="state-band" role="status" aria-live="polite">{t('kb.loading')}</div>
       ) : query.error || !query.data ? (
-        <div className="state-band state-band-error">{t('kb.error')}</div>
+        <div className="state-band state-band-error" role="alert">{t('kb.error')}</div>
       ) : (
         <section className="kb-results">
           {/* A4 护栏：系统只列候选、不断言「同因」，由人按 reasons 自行判断后选用。 */}
@@ -176,55 +183,38 @@ function KbResultCard({ item }: { item: SimilarIssueMatch }) {
         </div>
       </div>
       {item.tags.length > 0 ? (
-        <div className="kb-chips" aria-label={t('kb.result.tags')}>
+        <ul className="kb-chips" aria-label={t('kb.result.tags')} role="list">
           {item.tags.map((tag, index) => (
-            <span className="kb-chip" key={`${tag}-${index}`}>
+            <li className="kb-chip" key={`${tag}-${index}`}>
               {tag}
-            </span>
+            </li>
           ))}
-        </div>
+        </ul>
       ) : null}
       {item.reasons.length > 0 ? (
         <div className="kb-reasons">
           <span className="kb-reasons__label">{t('kb.result.reasons')}</span>
           <ul>
-            {item.reasons.map((reason, index) => (
-              <li key={`${reason}-${index}`}>{reason}</li>
+            {item.reasons.map((reason) => (
+              <li key={reason}>{reason}</li>
             ))}
           </ul>
         </div>
       ) : null}
       <dl className="kb-meta">
         {item.errorCode ? (
-          <KbMeta label={t('kb.result.errorCode')} value={item.errorCode} mono />
+          <MetaRow label={t('kb.result.errorCode')} value={item.errorCode} mono />
         ) : null}
         {item.rootCauseSummary ? (
-          <KbMeta label={t('kb.result.rootCause')} value={item.rootCauseSummary} />
+          <MetaRow label={t('kb.result.rootCause')} value={item.rootCauseSummary} />
         ) : null}
         {item.resolutionSummary ? (
-          <KbMeta label={t('kb.result.resolution')} value={item.resolutionSummary} />
+          <MetaRow label={t('kb.result.resolution')} value={item.resolutionSummary} />
         ) : null}
         {item.archiveFileName ? (
-          <KbMeta label={t('kb.result.archive')} value={item.archiveFileName} mono />
+          <MetaRow label={t('kb.result.archive')} value={item.archiveFileName} mono />
         ) : null}
       </dl>
     </article>
-  );
-}
-
-function KbMeta({
-  label,
-  value,
-  mono,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <div className="kb-meta__row">
-      <dt>{label}</dt>
-      <dd className={mono ? 'kb-mono' : undefined}>{value}</dd>
-    </div>
   );
 }

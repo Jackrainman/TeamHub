@@ -24,10 +24,10 @@ export function GapsPage({
   });
 
   if (query.isLoading) {
-    return <div className="state-band">{t('gaps.loading')}</div>;
+    return <div className="state-band" role="status" aria-live="polite">{t('gaps.loading')}</div>;
   }
   if (query.error || !query.data) {
-    return <div className="state-band state-band-error">{t('gaps.error')}</div>;
+    return <div className="state-band state-band-error" role="alert">{t('gaps.error')}</div>;
   }
 
   const gaps = query.data.gaps;

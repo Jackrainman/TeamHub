@@ -24,6 +24,10 @@ import type { ArtifactRef } from './schemas.js';
  * task/group/dependency/need，没有 memberId 维度；区分"被卡 vs 摸鱼"的依据是
  * "有没有一条 active 确认依赖边指向未完成上游"这个布尔事实——没有这条边，
  * 不产生归因（沉默，A4）。
+ *
+ * SYNC: 本 interface 是手写（无对应 ZodSchema）；hub-server `file-gov-store.ts` 的 `GovernanceSnapshotSchema`
+ * 手工拼合了字段对应的解析 schema（fail-closed 加载用）。**本 interface 增删字段时，须同步那处 schema**
+ * （及 `GOVERNANCE_ARRAY_FIELDS` / `InMemoryGovStore` 克隆数组列表），否则落盘加载会漏校验新字段。
  */
 export interface GovernanceSnapshot {
   seasonId: string;

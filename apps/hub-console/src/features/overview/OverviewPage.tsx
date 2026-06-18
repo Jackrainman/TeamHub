@@ -2,6 +2,8 @@ import type { ArtifactRef, GitRepoRef, HubEvent } from '@teamhub/hub-contracts';
 import type { OverviewSnapshot } from '../../api/schemas/system';
 import type { ConsolePage } from '../../components/layout/ConsoleLayout';
 import { useI18n, type TranslationKey } from '../../i18n';
+import { ARTIFACT_KIND_KEY } from '../../constants';
+import { MetricTile } from '../../components/MetricTile';
 
 // 后端枚举 → 文案键（类型安全：枚举变更会在此处编译报错）。仅翻译状态/类型等「界面语义」，
 // 用户数据（displayName / uri / branch / capabilities 等）保持后端原样。
@@ -22,16 +24,6 @@ const EVENT_TYPE_KEY: Record<HubEvent['type'], TranslationKey> = {
   'system.health.checked': 'enum.event.system.health.checked',
 };
 
-const ARTIFACT_KIND_KEY: Record<ArtifactRef['kind'], TranslationKey> = {
-  firmware: 'enum.artifact.firmware',
-  log: 'enum.artifact.log',
-  rosbag: 'enum.artifact.rosbag',
-  image: 'enum.artifact.image',
-  video: 'enum.artifact.video',
-  report: 'enum.artifact.report',
-  other: 'enum.artifact.other',
-};
-
 interface OverviewPageProps {
   snapshot: OverviewSnapshot | undefined;
   isLoading: boolean;
@@ -48,12 +40,12 @@ export function OverviewPage({
   const { t } = useI18n();
 
   if (isLoading) {
-    return <div className="state-band">{t('overview.loading')}</div>;
+    return <div className="state-band" role="status" aria-live="polite">{t('overview.loading')}</div>;
   }
 
   if (error || !snapshot) {
     return (
-      <div className="state-band state-band-error">{t('overview.unavailable')}</div>
+      <div className="state-band state-band-error" role="alert">{t('overview.unavailable')}</div>
     );
   }
 
@@ -64,23 +56,23 @@ export function OverviewPage({
   return (
     <div className="overview-grid">
       <section className="summary-strip" aria-label={t('overview.section.summary')}>
-        <Metric
+        <MetricTile
           label={t('overview.metric.system')}
           value={t(HEALTH_KEY[snapshot.health.status])}
         />
-        <Metric
+        <MetricTile
           label={t('overview.metric.adapters')}
           value={`${snapshot.system.adapters.enabled}/${snapshot.system.adapters.total}`}
         />
-        <Metric
+        <MetricTile
           label={t('overview.metric.bridge')}
           value={t('overview.blocked', { n: blocked })}
         />
-        <Metric
+        <MetricTile
           label={t('overview.metric.repos')}
           value={`${snapshot.gitRepos.repos.length}`}
         />
-        <Metric
+        <MetricTile
           label={t('overview.metric.artifacts')}
           value={`${snapshot.artifacts.artifacts.length}`}
         />
@@ -88,17 +80,7 @@ export function OverviewPage({
 
       {/* 集成详情已移到设置页（INTEGRATIONS-TO-SETTINGS）：总览只留一行入口，主体精简到指标 + 最近事件。 */}
       <div className="overview-integrations-hint">
-        {onNavigate ? (
-          <button
-            type="button"
-            className="link-button"
-            onClick={() => onNavigate('settings')}
-          >
-            {t('overview.integrations.toSettings')}
-          </button>
-        ) : (
-          <span>{t('overview.integrations.toSettings')}</span>
-        )}
+        <HintLink label={t('overview.integrations.toSettings')} page="settings" onNavigate={onNavigate} />
       </div>
 
       <section className="panel">
@@ -143,30 +125,31 @@ export function OverviewPage({
           ))}
         </div>
         <div className="overview-integrations-hint">
-          {onNavigate ? (
-            <button
-              type="button"
-              className="link-button"
-              onClick={() => onNavigate('archive')}
-            >
-              {t('overview.artifacts.toArchive')}
-            </button>
-          ) : (
-            <span>{t('overview.artifacts.toArchive')}</span>
-          )}
+          <HintLink label={t('overview.artifacts.toArchive')} page="archive" onNavigate={onNavigate} />
         </div>
       </section>
     </div>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="metric-tile">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
+/** Renders a navigation button when onNavigate is provided, otherwise a plain span. */
+function HintLink({
+  label,
+  page,
+  onNavigate,
+}: {
+  label: string;
+  page?: ConsolePage;
+  onNavigate?: (page: ConsolePage) => void;
+}) {
+  if (onNavigate && page) {
+    return (
+      <button type="button" className="link-button" onClick={() => onNavigate(page)}>
+        {label}
+      </button>
+    );
+  }
+  return <span>{label}</span>;
 }
 
 function PanelHeader({ title, meta }: { title: string; meta: string }) {

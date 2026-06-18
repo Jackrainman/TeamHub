@@ -1,23 +1,24 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Archive, CheckCircle2 } from 'lucide-react';
+import type { IssueSeverity, ArchiveGeneratedBy } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import type { KbCloseoutRequest } from '../../api/schemas/kb';
 import { useI18n, type TranslationKey } from '../../i18n';
+import { parseList, errorDetail } from '../../utils';
+import { Field } from '../../components/Field';
+import { MetaRow } from '../../components/MetaRow';
 
-type Severity = 'low' | 'medium' | 'high' | 'critical';
-type GeneratedBy = 'ai' | 'manual' | 'hybrid';
+const SEVERITIES: IssueSeverity[] = ['low', 'medium', 'high', 'critical'];
+const GENERATED_BY: ArchiveGeneratedBy[] = ['manual', 'hybrid', 'ai'];
 
-const SEVERITIES: Severity[] = ['low', 'medium', 'high', 'critical'];
-const GENERATED_BY: GeneratedBy[] = ['manual', 'hybrid', 'ai'];
-
-const SEVERITY_KEY: Record<Severity, TranslationKey> = {
+const SEVERITY_KEY: Record<IssueSeverity, TranslationKey> = {
   low: 'kb.severity.low',
   medium: 'kb.severity.medium',
   high: 'kb.severity.high',
   critical: 'kb.severity.critical',
 };
-const GENERATED_BY_KEY: Record<GeneratedBy, TranslationKey> = {
+const GENERATED_BY_KEY: Record<ArchiveGeneratedBy, TranslationKey> = {
   ai: 'kb.generatedBy.ai',
   manual: 'kb.generatedBy.manual',
   hybrid: 'kb.generatedBy.hybrid',
@@ -42,13 +43,13 @@ export function KbCloseoutForm({
   const [title, setTitle] = useState('');
   const [projectId, setProjectId] = useState('');
   const [symptom, setSymptom] = useState('');
-  const [severity, setSeverity] = useState<Severity>('medium');
+  const [severity, setSeverity] = useState<IssueSeverity>('medium');
   const [tags, setTags] = useState('');
   const [category, setCategory] = useState('');
   const [rootCause, setRootCause] = useState('');
   const [resolution, setResolution] = useState('');
   const [prevention, setPrevention] = useState('');
-  const [generatedBy, setGeneratedBy] = useState<GeneratedBy>('manual');
+  const [generatedBy, setGeneratedBy] = useState<ArchiveGeneratedBy>('manual');
 
   const mutation = useMutation({
     mutationFn: (req: KbCloseoutRequest) => client.closeoutKb(req),
@@ -130,7 +131,7 @@ export function KbCloseoutForm({
         <Field label={t('kb.closeout.field.severity')}>
           <select
             value={severity}
-            onChange={(e) => setSeverity(e.target.value as Severity)}
+            onChange={(e) => setSeverity(e.target.value as IssueSeverity)}
           >
             {SEVERITIES.map((s) => (
               <option value={s} key={s}>
@@ -164,7 +165,7 @@ export function KbCloseoutForm({
         <Field label={t('kb.closeout.field.generatedBy')}>
           <select
             value={generatedBy}
-            onChange={(e) => setGeneratedBy(e.target.value as GeneratedBy)}
+            onChange={(e) => setGeneratedBy(e.target.value as ArchiveGeneratedBy)}
           >
             {GENERATED_BY.map((g) => (
               <option value={g} key={g}>
@@ -196,10 +197,7 @@ export function KbCloseoutForm({
         {mutation.error ? (
           <p className="form-banner form-banner--err">
             {t('kb.closeout.error', {
-              detail:
-                mutation.error instanceof Error
-                  ? mutation.error.message
-                  : String(mutation.error),
+              detail: errorDetail(mutation.error),
             })}
           </p>
         ) : null}
@@ -212,17 +210,17 @@ export function KbCloseoutForm({
             {t('kb.closeout.success.title')}
           </p>
           <dl className="kb-meta">
-            <Meta
+            <MetaRow
               label={t('kb.closeout.success.errorCode')}
               value={mutation.data.errorEntry.errorCode}
               mono
             />
-            <Meta
+            <MetaRow
               label={t('kb.closeout.success.archive')}
               value={mutation.data.archiveDocument.fileName}
               mono
             />
-            <Meta
+            <MetaRow
               label={t('kb.closeout.success.knowledge')}
               value={mutation.data.knowledgeNode.name}
             />
@@ -234,37 +232,4 @@ export function KbCloseoutForm({
       ) : null}
     </form>
   );
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="kb-field">
-      <span>{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function Meta({
-  label,
-  value,
-  mono,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <div className="kb-meta__row">
-      <dt>{label}</dt>
-      <dd className={mono ? 'kb-mono' : undefined}>{value}</dd>
-    </div>
-  );
-}
-
-function parseList(csv: string): string[] {
-  return csv
-    .split(',')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
 }

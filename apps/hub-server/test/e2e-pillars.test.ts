@@ -5,7 +5,10 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'node:net';
-import { governanceScenarioFixture } from '@teamhub/hub-contracts';
+import {
+  CreateTaskResponseSchema,
+  governanceScenarioFixture,
+} from '@teamhub/hub-contracts';
 
 /**
  * 端到端实测（A4，模型 = feiyue `scripts/feiyue-solver/e2e.sh`：驱动**真产物**、断言**内容往返**）。
@@ -191,12 +194,14 @@ describe('e2e: 真 HTTP + 真落盘 + 真重启（驱动 src/main.ts）', () => 
 
     const port1 = await freePort();
     const s1 = await startServer(env, port1);
-    const a = (await (
-      await post(port1, '/api/tasks', taskBody('E2E 上游任务'))
-    ).json()) as { task: { id: string } };
-    const b = (await (
-      await post(port1, '/api/tasks', taskBody('E2E 下游任务'))
-    ).json()) as { task: { id: string } };
+    // 用 hub-contracts 的响应契约解析（替代不安全强转）：响应格式变更会在此提前报错，
+    // 同时 idA/idB 的类型由 schema 推导而非手写 cast。
+    const a = CreateTaskResponseSchema.parse(
+      await (await post(port1, '/api/tasks', taskBody('E2E 上游任务'))).json(),
+    );
+    const b = CreateTaskResponseSchema.parse(
+      await (await post(port1, '/api/tasks', taskBody('E2E 下游任务'))).json(),
+    );
     const idA = a.task.id;
     const idB = b.task.id;
 

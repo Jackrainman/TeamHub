@@ -77,6 +77,7 @@ export function ConsoleLayout({
                 onClick={() => item.page && onNavigate(item.page)}
                 disabled={disabled}
                 title={disabled ? t(item.tooltipKey ?? 'nav.soon') : undefined}
+                aria-current={isActive ? 'page' : undefined}
               >
                 <Icon aria-hidden="true" size={17} />
                 <span>{t(item.labelKey)}</span>

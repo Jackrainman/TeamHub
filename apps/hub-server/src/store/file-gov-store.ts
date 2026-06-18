@@ -22,6 +22,7 @@ import type {
   TaskStatus,
 } from '@teamhub/hub-contracts';
 import type { Clock } from '../clock.js';
+import { cloneArrayFields } from './clone-snapshot.js';
 import { InMemoryGovStore } from './mock-gov-store.js';
 import type {
   ArtifactDraft,
@@ -63,18 +64,20 @@ const GovernanceSnapshotSchema = z.object({
   artifacts: z.array(ArtifactRefSchema),
 });
 
+/** 治理快照全 8 数组字段（写方法可能 push/splice 的集合）——克隆隔离用。 */
+const GOVERNANCE_ARRAY_FIELDS: (keyof GovernanceSnapshot)[] = [
+  'groups',
+  'members',
+  'tasks',
+  'dependencies',
+  'needs',
+  'knowledgeNodes',
+  'taskKnowledgeTags',
+  'artifacts',
+];
+
 function cloneSnapshot(seed: GovernanceSnapshot): GovernanceSnapshot {
-  return {
-    ...seed,
-    groups: [...seed.groups],
-    members: [...seed.members],
-    tasks: [...seed.tasks],
-    dependencies: [...seed.dependencies],
-    needs: [...seed.needs],
-    knowledgeNodes: [...seed.knowledgeNodes],
-    taskKnowledgeTags: [...seed.taskKnowledgeTags],
-    artifacts: [...seed.artifacts],
-  };
+  return cloneArrayFields(seed, GOVERNANCE_ARRAY_FIELDS);
 }
 
 export class FileGovStore implements GovStore {

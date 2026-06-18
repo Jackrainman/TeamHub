@@ -14,8 +14,7 @@ import { PmBoardPage } from './features/pm/PmBoardPage';
 import { ArchivePage } from './features/archive/ArchivePage';
 import { SettingsPage } from './features/settings/SettingsPage';
 import { useI18n, type TranslationKey } from './i18n';
-
-const APIBASE_KEY = 'teamhub.apiBase';
+import { APIBASE_KEY } from './constants';
 // 单一真实后端：queryKey 维度保留稳定常量（曾区分 mock/real，现恒为 real），
 // 避免改动各页 queryKey 形状。
 const SOURCE = 'real';

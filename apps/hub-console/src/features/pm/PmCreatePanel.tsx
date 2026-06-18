@@ -15,6 +15,8 @@ import type {
   CreateNeedRequest,
 } from '../../api/schemas/pm';
 import { useI18n, type TranslationKey } from '../../i18n';
+import { parseList, errorDetail, segClass } from '../../utils';
+import { Field } from '../../components/Field';
 
 type Mode = 'task' | 'dependency' | 'need';
 
@@ -60,27 +62,34 @@ export function PmCreatePanel({
           <p className="pm-create__note">{t('pm.create.subtitle')}</p>
         </div>
         <div className="seg" role="tablist" aria-label={t('pm.create.title')}>
-          <SegButton active={mode === 'task'} onClick={() => setMode('task')}>
+          <SegButton active={mode === 'task'} onClick={() => setMode('task')} controls="pm-tab-task">
             <ListPlus size={14} aria-hidden="true" /> {t('pm.create.tab.task')}
           </SegButton>
           <SegButton
             active={mode === 'dependency'}
             onClick={() => setMode('dependency')}
+            controls="pm-tab-dep"
           >
             <GitFork size={14} aria-hidden="true" /> {t('pm.create.tab.dependency')}
           </SegButton>
-          <SegButton active={mode === 'need'} onClick={() => setMode('need')}>
+          <SegButton active={mode === 'need'} onClick={() => setMode('need')} controls="pm-tab-need">
             <HelpCircle size={14} aria-hidden="true" /> {t('pm.create.tab.need')}
           </SegButton>
         </div>
       </header>
 
       {mode === 'task' ? (
-        <TaskForm client={client} tasks={tasks} onCreated={onCreated} />
+        <div role="tabpanel" id="pm-tab-task" tabIndex={0}>
+          <TaskForm client={client} tasks={tasks} onCreated={onCreated} />
+        </div>
       ) : mode === 'dependency' ? (
-        <DependencyForm client={client} tasks={tasks} onCreated={onCreated} />
+        <div role="tabpanel" id="pm-tab-dep" tabIndex={0}>
+          <DependencyForm client={client} tasks={tasks} onCreated={onCreated} />
+        </div>
       ) : (
-        <NeedForm client={client} tasks={tasks} onCreated={onCreated} />
+        <div role="tabpanel" id="pm-tab-need" tabIndex={0}>
+          <NeedForm client={client} tasks={tasks} onCreated={onCreated} />
+        </div>
       )}
     </section>
   );
@@ -89,10 +98,12 @@ export function PmCreatePanel({
 function SegButton({
   active,
   onClick,
+  controls,
   children,
 }: {
   active: boolean;
   onClick: () => void;
+  controls: string;
   children: ReactNode;
 }) {
   return (
@@ -100,7 +111,8 @@ function SegButton({
       type="button"
       role="tab"
       aria-selected={active}
-      className={active ? 'seg__btn seg__btn--active' : 'seg__btn'}
+      aria-controls={controls}
+      className={segClass(active)}
       onClick={onClick}
     >
       {children}
@@ -412,10 +424,10 @@ function NeedForm({
         <Field label={t('pm.field.providerGroup')}>
           <input
             value={providerGroup}
-            list="pm-group-options"
+            list="pm-group-options-need"
             onChange={(e) => setProviderGroup(e.target.value)}
           />
-          <datalist id="pm-group-options">
+          <datalist id="pm-group-options-need">
             {groupOptions.map((g) => (
               <option value={g} key={g} />
             ))}
@@ -448,15 +460,6 @@ function NeedForm({
 }
 
 // --- 共享小组件 -------------------------------------------------------------
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="kb-field">
-      <span>{label}</span>
-      {children}
-    </label>
-  );
-}
 
 function TaskSelect({
   tasks,
@@ -531,20 +534,9 @@ function FormFooter({
   );
 }
 
-function parseList(csv: string): string[] {
-  return csv
-    .split(',')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
-}
-
 function actorFromName(name: string): ActorRef | null {
   const trimmed = name.trim();
   if (!trimmed) return null;
   const id = trimmed.toLowerCase().replace(/\s+/g, '-');
   return { id, displayName: trimmed, source: 'console' };
-}
-
-function errorDetail(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
