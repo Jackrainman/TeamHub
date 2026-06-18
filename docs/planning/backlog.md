@@ -199,6 +199,8 @@
 - `ARTIFACT-VERSION-SEMANTICS`（图纸版本语义）/ `REMOTE-ACCESS-DEPLOY`（远程部署=LAN+隧道方案与鉴权）：见 D-036 + 数据河 build 轨；细化待用户线下。
 - `GITHUB-TO-LOCAL`（程序代码 GitHub→本地 Forgejo 迁移）= 用户 2026-06-12 **考虑中**，未决（D-038）。无论迁不迁，TeamHub 只消费 git 的 `gitCommit` 信号、不改 git 唯一真相（G2）。
 - `PULL-CLOUD-CODE`（定期 pull 云端代码/EDA 到本地备份）= 用户 2026-06-12 **考虑中**，未决（D-038，与电路 EDA 云端引用相关）。
+- **I0 人名读端点（bug 巡检 2026-06-18 复核）**：dep-graph `ownerLabel`=「谁负责哪个模块」用户拍板**保留**（属协作信息/找谁对接，非监视，化解 AGENTS §5 ownerId/ownerLabel 张力的展示侧）；Overview「成员状态面板」（逐人 idle/working/blocked/offline 广播）用户拍板**暂时隐藏**（与「不抓摸鱼」冲突 + 旧脚手架），console 已移除该 section。**残留**：`GET /api/bridge/members` 端点 + `BridgeMemberStateSchema` 保留但已无消费方——**部署前若不恢复应一并移除/收口**（仍是公开读端点，fixture-only 暂无真 PII）。
+- `LOGIN-PERMISSION-UI`（**未来考虑**，用户 2026-06-18）：加登录界面以区分不同人的能力/权限并**显著标明**。是「成员面板」恢复的前置与上位设计——有了身份/权限边界后，逐人信息才有合规的受众路由（关联挂起的 D-033 受众路由）。未立项、待用户排期。
 
 ## 当前不做
 

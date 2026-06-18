@@ -1,9 +1,4 @@
-import type {
-  ArtifactRef,
-  BridgeMemberState,
-  GitRepoRef,
-  HubEvent,
-} from '@teamhub/hub-contracts';
+import type { ArtifactRef, GitRepoRef, HubEvent } from '@teamhub/hub-contracts';
 import type { OverviewSnapshot } from '../../api/schemas/system';
 import type { ConsolePage } from '../../components/layout/ConsoleLayout';
 import { useI18n, type TranslationKey } from '../../i18n';
@@ -12,13 +7,6 @@ import { useI18n, type TranslationKey } from '../../i18n';
 // 用户数据（displayName / uri / branch / capabilities 等）保持后端原样。
 const HEALTH_KEY: Record<OverviewSnapshot['health']['status'], TranslationKey> = {
   ok: 'enum.health.ok',
-};
-
-const MEMBER_STATUS_KEY: Record<BridgeMemberState['status'], TranslationKey> = {
-  idle: 'enum.member.idle',
-  working: 'enum.member.working',
-  blocked: 'enum.member.blocked',
-  offline: 'enum.member.offline',
 };
 
 const EVENT_TYPE_KEY: Record<HubEvent['type'], TranslationKey> = {
@@ -125,19 +113,10 @@ export function OverviewPage({
         </div>
       </section>
 
-      <section className="panel">
-        <PanelHeader
-          title={t('overview.panel.bridge')}
-          meta={t('overview.meta.members', {
-            n: snapshot.bridgeMembers.members.length,
-          })}
-        />
-        <div className="stack-list">
-          {snapshot.bridgeMembers.members.map((member) => (
-            <BridgeRow member={member} key={member.memberId} />
-          ))}
-        </div>
-      </section>
+      {/* 成员状态面板（逐人 空闲/在忙/被卡/离线）已隐藏（2026-06-18，用户决定，I0）：
+          逐人状态广播给所有人 = 与「不抓摸鱼」原则冲突；属三支柱之前的旧脚手架、非主线。
+          后续若做「登录/权限区分各人能力并显著标明」再评估恢复。
+          GET /api/bridge/members 端点+schema 保留但已无消费方（部署前若不恢复应一并移除）。 */}
 
       <section className="panel">
         <PanelHeader
@@ -205,19 +184,6 @@ function EventRow({ event }: { event: HubEvent }) {
     <article className="data-row">
       <strong>{t(EVENT_TYPE_KEY[event.type])}</strong>
       <span>{event.source}</span>
-    </article>
-  );
-}
-
-function BridgeRow({ member }: { member: BridgeMemberState }) {
-  const { t } = useI18n();
-  return (
-    <article className="data-row">
-      <strong>{member.displayName}</strong>
-      <span>
-        {t(MEMBER_STATUS_KEY[member.status])}
-        {member.blockedOn ? ` · ${member.blockedOn}` : ''}
-      </span>
     </article>
   );
 }
