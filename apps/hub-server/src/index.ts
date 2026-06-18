@@ -1,7 +1,5 @@
 export { buildHubServer } from './server.js';
 export {
-  AdapterDescriptorSchema,
-  AdaptersResponseSchema,
   ArtifactRefSchema,
   BridgeMemberStateSchema,
   GitRepoRefSchema,
@@ -10,8 +8,6 @@ export {
   SystemStatusResponseSchema,
 } from './contracts.js';
 export type {
-  AdapterDescriptor,
-  AdaptersResponse,
   ArtifactRef,
   BridgeMemberState,
   GitRepoRef,

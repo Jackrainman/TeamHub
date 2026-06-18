@@ -30,11 +30,12 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import type {
-  DepEdge,
-  DepGraph,
-  DepNode,
-  TaskStatus,
+import {
+  wouldCreateCycle,
+  type DepEdge,
+  type DepGraph,
+  type DepNode,
+  type TaskStatus,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import type { CreateDependencyRequest } from '../../api/schemas/pm';
@@ -167,26 +168,12 @@ function layoutGraph(graph: DepGraph): { nodes: DepFlowNode[]; edges: Edge[] } {
   return { nodes, edges };
 }
 
-// 从 `to` 出发能否经现有边回到 `from`：若能，则新加的 `from→to` 会成环。
-// 后端 POST /api/dependencies 不做环校验（AUDIT H1 未修），故前端必须守，
-// 否则一条成环边会让下次 getDepGraph 的派生死循环、卡死服务端事件循环。
-function wouldCreateCycle(edges: DepEdge[], from: string, to: string): boolean {
-  const adj = new Map<string, string[]>();
-  for (const e of edges) {
-    const list = adj.get(e.source);
-    if (list) list.push(e.target);
-    else adj.set(e.source, [e.target]);
-  }
-  const stack: string[] = [to];
-  const seen = new Set<string>();
-  while (stack.length > 0) {
-    const cur = stack.pop()!;
-    if (cur === from) return true;
-    if (seen.has(cur)) continue;
-    seen.add(cur);
-    for (const n of adj.get(cur) ?? []) stack.push(n);
-  }
-  return false;
+// 把图边 {source,target} 映射成 hub-contracts.wouldCreateCycle 期望的 {fromTaskId,toTaskId}。
+// 边方向 = source 阻塞 target，与依赖的 fromTaskId 阻塞 toTaskId 同向。
+function toCycleDeps(
+  edges: ReadonlyArray<Pick<DepEdge, 'source' | 'target'>>,
+): { fromTaskId: string; toTaskId: string }[] {
+  return edges.map((e) => ({ fromTaskId: e.source, toTaskId: e.target }));
 }
 
 export function DepGraphPage({
@@ -315,7 +302,7 @@ export function DepGraphPage({
         setRejectMsg(t('depgraph.connect.duplicate'));
         return;
       }
-      if (wouldCreateCycle(graph.edges, from, to)) {
+      if (wouldCreateCycle(toCycleDeps(graph.edges), from, to)) {
         setSuccessMsg(null);
         setRejectMsg(t('depgraph.connect.cycle'));
         return;
