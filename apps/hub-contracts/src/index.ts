@@ -84,6 +84,7 @@ export * from './governance.js';
 export * from './growth.js';
 export * from './attribution.js';
 export * from './direction-gaps.js';
+export * from './artifact-version.js';
 export * from './schedule.js';
 export * from './kb.js';
 export * from './kb-similar.js';

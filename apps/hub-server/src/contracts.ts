@@ -58,6 +58,9 @@ export {
   WaiveDependencyResponseSchema,
   CreateArtifactRequestSchema,
   CreateArtifactResponseSchema,
+  // 图纸档案 v2（HUB-ARTIFACT-ARCHIVE-V2）：路由 owns 派生（C5）——版本号自增 + kind 派生纯函数。
+  nextArtifactVersionNo,
+  deriveArtifactKind,
 } from '@teamhub/hub-contracts';
 export type {
   AdapterCapabilitiesResponse,
@@ -97,6 +100,7 @@ export type {
   WaiveDependencyResponse,
   CreateArtifactRequest,
   CreateArtifactResponse,
+  ArtifactVersionKey,
 } from '@teamhub/hub-contracts';
 
 // ──────────────────────────────────────────────────────────────────────────

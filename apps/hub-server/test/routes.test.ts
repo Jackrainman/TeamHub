@@ -253,6 +253,143 @@ describe('hub-server routes', () => {
     }
   });
 
+  // 图纸档案 v2（HUB-ARTIFACT-ARCHIVE-V2）：POST round-trip 证 server 派生 versionNo/revision/kind。
+  // 用空 artifacts 的注入 store 隔离自增起点（不被 seed 的同键记录干扰），每个断言独立可读。
+  describe('POST /api/artifacts (v2 server-derived versionNo/kind/revision)', () => {
+    const emptyArtifacts: GovernanceSnapshot = {
+      ...governanceScenarioFixture,
+      artifacts: [],
+    };
+
+    test('同键 POST 两条 → versionNo 1 then 2、revision v1 then v2、kind report（机械）', async () => {
+      const app2 = buildHubServer({ store: new InMemoryGovStore(emptyArtifacts) });
+      try {
+        const mech = {
+          ownerGroup: 'mechanical',
+          season: '25',
+          robotCode: 'R1',
+          mechanism: '底盘',
+          name: '底盘图纸',
+          uri: 'artifact://drawings/chassis',
+        };
+        const first = await app2.inject({ method: 'POST', url: '/api/artifacts', payload: mech });
+        expect(first.statusCode).toBe(201);
+        const a1 = first.json().artifact;
+        expect(a1.versionNo).toBe(1);
+        expect(a1.revision).toBe('v1');
+        expect(a1.kind).toBe('report');
+        expect(a1.submittedVia).toBe('console'); // store 钉来源 seam（C5）
+        // 机械不带 subType（路由剥掉 / superRefine 已禁）
+        expect(a1.subType).toBeUndefined();
+
+        const second = await app2.inject({ method: 'POST', url: '/api/artifacts', payload: mech });
+        expect(second.statusCode).toBe(201);
+        const a2 = second.json().artifact;
+        expect(a2.versionNo).toBe(2);
+        expect(a2.revision).toBe('v2');
+      } finally {
+        await app2.close();
+      }
+    });
+
+    test('电路驱动 POST → kind firmware', async () => {
+      const app2 = buildHubServer({ store: new InMemoryGovStore(emptyArtifacts) });
+      try {
+        const res = await app2.inject({
+          method: 'POST',
+          url: '/api/artifacts',
+          payload: {
+            ownerGroup: 'electrical',
+            season: '25',
+            robotCode: 'R1',
+            mechanism: '电控板',
+            subType: 'driver',
+            name: '电机驱动固件',
+            uri: 'artifact://firmware/motor',
+            relatedRepo: 'team/firmware',
+            relatedCommit: 'abc1234',
+          },
+        });
+        expect(res.statusCode).toBe(201);
+        const art = res.json().artifact;
+        expect(art.kind).toBe('firmware');
+        expect(art.subType).toBe('driver');
+        expect(art.versionNo).toBe(1);
+        expect(art.revision).toBe('v1');
+      } finally {
+        await app2.close();
+      }
+    });
+
+    test('电路图纸 POST → kind report', async () => {
+      const app2 = buildHubServer({ store: new InMemoryGovStore(emptyArtifacts) });
+      try {
+        const res = await app2.inject({
+          method: 'POST',
+          url: '/api/artifacts',
+          payload: {
+            ownerGroup: 'electrical',
+            season: '25',
+            robotCode: 'R1',
+            mechanism: '电控板',
+            subType: 'drawing',
+            name: '电路原理图',
+            uri: 'artifact://drawings/schematic',
+          },
+        });
+        expect(res.statusCode).toBe(201);
+        expect(res.json().artifact.kind).toBe('report');
+      } finally {
+        await app2.close();
+      }
+    });
+
+    test('缺 subType 的 electrical → 400（superRefine）', async () => {
+      const app2 = buildHubServer({ store: new InMemoryGovStore(emptyArtifacts) });
+      try {
+        const res = await app2.inject({
+          method: 'POST',
+          url: '/api/artifacts',
+          payload: {
+            ownerGroup: 'electrical',
+            season: '25',
+            robotCode: 'R1',
+            mechanism: '电控板',
+            name: '少了 subType',
+            uri: 'artifact://x',
+          },
+        });
+        expect(res.statusCode).toBe(400);
+        expect(typeof res.json().detail).toBe('string');
+      } finally {
+        await app2.close();
+      }
+    });
+
+    test('机械夹带 subType → 400（superRefine）', async () => {
+      const app2 = buildHubServer({ store: new InMemoryGovStore(emptyArtifacts) });
+      try {
+        const res = await app2.inject({
+          method: 'POST',
+          url: '/api/artifacts',
+          payload: {
+            ownerGroup: 'mechanical',
+            season: '25',
+            robotCode: 'R1',
+            mechanism: '底盘',
+            subType: 'drawing',
+            name: '机械不该有 subType',
+            uri: 'artifact://x',
+          },
+        });
+        expect(res.statusCode).toBe(400);
+        expect(typeof res.json().detail).toBe('string');
+      } finally {
+        await app2.close();
+      }
+    });
+  });
+
   test('unknown routes return the standard error body', async () => {
     const response = await app.inject({
       method: 'GET',

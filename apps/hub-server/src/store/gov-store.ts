@@ -60,12 +60,16 @@ export type NeedDraft = Omit<
 export type KnowledgeNodeDraft = Omit<KnowledgeNode, 'id' | 'createdAt'>;
 
 /**
- * appendArtifact 入参：图纸/归档物提交日志的一条新记录（V1-FOLLOWUPS ④，append-only）。
- * 调用方只给人本字段——mechanism（机构/部件分组键）/ revision（第几版）/ name / uri / kind +
- * 可选 relatedRepo / relatedCommit。Store 补 id + createdAt、**钉 submittedVia=`console`（C5：来源 seam
- * 由 server 钉、不由调用方给）**，故从 draft 剔除 id / createdAt / submittedVia。
- * **I0**：本 draft 无任何 person 字段（ArtifactRef 本就无 person 维度），绝不收提交人——
- * 日志主键 = 机构 + 版本 + 归档物，永无 memberId。
+ * appendArtifact 入参：图纸/归档物提交日志的一条新记录（HUB-ARTIFACT-ARCHIVE-V2，append-only）。
+ * 调用方给的字段分两类：
+ *   - **人填**：mechanism（机构分组键）/ name / uri + v2 新增分组维度 ownerGroup（机械/电路）/
+ *     season（赛季）/ robotCode（车代号 R1/R2）/ 电路 subType（drawing/driver）+ 可选 relatedRepo/relatedCommit。
+ *   - **路由派生后并入 draft（C5：server 钉，客户端不给）**：kind（ownerGroup+subType 派生）/ versionNo
+ *     （四键 ownerGroup+season+robotCode+mechanism 在全量 artifacts 上自增）/ revision（`v${versionNo}`）。
+ * Store 仍补 id + createdAt、**钉 submittedVia=`console`**，故从 draft 剔除 id / createdAt / submittedVia
+ * （ArtifactDraft 类型本身不随 v2 变——新字段都只是 ArtifactRef 上的字段，draft 自然携带；store body 零逻辑改动）。
+ * **I0**：本 draft 无任何 person 字段（ArtifactRef 永无 person 维度），绝不收提交人——
+ * 日志主键 = 组 + 赛季 + 车 + 机构 + 版本 + 归档物，永无 memberId。
  */
 export type ArtifactDraft = Omit<
   ArtifactRef,

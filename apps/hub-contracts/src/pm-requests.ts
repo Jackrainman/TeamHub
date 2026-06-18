@@ -92,28 +92,53 @@ export const WaiveDependencyResponseSchema = z.object({
 });
 
 /**
- * POST /api/artifacts：图纸/归档物提交日志的「写侧请求契约」（V1-FOLLOWUPS ④，append-only）。
- * 机构经 UI 记一条图纸提交日志：mechanism（机构/部件，分组键）+ revision（第几版）+ name/uri/kind +
- * 可选 relatedRepo/relatedCommit。server 补 id/createdAt、**钉 submittedVia=`console`（C5：来源 seam 由
- * server 钉、不由客户端给）**——故请求 omit submittedVia。
+ * POST /api/artifacts：图纸档案 v2「机械/电路分组的图纸版本库」写侧请求契约（HUB-ARTIFACT-ARCHIVE-V2，append-only）。
+ * 人填字段：ownerGroup（学科组 机械/电路）+ season（赛季 "25"）+ robotCode（车代号 R1/R2）+ mechanism（机构，分组键）
+ * + name/uri + 可选 subType（电路子类型 图纸/驱动）+ 可选 relatedRepo/relatedCommit。
+ *
+ * **C5 来源 seam 由 server/路由钉，客户端不给**——故 omit submittedVia（store 钉 `console`）+ kind/versionNo/revision
+ *（路由经纯函数派生：versionNo=nextArtifactVersionNo 四键自增、kind=deriveArtifactKind、revision=`v${versionNo}`）。
  *
  * **I0 图纸日志永无人维度**：ArtifactRef 无任何 person 字段，本请求也绝不收提交人/确认人——日志主键是
- * 机构 + 版本 + 归档物，不是「谁提交」（与 PmCreatePanel 的 confirmer 不同；ArtifactRef 无 confirmedBy，
- * 也不得新增）。**C3 append-only**：只追加、不开 update/delete/list、不解 ARTIFACT-VERSION-SEMANTICS
- * 进阶语义——revision 是提交者自填的自由字符串（无自动版本号语义）。**G4**：不引入 dueDate。
+ * 学科组 + 赛季 + 车 + 机构 + 版本 + 归档物，不是「谁提交」（与 PmCreatePanel 的 confirmer 不同；ArtifactRef
+ * 无 confirmedBy，也不得新增）。**C3 append-only**：只追加、不开 update/delete；版本回退按 supersede（追加新版）。
+ * **G4**：不引入 dueDate。
  *
- * base ArtifactRefSchema 把 mechanism/revision/submittedVia 标 optional（向后兼容既有 8 条种子 + git 录入），
- * 故这里用 `.extend` 把 mechanism/revision 收紧为必填 `z.string().min(1)`（写侧才强制；不动 ArtifactRefSchema
- * 本身——否则旧种子/git 录入的可选字段会破坏 fail-closed 加载与读契约）。
+ * base ArtifactRefSchema 把这些字段标 optional（向后兼容既有 8 条种子 + 旧 JSON），故这里用 `.extend` 把
+ * ownerGroup/season/robotCode/mechanism 收紧为写侧必填（不动 ArtifactRefSchema 本身——否则旧种子的可选字段
+ * 会破坏 fail-closed 加载与读契约）。`.superRefine`：电路组必须带 subType（区分图纸/驱动）、机械组必须不带。
  */
 export const CreateArtifactRequestSchema = ArtifactRefSchema.omit({
   id: true,
   createdAt: true,
   submittedVia: true,
-}).extend({
-  mechanism: z.string().min(1),
-  revision: z.string().min(1),
-});
+  kind: true,
+  versionNo: true,
+  revision: true,
+})
+  .extend({
+    ownerGroup: z.enum(['mechanical', 'electrical']),
+    season: z.string().min(1),
+    robotCode: z.string().min(1),
+    mechanism: z.string().min(1),
+    subType: z.enum(['drawing', 'driver']).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.ownerGroup === 'electrical' && data.subType === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '电路组归档物必须指定 subType（drawing / driver）',
+        path: ['subType'],
+      });
+    }
+    if (data.ownerGroup === 'mechanical' && data.subType !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '机械组归档物不应带 subType',
+        path: ['subType'],
+      });
+    }
+  });
 export const CreateArtifactResponseSchema = z.object({
   artifact: ArtifactRefSchema,
 });

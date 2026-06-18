@@ -78,7 +78,7 @@ describe('PM 读视图 + 依赖/缺口录入', () => {
     }
   });
 
-  test('POST /api/artifacts → 201；server 钉 submittedVia=console（C5）；落盘累积；夹带来源被 omit', async () => {
+  test('POST /api/artifacts → 201（v2）；server 钉 submittedVia=console + 派生 kind/versionNo/revision（C5）；落盘累积；夹带来源/派生字段被 omit', async () => {
     const store = new InMemoryGovStore();
     const before = (await store.getSnapshot()).artifacts.length;
     const app = buildHubServer({ store });
@@ -87,12 +87,18 @@ describe('PM 读视图 + 依赖/缺口录入', () => {
         method: 'POST',
         url: '/api/artifacts',
         payload: {
-          kind: 'image',
-          name: '底盘装配图',
-          uri: 'artifact://chassis/v4',
+          // v2 人填字段：分组维度 + 机构 + 归档物本体
+          ownerGroup: 'mechanical',
+          season: '25',
+          robotCode: 'R1',
           mechanism: '底盘',
-          revision: 'v4',
-          relatedCommit: 'abc1234',
+          name: '底盘装配图',
+          uri: 'artifact://chassis',
+          // 以下均应被 omit / superRefine 忽略或拒收——但这里都是合法旁路字段（kind/revision/versionNo
+          // 派生字段被 omit，submittedVia 被 omit 后 server 钉 console，C5）：
+          kind: 'image',
+          revision: 'vBOGUS',
+          versionNo: 99,
           submittedVia: 'lark', // 试图夹带来源——应被 omit 忽略，server 钉 console（C5）
         },
       });
@@ -102,7 +108,11 @@ describe('PM 读视图 + 依赖/缺口录入', () => {
       // C5：submittedVia 由 server 钉 console（请求夹带的 lark 被 omit）
       expect(body.artifact.submittedVia).toBe('console');
       expect(body.artifact.mechanism).toBe('底盘');
-      expect(body.artifact.revision).toBe('v4');
+      // 派生字段由路由钉，客户端夹带的 kind/revision/versionNo 被 omit、不生效：
+      expect(body.artifact.ownerGroup).toBe('mechanical');
+      expect(body.artifact.versionNo).toBe(1); // 空键自增起点（非夹带的 99）
+      expect(body.artifact.revision).toBe('v1'); // server 钉 `v${versionNo}`（非夹带的 vBOGUS）
+      expect(body.artifact.kind).toBe('report'); // 机械派生 report（非夹带的 image）
       // 落盘累积：快照 artifacts +1
       expect((await store.getSnapshot()).artifacts.length).toBe(before + 1);
     } finally {
@@ -110,13 +120,13 @@ describe('PM 读视图 + 依赖/缺口录入', () => {
     }
   });
 
-  test('POST /api/artifacts：mechanism/revision 必填，缺失 → 400', async () => {
+  test('POST /api/artifacts：ownerGroup/season/robotCode/mechanism 必填，缺失 → 400', async () => {
     const app = buildHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
         url: '/api/artifacts',
-        payload: { kind: 'image', name: '无机构图', uri: 'artifact://x' }, // 缺 mechanism/revision
+        payload: { name: '无机构图', uri: 'artifact://x' }, // 缺 ownerGroup/season/robotCode/mechanism
       });
       expect(res.statusCode).toBe(400);
     } finally {

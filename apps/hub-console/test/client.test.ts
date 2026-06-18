@@ -239,14 +239,16 @@ describe('hub console API client', () => {
     );
     expect(closeoutCall?.[1]?.method).toBe('POST');
 
-    // 图纸登记写侧（V1-FOLLOWUP ④）：POST /api/artifacts、带 body、解析响应
-    const artifactReq = {
-      kind: 'image',
+    // 图纸登记写侧 v2（HUB-ARTIFACT-ARCHIVE-V2）：POST /api/artifacts、带 body、解析响应。
+    // v2 body：ownerGroup/season/robotCode 必填，删 kind/revision（server 派生，C5）。
+    const artifactReq: CreateArtifactRequest = {
+      ownerGroup: 'mechanical',
+      season: '25',
+      robotCode: 'R1',
       name: '底盘装配图',
       uri: 'artifact://chassis/v4',
       mechanism: '底盘',
-      revision: 'v4',
-    } as unknown as CreateArtifactRequest;
+    };
     const artifactRes = await client.createArtifact(artifactReq);
     expect(artifactRes.artifact.id).toBeTruthy();
     const artifactCall = fetcher.mock.calls.find(([u]) =>
@@ -254,6 +256,21 @@ describe('hub console API client', () => {
     );
     expect(artifactCall?.[1]?.method).toBe('POST');
     expect(JSON.parse(String(artifactCall?.[1]?.body))).toEqual(artifactReq);
+
+    // 电路驱动 case：subType 必填（electrical）
+    const electricalReq: CreateArtifactRequest = {
+      ownerGroup: 'electrical',
+      season: '25',
+      robotCode: 'R1',
+      name: '底盘驱动固件',
+      uri: 'artifact://firmware/chassis-driver-v1.bin',
+      mechanism: '底盘驱动',
+      subType: 'driver',
+      relatedRepo: 'repo-infantry',
+      relatedCommit: 'abc1234',
+    };
+    const electricalRes = await client.createArtifact(electricalReq);
+    expect(electricalRes.artifact.id).toBeTruthy();
   });
 
   test('postJson 把后端 400 的 detail 透出到抛错（表单错误条）', async () => {

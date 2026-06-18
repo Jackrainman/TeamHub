@@ -186,6 +186,16 @@ export const ArtifactRefSchema = z.object({
   mechanism: z.string().min(1).optional(),
   revision: z.string().min(1).optional(),
   submittedVia: z.enum(['git', 'lark', 'console']).optional(),
+  // 图纸档案 v2 维度（HUB-ARTIFACT-ARCHIVE-V2，全可选、向后兼容）：8 条 seed + 旧持久化 JSON
+  // 经同一 schema 解析，缺这些字段不能炸——故一律 .optional()，旧裸数据落「未分组/历史」桶、不参与自增。
+  // ownerGroup = 学科组（派生分组根，复用 governance GroupKindSchema 前两个词汇）。season = 赛季年份 "25"。
+  // robotCode = 车代号 "R1"/"R2"（自由串）。versionNo = 自增版本号（server 派生）。
+  // subType = 电路子类型 图纸/驱动（机械不带）。I0：均无人员维度。
+  ownerGroup: z.enum(['mechanical', 'electrical']).optional(),
+  season: z.string().min(1).optional(),
+  robotCode: z.string().min(1).optional(),
+  versionNo: z.number().int().positive().optional(),
+  subType: z.enum(['drawing', 'driver']).optional(),
   createdAt: isoDateTimeSchema,
 });
 

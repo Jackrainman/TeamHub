@@ -31,6 +31,8 @@ import {
   WaiveDependencyResponseSchema,
   CreateArtifactRequestSchema,
   CreateArtifactResponseSchema,
+  nextArtifactVersionNo,
+  deriveArtifactKind,
   TasksResponseSchema,
   SystemStatusResponseSchema,
   buildCloseoutFromIssue,
@@ -242,16 +244,39 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     return ArtifactsResponseSchema.parse({ artifacts: snapshot.artifacts });
   });
 
-  // 图纸提交日志追加（V1-FOLLOWUPS ④，append-only）。机构经 UI 记一条新图纸提交：mechanism/revision/name/uri/kind
-  // + 可选 relatedRepo/relatedCommit。server 补 id/createdAt、**钉 submittedVia=console**（C5；请求 schema 不收）。
-  // POST → 继承 H3 onRequest 鉴权+限流（不另写鉴权）。**I0**：无人维度——主键=机构+版本+归档物，请求无提交人字段。
+  // 图纸档案 v2 提交（HUB-ARTIFACT-ARCHIVE-V2，append-only）。机构经 UI 记一条新图纸：人填
+  // ownerGroup/season/robotCode/mechanism/name/uri（+ 电路 subType、驱动可选 relatedRepo/relatedCommit）。
+  // **路由 owns 派生（C5）**：versionNo 按四键 ownerGroup+season+robotCode+mechanism 在全量 snapshot 上自增、
+  // kind 由 ownerGroup+subType 派生、revision=`v${versionNo}`——客户端均不给（schema omit）；store 仍钉
+  // submittedVia=console、补 id/createdAt（body 不动）。机械时剥掉 subType（superRefine 已拦机械夹带 subType）。
+  // POST → 继承 H3 onRequest 鉴权+限流（不另写鉴权）。**I0**：无人维度——主键=组+赛季+车+机构+版本+归档物，无提交人字段。
+  // 并发 race（read-then-write 两并发 POST 可能都算同号）：小作坊可接受，append-only 容忍重复、最新即权威。
   app.post('/api/artifacts', async (request, reply) => {
     const parsed = CreateArtifactRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
       void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
       return;
     }
-    const artifact = await store.appendArtifact(parsed.data);
+    const { ownerGroup, season, robotCode, mechanism, subType } = parsed.data;
+    const snapshot = await store.getSnapshot();
+    const versionNo = nextArtifactVersionNo(snapshot.artifacts, {
+      ownerGroup,
+      season,
+      robotCode,
+      mechanism,
+    });
+    const kind = deriveArtifactKind(ownerGroup, subType);
+    const revision = `v${versionNo}`;
+    // 机械组不带 subType（剥掉 superRefine 已保证缺省的字段，避免 undefined 落库噪声）。
+    const draft =
+      ownerGroup === 'mechanical'
+        ? (() => {
+            const { subType: _drop, ...rest } = parsed.data;
+            void _drop;
+            return { ...rest, kind, versionNo, revision };
+          })()
+        : { ...parsed.data, kind, versionNo, revision };
+    const artifact = await store.appendArtifact(draft);
     void reply.code(201);
     return CreateArtifactResponseSchema.parse({ artifact });
   });

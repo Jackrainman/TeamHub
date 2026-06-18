@@ -970,3 +970,18 @@
   3. **T3 账本文化**：`decisions.md` 从 append-only 改「活账本 + 归档」（约定写进顶部 intro）；hard-superseded ADR（D-043 / D-053）压 3 行 stub + 全文 → `decisions-archive.md`。
 - 守恒：全部 `git mv` / `git rm`（git 历史可追溯）、零真相丢失、零代码/数据改动（不碰 `apps/`、不碰 `kb.json`/`gov.json`）。承重件不动：AGENTS.md + I0/C/A 词汇、`archive/legacy-harness` 串行轨 fallback、5 个 ops 脚本、`preview:local` 脚本（仍被 package.json 引用）。
 - 影响：`now.md` −58%、`decisions.md` 220KB→195KB、活目录清掉 ~1700 行死脚手架，修掉 `.claude/skills` 漂移。事实源：本 ADR；用户 2026-06-18 减负请求 + T1+T2+T3 拍板；harness-weight inventory workflow `wf_782c37b4-193`。
+
+## D-071 — 图纸档案 v2：机械/电路分组版本库（赛季+车+机构+自增版本，server 派生）
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-18；用户 PM 视角讨论后拍定。前置探活：同次会话经 SSH 探 rainman WSL2 实证 Hermes 出站飞书已通 + lark-cli bin 定论，见 memory `teamhub-feishu-capability`）。
+- 上下文：图纸档案原是「通用 append-only 版本日志」，表单字段（mechanism/revision/name/uri/kind 工程枚举/关联提交/关联仓库）不分组、不知道给哪个组用。用户看着不理解，且 kind 枚举对机械无意义、关联提交/仓库只对代码编译物（电路驱动固件）有意义、地址(uri)是占位串（真实文件上传后置 `HUB-ARTIFACT-STORE-MECH`）。需重塑为「机械/电路分组的图纸版本库」，程序组排除（代码全在 GitHub，TeamHub 只消费 gitCommit）。
+- 用户拍定：①模型 = **A 扁平/派生分组**（不建独立「机构」实体表，分组层级渲染时派生）②版本规范 = `赛季年份(season) + 车代号(robotCode, R1/R2 切换) + 机构(mechanism) + 自增版本号(versionNo)`，显示如 `25R1 · 底盘 · v3`③版本进阶语义 = **最小+回退**，不做 PLM。
+- 决策（落地）：
+  1. **数据模型**（`schemas.ts` ArtifactRefSchema 加 5 个 `.optional()` 字段：ownerGroup(`mechanical`|`electrical`，词汇对齐 GroupKindSchema)/season/robotCode/versionNo/subType(`drawing`|`driver`)；kind、revision 保留）。**向后兼容**：全 optional，8 条 seed + 旧 `~/teamhub-data` JSON 仍 fail-closed 加载。
+  2. **写契约**（`pm-requests.ts` CreateArtifactRequestSchema：omit 加 kind/versionNo/revision[server 派生]；extend ownerGroup/season/robotCode required；`.superRefine` 强制 electrical 必须有 subType、mechanical 必须无）。
+  3. **server 派生，3 个 store 不动**（`server.ts` POST /api/artifacts：getSnapshot→`nextArtifactVersionNo`[四键 ownerGroup+season+robotCode+mechanism 全等 max+1，旧 seed 无 versionNo 视为 0]→`deriveArtifactKind`[电路驱动→firmware，余→report]→revision=`v${n}`；机械剥 subType；C5：kind/versionNo/revision/submittedVia 全由路由/store 钉，客户端给了被 omit）。两纯函数落 `hub-contracts/src/artifact-version.ts`（可单测、前端版本预览复用同函数零漂移）。
+  4. **console 表单重做**（`ArchivePage.tsx`：复用 `.seg` 段控做 组/R1R2/电路子类型切换，赛季 select 默认 guessSeason，机构新增勾选/下拉，版本预览只读；两级分组 ownerGroup→mechanism + 「未分组/历史」桶承接旧 seed；max(versionNo) 行打「当前版」徽章；关联仓库/提交仅电路驱动显）。
+- **回退语义**：本次 ship **最新即权威版**（max versionNo 派生，零写面、纯 append-only）。**手动钉旧版 pin 不做**（那是对旧 artifact 的 update，违 C3）；未来要回退则按 **append-only supersede**（追加新版指回旧内容 + 可选 `supersedesVersionNo`），versionNo 继续前进、最新即权威自动生效。`ARTIFACT-VERSION-SEMANTICS`(open_for_decision) 的进阶语义（按车分支等）仍 open。
+- 守恒/护栏：**I0**（ArtifactRef 5 个新字段零人员维度；夹带 confirmedBy/memberId 实测被 Zod strip）/**C3**（纯 append-only，未开 update/delete）/**G4**（不引 dueDate）。
+- 构建+核实：**workflow `wf_57c7f730-a0d`**（Contracts[opus]→Server[opus]→Frontend[sonnet]→2-lens 对抗核实[opus×2：I0/向后兼容 + 正确性/DoD]）。对抗核实裁 **i0Clean=true** + 抓 1 个真 bug（空档案/新组首条录入：effectiveMechanism 与渲染条件不一致致提交按钮永 disabled）→主循环收口（统一 `usingTextInput`）。**主循环独立核实**：三包 verify:all 绿（contracts 62[+8 artifact-version] / server 115[+routes v2 round-trip] / console 11）+ 本地活体 smoke（POST 机械→v1、同键→v2、电路驱动→firmware、电路缺 subType→400、机械带 subType→400、夹带人字段被 strip、落盘 artifact 无人字段）。事实源：本 ADR + plan `~/.claude/plans/scalable-noodling-brook.md`。
+- 后续（非本刀）：真实文件上传/存储（`HUB-ARTIFACT-STORE-MECH`，§8）、电路驱动命名规范（用户内部待定）、可选给 demo seed 补 v2 字段、WSL 真机浏览器走查（headless 不可代替）。

@@ -63,32 +63,43 @@ describe('FileGovStore 落盘', () => {
   });
 
   // ① 硬化：appendArtifact 图纸提交日志 round-trip——写一条 → 返回钉 submittedVia=console + 有 id；
-  // 读磁盘断言 mechanism/revision/submittedVia 已落盘；重启新实例仍在（持久 + 来源 seam server 钉）。
-  test('appendArtifact 后落盘 + 重启仍在（submittedVia 钉 console，round-trip）', async () => {
+  // 读磁盘断言 v2 分组字段（ownerGroup/season/robotCode/versionNo）+ mechanism/revision/submittedVia
+  // 已落盘；重启新实例仍在（持久 + 来源 seam server 钉）。draft 携带路由派生的 kind/versionNo/revision。
+  test('appendArtifact 后落盘 + 重启仍在（v2 分组字段 + submittedVia 钉 console，round-trip）', async () => {
     dir = await mkdtemp(join(tmpdir(), 'gov-artifact-'));
     const file = join(dir, 'gov.json');
     const store = await FileGovStore.create(file);
 
     // draft 不含 id/createdAt/submittedVia（ArtifactDraft 已 Omit；submittedVia 由 server 钉 console，C5）。
+    // v2：调用方（路由）已把 kind/versionNo/revision 派生并并入 draft，新增分组维度 ownerGroup/season/robotCode。
     const art = await store.appendArtifact({
       kind: 'firmware',
       name: '底盘图纸',
       uri: 'artifact://drawings/chassis/v4.pdf',
+      ownerGroup: 'electrical',
+      season: '25',
+      robotCode: 'R1',
       mechanism: '底盘',
+      versionNo: 4,
       revision: 'v4',
+      subType: 'driver',
       relatedCommit: 'abc1234',
     });
     expect(art.submittedVia).toBe('console'); // server 钉来源 seam
     expect(art.id).toBeTruthy(); // Store 补 id
 
     // 落盘断言：按新建记录的 id 定位（mechanism 可能与既有种子撞，id 是唯一的），
-    // 断言 mechanism/revision/submittedVia 都已持久化。
+    // 断言 v2 分组字段 + mechanism/revision/versionNo/submittedVia 都已持久化。
     const onDisk = JSON.parse(await readFile(file, 'utf8'));
     const diskArt = onDisk.artifacts.find(
       (a: { id: string }) => a.id === art.id,
     );
     expect(diskArt).toBeDefined();
+    expect(diskArt.ownerGroup).toBe('electrical');
+    expect(diskArt.season).toBe('25');
+    expect(diskArt.robotCode).toBe('R1');
     expect(diskArt.mechanism).toBe('底盘');
+    expect(diskArt.versionNo).toBe(4);
     expect(diskArt.revision).toBe('v4');
     expect(diskArt.submittedVia).toBe('console');
 
@@ -98,7 +109,11 @@ describe('FileGovStore 落盘', () => {
       (a) => a.id === art.id,
     );
     expect(reloadedArt).toBeDefined();
+    expect(reloadedArt?.ownerGroup).toBe('electrical');
+    expect(reloadedArt?.season).toBe('25');
+    expect(reloadedArt?.robotCode).toBe('R1');
     expect(reloadedArt?.mechanism).toBe('底盘');
+    expect(reloadedArt?.versionNo).toBe(4);
     expect(reloadedArt?.revision).toBe('v4');
     expect(reloadedArt?.submittedVia).toBe('console');
   });
