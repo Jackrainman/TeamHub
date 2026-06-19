@@ -269,19 +269,19 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
       void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
       return;
     }
-    const { ownerGroup, season, robotCode, mechanism, subType } = parsed.data;
+    const { ownerGroup, season, mechanism, subType } = parsed.data;
     const snapshot = await store.getSnapshot();
+    // 版本号按三键（组别+赛季+机构）自增——车(robotCode) 不进键，故跨车迭代连续编号。
     const versionNo = nextArtifactVersionNo(snapshot.artifacts, {
       ownerGroup,
       season,
-      robotCode,
       mechanism,
     });
     const kind = deriveArtifactKind(ownerGroup, subType);
     const revision = `v${versionNo}`;
-    // 机械组不带 subType（剥掉 superRefine 已保证缺省的字段，避免 undefined 落库噪声）。
+    // 仅电路组带 subType；机械/电控/视觉剥掉（superRefine 已保证缺省，避免 undefined 落库噪声）。
     const draft =
-      ownerGroup === 'mechanical'
+      ownerGroup !== 'electrical'
         ? (() => {
             const { subType: _drop, ...rest } = parsed.data;
             void _drop;

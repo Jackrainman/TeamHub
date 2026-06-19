@@ -207,19 +207,25 @@ export const artifactRefFixtures: ArtifactRef[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// 图纸提交日志 / 版本时间线 seed（v1）：跨机构跨日期的真实迭代历史，让档案页时间线一上来就有料。
+// 图纸提交日志 / 版本时间线 seed：跨机构跨日期的真实迭代历史，让档案页时间线一上来就有料。
 //
-// 机构分组键 mechanism + 版本 revision + 归档物（kind/name/uri）+ 日期 createdAt（自然处带 relatedCommit）。
-// 底盘 v1(6/1)/v2(6/4)/v3(6/6)、抬升机构 v1(6/2)/v2(6/8)、夹爪 v1(6/5)、视觉模组固件 v1(6/3)/v2(6/7)。
-// 无人维度：记录主键是机构 + 版本，不存"谁提交"作排名依据（I0/A4）。
+// 维度：组别 ownerGroup（机械/电路/电控/视觉）+ 赛季 season + 机构 mechanism（分组键）
+// + 适配车 robotCode（R1/R2/universal，是版本属性·不进版本键）+ 版本号 versionNo（按 组别+赛季+机构 连续）。
+// 底盘 v1(R1,6/1)/v2(R2,6/4)/v3(R1,6/6)——同一机构版本线跨车、编号仍连续；抬升机构 v1/v2(R1)；
+// 夹爪 v1(通用)；视觉模组固件 v1/v2(R1,视觉组)。名字不再硬写「 vN」（版本走 versionNo/徽章）。
+// 无人维度：记录主键是 组别+赛季+机构+版本，不存"谁提交"作排名依据（I0/A4）。
 // ---------------------------------------------------------------------------
 export const artifactVersionLogFixtures: ArtifactRef[] = [
   {
     id: 'artifact-chassis-v1',
     kind: 'report',
-    name: '底盘结构图纸 v1',
+    name: '底盘结构图纸',
     uri: 'artifact://drawings/chassis/v1.pdf',
+    ownerGroup: 'mechanical',
+    season: '26',
+    robotCode: 'R1',
     mechanism: '底盘',
+    versionNo: 1,
     revision: 'v1',
     submittedVia: 'console',
     relatedRepo: 'repo-infantry',
@@ -228,9 +234,13 @@ export const artifactVersionLogFixtures: ArtifactRef[] = [
   {
     id: 'artifact-lift-v1',
     kind: 'report',
-    name: '抬升机构图纸 v1',
+    name: '抬升机构图纸',
     uri: 'artifact://drawings/lift/v1.pdf',
+    ownerGroup: 'mechanical',
+    season: '26',
+    robotCode: 'R1',
     mechanism: '抬升机构',
+    versionNo: 1,
     revision: 'v1',
     submittedVia: 'console',
     createdAt: '2026-06-02T10:30:00.000Z',
@@ -238,9 +248,13 @@ export const artifactVersionLogFixtures: ArtifactRef[] = [
   {
     id: 'artifact-vision-fw-v1',
     kind: 'firmware',
-    name: '视觉模组固件 v1',
+    name: '视觉模组固件',
     uri: 'artifact://firmware/vision-module-v1.bin',
+    ownerGroup: 'vision',
+    season: '26',
+    robotCode: 'R1',
     mechanism: '视觉模组固件',
+    versionNo: 1,
     revision: 'v1',
     submittedVia: 'git',
     relatedRepo: 'repo-sentry',
@@ -250,9 +264,13 @@ export const artifactVersionLogFixtures: ArtifactRef[] = [
   {
     id: 'artifact-chassis-v2',
     kind: 'report',
-    name: '底盘结构图纸 v2',
+    name: '底盘结构图纸',
     uri: 'artifact://drawings/chassis/v2.pdf',
+    ownerGroup: 'mechanical',
+    season: '26',
+    robotCode: 'R2',
     mechanism: '底盘',
+    versionNo: 2,
     revision: 'v2',
     submittedVia: 'console',
     relatedRepo: 'repo-infantry',
@@ -262,9 +280,13 @@ export const artifactVersionLogFixtures: ArtifactRef[] = [
   {
     id: 'artifact-gripper-v1',
     kind: 'report',
-    name: '夹爪图纸 v1',
+    name: '夹爪图纸',
     uri: 'artifact://drawings/gripper/v1.pdf',
+    ownerGroup: 'mechanical',
+    season: '26',
+    robotCode: 'universal',
     mechanism: '夹爪',
+    versionNo: 1,
     revision: 'v1',
     submittedVia: 'console',
     createdAt: '2026-06-05T16:45:00.000Z',
@@ -272,9 +294,13 @@ export const artifactVersionLogFixtures: ArtifactRef[] = [
   {
     id: 'artifact-chassis-v3',
     kind: 'report',
-    name: '底盘结构图纸 v3',
+    name: '底盘结构图纸',
     uri: 'artifact://drawings/chassis/v3.pdf',
+    ownerGroup: 'mechanical',
+    season: '26',
+    robotCode: 'R1',
     mechanism: '底盘',
+    versionNo: 3,
     revision: 'v3',
     submittedVia: 'console',
     relatedRepo: 'repo-infantry',
@@ -284,9 +310,13 @@ export const artifactVersionLogFixtures: ArtifactRef[] = [
   {
     id: 'artifact-vision-fw-v2',
     kind: 'firmware',
-    name: '视觉模组固件 v2',
+    name: '视觉模组固件',
     uri: 'artifact://firmware/vision-module-v2.bin',
+    ownerGroup: 'vision',
+    season: '26',
+    robotCode: 'R1',
     mechanism: '视觉模组固件',
+    versionNo: 2,
     revision: 'v2',
     submittedVia: 'git',
     relatedRepo: 'repo-sentry',
@@ -296,9 +326,13 @@ export const artifactVersionLogFixtures: ArtifactRef[] = [
   {
     id: 'artifact-lift-v2',
     kind: 'report',
-    name: '抬升机构图纸 v2',
+    name: '抬升机构图纸',
     uri: 'artifact://drawings/lift/v2.pdf',
+    ownerGroup: 'mechanical',
+    season: '26',
+    robotCode: 'R1',
     mechanism: '抬升机构',
+    versionNo: 2,
     revision: 'v2',
     submittedVia: 'console',
     relatedCommit: 'e1e7a70',

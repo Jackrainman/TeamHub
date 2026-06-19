@@ -6,7 +6,7 @@ import { useI18n, type TranslationKey } from '../../i18n';
 import { useTheme } from '../../theme';
 import { segClass } from '../../utils';
 import { MetaRow } from '../../components/MetaRow';
-import { APIBASE_KEY } from '../../constants';
+import { APIBASE_KEY, WRITE_TOKEN_KEY } from '../../constants';
 
 // 设置页：收纳此前散落各处的运行时设置——语言 / 集成 / 后端地址 / 关于。
 // 语言复用 i18n 的同一份状态（无本地副本，故无同步问题）。单一真实后端，无数据源切换。
@@ -112,6 +112,7 @@ export function SettingsPage({
 
       <IntegrationsSection client={client} source={source} />
       <ApiBaseSection />
+      <WriteTokenSection />
       <AboutSection client={client} source={source} />
     </div>
   );
@@ -285,6 +286,71 @@ function ApiBaseSection() {
             disabled={stored.trim() === ''}
           >
             {t('settings.apiBase.reset')}
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// 写入令牌：server 绑非 loopback（0.0.0.0）时写端点（登记图纸 / 录入任务等 POST）须带
+// Authorization: Bearer <token>。把服务启动日志里那串 TEAMHUB_WRITE_TOKEN 粘进来即可。
+// 与"后端地址"同套路：存 localStorage，改动后 reload 让 client 带上令牌重建。
+function WriteTokenSection() {
+  const { t } = useI18n();
+  const stored = window.localStorage.getItem(WRITE_TOKEN_KEY) ?? '';
+  const [value, setValue] = useState(stored);
+
+  function apply() {
+    const next = value.trim();
+    if (next) window.localStorage.setItem(WRITE_TOKEN_KEY, next);
+    else window.localStorage.removeItem(WRITE_TOKEN_KEY);
+    window.location.reload();
+  }
+
+  function reset() {
+    window.localStorage.removeItem(WRITE_TOKEN_KEY);
+    window.location.reload();
+  }
+
+  return (
+    <section className="panel settings-panel">
+      <div className="panel-header">
+        <h2>{t('settings.section.writeToken')}</h2>
+      </div>
+      <div className="settings-section">
+        <p className="settings-desc">{t('settings.writeToken.desc')}</p>
+        <label className="kb-field">
+          <span>{t('settings.writeToken.label')}</span>
+          <input
+            type="password"
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            placeholder={t('settings.writeToken.placeholder')}
+            autoComplete="off"
+          />
+        </label>
+        <p className="settings-current">
+          {value.trim()
+            ? t('settings.writeToken.set')
+            : t('settings.writeToken.unset')}
+        </p>
+        <div className="settings-actions">
+          <button
+            type="button"
+            className="kb-submit"
+            onClick={apply}
+            disabled={value.trim() === stored.trim()}
+          >
+            {t('settings.writeToken.apply')}
+          </button>
+          <button
+            type="button"
+            className="settings-btn"
+            onClick={reset}
+            disabled={stored.trim() === ''}
+          >
+            {t('settings.writeToken.reset')}
           </button>
         </div>
       </div>

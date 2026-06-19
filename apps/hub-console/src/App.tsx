@@ -15,7 +15,7 @@ import { PmBoardPage } from './features/pm/PmBoardPage';
 import { ArchivePage } from './features/archive/ArchivePage';
 import { SettingsPage } from './features/settings/SettingsPage';
 import { useI18n, type TranslationKey } from './i18n';
-import { APIBASE_KEY } from './constants';
+import { APIBASE_KEY, WRITE_TOKEN_KEY } from './constants';
 // 单一真实后端：queryKey 维度保留稳定常量（曾区分 mock/real，现恒为 real），
 // 避免改动各页 queryKey 形状。
 const SOURCE = 'real';
@@ -38,6 +38,11 @@ function readApiBase(): string {
   return import.meta.env.VITE_API_BASE ?? '/';
 }
 
+// 写入令牌：设置页填入 localStorage；server 绑非 loopback 时写端点需带它（读端点不限）。
+function readWriteToken(): string | undefined {
+  return window.localStorage.getItem(WRITE_TOKEN_KEY)?.trim() || undefined;
+}
+
 export function App() {
   const { t } = useI18n();
   const [page, setPage] = useState<ConsolePage>('overview');
@@ -46,7 +51,14 @@ export function App() {
 
   // 单一真实后端：默认相对路径同源（dev 走 vite proxy → 本地 hub-server；同源部署直接命中 /api）。
   // VITE_API_BASE / 设置页 localStorage 可覆盖为绝对地址。
-  const apiClient = useMemo(() => createHubApiClient({ baseUrl: readApiBase() }), []);
+  const apiClient = useMemo(
+    () =>
+      createHubApiClient({
+        baseUrl: readApiBase(),
+        writeToken: readWriteToken(),
+      }),
+    [],
+  );
 
   const overviewQuery = useQuery({
     queryKey: ['hub-overview', SOURCE],

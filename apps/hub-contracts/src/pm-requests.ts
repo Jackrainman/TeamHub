@@ -118,13 +118,15 @@ export const CreateArtifactRequestSchema = ArtifactRefSchema.omit({
   revision: true,
 })
   .extend({
-    ownerGroup: z.enum(['mechanical', 'electrical']),
+    ownerGroup: z.enum(['mechanical', 'electrical', 'ec', 'vision']),
     season: z.string().min(1),
-    robotCode: z.string().min(1),
+    // 适配车三选：R1 / R2 / universal（通用·不上固定车）。是版本属性、不进版本键。
+    robotCode: z.enum(['R1', 'R2', 'universal']),
     mechanism: z.string().min(1),
     subType: z.enum(['drawing', 'driver']).optional(),
   })
   .superRefine((data, ctx) => {
+    // subType（图纸/驱动）只属于电路组：电路必须带，机械/电控/视觉不得带。
     if (data.ownerGroup === 'electrical' && data.subType === undefined) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -132,10 +134,10 @@ export const CreateArtifactRequestSchema = ArtifactRefSchema.omit({
         path: ['subType'],
       });
     }
-    if (data.ownerGroup === 'mechanical' && data.subType !== undefined) {
+    if (data.ownerGroup !== 'electrical' && data.subType !== undefined) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: '机械组归档物不应带 subType',
+        message: '只有电路组归档物可带 subType',
         path: ['subType'],
       });
     }

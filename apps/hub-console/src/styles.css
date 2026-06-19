@@ -1139,6 +1139,34 @@ button {
   line-height: 1.4;
 }
 
+/* 适配车徽章：弱化的次级标记（描边/中性色），与蓝色版本徽章区分。 */
+.archive-badge--robot {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border-strong);
+  font-weight: 700;
+}
+
+/* 登记表单顶部一行：组别（自然宽）｜ 赛季（窄）｜ 适配车（自然宽），窄屏自动换行。 */
+.archive-top-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.archive-top-row .kb-field {
+  flex: 0 0 auto;
+}
+
+.archive-field--season {
+  width: 6rem;
+}
+
+.archive-field--season select {
+  width: 100%;
+}
+
 .archive-row__detail {
   display: flex;
   flex-direction: column;
@@ -1181,6 +1209,13 @@ button {
   gap: 0.25rem;
   align-items: center;
   font-size: inherit;
+  /* 防止窄列里「新机构」被挤成竖排：整体不换行、不被压缩。 */
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.archive-mechanism-checkbox input {
+  flex-shrink: 0;
 }
 
 .archive-mechanism-input {

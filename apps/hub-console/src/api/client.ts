@@ -58,6 +58,9 @@ type FetchLike = typeof fetch;
 export interface HubApiClientOptions {
   baseUrl?: string;
   fetcher?: FetchLike;
+  // 写入令牌（Bearer）：server 绑非 loopback 时写端点强制鉴权。有则附到所有 POST 的
+  // Authorization 头；空则不附（loopback dev 无需）。来源 = 设置页 localStorage。
+  writeToken?: string;
 }
 
 export interface HubApiClient {
@@ -95,6 +98,7 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
   // 单一真实后端：baseUrl 为空 / '/' → 同源相对路径；否则用给定绝对地址。
   const baseUrl = normalizeBaseUrl(options.baseUrl);
   const fetcher = options.fetcher ?? fetch;
+  const writeToken = options.writeToken?.trim() || undefined;
   return {
     async getOverview() {
       const [
@@ -213,6 +217,7 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         req,
         CreateTaskResponseSchema,
         fetcher,
+        writeToken,
       );
     },
     async createDependency(req: CreateDependencyRequest) {
@@ -221,6 +226,7 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         req,
         CreateDependencyResponseSchema,
         fetcher,
+        writeToken,
       );
     },
     async createNeed(req: CreateNeedRequest) {
@@ -229,6 +235,7 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         req,
         CreateNeedResponseSchema,
         fetcher,
+        writeToken,
       );
     },
     async closeoutKb(req: KbCloseoutRequest) {
@@ -237,6 +244,7 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         req,
         KbCloseoutResponseSchema,
         fetcher,
+        writeToken,
       );
     },
     async updateTaskStatus(taskId: string, status: TaskStatus) {
@@ -245,6 +253,7 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         { status },
         TransitionTaskStatusResponseSchema,
         fetcher,
+        writeToken,
       );
     },
     async waiveDependency(depId: string) {
@@ -253,6 +262,7 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         {},
         WaiveDependencyResponseSchema,
         fetcher,
+        writeToken,
       );
     },
     async createArtifact(req: CreateArtifactRequest) {
@@ -261,6 +271,7 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         req,
         CreateArtifactResponseSchema,
         fetcher,
+        writeToken,
       );
     },
   };
@@ -292,10 +303,15 @@ async function postJson<T>(
   body: unknown,
   schema: { parse(value: unknown): T },
   fetcher: FetchLike,
+  writeToken?: string,
 ): Promise<T> {
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+  };
+  if (writeToken) headers.authorization = `Bearer ${writeToken}`;
   const response = await fetcher(url, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers,
     body: JSON.stringify(body),
   });
   if (!response.ok) {

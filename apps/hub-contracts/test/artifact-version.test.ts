@@ -23,11 +23,10 @@ function art(partial: Partial<ArtifactRef> & { mechanism: string }): ArtifactRef
 const CHASSIS_KEY: ArtifactVersionKey = {
   ownerGroup: 'mechanical',
   season: '25',
-  robotCode: 'R1',
   mechanism: '底盘',
 };
 
-describe('nextArtifactVersionNo — 四键自增', () => {
+describe('nextArtifactVersionNo — 三键自增（车不进键）', () => {
   test('空集 → 1', () => {
     expect(nextArtifactVersionNo([], CHASSIS_KEY)).toBe(1);
   });
@@ -40,13 +39,21 @@ describe('nextArtifactVersionNo — 四键自增', () => {
     expect(nextArtifactVersionNo(existing, CHASSIS_KEY)).toBe(3);
   });
 
-  test('异键隔离：另一机构/车/赛季/组都不参与', () => {
+  test('车不进键：同机构跨车（R1→R2）版本号仍连续', () => {
+    const existing: ArtifactRef[] = [
+      art({ ...CHASSIS_KEY, robotCode: 'R1', versionNo: 1 }),
+      art({ ...CHASSIS_KEY, robotCode: 'R2', versionNo: 2 }),
+      art({ ...CHASSIS_KEY, robotCode: 'universal', versionNo: 3 }),
+    ];
+    // 三条都同 (组别+赛季+机构)，车不同也算入 → 下一版 = 4
+    expect(nextArtifactVersionNo(existing, CHASSIS_KEY)).toBe(4);
+  });
+
+  test('异键隔离：另一机构/赛季/组不参与（但车不隔离）', () => {
     const existing: ArtifactRef[] = [
       art({ ...CHASSIS_KEY, versionNo: 5 }),
       // 异 mechanism
       art({ ...CHASSIS_KEY, mechanism: '抬升机构', versionNo: 9 }),
-      // 异 robotCode
-      art({ ...CHASSIS_KEY, robotCode: 'R2', versionNo: 9 }),
       // 异 season
       art({ ...CHASSIS_KEY, season: '24', versionNo: 9 }),
       // 异 ownerGroup
@@ -55,16 +62,15 @@ describe('nextArtifactVersionNo — 四键自增', () => {
     expect(nextArtifactVersionNo(existing, CHASSIS_KEY)).toBe(6);
   });
 
-  test('旧 seed 无 versionNo（四键碰巧匹配）视为 0、不参与 → 仍从 1', () => {
+  test('旧 seed 无 versionNo（三键碰巧匹配）视为 0、不参与 → 仍从 1', () => {
     const existing: ArtifactRef[] = [
-      // 无 ownerGroup/season/robotCode 的旧裸 seed（四键不匹配，天然不计）
+      // 无 ownerGroup/season 的旧裸 seed（三键不匹配，天然不计）
       art({
         ownerGroup: undefined,
         season: undefined,
-        robotCode: undefined,
         mechanism: '底盘',
       }),
-      // 四键全等但无 versionNo（视为 0）→ 不抬高基线
+      // 三键全等但无 versionNo（视为 0）→ 不抬高基线
       art({ ...CHASSIS_KEY, versionNo: undefined }),
     ];
     expect(nextArtifactVersionNo(existing, CHASSIS_KEY)).toBe(1);
@@ -79,7 +85,7 @@ describe('nextArtifactVersionNo — 四键自增', () => {
   });
 });
 
-describe('deriveArtifactKind — 三分支', () => {
+describe('deriveArtifactKind', () => {
   test('机械组 → report（subType 缺省）', () => {
     expect(deriveArtifactKind('mechanical', undefined)).toBe('report');
   });
@@ -90,5 +96,13 @@ describe('deriveArtifactKind — 三分支', () => {
 
   test('电路驱动（driver）→ firmware', () => {
     expect(deriveArtifactKind('electrical', 'driver')).toBe('firmware');
+  });
+
+  test('电控 → firmware', () => {
+    expect(deriveArtifactKind('ec', undefined)).toBe('firmware');
+  });
+
+  test('视觉 → firmware', () => {
+    expect(deriveArtifactKind('vision', undefined)).toBe('firmware');
   });
 });

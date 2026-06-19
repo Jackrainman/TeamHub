@@ -8,6 +8,13 @@ import type { TranslationKey } from './i18n';
 export const APIBASE_KEY = 'teamhub.apiBase';
 
 /**
+ * localStorage key for the write token (Bearer) sent on POST /api/* writes.
+ * Server requires it when bound to a non-loopback host (0.0.0.0). App.tsx reads
+ * it at startup; SettingsPage.tsx writes/clears it. Empty → no Authorization header.
+ */
+export const WRITE_TOKEN_KEY = 'teamhub.writeToken';
+
+/**
  * ArtifactKind → translation key map.
  * Shared between OverviewPage and ArchivePage (type-safe: enum changes
  * cause a compile error here).

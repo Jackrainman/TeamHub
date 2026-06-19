@@ -4,10 +4,9 @@ import type { ArtifactRef } from '@teamhub/hub-contracts';
 import { nextArtifactVersionNo } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import type { CreateArtifactRequest } from '../../api/schemas/pm';
-import { useI18n } from '../../i18n';
+import { useI18n, type TranslationKey } from '../../i18n';
 import { errorDetail, segClass } from '../../utils';
 import { MetaRow } from '../../components/MetaRow';
-import { ARTIFACT_KIND_KEY } from '../../constants';
 
 // guessSeason：纯 UI helper，猜当前赛季年份（后两位数字字符串，如 "25"）。
 // 赛季切换惯例：赛季年份 = 日历年 - 1（赛季到次年前数月结束）。
@@ -28,7 +27,24 @@ function seasonOptions(now: Date): string[] {
   );
 }
 
-type OwnerGroup = 'mechanical' | 'electrical';
+type OwnerGroup = 'mechanical' | 'electrical' | 'ec' | 'vision';
+
+// 组别顺序 + 文案键（新增组别在此处一处登记；枚举漏配会编译报错）。
+const OWNER_GROUP_ORDER: readonly OwnerGroup[] = [
+  'mechanical',
+  'electrical',
+  'ec',
+  'vision',
+];
+const GROUP_LABEL_KEY: Record<OwnerGroup, TranslationKey> = {
+  mechanical: 'enum.group.mechanical',
+  electrical: 'enum.group.electrical',
+  ec: 'enum.group.ec',
+  vision: 'enum.group.vision',
+};
+// 适配车三选（值 + 显示）：universal=通用/不上固定车。
+type RobotCode = 'R1' | 'R2' | 'universal';
+const ROBOT_CODES: readonly RobotCode[] = ['R1', 'R2', 'universal'];
 
 interface MechanismGroup {
   mechanism: string;
@@ -58,12 +74,14 @@ function groupArtifacts(artifacts: ArtifactRef[]): OwnerGroupSection[] {
     mechMap.get(key)!.push(artifact);
   }
 
-  // 构建结果：mechanical → electrical → null（历史桶垫底）
+  // 构建结果：机械 → 电路 → 电控 → 视觉 → null（未分组历史桶垫底）
   const sorted: (OwnerGroup | null)[] = [];
-  if (byOwner.has('mechanical')) sorted.push('mechanical');
-  if (byOwner.has('electrical')) sorted.push('electrical');
+  for (const og of OWNER_GROUP_ORDER) {
+    if (byOwner.has(og)) sorted.push(og);
+  }
   for (const og of ownerOrder) {
-    if (og !== 'mechanical' && og !== 'electrical') sorted.push(og);
+    if (og !== null && !OWNER_GROUP_ORDER.includes(og)) sorted.push(og);
+    else if (og === null) sorted.push(og);
   }
 
   return sorted.map((og) => {
@@ -107,32 +125,10 @@ export function ArchivePage({
     [query.data],
   );
 
-  // O(n) pre-compute: one pass over all artifacts to find the max versionNo id
-  // per four-key group; render loop uses O(1) Set lookup instead of O(n) scan.
-  const currentVersionIds = useMemo(() => {
-    const maxVer = new Map<string, { id: string; ver: number }>();
-    for (const a of query.data?.artifacts ?? []) {
-      if (
-        !a.ownerGroup ||
-        !a.season ||
-        !a.robotCode ||
-        !a.mechanism ||
-        a.versionNo === undefined
-      )
-        continue;
-      const key = `${a.ownerGroup}|${a.season}|${a.robotCode}|${a.mechanism}`;
-      const cur = maxVer.get(key);
-      if (!cur || a.versionNo > cur.ver) {
-        maxVer.set(key, { id: a.id, ver: a.versionNo });
-      }
-    }
-    return new Set(Array.from(maxVer.values()).map((v) => v.id));
-  }, [query.data]);
-
   // 登记表单状态 v2（I0：无提交人字段）
   const [ownerGroup, setOwnerGroup] = useState<OwnerGroup>('mechanical');
   const [season, setSeason] = useState(() => guessSeason(now));
-  const [robotCode, setRobotCode] = useState('R1');
+  const [robotCode, setRobotCode] = useState<RobotCode>('R1');
   const [isNewMechanism, setIsNewMechanism] = useState(false);
   const [mechanism, setMechanism] = useState('');
   const [mechanismNew, setMechanismNew] = useState('');
@@ -142,27 +138,22 @@ export function ArchivePage({
   const [relatedCommit, setRelatedCommit] = useState('');
   const [relatedRepo, setRelatedRepo] = useState('');
 
-  // 机构下拉选项：按当前 ownerGroup+season+robotCode 过滤后去重
+  // 机构下拉选项：按当前 ownerGroup+season 过滤后去重（机构跨车共享，故不按车筛）。
   const mechanismOptions = useMemo(() => {
     const artifacts = query.data?.artifacts ?? [];
     const seen = new Set<string>();
     for (const a of artifacts) {
-      if (
-        a.ownerGroup === ownerGroup &&
-        a.season === season &&
-        a.robotCode === robotCode &&
-        a.mechanism
-      ) {
+      if (a.ownerGroup === ownerGroup && a.season === season && a.mechanism) {
         seen.add(a.mechanism);
       }
     }
     return Array.from(seen).sort();
-  }, [query.data, ownerGroup, season, robotCode]);
+  }, [query.data, ownerGroup, season]);
 
-  // ownerGroup/season/robotCode 切换时重置 mechanism 下拉选中值，避免残留旧值在新组合下提交写错机构。
+  // ownerGroup/season 切换时重置 mechanism 下拉选中值，避免残留旧值在新组合下提交写错机构。
   useEffect(() => {
     setMechanism('');
-  }, [ownerGroup, season, robotCode]);
+  }, [ownerGroup, season]);
 
   // 当前机构值：勾了新机构、或该组合下无既有机构（空档案/新组首条）→ 走文本框；否则走下拉。
   // usingTextInput 必须与下方渲染条件一致，否则空档案时文本框可输入但 effectiveMechanism 恒空 → 无法录第一条。
@@ -177,11 +168,10 @@ export function ArchivePage({
     const vno = nextArtifactVersionNo(existing, {
       ownerGroup,
       season,
-      robotCode,
       mechanism: mech,
     });
-    return `${season}${robotCode} · ${mech} · v${vno}`;
-  }, [query.data, ownerGroup, season, robotCode, effectiveMechanism]);
+    return `${mech} · v${vno}`;
+  }, [query.data, ownerGroup, season, effectiveMechanism]);
 
   const mutation = useMutation({
     mutationFn: (req: CreateArtifactRequest) => client.createArtifact(req),
@@ -197,8 +187,9 @@ export function ArchivePage({
     },
   });
 
+  // 地址(uri) 可选，不进必填校验。
   const valid =
-    effectiveMechanism.trim() && name.trim() && uri.trim() && season.trim() && robotCode.trim();
+    effectiveMechanism.trim() && name.trim() && season.trim();
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -207,11 +198,11 @@ export function ArchivePage({
     const req: CreateArtifactRequest = {
       ownerGroup,
       season: season.trim(),
-      robotCode: robotCode.trim(),
+      robotCode,
       mechanism: mech,
       name: name.trim(),
-      uri: uri.trim(),
     };
+    if (uri.trim()) req.uri = uri.trim();
     if (ownerGroup === 'electrical') {
       req.subType = subType;
     }
@@ -229,55 +220,25 @@ export function ArchivePage({
         <h2>{t('archive.form.title')}</h2>
       </div>
       <form className="pm-form" onSubmit={submit}>
-        {/* 顶部：学科组（机械/电路）segmented */}
-        <div className="pm-form__grid">
-          <label className="kb-field">
+        {/* 顶部一行：组别（4 seg）｜ 赛季（窄）｜ 适配车（R1/R2/通用 seg）*/}
+        <div className="archive-top-row">
+          <label className="kb-field archive-field--group">
             <span>{t('archive.form.group')}</span>
             <div className="seg" role="group" aria-label={t('archive.form.group')}>
-              <button
-                type="button"
-                className={segClass(ownerGroup === 'mechanical')}
-                onClick={() => setOwnerGroup('mechanical')}
-              >
-                {t('enum.group.mechanical')}
-              </button>
-              <button
-                type="button"
-                className={segClass(ownerGroup === 'electrical')}
-                onClick={() => setOwnerGroup('electrical')}
-              >
-                {t('enum.group.electrical')}
-              </button>
+              {OWNER_GROUP_ORDER.map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  className={segClass(ownerGroup === g)}
+                  onClick={() => setOwnerGroup(g)}
+                >
+                  {t(GROUP_LABEL_KEY[g])}
+                </button>
+              ))}
             </div>
           </label>
 
-          {/* 电路子类型（仅 electrical 时显示）*/}
-          {ownerGroup === 'electrical' ? (
-            <label className="kb-field">
-              <span>{t('archive.form.subType')}</span>
-              <div className="seg" role="group" aria-label={t('archive.form.subType')}>
-                <button
-                  type="button"
-                  className={segClass(subType === 'drawing')}
-                  onClick={() => setSubType('drawing')}
-                >
-                  {t('enum.subType.drawing')}
-                </button>
-                <button
-                  type="button"
-                  className={segClass(subType === 'driver')}
-                  onClick={() => setSubType('driver')}
-                >
-                  {t('enum.subType.driver')}
-                </button>
-              </div>
-            </label>
-          ) : null}
-        </div>
-
-        {/* 赛季 + R1/R2 */}
-        <div className="pm-form__grid">
-          <label className="kb-field">
+          <label className="kb-field archive-field--season">
             <span>{t('archive.form.season')}</span>
             <select value={season} onChange={(e) => setSeason(e.target.value)}>
               {seasonOptions(now).map((s) => (
@@ -288,26 +249,45 @@ export function ArchivePage({
             </select>
           </label>
 
-          <label className="kb-field">
+          <label className="kb-field archive-field--robot">
             <span>{t('archive.form.robot')}</span>
             <div className="seg" role="group" aria-label={t('archive.form.robot')}>
-              <button
-                type="button"
-                className={segClass(robotCode === 'R1')}
-                onClick={() => setRobotCode('R1')}
-              >
-                R1
-              </button>
-              <button
-                type="button"
-                className={segClass(robotCode === 'R2')}
-                onClick={() => setRobotCode('R2')}
-              >
-                R2
-              </button>
+              {ROBOT_CODES.map((rc) => (
+                <button
+                  key={rc}
+                  type="button"
+                  className={segClass(robotCode === rc)}
+                  onClick={() => setRobotCode(rc)}
+                >
+                  {rc === 'universal' ? t('enum.robot.universal') : rc}
+                </button>
+              ))}
             </div>
           </label>
         </div>
+
+        {/* 电路子类型（仅 electrical 时单独一行）*/}
+        {ownerGroup === 'electrical' ? (
+          <label className="kb-field">
+            <span>{t('archive.form.subType')}</span>
+            <div className="seg" role="group" aria-label={t('archive.form.subType')}>
+              <button
+                type="button"
+                className={segClass(subType === 'drawing')}
+                onClick={() => setSubType('drawing')}
+              >
+                {t('enum.subType.drawing')}
+              </button>
+              <button
+                type="button"
+                className={segClass(subType === 'driver')}
+                onClick={() => setSubType('driver')}
+              >
+                {t('enum.subType.driver')}
+              </button>
+            </div>
+          </label>
+        ) : null}
 
         {/* 机构：新机构勾选框切文本 / 否则下拉 */}
         <div className="kb-field">
@@ -328,7 +308,7 @@ export function ArchivePage({
               <input
                 className="archive-mechanism-input"
                 value={mechanismNew}
-                placeholder={t('archive.form.mechanism')}
+                placeholder={t('archive.form.mechanismHint')}
                 onChange={(e) => setMechanismNew(e.target.value)}
               />
             ) : (
@@ -363,6 +343,7 @@ export function ArchivePage({
             <span>{t('archive.form.name')}</span>
             <input
               value={name}
+              placeholder={t('archive.form.nameHint')}
               onChange={(e) => setName(e.target.value)}
             />
           </label>
@@ -413,7 +394,11 @@ export function ArchivePage({
           ) : null}
           {mutation.error ? (
             <p className="form-banner form-banner--err">
-              {t('archive.form.error', { detail: errorDetail(mutation.error) })}
+              {/401|unauthorized/i.test(errorDetail(mutation.error))
+                ? t('archive.form.error401')
+                : t('archive.form.error', {
+                    detail: errorDetail(mutation.error),
+                  })}
             </p>
           ) : null}
         </div>
@@ -452,12 +437,9 @@ export function ArchivePage({
     <div className="archive-page">
       {form}
       {sections.map((section) => {
-        const sectionLabel =
-          section.ownerGroup === 'mechanical'
-            ? t('enum.group.mechanical')
-            : section.ownerGroup === 'electrical'
-              ? t('enum.group.electrical')
-              : t('archive.ungrouped');
+        const sectionLabel = section.ownerGroup
+          ? t(GROUP_LABEL_KEY[section.ownerGroup])
+          : t('archive.ungrouped');
         return (
           <section
             className="panel"
@@ -479,7 +461,6 @@ export function ArchivePage({
                       artifact={artifact}
                       key={artifact.id}
                       lang={lang}
-                      isCurrent={currentVersionIds.has(artifact.id)}
                     />
                   ))}
                 </div>
@@ -495,37 +476,38 @@ export function ArchivePage({
 function ArtifactLogRow({
   artifact,
   lang,
-  isCurrent,
 }: {
   artifact: ArtifactRef;
   lang: 'zh' | 'en';
-  isCurrent: boolean;
 }) {
   const { t } = useI18n();
-  // 徽章：优先显示 season+robotCode，旧 seed 缺则只显 revision 兜底
-  const versionBadge =
-    artifact.season && artifact.robotCode
-      ? `${artifact.season}${artifact.robotCode}`
-      : artifact.revision ?? null;
+  // 单个版本徽章：优先 versionNo（v3），旧裸 seed 缺则用 revision 兜底。
+  const versionLabel =
+    artifact.versionNo != null
+      ? `v${artifact.versionNo}`
+      : (artifact.revision ?? null);
+  // 适配车徽章：universal → 「通用」。
+  const carLabel = artifact.robotCode
+    ? artifact.robotCode === 'universal'
+      ? t('enum.robot.universal')
+      : artifact.robotCode
+    : null;
   return (
     <article className="data-row archive-row">
       <div className="archive-row__main">
         <strong>{artifact.name}</strong>
         <span className="archive-row__meta">
-          {versionBadge ? (
-            <span className="archive-badge">{versionBadge}</span>
+          {versionLabel ? (
+            <span className="archive-badge">{versionLabel}</span>
           ) : null}
-          {!(artifact.season && artifact.robotCode) && artifact.revision ? (
-            <span className="archive-badge">{artifact.revision}</span>
-          ) : null}
-          {isCurrent ? (
-            <span className="archive-badge archive-badge--current">
-              {t('archive.group.current')}
+          {carLabel ? (
+            <span className="archive-badge archive-badge--robot">
+              {carLabel}
             </span>
           ) : null}
-          <span>{t(ARTIFACT_KIND_KEY[artifact.kind])}</span>
-          <span>·</span>
-          <span>{formatDate(artifact.createdAt, lang)}</span>
+          <span>
+            {t('archive.meta.submittedAt')} {formatDate(artifact.createdAt, lang)}
+          </span>
         </span>
       </div>
       <dl className="archive-row__detail">
@@ -537,7 +519,14 @@ function ArtifactLogRow({
             rowClass="archive-meta__row"
           />
         ) : null}
-        <MetaRow label={t('archive.meta.uri')} value={artifact.uri} mono rowClass="archive-meta__row" />
+        {artifact.uri ? (
+          <MetaRow
+            label={t('archive.meta.uri')}
+            value={artifact.uri}
+            mono
+            rowClass="archive-meta__row"
+          />
+        ) : null}
       </dl>
     </article>
   );

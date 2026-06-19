@@ -189,7 +189,8 @@ function ArtifactRow({ artifact }: { artifact: ArtifactRef }) {
     <article className="data-row">
       <strong>{artifact.name}</strong>
       <span>
-        {t(ARTIFACT_KIND_KEY[artifact.kind])} / {artifact.uri}
+        {t(ARTIFACT_KIND_KEY[artifact.kind])}
+        {artifact.uri ? ` / ${artifact.uri}` : ''}
       </span>
     </article>
   );
