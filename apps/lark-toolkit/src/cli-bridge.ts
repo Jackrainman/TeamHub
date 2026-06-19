@@ -14,7 +14,9 @@ export async function ensureLarkCli(): Promise<void> {
   versionPromise = (async () => {
     let stdout: string;
     try {
-      const result = await execa('lark', ['--version']);
+      // 二进制名是 `lark-cli`（@larksuite/cli 安装的 bin），不是 `lark`——旧写法在装了 cli 的机器上
+      // 也会 ENOENT 误报「未安装」。WSL2 实测：`lark-cli --version` → "lark-cli version 1.0.53"。
+      const result = await execa('lark-cli', ['--version']);
       stdout = result.stdout;
     } catch (err) {
       versionPromise = null;
@@ -44,7 +46,7 @@ export async function cliApi<T = unknown>(
   await ensureLarkCli();
   const args = ['api', method, '--data', JSON.stringify(payload)];
   try {
-    const { stdout } = await execa('lark', args);
+    const { stdout } = await execa('lark-cli', args);
     return JSON.parse(stdout) as T;
   } catch (err) {
     const e = err as { exitCode?: number; stderr?: string; message: string };

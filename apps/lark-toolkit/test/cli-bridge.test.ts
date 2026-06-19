@@ -21,9 +21,9 @@ beforeEach(() => {
 
 describe('ensureLarkCli', () => {
   test('passes when lark --version reports >= MIN major', async () => {
-    execaMock.mockResolvedValueOnce({ stdout: 'lark version 1.4.2' });
+    execaMock.mockResolvedValueOnce({ stdout: 'lark-cli version 1.4.2' });
     await expect(ensureLarkCli()).resolves.toBeUndefined();
-    expect(execaMock).toHaveBeenCalledWith('lark', ['--version']);
+    expect(execaMock).toHaveBeenCalledWith('lark-cli', ['--version']);
   });
 
   test('throws CliBridgeError when lark not on PATH', async () => {
@@ -55,7 +55,7 @@ describe('cliApi', () => {
       { name: 'debug' },
     );
     expect(result).toEqual({ ok: true, id: '123' });
-    expect(execaMock).toHaveBeenLastCalledWith('lark', [
+    expect(execaMock).toHaveBeenLastCalledWith('lark-cli', [
       'api',
       'im.v1.chat.create',
       '--data',
