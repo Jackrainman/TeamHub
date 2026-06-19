@@ -60,11 +60,13 @@ const STATUS_META: Record<
   gap: { labelKey: 'depgraph.status.gap', pill: 'status-gap', modifier: 'dag-node--gap', Icon: AlertCircle },
 };
 
+// 连线色走 CSS 变量随主题（DEP-GRAPH-EDGE-COLOR-THEME）：normal=--border-strong 在 warm 主题被覆盖
+// （#b8c6b4→#cdc6b6），写死 hex 则换肤后连线不变；accent（红/蓝/琥珀）当前跨主题通用，var() 让其将来一并随动。
 const EDGE_COLORS: Record<DepEdge['kind'], string> = {
-  blocking: '#b33434',
-  critical: '#2f6f9f',
-  need: '#a26a16',
-  normal: '#b8c6b4',
+  blocking: 'var(--red)',
+  critical: 'var(--blue)',
+  need: 'var(--amber)',
+  normal: 'var(--border-strong)',
 };
 
 // 原始 Task 状态机的五态（详情面板状态下拉）。注意：这是 Task.status 原始值，
@@ -216,8 +218,8 @@ export function DepGraphPage({
               ...e,
               selected: true,
               className: 'dag-edge--selected',
-              style: { ...e.style, stroke: '#2f6f9f', strokeWidth: 4 },
-              markerEnd: { type: MarkerType.ArrowClosed, color: '#2f6f9f' },
+              style: { ...e.style, stroke: 'var(--blue)', strokeWidth: 4 },
+              markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--blue)' },
             }
           : e,
       ),
