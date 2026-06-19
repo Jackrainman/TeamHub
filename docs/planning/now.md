@@ -4,17 +4,18 @@
 
 ```yaml
 mode: collab_design
-stage: "2026-06-19 **在场排班优化 D-072 定稿·可起实现轮**（frontier 重开一项）。三支柱读写 + 差异化排班 S1/S2/S3 + 图纸档案 v2 + 集成模型三分 + 治理快照落盘全落；D-072 定稿后 PRESENCE-IMPL 可执行（不卡外部）；其余 INV 第三支柱 / KB-LARK / 正式部署 / DEPGRAPH-AI-AUTODRAW 仍卡外部门或用户排期。权威 = decisions.md D-061~D-072 + docs/archive/completed-log.md（逐条完成记录）+ git log。"
+stage: "2026-06-19 **INV-BOM 内核 + PRESENCE-IMPL 安全增量落地（无人值守实现轮）**。① 库存/BOM 第三支柱 buildable-now 内核全落（contracts schema+派生+动作语义 / 落盘 InvStore / 三端点 / console 零件×车矩阵+一句话快记+缺料告警 / demo seed），三包 verify 全绿；② PRESENCE-IMPL 安全增量落地（deriveDisplayCode+SharedResource 生命周期/displayCode+canBoardResource 接力释放级联 / RelayChainView 多车接力链+卡片页降级 / 反监视护栏升结构约束 / seed 26R1·26R2），fixture 调和+总联调=全组各一人语义 DEFERRED（需 schema 定稿，见设计稿 §7.1）；③ WSL2 真机 Playwright 验收全 PASS（矩阵活体 26R1/26R2 / damage 快记 9→8 刷新 / 零 memberId 泄漏，截图入库）；④ lark-toolkit execa bin bug 修（'lark'→'lark-cli'），KB-LARK 摄入功能 DEFERRED。权威 = decisions.md D-061~D-072 + docs/archive/completed-log.md + git log。"
 stage_goal: "演进留地基、AI 退出治理（治理只做人读说明视图、大三/学长判断），推进战队内部协作工具三支柱——① 战队知识库（规范+资料+调试归档+跨赛季沉淀，复用 growth.ts KnowledgeNode + 移植 Probe_Flash IssueCard→Archive 闭环）② 项目计划表（D-041：任务为核心·全员可见·依赖图+卡住必带原因·无甘特·不按人天数）③ 库存/BOM（P1，自保鲜护栏）。设计北极星 = 比死表省事 / 用着就更新（派生优先）/ AI 只当仓管·转译不下判断 / 人在环 / 小作坊轻量。事实源 = AGENTS.md §1 + docs/design/team-hub-concept.md（canonical）+ decisions.md D-039/D-041。治理 AI 派生整簇（D-032~035）挂起、复活触发 = 未来确认要 AI 参与治理判断。"
-current_task: null  # 2026-06-19：D-072 在场排班优化定稿落档（设计稿定稿版 + ADR + AGENTS§1）。下一可执行 = PRESENCE-IMPL 实现轮（不卡外部，见 frontier）；其余 INV(卡 HUB-HERMES-ADAPTER)/KB-LARK(卡 LARK-BIN-PROBE)/正式部署(卡审批)/DEPGRAPH-AI-AUTODRAW(卡 Hermes) 仍卡外部门。逐条完成记录见 completed-log。
-repo_sync: "2026-06-19：origin/master 推进到 D-072 定稿批（在 32e09f5 之上：设计稿定稿版 + D-072 ADR + AGENTS§1 + now sync，已 push）。push 凭证走共享库 ~/ruolin_huang/.gh-credentials，按 D-064 默认 commit+push。rainman WSL2 真机仍停 D-068(230c38e)，落后较多；演示前需 git bundle 过 SSH 同步 + 三包 verify:all + 4177 起服走查「在场排班」页——bundle 传 100.78.202.84（用户自己电脑·非默认 SSH 端口），需用户在场确认可达后执行。详见 memory teamhub-remote-access。"
-frontier:                                # PRESENCE-IMPL 可执行（不卡外部）；其余仍卡外部基建 / 用户排期
-  - PRESENCE-IMPL                         # 在场排班优化实现轮：D-072 已定稿(2026-06-19)→落「车=带编号对象」+宏观维修态+接力释放级联(挂车对象·不走车位枚举)/接力链(多车)视图+「谁可下班」语义/卡片页降级/视情况库存最小内核/demo seed 26R1·26R2/反监视护栏升结构约束（详见设计稿 §7）。不卡外部，可起。
+current_task: null  # 2026-06-19 无人值守实现轮完成：INV-BOM-CORE 全落 + PRESENCE-IMPL 安全增量 + WSL2 验收 + lark bin 修，均三包/四包 verify 全绿 + push（9861850 / 736f0c3 / d90ca64 / 5cb84cb）。下一可执行 = PRESENCE-RECONCILE-LOCK（出「总联调=全组各一人」字段/派生级定稿后落 fixture 调和）；其余 INV-Hermes 自动记账(卡 HUB-HERMES-ADAPTER)/KB-LARK 摄入(需落点定稿)/正式部署(卡审批)/DEPGRAPH-AI-AUTODRAW(卡 Hermes) 仍卡外部门或需定稿。逐条完成记录见 completed-log。
+repo_sync: "2026-06-19：origin/master 推进到无人值守实现轮（5cb84cb：INV-BOM-CORE + PRESENCE-IMPL 安全增量 + WSL 验收截图 + lark bin 修，4 commit 已 push）。push 凭证走共享库 ~/ruolin_huang/.gh-credentials，按 D-064 默认 commit+push（push 前 git fetch 防分叉）。rainman WSL2 真机已同步到 736f0c3 并起服 4177 跑通 Playwright 验收（loopback，TEAMHUB_INV_DATA_FILE=~/teamhub-data/inventory.json）；注意 WSL 在 ssh 会话关闭后会 reap 所有进程（含 tmux），常驻部署须保持连接或 enable-linger，验收已在单会话内完成。bundle 传 100.78.202.84 实测 ssh BatchMode 可达、字节比对无截断。详见 memory teamhub-remote-access。"
+frontier:                                # PRESENCE-RECONCILE-LOCK 需定稿；其余仍卡外部基建 / 用户排期
+  - PRESENCE-RECONCILE-LOCK               # 在场排班 fixture 调和：先出「总联调=全组各一人」收敛任务的字段/派生级定稿（仿 inv-bom-core.md），再落 m-progA→grp-ec / m-progB→grp-vision / grp-program 去领任务 + 改 ~9 测试文件断言。DEFERRED 自无人值守轮（无安全默认、波及面大），见 presence-resource-redesign.md §7.1。
   - DEPGRAPH-AI-AUTODRAW                  # AI 自动布大致 DAG + 人拖拽微调（Q2 诉求；AI 只建议不落库，卡 Hermes 触点）← 跳过
-  # 仍卡外部基建/排期：INV 第三支柱(P1·卡 HUB-HERMES-ADAPTER 对话记账门) / KB-LARK(卡 LARK-BIN-PROBE) / 正式部署上线(卡用户审批) / Hermes
+  # 已落地(2026-06-19 无人值守轮)：INV-BOM-CORE 内核(一句话快记/矩阵/缺料/落盘) + PRESENCE-IMPL 安全增量(displayCode/接力释放/接力链视图/护栏) + WSL2 验收 + lark bin 修
+  # 仍卡外部基建/排期：INV-Hermes 自动对话记账(卡 HUB-HERMES-ADAPTER) / KB-LARK 飞书 wiki·drive→KB 摄入(需落点 schema 定稿) / 正式部署上线(卡用户审批) / Hermes
   # 后置(D-069)：STUDY-BROAD-D039-REVIVAL(HARD-GATED 封存·B1 已拍) / KB-IMPORT-FOLLOWUP nit①②
   # 挂起(D-039 AI 退治理，spec 留、复活触发=未来要 AI 参与治理判断)：GOV-MEMBER-STATUS-DERIVE / GOV-RULES-LAYER-DESIGN + D-032~035 治理派生整簇 + 自动派活 + freeIdle·双写债
-# P1：INV-BOM-DESIGN(库存/BOM，自保鲜护栏=等 AI 读出车图核数/算余量再做，绝不再造静态表)+飞书 Bitable·sheets 读写+修 lark-cli bin bug；P2：资料/代码批量整理(AI 安全车道)、给老师项目级汇报
+# P1：~~INV-BOM 内核~~(已落地 2026-06-19，自保鲜护栏=对话记账/盘点不再造静态表，Hermes 自动记账仍待 HUB-HERMES-ADAPTER)+飞书 Bitable·sheets 读写+~~修 lark-cli bin bug~~(已修 5cb84cb)；P2：资料/代码批量整理(AI 安全车道)、给老师项目级汇报
 blocked: []
 open_for_decision:                       # ARCH-PATH(D-028)/提醒(D-026后续→D-037)/资源(D-029)/idle三态+静默(D-032)/受众路由(D-033) 已拍；以下待用户线下细化
   - ARTIFACT-VERSION-SEMANTICS           # 图纸版本语义：v2 已落地最小+回退(D-071)。仍 open 的进阶语义 = 手动钉旧版 pin(append-only supersede)/按车分支/跨赛季权威指针(D-036，别做完整 PLM)；真实文件上传 = HUB-ARTIFACT-STORE-MECH(§8)；电路驱动命名规范 = 用户内部待定
@@ -57,8 +58,7 @@ frozen:
 
 ## 最近完成（详见 `git log` 与 `docs/archive/completed-log.md`）
 
+- 2026-06-19 **无人值守实现轮**（4 commit `9861850`→`5cb84cb`，逐项 verify 全绿 + push）：① INV-BOM-CORE 第三支柱内核（contracts inventory.ts schema+派生 deriveInventoryLedger/deriveShortfalls+动作语义 applyPartAction / 落盘 FileInvStore / 三端点 / console 零件×车矩阵+一句话快记+缺料告警 / demo seed，照 inv-bom-core.md locked 零猜测）；② PRESENCE-IMPL 安全增量（deriveDisplayCode+SharedResource season/version/displayCode+repair/retired/disassembling 态+canBoardResource 接力释放级联 / RelayChainView 多车接力链+卡片页降级 / 反监视护栏升结构约束 / seed 26R1·26R2）；③ WSL2 真机 Playwright 验收全 PASS（矩阵活体 26R1/26R2 / damage 快记 9→8 刷新 / 零 memberId 泄漏，截图入库 docs/screenshots/wsl-*）；④ lark-toolkit execa bin 修（'lark'→'lark-cli'）。DEFERRED（记设计稿 §7.1 + commit）：PRESENCE fixture 调和+总联调=全组各一人语义、KB-LARK wiki/drive→KB 摄入——均无安全默认/需 schema 定稿。
 - 2026-06-19 在场排班优化（D-072）定稿：对抗式设计审查（`wf_2f31074c-523`，55 claims·5 视角·对抗核实）+ 用户多轮拍板 → 设计稿出定稿版（两视图删甘特 / 单层「车=带编号对象」/ 删程序组领任务留汇报视角 / 宏观维修态+注释 / 接力释放「谁可下班」语义 / 预留=扣减归车 / v=代次 / 总联调全组各一人 / 多车并排）；零代码，下一轮 PRESENCE-IMPL 起实现。
 - 2026-06-19 差异化排班 S1+S2+S3 + 文案 + 审计长尾（D-069 P1 连续自主批，5 commit `ece2a3b`→`052285d`）：SCHED-WIRE-EXISTING / SCHED-MEMBER-AVAILABILITY / STUDY-NARROW-DERIVE / CONSOLE-COPY-HUMANIZE / AUDIT-FIXES-LONGTAIL，每条独立 workflow + 2-lens 对抗核实，A 档全清。
-- 2026-06-18 v2 后硬化会话（`732a2c9`→`b10ba43`）：bug 检修 13 修 + 版本 0.1.0 + I0 收口（成员状态面板隐藏）+ 优化自主批 41 + C 架构清理；三包 verify:all 224 全绿。
-- 2026-06-18 图纸档案 v2 机械/电路分组版本库（D-071）：ArtifactRef +5 optional 字段 + superRefine + server 派生 versionNo/kind/revision + console 表单重做；回退 = 最新即权威（append-only）。
-- 更早完成条目 → `docs/archive/completed-log.md`（完整时间线，亦见 `git log`）。
+- 更早完成条目（v2 后硬化 / 图纸档案 v2 / Harness 减负 / …）→ `docs/archive/completed-log.md`（完整时间线，亦见 `git log`）。
