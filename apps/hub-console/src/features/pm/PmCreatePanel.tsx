@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { ListPlus, GitFork, HelpCircle } from 'lucide-react';
 import type {
@@ -145,6 +145,14 @@ function TaskForm({
   );
   const [projectId, setProjectId] = useState(defaults.projectId);
   const [groupId, setGroupId] = useState(defaults.groupId);
+
+  // 冷启动修复：tasks 初始为空 → defaults 均为 ''；onCreated → invalidateQueries 重填 tasks 后
+  // 已挂载的 TaskForm 仍持有旧空态。只在字段仍为空时同步，保证不覆盖用户已输入的内容。
+  useEffect(() => {
+    if (!projectId && defaults.projectId) setProjectId(defaults.projectId);
+    if (!groupId && defaults.groupId) setGroupId(defaults.groupId);
+  }, [defaults.projectId, defaults.groupId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [title, setTitle] = useState('');
   const [rawSummary, setRawSummary] = useState('');
   const [robotTarget, setRobotTarget] = useState<RobotTarget>('shared');

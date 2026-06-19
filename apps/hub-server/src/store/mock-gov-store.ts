@@ -28,6 +28,21 @@ import type {
 } from './gov-store.js';
 
 /**
+ * 治理快照全 8 数组字段（写方法可能 push/splice 的集合）——构造期克隆隔离 + getSnapshot 浅拷贝共用。
+ * 与 FileGovStore 的同名常量逐字对应（见 attribution.ts GovernanceSnapshot SYNC 注释：增删字段须同步两处）。
+ */
+const GOVERNANCE_ARRAY_FIELDS: (keyof GovernanceSnapshot)[] = [
+  'groups',
+  'members',
+  'tasks',
+  'dependencies',
+  'needs',
+  'knowledgeNodes',
+  'taskKnowledgeTags',
+  'artifacts',
+];
+
+/**
  * 内存实现：默认 seed 真实锚点场景 fixtures，让 real 路由从第一个请求起就有可派生的真实场景
  * （进程重启丢失为预期行为，SQLite/Postgres 持久层见 SqliteGovStore）。
  *
@@ -43,6 +58,15 @@ export class InMemoryGovStore implements GovStore {
   // 第一请求即空、被误判「功能没接通」。引 schedule fixture 取这两块、克隆隔离（写方法 push 不污染共享 fixture）。
   private readonly resources: SharedResource[];
   private readonly resourceSessions: ResourceSession[];
+  // L1：单调自增计数器（构造期初始化为对应 seed 数组 length）。createX 用 `++this.xSeq` 生成 id，
+  // 替代 `数组.length + 1`——后者在未来加 delete 后会复用已删 id、静默撞 FK；单调计数器永不回退、杜绝此脆弱性。
+  // 当前无 delete 故纯防御性；纯内部 id 派生，响应 / 落盘格式不变。
+  private taskSeq: number;
+  private dependencySeq: number;
+  private needSeq: number;
+  private knowledgeNodeSeq: number;
+  private artifactSeq: number;
+  private resourceSessionSeq: number;
 
   constructor(
     seed: GovernanceSnapshot = governanceScenarioFixture,
@@ -52,16 +76,7 @@ export class InMemoryGovStore implements GovStore {
     // FileGovStore.cloneSnapshot 同一份实现，零漂移）——groups/members/taskKnowledgeTags 当前无写方法触及，
     // 但一并克隆保证隔离一致性（防未来写入串台污染共享 fixture，进而影响后续实例与依赖 fixture 的测试）；
     // artifacts 同理（图纸版本日志当前只读）。
-    this.snapshot = cloneArrayFields(seed, [
-      'groups',
-      'members',
-      'tasks',
-      'dependencies',
-      'needs',
-      'knowledgeNodes',
-      'taskKnowledgeTags',
-      'artifacts',
-    ]);
+    this.snapshot = cloneArrayFields(seed, GOVERNANCE_ARRAY_FIELDS);
     this.clock = clock;
     // 资源 / 占用窗口锚点数据：始终从 scheduleScenarioFixture seed（与 seed 治理快照解耦——治理 seed 可被注入
     // 替换，但 resources/resourceSessions 锚点不在 GovernanceSnapshot 里、无从随 seed 传，故钉这块演示数据）。
@@ -70,10 +85,23 @@ export class InMemoryGovStore implements GovStore {
     this.resourceSessions = scheduleScenarioFixture.resourceSessions.map((s) => ({
       ...s,
     }));
+    // L1：计数器从 seed 数组 length 起步——首条 create 得 `…-new-${length+1}`，与原 length+1 派生
+    // 在零删除时逐字等价（无 id 格式回归），但此后只增不减。
+    this.taskSeq = this.snapshot.tasks.length;
+    this.dependencySeq = this.snapshot.dependencies.length;
+    this.needSeq = this.snapshot.needs.length;
+    this.knowledgeNodeSeq = this.snapshot.knowledgeNodes.length;
+    this.artifactSeq = this.snapshot.artifacts.length;
+    this.resourceSessionSeq = this.resourceSessions.length;
   }
 
   async getSnapshot(): Promise<GovernanceSnapshot> {
-    return this.snapshot;
+    // M7：返回浅拷贝（顶层对象 + 全 8 数组字段克隆，与构造期同一份克隆纪律），
+    // 防外部读到 live 引用后 push/splice 绕过写白名单 mutate live store。
+    // 标量字段沿用浅拷贝引用、数组逐字克隆——JSON 序列化与 live 快照逐字相同，
+    // 故 FileGovStore.writeOnce() 落盘内容不变（无落盘回归）。
+    // **不影响回滚链**：snapshotForRollback() 仍返回 live 引用，回滚走那条句柄。
+    return cloneArrayFields(this.snapshot, GOVERNANCE_ARRAY_FIELDS);
   }
 
   /**
@@ -104,7 +132,7 @@ export class InMemoryGovStore implements GovStore {
     const now = this.clock.now().toISOString();
     const task: Task = {
       ...draft,
-      id: `task-new-${this.snapshot.tasks.length + 1}`,
+      id: `task-new-${++this.taskSeq}`,
       status: draft.status ?? 'pending',
       statusSource: draft.statusSource ?? 'console',
       lastProgressAt: null,
@@ -125,7 +153,7 @@ export class InMemoryGovStore implements GovStore {
     const now = this.clock.now().toISOString();
     const dependency: Dependency = {
       ...draft,
-      id: `dep-new-${this.snapshot.dependencies.length + 1}`,
+      id: `dep-new-${++this.dependencySeq}`,
       status: 'active',
       createdAt: now,
       updatedAt: now,
@@ -143,7 +171,7 @@ export class InMemoryGovStore implements GovStore {
     const now = this.clock.now().toISOString();
     const need: Need = {
       ...draft,
-      id: `need-new-${this.snapshot.needs.length + 1}`,
+      id: `need-new-${++this.needSeq}`,
       status: 'open',
       claimedByMemberId: null,
       openedAt: now,
@@ -172,7 +200,7 @@ export class InMemoryGovStore implements GovStore {
     }
     const node: KnowledgeNode = {
       ...draft,
-      id: `kn-cl-${this.snapshot.knowledgeNodes.length + 1}`,
+      id: `kn-cl-${++this.knowledgeNodeSeq}`,
       createdAt: now,
     };
     this.snapshot.knowledgeNodes.push(node);
@@ -189,7 +217,7 @@ export class InMemoryGovStore implements GovStore {
     const now = this.clock.now().toISOString();
     const artifact: ArtifactRef = {
       ...draft,
-      id: `artifact-new-${this.snapshot.artifacts.length + 1}`,
+      id: `artifact-new-${++this.artifactSeq}`,
       submittedVia: 'console',
       createdAt: now,
     };
@@ -219,7 +247,7 @@ export class InMemoryGovStore implements GovStore {
     const now = this.clock.now().toISOString();
     const session: ResourceSession = {
       ...draft,
-      id: `sess-new-${this.resourceSessions.length + 1}`,
+      id: `sess-new-${++this.resourceSessionSeq}`,
       source: 'human',
       createdAt: now,
     };

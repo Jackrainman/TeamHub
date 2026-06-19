@@ -3,6 +3,13 @@ import type { KbSnapshot } from '@teamhub/hub-contracts';
 import { cloneArrayFields } from './clone-snapshot.js';
 import type { KbCloseoutAppend, KbStore } from './gov-store.js';
 
+/** 语料快照的三数组字段（appendCloseout upsert 触及的集合）——构造期克隆隔离 + getKbSnapshot 浅拷贝共用。 */
+const KB_ARRAY_FIELDS: (keyof KbSnapshot)[] = [
+  'issueCards',
+  'errorEntries',
+  'archiveDocuments',
+];
+
 /**
  * 知识库读语料内存实现（KB-CORE）：默认 seed `kbScenarioFixture`（跨赛季 CAN/3508/MicroROS 历史 bug），
  * 让 `GET /api/kb/similar` 从第一个请求起就能演示同类 bug 召回（与 InMemoryGovStore seed 治理 fixture 对称）。
@@ -15,15 +22,13 @@ export class InMemoryKbStore implements KbStore {
 
   constructor(seed: KbSnapshot = kbScenarioFixture) {
     // 克隆被写入的数组：appendCloseout 追加时不污染共享 fixture（参考 InMemoryGovStore，复用 cloneArrayFields）。
-    this.snapshot = cloneArrayFields(seed, [
-      'issueCards',
-      'errorEntries',
-      'archiveDocuments',
-    ]);
+    this.snapshot = cloneArrayFields(seed, KB_ARRAY_FIELDS);
   }
 
   async getKbSnapshot(): Promise<KbSnapshot> {
-    return this.snapshot;
+    // M7：返回浅拷贝（顶层对象 + 三数组字段克隆，与构造期同一份克隆纪律），
+    // 防外部读到 live 引用后 push/splice 绕过 appendCloseout upsert 白名单 mutate live store。
+    return cloneArrayFields(this.snapshot, KB_ARRAY_FIELDS);
   }
 
   async appendCloseout(input: KbCloseoutAppend): Promise<void> {

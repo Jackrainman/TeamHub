@@ -353,6 +353,12 @@ export function rankSimilarIssues(
 
   matches.sort((left, right) => {
     if (left.score !== right.score) return right.score - left.score;
+    // N2：updatedAt tie-break 先按真实时刻（Date.parse）降序——isoDateTimeSchema 允许 +08:00 偏移 /
+    // 可选毫秒，纯字典序在混合时区/毫秒下会排错（现 fixtures 全 …Z 形故潜伏）。两侧都可解析且不等时用毫秒差；
+    // 否则退回原字典序比较（解析失败/相等时保持既有确定性），再退 issueId.localeCompare 兜底全序。
+    const lt = Date.parse(left.updatedAt);
+    const rt = Date.parse(right.updatedAt);
+    if (Number.isFinite(lt) && Number.isFinite(rt) && lt !== rt) return rt - lt;
     if (left.updatedAt !== right.updatedAt)
       return left.updatedAt < right.updatedAt ? 1 : -1;
     return left.issueId.localeCompare(right.issueId);

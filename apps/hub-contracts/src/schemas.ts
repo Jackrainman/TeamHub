@@ -56,7 +56,8 @@ export const AdapterHealthResponseSchema = z.object({
 
 export const AdapterCapabilitiesResponseSchema = z.object({
   adapterId: z.string().min(1),
-  mode: z.literal('mock'),
+  // (N1) z.literal('mock') → z.enum：mock 实现恒回 'mock'，但真 adapter 可回 'real'，避免前端 Zod parse 崩 UI。
+  mode: z.enum(['mock', 'real']),
   capabilities: z.array(z.string().min(1)),
 });
 
@@ -67,8 +68,9 @@ export const AdapterInvokeRequestSchema = z.object({
 
 export const AdapterInvokeResponseSchema = z.object({
   adapterId: z.string().min(1),
-  mode: z.literal('mock'),
-  status: z.literal('accepted'),
+  // (N1) z.literal → z.enum：放宽真 adapter 的 mode:'real'/status:'queued'|'rejected'，mock 恒回 'mock'/'accepted'。
+  mode: z.enum(['mock', 'real']),
+  status: z.enum(['accepted', 'queued', 'rejected']),
   createdAt: isoDateTimeSchema,
   correlationId: z.string().min(1).optional(),
   output: z.object({
@@ -126,7 +128,8 @@ export const AgentBackendHealthResponseSchema = z.object({
 
 export const AgentBackendCapabilitiesResponseSchema = z.object({
   backendId: z.string().min(1),
-  mode: z.literal('mock'),
+  // (N1) z.literal('mock') → z.enum：mock 实现恒回 'mock'，但真 backend 可回 'real'，避免前端 Zod parse 崩 UI。
+  mode: z.enum(['mock', 'real']),
   capabilities: z.array(z.string().min(1)),
 });
 
@@ -137,8 +140,9 @@ export const AgentBackendInvokeRequestSchema = z.object({
 
 export const AgentBackendInvokeResponseSchema = z.object({
   backendId: z.string().min(1),
-  mode: z.literal('mock'),
-  status: z.literal('accepted'),
+  // (N1) z.literal → z.enum：放宽真 backend 的 mode:'real'/status:'queued'|'rejected'，mock 恒回 'mock'/'accepted'。
+  mode: z.enum(['mock', 'real']),
+  status: z.enum(['accepted', 'queued', 'rejected']),
   createdAt: isoDateTimeSchema,
   correlationId: z.string().min(1).optional(),
   output: z.object({

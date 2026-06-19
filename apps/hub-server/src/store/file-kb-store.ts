@@ -75,7 +75,10 @@ export class FileKbStore implements KbStore {
   }
 
   async getKbSnapshot(): Promise<KbSnapshot> {
-    return this.snapshot;
+    // M7：返回浅拷贝（顶层对象 + 三数组字段克隆），防外部读到 live 引用后 push/splice 绕过
+    // appendCloseout upsert 白名单 mutate live store。复用 cloneSnapshot（=cloneArrayFields，
+    // 与构造期同一份克隆纪律）；JSON 序列化与 live 逐字相同，writeOnce() 落盘内容不变（无落盘回归）。
+    return cloneSnapshot(this.snapshot);
   }
 
   async appendCloseout(input: KbCloseoutAppend): Promise<void> {

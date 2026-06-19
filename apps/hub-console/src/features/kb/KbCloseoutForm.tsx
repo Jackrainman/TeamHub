@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Archive, CheckCircle2 } from 'lucide-react';
 import type { IssueSeverity, ArchiveGeneratedBy } from '@teamhub/hub-contracts';
@@ -24,8 +24,6 @@ const GENERATED_BY_KEY: Record<ArchiveGeneratedBy, TranslationKey> = {
   hybrid: 'kb.generatedBy.hybrid',
 };
 
-let seq = 0;
-
 /**
  * 结案归档 web 录入口（补 kb-debug skill 之外的人工通道）。把一次排障沉淀进知识库：
  * 归档 + 错误码 + 派生知识点，下次同类症状可被 GET /api/kb/similar 召回。
@@ -39,6 +37,8 @@ export function KbCloseoutForm({
   source: string;
 }) {
   const { t } = useI18n();
+  // 实例级单调序号：useRef 避免跨卸载/重挂持续累加和 StrictMode 双增导致非确定的 iss-web-DATE-N ID。
+  const seqRef = useRef(0);
   const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
   const [projectId, setProjectId] = useState('');
@@ -77,10 +77,10 @@ export function KbCloseoutForm({
     if (!valid) return;
     const now = new Date().toISOString();
     const trimmedSymptom = symptom.trim();
-    seq += 1;
+    seqRef.current += 1;
     mutation.mutate({
       issue: {
-        id: `iss-web-${now.slice(0, 10)}-${seq}`,
+        id: `iss-web-${now.slice(0, 10)}-${seqRef.current}`,
         projectId: projectId.trim(),
         title: title.trim(),
         rawInput: trimmedSymptom,

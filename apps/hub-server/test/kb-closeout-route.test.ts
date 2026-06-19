@@ -163,7 +163,10 @@ describe('POST /api/kb/closeout', () => {
     }
   });
 
-  test('缺 rootCause → 422（结案仍需手填根因，不伪造完成）', async () => {
+  // M19（AUDIT-FIXES schema 边界批）：rootCause 必填约束已推进 KbCloseoutRequestSchema
+  // （.trim().min(1)），空值在 safeParse 边界即被拒 → 400（结案仍需手填根因，不伪造完成）。
+  // 此前由 buildCloseoutFromIssue 运行时检查兜底 → 422；现约束上提到边界，请求仍被拒，仅状态码 422→400。
+  test('缺 rootCause → 400（结案仍需手填根因，约束已上提到边界 schema，不伪造完成）', async () => {
     const app = buildHubServer();
     try {
       const res = await app.inject({
@@ -171,7 +174,7 @@ describe('POST /api/kb/closeout', () => {
         url: '/api/kb/closeout',
         payload: { issue: liveIssue, category: '云台', rootCause: '', resolution: '修了' },
       });
-      expect(res.statusCode).toBe(422);
+      expect(res.statusCode).toBe(400);
     } finally {
       await app.close();
     }

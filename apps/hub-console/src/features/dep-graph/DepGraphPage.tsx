@@ -456,6 +456,7 @@ export function DepGraphPage({
             fitView
             minZoom={0.4}
             nodesConnectable={true}
+            nodesDraggable={false}
           >
             <Background gap={18} color="#d8e0d6" />
             <Controls showInteractive={false} />

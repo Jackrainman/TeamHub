@@ -1,4 +1,4 @@
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
@@ -30,7 +30,7 @@ export async function tryServeStaticConsole(
 
   const root = path.resolve(rootDir);
   const directPath = resolveAssetPath(root, pathname);
-  if (directPath && (await isFile(directPath))) {
+  if (directPath && (await isFileWithinRoot(root, directPath))) {
     await sendFile(reply, directPath, request.method === 'HEAD');
     return true;
   }
@@ -40,7 +40,7 @@ export async function tryServeStaticConsole(
   }
 
   const indexPath = resolveAssetPath(root, '/index.html');
-  if (!indexPath || !(await isFile(indexPath))) {
+  if (!indexPath || !(await isFileWithinRoot(root, indexPath))) {
     return false;
   }
 
@@ -68,9 +68,17 @@ function isWithinRoot(root: string, candidate: string): boolean {
   return candidate === root || candidate.startsWith(`${root}${path.sep}`);
 }
 
-async function isFile(filePath: string): Promise<boolean> {
+/**
+ * Returns true only when filePath is a regular file AND its realpath
+ * (after symlink resolution) still lies within root.  This closes the
+ * symlink-escape vector: a symlink inside the dist tree that points
+ * outside root would pass the lexical isWithinRoot check but fail here.
+ */
+async function isFileWithinRoot(root: string, filePath: string): Promise<boolean> {
   try {
-    return (await stat(filePath)).isFile();
+    if (!(await stat(filePath)).isFile()) return false;
+    const real = await realpath(filePath);
+    return isWithinRoot(root, real);
   } catch {
     return false;
   }

@@ -185,6 +185,7 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
     async getKbSimilar(params: KbSimilarParams) {
       const qs = new URLSearchParams();
       qs.set('symptom', params.symptom);
+      if (params.projectId) qs.set('projectId', params.projectId);
       if (params.tags && params.tags.length > 0) {
         qs.set('tags', params.tags.join(','));
       }

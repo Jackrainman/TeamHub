@@ -355,8 +355,8 @@ export const KbCloseoutRequestSchema = z.object({
   issue: IssueCardSchema,
   records: z.array(InvestigationRecordSchema).default([]),
   category: z.string().default(''),
-  rootCause: z.string(),
-  resolution: z.string(),
+  rootCause: z.string().trim().min(1),
+  resolution: z.string().trim().min(1),
   prevention: z.string().default(''),
   generatedBy: ArchiveGeneratedBySchema.default('hybrid'),
 });

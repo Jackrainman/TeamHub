@@ -26,6 +26,9 @@
     "test:watch": "vitest",
     "verify:all": "npm run build:contracts && npm run typecheck:local && npm run test:local && npm run build:local"
   },
+  "engines": {
+    "node": ">=24"
+  },
   "dependencies": {
     "@teamhub/hub-contracts": "file:../hub-contracts",
     "fastify": "^5.6.2",

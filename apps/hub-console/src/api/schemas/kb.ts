@@ -15,6 +15,8 @@ export type {
 /** GET /api/kb/similar 查询入参（前端表单 → querystring）。前端专用、不跨端，留在本地。 */
 export interface KbSimilarParams {
   symptom: string;
+  /** 可选项目范围限定；server KbSimilarQuerySchema 早已支持，传入后语料只从该项目取。不传则全库检索。 */
+  projectId?: string;
   tags?: string[];
   limit?: number;
   minScore?: number;
