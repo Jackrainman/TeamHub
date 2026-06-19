@@ -2,6 +2,7 @@ import type { PropsWithChildren } from 'react';
 import {
   BookOpen,
   Boxes,
+  CalendarClock,
   Compass,
   FileStack,
   Home,
@@ -15,6 +16,7 @@ export type ConsolePage =
   | 'overview'
   | 'dep-graph'
   | 'gaps'
+  | 'schedule'
   | 'kb'
   | 'pm'
   | 'archive'
@@ -33,6 +35,8 @@ const navItems: NavItem[] = [
   { labelKey: 'nav.depGraph', icon: Network, page: 'dep-graph' },
   // 缺人方向（S2，D-069）：组级派生缺口，只到组、不指向人（A1）。
   { labelKey: 'nav.gaps', icon: Compass, page: 'gaps' },
+  // 差异化在场排班（D-029）：按组×窗口派生 present/onCall/free，I0 无人维度。
+  { labelKey: 'nav.schedule', icon: CalendarClock, page: 'schedule' },
   { labelKey: 'nav.kb', icon: BookOpen, page: 'kb' },
   { labelKey: 'nav.pm', icon: LayoutGrid, page: 'pm' },
   // 图纸提交日志 / 版本时间线（A8）：真实页面，读治理快照 artifacts。

@@ -4,6 +4,8 @@ import type {
   GovernanceSnapshot,
   KnowledgeNode,
   Need,
+  ResourceSession,
+  SharedResource,
   Task,
   TaskStatus,
 } from '@teamhub/hub-contracts';
@@ -13,6 +15,7 @@ import type {
   GovStore,
   KnowledgeNodeDraft,
   NeedDraft,
+  ResourceSessionDraft,
   TaskDraft,
 } from './gov-store.js';
 
@@ -51,6 +54,20 @@ export class SqliteGovStore implements GovStore {
   }
 
   async appendArtifact(_draft: ArtifactDraft): Promise<ArtifactRef> {
+    throw new Error(SQLITE_NOT_IMPLEMENTED);
+  }
+
+  async listResources(): Promise<SharedResource[]> {
+    throw new Error(SQLITE_NOT_IMPLEMENTED);
+  }
+
+  async listResourceSessions(): Promise<ResourceSession[]> {
+    throw new Error(SQLITE_NOT_IMPLEMENTED);
+  }
+
+  async createResourceSession(
+    _draft: ResourceSessionDraft,
+  ): Promise<ResourceSession> {
     throw new Error(SQLITE_NOT_IMPLEMENTED);
   }
 

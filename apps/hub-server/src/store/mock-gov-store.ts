@@ -1,6 +1,7 @@
 import {
   GOVERNANCE_SCENARIO_NOW,
   governanceScenarioFixture,
+  scheduleScenarioFixture,
 } from '@teamhub/hub-contracts';
 import type {
   ArtifactRef,
@@ -8,6 +9,8 @@ import type {
   GovernanceSnapshot,
   KnowledgeNode,
   Need,
+  ResourceSession,
+  SharedResource,
   Task,
   TaskStatus,
 } from '@teamhub/hub-contracts';
@@ -20,6 +23,7 @@ import type {
   GovStore,
   KnowledgeNodeDraft,
   NeedDraft,
+  ResourceSessionDraft,
   TaskDraft,
 } from './gov-store.js';
 
@@ -33,6 +37,12 @@ import type {
 export class InMemoryGovStore implements GovStore {
   private readonly snapshot: GovernanceSnapshot;
   private readonly clock: Clock;
+  // 差异化在场排班（D-029）的两块数据**不在 GovernanceSnapshot 内**（见 gov-store.ts listResources 注释），
+  // 故存独立可变数组。**seed 来源 = scheduleScenarioFixture**（=governanceScenarioFixture + res-r1/res-r2 +
+  // sess-tonight-prog[windowLabel='今晚']）——默认 governanceScenarioFixture 不含这两块，会让 GET /api/schedule
+  // 第一请求即空、被误判「功能没接通」。引 schedule fixture 取这两块、克隆隔离（写方法 push 不污染共享 fixture）。
+  private readonly resources: SharedResource[];
+  private readonly resourceSessions: ResourceSession[];
 
   constructor(
     seed: GovernanceSnapshot = governanceScenarioFixture,
@@ -53,6 +63,13 @@ export class InMemoryGovStore implements GovStore {
       'artifacts',
     ]);
     this.clock = clock;
+    // 资源 / 占用窗口锚点数据：始终从 scheduleScenarioFixture seed（与 seed 治理快照解耦——治理 seed 可被注入
+    // 替换，但 resources/resourceSessions 锚点不在 GovernanceSnapshot 里、无从随 seed 传，故钉这块演示数据）。
+    // 元素浅拷贝即可（invitedMemberIds 数组当前无原地 mutate；createResourceSession 只 push 整条新对象）。
+    this.resources = scheduleScenarioFixture.resources.map((r) => ({ ...r }));
+    this.resourceSessions = scheduleScenarioFixture.resourceSessions.map((s) => ({
+      ...s,
+    }));
   }
 
   async getSnapshot(): Promise<GovernanceSnapshot> {
@@ -66,6 +83,15 @@ export class InMemoryGovStore implements GovStore {
    */
   snapshotForRollback(): GovernanceSnapshot {
     return this.snapshot;
+  }
+
+  /**
+   * @internal 持久层回滚专用：返回**可变的** live resourceSessions 数组引用（createResourceSession push 的同一对象），
+   * 让 FileGovStore 在 persist() 失败时撤回刚追加的窗口（与 snapshotForRollback 同纪律，不对外公开）。
+   * 排班资源 / 窗口不在 GovernanceSnapshot 内，故单独开此回滚句柄。
+   */
+  resourceSessionsForRollback(): ResourceSession[] {
+    return this.resourceSessions;
   }
 
   /**
@@ -169,6 +195,36 @@ export class InMemoryGovStore implements GovStore {
     };
     this.snapshot.artifacts.push(artifact);
     return artifact;
+  }
+
+  /** 共享物理资源只读（GET /api/schedule 组装 ScheduleSnapshot 用；GET /api/resources 可选读视图）。 */
+  async listResources(): Promise<SharedResource[]> {
+    return this.resources;
+  }
+
+  /** 占用窗口只读（GET /api/resource-sessions + GET /api/schedule 组装用）。 */
+  async listResourceSessions(): Promise<ResourceSession[]> {
+    return this.resourceSessions;
+  }
+
+  /**
+   * 占用窗口录入（POST /api/resource-sessions，D-029）。镜像 createNeed：补 id=`sess-new-N` + createdAt、
+   * **钉 source=`human`**（C5：来源 seam server 钉，客户端不冒充 derived/aiSuggested）。confirmedBy 随 draft 传入
+   * （录入即确认拍板，类比 Need/Dependency 内部凭证）。**I0**：本对象不进派生输出维度——GET /api/schedule 只回
+   * derivePresenceSchedule 的组键建议（无 memberId），不回原始 session；invitedMemberIds 仅本窗操作名单、绝不按人累计。
+   */
+  async createResourceSession(
+    draft: ResourceSessionDraft,
+  ): Promise<ResourceSession> {
+    const now = this.clock.now().toISOString();
+    const session: ResourceSession = {
+      ...draft,
+      id: `sess-new-${this.resourceSessions.length + 1}`,
+      source: 'human',
+      createdAt: now,
+    };
+    this.resourceSessions.push(session);
+    return session;
   }
 
   /**

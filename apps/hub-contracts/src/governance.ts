@@ -514,3 +514,12 @@ export type PresenceReason = z.infer<typeof PresenceReasonSchema>;
 export type PresenceRecommendation = z.infer<
   typeof PresenceRecommendationSchema
 >;
+export type SharedResourcesResponse = z.infer<
+  typeof SharedResourcesResponseSchema
+>;
+export type ResourceSessionsResponse = z.infer<
+  typeof ResourceSessionsResponseSchema
+>;
+export type PresenceScheduleResponse = z.infer<
+  typeof PresenceScheduleResponseSchema
+>;

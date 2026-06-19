@@ -8,6 +8,8 @@ import type {
   KbSnapshot,
   KnowledgeNode,
   Need,
+  ResourceSession,
+  SharedResource,
   Task,
   TaskStatus,
 } from '@teamhub/hub-contracts';
@@ -77,6 +79,19 @@ export type ArtifactDraft = Omit<
 >;
 
 /**
+ * createResourceSession 入参（D-029 差异化在场排班）：队长一拍即录的「占用窗口」。
+ * 逐字镜像 NeedDraft/DependencyDraft 范式——Store 补 id/createdAt、钉 `source='human'`（C5 来源 seam server 钉，
+ * 客户端不冒充 derived/aiSuggested），故 draft 仅 Omit id/source/createdAt。**confirmedBy 随请求传入**
+ * （录入即确认拍板：D-029 队长一拍即录，类比 Dependency/Need 的 confirmedBy 内部凭证），保留在 draft。
+ * **I0**：派生输出（PresenceRecommendation，由 derivePresenceSchedule 在路由层算）主键 group/resource/task、
+ * 永无 memberId；invitedMemberIds 仅本窗操作名单（合法录入字段），绝不跨窗按人累计（反排名护栏）。
+ */
+export type ResourceSessionDraft = Omit<
+  ResourceSession,
+  'id' | 'source' | 'createdAt'
+>;
+
+/**
  * 三支柱共享底座的读写出入口。
  *
  * 读：`getSnapshot()`（D-040 首刀，已实现）。
@@ -117,6 +132,23 @@ export interface GovStore {
    * **钉 submittedVia=`console`**（C5：来源 seam server 钉，请求不收）。**I0**：主键=机构+版本+归档物，永无 memberId。
    */
   appendArtifact(draft: ArtifactDraft): Promise<ArtifactRef>;
+
+  // --- 差异化在场排班读写（D-029；SCHED-WIRE-EXISTING 接出死代码 derivePresenceSchedule）---
+  /**
+   * 共享物理资源（实车 / 测试台）只读。**为何独立读口**：SharedResource / ResourceSession 不在
+   * GovernanceSnapshot 内（GovernanceSnapshot 是 11 字段、无这两块）、且**不扩**它（扩会牵动 file-gov-store
+   * 的 GovernanceSnapshotSchema + GOVERNANCE_ARRAY_FIELDS + clone 列表 + 已落盘 JSON 格式兼容）——故走独立读口，
+   * 路由层把 `{...snapshot, resources, resourceSessions}` 拼成 ScheduleSnapshot 喂纯函数。
+   */
+  listResources(): Promise<SharedResource[]>;
+  /** 占用窗口（GET /api/resource-sessions 读视图）。invitedMemberIds 是本窗操作名单（I0 许可），绝不按人聚合。 */
+  listResourceSessions(): Promise<ResourceSession[]>;
+  /**
+   * 占用窗口录入（POST /api/resource-sessions，append-only）。Store 补 id + createdAt、**钉 source=`human`**
+   * （C5：来源 seam server 钉，请求不收）。confirmedBy 随 draft 传入（录入即确认拍板）。**I0**：窗口本身
+   * 不进派生输出维度；GET /api/schedule 只回 derivePresenceSchedule 的组键建议，绝不回原始 session。
+   */
+  createResourceSession(draft: ResourceSessionDraft): Promise<ResourceSession>;
 
   // --- 受限状态机迁移（非 CRUD：只在既有枚举内推进生命周期态）---
   /**

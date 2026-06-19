@@ -149,6 +149,21 @@ const zh = {
   // 缺人方向（S2，D-069）：组级派生缺口，永不指向人（A1/I0）
   'nav.gaps': '缺人方向',
   'toolbar.title.gaps': '缺人方向 · 组级',
+
+  // 差异化在场排班（D-029）：按组×窗口派生，I0 无人维度
+  'nav.schedule': '在场排班',
+  'toolbar.title.schedule': '差异化在场排班 · 今晚',
+  'schedule.loading': '正在派生在场建议…',
+  'schedule.error': '在场排班不可用（后端没连上？检查后端地址或服务是否在线）',
+  'schedule.intro': '按组×窗口派生今晚谁在场/随叫/可不来——由依赖位置和车可用性自动落出，不手排不评人。',
+  'schedule.note': '建议归组不归人——列的是「哪个组本窗要不要在场」，不下钻到具体人、不按人累计出勤。',
+  'schedule.empty.title': '本窗暂无在场建议',
+  'schedule.empty.body': '当前窗口没有已确认的占用会话，或相关组与本窗资源/任务无依赖关系（沉默）。',
+  'schedule.mode.present': '在场',
+  'schedule.mode.onCall': '随叫',
+  'schedule.mode.free': '可不来',
+  'schedule.card.relatedLabel': '这段可看的资料',
+  'schedule.card.orderLabel': '接力顺序',
   'gaps.loading': '正在加载方向缺口…',
   'gaps.error': '方向缺口不可用（后端没连上？检查后端地址或服务是否在线）',
   'gaps.intro': '按组显示当前 open / escalated 的缺人方向，帮组长一眼看清哪个组缺什么方向。',
@@ -502,6 +517,22 @@ const en: Record<TranslationKey, string> = {
   // Direction gaps (S2, D-069): group-level derived gaps, never tied to a person (A1/I0)
   'nav.gaps': 'Direction Gaps',
   'toolbar.title.gaps': 'Direction Gaps · By Group',
+
+  // Differentiated presence schedule (D-029): per group×window, I0 no person dimension
+  'nav.schedule': 'Presence Schedule',
+  'toolbar.title.schedule': 'Differentiated Presence · Tonight',
+  'schedule.loading': 'Deriving presence recommendations…',
+  'schedule.error': 'Presence schedule unavailable (backend offline? check address/service)',
+  'schedule.intro': 'Per group×window: who is present/on-call/free tonight, derived from dependency position and rig availability — not hand-assigned, not ranking people.',
+  'schedule.note': 'Recommendations are per group, never per person — no drill-down to individuals, no per-person attendance tally.',
+  'schedule.empty.title': 'No presence recommendations for this window',
+  'schedule.empty.body': 'No confirmed sessions for this window, or no related groups (silent).',
+  'schedule.mode.present': 'Present',
+  'schedule.mode.onCall': 'On-call',
+  'schedule.mode.free': 'Free',
+  'schedule.card.relatedLabel': 'Suggested reading',
+  'schedule.card.orderLabel': 'Relay order',
+
   'gaps.loading': 'Loading direction gaps…',
   'gaps.error':
     'Direction gaps unavailable — check the backend address or service status.',

@@ -41,9 +41,16 @@ import {
   wouldCreateCycle,
   GroupGapsResponseSchema,
   deriveDirectionGaps,
+  derivePresenceSchedule,
+  PresenceScheduleResponseSchema,
+  ResourceSessionsResponseSchema,
+  SharedResourcesResponseSchema,
+  CreateResourceSessionRequestSchema,
+  CreateResourceSessionResponseSchema,
+  ScheduleQuerySchema,
   apiContractFixtures,
 } from './contracts.js';
-import type { IssueCard } from '@teamhub/hub-contracts';
+import type { IssueCard, ScheduleSnapshot } from '@teamhub/hub-contracts';
 import { deriveErrorCode } from './kb/error-code.js';
 import { FixedClock } from './clock.js';
 import type { Clock } from './clock.js';
@@ -302,6 +309,64 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
       gaps: deriveDirectionGaps(snapshot, now),
       generatedAt: now,
     });
+  });
+
+  // 差异化在场排班（D-029，SCHED-WIRE-EXISTING）：把治理快照 + 共享资源 + 占用窗口拼成 ScheduleSnapshot，
+  // 经纯函数 derivePresenceSchedule 实时派生「按组×窗口 谁在场/随叫/可不来」。now 用 clock（与 dep-graph/
+  // group-gaps 同口径 GOVERNANCE_SCENARIO_NOW，否则视觉组落不到 blockedFree）。windowLabel 走 query、必填。
+  // **I0**：输出 recommendations 主键 group/resource/task，**无 memberId 维度**（纯函数结构保证 + PresenceScheduleResponseSchema
+  // 二次 fail-closed 把关：PresenceRecommendationSchema 无 memberId 字段，任何夹带会被 parse 拒）；路由绝不回原始
+  // session 或 snapshot.members，更不回 invitedMemberIds（那是单窗录入名单，按人聚合即退化成出勤排名，反排名红线）。
+  app.get('/api/schedule', async (request, reply) => {
+    const parsed = ScheduleQuerySchema.safeParse(request.query ?? {});
+    if (!parsed.success) {
+      void reply
+        .code(400)
+        .send({ detail: parsed.error.issues[0]?.message ?? 'windowLabel required' });
+      return;
+    }
+    const { windowLabel } = parsed.data;
+    const snapshot = await store.getSnapshot();
+    const resources = await store.listResources();
+    const resourceSessions = await store.listResourceSessions();
+    const scheduleSnapshot: ScheduleSnapshot = {
+      ...snapshot,
+      resources,
+      resourceSessions,
+    };
+    const recommendations = derivePresenceSchedule(
+      scheduleSnapshot,
+      clock.now().toISOString(),
+      windowLabel,
+    );
+    return PresenceScheduleResponseSchema.parse({ windowLabel, recommendations });
+  });
+
+  // 在场排班读视图：占用窗口列表（录入面板回显 / 调试）。原始 ResourceSession（含 invitedMemberIds 单窗操作名单，
+  // I0 注释已许可「单窗名单合法」）——但**绝不**在此或任何端点按成员跨窗聚合/计数（反排名护栏，见 SchedulePage 渲染纪律）。
+  app.get('/api/resource-sessions', async () => {
+    const sessions = await store.listResourceSessions();
+    return ResourceSessionsResponseSchema.parse({ sessions });
+  });
+
+  // 在场排班读视图：共享物理资源列表（录入面板选资源用）。无人维度——资源状态是中性事实（"撞坏维修中"非归咎于人）。
+  app.get('/api/resources', async () => {
+    const resources = await store.listResources();
+    return SharedResourcesResponseSchema.parse({ resources });
+  });
+
+  // 在场排班录入（POST /api/resource-sessions，D-029 队长一拍即录）。镜像 POST /api/needs：safeParse→400/201。
+  // server 钉 source=human、补 id/createdAt；confirmedBy 随请求传入（录入即确认拍板）。
+  // POST /api/* → 继承 H3 onRequest 鉴权+限流（不另写鉴权）。I0：响应剥 confirmedBy（ActorRef 永不过读边界）。
+  app.post('/api/resource-sessions', async (request, reply) => {
+    const parsed = CreateResourceSessionRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      return;
+    }
+    const session = await store.createResourceSession(parsed.data);
+    void reply.code(201);
+    return CreateResourceSessionResponseSchema.parse({ session });
   });
 
   // PM 项目计划表：单条任务录入（C1 兜底录入口）。server 补 id/时间戳/派生默认（status=pending/statusSource=console）。

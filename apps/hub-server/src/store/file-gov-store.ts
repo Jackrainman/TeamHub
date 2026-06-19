@@ -18,6 +18,8 @@ import type {
   GovernanceSnapshot,
   KnowledgeNode,
   Need,
+  ResourceSession,
+  SharedResource,
   Task,
   TaskStatus,
 } from '@teamhub/hub-contracts';
@@ -30,6 +32,7 @@ import type {
   GovStore,
   KnowledgeNodeDraft,
   NeedDraft,
+  ResourceSessionDraft,
   TaskDraft,
 } from './gov-store.js';
 
@@ -172,6 +175,25 @@ export class FileGovStore implements GovStore {
     const artifact = await this.inner.appendArtifact(draft);
     await this.persistOrRollback(() => this.removeById('artifacts', artifact.id));
     return artifact;
+  }
+
+  // 差异化在场排班（D-029，SCHED-WIRE-EXISTING）：resources/resourceSessions **不在 GovernanceSnapshot 内**，
+  // 故**不落盘**（落盘会牵动 GovernanceSnapshotSchema + GOVERNANCE_ARRAY_FIELDS + 已部署 ~/teamhub-data JSON 兼容，
+  // 属本刀 DoD 外的落盘格式变更）。读直接委托 inner；写仅落 inner 内存（进程重启回 seed scheduleScenarioFixture）。
+  // 语义相容：占用窗口粗粒度临时（今晚/明天，C1 低录入），不像图纸日志需永久。委托 inner 不调 persist()。
+  async listResources(): Promise<SharedResource[]> {
+    return this.inner.listResources();
+  }
+
+  async listResourceSessions(): Promise<ResourceSession[]> {
+    return this.inner.listResourceSessions();
+  }
+
+  async createResourceSession(
+    draft: ResourceSessionDraft,
+  ): Promise<ResourceSession> {
+    // 不落盘（见上）：直接委托 inner，重启回 seed。无 persistOrRollback 包裹（无磁盘副作用可回滚）。
+    return this.inner.createResourceSession(draft);
   }
 
   async updateTaskStatus(taskId: string, status: TaskStatus): Promise<Task | null> {

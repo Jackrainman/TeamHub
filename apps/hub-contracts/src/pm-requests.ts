@@ -4,6 +4,7 @@ import {
   TaskStatusSchema,
   DependencySchema,
   NeedSchema,
+  ResourceSessionSchema,
 } from './governance.js';
 import { ArtifactRefSchema } from './schemas.js';
 
@@ -143,6 +144,28 @@ export const CreateArtifactResponseSchema = z.object({
   artifact: ArtifactRefSchema,
 });
 
+/**
+ * POST /api/resource-sessions（D-029 差异化在场排班）：队长一拍即录的「占用窗口」写侧契约。
+ * 逐字镜像 CreateNeed 范式——`ResourceSessionSchema.omit({...})` 剥掉 server clamp/补的字段：
+ * - `id`、`createdAt`：store 补（id=`sess-new-N`、createdAt=clock.now）。
+ * - `source`：store 钉 `human`（C5 来源 seam server 钉，客户端不冒充 derived/aiSuggested）。
+ * 保留人本字段：projectId / resourceId / windowLabel / orderInWindow / holderGroupId /
+ * holderTaskId(nullable) / invitedMemberIds / note(nullable)。
+ * **`confirmedBy` 随请求传入**（录入即确认拍板——D-029 队长一拍即录，类比 Dependency/Need 的
+ * confirmedBy 内部凭证），故**不** omit。invitedMemberIds 是合法录入字段（本窗操作名单，
+ * 非派生输出，I0 允许）——但任何读视图绝不按人跨窗累计（反排名护栏）。
+ */
+export const CreateResourceSessionRequestSchema = ResourceSessionSchema.omit({
+  id: true,
+  source: true,
+  createdAt: true,
+});
+export const CreateResourceSessionResponseSchema = z.object({
+  // M6（AUDIT-FIXES / I0）：同 Dependency/Need——创建响应剥掉 confirmedBy（ActorRef）。
+  // 读视图永不回人键；invitedMemberIds（本窗操作名单）保留，I0 允许。
+  session: ResourceSessionSchema.omit({ confirmedBy: true }),
+});
+
 export type CreateTaskRequest = z.infer<typeof CreateTaskRequestSchema>;
 export type CreateTaskResponse = z.infer<typeof CreateTaskResponseSchema>;
 export type CreateDependencyRequest = z.infer<
@@ -167,4 +190,10 @@ export type CreateArtifactRequest = z.infer<
 >;
 export type CreateArtifactResponse = z.infer<
   typeof CreateArtifactResponseSchema
+>;
+export type CreateResourceSessionRequest = z.infer<
+  typeof CreateResourceSessionRequestSchema
+>;
+export type CreateResourceSessionResponse = z.infer<
+  typeof CreateResourceSessionResponseSchema
 >;

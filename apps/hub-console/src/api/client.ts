@@ -8,10 +8,14 @@ import {
   GitReposResponseSchema,
   GroupGapsResponseSchema,
   HubEventsResponseSchema,
+  PresenceScheduleResponseSchema,
+  ResourceSessionsResponseSchema,
   TasksResponseSchema,
   type ArtifactsResponse,
   type DepGraph,
   type GroupGapsResponse,
+  type PresenceScheduleResponse,
+  type ResourceSessionsResponse,
   type Task,
   type TaskStatus,
 } from '@teamhub/hub-contracts';
@@ -62,6 +66,9 @@ export interface HubApiClient {
   getDepGraph(): Promise<DepGraph>;
   // 方向缺口（S2，D-069）：组级缺人方向，只读派生视图。A1：响应无 memberId、永不下钻到人。
   getGroupGaps(): Promise<GroupGapsResponse>;
+  // 差异化在场排班（D-029）：按组×窗口派生 present/onCall/free，I0：输出无 memberId/invitedMemberIds。
+  getSchedule(windowLabel: string): Promise<PresenceScheduleResponse>;
+  getResourceSessions(): Promise<ResourceSessionsResponse>;
   getKbSimilar(params: KbSimilarParams): Promise<KbSimilarResponse>;
   getTasks(): Promise<{ tasks: Task[] }>;
   // 图纸提交日志/版本时间线（档案页）：与总览第 7 个 fetch 同源 /api/artifacts，读治理快照。
@@ -158,6 +165,20 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
       return fetchJson(
         `${baseUrl}/api/group-gaps`,
         GroupGapsResponseSchema,
+        fetcher,
+      );
+    },
+    async getSchedule(windowLabel: string) {
+      return fetchJson(
+        `${baseUrl}/api/schedule?windowLabel=${encodeURIComponent(windowLabel)}`,
+        PresenceScheduleResponseSchema,
+        fetcher,
+      );
+    },
+    async getResourceSessions() {
+      return fetchJson(
+        `${baseUrl}/api/resource-sessions`,
+        ResourceSessionsResponseSchema,
         fetcher,
       );
     },

@@ -58,6 +58,13 @@ export {
   // 图纸档案 v2（HUB-ARTIFACT-ARCHIVE-V2）：路由 owns 派生（C5）——版本号自增 + kind 派生纯函数。
   nextArtifactVersionNo,
   deriveArtifactKind,
+  // 差异化在场排班（D-029，SCHED-WIRE-EXISTING）：纯派生函数 + 读/写契约。
+  derivePresenceSchedule,
+  PresenceScheduleResponseSchema,
+  ResourceSessionsResponseSchema,
+  SharedResourcesResponseSchema,
+  CreateResourceSessionRequestSchema,
+  CreateResourceSessionResponseSchema,
 } from '@teamhub/hub-contracts';
 export type {
   AdapterCapabilitiesResponse,
@@ -101,6 +108,16 @@ export type {
   KbSimilarResponse,
   KbCloseoutRequest,
   KbCloseoutResponse,
+  // 差异化在场排班（D-029）派生入参 + 读/写响应类型。
+  ScheduleSnapshot,
+  SharedResource,
+  ResourceSession,
+  PresenceRecommendation,
+  PresenceScheduleResponse,
+  ResourceSessionsResponse,
+  SharedResourcesResponse,
+  CreateResourceSessionRequest,
+  CreateResourceSessionResponse,
 } from '@teamhub/hub-contracts';
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -134,3 +151,12 @@ export const KbSimilarQuerySchema = z.object({
 
 // KbSimilarResponseSchema / KbCloseoutRequestSchema / KbCloseoutResponseSchema（含类型）已下沉
 // hub-contracts（kb-similar.ts / kb-closeout.ts），见上方 re-export 块——此处不再本地重声明。
+
+/**
+ * 差异化在场排班 `GET /api/schedule` 路由的 querystring 契约（server 专用，镜像 KbSimilarQuerySchema 范式）。
+ * windowLabel 必填、非空（粗粒度窗口标签 "今晚" / "明天上午"）；缺/空 → safeParse 失败 → 路由 400。
+ * 无 coerce/transform（仅一个必填 string）。下沉 hub-contracts 无必要（非跨端、纯 server 路由入参）。
+ */
+export const ScheduleQuerySchema = z.object({
+  windowLabel: z.string().min(1),
+});
