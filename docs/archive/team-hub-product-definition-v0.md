@@ -7,6 +7,8 @@ scope: product-definition
 decision: D-026; D-030（退役）
 ---
 
+> ⚠️ **已退役（D-030，2026-06-11）**：独有实质（数据模型细节 / 中央视图务实版 / 反监视机制）已并入 `docs/design/team-hub-concept.md`（canonical 单一源）。**请勿当 active 事实源使用**，仅历史追溯。
+
 # Team Hub 产品定义 v0
 
 > **已退役（2026-06-11，D-030）**：本文件的独有实质（数据模型细节 / 中央视图务实版 / 反监视机制 / 五条原则）已并入 canonical 文档 `docs/design/team-hub-concept.md`。此处仅作历史留存（git 历史 + archive），**不再维护、不应被工程文档引用**。当前产品定位 + 架构请读 concept.md。

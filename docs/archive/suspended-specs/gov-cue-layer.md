@@ -6,6 +6,8 @@ revised_by: D-033 (受众路由) / D-037 (定位回中 + silence 自指化)
 note: GOV-MEMBER-STATUS-DERIVE(frontier#2) 与 GOV-RULES-LAYER 的当前 spec。受众路由见 gov-role-visibility.md(D-033)；**D-037** 把 silence 收为纯自指（只回本人 + AI 指引、不上报任何管理者），capacityFreed 队长面改"机会导向协调视图"，并把 D-034 的 k-anon / 保守铁律重机器降级为低风险自助提示。核心不变式 I0：人键只回本人当帮助、第三方只见结构键。
 ---
 
+> ⚠️ **【挂起·已归档】（D-039 AI 退出治理）**：D-032~D-035 治理派生整簇挂起，本 spec 不驱动当前开发、零代码落地。复活触发 = 未来确认要 AI 参与治理判断。决策 stub 见 `decisions.md` D-032~D-035；簇说明见 `docs/archive/governance-suspended-decisions.md`。**默认不读。**
+
 # 协作提示层 GovernanceCue（D-032，D-037 去监视化）
 
 ## 0. 一句话

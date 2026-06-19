@@ -2,6 +2,7 @@
 
 > D-039「AI 退出治理」后整簇挂起（spec 留待复活；复活触发=未来要 AI 参与治理判断）。
 > 从 `decisions.md` 移出全文，原位留指针 stub。见 [[teamhub-direction]] / D-039。
+> 相关 spec 全文已随治理簇归档 → `docs/archive/suspended-specs/gov-cue-layer.md`(D-032) + `gov-role-visibility.md`(D-033)（原在 `docs/design/`，2026-06-19 归位）。
 
 ## D-032 — 治理提示层 GovernanceCue 统一 + Member.status 全派生 + 静默信号
 

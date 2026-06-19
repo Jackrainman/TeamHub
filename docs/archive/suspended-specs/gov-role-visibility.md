@@ -6,6 +6,8 @@ revised_by: D-037 (定位回中 + 人键自指化 + 机会导向协调视图)
 note: 角色模型 + 受众路由 + 可见性分层。**D-037 收窄**：人键 Cue 只回本人，问责上移废除，k-anon / 良基兜底因不再对第三方暴露人而多数移除；新增"机会导向协调视图"+ 坦白小团队反推边界。实现属 frontier GOV-MEMBER-STATUS-DERIVE / GOV-RULES-LAYER；字段级契约以代码 Zod schema 为准。
 ---
 
+> ⚠️ **【挂起·已归档】（D-039 AI 退出治理）**：D-032~D-035 治理派生整簇挂起，本 spec 不驱动当前开发、零代码落地。复活触发 = 未来确认要 AI 参与治理判断。决策 stub 见 `decisions.md` D-032~D-035；簇说明见 `docs/archive/governance-suspended-decisions.md`。**默认不读。**
+
 # 角色模型与受众路由 ROLE-VISIBILITY（D-033，D-037 去监视化收窄）
 
 ## 0. 一句话

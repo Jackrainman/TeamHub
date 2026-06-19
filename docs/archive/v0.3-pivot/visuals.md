@@ -8,6 +8,8 @@ update-policy: 仅在用户明确要求"更新可视化文档"时修改
 
 # Planning 可视化参考
 
+> ⚠️ **【已归档·v0.3 pivot 前】**：本文件画的是 D-024 之前的 ProbeFlash「Skill / Bridge / Trail 中央枢纽」+ 飞书多维表格（D-038 已禁双写）+ LARK-01/02「待启动」（早已 done）——对当前 Team Hub 四层架构**已全部过时**。仅历史追溯，现行图示待 `GOV-VIZ` 系列另起。
+>
 > 不在默认读取链。需要看图 / 看状态表时再打开。
 > 文字事实源在 `now.md` / `roadmap.md` / `decisions.md` / `backlog.md`；本文件只承载**图、流、表**。
 
