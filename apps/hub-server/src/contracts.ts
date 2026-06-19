@@ -129,7 +129,7 @@ export type {
  * 响应固定带 `note` 把 **A4 护栏措辞**焊进 API——「以下为候选，按 reasons 自行判断，系统不断言同因、由人选用」。
  */
 export const KB_SIMILAR_NOTE =
-  '下面是几条相似的历史记录，按匹配程度排序。系统只给候选、不断言「就是同一个原因」，每条的 reasons 写了为什么像，合不合用你自己判断。';
+  '下面是几条相似的历史记录，按匹配程度排序。系统只给候选、不断言是同一个原因，每条附了相似依据，合不合用你自己判断。';
 
 export const KbSimilarQuerySchema = z.object({
   symptom: z.string().min(1),
