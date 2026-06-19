@@ -193,6 +193,7 @@ const zh = {
   'archive.meta.commit': '关联提交',
   'archive.meta.uri': '地址',
   'archive.meta.submittedAt': '提交时间',
+  'archive.download': '下载',
   // 图纸档案登记表单 v2（HUB-ARTIFACT-ARCHIVE-V2）。I0：无提交人字段。
   'archive.form.title': '登记图纸',
   'archive.form.group': '组别',
@@ -579,6 +580,7 @@ const en: Record<TranslationKey, string> = {
   'archive.meta.commit': 'Related commit',
   'archive.meta.uri': 'URI',
   'archive.meta.submittedAt': 'Submitted',
+  'archive.download': 'Download',
   'archive.form.title': 'Register artifact',
   'archive.form.group': 'Group',
   'enum.group.mechanical': 'Mechanical',

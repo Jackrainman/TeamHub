@@ -1,5 +1,7 @@
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
+import { readFile, readdir } from 'node:fs/promises';
+import { extname, isAbsolute, join, relative } from 'node:path';
 import {
   AgentBackendCapabilitiesResponseSchema,
   AgentBackendHealthResponseSchema,
@@ -255,6 +257,54 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     const snapshot = await store.getSnapshot();
     return ArtifactsResponseSchema.parse({ artifacts: snapshot.artifacts });
   });
+
+  // 归档物文件下载：把 txt/md/pdf 放进 TEAMHUB_ARTIFACT_FILES_DIR，文件名 `<artifactId>.<ext>`。
+  // GET（读端点，不过写鉴权钩子）。仅服务 snapshot 里真实存在的 artifact id 对应文件——id 先经
+  // snapshot 校验（无斜杠/穿越），再 relative 兜底，杜绝路径穿越。I0：文件名用归档物 name，无人维度。
+  app.get<{ Params: { id: string } }>(
+    '/api/artifacts/:id/download',
+    async (request, reply) => {
+      const dir = process.env.TEAMHUB_ARTIFACT_FILES_DIR;
+      if (!dir) {
+        void reply.code(404).send({ detail: '未配置归档物文件目录' });
+        return reply;
+      }
+      const { id } = request.params;
+      const snapshot = await store.getSnapshot();
+      const artifact = snapshot.artifacts.find((a) => a.id === id);
+      if (!artifact) {
+        void reply.code(404).send({ detail: '归档物不存在' });
+        return reply;
+      }
+      const entries = await readdir(dir).catch(() => [] as string[]);
+      const match = entries.find((f) => f === id || f.startsWith(`${id}.`));
+      if (!match) {
+        void reply.code(404).send({ detail: '该归档物暂无可下载文件' });
+        return reply;
+      }
+      const full = join(dir, match);
+      const rel = relative(dir, full);
+      if (rel.startsWith('..') || isAbsolute(rel)) {
+        void reply.code(400).send({ detail: '非法路径' });
+        return reply;
+      }
+      const ext = extname(match);
+      const downloadName = `${artifact.name}${ext}`;
+      const content = await readFile(full);
+      void reply.header(
+        'content-disposition',
+        `attachment; filename*=UTF-8''${encodeURIComponent(downloadName)}`,
+      );
+      void reply.type(
+        ext === '.md'
+          ? 'text/markdown; charset=utf-8'
+          : ext === '.txt'
+            ? 'text/plain; charset=utf-8'
+            : 'application/octet-stream',
+      );
+      return content;
+    },
+  );
 
   // 图纸档案 v2 提交（HUB-ARTIFACT-ARCHIVE-V2，append-only）。机构经 UI 记一条新图纸：人填
   // ownerGroup/season/robotCode/mechanism/name/uri（+ 电路 subType、驱动可选 relatedRepo/relatedCommit）。

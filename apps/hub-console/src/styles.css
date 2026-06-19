@@ -1099,9 +1099,38 @@ button {
 }
 
 .archive-row {
-  align-items: flex-start;
+  align-items: center;
+  flex-direction: row;
+  gap: 12px;
+}
+
+/* 行主体（名称/徽章/提交时间 + 明细）占左侧，下载按钮贴右。 */
+.archive-row__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* 每行右侧「下载」按钮（直链下载端点）。 */
+.archive-download {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 5px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  background: var(--surface-raised);
+  color: var(--blue);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.archive-download:hover {
+  background: var(--blue-soft);
 }
 
 .archive-row__main {
@@ -1215,7 +1244,10 @@ button {
 }
 
 .archive-mechanism-checkbox input {
-  flex-shrink: 0;
+  /* 覆盖 .kb-field input{width:100%}：复选框须自然小尺寸，否则会撑满整条 label
+     盖住右侧「新机构」文字（flex 不收缩时尤甚）。 */
+  width: auto;
+  flex: 0 0 auto;
 }
 
 .archive-mechanism-input {

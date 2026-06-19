@@ -494,40 +494,52 @@ function ArtifactLogRow({
     : null;
   return (
     <article className="data-row archive-row">
-      <div className="archive-row__main">
-        <strong>{artifact.name}</strong>
-        <span className="archive-row__meta">
-          {versionLabel ? (
-            <span className="archive-badge">{versionLabel}</span>
-          ) : null}
-          {carLabel ? (
-            <span className="archive-badge archive-badge--robot">
-              {carLabel}
+      <div className="archive-row__content">
+        <div className="archive-row__main">
+          <strong>{artifact.name}</strong>
+          <span className="archive-row__meta">
+            {versionLabel ? (
+              <span className="archive-badge">{versionLabel}</span>
+            ) : null}
+            {carLabel ? (
+              <span className="archive-badge archive-badge--robot">
+                {carLabel}
+              </span>
+            ) : null}
+            <span>
+              {t('archive.meta.submittedAt')}{' '}
+              {formatDate(artifact.createdAt, lang)}
             </span>
-          ) : null}
-          <span>
-            {t('archive.meta.submittedAt')} {formatDate(artifact.createdAt, lang)}
           </span>
-        </span>
+        </div>
+        <dl className="archive-row__detail">
+          {artifact.relatedCommit ? (
+            <MetaRow
+              label={t('archive.meta.commit')}
+              value={artifact.relatedCommit}
+              mono
+              rowClass="archive-meta__row"
+            />
+          ) : null}
+          {artifact.uri ? (
+            <MetaRow
+              label={t('archive.meta.uri')}
+              value={artifact.uri}
+              mono
+              rowClass="archive-meta__row"
+            />
+          ) : null}
+        </dl>
       </div>
-      <dl className="archive-row__detail">
-        {artifact.relatedCommit ? (
-          <MetaRow
-            label={t('archive.meta.commit')}
-            value={artifact.relatedCommit}
-            mono
-            rowClass="archive-meta__row"
-          />
-        ) : null}
-        {artifact.uri ? (
-          <MetaRow
-            label={t('archive.meta.uri')}
-            value={artifact.uri}
-            mono
-            rowClass="archive-meta__row"
-          />
-        ) : null}
-      </dl>
+      {/* 下载：直链命中 server 的 GET /api/artifacts/:id/download（读端点、无需令牌）。
+          目录里有对应 <id>.<ext> 文件才下得到，否则后端 404。 */}
+      <a
+        className="archive-download"
+        href={`/api/artifacts/${encodeURIComponent(artifact.id)}/download`}
+        download
+      >
+        {t('archive.download')}
+      </a>
     </article>
   );
 }
