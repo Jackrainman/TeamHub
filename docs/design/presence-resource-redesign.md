@@ -198,6 +198,15 @@ C620   电调       5          2      4      0      6
 - **本轮产出** = 本定稿文档（零代码）+ `AGENTS.md §1` 组结构更新（删程序组领任务 / 留汇报视角 / 总联调全组各一人）+ `decisions.md` D-072 定稿指针 + `now.md` planning sync。
 - **下一轮（落实现）**：① 调和 fixtures（程序成员归口 / 总联调改全组各一人 / `grp-program` 去领任务身份）；② 落「车 = 带编号对象」（含 `v` 代次 displayCode 派生）+ 宏观维修态 + 可选注释 + 退役 / 拆解态 + 接力释放级联（挂车对象、不走车位枚举）；③ 做接力顺序链视图（多车并排）+ 语义「谁可下班」+ 卡片页降级；④ 视情况立库存最小内核（数量账 + 追踪件血缘 + 拆装动作 + 预留扣减）；⑤ demo seed 加 26R1 / 26R2；⑥ 把 §2.4 / §3.6 反监视护栏升为结构约束。
 
+### 7.1 实现状态（PRESENCE-IMPL，2026-06-19 无人值守实现轮）
+
+**已落地（安全增量、三包 verify 全绿）**：
+- ②部分 + ⑤：`deriveDisplayCode(season,position,version)`（`governance.ts`，禁手写，→ `25R1`/`26R1-v2`）；`SharedResource` 补 optional `season`/`version`/`displayCode`（向后兼容，未给回退 name）+ 生命周期态 `repair`/`retired`/`disassembling`（保留 legacy `down`/`upgrading`）+ `canBoardResource()` 接力释放谓词；`derivePresenceSchedule` 级联改读 `!canBoardResource(status)`（不再硬编码状态名）。seed `res-r1`/`res-r2` 派生 `26R1`/`26R2`（库存总表车列复用同 displayCode）。
+- ③：`RelayChainView.tsx`（按车并排接力链，`overflow-x:auto`，读 `GET /api/schedule` + `GET /api/resources`，语义「轮到 / 待命 / 可下班」）；`SchedulePage` 接力链升主视图、卡片网格降级为「明细（按组）」。④ 已由 INV-BOM-CORE 独立落地（见 `inv-bom-core.md`）。
+- ⑥：反监视护栏升结构约束 + 单测（`resource-display.test.ts`：`PresenceRecommendationSchema` 无 memberId/invitedMemberIds、`derivePresenceSchedule` 输出序列化零 memberId）。
+
+**DEFERRED — 需先出 schema 定稿（无安全默认、改动会波及 ~9 测试文件）**：① fixture 调和（`m-progA`→`grp-ec`、`m-progB`→`grp-vision`、`grp-program` 去领任务）+ **「总联调 = 全组各一人」收敛任务派生语义**。后者无锁定 schema、本轮 prompt 也未给安全默认，且重排共享 demo fixture 会牵动 schedule/governance/pm/gaps/audit 等 9 个测试文件的精确断言。**应仿 `inv-bom-core.md` 先出一份「全组各一人」收敛任务的字段级/派生级定稿，再无人值守落实现**——避免在并发收敛语义未拍板时硬改 fixture 把仓库留在半改状态。
+
 ---
 
 ## 实现锚点（真实文件路径）

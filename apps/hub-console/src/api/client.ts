@@ -10,12 +10,14 @@ import {
   HubEventsResponseSchema,
   PresenceScheduleResponseSchema,
   ResourceSessionsResponseSchema,
+  SharedResourcesResponseSchema,
   TasksResponseSchema,
   type ArtifactsResponse,
   type DepGraph,
   type GroupGapsResponse,
   type PresenceScheduleResponse,
   type ResourceSessionsResponse,
+  type SharedResourcesResponse,
   type Task,
   type TaskStatus,
 } from '@teamhub/hub-contracts';
@@ -82,6 +84,8 @@ export interface HubApiClient {
   // 差异化在场排班（D-029）：按组×窗口派生 present/onCall/free，I0：输出无 memberId/invitedMemberIds。
   getSchedule(windowLabel: string): Promise<PresenceScheduleResponse>;
   getResourceSessions(): Promise<ResourceSessionsResponse>;
+  // 共享物理资源（车）列表：接力链按车并排时取 displayCode ?? name 作列头。无人维度（中性事实）。
+  getResources(): Promise<SharedResourcesResponse>;
   getKbSimilar(params: KbSimilarParams): Promise<KbSimilarResponse>;
   getTasks(): Promise<{ tasks: Task[] }>;
   // 图纸提交日志/版本时间线（档案页）：与总览第 7 个 fetch 同源 /api/artifacts，读治理快照。
@@ -198,6 +202,13 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
       return fetchJson(
         `${baseUrl}/api/resource-sessions`,
         ResourceSessionsResponseSchema,
+        fetcher,
+      );
+    },
+    async getResources() {
+      return fetchJson(
+        `${baseUrl}/api/resources`,
+        SharedResourcesResponseSchema,
         fetcher,
       );
     },

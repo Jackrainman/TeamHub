@@ -3,6 +3,7 @@ import {
   toDepGraphView,
   type GovernanceSnapshot,
 } from './attribution.js';
+import { canBoardResource } from './governance.js';
 import type {
   Dependency,
   DepNodeKnowledge,
@@ -270,8 +271,9 @@ export function derivePresenceSchedule(
       return capacityFeasibility(capacityByGroup.get(groupId) ?? 0);
     };
 
-    // 资源 down/upgrading：整片下游今晚作罢（车撞坏全卡）。
-    if (resource && (resource.status === 'down' || resource.status === 'upgrading')) {
+    // 车不可上（down/upgrading/repair/retired/disassembling）：整片下游今晚作罢（接力释放，D-072 §3.3）。
+    // 读「该状态能否上车」而非硬编码状态名——新增维修/退役/拆解态自动纳入，无需改本分支。
+    if (resource && !canBoardResource(resource.status)) {
       const affected = new Set<string>([session.holderGroupId]);
       for (const task of snapshot.tasks) {
         if (task.robotTarget === resource.robotTarget && task.status !== 'done') {

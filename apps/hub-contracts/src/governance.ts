@@ -357,23 +357,69 @@ export const DepGraphSchema = z.object({
 
 export const ResourceKindSchema = z.enum(['robot', 'testRig', 'instrument']);
 
-/** 资源自身状态：down/upgrading 时整片下游 require 它的任务无法上车（车撞坏全卡）。 */
+/**
+ * 资源自身状态（D-072 §3.3 车生命周期 + 既有 down/upgrading 兼容）。**不可上车**的状态下，
+ * 整片下游 require 它的任务今晚作罢（接力释放语义，见 canBoardResource + derivePresenceSchedule）。
+ *
+ * 宏观维修态 = `repair`（不精确到机构，需要时附 statusReason 自由注释「撞坏底盘」）。退役/拆解手动设。
+ * 既有 `down`/`upgrading` 保留（早期种子 / 测试在用，语义上等同「不可上车」），新增 D-072 三态：
+ *  - `repair` 维修中（撞坏要修，修好回 available）
+ *  - `retired` 退役（手动，整车留展示）
+ *  - `disassembling` 拆解（退役后拆一部分，半留）
+ */
 export const ResourceStatusSchema = z.enum([
   'available', // 空闲可用
   'inUse', // 某窗口被占用（调试中）
-  'down', // 损坏 / 不可用（撞坏维修）
-  'upgrading', // 升级改造中
+  'down', // 损坏 / 不可用（legacy，等同 repair 的「不可上车」）
+  'upgrading', // 升级改造中（legacy）
+  'repair', // 维修中（D-072 宏观维修态）
+  'retired', // 退役（手动，整车留展示）
+  'disassembling', // 拆解（退役后拆一部分，半留）
 ]);
+
+/** 可上车（可排班 / 显示为活跃车）的状态集——仅 available / inUse。其余皆「不可上车」→ 接力释放。 */
+const BOARDABLE_STATUSES: ReadonlySet<ResourceStatus> = new Set<ResourceStatus>([
+  'available',
+  'inUse',
+]);
+
+/**
+ * 该状态能否上车（D-072 §3.3：车状态只回答「现在能不能上 / 在不在修」）。
+ * 下游接力据此提示「此刻不用来 / 可下班」（接力释放语义，非「停活」）。
+ */
+export function canBoardResource(status: ResourceStatus): boolean {
+  return BOARDABLE_STATUSES.has(status);
+}
+
+/**
+ * 车编号派生（D-072 §3.2 决定 K，**禁手写**）：`赛季后两位 + 位置 (+ 版本)`。
+ *  - deriveDisplayCode('25','R1',1) → '25R1'
+ *  - deriveDisplayCode('26','R1',2) → '26R1-v2'（v = 第几代整车，整车全拆重做才升，默认 v1）
+ * position 直接用 RobotTarget（R1/R2/shared）；version<2 不显 `-vN`（默认 v1 不啰嗦）。
+ */
+export function deriveDisplayCode(
+  season: string,
+  position: string,
+  version = 1,
+): string {
+  const base = `${season}${position}`;
+  return version > 1 ? `${base}-v${version}` : base;
+}
 
 export const SharedResourceSchema = z.object({
   id: z.string().min(1),
   projectId: z.string().min(1),
   name: z.string().min(1), // "R1 比赛车"
   kind: ResourceKindSchema,
-  robotTarget: RobotTargetSchema, // 与 Task.robotTarget 对齐
+  robotTarget: RobotTargetSchema, // 与 Task.robotTarget 对齐；同时充当 displayCode 的「位置」位
   status: ResourceStatusSchema,
-  statusReason: z.string().min(1).nullable(), // "撞坏维修中"——中性事实，非归咎于人
+  statusReason: z.string().min(1).nullable(), // "撞坏底盘"——中性事实自由注释，非归咎于人
   statusSource: GovActorSourceSchema, // 派生优先，console 兜底
+  // D-072 §3.2「车 = 带编号对象」：赛季后两位 + 版本代次 → displayCode 派生（禁手写）。
+  // 全 optional（向后兼容既有种子 / 已落盘 JSON）：未给则读视图回退 name（见 INV ledger displayCode ?? name）。
+  season: z.string().min(1).optional(), // 赛季后两位 "26"
+  version: z.number().int().positive().optional(), // 第几代整车，默认 1（极低频升）
+  displayCode: z.string().min(1).optional(), // deriveDisplayCode(season, robotTarget, version)
   updatedAt: isoDateTimeSchema,
 });
 

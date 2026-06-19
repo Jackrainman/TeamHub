@@ -1,4 +1,5 @@
 import type { GovernanceSnapshot } from './attribution.js';
+import { deriveDisplayCode } from './governance.js';
 import type { ScheduleSnapshot } from './schedule.js';
 import type {
   AgentBackend,
@@ -475,9 +476,11 @@ export const memberKnowledgeFixtures: MemberKnowledge[] = [
 
 export const scheduleScenarioFixture: ScheduleSnapshot = {
   ...governanceScenarioFixture,
+  // D-072 §3.2「车 = 带编号对象」：26 赛季 R1 / R2 两辆，displayCode 派生（禁手写，decision I/K）。
+  // displayCode 同时被库存总表（INV-BOM-CORE）当车列表头复用（displayCode ?? name → 26R1 / 26R2）。
   resources: [
-    { id: 'res-r1', projectId: 'prj-robots', name: 'R1 比赛车', kind: 'robot', robotTarget: 'R1', status: 'inUse', statusReason: null, statusSource: 'console', updatedAt: GOVERNANCE_SCENARIO_NOW },
-    { id: 'res-r2', projectId: 'prj-robots', name: 'R2 比赛车', kind: 'robot', robotTarget: 'R2', status: 'available', statusReason: null, statusSource: 'console', updatedAt: GOVERNANCE_SCENARIO_NOW },
+    { id: 'res-r1', projectId: 'prj-robots', name: 'R1 比赛车', kind: 'robot', robotTarget: 'R1', status: 'inUse', statusReason: null, statusSource: 'console', season: '26', version: 1, displayCode: deriveDisplayCode('26', 'R1', 1), updatedAt: GOVERNANCE_SCENARIO_NOW },
+    { id: 'res-r2', projectId: 'prj-robots', name: 'R2 比赛车', kind: 'robot', robotTarget: 'R2', status: 'available', statusReason: null, statusSource: 'console', season: '26', version: 1, displayCode: deriveDisplayCode('26', 'R2', 1), updatedAt: GOVERNANCE_SCENARIO_NOW },
   ],
   resourceSessions: [
     { id: 'sess-tonight-prog', projectId: 'prj-robots', resourceId: 'res-r1', windowLabel: '今晚', orderInWindow: 0, holderGroupId: 'grp-program', holderTaskId: 't-r1-integration', invitedMemberIds: ['m-progA'], note: '今晚 R1 归程序调总联调', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, createdAt: GOVERNANCE_SCENARIO_NOW },

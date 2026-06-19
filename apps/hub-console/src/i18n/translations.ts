@@ -384,6 +384,15 @@ const zh = {
   'kb.closeout.success.searchable': '已写回检索语料，下次同类症状可召回。',
   'kb.closeout.error': '归档失败：{detail}',
 
+  // 接力顺序链（D-072 §2.2，多车并排）——「此刻轮到谁、谁可下班」，给人正名帮人省事，不盯出勤。
+  'schedule.relay.title': '接力顺序链 · 今晚轮到谁 / 谁可下班',
+  'schedule.relay.empty': '今晚还没排车。队长一拍即录占用窗口后，这里按车并排画接力顺序。',
+  'schedule.relay.stageOrder': '第 {n} 棒',
+  'schedule.relay.onCall': '待命 / 快轮到',
+  'schedule.relay.offDuty': '这阶段没你事 · 可下班',
+  'schedule.relay.boardingClosed': '车不可上：{reason}',
+  'schedule.relay.detailTitle': '明细（按组）',
+
   // 库存 / BOM 第三支柱（INV-BOM-CORE）
   'toolbar.title.inv': '库存 / BOM',
   'inv.loading': '正在加载库存…',
@@ -810,6 +819,16 @@ const en: Record<TranslationKey, string> = {
   'kb.closeout.success.searchable':
     'Written back to the search corpus — the same symptom can be recalled next time.',
   'kb.closeout.error': 'Archive failed: {detail}',
+
+  // Relay-order chain (D-072 §2.2, multi-robot side-by-side) — "whose turn now, who can clock off".
+  'schedule.relay.title': 'Relay chain · whose turn tonight / who can clock off',
+  'schedule.relay.empty':
+    'No robot sessions tonight yet. Once the lead logs an occupancy window, the relay order shows here per robot.',
+  'schedule.relay.stageOrder': 'Leg {n}',
+  'schedule.relay.onCall': 'On call / up soon',
+  'schedule.relay.offDuty': "Nothing for you this stage · you can clock off",
+  'schedule.relay.boardingClosed': 'Robot unavailable: {reason}',
+  'schedule.relay.detailTitle': 'Details (by group)',
 
   // Inventory / BOM third pillar (INV-BOM-CORE)
   'toolbar.title.inv': 'Inventory / BOM',

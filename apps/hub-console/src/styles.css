@@ -1951,3 +1951,105 @@ button {
   background: var(--blue-soft);
   color: var(--blue);
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   接力顺序链（D-072 §2.2，多车并排）。只表先后、不表钟点；主键是车 / 组接力位置 / 任务——无人维度。
+   ───────────────────────────────────────────────────────────────────────── */
+.relay-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+/* 多车并排：窗宽不足横向滚动（§6），不挤压单车链。 */
+.relay-chain__track {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+.relay-col {
+  flex: 0 0 280px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 12px 14px;
+}
+.relay-col__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+.relay-col__robot {
+  font-weight: 700;
+  font-size: 15px;
+}
+.relay-col__closed {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--red-soft);
+  color: var(--red);
+  font-size: 13px;
+}
+.relay-stages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.relay-stage {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface-raised);
+  font-size: 13px;
+}
+.relay-stage--present {
+  border-left: 3px solid var(--green);
+}
+.relay-stage--onCall {
+  border-left: 3px solid var(--amber);
+  flex-wrap: wrap;
+}
+.relay-stage__order {
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.relay-stage__task {
+  flex: 1;
+  min-width: 0;
+}
+.relay-oncall {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.relay-offduty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-muted);
+}
+.relay-offduty__label {
+  font-weight: 600;
+  color: var(--muted);
+}
+.gap-chip--free {
+  background: var(--surface);
+}
+.schedule-detail {
+  margin-top: 10px;
+}
