@@ -378,6 +378,44 @@ export const SharedResourceSchema = z.object({
 });
 
 /**
+ * 周内分钟段基元（共享）：dayOfWeek 0-6（周日=0）、startMin/endMin 为当日 0 点起的分钟数。
+ * 半开区间 [startMin, endMin)；refine 强制 startMin<endMin。
+ * **不支持跨夜**（如 22:00-次日 02:00）——跨夜请拆成两条段。
+ * recurringBusy（成员私有课表）与 WindowDef（在场窗口锚定）共用此基元，避免区间校验重复两处。
+ *
+ * 裸 object 形状单独导出（WeeklyMinuteWindowBaseSchema），供 recurringBusy 等
+ * 需要 .extend({ label }) 的场景复用（ZodEffects 不能 .extend）；带 refine 的
+ * 上界检查由 WeeklyMinuteWindowSchema / WindowDefSchema 承载。
+ */
+export const WeeklyMinuteWindowBaseSchema = z.object({
+  dayOfWeek: z.number().int().min(0).max(6),
+  startMin: z.number().int().min(0).max(1439),
+  endMin: z.number().int().min(1).max(1440),
+});
+
+/** 周内分钟段 refine：startMin<endMin（不支持跨夜，跨夜请拆两条）。 */
+export const weeklyMinuteWindowRefine = (w: {
+  startMin: number;
+  endMin: number;
+}): boolean => w.startMin < w.endMin;
+
+export const WEEKLY_MINUTE_WINDOW_REFINE_MSG =
+  'startMin 必须 < endMin（不支持跨夜窗口，跨夜请拆两条）';
+
+export const WeeklyMinuteWindowSchema = WeeklyMinuteWindowBaseSchema.refine(
+  weeklyMinuteWindowRefine,
+  { message: WEEKLY_MINUTE_WINDOW_REFINE_MSG },
+);
+
+/**
+ * 在场窗口的周内分钟段锚定（S1）：与 WeeklyMinuteWindowSchema 同形，独立命名以表语义
+ * ——这是"某个 ResourceSession / windowLabel 实际占用的周内时段"，用于和成员 recurringBusy
+ * 做重叠判定，派生组级 headcount。走独立 map 经 derivePresenceSchedule 第 4 参传入，
+ * **绝不**加到 ResourceSessionSchema 上（最小侵入，未锚定时静默退化为 feasibility=null）。
+ */
+export const WindowDefSchema = WeeklyMinuteWindowSchema;
+
+/**
  * 占用窗口：粗粒度（"今晚" / "明天上午"），队长一拍即录（低录入 C1）。
  * 同一 windowLabel + 同一 resource 可有多条（orderInWindow 表"先程序后机械"的接力）。
  * 精确钟点语义（startsAt/endsAt）留 open（见 D-029 open_for_decision）。
@@ -412,6 +450,15 @@ export const PresenceReasonSchema = z.enum([
   'resourceDown', // 车不可用，整片下游今晚作罢
 ]);
 
+/**
+ * 组级容量护栏读数（S1，A2）：把成员私有课表压成的"无人维度组级整数 headcount"再分级。
+ * **绝不**是"谁有空"——只是这个组在该窗口大概有几个人不冲突。
+ * ample = 组级 headcount 充裕；tight = 偏紧；conflict = 与持有窗冲突 / 为 0。
+ * 无 MemberAvailability / 窗未锚定时为 null（与改前 fixture 输出完全一致）。
+ * 具体阈值（ample/tight/conflict 边界）是启发式，留 D-029 open，不在 schema 写死。
+ */
+export const PresenceFeasibilitySchema = z.enum(['ample', 'tight', 'conflict']);
+
 /** 派生输出：在场建议（组键，无人维度）。 */
 export const PresenceRecommendationSchema = z.object({
   id: z.string().min(1),
@@ -428,6 +475,11 @@ export const PresenceRecommendationSchema = z.object({
   factStatement: z.string().min(1), // 中性：只填组 / 任务 / 资源名
   // free 模式挂"这段时间可以看的资料"（A3/D-027 正面给予）。
   relatedKnowledge: z.array(DepNodeKnowledgeSchema),
+  // 组级容量护栏读数（S1，A2）：仅在传入 AvailabilityContext 且该窗已锚定时填；
+  // 无 MemberAvailability / 窗未锚定 → null（与改前 fixture byte-for-byte 一致）。
+  // 用 .nullable().default(null)：parse 后总带 feasibility:null 键，与镜像全文件
+  // .nullable()+显式 null 风格一致，且不破"缺省 null"语义与 key 遍历测。
+  feasibility: PresenceFeasibilitySchema.nullable().default(null),
   detectedBy: z.literal('derived'), // 永远派生，从不是人录入
   detectedAt: isoDateTimeSchema,
 });
@@ -507,10 +559,13 @@ export type DepGraphSummary = z.infer<typeof DepGraphSummarySchema>;
 export type DepGraph = z.infer<typeof DepGraphSchema>;
 export type ResourceKind = z.infer<typeof ResourceKindSchema>;
 export type ResourceStatus = z.infer<typeof ResourceStatusSchema>;
+export type WeeklyMinuteWindow = z.infer<typeof WeeklyMinuteWindowSchema>;
+export type WindowDef = z.infer<typeof WindowDefSchema>;
 export type SharedResource = z.infer<typeof SharedResourceSchema>;
 export type ResourceSession = z.infer<typeof ResourceSessionSchema>;
 export type PresenceMode = z.infer<typeof PresenceModeSchema>;
 export type PresenceReason = z.infer<typeof PresenceReasonSchema>;
+export type PresenceFeasibility = z.infer<typeof PresenceFeasibilitySchema>;
 export type PresenceRecommendation = z.infer<
   typeof PresenceRecommendationSchema
 >;

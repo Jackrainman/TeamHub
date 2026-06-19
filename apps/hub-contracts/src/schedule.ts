@@ -7,13 +7,17 @@ import type {
   Dependency,
   DepNodeKnowledge,
   Group,
+  Member,
+  PresenceFeasibility,
   PresenceMode,
   PresenceReason,
   PresenceRecommendation,
   ResourceSession,
   SharedResource,
   Task,
+  WindowDef,
 } from './governance.js';
+import type { MemberAvailability } from './growth.js';
 
 /**
  * 差异化在场排班的纯派生函数（无 IO、可单测；D-029）。
@@ -28,6 +32,80 @@ import type {
 export interface ScheduleSnapshot extends GovernanceSnapshot {
   resources: SharedResource[];
   resourceSessions: ResourceSession[];
+}
+
+/**
+ * 在场容量上下文（S1，A2，optional 第 4 参）：
+ * - availabilities = 成员私有课表（含 visibility，private 条目在派生时被跳过）。
+ * - windowDefs = key 为 ResourceSession.id（精确锚定），value 为该窗实际占用的周内分钟段。
+ * 未传或某 session 在 windowDefs 里查无锚定 → 该 rec 的 feasibility 保持 null，
+ * 逻辑与现行三参路径 100% 一致。
+ */
+export interface AvailabilityContext {
+  availabilities: MemberAvailability[];
+  windowDefs: Map<string, WindowDef>;
+}
+
+/** 半开区间重叠：busy [s,e) 与 window [ws,we) 重叠 ⇔ s<we && ws<e（相邻不算冲突）。 */
+function windowsOverlap(
+  s: number,
+  e: number,
+  win: WindowDef,
+): boolean {
+  return s < win.endMin && win.startMin < e;
+}
+
+/**
+ * 组级容量派生（S1，A2 红线核心）。
+ *
+ * 输入：成员私有课表 + **单个** windowDef + 成员名册（可选组树，本 MVP 不用）。
+ * 输出：Map<groupId, capacity:int> —— **只产组级 headcount 整数**。
+ *
+ * 红线（结构 + 实现双重钉死）：
+ * - **每次调用独立、只收单个 windowDef、不跨窗、不缓存任何按人计数**：签名上无法把
+ *   "本周谁到场最少→多排谁"这类跨窗按人累计表达出来。绝不在此函数外维护 per-member 计数器。
+ * - **绝不返回成员维度**：返回 Map<groupId,int>，无 memberId 列表、无谁忙谁闲、无 per-member 标志位。
+ * - visibility==='private' 的成员条目**直接跳过**（不进任何聚合）；只有 'aggregateOnly'
+ *   经本人授权才计入组级 headcount。无课表条目的成员视作不冲突（默认可参与）。
+ * - 半开区间重叠判定（windowsOverlap），相邻窗（一个 10:00 结束、一个 10:00 开始）不误判。
+ *
+ * 注意：此函数应只喂 derivePresenceSchedule 内部消费，**绝不**被 server 路由直接回出
+ *（类比 invitedMemberIds 绝不按人聚合回），否则等于泄漏个人课表派生明细。
+ */
+export function deriveGroupAvailability(
+  availabilities: MemberAvailability[],
+  windowDef: WindowDef,
+  members: Member[],
+  _groupsById?: Map<string, Group>,
+): Map<string, number> {
+  // visibility==='private' 直接剔除（A2：私有课表绝不进派生）；只留 aggregateOnly。
+  const busyByMember = new Map<string, MemberAvailability>();
+  for (const a of availabilities) {
+    if (a.visibility === 'private') continue;
+    busyByMember.set(a.memberId, a);
+  }
+
+  const capacity = new Map<string, number>();
+  for (const m of members) {
+    const avail = busyByMember.get(m.id);
+    // 无授权课表 → 视作不冲突（默认可参与该窗）。
+    let conflicts = false;
+    if (avail) {
+      for (const busy of avail.recurringBusy) {
+        if (
+          busy.dayOfWeek === windowDef.dayOfWeek &&
+          windowsOverlap(busy.startMin, busy.endMin, windowDef)
+        ) {
+          conflicts = true;
+          break;
+        }
+      }
+    }
+    if (conflicts) continue;
+    // 只累组级整数：该组 +1。绝不记 memberId、绝不跨窗累计。
+    capacity.set(m.groupId, (capacity.get(m.groupId) ?? 0) + 1);
+  }
+  return capacity;
 }
 
 function indexBy<T>(items: T[], key: (item: T) => string): Map<string, T> {
@@ -88,6 +166,8 @@ interface PresenceAcc {
   resourceId: string | null;
   holderTaskLabel: string | null;
   orderInWindow: number | null;
+  // 组级容量护栏读数（S1）：仅在 ctx 锚定该 session 时计算，否则保持 null（默认）。
+  feasibility: PresenceFeasibility | null;
 }
 
 const MODE_RANK: Record<PresenceMode, number> = {
@@ -95,6 +175,17 @@ const MODE_RANK: Record<PresenceMode, number> = {
   onCall: 2,
   free: 1,
 };
+
+/**
+ * 组级整数 → 容量护栏读数（S1）。**仅在 ctx 锚定时调用**，无数据时根本不进这里（保持 null）。
+ * 阈值（0 冲突 / 1 紧 / ≥2 充裕）是占位启发式，精确边界留 D-029 open，不当已定论。
+ * 这里读的是"组级 headcount 整数"，绝不是"谁有空"——无任何成员维度。
+ */
+function capacityFeasibility(capacity: number): PresenceFeasibility {
+  if (capacity <= 0) return 'conflict';
+  if (capacity === 1) return 'tight';
+  return 'ample';
+}
 
 function renderFact(
   acc: PresenceAcc,
@@ -129,6 +220,7 @@ export function derivePresenceSchedule(
   snapshot: ScheduleSnapshot,
   now: string,
   windowLabel: string,
+  ctx?: AvailabilityContext,
 ): PresenceRecommendation[] {
   const tasksById = indexBy(snapshot.tasks, (t) => t.id);
   const groupsById = indexBy(snapshot.groups, (g) => g.id);
@@ -160,6 +252,24 @@ export function derivePresenceSchedule(
       : undefined;
     const holderTaskLabel = holderTask?.title ?? null;
 
+    // 组级容量护栏读数（S1，A2）：仅当 ctx 存在且精确锚定该 session.id 才计算；
+    // 否则 capacityByGroup=null → 所有 feasibility 保持 null（三参路径逐行不变）。
+    // 每 session 独立计算单窗组级整数，**绝不**跨窗累计、绝不缓存按人计数。
+    const windowDef = ctx?.windowDefs.get(session.id);
+    const capacityByGroup =
+      ctx && windowDef
+        ? deriveGroupAvailability(
+            ctx.availabilities,
+            windowDef,
+            snapshot.members,
+            groupsById,
+          )
+        : null;
+    const feasibilityFor = (groupId: string): PresenceFeasibility | null => {
+      if (!capacityByGroup) return null;
+      return capacityFeasibility(capacityByGroup.get(groupId) ?? 0);
+    };
+
     // 资源 down/upgrading：整片下游今晚作罢（车撞坏全卡）。
     if (resource && (resource.status === 'down' || resource.status === 'upgrading')) {
       const affected = new Set<string>([session.holderGroupId]);
@@ -175,6 +285,7 @@ export function derivePresenceSchedule(
           resourceId: session.resourceId,
           holderTaskLabel: null,
           orderInWindow: null,
+          feasibility: feasibilityFor(groupId),
         });
       }
       continue;
@@ -187,6 +298,7 @@ export function derivePresenceSchedule(
       resourceId: session.resourceId,
       holderTaskLabel,
       orderInWindow: session.orderInWindow,
+      feasibility: feasibilityFor(session.holderGroupId),
     });
 
     if (!holderTask) continue;
@@ -213,6 +325,7 @@ export function derivePresenceSchedule(
               resourceId: session.resourceId,
               holderTaskLabel,
               orderInWindow: null,
+              feasibility: feasibilityFor(groupId),
             }
           : {
               mode: 'free',
@@ -220,6 +333,7 @@ export function derivePresenceSchedule(
               resourceId: null,
               holderTaskLabel: null,
               orderInWindow: null,
+              feasibility: feasibilityFor(groupId),
             },
       );
     }
@@ -269,6 +383,9 @@ export function derivePresenceSchedule(
         resource?.statusReason ?? null,
       ),
       relatedKnowledge,
+      // 三参路径 acc.feasibility 恒为 null（ctx 未传）→ 与 schema .default(null) 解析结果一致，
+      // 现行 fixture 输出 byte-for-byte 不变；仅 ctx 锚定时才为 ample/tight/conflict。
+      feasibility: acc.feasibility,
       detectedBy: 'derived',
       detectedAt: now,
     });
