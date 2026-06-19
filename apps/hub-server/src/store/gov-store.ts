@@ -4,10 +4,14 @@ import type {
   Dependency,
   ErrorEntry,
   GovernanceSnapshot,
+  InventorySnapshot,
   IssueCard,
   KbSnapshot,
   KnowledgeNode,
   Need,
+  PartAction,
+  PartActionSource,
+  PartType,
   ResourceSession,
   SharedResource,
   Task,
@@ -203,13 +207,45 @@ export interface KbCloseoutAppend {
 }
 
 /**
- * 库存 / BOM 读写出入口契约（reserved，D-042 决策 4）。
+ * upsertPartType 入参（盘点建底 / 补料 / 调阈值）：人本字段；Store 补 lastCountedAt / updatedAt。
+ * 带 `id` 命中既有 → 更新；否则创建（Store 钉 `parttype-new-N`）。
+ */
+export type PartTypeDraft = Omit<PartType, 'id' | 'lastCountedAt' | 'updatedAt'> & {
+  id?: string;
+};
+
+/**
+ * recordPartAction 入参（一句话快记 / 拆装 / 预留）：人本字段 + `source`（来源 seam，路由钉 human，
+ * 客户端不冒充 hermes/derived，C5）。Store 补 id / recordedAt + 把 source 包成 `recordedBy={source,at}`
+ * （**I0：绝无 memberId**）。
+ */
+export type PartActionDraft = Omit<
+  PartAction,
+  'id' | 'recordedAt' | 'recordedBy'
+> & { source: PartActionSource };
+
+/**
+ * 库存 / BOM 读写出入口契约（INV-BOM-CORE，D-042 决策 4 / D-072 §3.4）。
  *
- * INV 是三支柱里**唯一需要扩 schema 的根**——`PartStock` 不在 `GovernanceSnapshot` 内，故 INV 不复用
- * `GovStore`、走本独立扩展点（BuildHubServerOptions.invStore?）。base 收口刀只占位、**不建 PartStock**：
- * 盘点 / 对话记账（Hermes「坏了一个 3508」记一笔）/ 缺口主动汇报的读写白名单随 INV 支柱落地补全（实现后置）。
+ * INV 是三支柱里**唯一需要扩 schema 的根**——`InventorySnapshot` 不在 `GovernanceSnapshot` 内，故 INV 不复用
+ * `GovStore`、走本独立扩展点（BuildHubServerOptions.invStore?，缺省 InMemoryInvStore seed inventoryScenarioFixture）。
+ *
+ * 写白名单仅 `upsertPartType / recordPartAction`（C3：无通用 delete / list 全家桶）。**红线**：
+ *  - **I0**：recordPartAction 的 recordedBy 永无 memberId（只 source）；无按人聚合视图。
+ *  - **G2**：INV 自有真相、不回写飞书 Bitable。
+ *  - **C3 / D-072 §3.4**：个体件拆装只移 currentHolder、绝不删 TrackedPart（保血缘）。
+ *  - 非法迁移（负库存 / used 超 total / 缺持有者）→ recordPartAction 抛 InvalidPartActionError（路由转 400）。
  */
 export interface InvStore {
-  /** reserved：随 INV 落地补 PartStock 读写（如 getPartStock / recordPartChange / reportShortfall）。 */
-  readonly __invStoreReserved?: never;
+  getInventorySnapshot(): Promise<InventorySnapshot>;
+  /** 盘点建底 / 补料 / 调阈值（POST /api/inventory/part-types）。带 id 命中即更新，否则创建。 */
+  upsertPartType(draft: PartTypeDraft): Promise<PartType>;
+  /**
+   * 记一条动作并应用其效果（POST /api/inventory/actions）。append-only 落 PartAction +
+   * 按动作语义改 PartType.allocations/totalQuantity（+ 个体件 currentHolder/status）。
+   * 非法迁移抛 `InvalidPartActionError`。
+   */
+  recordPartAction(draft: PartActionDraft): Promise<PartAction>;
+  /** 缺料告警列表（闲置 < lowStockThreshold 的 PartType；deriveShortfalls 派生）。 */
+  listShortfalls(): Promise<PartType[]>;
 }

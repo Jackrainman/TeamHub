@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { buildHubServer } from '../src/server.js';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 import { InMemoryKbStore } from '../src/store/mock-kb-store.js';
+import { InMemoryInvStore } from '../src/store/mock-inv-store.js';
 import { SqliteGovStore } from '../src/store/sqlite-gov-store.js';
 import type { GovStore, InvStore } from '../src/store/gov-store.js';
 
@@ -96,7 +97,7 @@ describe('base 收口刀: GovStore 写白名单 + 扩展点 + 持久化切换合
   test('kb / inv / sqlite 三方扩展同一底座、不重建：buildHubServer 接受各扩展点并仍服务', async () => {
     const shared = new InMemoryGovStore(); // 治理读 + 结案派生 KnowledgeNode 复用同一 GovernanceSnapshot
     const kbStore = new InMemoryKbStore(); // KB 相似检索语料独立 KbStore（IssueCard 不在治理快照内）
-    const invStore: InvStore = {}; // INV 独立扩展点（reserved，本刀不建 PartStock）
+    const invStore: InvStore = new InMemoryInvStore(); // INV 独立扩展点（INV-BOM-CORE 已落地）
 
     const app = buildHubServer({ store: shared, kbStore, invStore });
     try {
@@ -106,6 +107,11 @@ describe('base 收口刀: GovStore 写白名单 + 扩展点 + 持久化切换合
       // 共享底座：注入自定义 store 后 dep-graph 读路径仍正常派生
       const dep = await app.inject({ method: 'GET', url: '/api/dep-graph' });
       expect(dep.statusCode).toBe(200);
+
+      // INV 扩展点已落地：注入的 invStore 经 GET /api/inventory 服务（车列复用 shared 的资源）
+      const inv = await app.inject({ method: 'GET', url: '/api/inventory' });
+      expect(inv.statusCode).toBe(200);
+      expect(inv.json().partTypes.length).toBeGreaterThan(0);
     } finally {
       await app.close();
     }

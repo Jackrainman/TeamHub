@@ -1,11 +1,17 @@
 import {
   governanceScenarioFixture,
+  inventoryScenarioFixture,
   kbScenarioFixture,
 } from '@teamhub/hub-contracts';
-import type { GovernanceSnapshot, KbSnapshot } from '@teamhub/hub-contracts';
+import type {
+  GovernanceSnapshot,
+  InventorySnapshot,
+  KbSnapshot,
+} from '@teamhub/hub-contracts';
 import { buildHubServer } from './server.js';
 import { FileGovStore } from './store/file-gov-store.js';
 import { FileKbStore } from './store/file-kb-store.js';
+import { FileInvStore } from './store/file-inv-store.js';
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 4177;
@@ -35,6 +41,15 @@ function emptyKbSnapshot(): KbSnapshot {
     issueCards: [],
     errorEntries: [],
     archiveDocuments: [],
+  };
+}
+
+function emptyInventorySnapshot(): InventorySnapshot {
+  return {
+    projectId: inventoryScenarioFixture.projectId,
+    partTypes: [],
+    trackedParts: [],
+    actions: [],
   };
 }
 
@@ -74,6 +89,21 @@ async function main(): Promise<void> {
     );
   }
 
+  // 设了 TEAMHUB_INV_DATA_FILE → 库存 / BOM 落盘（重启不丢，盘点 / 拆装 / 一句话快记累积）；
+  // 未设则维持 InMemoryInvStore（mock-first 不变）。单一真相在服务器，与 Gov/KB 同一套落盘纪律。
+  const invDataFile = process.env.TEAMHUB_INV_DATA_FILE;
+  const invStore = invDataFile
+    ? await FileInvStore.create(
+        invDataFile,
+        demoSeed ? inventoryScenarioFixture : emptyInventorySnapshot(),
+      )
+    : undefined;
+  if (!invStore) {
+    console.warn(
+      '[teamhub-hub-server] TEAMHUB_INV_DATA_FILE 未设：库存数据走内存（InMemoryInvStore），重启丢失。设该环境变量落盘持久化。',
+    );
+  }
+
   const host = process.env.HUB_HOST ?? DEFAULT_HOST;
   const port = Number.parseInt(process.env.HUB_PORT ?? String(DEFAULT_PORT), 10);
 
@@ -100,6 +130,7 @@ async function main(): Promise<void> {
     consoleDistDir: process.env.TEAMHUB_CONSOLE_DIST_DIR,
     store,
     kbStore,
+    invStore,
     writeToken,
     trustProxy,
   });

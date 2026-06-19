@@ -13,6 +13,7 @@ import { SchedulePage } from './features/schedule/SchedulePage';
 import { KbSearchPage } from './features/kb/KbSearchPage';
 import { PmBoardPage } from './features/pm/PmBoardPage';
 import { ArchivePage } from './features/archive/ArchivePage';
+import { InvPage } from './features/inv/InvPage';
 import { SettingsPage } from './features/settings/SettingsPage';
 import { useI18n, type TranslationKey } from './i18n';
 import { APIBASE_KEY, WRITE_TOKEN_KEY } from './constants';
@@ -28,6 +29,7 @@ const TITLE_KEY: Record<ConsolePage, TranslationKey> = {
   kb: 'toolbar.title.kb',
   pm: 'toolbar.title.pm',
   archive: 'toolbar.title.archive',
+  inv: 'toolbar.title.inv',
   settings: 'toolbar.title.settings',
 };
 
@@ -115,6 +117,8 @@ export function App() {
         />
       ) : page === 'archive' ? (
         <ArchivePage client={apiClient} source={SOURCE} />
+      ) : page === 'inv' ? (
+        <InvPage client={apiClient} source={SOURCE} />
       ) : page === 'settings' ? (
         <SettingsPage client={apiClient} source={SOURCE} />
       ) : null}

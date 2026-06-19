@@ -65,6 +65,16 @@ export {
   SharedResourcesResponseSchema,
   CreateResourceSessionRequestSchema,
   CreateResourceSessionResponseSchema,
+  // 库存 / BOM 第三支柱（INV-BOM-CORE，D-042 决策 4）：派生函数 + 动作语义错误类 + 读/写契约。
+  deriveInventoryLedger,
+  deriveShortfalls,
+  InvalidPartActionError,
+  IDLE_HOLDER,
+  InventoryResponseSchema,
+  CreatePartTypeRequestSchema,
+  CreatePartTypeResponseSchema,
+  CreatePartActionRequestSchema,
+  CreatePartActionResponseSchema,
 } from '@teamhub/hub-contracts';
 export type {
   AdapterCapabilitiesResponse,
@@ -118,6 +128,16 @@ export type {
   SharedResourcesResponse,
   CreateResourceSessionRequest,
   CreateResourceSessionResponse,
+  // 库存 / BOM 读/写响应类型 + 派生行类型。
+  InventorySnapshot,
+  PartType,
+  PartAction,
+  TrackedPart,
+  InventoryResponse,
+  CreatePartTypeRequest,
+  CreatePartTypeResponse,
+  CreatePartActionRequest,
+  CreatePartActionResponse,
 } from '@teamhub/hub-contracts';
 
 // ──────────────────────────────────────────────────────────────────────────

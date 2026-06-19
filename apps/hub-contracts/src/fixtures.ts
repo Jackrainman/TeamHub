@@ -14,6 +14,7 @@ import type {
 } from './schemas.js';
 import type { MemberKnowledge } from './growth.js';
 import type { KbSnapshot } from './kb.js';
+import type { InventorySnapshot, TrackedPart } from './inventory.js';
 
 export const CONTRACT_FIXTURE_TIME = '2026-06-06T00:00:00.000Z';
 
@@ -601,6 +602,166 @@ export const kbScenarioFixture: KbSnapshot = {
       markdownContent: '# CAN 总线丢包导致底盘电机失控\n\n根因：采样点偏移 + 总线拥塞。处理：重算采样点 + 遥测限频。',
       generatedBy: 'hybrid',
       generatedAt: '2025-05-12T10:00:00.000Z',
+    },
+  ],
+};
+
+/**
+ * 库存 / BOM 锚点场景（INV-BOM-CORE，demo 模式才注入；TEAMHUB_DEMO_SEED=false → 空板）。
+ * 车列复用 GovStore 的 res-r1 / res-r2（PRESENCE 给资源补 displayCode 后矩阵列自动切到 26R1 / 26R2）。
+ * 三个 trackIndividually 件（电机/电调/主控）+ 一个按数量件（M4 螺丝）；个体实例与 allocations.used 计数一致：
+ *  - GM6020 电机 total 9：res-r1 用 2 / res-r2 用 4 / 闲置 3（历史：盘点 10 → 烧坏 1 → 9）。
+ *  - C620 电调 total 9：同上分布。
+ *  - 主控板 total 3：res-r1 / res-r2 各 1 / 闲置 1，threshold 2 → 闲置 1 < 2 触发缺料告警（demo 红）。
+ *  - M4 螺丝 total 200（按数量、无个体件），threshold 50。
+ */
+function makeTrackedParts(
+  partTypeId: string,
+  prefix: string,
+  holders: string[],
+): TrackedPart[] {
+  return holders.map((holder, i) => ({
+    id: `${prefix}-${i + 1}`,
+    projectId: 'prj-robots',
+    partTypeId,
+    serialLabel: `${prefix.toUpperCase()}-${String(i + 1).padStart(2, '0')}`,
+    currentHolder: holder,
+    reserved: false,
+    status: 'ok' as const,
+    updatedAt: GOVERNANCE_SCENARIO_NOW,
+  }));
+}
+
+const GM6020_HOLDERS = ['res-r1', 'res-r1', 'res-r2', 'res-r2', 'res-r2', 'res-r2', 'idle', 'idle', 'idle'];
+const C620_HOLDERS = ['res-r1', 'res-r1', 'res-r2', 'res-r2', 'res-r2', 'res-r2', 'idle', 'idle', 'idle'];
+const MC_HOLDERS = ['res-r1', 'res-r2', 'idle'];
+
+export const inventoryScenarioFixture: InventorySnapshot = {
+  projectId: 'prj-robots',
+  partTypes: [
+    {
+      id: 'parttype-gm6020',
+      projectId: 'prj-robots',
+      partNumber: 'GM6020',
+      name: 'GM6020 电机',
+      category: 'motor',
+      unit: '个',
+      trackIndividually: true,
+      totalQuantity: 9,
+      allocations: [
+        { resourceId: 'res-r1', used: 2, reserved: 0 },
+        { resourceId: 'res-r2', used: 4, reserved: 0 },
+      ],
+      lowStockThreshold: 2,
+      lastCountedAt: GOVERNANCE_SCENARIO_TIME,
+      updatedAt: GOVERNANCE_SCENARIO_NOW,
+    },
+    {
+      id: 'parttype-c620',
+      projectId: 'prj-robots',
+      partNumber: 'C620',
+      name: 'C620 电调',
+      category: 'esc',
+      unit: '个',
+      trackIndividually: true,
+      totalQuantity: 9,
+      allocations: [
+        { resourceId: 'res-r1', used: 2, reserved: 0 },
+        { resourceId: 'res-r2', used: 4, reserved: 0 },
+      ],
+      lowStockThreshold: 2,
+      lastCountedAt: GOVERNANCE_SCENARIO_TIME,
+      updatedAt: GOVERNANCE_SCENARIO_NOW,
+    },
+    {
+      id: 'parttype-maincontroller',
+      projectId: 'prj-robots',
+      partNumber: 'main-controller',
+      name: '主控板',
+      category: 'controller',
+      unit: '块',
+      trackIndividually: true,
+      totalQuantity: 3,
+      allocations: [
+        { resourceId: 'res-r1', used: 1, reserved: 0 },
+        { resourceId: 'res-r2', used: 1, reserved: 0 },
+      ],
+      lowStockThreshold: 2,
+      lastCountedAt: GOVERNANCE_SCENARIO_TIME,
+      updatedAt: GOVERNANCE_SCENARIO_NOW,
+    },
+    {
+      id: 'parttype-m4screw',
+      projectId: 'prj-robots',
+      partNumber: 'M4x10',
+      name: 'M4 螺丝',
+      category: 'mechanical',
+      unit: '颗',
+      trackIndividually: false,
+      totalQuantity: 200,
+      allocations: [],
+      lowStockThreshold: 50,
+      lastCountedAt: GOVERNANCE_SCENARIO_TIME,
+      updatedAt: GOVERNANCE_SCENARIO_NOW,
+    },
+  ],
+  trackedParts: [
+    ...makeTrackedParts('parttype-gm6020', 'part-gm', GM6020_HOLDERS),
+    ...makeTrackedParts('parttype-c620', 'part-c620', C620_HOLDERS),
+    ...makeTrackedParts('parttype-maincontroller', 'part-mc', MC_HOLDERS),
+  ],
+  actions: [
+    {
+      id: 'act-gm-stocktake',
+      projectId: 'prj-robots',
+      partTypeId: 'parttype-gm6020',
+      trackedPartId: null,
+      kind: 'stocktake',
+      quantityDelta: 10,
+      fromHolder: null,
+      toHolder: null,
+      note: '赛季初盘点 GM6020 电机',
+      recordedBy: { source: 'human', at: GOVERNANCE_SCENARIO_TIME },
+      recordedAt: GOVERNANCE_SCENARIO_TIME,
+    },
+    {
+      id: 'act-gm-mount-r2',
+      projectId: 'prj-robots',
+      partTypeId: 'parttype-gm6020',
+      trackedPartId: 'part-gm-3',
+      kind: 'mount',
+      quantityDelta: 1,
+      fromHolder: 'idle',
+      toHolder: 'res-r2',
+      note: 'GM6020 装到 R2 底盘',
+      recordedBy: { source: 'human', at: '2026-06-10T03:00:00.000Z' },
+      recordedAt: '2026-06-10T03:00:00.000Z',
+    },
+    {
+      id: 'act-gm-damage',
+      projectId: 'prj-robots',
+      partTypeId: 'parttype-gm6020',
+      trackedPartId: null,
+      kind: 'damage',
+      quantityDelta: 1,
+      fromHolder: null,
+      toHolder: null,
+      note: '坏了一个 3508、烧了',
+      recordedBy: { source: 'human', at: GOVERNANCE_SCENARIO_NOW },
+      recordedAt: GOVERNANCE_SCENARIO_NOW,
+    },
+    {
+      id: 'act-mc-stocktake',
+      projectId: 'prj-robots',
+      partTypeId: 'parttype-maincontroller',
+      trackedPartId: null,
+      kind: 'stocktake',
+      quantityDelta: 3,
+      fromHolder: null,
+      toHolder: null,
+      note: '盘点主控板',
+      recordedBy: { source: 'human', at: GOVERNANCE_SCENARIO_TIME },
+      recordedAt: GOVERNANCE_SCENARIO_TIME,
     },
   ],
 };

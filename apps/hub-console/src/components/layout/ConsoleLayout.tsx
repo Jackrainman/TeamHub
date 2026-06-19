@@ -20,6 +20,7 @@ export type ConsolePage =
   | 'kb'
   | 'pm'
   | 'archive'
+  | 'inv'
   | 'settings';
 
 interface NavItem {
@@ -41,8 +42,8 @@ const navItems: NavItem[] = [
   { labelKey: 'nav.pm', icon: LayoutGrid, page: 'pm' },
   // 图纸提交日志 / 版本时间线（A8）：真实页面，读治理快照 artifacts。
   { labelKey: 'nav.archive', icon: FileStack, page: 'archive' },
-  // 第三支柱占位：库存/BOM 开发中——无 page → 复用灰禁用机制（D-052 保留），不接后端
-  { labelKey: 'nav.inv', icon: Boxes, tooltipKey: 'nav.inv.soon' },
+  // 第三支柱：库存 / BOM（INV-BOM-CORE 已落地）。零件×车 矩阵 + 一句话快记 + 缺料告警。
+  { labelKey: 'nav.inv', icon: Boxes, page: 'inv' },
   { labelKey: 'nav.settings', icon: Settings, page: 'settings' },
 ];
 

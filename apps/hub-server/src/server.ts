@@ -49,6 +49,15 @@ import {
   SharedResourcesResponseSchema,
   CreateResourceSessionRequestSchema,
   CreateResourceSessionResponseSchema,
+  deriveInventoryLedger,
+  deriveShortfalls,
+  InvalidPartActionError,
+  IDLE_HOLDER,
+  InventoryResponseSchema,
+  CreatePartTypeRequestSchema,
+  CreatePartTypeResponseSchema,
+  CreatePartActionRequestSchema,
+  CreatePartActionResponseSchema,
   ScheduleQuerySchema,
   apiContractFixtures,
 } from './contracts.js';
@@ -58,6 +67,7 @@ import { FixedClock } from './clock.js';
 import type { Clock } from './clock.js';
 import { InMemoryGovStore } from './store/mock-gov-store.js';
 import { InMemoryKbStore } from './store/mock-kb-store.js';
+import { InMemoryInvStore } from './store/mock-inv-store.js';
 import type { GovStore, InvStore, KbStore } from './store/gov-store.js';
 import {
   listMockAgentBackends,
@@ -131,6 +141,10 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   // KB-CORE：知识库相似检索语料读出入口（缺省 InMemoryKbStore seed kbScenarioFixture），由 GET /api/kb/similar 消费。
   // invStore 仍只钉 options 字段、无消费方（INV 支柱落地时透传），符合 base 收口刀「扩展点先行、路由后置」节奏。
   const kbStore: KbStore = options.kbStore ?? new InMemoryKbStore();
+  // INV-BOM-CORE：库存 / BOM 读写出入口（缺省 InMemoryInvStore seed inventoryScenarioFixture），由
+  // GET /api/inventory + POST /api/inventory/{part-types,actions} 消费。独立于 GovStore（InventorySnapshot
+  // 不在 GovernanceSnapshot 内）；车列复用 GovStore.listResources 的资源（显示 displayCode ?? name）。
+  const invStore: InvStore = options.invStore ?? new InMemoryInvStore();
 
   // H3（AUDIT-FIXES 部署前必修）：写端点信任边界 = 共享密钥鉴权 + 每 IP 限流。
   // 仅作用于 POST /api/*（读路由 / 静态站 / health 不受影响）。这是让 I0 泄漏 / 环卡死 / KB 撑爆
@@ -417,6 +431,68 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     const session = await store.createResourceSession(parsed.data);
     void reply.code(201);
     return CreateResourceSessionResponseSchema.parse({ session });
+  });
+
+  // 库存 / BOM 读视图（INV-BOM-CORE）：零件 + 个体件 + 库存总表派生（零件×车 矩阵）+ 缺料告警。
+  // 车列复用 GovStore.listResources（显示 displayCode ?? name，与 PRESENCE 解耦）。**I0**：返回体无任何
+  // memberId / 按人聚合——PartAction.recordedBy 只到 source，矩阵主键是零件×车。
+  app.get('/api/inventory', async () => {
+    const snapshot = await invStore.getInventorySnapshot();
+    const resources = await store.listResources();
+    const ledger = deriveInventoryLedger(snapshot, resources);
+    const shortfalls = deriveShortfalls(snapshot);
+    return InventoryResponseSchema.parse({
+      partTypes: snapshot.partTypes,
+      trackedParts: snapshot.trackedParts,
+      ledger,
+      shortfalls,
+      actions: snapshot.actions,
+    });
+  });
+
+  // 库存零件录入 / 调整（POST /api/inventory/part-types，盘点建底 / 补料 / 调阈值）。带 id 命中即更新。
+  // POST → 继承 H3 onRequest 鉴权 + 限流。store 补 lastCountedAt / updatedAt（C5 来源 seam server 钉）。
+  app.post('/api/inventory/part-types', async (request, reply) => {
+    const parsed = CreatePartTypeRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      return;
+    }
+    const partType = await invStore.upsertPartType(parsed.data);
+    void reply.code(201);
+    return CreatePartTypeResponseSchema.parse({ partType });
+  });
+
+  // 库存动作记一笔（POST /api/inventory/actions）：一句话快记=damage、拆装=mount/dismount、预留=reserve/release。
+  // **recordedBy 不收客户端**——server 钉 source=human（C5；I0 绝无 memberId）。Hermes 将来调同一接口自动填。
+  // 校验两层：① 未知 resourceId（toHolder/fromHolder 不是 idle 也不在 listResources）→ 400；
+  // ② 非法迁移（负库存 / used 超 total / 缺持有者）由 store 抛 InvalidPartActionError → 400（不静默吞）。
+  app.post('/api/inventory/actions', async (request, reply) => {
+    const parsed = CreatePartActionRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      return;
+    }
+    const validResourceIds = new Set(
+      (await store.listResources()).map((r) => r.id),
+    );
+    for (const holder of [parsed.data.fromHolder, parsed.data.toHolder]) {
+      if (holder && holder !== IDLE_HOLDER && !validResourceIds.has(holder)) {
+        void reply.code(400).send({ detail: `未知 resourceId: ${holder}` });
+        return;
+      }
+    }
+    try {
+      const action = await invStore.recordPartAction({ ...parsed.data, source: 'human' });
+      void reply.code(201);
+      return CreatePartActionResponseSchema.parse({ action });
+    } catch (err) {
+      if (err instanceof InvalidPartActionError) {
+        void reply.code(400).send({ detail: err.message });
+        return;
+      }
+      throw err;
+    }
   });
 
   // PM 项目计划表：单条任务录入（C1 兜底录入口）。server 补 id/时间戳/派生默认（status=pending/statusSource=console）。

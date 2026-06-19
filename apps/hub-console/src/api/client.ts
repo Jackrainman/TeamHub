@@ -52,6 +52,16 @@ import {
   type CreateArtifactRequest,
   type CreateArtifactResponse,
 } from './schemas/pm';
+import {
+  InventoryResponseSchema,
+  CreatePartTypeResponseSchema,
+  CreatePartActionResponseSchema,
+  type InventoryResponse,
+  type CreatePartTypeRequest,
+  type CreatePartTypeResponse,
+  type CreatePartActionRequest,
+  type CreatePartActionResponse,
+} from './schemas/inv';
 
 type FetchLike = typeof fetch;
 
@@ -92,6 +102,11 @@ export interface HubApiClient {
   waiveDependency(depId: string): Promise<WaiveDependencyResponse>;
   // 图纸档案写侧（V1-FOLLOWUPS ④，append-only）。I0：请求无人维度，submittedVia 由 server 钉 console（C5）。
   createArtifact(req: CreateArtifactRequest): Promise<CreateArtifactResponse>;
+  // 库存 / BOM（INV-BOM-CORE）。读：零件 + 个体件 + 矩阵派生 + 缺料；I0：返回体无人维度。
+  // 写：盘点 / 调整零件 + 一句话快记动作（source 由 server 钉 human，C5；recordedBy 绝无 memberId）。
+  getInventory(): Promise<InventoryResponse>;
+  upsertPartType(req: CreatePartTypeRequest): Promise<CreatePartTypeResponse>;
+  recordPartAction(req: CreatePartActionRequest): Promise<CreatePartActionResponse>;
 }
 
 export function createHubApiClient(options: HubApiClientOptions = {}): HubApiClient {
@@ -270,6 +285,31 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         `${baseUrl}/api/artifacts`,
         req,
         CreateArtifactResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async getInventory() {
+      return fetchJson(
+        `${baseUrl}/api/inventory`,
+        InventoryResponseSchema,
+        fetcher,
+      );
+    },
+    async upsertPartType(req: CreatePartTypeRequest) {
+      return postJson(
+        `${baseUrl}/api/inventory/part-types`,
+        req,
+        CreatePartTypeResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async recordPartAction(req: CreatePartActionRequest) {
+      return postJson(
+        `${baseUrl}/api/inventory/actions`,
+        req,
+        CreatePartActionResponseSchema,
         fetcher,
         writeToken,
       );
