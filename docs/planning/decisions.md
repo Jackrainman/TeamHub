@@ -985,3 +985,21 @@
 - 守恒/护栏：**I0**（ArtifactRef 5 个新字段零人员维度；夹带 confirmedBy/memberId 实测被 Zod strip）/**C3**（纯 append-only，未开 update/delete）/**G4**（不引 dueDate）。
 - 构建+核实：**workflow `wf_57c7f730-a0d`**（Contracts[opus]→Server[opus]→Frontend[sonnet]→2-lens 对抗核实[opus×2：I0/向后兼容 + 正确性/DoD]）。对抗核实裁 **i0Clean=true** + 抓 1 个真 bug（空档案/新组首条录入：effectiveMechanism 与渲染条件不一致致提交按钮永 disabled）→主循环收口（统一 `usingTextInput`）。**主循环独立核实**：三包 verify:all 绿（contracts 62[+8 artifact-version] / server 115[+routes v2 round-trip] / console 11）+ 本地活体 smoke（POST 机械→v1、同键→v2、电路驱动→firmware、电路缺 subType→400、机械带 subType→400、夹带人字段被 strip、落盘 artifact 无人字段）。事实源：本 ADR + plan `~/.claude/plans/scalable-noodling-brook.md`。
 - 后续（非本刀）：真实文件上传/存储（`HUB-ARTIFACT-STORE-MECH`，§8）、电路驱动命名规范（用户内部待定）、可选给 demo seed 补 v2 字段、WSL 真机浏览器走查（headless 不可代替）。
+
+## D-072 — 差异化排班表现形式重定向 + 资源领域模型（车位/具体车/拆件血缘）：设计稿立项
+
+- 状态：**DESIGN-DRAFT / 未实现**（2026-06-19；纯设计讨论 + 文档落盘，零代码改动。用户「讨论：差异化在场排班的表现形式有待商榷，网络搜索类似仓库」起，两轮 workflow 调研 + 用户多轮拍板细化）。
+- 上下文：D-069 已把 `derivePresenceSchedule`（D-029）接出成 `SchedulePage` 卡片网格。卡片有待商榷 = 看不出接力时序 / 组间因果 / 全局感。两轮网络调研（`wf_85447b90`+`wf_9d625327`，6+4 角度：on-call/设备预约/排班/blocked分流/反监视看板/车间接力 + 资产生命周期/拆件血缘/无钟点流程图呈现 + 现状摸底）后用户把问题推深：①时间不要钟点（战队时间测不准=假精度）②「车」实体太简陋，装不下「按赛季换车（25R1/26R2/27R1）+ 生命周期 + 造新车前拆旧车的零件血缘」。
+- 决策（设计取向，详见 `docs/design/presence-resource-redesign.md`）：
+  1. **表现形式 = 三视图分工**：依赖流程图（总图·长期全局·"不知道未来怎么走时看"）+ **甘特图（项目进度第二视图·保留时间维度）** + **接力顺序链（短期操作·只表先后不表钟点·支持多车并排·给正在拼/测试的人）**。**作废的只是"把在场排班画成带钟点甘特"**，项目进度甘特该有。现卡片网格降级为详情/窄屏退化。
+  2. **资源建模拆两层**：`RobotSlot`（车位·稳定角色）+ `RobotInstance`（25R1/26R1 各独立实体·有生命周期 + 血缘·永久并存可查·`displayCode` 派生生成）。`ResourceSession.resourceId → RobotInstance.id`。
+  3. **生命周期** = 枚举 + 行为对照表（在造/在用/故障/升级/拆件/退役），**退役人手动设**（不自动推·守 AI 不拍板）；状态翻转级联下游「可不来」（D-029 resourceDown 语义延续）。
+  4. **零件血缘** = 拆装两条 append-only 动作（拆下→闲置池 / 装上→现属某车），**绝不删零件保血缘**；**绝大多数按数量记·1~2 个的和重要件才手动标记单独追踪**；初始只录闲置数量·车上装多少后续由智能体调接口/手动补；这套正是第三支柱库存/BOM（`INV-BOM-DESIGN`）最小内核。
+  5. **库存总表不写「在造」**，写「某台车预留/已有多少个电机」；车↔库存互联出问题 → 智能体发消息 + 查根因。
+  6. **组织结构更正**（写进 AGENTS §1）：分配任务**只四个组**（电控/视觉/机械/电路·设置页可增减）；「程序组」= 电控+视觉抽象大组。现状 fixtures 组树已正确，但 `grp-program` 仍持总联调 `t-r1-integration`/`t-r2-integration` + 成员 → 收敛任务归属待调和。
+  7. demo 排班手动加车·先放 26R1+26R2（映射现有 `res-r1`/`res-r2`+2026 赛季）；加车 GUI（右上角加 vs 侧栏拖）= 最后的优化先放最后。
+- 守恒/红线：全程组键 / 资源键 / 任务键，零 memberId 维度·零个人出勤时长聚合（I0/C2/A1）；AI 不拍板·人在环（退役手动·拆件人录·AI 只发消息查根因）；派生优先·小作坊轻量（按数量记·不强制每螺丝编号·不引钟点·别建死表 P13）。**不复活 D-039/D-032~D-035**。
+- 落地面（本轮仅 docs/planning，零代码）：新 `docs/design/presence-resource-redesign.md`（设计稿）+ `AGENTS.md §1` 组结构 + 本 ADR + `now.md` open_for_decision/frontier sync。
+- 下一轮（用户定稿后）：调和 fixtures（程序/总联调）→ 落两层车模型 + 生命周期 + schedule 级联升级 → 接力链(多车)+甘特视图 → 视情况立库存最小内核 → demo seed 两层化。
+- 待定（§6）：收敛任务归属 / 多车并排密度 / 总图叠色 / 追踪件清单 / 预留语义 / 互联消息渠道(Hermes 门) / 部分拆呈现 / 加车 GUI。
+- 事实源：本 ADR；设计稿 `docs/design/presence-resource-redesign.md`；plan `~/.claude/plans/floofy-swinging-sedgewick.md`；调研 workflow `wf_85447b90` + `wf_9d625327`；前序 D-029（排班派生）/D-069（组级均衡接出）/D-071（图纸分组版本·赛季×车维度同构）。

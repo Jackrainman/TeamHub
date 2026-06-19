@@ -38,6 +38,7 @@ open_for_decision:                       # ARCH-PATH(D-028)/提醒(D-026后续)/
   - GITHUB-TO-LOCAL                      # 程序代码 GitHub→本地 Forgejo 迁移=考虑中（D-038，2026-06-12）；TeamHub 只消费 gitCommit 信号、不改 git 唯一真相
   - PULL-CLOUD-CODE                      # 定期 pull 云端代码/EDA 到本地备份=考虑中（D-038，与电路 EDA 云端引用相关）
   - UI-RESTYLE-AURASH                    # console 换 Aurash 暖纸风=PILOT-FIRST 已评估、**低优先级延后**（D-060，docs/research/aurash-restyle-assessment.md）；动手须先过决策门，业务逻辑先行
+  - PRESENCE-VIZ-RESOURCE-MODEL          # 差异化排班表现形式重定向(三视图:依赖图+甘特项目进度+接力顺序链无钟点多车) + 资源两层模型(车位 RobotSlot/具体车 RobotInstance 生命周期+拆件血缘)+库存最小内核=**设计稿立项**(D-072，2026-06-19，docs/design/presence-resource-redesign.md)；零代码·待用户定稿；下一轮先调和 fixtures 程序/总联调归属(§6 #1)再落两层车模型+视图
 post_pivot_registry:
   - SKILL-PROTOCOL-V1                    # 已落地草稿；作为治理触点层 skill 契约底座保留
   - BRIDGE-01-ROSTER-SCHEMA              # 模型并入治理 Task/progress；数据载体被 D-026 路线 A 反转（系统库做真相）
