@@ -863,3 +863,17 @@
 - 下一轮（用户定稿后）：调和 fixtures（程序/总联调）→ 落两层车模型 + 生命周期 + schedule 级联升级 → 接力链(多车)+甘特视图 → 视情况立库存最小内核 → demo seed 两层化。
 - 待定（§6）：收敛任务归属 / 多车并排密度 / 总图叠色 / 追踪件清单 / 预留语义 / 互联消息渠道(Hermes 门) / 部分拆呈现 / 加车 GUI。
 - 事实源：本 ADR；设计稿 `docs/design/presence-resource-redesign.md`；plan `~/.claude/plans/floofy-swinging-sedgewick.md`；调研 workflow `wf_85447b90` + `wf_9d625327`；前序 D-029（排班派生）/D-069（组级均衡接出）/D-071（图纸分组版本·赛季×车维度同构）。
+
+## D-073 — 文档减负·中等档：活账本纪律推到位（已定型也归档）+ 写入纪律入手册
+
+- 状态：**DECIDED / DONE**（2026-06-19；纯 docs/planning/archive，零代码/数据改动）。
+- 上下文：用户「查看有哪些文档可以简化，尤其是 decisions.md，感觉叠太多了」。体检：D-070 已立「活账本 + 归档」纪律，但只归档**被 supersede** 的；**已定型却仍背着当初完整推演**（选项对比 / 可行性 / 拍板清单）的活条目未压，加上 `now.md` 巨行 YAML + 挂起 spec 混在 active `docs/design/`，仍臃肿。用户选**中等档** + 顺手清 now.md / 设计文档 / 存根，并要求把「过时 decisions 塞 archive」写成长效约定。
+- 决策：
+  1. **扩 D-070 范围**：归档落点从「被 supersede」放宽到「被 supersede **或已定型**」——已定型条目 stub 留结论 + 当前约束，决策时推演全文移 `docs/archive/decisions-archive.md`。
+  2. **decisions.md 中等档压缩**（1005→865 行）：D-005/006/009/014/016 → v0.3 时代 ADR 簇 1 条 cluster stub；D-021（81 行飞书选型）→ ~7 行 stub；D-026（45 行治理 thesis + 提醒模型）→ ~11 行宪法/架构 stub（四层架构 + 路线 A + C/G/A 宪法 + 提醒模型指针保留，「制度化治理系统」定位推演移档；已被 D-037/D-039 回中）。
+  3. **now.md 瘦身**（91→62 行 / 42KB→8.6KB）：最近完成留最新 3 + 指针、frontier 去 ✅done 注释、stage/current_task/repo_sync 巨值压一句 + 指针；历史完成移 `completed-log.md`（含仅存于 now.md 的 2026-06-19 P1 批，零丢失）。
+  4. **过期设计文档归位**：`gov-cue-layer.md`(D-032) + `gov-role-visibility.md`(D-033) → `docs/archive/suspended-specs/`（整簇 D-039 挂起）+ banner；`visuals.md`（v0.3-pivot 前全过时）→ `docs/archive/v0.3-pivot/` + banner；`team-hub-product-definition-v0.md` 加退役 banner；活文档指针全部修正。
+  5. **写入纪律入手册**：`AGENTS.md §2.3` planning-sync 加「决策被 supersede/过时同刀压 stub + 移 archive」；全局 `~/.claude/CLAUDE.md` 加通用「文档纪律」一句（跨项目复用）。
+- 守恒：全程 `git mv`/Edit 整段搬运·**零真相丢失**（每条原始事实在 stub ∪ archive 可寻）·零代码/数据（不碰 `apps/`·`kb.json`/`gov.json`）；承重事实（zod / 四层架构 / I0·C·A 宪法 / 起草不发送）仍在活文件。
+- 验证：`git diff --check` 干净；`now.md` yaml 可解析（10 keys）；grep 活文档无悬挂旧路径 / 无被压条目全文；行数抽查（decisions.md 865 / now.md 8.6KB / decisions-archive 57→239）；`pre-commit.sh` 过。4 原子 commit（A 压缩 / B now / C+D 归位 / E 纪律）。
+- 事实源：本 ADR；plan `~/.claude/plans/decisions-md-wobbly-toast.md`；前序 D-070（Harness 减负·活账本纪律立）。
