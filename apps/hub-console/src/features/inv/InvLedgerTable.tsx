@@ -36,14 +36,14 @@ export function InvLedgerTable({
   const resourceCols = ledger[0]?.perResource ?? [];
 
   return (
-    <div className="inv-table-wrap">
+    <div className="inv-table-wrap" tabIndex={0} role="region" aria-label={t('inv.ledger.title')}>
       <table className="inv-table">
         <thead>
           <tr>
-            <th className="inv-table__part">{t('inv.ledger.part')}</th>
-            <th className="inv-table__idle">{t('inv.ledger.idle')}</th>
+            <th scope="col" className="inv-table__part">{t('inv.ledger.part')}</th>
+            <th scope="col" className="inv-table__idle">{t('inv.ledger.idle')}</th>
             {resourceCols.map((c) => (
-              <th key={c.resourceId}>{c.displayCode}</th>
+              <th scope="col" key={c.resourceId}>{c.displayCode}</th>
             ))}
           </tr>
         </thead>

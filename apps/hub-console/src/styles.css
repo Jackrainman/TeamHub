@@ -1811,6 +1811,19 @@ button {
   flex-direction: column;
   gap: 18px;
 }
+/* INV 面板补内边距 + 行间距（对齐 overview/kb 的呼吸空间），去掉概览页 260px 最小高度避免空 panel；
+   矩阵在 overflow:hidden 的 .panel 内靠 .inv-table-wrap{min-width:0} 正常横向滚动，而非撑宽整页（修「歪」）。 */
+.inv-page .panel {
+  padding: 14px;
+  min-height: 0;
+  gap: 12px;
+}
+/* 汇总只有 2 个指标（零件种数 / 缺料数）→ 2 列，避免复用 PM 三列网格右侧空一格显歪。 */
+.inv-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
 .inv-section-title {
   margin: 0 0 12px;
   font-size: 15px;
@@ -1818,6 +1831,7 @@ button {
 }
 /* 矩阵横向溢出时滚动（多车并排不挤压，呼应 presence §6 overflow-x:auto 纪律）。 */
 .inv-table-wrap {
+  min-width: 0;
   overflow-x: auto;
 }
 .inv-table {

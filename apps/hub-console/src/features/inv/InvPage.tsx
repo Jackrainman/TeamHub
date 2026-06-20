@@ -71,7 +71,7 @@ export function InvPage({
     <div className="inv-page">
       <p className="gaps-intro">{t('inv.intro')}</p>
 
-      <section className="pm-summary" aria-label={t('inv.summary.partTypes')}>
+      <section className="inv-summary" aria-label={t('inv.summary.partTypes')}>
         <MetricTile label={t('inv.summary.partTypes')} value={String(partTypes.length)} />
         <MetricTile
           label={t('inv.summary.shortfalls')}
