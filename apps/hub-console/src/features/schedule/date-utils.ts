@@ -34,6 +34,17 @@ export function isoDayAfter(now: Date = new Date()): string {
   return toIso(addDays(now, 2));
 }
 
+/**
+ * 给 'YYYY-MM-DD' 返回前一天的 'YYYY-MM-DD'（本地时区，用于「沿用上一天计划」）。
+ * 非法日期串原样返回（防御：UI windowLabel 恒为日期，但历史 '今晚' 等自由文本不应崩）。
+ */
+export function isoPrevDay(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return iso;
+  const base = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return toIso(addDays(base, -1));
+}
+
 export interface DateSegment {
   iso: string; // 'YYYY-MM-DD'，windowLabel 值
   labelKey: TranslationKey; // i18n 相对名键（今天/明天/后天）

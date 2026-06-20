@@ -85,8 +85,14 @@ export function ResourcesPage({
     (r) => r.status !== 'retired' && r.status !== 'disassembling',
   ).length;
 
-  const refresh = () =>
-    void queryClient.invalidateQueries({ queryKey: ['resources', source] });
+  // 跨区即时反映（IA 阶段 1 / D-075）：建 / 改机器人状态后 prefix 失效——
+  // ['resources'] 覆盖本表 ['resources', source] + 接力画布的 ['resources', 'relay']；
+  // ['relay'] 覆盖画布按 windowLabel 的接力板（boardable / 停用样式随车状态变）。
+  // 故机器人队页里上半区改状态 → 下半区画布即时反映，无需手刷。
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: ['resources'] });
+    void queryClient.invalidateQueries({ queryKey: ['relay'] });
+  };
 
   return (
     <div className="resources-page">

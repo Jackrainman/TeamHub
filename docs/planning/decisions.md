@@ -902,3 +902,19 @@
 - 验证：`bump-version.sh 0.4.0` 跑通（VERSION + 三包 package.json 全 `0.4.0`）；三包 `verify:all` exit 0（改的是 version 字符串，无测试断言版本常量，grep 实证）；`pre-commit.sh` 过（含新哨兵）；真机 `curl /api/system/status` 报 `version: 0.4.0`。
 - 老实定位：① 哨兵默认 warn，真要根治漂移得有人偶尔看告警或开 STRICT——但比「AGENTS 压根没规则」已是质变；② lark/pf 三包仍 `0.0.1`（外围适配器、非产品主体，本轮不动）；③ 未补历史 tag（git 历史 + 本 ADR 的纪元表已够追溯）。
 - 事实源：本 ADR；对照 `~/ruolin_huang/xju-feiyue-scripts/CONVENTIONS.md`（§元数据/版本与 git）；半拉子修复 `8ab93cf`（D-052 诉求7）；`apps/hub-server/src/status.ts`；facts-pack §1.1 五时代表。
+
+## D-075 — IA 重构阶段 1：机器人队页（机器人管理+在场排班合一）+ 排班 UX 定稿
+
+- 状态：**DECIDED / IMPLEMENTED（分支 `ia-phase1-fleet`，未 merge master）**（2026-06-20；前端为主 + 零契约/端点改动；本机三包 `verify:all` 全绿 + HTTP 集成 smoke 过；WSL 真机视觉验 **PENDING**=测试机离线）。
+- 上下文：用户「查看 teamhub 设计文档，好像有一个 IA 重构建议」。建议在 `docs/design/sched-date-relay-robot-redesign.md` §B（frontier `IA-REFACTOR`，10 平铺页按数据域重组的渐进 4 阶段）。用户拍板：**只做阶段 1（机器人队页）** + **顺带把排班 UX 一起定稿**（消解 frontier `SCHEDULE-DESIGN-LOCK`：用户「现在什么都没有、也没办法加」）。本轮单开 branch、不在 master 直改。
+- 设计/实现：3 Plan agent（合并页架构 / 排班 UX 定稿 / 对抗式风险审查）。对抗审查揪出 4 个真机会爆点（见下「缓解」）。
+- 决策：
+  1. **合并 = 组合不重写**：新建 `apps/hub-console/src/features/fleet/FleetPage.tsx` 渲染既有 `<ResourcesPage>`（上半区）+ `<SchedulePage>`（下半区），零改两个大文件、不碰 `RelayCanvas` 的 `node.measured` 首屏修复。导航 10→9：`ConsolePage` 删 `resources`/`schedule` 加 `fleet`、`navItems` 三项并一项（Bot 图标）、`App.tsx` 三元 + `TITLE_KEY` 收口、i18n 加 `nav.fleet`/`toolbar.title.fleet`/`fleet.section.*` + 删 4 个孤儿键（双侧成对）。
+  2. **「改状态画布即时反映」**：`ResourcesPage.refresh()` 从单键失效改 **prefix 失效** `['resources']`+`['relay']`（覆盖表 `['resources',source]` + 画布 `['resources','relay']` + 各 windowLabel 的 `['relay',*]`）。
+  3. **排班 UX 定稿（`docs/design/schedule-ux-lock.md`）**——根因「没法加」= `SchedulePage` 把整块 `<RelayCanvas>`（含加棒入口）gate 在 `recommendations.length===0` 之后 → 新一天 0 建议时整块画布被换成一张没有按钮的死卡。修：① 画布**永远渲染**、详情网格单独 gate；② 空态 = 带 CTA 引导卡（`加第一棒`→直接开加棒表单 + `沿用上一天计划`）；③ **任务必填**（派生三态靠 `holderTaskId`）、`noOptions` 拆「缺机器人就地建 / 缺任务跳项目看板」两条可执行引导；④ **默认数据 = 每天空板 + 手动「沿用上一天计划」**（纯前端复用 `GET/POST /api/resource-sessions`，零端点/契约改动）。
+  4. **不放假 seed**（守派生优先/别建幽灵数据）：不给 demo 钉「今天」假 session（FixedClock 与真实 `new Date()` 必错配 + 牵动测试断言）。空板**不是 bug、是正确态**，只要可操作（CTA 引导卡）即可；demo 走「现加一棒 → 切天 → 沿用」真实操作产数据。
+  5. **冻结 fixture**：`PRESENCE-RECONCILE-LOCK`（§7.1 `grp-program` 去领任务 / 总联调=全组各一人）显式**不在本轮**。
+- 守恒/红线（I0）：结转一律经纯函数 `buildCarryOverDraft`——**只取** resourceId/项目/组/任务/接力序，`invitedMemberIds` 恒 `[]`（绝不跨日带成员维度，即便 `GET /api/resource-sessions` 读视图 I0 许可其存在）、`eta`/`note` 恒 null、不结转 handoffs。`CreateResourceSessionResponseSchema` **不动**（`invitedMemberIds` 留存是契约既定「本窗操作名单·I0 许可」，移除会破既有测试）。Fleet/排班渲染路径零成员维度（grep 实证）。
+- 缓解（对抗审查 4 点）：① I0 泄漏 → 纯函数 guard + `test/carry-over.test.ts`（换日保序 / invitedMemberIds 恒[] / eta·note 恒 null）+ 不渲染成员字段；② 画布高度 `calc(100vh-360px)` 魔法偏移失真 → 改 `clamp(420px,58vh,720px)` 内容无关定高；③ cache 碎片 + 15s staleTime → prefix 失效；④ §7.1 fixture 调和耦合 → 冻结、不动 fixture/seed。
+- 验证：本机 console `verify:all`（typecheck + 40 测含新 carry-over + 生产 build）全绿；contracts 151 / server 186 测不变；起服 4177 serve 生产 dist → index+asset 200；**HTTP 端到端 carry-over smoke**：源带 `m-progA` 的上一天棒 → 结转到次日 `invitedMemberIds:[]`、`/api/relay` 渲染该棒且 grep memberId 为空。**未验**：浏览器视觉（侧栏 9 项 / 机器人队双区首屏 / 画布无 visibility:hidden / 即时反映）——WSL 测试机离线，待其上线跑 Playwright。
+- 事实源：本 ADR；定稿 `docs/design/schedule-ux-lock.md`；上游建议 `docs/design/sched-date-relay-robot-redesign.md` §B；plan `~/.claude/plans/teamhub-ia-atomic-cocke.md`；前序 D-072（排班定稿）/D-029（排班派生）/D-069（组级容量）。阶段 2/3/4（项目页/知识页/导航分组+工作台）仍 frontier。

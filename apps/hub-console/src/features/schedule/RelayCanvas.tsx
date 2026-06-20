@@ -33,6 +33,8 @@ import { canBoardResource } from '@teamhub/hub-contracts';
 import type { SharedResource, Task } from '@teamhub/hub-contracts';
 import { useI18n } from '../../i18n';
 import { Field } from '../../components/Field';
+import { isoPrevDay } from './date-utils';
+import { buildCarryOverDraft } from './carry-over';
 
 // 接力交接画布（R1，D-029）：把某窗口已确认的占用窗口铺成「机器人列 × 接力先后」的可拖卡片，
 // 队长拖卡片排先后（orderInWindow）、卡片间拉线表接力交接（fromSession→toSession，**非**任务依赖）、
@@ -221,6 +223,8 @@ export function RelayCanvas({
   );
   // A2 加一棒浮层开关：顶部「+ 加一棒」按钮打开，选机器人 + 任务后提交。
   const [showAddForm, setShowAddForm] = useState(false);
+  // 「沿用上一天计划」进行中开关（批量 POST 期间禁用按钮，防重复点叠加）。
+  const [carrying, setCarrying] = useState(false);
 
   // 加一棒表单数据源：机器人（boardable 才可上场）+ 任务（自带 groupId）。独立查询，失败不阻塞读视图。
   const tasksQuery = useQuery({
@@ -414,6 +418,53 @@ export function RelayCanvas({
     [stages, windowLabel, createSessionMutation, t],
   );
 
+  // 沿用上一天计划（Q3，SCHEDULE-DESIGN-LOCK §3）：读上一天该 windowLabel 的占用窗口，逐条结转到当前日期。
+  // 纯前端编排、复用既有端点（GET/POST /api/resource-sessions），零端点/契约改动。
+  // I0：结转一律经 buildCarryOverDraft——invitedMemberIds 恒 []、不带 eta/note（见 carry-over.ts）。
+  const handleCarryOver = useCallback(async () => {
+    // 当天已有棒 → 二次确认，避免重复叠加（C3 小作坊原生 confirm 够用）。
+    if (
+      (stages?.length ?? 0) > 0 &&
+      !window.confirm(t('schedule.relay.carryConfirm'))
+    ) {
+      return;
+    }
+    const prevIso = isoPrevDay(windowLabel);
+    setCarrying(true);
+    try {
+      const all = await client.getResourceSessions();
+      const prev = all.sessions.filter((s) => s.windowLabel === prevIso);
+      if (prev.length === 0) {
+        setBanner({ kind: 'err', text: t('schedule.relay.carryEmpty') });
+        return;
+      }
+      const actor = {
+        id: 'console-relay',
+        displayName: t('schedule.relay.actor'),
+        source: 'console' as const,
+      };
+      for (const s of prev) {
+        await client.createResourceSession(
+          buildCarryOverDraft(s, windowLabel, actor),
+        );
+      }
+      setBanner({
+        kind: 'ok',
+        text: t('schedule.relay.carryDone', { n: prev.length }),
+      });
+      refetch();
+    } catch (e) {
+      setBanner({
+        kind: 'err',
+        text: t('schedule.relay.carryError', {
+          detail: e instanceof Error ? e.message : String(e),
+        }),
+      });
+    } finally {
+      setCarrying(false);
+    }
+  }, [stages, windowLabel, client, t, refetch]);
+
   const handleStartEditEta = useCallback((sessionId: string) => {
     setEditingEtaId(sessionId);
   }, []);
@@ -573,7 +624,7 @@ export function RelayCanvas({
   );
   const tasks = tasksQuery.data?.tasks ?? [];
 
-  // 顶部工具条「+ 加一棒」（空板 / 已有卡片都显示，否则空板无入口）。
+  // 顶部工具条「+ 加一棒」+「沿用上一天计划」（空板 / 已有卡片都显示，否则空板无入口）。
   const toolbar = (
     <div className="relay-canvas__toolbar">
       <button
@@ -584,6 +635,16 @@ export function RelayCanvas({
       >
         <Plus size={14} aria-hidden="true" />
         {t('schedule.relay.addLeg')}
+      </button>
+      <button
+        type="button"
+        className="relay-canvas__carry"
+        onClick={() => {
+          void handleCarryOver();
+        }}
+        disabled={carrying}
+      >
+        {t('schedule.relay.carryOver')}
       </button>
     </div>
   );
@@ -617,9 +678,43 @@ export function RelayCanvas({
       <div className="relay-canvas">
         {toolbar}
         {addForm}
+        {/* 空态也要能显示 carryEmpty / carryError / carryDone 反馈（此处非绝对定位，跟随冷卡上方）。 */}
+        {banner ? (
+          <div
+            className={`form-banner ${
+              banner.kind === 'err' ? 'form-banner--err' : 'form-banner--ok'
+            }`}
+            role={banner.kind === 'err' ? 'alert' : 'status'}
+            onClick={() => setBanner(null)}
+          >
+            {banner.text}
+          </div>
+        ) : null}
+        {/* 空态 = 带 CTA 的引导卡（不是静态告示）：直接给「加第一棒」「沿用上一天」两个入口
+            （SCHEDULE-DESIGN-LOCK §1：空板本身就是录入口，发现性问题一并解决）。 */}
         <div className="pm-coldstart">
-          <h3>{t('schedule.relay.title')}</h3>
-          <p>{t('schedule.relay.empty')}</p>
+          <h3>{t('schedule.relay.empty.title')}</h3>
+          <p>{t('schedule.relay.empty.body')}</p>
+          <div className="relay-coldstart__cta">
+            <button
+              type="button"
+              className="relay-canvas__add"
+              onClick={() => setShowAddForm(true)}
+            >
+              <Plus size={14} aria-hidden="true" />
+              {t('schedule.relay.empty.addFirst')}
+            </button>
+            <button
+              type="button"
+              className="relay-canvas__carry"
+              onClick={() => {
+                void handleCarryOver();
+              }}
+              disabled={carrying}
+            >
+              {t('schedule.relay.carryOver')}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -735,7 +830,12 @@ function AddLegForm({
         </button>
       </header>
       {noOptions ? (
-        <p className="form-hint">{t('schedule.relay.addEmpty')}</p>
+        // 拆成两条可执行引导（替原 addEmpty 死胡同）：缺机器人 → 同页上方就地建；缺任务 → 去项目看板。
+        <p className="form-hint">
+          {resources.length === 0
+            ? t('schedule.relay.addEmptyRobot')
+            : t('schedule.relay.addEmptyTask')}
+        </p>
       ) : (
         <form className="pm-form" onSubmit={submit}>
           <div className="pm-form__grid">

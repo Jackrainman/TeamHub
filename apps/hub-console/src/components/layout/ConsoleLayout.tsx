@@ -3,7 +3,6 @@ import {
   BookOpen,
   Bot,
   Boxes,
-  CalendarClock,
   Compass,
   FileStack,
   Home,
@@ -17,12 +16,11 @@ export type ConsolePage =
   | 'overview'
   | 'dep-graph'
   | 'gaps'
-  | 'schedule'
   | 'kb'
   | 'pm'
   | 'archive'
   | 'inv'
-  | 'resources'
+  | 'fleet'
   | 'settings';
 
 interface NavItem {
@@ -38,16 +36,15 @@ const navItems: NavItem[] = [
   { labelKey: 'nav.depGraph', icon: Network, page: 'dep-graph' },
   // 缺人方向（S2，D-069）：组级派生缺口，只到组、不指向人（A1）。
   { labelKey: 'nav.gaps', icon: Compass, page: 'gaps' },
-  // 差异化在场排班（D-029）：按组×窗口派生 present/onCall/free，I0 无人维度。
-  { labelKey: 'nav.schedule', icon: CalendarClock, page: 'schedule' },
   { labelKey: 'nav.kb', icon: BookOpen, page: 'kb' },
   { labelKey: 'nav.pm', icon: LayoutGrid, page: 'pm' },
   // 图纸提交日志 / 版本时间线（A8）：真实页面，读治理快照 artifacts。
   { labelKey: 'nav.archive', icon: FileStack, page: 'archive' },
   // 第三支柱：库存 / BOM（INV-BOM-CORE 已落地）。零件×机器人 矩阵 + 一句话快记 + 缺料告警。
   { labelKey: 'nav.inv', icon: Boxes, page: 'inv' },
-  // 机器人管理（R3，D-072 §3.2/§3.3）：新建 / 改状态 / 退役（退役=状态迁移，非物删）。无人维度。
-  { labelKey: 'nav.resources', icon: Bot, page: 'resources' },
+  // 机器人队（IA 阶段 1 / D-075）：机器人管理 + 在场排班接力画布合一（机器人域单页）。
+  // 上半区建/改状态/退役（退役=状态迁移，非物删），下半区接力画布。I0 无人维度。
+  { labelKey: 'nav.fleet', icon: Bot, page: 'fleet' },
   { labelKey: 'nav.settings', icon: Settings, page: 'settings' },
 ];
 

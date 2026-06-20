@@ -159,8 +159,6 @@ const zh = {
   'toolbar.title.gaps': '缺人方向 · 组级',
 
   // 差异化在场排班（D-029）：按组×窗口派生，I0 无人维度
-  'nav.schedule': '在场排班',
-  'toolbar.title.schedule': '这天谁在场',
   'schedule.loading': '正在算这天谁在场…',
   'schedule.error': '在场安排打不开（后端没连上？检查后端地址或服务是否在线）',
   'schedule.intro': '这天哪个组要到、哪个组不加班，按任务进度和机器人的状态自动算出来，不是手排的。',
@@ -425,9 +423,27 @@ const zh = {
   'schedule.relay.deleteLeg': '删除',
   'schedule.relay.deleteConfirm': '删掉这一棒？连带它的接力交接线也会一起删掉。',
   'schedule.relay.deleteError': '没删掉：{detail}',
+  // 空态引导卡 CTA（SCHEDULE-DESIGN-LOCK §1）
+  'schedule.relay.empty.title': '这天还没排机器人',
+  'schedule.relay.empty.body': '排一棒，告诉大家这天谁先上、谁能先走。',
+  'schedule.relay.empty.addFirst': '加第一棒',
+  // 沿用上一天计划（§3）
+  'schedule.relay.carryOver': '沿用上一天计划',
+  'schedule.relay.carryConfirm': '这天已经排了，沿用上一天会再叠一份，确定？',
+  'schedule.relay.carryEmpty': '上一天也没排，没东西可沿用。',
+  'schedule.relay.carryDone': '已沿用上一天的 {n} 棒。',
+  'schedule.relay.carryError': '没沿用上：{detail}',
+  // 加棒缺项两条可执行引导（§2，替原 addEmpty 死胡同）
+  'schedule.relay.addEmptyRobot': '还没有可上场的机器人，先在上面新建一台。',
+  'schedule.relay.addEmptyTask': '还没有任务可排，先去项目看板建一条任务。',
 
   // 库存 / BOM 第三支柱（INV-BOM-CORE）
   'toolbar.title.inv': '库存 / BOM',
+  // 机器人队页（IA 阶段 1 / D-075）：机器人管理 + 在场排班合一。
+  'nav.fleet': '机器人队',
+  'toolbar.title.fleet': '机器人队',
+  'fleet.section.robots': '机器人清单',
+  'fleet.section.relay': '接力画布',
   'inv.loading': '正在加载库存…',
   'inv.error': '库存加载失败，请确认后端已连通。',
   'inv.intro':
@@ -469,8 +485,6 @@ const zh = {
   'inv.category.other': '其他',
 
   // 机器人管理（R3，D-072 §3.2/§3.3）：新建机器人 / 改状态 / 退役。无人维度（中性事实）。
-  'nav.resources': '机器人管理',
-  'toolbar.title.resources': '机器人队 · 新建 / 改状态 / 退役',
   'resources.loading': '正在加载机器人队…',
   'resources.error': '机器人队打不开（后端没连上？检查后端地址或服务在不在线）',
   'resources.intro':
@@ -674,8 +688,6 @@ const en: Record<TranslationKey, string> = {
   'toolbar.title.gaps': 'Direction Gaps · By Group',
 
   // Differentiated presence schedule (D-029): per group×window, I0 no person dimension
-  'nav.schedule': 'Presence Schedule',
-  'toolbar.title.schedule': "Who's in",
   'schedule.loading': 'Working out who is in…',
   'schedule.error': "Can't open the presence plan (backend offline? check address/service)",
   'schedule.intro': 'Which groups need to come in and which can sit it out, worked out automatically from task progress and rig status, not hand-assigned.',
@@ -948,9 +960,30 @@ const en: Record<TranslationKey, string> = {
   'schedule.relay.deleteConfirm':
     'Remove this leg? Its handoff lines will be removed too.',
   'schedule.relay.deleteError': "Couldn't remove: {detail}",
+  // Empty-state guidance CTAs (SCHEDULE-DESIGN-LOCK §1)
+  'schedule.relay.empty.title': 'Nothing scheduled for this day',
+  'schedule.relay.empty.body':
+    'Add a leg to show who goes first and who can head off.',
+  'schedule.relay.empty.addFirst': 'Add the first leg',
+  // Copy the previous day (§3)
+  'schedule.relay.carryOver': 'Copy the previous day',
+  'schedule.relay.carryConfirm':
+    'This day already has legs; copying the previous day will add another set. Continue?',
+  'schedule.relay.carryEmpty': 'The previous day is empty too — nothing to copy.',
+  'schedule.relay.carryDone': 'Copied {n} leg(s) from the previous day.',
+  'schedule.relay.carryError': "Couldn't copy: {detail}",
+  // Two actionable hints when a leg can't be added (§2, replaces addEmpty dead-end)
+  'schedule.relay.addEmptyRobot': 'No robot available yet — add one above first.',
+  'schedule.relay.addEmptyTask':
+    'No task to schedule yet — create one on the project board first.',
 
   // Inventory / BOM third pillar (INV-BOM-CORE)
   'toolbar.title.inv': 'Inventory / BOM',
+  // Robot Fleet page (IA phase 1 / D-075): robot management + presence schedule merged.
+  'nav.fleet': 'Robot Fleet',
+  'toolbar.title.fleet': 'Robot Fleet',
+  'fleet.section.robots': 'Robots',
+  'fleet.section.relay': 'Relay board',
   'inv.loading': 'Loading inventory…',
   'inv.error': 'Failed to load inventory; check that the backend is reachable.',
   'inv.intro':
@@ -994,8 +1027,6 @@ const en: Record<TranslationKey, string> = {
   'inv.category.other': 'Other',
 
   // Robot/resource management (R3, D-072 §3.2/§3.3): create / change status / retire. No person dimension.
-  'nav.resources': 'Robots',
-  'toolbar.title.resources': 'Fleet · Create / Status / Retire',
   'resources.loading': 'Loading the fleet…',
   'resources.error':
     "Can't open the fleet (backend offline? check the address or whether the service is up)",

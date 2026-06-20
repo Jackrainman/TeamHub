@@ -2276,6 +2276,23 @@ button {
   margin-top: 10px;
 }
 
+/* ===== 机器人队页（IA 阶段 1 / D-075）：机器人管理 + 在场排班合一 ===== */
+.fleet-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.fleet-section-title {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 700;
+}
+/* 下半区（接力画布）与上半区（机器人清单）之间一条分隔，视觉上分清两个数据域。 */
+.fleet-section--relay {
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+}
+
 /* ===== 接力交接画布（R1，可编辑 @xyflow 画布；参考 dep-graph 节点 + relay-* 类） ===== */
 .relay-canvas {
   display: flex;
@@ -2290,8 +2307,9 @@ button {
 }
 .relay-canvas__board {
   position: relative;
-  height: calc(100vh - 360px);
-  min-height: 420px;
+  /* 定高、内容无关（IA 阶段 1）：合并进机器人队页后画布上方多了机器人表，旧 calc(100vh-360px) 的
+     360px 魔法偏移失真。clamp 给 @xyflow 一个确定容器高度（不依赖上方内容高度），防首屏测量错位。 */
+  height: clamp(420px, 58vh, 720px);
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-muted);
@@ -2487,6 +2505,34 @@ button {
 .relay-canvas__add:hover {
   background: var(--green);
   color: #fff;
+}
+/* 「沿用上一天计划」次按钮 + 空态引导卡的 CTA 行（SCHEDULE-DESIGN-LOCK）。 */
+.relay-canvas__carry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.relay-canvas__carry:hover:not(:disabled) {
+  border-color: var(--green);
+  color: var(--green);
+}
+.relay-canvas__carry:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.relay-coldstart__cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
 }
 
 /* A2 加一棒浮层表单：复用 .panel + .pm-create / .pm-form 范式。 */

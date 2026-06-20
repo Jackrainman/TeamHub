@@ -9,12 +9,11 @@ import {
 import { OverviewPage } from './features/overview/OverviewPage';
 import { DepGraphPage } from './features/dep-graph/DepGraphPage';
 import { GapsPage } from './features/gaps/GapsPage';
-import { SchedulePage } from './features/schedule/SchedulePage';
 import { KbSearchPage } from './features/kb/KbSearchPage';
 import { PmBoardPage } from './features/pm/PmBoardPage';
 import { ArchivePage } from './features/archive/ArchivePage';
 import { InvPage } from './features/inv/InvPage';
-import { ResourcesPage } from './features/resources/ResourcesPage';
+import { FleetPage } from './features/fleet/FleetPage';
 import { SettingsPage } from './features/settings/SettingsPage';
 import { useI18n, type TranslationKey } from './i18n';
 import { APIBASE_KEY, WRITE_TOKEN_KEY } from './constants';
@@ -26,12 +25,11 @@ const TITLE_KEY: Record<ConsolePage, TranslationKey> = {
   overview: 'toolbar.title.overview',
   'dep-graph': 'toolbar.title.depGraph',
   gaps: 'toolbar.title.gaps',
-  schedule: 'toolbar.title.schedule',
   kb: 'toolbar.title.kb',
   pm: 'toolbar.title.pm',
   archive: 'toolbar.title.archive',
   inv: 'toolbar.title.inv',
-  resources: 'toolbar.title.resources',
+  fleet: 'toolbar.title.fleet',
   settings: 'toolbar.title.settings',
 };
 
@@ -104,8 +102,6 @@ export function App() {
         />
       ) : page === 'gaps' ? (
         <GapsPage client={apiClient} source={SOURCE} />
-      ) : page === 'schedule' ? (
-        <SchedulePage client={apiClient} source={SOURCE} />
       ) : page === 'kb' ? (
         <KbSearchPage client={apiClient} source={SOURCE} />
       ) : page === 'pm' ? (
@@ -121,8 +117,8 @@ export function App() {
         <ArchivePage client={apiClient} source={SOURCE} />
       ) : page === 'inv' ? (
         <InvPage client={apiClient} source={SOURCE} />
-      ) : page === 'resources' ? (
-        <ResourcesPage client={apiClient} source={SOURCE} />
+      ) : page === 'fleet' ? (
+        <FleetPage client={apiClient} source={SOURCE} />
       ) : page === 'settings' ? (
         <SettingsPage client={apiClient} source={SOURCE} />
       ) : null}

@@ -85,26 +85,22 @@ export function SchedulePage({
         </label>
       </div>
 
-      {recommendations.length === 0 ? (
-        <div className="pm-coldstart">
-          <h3>{t('schedule.empty.title')}</h3>
-          <p>{t('schedule.empty.body')}</p>
-        </div>
-      ) : (
-        <>
-          {/* 主推短期视图：队长可编辑的接力交接画布（R1，内部自取 /api/relay 数据）。
-              卡片网格降级为下方「明细（按组）」。 */}
-          <RelayCanvas client={client} windowLabel={windowLabel} />
-          <section className="schedule-detail" aria-label={t('schedule.relay.detailTitle')}>
-            <h2 className="inv-section-title">{t('schedule.relay.detailTitle')}</h2>
-            <div className="gaps-list">
-              {recommendations.map((rec) => (
-                <RecommendationCard rec={rec} key={rec.id} />
-              ))}
-            </div>
-          </section>
-        </>
-      )}
+      {/* 接力画布**永远渲染**（含「+加一棒」工具条与空态引导卡）——不再被 recommendations.length
+          短路。否则新一天 0 建议时整块画布连同加棒入口被吞掉成一张没有按钮的死卡
+          （SCHEDULE-DESIGN-LOCK 根因，见 docs/design/schedule-ux-lock.md §0.0）。
+          空与非空的分支判断全部下沉到 RelayCanvas 内部。 */}
+      <RelayCanvas client={client} windowLabel={windowLabel} />
+      {/* 「各组详情」卡片网格只 gate 它自己：有建议才显示（被卡组的「可看资料」收在这里）。 */}
+      {recommendations.length > 0 ? (
+        <section className="schedule-detail" aria-label={t('schedule.relay.detailTitle')}>
+          <h2 className="inv-section-title">{t('schedule.relay.detailTitle')}</h2>
+          <div className="gaps-list">
+            {recommendations.map((rec) => (
+              <RecommendationCard rec={rec} key={rec.id} />
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
