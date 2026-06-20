@@ -103,9 +103,9 @@ export interface HubApiClient {
   // 差异化在场排班（D-029）：按组×窗口派生 present/onCall/free，I0：输出无 memberId/invitedMemberIds。
   getSchedule(windowLabel: string): Promise<PresenceScheduleResponse>;
   getResourceSessions(): Promise<ResourceSessionsResponse>;
-  // 共享物理资源（车）列表：接力链按车并排时取 displayCode ?? name 作列头。无人维度（中性事实）。
+  // 共享物理资源（机器人）列表：接力链按机器人并排时取 displayCode ?? name 作列头。无人维度（中性事实）。
   getResources(): Promise<SharedResourcesResponse>;
-  // 车管理写侧（R3，D-072 §3.2/§3.3）。建车：填 season + robotTarget + version → server 派生 displayCode
+  // 机器人管理写侧（R3，D-072 §3.2/§3.3）。新建：填 season + robotTarget + version → server 派生 displayCode
   //（禁手写）；改状态：维修 / 退役 / 拆解 / 恢复等状态迁移（**退役 = status→retired、非物删，无 DELETE 口子**）。
   // 反监视红线：SharedResource 结构上无成员维度，写请求绝不含 memberId / 出勤。
   createResource(req: CreateResourceRequest): Promise<CreateResourceResponse>;

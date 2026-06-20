@@ -21,20 +21,20 @@ import type { RelayStage } from '../../api/schemas/schedule';
 import type { HubApiClient } from '../../api/client';
 import { useI18n } from '../../i18n';
 
-// 接力交接画布（R1，D-029）：把某窗口已确认的占用窗口铺成「车列 × 接力先后」的可拖卡片，
+// 接力交接画布（R1，D-029）：把某窗口已确认的占用窗口铺成「机器人列 × 接力先后」的可拖卡片，
 // 队长拖卡片排先后（orderInWindow）、卡片间拉线表接力交接（fromSession→toSession，**非**任务依赖）、
 // 每张卡可选填预估完成时间（eta）。所有人看同一块。独立依赖图页 DepGraphPage 不动。
 //
 // 反监视红线（结构性钉死）：节点 / 边 / 任何渲染**绝不**含 memberId / invitedMemberIds / 出勤计数。
-// 主键只 session / 资源（车）/ 组 / 任务——RelayStage 来自后端，本身就无人维度。
+// 主键只 session / 资源（机器人）/ 组 / 任务——RelayStage 来自后端，本身就无人维度。
 
-const COL_W = 240; // 车列列宽（含间距）
+const COL_W = 240; // 机器人列列宽（含间距）
 const ROW_H = 150; // 接力行高
 const NODE_W = 208;
 
 type RelayNodeData = {
   stage: RelayStage;
-  legIndex: number; // 同车内的第 N 棒（0-based，展示 +1）
+  legIndex: number; // 同机器人内的第 N 棒（0-based，展示 +1）
   eta: string | null;
   etaEditing: boolean;
   canMoveUp: boolean;
@@ -162,7 +162,7 @@ function EtaInput({
 
 const nodeTypes: NodeTypes = { relay: RelayStageCard };
 
-// 把车列（resourceId）映射成列序，保持 stages 首次出现顺序（后端已按资源登记顺序排好）。
+// 把机器人列（resourceId）映射成列序，保持 stages 首次出现顺序（后端已按资源登记顺序排好）。
 function columnOrder(stages: RelayStage[]): Map<string, number> {
   const order = new Map<string, number>();
   for (const s of stages) {
@@ -186,8 +186,8 @@ export function RelayCanvas({
     queryKey,
     queryFn: () => client.getRelay(windowLabel),
   });
-  // 接力线 POST 需 projectId；RelayStage 读视图不回 projectId（无需），故从车（SharedResource.projectId）
-  // 按 resourceId 反查得到真实项目，而非占位。独立查询，失败不阻塞读视图（建线时回退首车）。
+  // 接力线 POST 需 projectId；RelayStage 读视图不回 projectId（无需），故从机器人（SharedResource.projectId）
+  // 按 resourceId 反查得到真实项目，而非占位。独立查询，失败不阻塞读视图（建线时回退首台机器人）。
   const resourcesQuery = useQuery({
     queryKey: ['resources', 'relay'],
     queryFn: () => client.getResources(),
@@ -270,7 +270,7 @@ export function RelayCanvas({
 
   const stages = query.data?.stages ?? null;
 
-  // 横排序提交：把某车列按目标顺序重排 orderInWindow=0..n，仅对变化的 session 调 PATCH。
+  // 横排序提交：把某机器人列按目标顺序重排 orderInWindow=0..n，仅对变化的 session 调 PATCH。
   const commitReorder = useCallback(
     (orderedSessionIds: string[]) => {
       if (!stages) return;
@@ -285,7 +285,7 @@ export function RelayCanvas({
     [stages, updateMutation],
   );
 
-  // ▲▼ 无障碍兜底：同车列内与相邻棒交换。
+  // ▲▼ 无障碍兜底：同机器人列内与相邻棒交换。
   const handleMove = useCallback(
     (sessionId: string, dir: -1 | 1) => {
       if (!stages) return;
@@ -323,11 +323,11 @@ export function RelayCanvas({
     [stages, updateMutation],
   );
 
-  // 派生节点（车列 × 接力先后自动铺位）。stages 变 / ETA 编辑态变 → 重铺。
+  // 派生节点（机器人列 × 接力先后自动铺位）。stages 变 / ETA 编辑态变 → 重铺。
   const baseNodes = useMemo<RelayFlowNode[]>(() => {
     if (!stages) return [];
     const cols = columnOrder(stages);
-    // 每车列内按 orderInWindow 排，得到 legIndex 与上下移可用性。
+    // 每机器人列内按 orderInWindow 排，得到 legIndex 与上下移可用性。
     const legByColumn = new Map<string, RelayStage[]>();
     for (const s of stages) {
       const arr = legByColumn.get(s.resourceId) ?? [];
@@ -420,7 +420,7 @@ export function RelayCanvas({
         setBanner({ kind: 'err', text: t('schedule.relay.handoffSelf') });
         return;
       }
-      // projectId 按源 stage 的车（SharedResource.projectId）反查；查不到时回退首车，
+      // projectId 按源 stage 的机器人（SharedResource.projectId）反查；查不到时回退首台机器人，
       // 仍无则用 windowLabel（schema 只要 min(1) 非空，后端按 session 归属为准）。
       const fromStage = stages?.find((s) => s.sessionId === from);
       const resources = resourcesQuery.data?.resources ?? [];

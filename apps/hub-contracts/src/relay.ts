@@ -16,20 +16,20 @@ import type { ScheduleSnapshot } from './schedule.js';
 
 /**
  * 接力一站（看板卡片，组键，无人维度）：一张 = 一条已确认 ResourceSession。
- * displayCode 走车号回退链（displayCode ?? name ?? id）；groupName / taskLabel 同理查表回退。
- * boardable = 该资源当前状态能否上车（canBoardResource）；不可上时画布把这站标灰但仍展示。
+ * displayCode 走机器人编号回退链（displayCode ?? name ?? id）；groupName / taskLabel 同理查表回退。
+ * boardable = 该资源当前状态能否上场（canBoardResource）；不可上时画布把这站标灰但仍展示。
  */
 export const RelayStageSchema = z.object({
   sessionId: z.string().min(1),
   resourceId: z.string().min(1),
-  displayCode: z.string().min(1), // 车号 26R1，无则回退 name / id
+  displayCode: z.string().min(1), // 机器人编号 26R1，无则回退 name / id
   groupId: z.string().min(1), // 组键（反排名核心，无 memberId）
   groupName: z.string().min(1),
   taskLabel: z.string().min(1).nullable(), // 关联任务标题，无则 null
   orderInWindow: z.number().int().nonnegative(), // 画布内拖动排序的先后
   eta: z.string().min(1).nullable(), // 队长可选填的预估完成时间
-  boardable: z.boolean(), // 该资源当前能否上车（canBoardResource）
-  statusReason: z.string().min(1).nullable(), // 车状态自由注释（"撞坏底盘"），无则 null
+  boardable: z.boolean(), // 该资源当前能否上场（canBoardResource）
+  statusReason: z.string().min(1).nullable(), // 机器人状态自由注释（"撞坏底盘"），无则 null
 });
 
 export type RelayStage = z.infer<typeof RelayStageSchema>;
@@ -50,8 +50,8 @@ function indexBy<T>(items: T[], key: (item: T) => string): Map<string, T> {
  * 派生某窗口的接力画布。
  *
  * stages：取 windowLabel 匹配且 **confirmedBy != null**（仅已确认窗口上画布）的 session，
- *   按 (resources 顺序, orderInWindow) 排序——同车的接力先后靠 orderInWindow，
- *   跨车按资源在 snapshot.resources 里的登记顺序，得到确定性排版。
+ *   按 (resources 顺序, orderInWindow) 排序——同机器人的接力先后靠 orderInWindow，
+ *   跨机器人按资源在 snapshot.resources 里的登记顺序，得到确定性排版。
  * handoffs：relayHandoffs 里 windowLabel 匹配的全部交接线（先后交接，**非**任务依赖）。
  *
  * 全程无成员维度：RelayStage 主键只 session / 资源 / 组 / 任务。
@@ -63,7 +63,7 @@ export function deriveRelayBoard(
   const resourcesById = indexBy(snapshot.resources, (r) => r.id);
   const groupsById = indexBy(snapshot.groups, (g) => g.id);
   const tasksById = indexBy(snapshot.tasks, (t) => t.id);
-  // 资源登记顺序 → 跨车排版的确定性键。
+  // 资源登记顺序 → 跨机器人排版的确定性键。
   const resourceOrder = new Map<string, number>();
   snapshot.resources.forEach((r, i) => resourceOrder.set(r.id, i));
 

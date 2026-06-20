@@ -113,7 +113,7 @@ function DepNodeCard({ data, selected }: NodeProps<DepFlowNode>) {
         <Icon size={14} aria-hidden="true" />
         <span className="dag-node__title">{n.label}</span>
       </div>
-      {/* I0：负责人(ownerLabel)降级到 DetailPanel，不在节点上常显——节点只显结构键(组·车)。 */}
+      {/* I0：负责人(ownerLabel)降级到 DetailPanel，不在节点上常显——节点只显结构键(组·机器人)。 */}
       <div className="dag-node__owner">
         {n.groupName} · {n.robotTarget}
       </div>
@@ -685,9 +685,13 @@ function DetailPanel({
         </div>
       ) : null}
       {showMyMap ? (
-        <a className="my-map-link" href="#" onClick={(e) => e.preventDefault()}>
+        <span
+          className="my-map-link my-map-link--disabled"
+          aria-disabled="true"
+          title={t('nav.soon')}
+        >
           <MapPin size={13} aria-hidden="true" /> {t('depgraph.detail.myMap')}
-        </a>
+        </span>
       ) : null}
     </aside>
   );

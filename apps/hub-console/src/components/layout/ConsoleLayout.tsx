@@ -1,9 +1,9 @@
 import type { PropsWithChildren } from 'react';
 import {
   BookOpen,
+  Bot,
   Boxes,
   CalendarClock,
-  Car,
   Compass,
   FileStack,
   Home,
@@ -44,10 +44,10 @@ const navItems: NavItem[] = [
   { labelKey: 'nav.pm', icon: LayoutGrid, page: 'pm' },
   // 图纸提交日志 / 版本时间线（A8）：真实页面，读治理快照 artifacts。
   { labelKey: 'nav.archive', icon: FileStack, page: 'archive' },
-  // 第三支柱：库存 / BOM（INV-BOM-CORE 已落地）。零件×车 矩阵 + 一句话快记 + 缺料告警。
+  // 第三支柱：库存 / BOM（INV-BOM-CORE 已落地）。零件×机器人 矩阵 + 一句话快记 + 缺料告警。
   { labelKey: 'nav.inv', icon: Boxes, page: 'inv' },
-  // 车管理（R3，D-072 §3.2/§3.3）：建车 / 改状态 / 退役（退役=状态迁移，非物删）。无人维度。
-  { labelKey: 'nav.resources', icon: Car, page: 'resources' },
+  // 机器人管理（R3，D-072 §3.2/§3.3）：新建 / 改状态 / 退役（退役=状态迁移，非物删）。无人维度。
+  { labelKey: 'nav.resources', icon: Bot, page: 'resources' },
   { labelKey: 'nav.settings', icon: Settings, page: 'settings' },
 ];
 

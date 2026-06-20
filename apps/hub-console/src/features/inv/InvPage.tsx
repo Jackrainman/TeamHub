@@ -19,8 +19,8 @@ const KIND_KEY: Record<PartActionKind, TranslationKey> = {
 };
 
 /**
- * 库存 / BOM 第三支柱页（INV-BOM-CORE）。汇总 + 一句话快记 + 零件×车 矩阵 + 拆装记账历史。
- * 反监视纪律（I0）：全页主键是零件 / 车 / 动作，永不渲染 memberId / 按人聚合——动作只显来源（human/hermes…）。
+ * 库存 / BOM 第三支柱页（INV-BOM-CORE）。汇总 + 一句话快记 + 零件×机器人 矩阵 + 拆装记账历史。
+ * 反监视纪律（I0）：全页主键是零件 / 机器人 / 动作，永不渲染 memberId / 按人聚合——动作只显来源（human/hermes…）。
  */
 export function InvPage({
   client,
@@ -55,7 +55,7 @@ export function InvPage({
   void trackedParts; // 个体件血缘当前不单列渲染（矩阵已含其计数）；保留读取以备后续血缘视图。
   const shortfallIds = new Set(shortfalls.map((p) => p.id));
 
-  // 车 / 货架选项：货架（idle）+ 矩阵任一行的车列（displayCode）。
+  // 机器人 / 货架选项：货架（idle）+ 矩阵任一行的机器人列（displayCode）。
   const holderOptions: HolderOption[] = [
     { id: IDLE_HOLDER, label: t('inv.holder.idle') },
     ...(ledger[0]?.perResource ?? []).map((c) => ({

@@ -32,7 +32,7 @@ const KIND_KEY: Record<PartActionKind, TranslationKey> = {
   damage: 'inv.kind.damage',
 };
 
-/** 装/拆/预留/释放需指定一台车（toHolder/fromHolder=resourceId）；盘点/补料/损坏只动总数。 */
+/** 装/拆/预留/释放需指定一台机器人（toHolder/fromHolder=resourceId）；盘点/补料/损坏只动总数。 */
 function needsHolder(kind: PartActionKind): boolean {
   return kind === 'mount' || kind === 'dismount' || kind === 'reserve' || kind === 'release';
 }
@@ -43,7 +43,7 @@ export interface HolderOption {
 }
 
 /**
- * 一句话快记（决定 D/E/F + §5③）：选零件 + 动作 + 数量（+ 车）+ 备注 → POST /api/inventory/actions。
+ * 一句话快记（决定 D/E/F + §5③）：选零件 + 动作 + 数量（+ 机器人）+ 备注 → POST /api/inventory/actions。
  * server 钉 source=human（C5；I0 绝无 memberId）。Hermes 将来调同一接口自动填。
  */
 export function InvQuickRecordForm({

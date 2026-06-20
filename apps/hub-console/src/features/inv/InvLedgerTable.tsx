@@ -11,7 +11,7 @@ const CATEGORY_KEY: Record<PartCategory, TranslationKey> = {
 };
 
 /**
- * 库存总表：零件 × 车 矩阵（决定 F）。车列复用 SharedResource（显示 displayCode ?? name）。
+ * 库存总表：零件 × 机器人 矩阵（决定 F）。机器人列复用 SharedResource（显示 displayCode ?? name）。
  * 闲置列高亮；缺料行（idle < lowStockThreshold）标红 + 「缺料」徽章。**I0**：无任何人维度列。
  */
 export function InvLedgerTable({
@@ -32,7 +32,7 @@ export function InvLedgerTable({
     );
   }
 
-  // 车列取自任一行的 perResource（每行同一组资源，由后端按 listResources 顺序展开）。
+  // 机器人列取自任一行的 perResource（每行同一组资源，由后端按 listResources 顺序展开）。
   const resourceCols = ledger[0]?.perResource ?? [];
 
   return (

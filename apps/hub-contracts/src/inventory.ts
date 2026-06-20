@@ -7,7 +7,7 @@ import { isoDateTimeSchema } from './common.js';
  * 权威实现规格见 `docs/design/inv-bom-core.md`（schema / 动作语义 / API / UI / seed 已全锁）。
  *
  * 两实体 + 一条统一动作日志：
- *  - `PartType`  — 按数量件（绝大多数）：存总数 + 各车占用（allocations）。
+ *  - `PartType`  — 按数量件（绝大多数）：存总数 + 各机器人占用（allocations）。
  *  - `TrackedPart` — 单件追踪个体，**仅电机/电调/主控**（贵重件）；螺丝等琐碎件不建实例。
  *  - `PartAction` — **唯一 append-only 动作日志**，同时承载按数量件的 quantityDelta 与个体件的归属迁移，
  *    是「对话记账（坏了一个 3508）+ 拆装血缘」的落点。损坏=kind=damage、预留=kind=reserve（非独立实体）。
@@ -32,9 +32,9 @@ export const PartCategorySchema = z.enum([
 export const PartActionKindSchema = z.enum([
   'stocktake', // 盘点建底：设 totalQuantity + lastCountedAt
   'restock', // 补料：totalQuantity += |delta|
-  'mount', // 装车：allocations[toResource].used += |delta|
+  'mount', // 装机：allocations[toResource].used += |delta|
   'dismount', // 拆下：allocations[fromResource].used -= |delta|
-  'reserve', // 预留：allocations[toResource].reserved += |delta|（从闲置池扣减、记在该车、禁他用）
+  'reserve', // 预留：allocations[toResource].reserved += |delta|（从闲置池扣减、记在该机器人、禁他用）
   'release', // 释放预留：allocations[toResource].reserved -= |delta|
   'damage', // 损坏（一句话快记主路径）：totalQuantity -= |delta|
 ]);
@@ -47,10 +47,10 @@ export const PartActionSourceSchema = z.enum([
   'derived',
 ]);
 
-/** 持有者引用：resourceId（某台车）或 'idle'（货架 / 闲置池）。 */
+/** 持有者引用：resourceId（某台机器人）或 'idle'（货架 / 闲置池）。 */
 export const IDLE_HOLDER = 'idle';
 
-/** 某 PartType 在某台车上的占用：used=已装、reserved=已从仓库拿出禁他用（仍记在该车、从闲置池扣减）。 */
+/** 某 PartType 在某台机器人上的占用：used=已装、reserved=已从仓库拿出禁他用（仍记在该机器人、从闲置池扣减）。 */
 export const PartAllocationSchema = z.object({
   resourceId: z.string().min(1),
   used: z.number().int().nonnegative(),
@@ -66,7 +66,7 @@ export const PartTypeSchema = z.object({
   unit: z.string().min(1), // "个"
   trackIndividually: z.boolean(), // true 仅电机/电调/主控
   totalQuantity: z.number().int().nonnegative(),
-  allocations: z.array(PartAllocationSchema), // 各车已用 / 预留
+  allocations: z.array(PartAllocationSchema), // 各机器人已用 / 预留
   lowStockThreshold: z.number().int().nonnegative(), // 闲置低于此 → 缺料告警
   lastCountedAt: isoDateTimeSchema.nullable(),
   updatedAt: isoDateTimeSchema,
@@ -79,7 +79,7 @@ export const TrackedPartSchema = z.object({
   partTypeId: z.string().min(1),
   serialLabel: z.string().min(1).nullable(), // 队内编号
   currentHolder: z.string().min(1), // resourceId | 'idle'
-  reserved: z.boolean(), // 已拿出记在车上、禁他用
+  reserved: z.boolean(), // 已拿出记在机器人上、禁他用
   status: z.enum(['ok', 'damaged', 'retired']),
   updatedAt: isoDateTimeSchema,
 });
@@ -127,9 +127,9 @@ export type InventorySnapshot = z.infer<typeof InventorySnapshotSchema>;
 // ──────────────────────────────────────────────────────────────────────────
 
 /**
- * 车列输入（最小结构，与 PRESENCE-01 解耦）：SharedResource 当前无 `displayCode` 字段，故标 optional——
+ * 机器人列输入（最小结构，与 PRESENCE-01 解耦）：SharedResource 当前无 `displayCode` 字段，故标 optional——
  * SharedResource（无 displayCode）结构上可赋值给本类型，库存内核今天即可独立工作；PRESENCE 给资源补
- * `displayCode`（赛季+位置+版本派生）后，矩阵车列自动从 name 切到 displayCode、无需改本函数。
+ * `displayCode`（赛季+位置+版本派生）后，矩阵机器人列自动从 name 切到 displayCode、无需改本函数。
  */
 export interface InventoryResourceRef {
   id: string;
@@ -144,7 +144,7 @@ export interface InventoryLedgerPerResource {
   reserved: number;
 }
 
-/** 每 PartType 一行：闲置数 + 零件×车 占用矩阵的一行。 */
+/** 每 PartType 一行：闲置数 + 零件×机器人 占用矩阵的一行。 */
 export interface InventoryLedgerRow {
   partType: PartType;
   idle: number; // totalQuantity − Σ(used + reserved)；不画「在造」列
@@ -173,7 +173,7 @@ function sumAllocated(partType: PartType): number {
 /**
  * 库存总表派生：每 PartType 一行 `{ partType, idle, perResource }`。
  * `idle = totalQuantity − Σ(used + reserved)`（决定 F：预留=已从仓库拿出、从闲置池扣减）。
- * perResource 按传入车列顺序展开（车列复用 SharedResource，显示 displayCode ?? name）；该车无 allocation → 0/0。
+ * perResource 按传入机器人列顺序展开（机器人列复用 SharedResource，显示 displayCode ?? name）；该机器人无 allocation → 0/0。
  */
 export function deriveInventoryLedger(
   snapshot: InventorySnapshot,
@@ -229,7 +229,7 @@ function cloneAllocations(partType: PartType): PartAllocation[] {
   return partType.allocations.map((a) => ({ ...a }));
 }
 
-/** 取（或新建）某车的 allocation 行。 */
+/** 取（或新建）某机器人的 allocation 行。 */
 function allocFor(allocations: PartAllocation[], resourceId: string): PartAllocation {
   let row = allocations.find((a) => a.resourceId === resourceId);
   if (!row) {
@@ -247,18 +247,18 @@ function assertInvariants(allocations: PartAllocation[], totalQuantity: number):
   let sum = 0;
   for (const a of allocations) {
     if (a.used < 0 || a.reserved < 0) {
-      throw new InvalidPartActionError(`车 ${a.resourceId} 的占用不能为负`);
+      throw new InvalidPartActionError(`机器人 ${a.resourceId} 的占用不能为负`);
     }
     sum += a.used + a.reserved;
   }
   if (sum > totalQuantity) {
-    throw new InvalidPartActionError('各车占用合计超过总数（used 超 total）');
+    throw new InvalidPartActionError('各机器人占用合计超过总数（used 超 total）');
   }
 }
 
 function requireResource(holder: string | null, label: string): string {
   if (!holder || holder === IDLE_HOLDER) {
-    throw new InvalidPartActionError(`${label}必须指定一台车（resourceId）`);
+    throw new InvalidPartActionError(`${label}必须指定一台机器人（resourceId）`);
   }
   return holder;
 }
@@ -294,7 +294,7 @@ export function applyPartAction(
       totalQuantity += qty;
       break;
     case 'mount':
-      allocFor(allocations, requireResource(input.toHolder, '装车')).used += qty;
+      allocFor(allocations, requireResource(input.toHolder, '装机')).used += qty;
       break;
     case 'dismount':
       allocFor(allocations, requireResource(input.fromHolder, '拆下')).used -= qty;
@@ -328,7 +328,7 @@ export function applyPartAction(
       case 'mount':
         nextTracked = {
           ...trackedPart,
-          currentHolder: requireResource(input.toHolder, '装车'),
+          currentHolder: requireResource(input.toHolder, '装机'),
           reserved: false,
           updatedAt: now,
         };

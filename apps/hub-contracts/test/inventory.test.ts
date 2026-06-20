@@ -17,8 +17,8 @@ import type {
 const NOW = '2026-06-11T02:00:00.000Z';
 
 const RESOURCES: InventoryResourceRef[] = [
-  { id: 'res-r1', name: 'R1 比赛车' },
-  { id: 'res-r2', name: 'R2 比赛车', displayCode: '26R2' },
+  { id: 'res-r1', name: 'R1 比赛机器人' },
+  { id: 'res-r2', name: 'R2 比赛机器人', displayCode: '26R2' },
 ];
 
 function gm6020(): PartType {
@@ -28,7 +28,7 @@ function gm6020(): PartType {
 }
 
 describe('deriveInventoryLedger', () => {
-  test('idle = total − Σ(used+reserved)，perResource 按车列展开', () => {
+  test('idle = total − Σ(used+reserved)，perResource 按机器人列展开', () => {
     const rows = deriveInventoryLedger(inventoryScenarioFixture, RESOURCES);
     const gm = rows.find((r) => r.partType.id === 'parttype-gm6020');
     expect(gm).toBeDefined();
@@ -39,7 +39,7 @@ describe('deriveInventoryLedger', () => {
     expect(r1?.used).toBe(2);
     expect(r2?.used).toBe(4);
     // displayCode ?? name：res-r1 无 displayCode → name；res-r2 有 displayCode
-    expect(r1?.displayCode).toBe('R1 比赛车');
+    expect(r1?.displayCode).toBe('R1 比赛机器人');
     expect(r2?.displayCode).toBe('26R2');
   });
 

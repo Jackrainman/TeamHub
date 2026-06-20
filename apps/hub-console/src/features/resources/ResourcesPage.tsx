@@ -46,9 +46,9 @@ const STATUS_KEY: Record<ResourceStatus, TranslationKey> = {
 };
 
 /**
- * 车管理页（R3 / D-072 §3.2「车 = 带编号对象」+ §3.3 车生命周期）。
- * 建车（season + robotTarget + version → 派生 displayCode，**禁手写**）/ 改状态（维修 / 退役 / 拆解 / 恢复）。
- * **退役 = 状态迁移、非物理删除**（整车留展示，ResourceSession 仍引用 resourceId；故全页无删除按钮）。
+ * 机器人管理页（R3 / D-072 §3.2「机器人 = 带编号对象」+ §3.3 机器人生命周期）。
+ * 新建机器人（season + robotTarget + version → 派生 displayCode，**禁手写**）/ 改状态（维修 / 退役 / 拆解 / 恢复）。
+ * **退役 = 状态迁移、非物理删除**（整机留展示，ResourceSession 仍引用 resourceId；故全页无删除按钮）。
  * 反监视红线（I0）：SharedResource 结构上无成员维度，本页永不渲染 / 收集 memberId / 出勤。
  */
 export function ResourcesPage({
@@ -137,7 +137,7 @@ export function ResourcesPage({
   );
 }
 
-// --- 建车 -------------------------------------------------------------------
+// --- 新建机器人 -------------------------------------------------------------
 
 function CreateResourceForm({
   client,
@@ -165,7 +165,7 @@ function CreateResourceForm({
   const versionValid = Number.isInteger(versionNum) && versionNum >= 1;
   const valid = season.trim() && name.trim() && versionValid;
 
-  // 实时预览（禁手写）：server 端最终用同一 deriveDisplayCode 派生，前端只是给人看一眼将生成的车号。
+  // 实时预览（禁手写）：server 端最终用同一 deriveDisplayCode 派生，前端只是给人看一眼将生成的机器人编号。
   const preview = valid
     ? deriveDisplayCode(season.trim(), robotTarget, versionNum)
     : '—';
@@ -174,7 +174,7 @@ function CreateResourceForm({
     event.preventDefault();
     if (!valid) return;
     mutation.mutate({
-      // projectId 固定 prj-robots（与种子整车同项目）：车归属机器人项目，建车表单不暴露项目维度。
+      // projectId 固定 prj-robots（与种子整机同项目）：机器人归属机器人项目，新建表单不暴露项目维度。
       projectId: 'prj-robots',
       name: name.trim(),
       kind,
@@ -241,7 +241,7 @@ function CreateResourceForm({
             />
           </Field>
           <Field label={t('resources.field.preview')}>
-            {/* 车号是派生的、不让人手填——所以预览是只读徽章而非输入框。 */}
+            {/* 机器人编号是派生的、不让人手填——所以预览是只读徽章而非输入框。 */}
             <span className="resources-preview">
               <span className="resources-code-badge">{preview}</span>
             </span>

@@ -199,13 +199,13 @@ function renderFact(
 ): string {
   switch (acc.reason) {
     case 'holdsResource':
-      return `${groupName}组今晚在场：用「${resourceName ?? '实车'}」做${acc.holderTaskLabel ?? '联调'}。`;
+      return `${groupName}组今晚在场：用「${resourceName ?? '机器人'}」做${acc.holderTaskLabel ?? '联调'}。`;
     case 'upstreamOnCall':
       return `${groupName}组今晚待命：${acc.holderTaskLabel ?? '联调'}还在做，可能随时叫你们，别走远。`;
     case 'blockedFree':
       return `${groupName}组今晚不加班：你们的活被上游卡住、推不动；有空看看别人写的代码。`;
     case 'resourceDown':
-      return `${groupName}组今晚不加班：「${resourceName ?? '实车'}」${statusReason ?? '用不了'}，相关的活今天都停。`;
+      return `${groupName}组今晚不加班：「${resourceName ?? '机器人'}」${statusReason ?? '用不了'}，相关的活今天都停。`;
   }
 }
 
@@ -274,8 +274,8 @@ export function derivePresenceSchedule(
       return capacityFeasibility(capacityByGroup.get(groupId) ?? 0);
     };
 
-    // 车不可上（down/upgrading/repair/retired/disassembling）：整片下游今晚作罢（接力释放，D-072 §3.3）。
-    // 读「该状态能否上车」而非硬编码状态名——新增维修/退役/拆解态自动纳入，无需改本分支。
+    // 机器人不可上（down/upgrading/repair/retired/disassembling）：整片下游今晚作罢（接力释放，D-072 §3.3）。
+    // 读「该状态能否上场」而非硬编码状态名——新增维修/退役/拆解态自动纳入，无需改本分支。
     if (resource && !canBoardResource(resource.status)) {
       const affected = new Set<string>([session.holderGroupId]);
       for (const task of snapshot.tasks) {
@@ -384,7 +384,7 @@ export function derivePresenceSchedule(
       factStatement: renderFact(
         acc,
         groupName,
-        // 显示车号（displayCode 如 26R1），无则回退 name，让事实更具体（R2 文案）。
+        // 显示机器人编号（displayCode 如 26R1），无则回退 name，让事实更具体（R2 文案）。
         resource?.displayCode ?? resource?.name ?? null,
         resource?.statusReason ?? null,
       ),

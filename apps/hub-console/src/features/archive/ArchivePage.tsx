@@ -42,7 +42,7 @@ const GROUP_LABEL_KEY: Record<OwnerGroup, TranslationKey> = {
   ec: 'enum.group.ec',
   vision: 'enum.group.vision',
 };
-// 适配车三选（值 + 显示）：universal=通用/不上固定车。
+// 适配机器人三选（值 + 显示）：universal=通用/不上固定机器人。
 type RobotCode = 'R1' | 'R2' | 'universal';
 const ROBOT_CODES: readonly RobotCode[] = ['R1', 'R2', 'universal'];
 
@@ -138,7 +138,7 @@ export function ArchivePage({
   const [relatedCommit, setRelatedCommit] = useState('');
   const [relatedRepo, setRelatedRepo] = useState('');
 
-  // 机构下拉选项：按当前 ownerGroup+season 过滤后去重（机构跨车共享，故不按车筛）。
+  // 机构下拉选项：按当前 ownerGroup+season 过滤后去重（机构跨机器人共享，故不按机器人筛）。
   const mechanismOptions = useMemo(() => {
     const artifacts = query.data?.artifacts ?? [];
     const seen = new Set<string>();
@@ -220,7 +220,7 @@ export function ArchivePage({
         <h2>{t('archive.form.title')}</h2>
       </div>
       <form className="pm-form" onSubmit={submit}>
-        {/* 顶部一行：组别（4 seg）｜ 赛季（窄）｜ 适配车（R1/R2/通用 seg）*/}
+        {/* 顶部一行：组别（4 seg）｜ 赛季（窄）｜ 适配机器人（R1/R2/通用 seg）*/}
         <div className="archive-top-row">
           <label className="kb-field archive-field--group">
             <span>{t('archive.form.group')}</span>
@@ -486,8 +486,8 @@ function ArtifactLogRow({
     artifact.versionNo != null
       ? `v${artifact.versionNo}`
       : (artifact.revision ?? null);
-  // 适配车徽章：universal → 「通用」。
-  const carLabel = artifact.robotCode
+  // 适配机器人徽章：universal → 「通用」。
+  const robotLabel = artifact.robotCode
     ? artifact.robotCode === 'universal'
       ? t('enum.robot.universal')
       : artifact.robotCode
@@ -501,9 +501,9 @@ function ArtifactLogRow({
             {versionLabel ? (
               <span className="archive-badge">{versionLabel}</span>
             ) : null}
-            {carLabel ? (
+            {robotLabel ? (
               <span className="archive-badge archive-badge--robot">
-                {carLabel}
+                {robotLabel}
               </span>
             ) : null}
             <span>

@@ -553,6 +553,12 @@ button {
   text-decoration: none;
 }
 
+/* 即将上线：弱化禁用态，去掉指针交互暗示。 */
+.my-map-link--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* 详情面板状态操作（标记完成 / 状态下拉 / 搁置确认） */
 .detail-actions {
   display: flex;
@@ -1168,7 +1174,7 @@ button {
   line-height: 1.4;
 }
 
-/* 适配车徽章：弱化的次级标记（描边/中性色），与蓝色版本徽章区分。 */
+/* 适配机器人徽章：弱化的次级标记（描边/中性色），与蓝色版本徽章区分。 */
 .archive-badge--robot {
   background: transparent;
   color: var(--muted);
@@ -1176,7 +1182,7 @@ button {
   font-weight: 700;
 }
 
-/* 登记表单顶部一行：组别（自然宽）｜ 赛季（窄）｜ 适配车（自然宽），窄屏自动换行。 */
+/* 登记表单顶部一行：组别（自然宽）｜ 赛季（窄）｜ 适配机器人（自然宽），窄屏自动换行。 */
 .archive-top-row {
   display: flex;
   flex-wrap: wrap;
@@ -1803,8 +1809,8 @@ button {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   库存 / BOM 第三支柱（INV-BOM-CORE）。零件×车 矩阵 + 一句话快记 + 缺料告警 + 记账历史。
-   反监视：本块无任何「按人」样式——主键恒是零件 / 车 / 动作。
+   库存 / BOM 第三支柱（INV-BOM-CORE）。零件×机器人 矩阵 + 一句话快记 + 缺料告警 + 记账历史。
+   反监视：本块无任何「按人」样式——主键恒是零件 / 机器人 / 动作。
    ───────────────────────────────────────────────────────────────────────── */
 .inv-page {
   display: flex;
@@ -1829,7 +1835,7 @@ button {
   font-size: 15px;
   font-weight: 650;
 }
-/* 矩阵横向溢出时滚动（多车并排不挤压，呼应 presence §6 overflow-x:auto 纪律）。 */
+/* 矩阵横向溢出时滚动（多机器人并排不挤压，呼应 presence §6 overflow-x:auto 纪律）。 */
 .inv-table-wrap {
   min-width: 0;
   overflow-x: auto;
@@ -1967,8 +1973,8 @@ button {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   车管理（R3，D-072 §3.2/§3.3）：建车 / 改状态 / 退役。复用 inv/pm 既有面板 + 表单类，
-   只新增车号徽章 / 状态徽章 / 行内改状态控件。主键是车 / 车号 / 状态——无人维度（I0）。
+   机器人管理（R3，D-072 §3.2/§3.3）：新建 / 改状态 / 退役。复用 inv/pm 既有面板 + 表单类，
+   只新增机器人编号徽章 / 状态徽章 / 行内改状态控件。主键是机器人 / 机器人编号 / 状态——无人维度（I0）。
    ───────────────────────────────────────────────────────────────────────── */
 .resources-page {
   display: flex;
@@ -1980,7 +1986,7 @@ button {
   min-height: 0;
   gap: 12px;
 }
-/* 汇总两指标（车总数 / 还能上场的）→ 2 列，对齐 inv-summary。 */
+/* 汇总两指标（机器人总数 / 还能上场的）→ 2 列，对齐 inv-summary。 */
 .resources-summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1995,7 +2001,7 @@ button {
   color: var(--muted);
   margin: 0;
 }
-/* 车多时横向滚动（行内改状态控件不被挤压）。 */
+/* 机器人多时横向滚动（行内改状态控件不被挤压）。 */
 .resources-table-wrap {
   min-width: 0;
   overflow-x: auto;
@@ -2022,7 +2028,7 @@ button {
   font-weight: 600;
   color: var(--text);
 }
-/* 车号徽章（派生 displayCode，如 26R2）：等宽强调，建车预览与列表同形。 */
+/* 机器人编号徽章（派生 displayCode，如 26R2）：等宽强调，新建预览与列表同形。 */
 .resources-code-badge {
   display: inline-block;
   padding: 2px 8px;
@@ -2039,7 +2045,7 @@ button {
   align-items: center;
   min-height: 34px;
 }
-/* 状态徽章：按状态分色（空着/在用=可上车绿系，在修/坏=红/琥珀，退役/拆解=灰）。 */
+/* 状态徽章：按状态分色（空着/在用=可上场绿系，在修/坏=红/琥珀，退役/拆解=灰）。 */
 .resources-status-badge {
   display: inline-block;
   padding: 1px 8px;
@@ -2105,7 +2111,7 @@ button {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   接力顺序链（D-072 §2.2，多车并排）。只表先后、不表钟点；主键是车 / 组接力位置 / 任务——无人维度。
+   接力顺序链（D-072 §2.2，多机器人并排）。只表先后、不表钟点；主键是机器人 / 组接力位置 / 任务——无人维度。
    ───────────────────────────────────────────────────────────────────────── */
 .relay-chain {
   display: flex;
@@ -2113,7 +2119,7 @@ button {
   gap: 14px;
   margin-bottom: 18px;
 }
-/* 多车并排：窗宽不足横向滚动（§6），不挤压单车链。 */
+/* 多机器人并排：窗宽不足横向滚动（§6），不挤压单机器人链。 */
 .relay-chain__track {
   display: flex;
   gap: 14px;
@@ -2238,7 +2244,7 @@ button {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
 }
 
-/* 接力卡片：左侧绿条 = 可上车（boardable）；灰条 + 降透明 = 车今天停用。 */
+/* 接力卡片：左侧绿条 = 可上场（boardable）；灰条 + 降透明 = 机器人今天停用。 */
 .relay-card {
   position: relative;
   width: 208px;
@@ -2376,7 +2382,7 @@ button {
   opacity: 0.35;
   cursor: not-allowed;
 }
-/* 交接线：绿色（与卡片可上车同色），区别于依赖图的红/蓝/琥珀语义边。 */
+/* 交接线：绿色（与卡片可上场同色），区别于依赖图的红/蓝/琥珀语义边。 */
 .relay-edge .react-flow__edge-path {
   stroke: var(--green);
 }

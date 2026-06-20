@@ -37,7 +37,7 @@ export const ProjectSchema = z.object({
   id: z.string().min(1),
   seasonId: z.string().min(1),
   name: z.string().min(1),
-  // R1/R2 用标签，不为每台车割裂出 Project（保留跨车共享散件依赖）。
+  // R1/R2 用标签，不为每台机器人割裂出 Project（保留跨机器人共享散件依赖）。
   robotTargets: z.array(RobotTargetSchema).min(1),
   status: z.enum(['active', 'archived']),
   createdAt: isoDateTimeSchema,
@@ -139,7 +139,7 @@ export const TaskSchema = z.object({
 export const DependencyTypeSchema = z.enum([
   'blocks', // from 阻塞 to
   'requires', // to 需要 from 的产出
-  'sharesResource', // 共享稀缺资源（实车），互斥（出车撞车）
+  'sharesResource', // 共享稀缺资源（机器人），互斥（同时用会撞）
 ]);
 
 export const DependencyStatusSchema = z.enum([
@@ -345,9 +345,9 @@ export const DepGraphSchema = z.object({
 // ---------------------------------------------------------------------------
 // 共享物理资源 + 差异化在场排班（D-029）
 //
-// 通用 PM 调度任务、假设人可并行 / 资源抽象；本场景有「单一共享物理资源（实车）」
+// 通用 PM 调度任务、假设人可并行 / 资源抽象；本场景有「单一共享物理资源（机器人）」
 // 做硬串行点 + 物理共处要求 → "今晚 / 明天你这角色要不要在场"不是排班表，是从
-// DAG + 车可用性派生。差异化（程序熬夜调车 / 机械电路 on-call / 被卡的今晚去学）
+// DAG + 机器人可用性派生。差异化（程序熬夜调机器人 / 机械电路 on-call / 被卡的今晚去学）
 // 由依赖位置 + 资源状态自动落出，不手排。
 //
 // 反监视（C2/A1）：派生输出 PresenceRecommendation 的主键是 group/resource/task，
@@ -358,33 +358,33 @@ export const DepGraphSchema = z.object({
 export const ResourceKindSchema = z.enum(['robot', 'testRig', 'instrument']);
 
 /**
- * 资源自身状态（D-072 §3.3 车生命周期 + 既有 down/upgrading 兼容）。**不可上车**的状态下，
+ * 资源自身状态（D-072 §3.3 机器人生命周期 + 既有 down/upgrading 兼容）。**不可上场**的状态下，
  * 整片下游 require 它的任务今晚作罢（接力释放语义，见 canBoardResource + derivePresenceSchedule）。
  *
  * 宏观维修态 = `repair`（不精确到机构，需要时附 statusReason 自由注释「撞坏底盘」）。退役/拆解手动设。
- * 既有 `down`/`upgrading` 保留（早期种子 / 测试在用，语义上等同「不可上车」），新增 D-072 三态：
+ * 既有 `down`/`upgrading` 保留（早期种子 / 测试在用，语义上等同「不可上场」），新增 D-072 三态：
  *  - `repair` 维修中（撞坏要修，修好回 available）
- *  - `retired` 退役（手动，整车留展示）
+ *  - `retired` 退役（手动，整机留展示）
  *  - `disassembling` 拆解（退役后拆一部分，半留）
  */
 export const ResourceStatusSchema = z.enum([
   'available', // 空闲可用
   'inUse', // 某窗口被占用（调试中）
-  'down', // 损坏 / 不可用（legacy，等同 repair 的「不可上车」）
+  'down', // 损坏 / 不可用（legacy，等同 repair 的「不可上场」）
   'upgrading', // 升级改造中（legacy）
   'repair', // 维修中（D-072 宏观维修态）
-  'retired', // 退役（手动，整车留展示）
+  'retired', // 退役（手动，整机留展示）
   'disassembling', // 拆解（退役后拆一部分，半留）
 ]);
 
-/** 可上车（可排班 / 显示为活跃车）的状态集——仅 available / inUse。其余皆「不可上车」→ 接力释放。 */
+/** 可上场（可排班 / 显示为活跃机器人）的状态集——仅 available / inUse。其余皆「不可上场」→ 接力释放。 */
 const BOARDABLE_STATUSES: ReadonlySet<ResourceStatus> = new Set<ResourceStatus>([
   'available',
   'inUse',
 ]);
 
 /**
- * 该状态能否上车（D-072 §3.3：车状态只回答「现在能不能上 / 在不在修」）。
+ * 该状态能否上场（D-072 §3.3：机器人状态只回答「现在能不能上 / 在不在修」）。
  * 下游接力据此提示「此刻不用来 / 可下班」（接力释放语义，非「停活」）。
  */
 export function canBoardResource(status: ResourceStatus): boolean {
@@ -392,9 +392,9 @@ export function canBoardResource(status: ResourceStatus): boolean {
 }
 
 /**
- * 车编号派生（D-072 §3.2 决定 K，**禁手写**）：`赛季后两位 + 位置 (+ 版本)`。
+ * 机器人编号派生（D-072 §3.2 决定 K，**禁手写**）：`赛季后两位 + 位置 (+ 版本)`。
  *  - deriveDisplayCode('25','R1',1) → '25R1'
- *  - deriveDisplayCode('26','R1',2) → '26R1-v2'（v = 第几代整车，整车全拆重做才升，默认 v1）
+ *  - deriveDisplayCode('26','R1',2) → '26R1-v2'（v = 第几代整机，整机全拆重做才升，默认 v1）
  * position 直接用 RobotTarget（R1/R2/shared）；version<2 不显 `-vN`（默认 v1 不啰嗦）。
  */
 export function deriveDisplayCode(
@@ -409,16 +409,16 @@ export function deriveDisplayCode(
 export const SharedResourceSchema = z.object({
   id: z.string().min(1),
   projectId: z.string().min(1),
-  name: z.string().min(1), // "R1 比赛车"
+  name: z.string().min(1), // "R1 比赛机器人"
   kind: ResourceKindSchema,
   robotTarget: RobotTargetSchema, // 与 Task.robotTarget 对齐；同时充当 displayCode 的「位置」位
   status: ResourceStatusSchema,
   statusReason: z.string().min(1).nullable(), // "撞坏底盘"——中性事实自由注释，非归咎于人
   statusSource: GovActorSourceSchema, // 派生优先，console 兜底
-  // D-072 §3.2「车 = 带编号对象」：赛季后两位 + 版本代次 → displayCode 派生（禁手写）。
+  // D-072 §3.2「机器人 = 带编号对象」：赛季后两位 + 版本代次 → displayCode 派生（禁手写）。
   // 全 optional（向后兼容既有种子 / 已落盘 JSON）：未给则读视图回退 name（见 INV ledger displayCode ?? name）。
   season: z.string().min(1).optional(), // 赛季后两位 "26"
-  version: z.number().int().positive().optional(), // 第几代整车，默认 1（极低频升）
+  version: z.number().int().positive().optional(), // 第几代整机，默认 1（极低频升）
   displayCode: z.string().min(1).optional(), // deriveDisplayCode(season, robotTarget, version)
   updatedAt: isoDateTimeSchema,
 });
@@ -472,7 +472,7 @@ export const ResourceSessionSchema = z.object({
   resourceId: z.string().min(1),
   windowLabel: z.string().min(1), // 粗粒度标签，不锁 enum（"今晚" / "明天上午" / "周末"）
   orderInWindow: z.number().int().nonnegative(), // 窗口内接力顺序（0,1,2…）
-  holderGroupId: z.string().min(1), // 该段车归哪个组
+  holderGroupId: z.string().min(1), // 该段机器人归哪个组
   holderTaskId: z.string().min(1).nullable(), // 关联任务（"R1 总联调"）
   // 队长一次可选多组多人——仅本窗操作名单，绝不跨窗按人累计（反排名护栏）。
   invitedMemberIds: z.array(z.string().min(1)),
@@ -488,7 +488,7 @@ export const ResourceSessionSchema = z.object({
 });
 
 /**
- * 接力交接边（R1）：表"先做完这段、再交给下一段上车"的**先后交接**，
+ * 接力交接边（R1）：表"先做完这段、再交给下一段上场"的**先后交接**，
  * **不是**任务依赖（任务依赖走 Dependency + DepGraphPage，二者井水不犯河水）。
  * fromSessionId → toSessionId 均指向同窗 ResourceSession；队长在接力画布上拉线产生。
  * 与 session.eta 同样走内存、不落盘（D-029：粗粒度临时窗口，重启回 seed）。
@@ -509,16 +509,16 @@ export const RelayHandoffSchema = z.object({
 });
 
 export const PresenceModeSchema = z.enum([
-  'present', // 在场（持有车 / 接力持有）
+  'present', // 在场（持有机器人 / 接力持有）
   'onCall', // 随叫（上游链上仍在推进，可能临时被叫）
-  'free', // 今晚不用来（被卡 → 去歇 / 去学；或车 down）
+  'free', // 今晚不用来（被卡 → 去歇 / 去学；或机器人 down）
 ]);
 
 export const PresenceReasonSchema = z.enum([
-  'holdsResource', // 持有车做这段工作
+  'holdsResource', // 持有机器人做这段工作
   'upstreamOnCall', // 上游链上还在推进，可能被叫
   'blockedFree', // 被卡而空闲，本窗无法推进
-  'resourceDown', // 车不可用，整片下游今晚作罢
+  'resourceDown', // 机器人不可用，整片下游今晚作罢
 ]);
 
 /**

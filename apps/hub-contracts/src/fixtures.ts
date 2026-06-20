@@ -212,8 +212,8 @@ export const artifactRefFixtures: ArtifactRef[] = [
 // 图纸提交日志 / 版本时间线 seed：跨机构跨日期的真实迭代历史，让档案页时间线一上来就有料。
 //
 // 维度：组别 ownerGroup（机械/电路/电控/视觉）+ 赛季 season + 机构 mechanism（分组键）
-// + 适配车 robotCode（R1/R2/universal，是版本属性·不进版本键）+ 版本号 versionNo（按 组别+赛季+机构 连续）。
-// 底盘 v1(R1,6/1)/v2(R2,6/4)/v3(R1,6/6)——同一机构版本线跨车、编号仍连续；抬升机构 v1/v2(R1)；
+// + 适配机器人 robotCode（R1/R2/universal，是版本属性·不进版本键）+ 版本号 versionNo（按 组别+赛季+机构 连续）。
+// 底盘 v1(R1,6/1)/v2(R2,6/4)/v3(R1,6/6)——同一机构版本线跨机器人、编号仍连续；抬升机构 v1/v2(R1)；
 // 夹爪 v1(通用)；视觉模组固件 v1/v2(R1,视觉组)。名字不再硬写「 vN」（版本走 versionNo/徽章）。
 // 无人维度：记录主键是 组别+赛季+机构+版本，不存"谁提交"作排名依据（I0/A4）。
 // ---------------------------------------------------------------------------
@@ -406,7 +406,7 @@ const PROVIDER_EC_B = {
 export const governanceScenarioFixture: GovernanceSnapshot = {
   seasonId: 'season-robocon-2026',
   projectId: 'prj-robots',
-  stage: '备赛-拼车调试',
+  stage: '备赛-整机调试',
   groups: [
     { id: 'grp-mech', seasonId: 'season-robocon-2026', parentGroupId: null, name: '机械', kind: 'mechanical' },
     { id: 'grp-circuit', seasonId: 'season-robocon-2026', parentGroupId: null, name: '电路', kind: 'electrical' },
@@ -431,8 +431,8 @@ export const governanceScenarioFixture: GovernanceSnapshot = {
     { id: 't-r1-dataset', projectId: 'prj-robots', groupId: 'grp-vision', title: 'R1 视觉数据集采集', rawSummary: '在 R1 上跑数据采集', status: 'inProgress', statusSource: 'git', ownerId: 'm-visionA', collaboratorIds: [], robotTarget: 'R1', intrinsicComplexity: 'normal', lastProgressAt: '2026-06-11T01:00:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
     { id: 't-r1-vision-stream', projectId: 'prj-robots', groupId: 'grp-vision', title: 'R1 视觉→运动数据流', rawSummary: '本来很简单，就是把视觉结果接进运动', status: 'inProgress', statusSource: 'derived', ownerId: 'm-visionC', collaboratorIds: [], robotTarget: 'R1', intrinsicComplexity: 'trivial', lastProgressAt: '2026-06-08T18:00:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
     { id: 't-r2-spare', projectId: 'prj-robots', groupId: 'grp-mech', title: 'R2 备件整理', rawSummary: '整理 R2 备件清单', status: 'inProgress', statusSource: 'console', ownerId: 'm-mechD', collaboratorIds: [], robotTarget: 'R2', intrinsicComplexity: 'trivial', lastProgressAt: '2026-06-10T09:00:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
-    { id: 't-r1-integration', projectId: 'prj-robots', groupId: 'grp-program', title: 'R1 总联调', rawSummary: 'R1 整车联调', status: 'inProgress', statusSource: 'git', ownerId: 'm-progA', collaboratorIds: ['m-visionC', 'm-ecB'], robotTarget: 'R1', intrinsicComplexity: 'hard', lastProgressAt: '2026-06-10T23:30:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
-    { id: 't-r2-integration', projectId: 'prj-robots', groupId: 'grp-program', title: 'R2 总联调', rawSummary: 'R2 整车联调', status: 'inProgress', statusSource: 'git', ownerId: 'm-progB', collaboratorIds: [], robotTarget: 'R2', intrinsicComplexity: 'hard', lastProgressAt: '2026-06-10T23:00:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
+    { id: 't-r1-integration', projectId: 'prj-robots', groupId: 'grp-program', title: 'R1 总联调', rawSummary: 'R1 整机联调', status: 'inProgress', statusSource: 'git', ownerId: 'm-progA', collaboratorIds: ['m-visionC', 'm-ecB'], robotTarget: 'R1', intrinsicComplexity: 'hard', lastProgressAt: '2026-06-10T23:30:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
+    { id: 't-r2-integration', projectId: 'prj-robots', groupId: 'grp-program', title: 'R2 总联调', rawSummary: 'R2 整机联调', status: 'inProgress', statusSource: 'git', ownerId: 'm-progB', collaboratorIds: [], robotTarget: 'R2', intrinsicComplexity: 'hard', lastProgressAt: '2026-06-10T23:00:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
   ],
   dependencies: [
     { id: 'dep-001', projectId: 'prj-robots', fromTaskId: 't-r1-arm-mount', toTaskId: 't-r1-chassis', type: 'requires', status: 'satisfied', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
@@ -466,7 +466,7 @@ export const memberKnowledgeFixtures: MemberKnowledge[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// 差异化在场排班样例（D-029）：治理快照 + 实车 + 今晚占用窗口。
+// 差异化在场排班样例（D-029）：治理快照 + 机器人 + 今晚占用窗口。
 //
 // 今晚 R1 归程序组调「R1 总联调」。期望派生：
 //   程序 = present（持有 R1，最后一关）；电控 / 电路 = onCall（上游链上仍在推进）；
@@ -476,11 +476,11 @@ export const memberKnowledgeFixtures: MemberKnowledge[] = [
 
 export const scheduleScenarioFixture: ScheduleSnapshot = {
   ...governanceScenarioFixture,
-  // D-072 §3.2「车 = 带编号对象」：26 赛季 R1 / R2 两辆，displayCode 派生（禁手写，decision I/K）。
-  // displayCode 同时被库存总表（INV-BOM-CORE）当车列表头复用（displayCode ?? name → 26R1 / 26R2）。
+  // D-072 §3.2「机器人 = 带编号对象」：26 赛季 R1 / R2 两台，displayCode 派生（禁手写，decision I/K）。
+  // displayCode 同时被库存总表（INV-BOM-CORE）当机器人列表头复用（displayCode ?? name → 26R1 / 26R2）。
   resources: [
-    { id: 'res-r1', projectId: 'prj-robots', name: 'R1 比赛车', kind: 'robot', robotTarget: 'R1', status: 'inUse', statusReason: null, statusSource: 'console', season: '26', version: 1, displayCode: deriveDisplayCode('26', 'R1', 1), updatedAt: GOVERNANCE_SCENARIO_NOW },
-    { id: 'res-r2', projectId: 'prj-robots', name: 'R2 比赛车', kind: 'robot', robotTarget: 'R2', status: 'available', statusReason: null, statusSource: 'console', season: '26', version: 1, displayCode: deriveDisplayCode('26', 'R2', 1), updatedAt: GOVERNANCE_SCENARIO_NOW },
+    { id: 'res-r1', projectId: 'prj-robots', name: 'R1 比赛机器人', kind: 'robot', robotTarget: 'R1', status: 'inUse', statusReason: null, statusSource: 'console', season: '26', version: 1, displayCode: deriveDisplayCode('26', 'R1', 1), updatedAt: GOVERNANCE_SCENARIO_NOW },
+    { id: 'res-r2', projectId: 'prj-robots', name: 'R2 比赛机器人', kind: 'robot', robotTarget: 'R2', status: 'available', statusReason: null, statusSource: 'console', season: '26', version: 1, displayCode: deriveDisplayCode('26', 'R2', 1), updatedAt: GOVERNANCE_SCENARIO_NOW },
   ],
   resourceSessions: [
     { id: 'sess-tonight-prog', projectId: 'prj-robots', resourceId: 'res-r1', windowLabel: '今晚', orderInWindow: 0, holderGroupId: 'grp-program', holderTaskId: 't-r1-integration', invitedMemberIds: ['m-progA'], note: '今晚 R1 归程序调总联调', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, eta: null, createdAt: GOVERNANCE_SCENARIO_NOW },
@@ -613,7 +613,7 @@ export const kbScenarioFixture: KbSnapshot = {
 
 /**
  * 库存 / BOM 锚点场景（INV-BOM-CORE，demo 模式才注入；TEAMHUB_DEMO_SEED=false → 空板）。
- * 车列复用 GovStore 的 res-r1 / res-r2（PRESENCE 给资源补 displayCode 后矩阵列自动切到 26R1 / 26R2）。
+ * 机器人列复用 GovStore 的 res-r1 / res-r2（PRESENCE 给资源补 displayCode 后矩阵列自动切到 26R1 / 26R2）。
  * 三个 trackIndividually 件（电机/电调/主控）+ 一个按数量件（M4 螺丝）；个体实例与 allocations.used 计数一致：
  *  - GM6020 电机 total 9：res-r1 用 2 / res-r2 用 4 / 闲置 3（历史：盘点 10 → 烧坏 1 → 9）。
  *  - C620 电调 total 9：同上分布。

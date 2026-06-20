@@ -194,9 +194,9 @@ export const ArtifactRefSchema = z.object({
   // 图纸档案 v2 维度（HUB-ARTIFACT-ARCHIVE-V2，全可选、向后兼容）：8 条 seed + 旧持久化 JSON
   // 经同一 schema 解析，缺这些字段不能炸——故一律 .optional()，旧裸数据落「未分组/历史」桶、不参与自增。
   // ownerGroup = 组别（派生分组根）：机械/电路/电控/视觉。season = 赛季年份 "26"。
-  // robotCode = 适配车 "R1"/"R2"/"universal"（通用·不上固定车）；是版本的属性、非分组父级，
-  //   故一条机构的版本线可跨车（v2 适配 R2、v3 适配 R1），版本号仍按机构连续。
-  // versionNo = 自增版本号（server 派生，键=组别+赛季+机构，不含车）。
+  // robotCode = 适配机器人 "R1"/"R2"/"universal"（通用·不上固定机器人）；是版本的属性、非分组父级，
+  //   故一条机构的版本线可跨机器人（v2 适配 R2、v3 适配 R1），版本号仍按机构连续。
+  // versionNo = 自增版本号（server 派生，键=组别+赛季+机构，不含机器人）。
   // subType = 子类型 图纸/驱动（仅电路带）。I0：均无人员维度。
   ownerGroup: z.enum(['mechanical', 'electrical', 'ec', 'vision']).optional(),
   season: z.string().min(1).optional(),
