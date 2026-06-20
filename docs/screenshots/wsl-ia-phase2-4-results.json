@@ -1,0 +1,58 @@
+{
+  "buildHealth": "{\"status\":\"ok\",\"service\":\"teamhub-hub-server\",\"checkedAt\":\"2026-06-20T16:35:54.420Z\",\"buildId\":\"d0f858c\"}",
+  "total": 10,
+  "passed": 10,
+  "failed": 0,
+  "results": [
+    {
+      "check": "侧栏分组渲染",
+      "pass": true,
+      "detail": "nav-group=3 洞察header=1"
+    },
+    {
+      "check": "导航 7 项",
+      "pass": true,
+      "detail": "items=[项目 / 知识库 / 库存/BOM / 机器人队 / 总览 / 缺人方向 / 设置]"
+    },
+    {
+      "check": "导航项内容正确",
+      "pass": true,
+      "detail": "期望含 项目/知识库/库存/BOM/机器人队/总览/缺人方向/设置"
+    },
+    {
+      "check": "洞察区可折叠",
+      "pass": true,
+      "detail": "展开=true 折叠后=false 再展开=true"
+    },
+    {
+      "check": "项目页默认看板",
+      "pass": true,
+      "detail": "pm 容器存在=true"
+    },
+    {
+      "check": "依赖图渲染(无 visibility:hidden)",
+      "pass": true,
+      "detail": "react-flow=1 节点=8 首节点visibility=visible 任一hidden=false 画布高=568"
+    },
+    {
+      "check": "知识页双 Tab 存在",
+      "pass": true,
+      "detail": "相似检索=2 图纸档案=1"
+    },
+    {
+      "check": "图纸表单赛季下拉+其它",
+      "pass": true,
+      "detail": "select=2 其它option=1"
+    },
+    {
+      "check": "机器人队 create 赛季下拉+其它",
+      "pass": true,
+      "detail": "select=5 其它option=1"
+    },
+    {
+      "check": "I0 反监视(DOM 无 memberId)",
+      "pass": true,
+      "detail": "项目页+知识页 DOM 净"
+    }
+  ]
+}

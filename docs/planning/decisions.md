@@ -921,7 +921,7 @@
 
 ## D-076 — IA 重构阶段 2/3/4：项目页 + 知识页 + 导航分组（一轮收尾）+ 表单一致性
 
-- 状态：**DECIDED / IMPLEMENTING（分支 `ia-phase2-4`，云端 master `a4033b8` core-plugin PROPOSAL 文档已并入此分支·未回 merge master）**（2026-06-20；前端为主 + 零契约/端点改；4 层 workflow 落 3 commit，待本机三包 `verify:all` + WSL2 真机 Playwright 验收后补全本节验证小节）。
+- 状态：**DECIDED / IMPLEMENTED / VERIFIED（分支 `ia-phase2-4`，未回 merge master——云端 `a4033b8` 已并入本分支，回并到 master 现已是干净快进、待用户拍板触发）**（2026-06-20；前端为主 + 零契约/端点改；4 层 workflow 落 3 commit；本机三包 `verify:all` 全绿 + **WSL2 真机 Playwright 10/10 PASS** buildId `d0f858c`，截图 `docs/screenshots/wsl-ia-phase2-4-*`，结果 `wsl-ia-phase2-4-results.json`）。
 - 上下文：D-075 阶段 1（机器人队页）已落地，但用户 2026-06-20「左侧还是一大堆」——阶段 1 仅 10→9 看不出，视觉 declutter 全在阶段 2-4。沿用 D-075「组合不重写」。spec = `docs/planning/ia-refactor-next-prompts.md` PROMPT 1+2，上游 `docs/design/sched-date-relay-robot-redesign.md` §B。本轮单开 `ia-phase2-4`、不在 master 直改；master 回并推迟到收尾（云端 a4033b8 已干净并入工作分支，merge-tree 零冲突实证）。
 - **用户拍板的覆盖项（优先于 spec 旧措辞）**：
   1. **gaps = C（独立顶级洞察项，非并入项目页 Tab）**：用户要求「以用户视角再讲一遍」后拍板——「缺人方向」是全队层面、只读、扫一眼的体检报告（哪个组缺哪个方向人手、只到组不点名＝I0），性质同「总览」＝仪表盘，故**留作顶级导航项、归洞察区与总览并排**，不并进项目页。→ 项目页只合 看板+依赖图（两视图切换），导航 **9→8→7**（非旧 spec 的 9→7→6）。原 spec「gaps 降为项目页洞察 Tab」与「洞察区＝总览/缺人方向」自相矛盾，C 解之。
@@ -933,5 +933,10 @@
   - **Phase 4 导航分组**：`ConsoleLayout` `navItems`→分组 `navGroups`（主操作区/洞察区可折叠/设置）；`ConsolePage` 联合 + `App.tsx` 三元 + `TITLE_KEY` 收口；i18n nav.* 重整 + 删孤儿键（双侧成对）。落地页留 `overview`。
   - 终态导航 7 项：`overview`(洞察) / `project` / `gaps`(洞察) / `knowledge` / `inv` / `fleet` / `settings`。
 - 铁律（继承 D-075）：组合不重写（`PmBoardPage`/`DepGraphPage`/`KbSearchPage`/`ArchivePage` 原样复用，只外层加视图/Tab 容器 + query-key 协调仿 D-075 prefix 失效）；@xyflow 两块画布（依赖图嵌 Tab 后）容器定高仿 D-075 `clamp` 防塌高/visibility:hidden；I0 反监视（项目页/缺人 Tab 仍只到组、不下钻人，grep memberId 净）；契约/端点零改（仅 UI）；本机三包 `verify:all` 全绿（typecheck 兜 union 收口 + i18n 双侧 key 平衡）；WSL2 4177 真机 Playwright + 截图 `docs/screenshots/wsl-ia-phase2-4-*`；3-4 独立 commit、收尾 push。
-- 工作流：4 层 workflow（design 3 opus 并行 / 对抗式风险审查 2 opus / 实现 3 opus 顺序 Phase2→3→4 各 commit / 终验 1 sonnet 三包 verify + grep + i18n 平衡）。
-- 事实源：本 ADR；spec `docs/planning/ia-refactor-next-prompts.md` PROMPT 1+2；上游 `docs/design/sched-date-relay-robot-redesign.md` §B；前序 D-075（阶段 1）。验证小节 = workflow + WSL 真机验收后补。
+- 工作流：4 层 workflow（design 3 opus 并行 / 对抗式风险审查 2 opus 出 12 条 must-fix·4 blocker 全处理 / 实现 3 opus 顺序 Phase2→3→4 各 commit·各阶段 console verify:all 全绿 / 终验 1 sonnet 三包 verify + grep + i18n 平衡）。commit：Phase2 `9b090b7` / Phase3 `9147462` / Phase4 `d0f858c`。
+- **实现期已落决策（两处对原 spec 的合理偏离 + 一处设计选择）**：
+  1. **archiveFileName 不做可点链（spec 偏离·已采纳）**：原 spec「KB 结果 archiveFileName 做可点链跳图纸档案 Tab 定位」基于一个误判——KB 的 `archiveFileName` 是**调试结案归档 markdown**（`.debug_workspace/archive/YYYY-MM-DD_<slug>.md`，源 `kb-similar.ts` firstArchive.fileName）；而「图纸档案(archive)」页渲染的是 `ArtifactRef[]`（CAD 图纸/固件 + 版本时间线）。**两个不同数据域、无外键**，仅共用「archive」字样。做成跳转链会指向不存在对象。故知识页两 Tab 纯并置、archiveFileName 保持 KbResultCard 里只读 mono 展示。契约/端点零改。（spec 写成「可点链」是当初把两个 archive 混淆，实现期风险审查捕获。）
+  2. **抽了共享 `<SeasonSelect>`（采纳 spec 选项③）**：赛季「下拉 + 其它（手填）兜底」逻辑抽进 `components/SeasonSelect.tsx`，archive 提交表单与 fleet create 表单两处复用。机器人队 create 赛季从自由文本 `<input>` 改为下拉（真机实证：select 含「其它（手填）」option）。robotCode/robotTarget 枚举值零改。
+  3. **导航分组形态**：主操作区**无组标题**（项目/知识库/库存/机器人队 直接顶部排列）、洞察区有可折叠标题「洞察」（总览/缺人方向）、设置无标题——比「每组都加标题」更干净，洞察区因要折叠才需 header。
+- 验证：本机 console/contracts/server 三包 `verify:all` 全绿；i18n zh/en 双侧各 465 键平衡；终态导航 7 项 [overview/project/gaps/knowledge/inv/fleet/settings]。**WSL2 真机 Playwright 10/10 PASS**（rainman@100.78.202.84，buildId `d0f858c`，bundle 过 SSH 传 + 单会话起服 4177 + Playwright，截图 `docs/screenshots/wsl-ia-phase2-4-*` + `wsl-ia-phase2-4-results.json`）：①侧栏分组渲染(nav-group=3·洞察 header) ②导航 7 项内容正确 ③洞察区可折叠(展开→折叠→再展开) ④项目页默认看板 ⑤**依赖图嵌视图切换后渲染无 visibility:hidden**(react-flow 8 节点全 visible·任一 hidden=false·画布高 568——D-075 踩过的塌高/首屏空白回归未现，条件 mount 方案生效) ⑥知识页双 Tab(相似检索/图纸档案) ⑦图纸表单赛季下拉+其它 ⑧机器人队 create 赛季下拉+其它(原自由文本) ⑨I0 反监视：项目页+知识页 DOM 无 memberId。
+- 事实源：本 ADR；spec `docs/planning/ia-refactor-next-prompts.md` PROMPT 1+2；上游 `docs/design/sched-date-relay-robot-redesign.md` §B；前序 D-075（阶段 1）。
