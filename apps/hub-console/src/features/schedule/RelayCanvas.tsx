@@ -482,6 +482,10 @@ export function RelayCanvas({
           </div>
         ) : null}
         <ReactFlow
+          // 节点异步到达：首帧 nodes 仍是 loading 渲染时的空态，fitView 会对空图生效、
+          // 之后到来的节点既不重新 fit 也可能停在 visibility:hidden（首屏空白）。
+          // 用 empty→loaded 的 key 让 ReactFlow 在节点就位后干净重挂一次，按真实节点测量 + fitView。
+          key={nodes.length === 0 ? 'relay-empty' : 'relay-loaded'}
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
