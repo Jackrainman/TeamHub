@@ -878,3 +878,27 @@
 - 守恒：全程 `git mv`/Edit 整段搬运·**零真相丢失**（每条原始事实在 stub ∪ archive 可寻）·零代码/数据（不碰 `apps/`·`kb.json`/`gov.json`）；承重事实（zod / 四层架构 / I0·C·A 宪法 / 起草不发送）仍在活文件。
 - 验证：`git diff --check` 干净；`now.md` yaml 可解析（10 keys）；grep 活文档无悬挂旧路径 / 无被压条目全文；行数抽查（decisions.md 865 / now.md 8.6KB / decisions-archive 57→239）；`pre-commit.sh` 过。4 原子 commit（A 压缩 / B now / C+D 归位 / E 纪律）。
 - 事实源：本 ADR；plan `~/.claude/plans/decisions-md-wobbly-toast.md`；前序 D-070（Harness 减负·活账本纪律立）。
+
+## D-074 — 版本号自动更迭失效：根因 + 单一真相 VERSION + bump 哨兵 + 当前版本重定为 v0.4.0
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-06-20；新增 `VERSION` + `scripts/bump-version.sh` + `scripts/check-version-bump.sh`，挂 `pre-commit.sh`，AGENTS §2.3/§7 成文；三包 package.json 0.1.0→0.4.0）
+- 日期：2026-06-20
+- 上下文：用户指出「版本号明显不对」——368 commit 跨两个月、经 ProbeFlash v0.2/v0.3 + TeamHub 治理立魂 + 三支柱 + 排班/库存，hub-* 三包却一直停在 `0.1.0`、`git tag` 为 0，要求对照 feiyue 找出 harness 版本自动更迭失效的根因并给方案，再据 git tree 推断当前应是几版。
+- 根因（对照 feiyue 实证）：
+  1. **AGENTS.md 从来没写「要 bump」**：completion gate（§2.3）列了 verify + planning-sync + commit，**独缺版本号**。harness 每轮读 AGENTS，没指令就不会 bump。feiyue 的 `CONVENTIONS.md` 白纸黑字「每次改动脚本都要自增 `@version`」——TeamHub 无对应条目。
+  2. **缺天然强制函数**：feiyue 是 Tampermonkey 用户脚本，**`@version` 不自增 Tampermonkey 就不推更新**——忘了 bump 立刻被用户「没更新」暴露，现实替你把关。服务端 app 没有这个下游压力：版本停在 `0.1.0` 也照跑、没有任何东西坏，于是无声漂移。
+  3. **唯一一次「修复」（D-052 诉求7 / `8ab93cf`）是半拉子**：它把 `status.ts` 从硬编码 `'0.0.1'` 改成 `createRequire` **读** `package.json.version`，commit message 自己写明「之后**只改 package.json 的 version 字段即跟进**；想自增再加 `npm version patch`」——把这步留成了**没人执行的手动 TODO**。从「读死常量」改成「读一个永不自增的字段」，是同一份陈旧换了顶帽子：端点忠实地报告一个冻住的数字。
+  4. **monorepo 多包版本歧义**：6 个包各自带版本（hub-* 三包 `0.1.0` / lark·pf 三包 `0.0.1`），**无根 package.json、无 workspace**，没有一个「产品版本」可指——就算想 bump 也不知道 bump 谁。
+  5. **零 git tag**：368 commit 无一 tag，git 自身不背版本里程碑；唯一的版本信号 `buildId`=git SHA（`start-teamhub.sh` 注入）是**构建身份**不是**语义版本**。
+- 决策（方案，本轮已落地）：
+  1. **产品单一版本 = 根 `VERSION`**（SemVer）。三支柱同端口 4177 同发布 = 一个产品一个版本号。`scripts/bump-version.sh <patch|minor|major|X.Y.Z>` 是**唯一改版入口**，把 VERSION 同步进 hub-* 三包 package.json，`/api/system/status`·`/health` 经 `status.ts`（读包根 version）即刻报告。手改 package.json 被 §7 禁止（防漂移）。
+  2. **AGENTS 成文**：§7「版本号纪律」+ §2.3 completion gate 加 (c)「改 hub-* 源码则 `bump-version.sh` 自增」——补上根因①缺的那条规则，harness 每轮即读到。
+  3. **哨兵替代天然强制函数**：`scripts/check-version-bump.sh`（挂 `pre-commit.sh`）—— 暂存 hub-* 源码却没动 VERSION 就报警。默认 **warn 不阻断**（避免硬卡 D-064 无人值守 commit 把自迭代环 wedge 住），`VERSION_BUMP_STRICT=1` 升硬门、`SKIP_VERSION_BUMP=1` 单次豁免。诚实标注：warn 比 feiyue 的硬强制弱，是为不卡无人环的**刻意取舍**，留了一行升硬门的开关。
+  4. **不引根 package.json / 不打 tag**：保持现有 6 包独立结构（避免 workspace 大改 = §5 边界），VERSION 文件做产品版本真相；tag 仍按 feiyue「不强制」留空（且 §5 tag 操作需审批）。
+- **据 git tree 重定当前版本 = v0.4.0**（两条独立推法收敛）：
+  - **产品线连续法**：ProbeFlash 发布 v0.2.0 → v0.3.0（E1，facts 实证），pivot 删的是 v0.3 *代码* 不是 *产品*——TeamHub 三支柱是同一产品的下一纪元 = **v0.4**。
+  - **TeamHub 自身纪元法**：hub-* 在 E2 脚手架期落地即 `0.1.0`，此后每个时代加一档 MINOR 级能力——E3 治理立魂/pivot→0.2、E4 三支柱破冰→0.3、E5 在场排班+库存+图纸档案→**0.4.0**。
+  - 两法都落 **v0.4.0**。未到 1.0：内网 demo、无生产部署、治理派生层挂起、单端口 nohup 单点（facts-pack §4.3 诚实口径）。若按「每子系统一个 MINOR」的机械计数会更高（~0.10+），但**产品纪元版本**取 0.4.0 更有沟通价值，且正是 harness 此后该自动维护的那个数。
+- 验证：`bump-version.sh 0.4.0` 跑通（VERSION + 三包 package.json 全 `0.4.0`）；三包 `verify:all` exit 0（改的是 version 字符串，无测试断言版本常量，grep 实证）；`pre-commit.sh` 过（含新哨兵）；真机 `curl /api/system/status` 报 `version: 0.4.0`。
+- 老实定位：① 哨兵默认 warn，真要根治漂移得有人偶尔看告警或开 STRICT——但比「AGENTS 压根没规则」已是质变；② lark/pf 三包仍 `0.0.1`（外围适配器、非产品主体，本轮不动）；③ 未补历史 tag（git 历史 + 本 ADR 的纪元表已够追溯）。
+- 事实源：本 ADR；对照 `~/ruolin_huang/xju-feiyue-scripts/CONVENTIONS.md`（§元数据/版本与 git）；半拉子修复 `8ab93cf`（D-052 诉求7）；`apps/hub-server/src/status.ts`；facts-pack §1.1 五时代表。

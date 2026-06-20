@@ -19,7 +19,7 @@
 ## 2. 铁律（改动前必看 — 每条钉在宪法或事故上）
 1. **I0 核心不变式（凌驾全部）**：人键的输出只回本人当帮助；对第三方**只暴露结构键**（task/group/resource），**永不暴露人**。`confirmedBy`(ActorRef) 写侧收集、**任何读视图永不外露**（响应 omit）。公平靠「给被卡的人正名」（依赖图结构自动显示被上游卡），**不靠抓摸鱼**（盯个人 = 监视）。
 2. **C 原则（产品根基）**：C1 填写成本由当下回报抵消（状态优先从飞书/Git 动作派生，别让人记过去）；C2 摩擦可见、**产能不可比**（任何角色都不得见人与人完成量排名）；C3 小作坊优先（5–15 人、轻量、不做完整 RBAC/多租户）；C4 AI 是转译者、不替人拍板、不替代实物验证；C5 只为有自然上游的场景构建（无河流不建水厂）。**反监视**：A1 暴露缺口不暴露「人慢了」；A2 给个人的提醒只私下回本人、**不上报管理者**；A4 无硬截止只轻推、人-silence 永不升级给除本人外任何人。
-3. **原子单元 + completion gate**：最小粒度 = 可独立验证 + 单独 commit 的改动。落地前自检 (a) 最小验证按 §4 通过 (b) planning sync（覆盖更新 `now.md`，候选变动同步 `backlog.md`，长期决策追 `decisions.md`——决策被 supersede / 过时则**同刀**压 3 行 stub + 全文移 `docs/archive/`，活文件只留仍约束当前代码/产品的项，别在活文件堆叠（D-070/D-073 活账本纪律））(c) 单 commit。**DoD 必含至少 1 条工程谓词**（文件存在 / 命令 exit 0 / grep 命中 / schema safeParse / yaml 可解析）；「积累 N 条 / 了解了 X」等不可机器验证描述不构成 DoD、拒认领。
+3. **原子单元 + completion gate**：最小粒度 = 可独立验证 + 单独 commit 的改动。落地前自检 (a) 最小验证按 §4 通过 (b) planning sync（覆盖更新 `now.md`，候选变动同步 `backlog.md`，长期决策追 `decisions.md`——决策被 supersede / 过时则**同刀**压 3 行 stub + 全文移 `docs/archive/`，活文件只留仍约束当前代码/产品的项，别在活文件堆叠（D-070/D-073 活账本纪律））(c) 改 `apps/hub-*/src` 行为则按 §7 `scripts/bump-version.sh` 自增版本号（与本次 commit 同刀）(d) 单 commit。**DoD 必含至少 1 条工程谓词**（文件存在 / 命令 exit 0 / grep 命中 / schema safeParse / yaml 可解析）；「积累 N 条 / 了解了 X」等不可机器验证描述不构成 DoD、拒认领。
 4. **commit+push 默认（D-064）**：completion gate 过后**直接 commit 并 push 到 `origin/master`**（trunk-based），含交互式会话，不每次问「要不要提交」；push 前 `git fetch` 看分叉、有则先 rebase；仅用户明确叫停才暂缓。授权仅限 git（代码+docs+planning）。
 5. **数据安全**：重启 / 重建 / 跑 compose smoke 前先 `scripts/backup-teamhub-data.sh`（kb.json/gov.json 不可再生，备份读回校验不过别继续）。**落盘 env（`TEAMHUB_KB_DATA_FILE` + `TEAMHUB_GOV_DATA_FILE`）必须在真实启动路径接通**——漏接 = 重启清零（dev-debug-archive H5 / A1 教训）。`verify-hub-compose.sh` 的 `--volumes` 只许对 `*smoke*` 项目跑。
 6. **密钥不进仓**：不读/打印/搜索/提交任何真实密钥（`.env*` 除 `.env.example` / `*key*` / `*secret*`）；provider key 只走 server 进程 env，不进浏览器/localStorage/planning/日志/commit；commit 前过 `scripts/pre-commit.sh`。
@@ -63,3 +63,9 @@ curl -s http://127.0.0.1:4177/health | grep buildId
 ## 6. 踩坑 → 铁律（dogfood）+ 真实性
 - TeamHub 自身工程 bug 修完 → 在 `docs/dev-debug-archive/` 加一张卡（`parse-debug-archive` 格式）→ `kb:import` 进语料 → 由它而生的铁律引该卡症状/errorCode（bug→铁律可追溯，feiyue TROUBLESHOOTING 模型；已落 H1–H5）。
 - **真实性**：禁止把「规划中」写成「已完成」、把占位壳说成真实功能、把 `localStorage`/内存 fallback 当「服务器化成功」；验证失败不得伪造完成，创建 repair task 或回退，连续两次失败升级人工。`.debug-archive/*.md` 归档后读回验证；工具调用必查 exit code、失败不静默吞。
+
+## 7. 版本号纪律（D-074）
+- **产品单一版本** = 根 `VERSION`（SemVer `MAJOR.MINOR.PATCH`）。三支柱同端口 4177 同发布 = 一个产品一个版本号；`scripts/bump-version.sh` 把它同步进 hub-* 三包 `package.json`，`/api/system/status`·`/health` 即刻报告（`status.ts` 读包根 version）。**只用 `bump-version.sh` 改版本，别手改 package.json**——手改让 VERSION 与三包漂移，正是历史 bug 根因。
+- **每次改 `apps/hub-*/src` 行为的 commit 必须 bump**（= feiyue「改脚本必自增 `@version`」的服务端版）：fix/perf=PATCH，向下兼容新功能=MINOR，破坏 schema/对外接口=MAJOR（1.0 前破坏性也走 MINOR，MAJOR 留给首个生产门）。docs / planning / skills-only commit 不 bump。commit message 体现版本（如 `feat(schedule): 接力画布 v0.5.0`）。
+- **强制函数**：`scripts/check-version-bump.sh`（已挂 `pre-commit.sh`）—— 暂存了 hub-* 源码却没动 VERSION 就报警。服务端 app 没有 Tampermonkey「不自增就不更新」那种天然下游压力，故用这道哨兵替代。默认 warn 不阻断（不卡 D-064 无人值守环）；`VERSION_BUMP_STRICT=1` 升硬门，`SKIP_VERSION_BUMP=1` 单次豁免。
+- **版本 ≠ 构建戳**：`buildId`（运行进程 git SHA，`start-teamhub.sh` 注入）= **构建身份**，与 SemVer **版本** 正交——版本说「第几代能力」，buildId 说「在跑哪个提交」。

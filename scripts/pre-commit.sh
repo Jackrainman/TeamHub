@@ -30,6 +30,12 @@ if ! git diff --cached --check; then
   fail=1
 fi
 
+# 2.5) 版本号 bump 哨兵（D-074）：改了 hub-* 源码却没动 VERSION → 提醒。
+#      默认 warn（不阻断 D-064 无人值守环）；VERSION_BUMP_STRICT=1 升硬门则 exit 1 → fail。
+if ! bash scripts/check-version-bump.sh; then
+  fail=1
+fi
+
 # 3) 可选总闸：三包 verify:all（typecheck + test + build）。
 if [[ "${PRE_COMMIT_VERIFY:-0}" == "1" ]]; then
   for pkg in hub-contracts hub-server hub-console; do
