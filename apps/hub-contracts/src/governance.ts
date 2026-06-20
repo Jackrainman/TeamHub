@@ -480,6 +480,31 @@ export const ResourceSessionSchema = z.object({
   source: z.enum(['human', 'aiSuggested', 'derived']),
   // aiSuggested 未确认不参与派生（C4：AI 建议不判定）。
   confirmedBy: ActorRefSchema.nullable(),
+  // 队长可选填的预估完成时间（自由文本，"约 22:30" / "搞到收工"），可空。
+  // .default(null) 向后兼容既有 fixtures / 已落盘 JSON（不传也过）；与 relayHandoffs
+  // 同走内存、不落盘（D-029：占用窗口粗粒度临时，重启回 seed）。
+  eta: z.string().min(1).nullable().default(null),
+  createdAt: isoDateTimeSchema,
+});
+
+/**
+ * 接力交接边（R1）：表"先做完这段、再交给下一段上车"的**先后交接**，
+ * **不是**任务依赖（任务依赖走 Dependency + DepGraphPage，二者井水不犯河水）。
+ * fromSessionId → toSessionId 均指向同窗 ResourceSession；队长在接力画布上拉线产生。
+ * 与 session.eta 同样走内存、不落盘（D-029：粗粒度临时窗口，重启回 seed）。
+ *
+ * 反监视红线（与 ResourceSession 同）：主键只 session / 资源 / 组，
+ * **绝不**含 memberId / 出勤维度。
+ */
+export const RelayHandoffSchema = z.object({
+  id: z.string().min(1),
+  projectId: z.string().min(1),
+  windowLabel: z.string().min(1),
+  fromSessionId: z.string().min(1),
+  toSessionId: z.string().min(1),
+  source: GovActorSourceSchema,
+  // 与 ResourceSession.confirmedBy 一致：ActorRef，可空（未确认 = 仅建议态）。
+  confirmedBy: ActorRefSchema.nullable(),
   createdAt: isoDateTimeSchema,
 });
 
@@ -609,6 +634,7 @@ export type WeeklyMinuteWindow = z.infer<typeof WeeklyMinuteWindowSchema>;
 export type WindowDef = z.infer<typeof WindowDefSchema>;
 export type SharedResource = z.infer<typeof SharedResourceSchema>;
 export type ResourceSession = z.infer<typeof ResourceSessionSchema>;
+export type RelayHandoff = z.infer<typeof RelayHandoffSchema>;
 export type PresenceMode = z.infer<typeof PresenceModeSchema>;
 export type PresenceReason = z.infer<typeof PresenceReasonSchema>;
 export type PresenceFeasibility = z.infer<typeof PresenceFeasibilitySchema>;

@@ -65,6 +65,13 @@ export {
   SharedResourcesResponseSchema,
   CreateResourceSessionRequestSchema,
   CreateResourceSessionResponseSchema,
+  // 接力交接画布（R1，队长可编辑）：纯派生函数 + PATCH/relay 读/拉线写契约。
+  deriveRelayBoard,
+  UpdateResourceSessionRequestSchema,
+  UpdateResourceSessionResponseSchema,
+  CreateRelayHandoffRequestSchema,
+  RelayHandoffResponseSchema,
+  RelayBoardResponseSchema,
   // 库存 / BOM 第三支柱（INV-BOM-CORE，D-042 决策 4）：派生函数 + 动作语义错误类 + 读/写契约。
   deriveInventoryLedger,
   deriveShortfalls,
@@ -128,6 +135,15 @@ export type {
   SharedResourcesResponse,
   CreateResourceSessionRequest,
   CreateResourceSessionResponse,
+  // 接力交接画布（R1）读/写响应类型。
+  RelayBoard,
+  RelayStage,
+  RelayHandoff,
+  UpdateResourceSessionRequest,
+  UpdateResourceSessionResponse,
+  CreateRelayHandoffRequest,
+  RelayHandoffResponse,
+  RelayBoardResponse,
   // 库存 / BOM 读/写响应类型 + 派生行类型。
   InventorySnapshot,
   PartType,

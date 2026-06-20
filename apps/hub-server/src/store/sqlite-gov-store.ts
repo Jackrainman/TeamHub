@@ -4,6 +4,7 @@ import type {
   GovernanceSnapshot,
   KnowledgeNode,
   Need,
+  RelayHandoff,
   ResourceSession,
   SharedResource,
   Task,
@@ -15,7 +16,9 @@ import type {
   GovStore,
   KnowledgeNodeDraft,
   NeedDraft,
+  RelayHandoffDraft,
   ResourceSessionDraft,
+  ResourceSessionPatch,
   TaskDraft,
 } from './gov-store.js';
 
@@ -68,6 +71,25 @@ export class SqliteGovStore implements GovStore {
   async createResourceSession(
     _draft: ResourceSessionDraft,
   ): Promise<ResourceSession> {
+    throw new Error(SQLITE_NOT_IMPLEMENTED);
+  }
+
+  async updateResourceSession(
+    _id: string,
+    _patch: ResourceSessionPatch,
+  ): Promise<ResourceSession | null> {
+    throw new Error(SQLITE_NOT_IMPLEMENTED);
+  }
+
+  async listRelayHandoffs(): Promise<RelayHandoff[]> {
+    throw new Error(SQLITE_NOT_IMPLEMENTED);
+  }
+
+  async createRelayHandoff(_draft: RelayHandoffDraft): Promise<RelayHandoff> {
+    throw new Error(SQLITE_NOT_IMPLEMENTED);
+  }
+
+  async deleteRelayHandoff(_id: string): Promise<boolean> {
     throw new Error(SQLITE_NOT_IMPLEMENTED);
   }
 

@@ -88,6 +88,7 @@ export * from './direction-gaps.js';
 export * from './study-suggestions.js';
 export * from './artifact-version.js';
 export * from './schedule.js';
+export * from './relay.js';
 export * from './kb.js';
 export * from './kb-similar.js';
 export * from './kb-closeout.js';

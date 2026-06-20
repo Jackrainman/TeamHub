@@ -5,7 +5,9 @@ import {
   DependencySchema,
   NeedSchema,
   ResourceSessionSchema,
+  RelayHandoffSchema,
 } from './governance.js';
+import { RelayStageSchema } from './relay.js';
 import { ArtifactRefSchema } from './schemas.js';
 
 // PM 项目计划表「写侧请求契约」单一源（D-052 重复真相收口）。
@@ -168,6 +170,57 @@ export const CreateResourceSessionResponseSchema = z.object({
   session: ResourceSessionSchema.omit({ confirmedBy: true }),
 });
 
+/**
+ * PATCH /api/resource-sessions/:id（R1 接力画布编辑）：队长在画布上拖卡片排先后 / 选填预估完成时间。
+ * 只开两字段——`orderInWindow`（画布内拖动排序）与 `eta`（可空预估完成时间）；**均 optional**
+ * （拖卡只动 order、改 eta 只动 eta，互不强制）。其余字段（resourceId/holderGroupId/source/confirmedBy…）
+ * 不开 PATCH 口子（C3 小作坊：受限编辑，非通用字段 update）。`eta` 沿用 ResourceSessionSchema 的 nullable
+ * （""→拒；显式 null=清空）。**I0**：本请求与响应都无成员维度；窗口本身永不进派生输出。
+ */
+export const UpdateResourceSessionRequestSchema = ResourceSessionSchema.pick({
+  orderInWindow: true,
+  eta: true,
+})
+  .partial()
+  // eta 是 .default(null)，pick 后单独传仍合法；orderInWindow 仍是 nonnegative int。两者皆可省。
+  .refine(
+    (data) => data.orderInWindow !== undefined || data.eta !== undefined,
+    { message: 'orderInWindow 与 eta 至少给一个' },
+  );
+export const UpdateResourceSessionResponseSchema = z.object({
+  // 同 create 系——读响应剥 confirmedBy（I0：ActorRef 永不过读边界）。
+  session: ResourceSessionSchema.omit({ confirmedBy: true }),
+});
+
+/**
+ * POST /api/relay-handoffs（R1 接力画布拉线）：队长在两张卡之间拉一条「接力交接线」——
+ * 表 fromSession 做完先后交给 toSession 上车，**不是**任务依赖（任务依赖走 Dependency + DepGraphPage）。
+ * server clamp `source='console'`、补 id/createdAt；`confirmedBy` 随请求传入（拉线即确认拍板，类比
+ * ResourceSession/Dependency 内部凭证）。`windowLabel/fromSessionId/toSessionId` 人填；路由层另校验
+ * from/to session 存在且不等（自环 400）、不成环（参照 wouldCreateCycle，成环 400）。
+ * **反监视红线**：RelayHandoff 主键只 session/资源/组，永无 memberId。
+ */
+export const CreateRelayHandoffRequestSchema = RelayHandoffSchema.omit({
+  id: true,
+  source: true,
+  createdAt: true,
+});
+export const RelayHandoffResponseSchema = z.object({
+  // 同 create 系——剥 confirmedBy（I0）。
+  handoff: RelayHandoffSchema.omit({ confirmedBy: true }),
+});
+
+/**
+ * GET /api/relay?windowLabel= 读响应（R1 接力画布读视图）：一排接力站（RelayStage）+ 站间交接线。
+ * 由 deriveRelayBoard 纯函数派生（无 IO）。handoffs 经读边界**剥 confirmedBy**（I0：ActorRef 永不过边界）。
+ * **反监视红线**：stages / handoffs 任何字段都无 memberId / invitedMemberIds / 出勤计数——
+ * RelayStageSchema 结构上无人维度，RelayHandoff 剥 confirmedBy 后亦无人键。
+ */
+export const RelayBoardResponseSchema = z.object({
+  stages: z.array(RelayStageSchema),
+  handoffs: z.array(RelayHandoffSchema.omit({ confirmedBy: true })),
+});
+
 export type CreateTaskRequest = z.infer<typeof CreateTaskRequestSchema>;
 export type CreateTaskResponse = z.infer<typeof CreateTaskResponseSchema>;
 export type CreateDependencyRequest = z.infer<
@@ -199,3 +252,14 @@ export type CreateResourceSessionRequest = z.infer<
 export type CreateResourceSessionResponse = z.infer<
   typeof CreateResourceSessionResponseSchema
 >;
+export type UpdateResourceSessionRequest = z.infer<
+  typeof UpdateResourceSessionRequestSchema
+>;
+export type UpdateResourceSessionResponse = z.infer<
+  typeof UpdateResourceSessionResponseSchema
+>;
+export type CreateRelayHandoffRequest = z.infer<
+  typeof CreateRelayHandoffRequestSchema
+>;
+export type RelayHandoffResponse = z.infer<typeof RelayHandoffResponseSchema>;
+export type RelayBoardResponse = z.infer<typeof RelayBoardResponseSchema>;

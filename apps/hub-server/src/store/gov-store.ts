@@ -12,6 +12,7 @@ import type {
   PartAction,
   PartActionSource,
   PartType,
+  RelayHandoff,
   ResourceSession,
   SharedResource,
   Task,
@@ -96,6 +97,27 @@ export type ResourceSessionDraft = Omit<
 >;
 
 /**
+ * updateResourceSession 入参（R1 接力画布编辑）：队长拖卡片排先后 / 选填预估完成时间。
+ * 只两字段可改——`orderInWindow`（画布内拖动排序）+ `eta`（可空预估完成时间，nullable）；
+ * 都 optional（拖卡只动 order、改 eta 只动 eta）。其余字段不开 update 口子（C3 受限编辑）。
+ * 与 resourceSessions 同走内存、不落盘（D-029：占用窗口粗粒度临时，重启回 seed）。
+ */
+export type ResourceSessionPatch = Partial<
+  Pick<ResourceSession, 'orderInWindow' | 'eta'>
+>;
+
+/**
+ * createRelayHandoff 入参（R1 接力画布拉线）：队长在两卡间拉「接力交接线」——先后交接、**非**任务依赖。
+ * Store 补 id/createdAt、钉 `source='console'`（C5 来源 seam server 钉），故 draft 仅 Omit id/source/createdAt。
+ * `confirmedBy` 随请求传入（拉线即确认拍板，类比 ResourceSession/Dependency 内部凭证），保留在 draft。
+ * 与 session.eta 同样走内存、不落盘（D-029）。**反监视红线**：主键只 session/资源/组，永无 memberId。
+ */
+export type RelayHandoffDraft = Omit<
+  RelayHandoff,
+  'id' | 'source' | 'createdAt'
+>;
+
+/**
  * 三支柱共享底座的读写出入口。
  *
  * 读：`getSnapshot()`（D-040 首刀，已实现）。
@@ -153,6 +175,24 @@ export interface GovStore {
    * 不进派生输出维度；GET /api/schedule 只回 derivePresenceSchedule 的组键建议，绝不回原始 session。
    */
   createResourceSession(draft: ResourceSessionDraft): Promise<ResourceSession>;
+  /**
+   * 占用窗口受限编辑（PATCH /api/resource-sessions/:id，R1 接力画布）。只改 orderInWindow / eta
+   * （C3 受限编辑、非通用字段 update）。id 不存在 → null（路由层转 404）。与 session 同走内存、不落盘。
+   */
+  updateResourceSession(
+    id: string,
+    patch: ResourceSessionPatch,
+  ): Promise<ResourceSession | null>;
+  /** 接力交接线只读（GET /api/relay 组 ScheduleSnapshot 用）。先后交接、**非**任务依赖；无 memberId。 */
+  listRelayHandoffs(): Promise<RelayHandoff[]>;
+  /**
+   * 接力交接线录入（POST /api/relay-handoffs，R1 画布拉线）。Store 补 id + createdAt、**钉 source=`console`**
+   * （C5：来源 seam server 钉，请求不收）。confirmedBy 随 draft 传入（拉线即确认拍板）。自环/成环校验在路由层。
+   * 与 session 同走内存、不落盘（D-029，重启回 seed=空）。
+   */
+  createRelayHandoff(draft: RelayHandoffDraft): Promise<RelayHandoff>;
+  /** 删一条接力交接线（DELETE /api/relay-handoffs/:id）。命中删除返回 true，不存在 false（路由转 404）。 */
+  deleteRelayHandoff(id: string): Promise<boolean>;
 
   // --- 受限状态机迁移（非 CRUD：只在既有枚举内推进生命周期态）---
   /**

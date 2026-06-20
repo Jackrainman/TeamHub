@@ -18,6 +18,7 @@ import type {
   GovernanceSnapshot,
   KnowledgeNode,
   Need,
+  RelayHandoff,
   ResourceSession,
   SharedResource,
   Task,
@@ -32,7 +33,9 @@ import type {
   GovStore,
   KnowledgeNodeDraft,
   NeedDraft,
+  RelayHandoffDraft,
   ResourceSessionDraft,
+  ResourceSessionPatch,
   TaskDraft,
 } from './gov-store.js';
 
@@ -194,6 +197,27 @@ export class FileGovStore implements GovStore {
   ): Promise<ResourceSession> {
     // 不落盘（见上）：直接委托 inner，重启回 seed。无 persistOrRollback 包裹（无磁盘副作用可回滚）。
     return this.inner.createResourceSession(draft);
+  }
+
+  // 接力画布编辑 / 交接线（R1）：与 resource/session 同段不落盘（D-029，见上方注释）——eta/orderInWindow
+  // 改动与 relayHandoffs 增删均**只落 inner 内存**，进程重启回 seed。委托 inner、不调 persist()。
+  async updateResourceSession(
+    id: string,
+    patch: ResourceSessionPatch,
+  ): Promise<ResourceSession | null> {
+    return this.inner.updateResourceSession(id, patch);
+  }
+
+  async listRelayHandoffs(): Promise<RelayHandoff[]> {
+    return this.inner.listRelayHandoffs();
+  }
+
+  async createRelayHandoff(draft: RelayHandoffDraft): Promise<RelayHandoff> {
+    return this.inner.createRelayHandoff(draft);
+  }
+
+  async deleteRelayHandoff(id: string): Promise<boolean> {
+    return this.inner.deleteRelayHandoff(id);
   }
 
   async updateTaskStatus(taskId: string, status: TaskStatus): Promise<Task | null> {

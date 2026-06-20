@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import {
   AgentBackendsResponseSchema,
   ArtifactsResponseSchema,
@@ -64,6 +65,16 @@ import {
   type CreatePartActionRequest,
   type CreatePartActionResponse,
 } from './schemas/inv';
+import {
+  RelayBoardResponseSchema,
+  UpdateResourceSessionResponseSchema,
+  RelayHandoffResponseSchema,
+  type RelayBoardResponse,
+  type UpdateResourceSessionRequest,
+  type UpdateResourceSessionResponse,
+  type CreateRelayHandoffRequest,
+  type RelayHandoffResponse,
+} from './schemas/schedule';
 
 type FetchLike = typeof fetch;
 
@@ -111,6 +122,18 @@ export interface HubApiClient {
   getInventory(): Promise<InventoryResponse>;
   upsertPartType(req: CreatePartTypeRequest): Promise<CreatePartTypeResponse>;
   recordPartAction(req: CreatePartActionRequest): Promise<CreatePartActionResponse>;
+  // 接力交接画布（R1，D-029）。读：派生「一排接力站 + 站间交接线」（windowLabel）。
+  // 写：PATCH 占用窗口受限编辑（队长拖卡片排先后 orderInWindow / 选填 eta）；POST/DELETE 接力交接线。
+  // 反监视红线：stages / handoffs / 任何返回体绝不含 memberId / invitedMemberIds / 出勤计数。
+  getRelay(windowLabel: string): Promise<RelayBoardResponse>;
+  updateResourceSession(
+    id: string,
+    patch: UpdateResourceSessionRequest,
+  ): Promise<UpdateResourceSessionResponse>;
+  createRelayHandoff(
+    req: CreateRelayHandoffRequest,
+  ): Promise<RelayHandoffResponse>;
+  deleteRelayHandoff(id: string): Promise<{ deleted: string }>;
 }
 
 export function createHubApiClient(options: HubApiClientOptions = {}): HubApiClient {
@@ -325,8 +348,50 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         writeToken,
       );
     },
+    async getRelay(windowLabel: string) {
+      return fetchJson(
+        `${baseUrl}/api/relay?windowLabel=${encodeURIComponent(windowLabel)}`,
+        RelayBoardResponseSchema,
+        fetcher,
+      );
+    },
+    async updateResourceSession(
+      id: string,
+      patch: UpdateResourceSessionRequest,
+    ) {
+      return sendJson(
+        'PATCH',
+        `${baseUrl}/api/resource-sessions/${encodeURIComponent(id)}`,
+        patch,
+        UpdateResourceSessionResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async createRelayHandoff(req: CreateRelayHandoffRequest) {
+      return postJson(
+        `${baseUrl}/api/relay-handoffs`,
+        req,
+        RelayHandoffResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async deleteRelayHandoff(id: string) {
+      return sendJson(
+        'DELETE',
+        `${baseUrl}/api/relay-handoffs/${encodeURIComponent(id)}`,
+        undefined,
+        DeletedResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
   };
 }
+
+// DELETE /api/relay-handoffs/:id 命中返回 { deleted: id }（server.ts:541）。
+const DeletedResponseSchema = z.object({ deleted: z.string() });
 
 function normalizeBaseUrl(value: string | undefined): string {
   const trimmed = value?.trim();
@@ -349,21 +414,33 @@ async function fetchJson<T>(
   return schema.parse(await response.json());
 }
 
-async function postJson<T>(
+function postJson<T>(
   url: string,
   body: unknown,
   schema: { parse(value: unknown): T },
   fetcher: FetchLike,
   writeToken?: string,
 ): Promise<T> {
-  const headers: Record<string, string> = {
-    'content-type': 'application/json',
-  };
+  return sendJson('POST', url, body, schema, fetcher, writeToken);
+}
+
+// 写侧通用发送（POST/PATCH/DELETE 共用）。R1 引入 PATCH 占用窗口 / DELETE 接力线，与 POST
+// 同走 Bearer 写鉴权 + { detail } 错误透出。body=undefined 时不发请求体（DELETE 无体）。
+async function sendJson<T>(
+  method: 'POST' | 'PATCH' | 'DELETE',
+  url: string,
+  body: unknown,
+  schema: { parse(value: unknown): T },
+  fetcher: FetchLike,
+  writeToken?: string,
+): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers['content-type'] = 'application/json';
   if (writeToken) headers.authorization = `Bearer ${writeToken}`;
   const response = await fetcher(url, {
-    method: 'POST',
+    method,
     headers,
-    body: JSON.stringify(body),
+    body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   if (!response.ok) {
     // 后端校验失败（400/422）带 { detail }：透出给表单错误条，便于人看清缺了什么。

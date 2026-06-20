@@ -49,6 +49,12 @@ import {
   SharedResourcesResponseSchema,
   CreateResourceSessionRequestSchema,
   CreateResourceSessionResponseSchema,
+  deriveRelayBoard,
+  UpdateResourceSessionRequestSchema,
+  UpdateResourceSessionResponseSchema,
+  CreateRelayHandoffRequestSchema,
+  RelayHandoffResponseSchema,
+  RelayBoardResponseSchema,
   deriveInventoryLedger,
   deriveShortfalls,
   InvalidPartActionError,
@@ -147,13 +153,16 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   const invStore: InvStore = options.invStore ?? new InMemoryInvStore();
 
   // H3（AUDIT-FIXES 部署前必修）：写端点信任边界 = 共享密钥鉴权 + 每 IP 限流。
-  // 仅作用于 POST /api/*（读路由 / 静态站 / health 不受影响）。这是让 I0 泄漏 / 环卡死 / KB 撑爆
-  // 被第三方真正触达的边界缺口——未鉴权客户端不能刷爆全队要读的 dep-graph、不能猛打 closeout 撑爆 KB 文件。
+  // 作用于全部**写方法** /api/*（POST/PATCH/PUT/DELETE；读路由 GET/HEAD / 静态站 / health 不受影响）。
+  // R1 接力画布引入 PATCH /api/resource-sessions/:id 与 DELETE /api/relay-handoffs/:id——若仍只认 POST，
+  // 这两条会绕过鉴权 + 限流（旧注释「用 PATCH/DELETE 会绕过鉴权」正是此缺口）。这是让 I0 泄漏 / 环卡死 /
+  // KB 撑爆被第三方真正触达的边界——未鉴权客户端不能刷爆全队要读的 dep-graph、不能猛打 closeout 撑爆 KB 文件。
   const writeToken = options.writeToken;
   const rateLimit = options.writeRateLimit ?? { max: 120, windowMs: 60_000 };
   const rateHits = new Map<string, { count: number; resetAt: number }>();
+  const WRITE_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
   app.addHook('onRequest', async (request, reply) => {
-    if (request.method !== 'POST' || !request.url.startsWith('/api/')) return;
+    if (!WRITE_METHODS.has(request.method) || !request.url.startsWith('/api/')) return;
     // 鉴权（配了 token 才强制 Bearer；未配=loopback dev 放行）
     if (writeToken && request.headers.authorization !== `Bearer ${writeToken}`) {
       void reply.code(401).send({ detail: 'unauthorized' });
@@ -393,10 +402,13 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     const snapshot = await store.getSnapshot();
     const resources = await store.listResources();
     const resourceSessions = await store.listResourceSessions();
+    // relayHandoffs 是 ScheduleSnapshot 必填字段（R1 接力画布并入）；在场建议派生不读它，仍带上以满足类型。
+    const relayHandoffs = await store.listRelayHandoffs();
     const scheduleSnapshot: ScheduleSnapshot = {
       ...snapshot,
       resources,
       resourceSessions,
+      relayHandoffs,
     };
     const recommendations = derivePresenceSchedule(
       scheduleSnapshot,
@@ -431,6 +443,102 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     const session = await store.createResourceSession(parsed.data);
     void reply.code(201);
     return CreateResourceSessionResponseSchema.parse({ session });
+  });
+
+  // 接力画布·占用窗口受限编辑（PATCH /api/resource-sessions/:id，R1）。队长拖卡片排先后（orderInWindow）/
+  // 选填预估完成时间（eta）。镜像写路由 safeParse→400；只开 orderInWindow/eta 两字段（C3 受限编辑）；
+  // updateResourceSession 返回 null（id 不存在）→ 404；否则 200 {session}。I0：响应剥 confirmedBy。
+  app.patch('/api/resource-sessions/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = UpdateResourceSessionRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      return;
+    }
+    const session = await store.updateResourceSession(id, parsed.data);
+    if (!session) {
+      void reply.code(404).send({ detail: 'resource session not found' });
+      return;
+    }
+    return UpdateResourceSessionResponseSchema.parse({ session });
+  });
+
+  // 接力交接画布读视图（GET /api/relay?windowLabel=，R1）。组 ScheduleSnapshot（含 listRelayHandoffs）→
+  // deriveRelayBoard 纯函数派生「一排接力站 + 站间交接线」。复用 ScheduleQuerySchema（windowLabel 必填）。
+  // **反监视红线**：RelayStage 结构无人维度；handoffs 经 RelayBoardResponseSchema 剥 confirmedBy（ActorRef
+  // 永不过读边界）+ schema 无 memberId 字段 → 二次 fail-closed 把关，返回体绝不含成员/出勤维度。
+  app.get('/api/relay', async (request, reply) => {
+    const parsed = ScheduleQuerySchema.safeParse(request.query ?? {});
+    if (!parsed.success) {
+      void reply
+        .code(400)
+        .send({ detail: parsed.error.issues[0]?.message ?? 'windowLabel required' });
+      return;
+    }
+    const { windowLabel } = parsed.data;
+    const snapshot = await store.getSnapshot();
+    const resources = await store.listResources();
+    const resourceSessions = await store.listResourceSessions();
+    const relayHandoffs = await store.listRelayHandoffs();
+    const scheduleSnapshot: ScheduleSnapshot = {
+      ...snapshot,
+      resources,
+      resourceSessions,
+      relayHandoffs,
+    };
+    const board = deriveRelayBoard(scheduleSnapshot, windowLabel);
+    return RelayBoardResponseSchema.parse(board);
+  });
+
+  // 接力交接线录入（POST /api/relay-handoffs，R1 画布拉线）。镜像 POST /api/dependencies 的自环/成环守卫：
+  // ① from/to session 必须都存在 → 否则 400；② from===to（自环）→ 400；③ 成环（参照 wouldCreateCycle，
+  // 把 relayHandoffs 当 fromSession→toSession 有向边）→ 400。server 钉 source=console、补 id/createdAt。
+  // **接力交接 ≠ 任务依赖**：环检测只在本窗接力线集合内做，绝不掺 Dependency 边（井水不犯河水）。
+  app.post('/api/relay-handoffs', async (request, reply) => {
+    const parsed = CreateRelayHandoffRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      return;
+    }
+    const { fromSessionId, toSessionId, windowLabel } = parsed.data;
+    const sessionIds = new Set(
+      (await store.listResourceSessions()).map((s) => s.id),
+    );
+    if (!sessionIds.has(fromSessionId) || !sessionIds.has(toSessionId)) {
+      void reply.code(400).send({ detail: 'from/to session not found' });
+      return;
+    }
+    // 自环 + 成环守卫：把已有接力线映射成 wouldCreateCycle 期望的 {fromTaskId,toTaskId} 边形（session id 入位）。
+    // 接力交接 ≠ 任务依赖，故只取 relayHandoffs（不掺 Dependency）；成环会让接力画布派生 / 前端布局陷死循环。
+    const existingEdges = (await store.listRelayHandoffs()).map((h) => ({
+      fromTaskId: h.fromSessionId,
+      toTaskId: h.toSessionId,
+    }));
+    if (wouldCreateCycle(existingEdges, fromSessionId, toSessionId)) {
+      void reply.code(400).send({
+        detail:
+          fromSessionId === toSessionId
+            ? 'self handoff not allowed'
+            : 'relay handoff would create a cycle',
+      });
+      return;
+    }
+    void windowLabel; // 仅校验已隐含在 schema（min(1)）；落 draft 整体传入。
+    const handoff = await store.createRelayHandoff(parsed.data);
+    void reply.code(201);
+    return RelayHandoffResponseSchema.parse({ handoff });
+  });
+
+  // 接力交接线删除（DELETE /api/relay-handoffs/:id，R1）。命中删除 → 200；不存在 → 404。
+  // POST/DELETE → 继承 H3 onRequest 鉴权 + 限流。删线只减边、不可能成环，无需守卫。
+  app.delete('/api/relay-handoffs/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const ok = await store.deleteRelayHandoff(id);
+    if (!ok) {
+      void reply.code(404).send({ detail: 'relay handoff not found' });
+      return;
+    }
+    return { deleted: id };
   });
 
   // 库存 / BOM 读视图（INV-BOM-CORE）：零件 + 个体件 + 库存总表派生（零件×车 矩阵）+ 缺料告警。

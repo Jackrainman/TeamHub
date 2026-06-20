@@ -483,8 +483,10 @@ export const scheduleScenarioFixture: ScheduleSnapshot = {
     { id: 'res-r2', projectId: 'prj-robots', name: 'R2 比赛车', kind: 'robot', robotTarget: 'R2', status: 'available', statusReason: null, statusSource: 'console', season: '26', version: 1, displayCode: deriveDisplayCode('26', 'R2', 1), updatedAt: GOVERNANCE_SCENARIO_NOW },
   ],
   resourceSessions: [
-    { id: 'sess-tonight-prog', projectId: 'prj-robots', resourceId: 'res-r1', windowLabel: '今晚', orderInWindow: 0, holderGroupId: 'grp-program', holderTaskId: 't-r1-integration', invitedMemberIds: ['m-progA'], note: '今晚 R1 归程序调总联调', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, createdAt: GOVERNANCE_SCENARIO_NOW },
+    { id: 'sess-tonight-prog', projectId: 'prj-robots', resourceId: 'res-r1', windowLabel: '今晚', orderInWindow: 0, holderGroupId: 'grp-program', holderTaskId: 't-r1-integration', invitedMemberIds: ['m-progA'], note: '今晚 R1 归程序调总联调', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, eta: null, createdAt: GOVERNANCE_SCENARIO_NOW },
   ],
+  // 接力交接线（R1）：默认空，重启回 seed（D-029，内存态）。队长在接力画布拉线产生。
+  relayHandoffs: [],
 };
 
 export const scheduleResourceDownFixture: ScheduleSnapshot = {

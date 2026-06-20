@@ -13,6 +13,7 @@ import type {
   PresenceMode,
   PresenceReason,
   PresenceRecommendation,
+  RelayHandoff,
   ResourceSession,
   SharedResource,
   Task,
@@ -33,6 +34,8 @@ import type { MemberAvailability } from './growth.js';
 export interface ScheduleSnapshot extends GovernanceSnapshot {
   resources: SharedResource[];
   resourceSessions: ResourceSession[];
+  // 接力交接线（R1）：镜像 sessions，同走内存、不落盘（D-029）。先后交接，**非**任务依赖。
+  relayHandoffs: RelayHandoff[];
 }
 
 /**

@@ -395,6 +395,22 @@ const zh = {
   'schedule.relay.boardingClosed': '这台车今天停用：{reason}',
   'schedule.relay.detailTitle': '各组详情',
 
+  // 接力交接画布（R1，可编辑）——队长拖卡排先后、拉线表交接、点 ETA 写预估时间，所有人看同一块。
+  'schedule.relay.canvasHint': '拖卡片排先后、卡片间拉线表示交接、点 ETA 写预估时间',
+  'schedule.relay.loading': '正在排今晚的接力顺序…',
+  'schedule.relay.unavailable': '接力画布打不开（后端没连上？检查后端地址或服务是否在线）',
+  'schedule.relay.eta': '预估',
+  'schedule.relay.etaPlaceholder': '如 22:30',
+  'schedule.relay.etaEmpty': '点这里写预估时间',
+  'schedule.relay.etaEdit': '改预估完成时间',
+  'schedule.relay.moveUp': '往前挪一棒',
+  'schedule.relay.moveDown': '往后挪一棒',
+  'schedule.relay.handoffSelf': '同一张卡不能自己接自己',
+  'schedule.relay.handoffError': '交接线没拉上：{detail}',
+  'schedule.relay.handoffDeleteError': '交接线没删掉：{detail}',
+  'schedule.relay.saveError': '没保存上：{detail}',
+  'schedule.relay.actor': '队长（画布）',
+
   // 库存 / BOM 第三支柱（INV-BOM-CORE）
   'toolbar.title.inv': '库存 / BOM',
   'inv.loading': '正在加载库存…',
@@ -833,6 +849,25 @@ const en: Record<TranslationKey, string> = {
   'schedule.relay.offDuty': 'Not your turn tonight · you can head off',
   'schedule.relay.boardingClosed': 'This rig is out today: {reason}',
   'schedule.relay.detailTitle': 'By group',
+
+  // Editable relay-handoff canvas (R1) — lead drags cards to order, draws lines for handoffs,
+  // taps ETA to note an estimate; everyone sees the same board.
+  'schedule.relay.canvasHint':
+    'Drag cards to order them, draw a line between cards for a handoff, tap ETA to note a time',
+  'schedule.relay.loading': "Laying out tonight's relay order…",
+  'schedule.relay.unavailable':
+    "Can't open the relay board (backend offline? check address/service)",
+  'schedule.relay.eta': 'ETA',
+  'schedule.relay.etaPlaceholder': 'e.g. 22:30',
+  'schedule.relay.etaEmpty': 'Tap to note an ETA',
+  'schedule.relay.etaEdit': 'Edit the estimated finish time',
+  'schedule.relay.moveUp': 'Move a leg earlier',
+  'schedule.relay.moveDown': 'Move a leg later',
+  'schedule.relay.handoffSelf': "A card can't hand off to itself",
+  'schedule.relay.handoffError': "Couldn't draw the handoff line: {detail}",
+  'schedule.relay.handoffDeleteError': "Couldn't remove the handoff line: {detail}",
+  'schedule.relay.saveError': "Didn't save: {detail}",
+  'schedule.relay.actor': 'Lead (canvas)',
 
   // Inventory / BOM third pillar (INV-BOM-CORE)
   'toolbar.title.inv': 'Inventory / BOM',

@@ -9,6 +9,7 @@ import type {
   GovernanceSnapshot,
   KnowledgeNode,
   Need,
+  RelayHandoff,
   ResourceSession,
   SharedResource,
   Task,
@@ -23,7 +24,9 @@ import type {
   GovStore,
   KnowledgeNodeDraft,
   NeedDraft,
+  RelayHandoffDraft,
   ResourceSessionDraft,
+  ResourceSessionPatch,
   TaskDraft,
 } from './gov-store.js';
 
@@ -58,6 +61,8 @@ export class InMemoryGovStore implements GovStore {
   // 第一请求即空、被误判「功能没接通」。引 schedule fixture 取这两块、克隆隔离（写方法 push 不污染共享 fixture）。
   private readonly resources: SharedResource[];
   private readonly resourceSessions: ResourceSession[];
+  // 接力交接线（R1）：与 resourceSessions 同走内存、不落盘（D-029）。seed=空（队长在画布拉线产生）。
+  private readonly relayHandoffs: RelayHandoff[];
   // L1：单调自增计数器（构造期初始化为对应 seed 数组 length）。createX 用 `++this.xSeq` 生成 id，
   // 替代 `数组.length + 1`——后者在未来加 delete 后会复用已删 id、静默撞 FK；单调计数器永不回退、杜绝此脆弱性。
   // 当前无 delete 故纯防御性；纯内部 id 派生，响应 / 落盘格式不变。
@@ -67,6 +72,7 @@ export class InMemoryGovStore implements GovStore {
   private knowledgeNodeSeq: number;
   private artifactSeq: number;
   private resourceSessionSeq: number;
+  private relayHandoffSeq: number;
 
   constructor(
     seed: GovernanceSnapshot = governanceScenarioFixture,
@@ -85,6 +91,10 @@ export class InMemoryGovStore implements GovStore {
     this.resourceSessions = scheduleScenarioFixture.resourceSessions.map((s) => ({
       ...s,
     }));
+    // 接力交接线 seed（R1）：fixture 默认空，重启回此空态（D-029 内存态）。元素浅拷贝隔离。
+    this.relayHandoffs = scheduleScenarioFixture.relayHandoffs.map((h) => ({
+      ...h,
+    }));
     // L1：计数器从 seed 数组 length 起步——首条 create 得 `…-new-${length+1}`，与原 length+1 派生
     // 在零删除时逐字等价（无 id 格式回归），但此后只增不减。
     this.taskSeq = this.snapshot.tasks.length;
@@ -93,6 +103,7 @@ export class InMemoryGovStore implements GovStore {
     this.knowledgeNodeSeq = this.snapshot.knowledgeNodes.length;
     this.artifactSeq = this.snapshot.artifacts.length;
     this.resourceSessionSeq = this.resourceSessions.length;
+    this.relayHandoffSeq = this.relayHandoffs.length;
   }
 
   async getSnapshot(): Promise<GovernanceSnapshot> {
@@ -253,6 +264,59 @@ export class InMemoryGovStore implements GovStore {
     };
     this.resourceSessions.push(session);
     return session;
+  }
+
+  /**
+   * 占用窗口受限编辑（PATCH /api/resource-sessions/:id，R1 接力画布）。只改 orderInWindow / eta
+   * （C3 受限编辑、非通用字段 update）：传了才改、未传保留旧值（eta 显式 null=清空预估时间）。
+   * id 不存在 → null（路由转 404）。与 resourceSessions 同走内存、不落盘（D-029）。
+   */
+  async updateResourceSession(
+    id: string,
+    patch: ResourceSessionPatch,
+  ): Promise<ResourceSession | null> {
+    const idx = this.resourceSessions.findIndex((s) => s.id === id);
+    if (idx === -1) return null;
+    const prev = this.resourceSessions[idx];
+    const updated: ResourceSession = {
+      ...prev,
+      orderInWindow:
+        patch.orderInWindow !== undefined ? patch.orderInWindow : prev.orderInWindow,
+      // eta 可空：显式 null 清空、给值更新、未传（undefined）保留旧值。
+      eta: patch.eta !== undefined ? patch.eta : prev.eta,
+    };
+    this.resourceSessions[idx] = updated;
+    return updated;
+  }
+
+  /** 接力交接线只读（GET /api/relay 组 ScheduleSnapshot 用）。先后交接、**非**任务依赖；无 memberId。 */
+  async listRelayHandoffs(): Promise<RelayHandoff[]> {
+    return this.relayHandoffs;
+  }
+
+  /**
+   * 接力交接线录入（POST /api/relay-handoffs，R1 画布拉线）。镜像 createResourceSession：补 id=`handoff-new-N` +
+   * createdAt、**钉 source=`console`**（C5：来源 seam server 钉，客户端不冒充 derived/lark/git）。confirmedBy 随
+   * draft 传入（拉线即确认拍板）。自环/成环校验在路由层（参照 wouldCreateCycle）。不落盘（D-029）。
+   */
+  async createRelayHandoff(draft: RelayHandoffDraft): Promise<RelayHandoff> {
+    const now = this.clock.now().toISOString();
+    const handoff: RelayHandoff = {
+      ...draft,
+      id: `handoff-new-${++this.relayHandoffSeq}`,
+      source: 'console',
+      createdAt: now,
+    };
+    this.relayHandoffs.push(handoff);
+    return handoff;
+  }
+
+  /** 删一条接力交接线（DELETE /api/relay-handoffs/:id）。命中删除返回 true、不存在 false（路由转 404）。 */
+  async deleteRelayHandoff(id: string): Promise<boolean> {
+    const idx = this.relayHandoffs.findIndex((h) => h.id === id);
+    if (idx === -1) return false;
+    this.relayHandoffs.splice(idx, 1);
+    return true;
   }
 
   /**

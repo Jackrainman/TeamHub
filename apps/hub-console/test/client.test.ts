@@ -3,6 +3,7 @@ import {
   apiContractFixtures,
   governanceScenarioFixture,
   kbScenarioFixture,
+  scheduleScenarioFixture,
 } from '@teamhub/hub-contracts';
 import type {
   CreateTaskRequest,
@@ -273,6 +274,71 @@ describe('hub console API client', () => {
     expect(electricalRes.artifact.id).toBeTruthy();
   });
 
+  test('R1 接力画布：getRelay / updateResourceSession / create+deleteRelayHandoff 命中正确路径与方法', async () => {
+    const fetcher = vi.fn(async (url: string, _init?: RequestInit) => {
+      const parsed = new URL(url, 'http://teamhub.local');
+      return {
+        ok: true,
+        status: 200,
+        json: async () => relayResponseByPath(parsed.pathname),
+      } as Response;
+    });
+
+    const client = createHubApiClient({
+      baseUrl: 'http://127.0.0.1:4177',
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+
+    // 读：GET /api/relay?windowLabel=
+    const board = await client.getRelay('今晚');
+    expect(board.stages).toEqual([]);
+    expect(board.handoffs).toEqual([]);
+    const relayCall = fetcher.mock.calls.find(([u]) =>
+      String(u).includes('/api/relay?'),
+    );
+    expect(String(relayCall?.[0])).toContain('windowLabel=');
+
+    // PATCH 占用窗口受限编辑（orderInWindow / eta）
+    const upd = await client.updateResourceSession('sess-1', {
+      orderInWindow: 2,
+      eta: '22:30',
+    });
+    expect(upd.session).not.toHaveProperty('confirmedBy');
+    const patchCall = fetcher.mock.calls.find(([u]) =>
+      String(u).endsWith('/api/resource-sessions/sess-1'),
+    );
+    expect(patchCall?.[1]?.method).toBe('PATCH');
+    expect(JSON.parse(String(patchCall?.[1]?.body))).toEqual({
+      orderInWindow: 2,
+      eta: '22:30',
+    });
+
+    // POST 接力交接线
+    const handoff = await client.createRelayHandoff({
+      projectId: 'proj-1',
+      windowLabel: '今晚',
+      fromSessionId: 'sess-1',
+      toSessionId: 'sess-2',
+      confirmedBy: { id: 'console-relay', displayName: 'x', source: 'console' },
+    });
+    expect(handoff.handoff).not.toHaveProperty('confirmedBy');
+    const postCall = fetcher.mock.calls.find(
+      ([u, init]) =>
+        String(u).endsWith('/api/relay-handoffs') &&
+        (init as RequestInit | undefined)?.method === 'POST',
+    );
+    expect(postCall).toBeTruthy();
+
+    // DELETE 接力交接线（无 body）
+    const del = await client.deleteRelayHandoff('ho-1');
+    expect(del.deleted).toBe('ho-1');
+    const delCall = fetcher.mock.calls.find(([u]) =>
+      String(u).endsWith('/api/relay-handoffs/ho-1'),
+    );
+    expect(delCall?.[1]?.method).toBe('DELETE');
+    expect((delCall?.[1] as RequestInit | undefined)?.body).toBeUndefined();
+  });
+
   test('postJson 把后端 400 的 detail 透出到抛错（表单错误条）', async () => {
     const fetcher = vi.fn(async () => ({
       ok: false,
@@ -290,6 +356,32 @@ describe('hub console API client', () => {
     ).rejects.toThrow('400: invalid body');
   });
 });
+
+// R1 接力画布：GET 空板；PATCH/POST 回完整 session/handoff（schema parse 时自动剥 confirmedBy）。
+function relayResponseByPath(path: string): unknown {
+  if (path === '/api/relay') return { stages: [], handoffs: [] };
+  if (path.startsWith('/api/resource-sessions/')) {
+    return { session: scheduleScenarioFixture.resourceSessions[0] };
+  }
+  if (path.startsWith('/api/relay-handoffs/')) {
+    return { deleted: path.split('/').pop() };
+  }
+  if (path === '/api/relay-handoffs') {
+    return {
+      handoff: {
+        id: 'ho-1',
+        projectId: 'proj-1',
+        windowLabel: '今晚',
+        fromSessionId: 'sess-1',
+        toSessionId: 'sess-2',
+        source: 'console',
+        confirmedBy: null,
+        createdAt: '2026-06-06T00:00:00.000Z',
+      },
+    };
+  }
+  return { detail: 'Not found' };
+}
 
 function writeResponseByPath(path: string): unknown {
   switch (path) {

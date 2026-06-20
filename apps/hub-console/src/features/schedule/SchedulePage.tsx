@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { PresenceRecommendation } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n, type TranslationKey } from '../../i18n';
-import { RelayChainView } from './RelayChainView';
+import { RelayCanvas } from './RelayCanvas';
 
 // 差异化在场排班（D-029）。反监视纪律（A1/I0）：本页主键是 groupId + resourceId + 任务名，
 // 永不渲染 memberId / invitedMemberIds / 出勤计数——只回答「哪个组本窗要不要在场」。
@@ -28,11 +28,6 @@ export function SchedulePage({
   const query = useQuery({
     queryKey: ['schedule', source, windowLabel],
     queryFn: () => client.getSchedule(windowLabel),
-  });
-  // 接力链按车并排需要车的 displayCode 作列头（D-072 §2.2）。独立查询，失败不阻塞主排班视图。
-  const resourcesQuery = useQuery({
-    queryKey: ['resources', source],
-    queryFn: () => client.getResources(),
   });
 
   function handleApply() {
@@ -99,11 +94,9 @@ export function SchedulePage({
         </div>
       ) : (
         <>
-          {/* 主推短期视图：接力顺序链（多车并排）。卡片网格降级为下方「明细（按组）」。 */}
-          <RelayChainView
-            recommendations={recommendations}
-            resources={resourcesQuery.data?.resources ?? []}
-          />
+          {/* 主推短期视图：队长可编辑的接力交接画布（R1，内部自取 /api/relay 数据）。
+              卡片网格降级为下方「明细（按组）」。 */}
+          <RelayCanvas client={client} windowLabel={windowLabel} />
           <section className="schedule-detail" aria-label={t('schedule.relay.detailTitle')}>
             <h2 className="inv-section-title">{t('schedule.relay.detailTitle')}</h2>
             <div className="gaps-list">
