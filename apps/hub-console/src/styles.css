@@ -118,7 +118,45 @@ button {
 .console-nav {
   display: flex;
   flex-direction: column;
+  gap: 14px;
+}
+
+/* 侧栏分组（IA 阶段 4 / D-076）：主操作区 / 洞察区（可折叠）/ 设置 */
+.nav-group {
+  display: flex;
+  flex-direction: column;
   gap: 4px;
+}
+
+.nav-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 4px 10px;
+  color: #a8b9ae;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: left;
+}
+
+.nav-group-header svg {
+  transition: transform 0.15s ease;
+}
+
+.nav-group-header[aria-expanded='false'] svg {
+  transform: rotate(-90deg);
 }
 
 .nav-item {
@@ -377,7 +415,7 @@ button {
     padding: 12px;
   }
 
-  .console-nav {
+  .nav-group-items {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
@@ -397,7 +435,7 @@ button {
     padding: 16px;
   }
 
-  .console-nav {
+  .nav-group-items {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

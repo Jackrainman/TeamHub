@@ -12,6 +12,8 @@ const zh = {
   'nav.settings': '设置',
   'nav.soon': '即将上线',
   'nav.inv': '库存/BOM',
+  // 侧栏分组标题（IA 阶段 4 / D-076）：洞察区（总览 + 缺人方向），可折叠。
+  'nav.group.insights': '洞察',
 
   // 项目页视图切换（IA 阶段 2 / D-075）：看板 + 依赖图
   'project.view.aria': '项目视图切换',
@@ -545,6 +547,7 @@ const en: Record<TranslationKey, string> = {
   'nav.settings': 'Settings',
   'nav.soon': 'Coming soon',
   'nav.inv': 'Inventory/BOM',
+  'nav.group.insights': 'Insights',
 
   'project.view.aria': 'Project view switch',
   'project.view.board': 'Board',
