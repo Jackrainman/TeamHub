@@ -7,17 +7,15 @@ import {
   FileStack,
   Home,
   LayoutGrid,
-  Network,
   Settings,
 } from 'lucide-react';
 import { useI18n, type TranslationKey } from '../../i18n';
 
 export type ConsolePage =
   | 'overview'
-  | 'dep-graph'
+  | 'project'
   | 'gaps'
   | 'kb'
-  | 'pm'
   | 'archive'
   | 'inv'
   | 'fleet'
@@ -33,11 +31,12 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { labelKey: 'nav.overview', icon: Home, page: 'overview' },
-  { labelKey: 'nav.depGraph', icon: Network, page: 'dep-graph' },
+  // 项目页（IA 阶段 2 / D-075）：看板(pm)+依赖图(dep-graph) 顶部视图切换合一。
+  // 图标用 LayoutGrid 表看板/计划；Network 留给页内 graph 视图切换。
+  { labelKey: 'nav.project', icon: LayoutGrid, page: 'project' },
   // 缺人方向（S2，D-069）：组级派生缺口，只到组、不指向人（A1）。
   { labelKey: 'nav.gaps', icon: Compass, page: 'gaps' },
   { labelKey: 'nav.kb', icon: BookOpen, page: 'kb' },
-  { labelKey: 'nav.pm', icon: LayoutGrid, page: 'pm' },
   // 图纸提交日志 / 版本时间线（A8）：真实页面，读治理快照 artifacts。
   { labelKey: 'nav.archive', icon: FileStack, page: 'archive' },
   // 第三支柱：库存 / BOM（INV-BOM-CORE 已落地）。零件×机器人 矩阵 + 一句话快记 + 缺料告警。

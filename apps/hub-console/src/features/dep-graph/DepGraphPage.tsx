@@ -24,10 +24,8 @@ import {
   CircleDashed,
   Lock,
   MapPin,
-  Plus,
   RotateCcw,
   Trash2,
-  X,
   Zap,
 } from 'lucide-react';
 import {
@@ -41,7 +39,6 @@ import type { HubApiClient } from '../../api/client';
 import type { CreateDependencyRequest } from '../../api/schemas/pm';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { MetricTile } from '../../components/MetricTile';
-import { PmCreatePanel } from '../pm/PmCreatePanel';
 
 const NODE_W = 212;
 const NODE_H = 96;
@@ -194,7 +191,7 @@ export function DepGraphPage({
     queryKey: ['dep-graph', source],
     queryFn: () => client.getDepGraph(),
   });
-  // 录入浮层共用看板的任务列表（填依赖 / 需求下拉）；与看板同 queryKey，缓存共享。
+  // 原始任务表（详情面板状态下拉回填当前值）；与看板同 queryKey，缓存共享。
   const tasksQuery = useQuery({
     queryKey: ['tasks', source],
     queryFn: () => client.getTasks(),
@@ -202,7 +199,6 @@ export function DepGraphPage({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // 选中的连线（与节点选中互斥）：用于「点选连线 → 确认删除」。
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-  const [entryOpen, setEntryOpen] = useState(false);
 
   const graph = query.data;
   const { nodes, edges } = useMemo(
@@ -326,22 +322,6 @@ export function DepGraphPage({
     [graph, t, connectMutation],
   );
 
-  // 录入浮层建任务 / 依赖 / 需求后：同时失效看板任务表 + 依赖图，两个查询都重取才即时重绘。
-  const handleEntryCreated = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ['tasks', source] });
-    void queryClient.invalidateQueries({ queryKey: ['dep-graph', source] });
-  }, [queryClient, source]);
-
-  // ARIA dialog: Escape key must close the overlay (WCAG 2.1 dialog pattern).
-  useEffect(() => {
-    if (!entryOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setEntryOpen(false);
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [entryOpen]);
-
   // 成功/错误横幅几秒后自动消失：否则它一直占着画布顶部、挡住删除条等后续操作。
   // 手动点横幅仍可立即关闭；新消息进来会重置计时（依赖数组含两条 msg）。
   useEffect(() => {
@@ -377,13 +357,6 @@ export function DepGraphPage({
     <div className="dep-graph-page">
       <div className="dep-graph-topbar">
         <span className="dep-graph-topbar__note">{t('depgraph.entry.note')}</span>
-        <button
-          type="button"
-          className="dep-graph-entry-btn"
-          onClick={() => setEntryOpen(true)}
-        >
-          <Plus size={15} aria-hidden="true" /> {t('depgraph.entry.open')}
-        </button>
       </div>
       <section className="dep-graph-summary" aria-label={t('depgraph.summary.aria')}>
         <MetricTile label={t('depgraph.summary.critical')} value={String(graph.summary.criticalCount)} />
@@ -474,45 +447,6 @@ export function DepGraphPage({
           }}
         />
       </div>
-      {entryOpen ? (
-        <div
-          className="entry-overlay"
-          role="presentation"
-          onClick={() => setEntryOpen(false)}
-        >
-          <div
-            className="entry-overlay__drawer"
-            role="dialog"
-            aria-modal="true"
-            aria-label={t('depgraph.entry.title')}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <header className="entry-overlay__head">
-              <h2>{t('depgraph.entry.title')}</h2>
-              <button
-                type="button"
-                className="icon-button"
-                onClick={() => setEntryOpen(false)}
-                aria-label={t('depgraph.entry.close')}
-                title={t('depgraph.entry.close')}
-                // eslint-disable-next-line jsx-a11y/no-autofocus -- ARIA dialog requires focus to move into the dialog on open
-                autoFocus
-              >
-                <X size={18} aria-hidden="true" />
-              </button>
-            </header>
-            <div className="entry-overlay__body">
-              {tasksQuery.data != null ? (
-                <PmCreatePanel
-                  client={client}
-                  tasks={tasksQuery.data.tasks}
-                  onCreated={handleEntryCreated}
-                />
-              ) : null}
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

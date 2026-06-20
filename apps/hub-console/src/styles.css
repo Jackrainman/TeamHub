@@ -442,6 +442,17 @@ button {
   color: var(--amber);
 }
 
+/* 项目页（IA 阶段 2 / D-075）：看板 + 依赖图 顶部视图切换容器，复用既有 .seg 分段控件。 */
+.project-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+.project-view-switch {
+  align-self: flex-start;
+}
+
 .dep-graph-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
@@ -450,8 +461,10 @@ button {
 }
 
 .dep-graph-canvas {
-  height: calc(100vh - 250px);
-  min-height: 460px;
+  /* 定高、内容无关（IA 阶段 2 / D-075）：并入项目页视图切换后画布上方多了切换条 + 汇总条，
+     旧 calc(100vh-250px) 的 250px 魔法偏移失真。clamp 给 @xyflow 确定容器高度（不依赖上方内容），
+     防首屏测量错位（仿 .relay-canvas__board 同手法）。 */
+  height: clamp(460px, 60vh, 760px);
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-muted);
@@ -472,7 +485,8 @@ button {
 
 .dep-graph-detail {
   min-height: 0;
-  max-height: calc(100vh - 250px);
+  /* 与画布等高对齐（max-height + overflow:auto，不用 height：短内容不留白、长内容滚动）。 */
+  max-height: clamp(460px, 60vh, 760px);
   overflow: auto;
 }
 
@@ -1619,64 +1633,6 @@ button {
 .dep-graph-topbar__note {
   color: var(--muted);
   font-size: 12px;
-}
-
-.dep-graph-entry-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border: none;
-  border-radius: 7px;
-  background: var(--blue);
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.entry-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 40px 24px;
-  background: rgba(22, 32, 28, 0.42);
-}
-
-.entry-overlay__drawer {
-  width: min(880px, 100%);
-  max-height: calc(100vh - 80px);
-  display: flex;
-  flex-direction: column;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
-
-.entry-overlay__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--border);
-}
-
-.entry-overlay__head h2 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--text);
-}
-
-.entry-overlay__body {
-  padding: 16px 18px;
-  overflow-y: auto;
 }
 
 .detail-note {

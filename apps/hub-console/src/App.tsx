@@ -7,10 +7,9 @@ import {
   type ConsolePage,
 } from './components/layout/ConsoleLayout';
 import { OverviewPage } from './features/overview/OverviewPage';
-import { DepGraphPage } from './features/dep-graph/DepGraphPage';
+import { ProjectPage } from './features/project/ProjectPage';
 import { GapsPage } from './features/gaps/GapsPage';
 import { KbSearchPage } from './features/kb/KbSearchPage';
-import { PmBoardPage } from './features/pm/PmBoardPage';
 import { ArchivePage } from './features/archive/ArchivePage';
 import { InvPage } from './features/inv/InvPage';
 import { FleetPage } from './features/fleet/FleetPage';
@@ -23,10 +22,9 @@ const SOURCE = 'real';
 
 const TITLE_KEY: Record<ConsolePage, TranslationKey> = {
   overview: 'toolbar.title.overview',
-  'dep-graph': 'toolbar.title.depGraph',
+  project: 'toolbar.title.project',
   gaps: 'toolbar.title.gaps',
   kb: 'toolbar.title.kb',
-  pm: 'toolbar.title.pm',
   archive: 'toolbar.title.archive',
   inv: 'toolbar.title.inv',
   fleet: 'toolbar.title.fleet',
@@ -48,8 +46,6 @@ function readWriteToken(): string | undefined {
 export function App() {
   const { t } = useI18n();
   const [page, setPage] = useState<ConsolePage>('overview');
-  // 看板「在依赖图查看此节点」跳转：暂存目标任务 id，DepGraphPage 加载后选中并消费掉。
-  const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
 
   // 单一真实后端：默认相对路径同源（dev 走 vite proxy → 本地 hub-server；同源部署直接命中 /api）。
   // VITE_API_BASE / 设置页 localStorage 可覆盖为绝对地址。
@@ -93,26 +89,12 @@ export function App() {
           snapshot={overviewQuery.data}
           onNavigate={setPage}
         />
-      ) : page === 'dep-graph' ? (
-        <DepGraphPage
-          client={apiClient}
-          source={SOURCE}
-          focusTaskId={focusTaskId}
-          onConsumeFocus={() => setFocusTaskId(null)}
-        />
+      ) : page === 'project' ? (
+        <ProjectPage client={apiClient} source={SOURCE} />
       ) : page === 'gaps' ? (
         <GapsPage client={apiClient} source={SOURCE} />
       ) : page === 'kb' ? (
         <KbSearchPage client={apiClient} source={SOURCE} />
-      ) : page === 'pm' ? (
-        <PmBoardPage
-          client={apiClient}
-          source={SOURCE}
-          onOpenInDepGraph={(id) => {
-            setFocusTaskId(id);
-            setPage('dep-graph');
-          }}
-        />
       ) : page === 'archive' ? (
         <ArchivePage client={apiClient} source={SOURCE} />
       ) : page === 'inv' ? (
