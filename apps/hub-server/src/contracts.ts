@@ -72,6 +72,12 @@ export {
   CreateRelayHandoffRequestSchema,
   RelayHandoffResponseSchema,
   RelayBoardResponseSchema,
+  // R3 车管理（D-072 §3.2/§3.3）：车编号派生（禁手写）+ 建车/改状态读写契约。
+  deriveDisplayCode,
+  CreateResourceRequestSchema,
+  CreateResourceResponseSchema,
+  UpdateResourceStatusRequestSchema,
+  UpdateResourceResponseSchema,
   // 库存 / BOM 第三支柱（INV-BOM-CORE，D-042 决策 4）：派生函数 + 动作语义错误类 + 读/写契约。
   deriveInventoryLedger,
   deriveShortfalls,
@@ -144,6 +150,11 @@ export type {
   CreateRelayHandoffRequest,
   RelayHandoffResponse,
   RelayBoardResponse,
+  // R3 车管理读/写响应类型。
+  CreateResourceRequest,
+  CreateResourceResponse,
+  UpdateResourceStatusRequest,
+  UpdateResourceResponse,
   // 库存 / BOM 读/写响应类型 + 派生行类型。
   InventorySnapshot,
   PartType,

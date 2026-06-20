@@ -55,6 +55,11 @@ import {
   CreateRelayHandoffRequestSchema,
   RelayHandoffResponseSchema,
   RelayBoardResponseSchema,
+  deriveDisplayCode,
+  CreateResourceRequestSchema,
+  CreateResourceResponseSchema,
+  UpdateResourceStatusRequestSchema,
+  UpdateResourceResponseSchema,
   deriveInventoryLedger,
   deriveShortfalls,
   InvalidPartActionError,
@@ -429,6 +434,53 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   app.get('/api/resources', async () => {
     const resources = await store.listResources();
     return SharedResourcesResponseSchema.parse({ resources });
+  });
+
+  // 建车（POST /api/resources，R3 车管理 / D-072 §3.2「车 = 带编号对象」）。镜像 POST /api/resource-sessions：
+  // safeParse→400/201。**displayCode 禁手写**——给了 season 才经 deriveDisplayCode(season, robotTarget, version??1)
+  // 派生（否则 undefined）；server 钉 status=available / statusReason=null / statusSource=console、补 id/updatedAt
+  //（store.createResource 内做）。POST /api/* → 继承 H3 onRequest 鉴权 + 限流。**I0**：SharedResource 无成员维度。
+  app.post('/api/resources', async (request, reply) => {
+    const parsed = CreateResourceRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      return;
+    }
+    const { projectId, name, kind, robotTarget, season, version } = parsed.data;
+    // displayCode 派生（禁手写）：给了 season 才派生 `赛季+位置(+vN)`；没给则 undefined（读视图回退 name）。
+    const displayCode =
+      season !== undefined
+        ? deriveDisplayCode(season, robotTarget, version ?? 1)
+        : undefined;
+    const resource = await store.createResource({
+      projectId,
+      name,
+      kind,
+      robotTarget,
+      season,
+      version,
+      displayCode,
+    });
+    void reply.code(201);
+    return CreateResourceResponseSchema.parse({ resource });
+  });
+
+  // 改状态（PATCH /api/resources/:id/status，R3 / D-072 §3.3 车生命周期）。镜像 PATCH /api/resource-sessions/:id：
+  // safeParse→400；updateResourceStatus 返回 null（id 不存在）→ 404；否则 200 {resource}。**退役 = status→retired、
+  // 非物删**（无 DELETE 路由——整车留展示，ResourceSession 仍引用 resourceId）。statusSource 由 store 钉 console（C5）。
+  app.patch('/api/resources/:id/status', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = UpdateResourceStatusRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      return;
+    }
+    const resource = await store.updateResourceStatus(id, parsed.data);
+    if (!resource) {
+      void reply.code(404).send({ detail: 'resource not found' });
+      return;
+    }
+    return UpdateResourceResponseSchema.parse({ resource });
   });
 
   // 在场排班录入（POST /api/resource-sessions，D-029 队长一拍即录）。镜像 POST /api/needs：safeParse→400/201。

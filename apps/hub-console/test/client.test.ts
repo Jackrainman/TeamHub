@@ -339,6 +339,56 @@ describe('hub console API client', () => {
     expect((delCall?.[1] as RequestInit | undefined)?.body).toBeUndefined();
   });
 
+  test('R3 车管理：createResource POST /api/resources、updateResourceStatus PATCH /api/resources/:id/status 命中正确路径与方法', async () => {
+    const fetcher = vi.fn(async (url: string, _init?: RequestInit) => {
+      const path = new URL(url, 'http://teamhub.local').pathname;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => resourceWriteResponseByPath(path),
+      } as Response;
+    });
+
+    const client = createHubApiClient({
+      baseUrl: 'http://127.0.0.1:4177',
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+
+    // 建车：POST /api/resources，带 body（displayCode 禁手写、不在请求里），解析响应。
+    const createReq = {
+      projectId: 'prj-robots',
+      name: 'R2 比赛车',
+      kind: 'robot' as const,
+      robotTarget: 'R2' as const,
+      season: '26',
+      version: 1,
+    };
+    const createRes = await client.createResource(createReq);
+    expect(createRes.resource.id).toBeTruthy();
+    const createCall = fetcher.mock.calls.find(
+      ([u, init]) =>
+        String(u).endsWith('/api/resources') &&
+        (init as RequestInit | undefined)?.method === 'POST',
+    );
+    expect(createCall).toBeTruthy();
+    expect(JSON.parse(String(createCall?.[1]?.body))).toEqual(createReq);
+
+    // 改状态（退役 = 状态迁移、非物删）：PATCH /api/resources/:id/status，带 status + 可选 statusReason。
+    const patchRes = await client.updateResourceStatus('res-r2', {
+      status: 'retired',
+      statusReason: '赛季结束退役',
+    });
+    expect(patchRes.resource.id).toBeTruthy();
+    const patchCall = fetcher.mock.calls.find(([u]) =>
+      String(u).endsWith('/api/resources/res-r2/status'),
+    );
+    expect(patchCall?.[1]?.method).toBe('PATCH');
+    expect(JSON.parse(String(patchCall?.[1]?.body))).toEqual({
+      status: 'retired',
+      statusReason: '赛季结束退役',
+    });
+  });
+
   test('postJson 把后端 400 的 detail 透出到抛错（表单错误条）', async () => {
     const fetcher = vi.fn(async () => ({
       ok: false,
@@ -379,6 +429,17 @@ function relayResponseByPath(path: string): unknown {
         createdAt: '2026-06-06T00:00:00.000Z',
       },
     };
+  }
+  return { detail: 'Not found' };
+}
+
+// R3 车管理：POST /api/resources 回 {resource}；PATCH /api/resources/:id/status 回 {resource}。
+function resourceWriteResponseByPath(path: string): unknown {
+  if (path.startsWith('/api/resources/') && path.endsWith('/status')) {
+    return { resource: scheduleScenarioFixture.resources[1] };
+  }
+  if (path === '/api/resources') {
+    return { resource: scheduleScenarioFixture.resources[0] };
   }
   return { detail: 'Not found' };
 }

@@ -14,6 +14,7 @@ import type {
   PartType,
   RelayHandoff,
   ResourceSession,
+  ResourceStatus,
   SharedResource,
   Task,
   TaskStatus,
@@ -118,6 +119,32 @@ export type RelayHandoffDraft = Omit<
 >;
 
 /**
+ * createResource 入参（R3 车管理 / D-072 §3.2「车 = 带编号对象」）：建一台共享资源（整车）。
+ * 人本字段 = projectId / name / kind / robotTarget（车号位）+ 可选 season / version（极低频代次）。
+ * **displayCode 禁手写**（D-072 §3.2 决定 K）：不由调用方给——路由层经 `deriveDisplayCode(season, robotTarget,
+ * version ?? 1)` 派生后并入 draft（给了 season 才派生，否则 undefined）。Store 补 id + updatedAt、**钉
+ * status=`available`**（建车一律空闲可用）/ statusReason=null（建时无事实注释）/ statusSource=`console`
+ * （C5：来源 seam server 钉）。故 draft 仅 Omit id/status/statusReason/statusSource/updatedAt。
+ * **反监视红线**：SharedResource 结构无成员维度，draft 也绝不含 memberId / 出勤。
+ */
+export type ResourceDraft = Omit<
+  SharedResource,
+  'id' | 'status' | 'statusReason' | 'statusSource' | 'updatedAt'
+>;
+
+/**
+ * updateResourceStatus 入参（R3 改状态 / D-072 §3.3 车生命周期）：既有车的状态迁移
+ * （维修 repair / 退役 retired / 拆解 disassembling / 回 available 等）。**退役 = 状态迁移、非物删**
+ * （整车留展示——ResourceSession 仍引用 resourceId，物删会悬空；故无 delete 方法）。
+ * `statusReason`（"撞坏底盘" 等中性事实注释、非归咎于人）optional+nullable：省略=不动既有 reason、
+ * 显式 null=清空、非空串=改写。Store 钉 statusSource=`console`（C5）、bump updatedAt。
+ */
+export interface ResourceStatusPatch {
+  status: ResourceStatus;
+  statusReason?: string | null;
+}
+
+/**
  * 三支柱共享底座的读写出入口。
  *
  * 读：`getSnapshot()`（D-040 首刀，已实现）。
@@ -167,6 +194,25 @@ export interface GovStore {
    * 路由层把 `{...snapshot, resources, resourceSessions}` 拼成 ScheduleSnapshot 喂纯函数。
    */
   listResources(): Promise<SharedResource[]>;
+  /**
+   * 建一台共享资源（POST /api/resources，R3 车管理 / D-072 §3.2）。Store 补 id + updatedAt、
+   * **钉 status=`available` / statusReason=null / statusSource=`console`**（C5 来源 seam）。
+   * displayCode 由路由层经 deriveDisplayCode 派生后并入 draft（**禁手写**，D-072 §3.2 决定 K）。
+   * **持久化（R3 核心）**：FileGovStore 落盘到独立 resources.json（不入 GovernanceSnapshot）；
+   * InMemoryGovStore 仅改内存数组。**I0**：SharedResource 无成员维度，绝不引入 memberId / 出勤。
+   */
+  createResource(resource: ResourceDraft): Promise<SharedResource>;
+  /**
+   * 既有车状态迁移（PATCH /api/resources/:id/status，R3 改状态 / D-072 §3.3）。在 ResourceStatus 枚举内
+   * 流转（维修 / 退役 / 拆解 / 回 available）。**退役 = 改 status→retired、非物删**（整车留展示，
+   * ResourceSession 仍引用 resourceId；故无 delete 口子）。statusReason optional+nullable（省略=不动、
+   * 显式 null=清空、非空串=改写）；Store 钉 statusSource=`console`（C5）、bump updatedAt。
+   * id 不存在 → 返回 null（路由层转 404）。FileGovStore 改 inner 后原子写 resources.json。
+   */
+  updateResourceStatus(
+    id: string,
+    patch: ResourceStatusPatch,
+  ): Promise<SharedResource | null>;
   /** 占用窗口（GET /api/resource-sessions 读视图）。invitedMemberIds 是本窗操作名单（I0 许可），绝不按人聚合。 */
   listResourceSessions(): Promise<ResourceSession[]>;
   /**

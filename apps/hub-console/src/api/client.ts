@@ -75,6 +75,14 @@ import {
   type CreateRelayHandoffRequest,
   type RelayHandoffResponse,
 } from './schemas/schedule';
+import {
+  CreateResourceResponseSchema,
+  UpdateResourceResponseSchema,
+  type CreateResourceRequest,
+  type CreateResourceResponse,
+  type UpdateResourceStatusRequest,
+  type UpdateResourceResponse,
+} from './schemas/resources';
 
 type FetchLike = typeof fetch;
 
@@ -97,6 +105,14 @@ export interface HubApiClient {
   getResourceSessions(): Promise<ResourceSessionsResponse>;
   // 共享物理资源（车）列表：接力链按车并排时取 displayCode ?? name 作列头。无人维度（中性事实）。
   getResources(): Promise<SharedResourcesResponse>;
+  // 车管理写侧（R3，D-072 §3.2/§3.3）。建车：填 season + robotTarget + version → server 派生 displayCode
+  //（禁手写）；改状态：维修 / 退役 / 拆解 / 恢复等状态迁移（**退役 = status→retired、非物删，无 DELETE 口子**）。
+  // 反监视红线：SharedResource 结构上无成员维度，写请求绝不含 memberId / 出勤。
+  createResource(req: CreateResourceRequest): Promise<CreateResourceResponse>;
+  updateResourceStatus(
+    id: string,
+    patch: UpdateResourceStatusRequest,
+  ): Promise<UpdateResourceResponse>;
   getKbSimilar(params: KbSimilarParams): Promise<KbSimilarResponse>;
   getTasks(): Promise<{ tasks: Task[] }>;
   // 图纸提交日志/版本时间线（档案页）：与总览第 7 个 fetch 同源 /api/artifacts，读治理快照。
@@ -233,6 +249,25 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         `${baseUrl}/api/resources`,
         SharedResourcesResponseSchema,
         fetcher,
+      );
+    },
+    async createResource(req: CreateResourceRequest) {
+      return postJson(
+        `${baseUrl}/api/resources`,
+        req,
+        CreateResourceResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async updateResourceStatus(id: string, patch: UpdateResourceStatusRequest) {
+      return sendJson(
+        'PATCH',
+        `${baseUrl}/api/resources/${encodeURIComponent(id)}/status`,
+        patch,
+        UpdateResourceResponseSchema,
+        fetcher,
+        writeToken,
       );
     },
     async getKbSimilar(params: KbSimilarParams) {

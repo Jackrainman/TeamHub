@@ -1,5 +1,5 @@
 import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { z } from 'zod';
 import {
   ArtifactRefSchema,
@@ -8,6 +8,7 @@ import {
   KnowledgeNodeSchema,
   MemberSchema,
   NeedSchema,
+  SharedResourceSchema,
   TaskKnowledgeTagSchema,
   TaskSchema,
   governanceScenarioFixture,
@@ -34,8 +35,10 @@ import type {
   KnowledgeNodeDraft,
   NeedDraft,
   RelayHandoffDraft,
+  ResourceDraft,
   ResourceSessionDraft,
   ResourceSessionPatch,
+  ResourceStatusPatch,
   TaskDraft,
 } from './gov-store.js';
 
@@ -70,6 +73,20 @@ const GovernanceSnapshotSchema = z.object({
   artifacts: z.array(ArtifactRefSchema),
 });
 
+/**
+ * R3 车管理独立落盘格式（resources.json）：纯 SharedResource 数组。**为何独立于 governance.json**：
+ * resources **不在 GovernanceSnapshot 内**（GovernanceSnapshot 是 11 字段、无 resources/resourceSessions），
+ * 把它塞进 governance.json 会牵动 GovernanceSnapshotSchema + GOVERNANCE_ARRAY_FIELDS + clone 列表 + 已部署
+ * ~/teamhub-data/gov.json 的格式兼容——故另开一份 resources.json，与 gov.json 同目录、同一套原子写纪律。
+ * 加载 fail-closed：解析失败抛、绝不静默用 seed 覆盖团队已建的车。
+ */
+const ResourcesFileSchema = z.array(SharedResourceSchema);
+
+/** resources.json 路径：与 govFilePath 同目录、basename 钉 `resources.json`（gov.json → resources.json）。 */
+function deriveResourcesFilePath(govFilePath: string): string {
+  return join(dirname(govFilePath), 'resources.json');
+}
+
 /** 治理快照全 8 数组字段（写方法可能 push/splice 的集合）——克隆隔离用。 */
 const GOVERNANCE_ARRAY_FIELDS: (keyof GovernanceSnapshot)[] = [
   'groups',
@@ -89,8 +106,13 @@ function cloneSnapshot(seed: GovernanceSnapshot): GovernanceSnapshot {
 export class FileGovStore implements GovStore {
   private readonly inner: InMemoryGovStore;
   private readonly filePath: string;
-  // 串行化落盘：并发写不互相覆盖（H2 失败隔离）。
+  // R3：车独立落盘文件（resources.json，与 gov.json 同目录）。resources 不在 GovernanceSnapshot 内，
+  // 故与 governance.json 各写各的——createResource / updateResourceStatus 改 inner 后原子写本文件。
+  private readonly resourcesFilePath: string;
+  // 串行化落盘：并发写不互相覆盖（H2 失败隔离）。governance.json 与 resources.json 各持一条独立写链
+  // （两文件内容不同、互不阻塞，且各自 H2 失败隔离）。
   private writeChain: Promise<void> = Promise.resolve();
+  private resourcesWriteChain: Promise<void> = Promise.resolve();
 
   private constructor(
     filePath: string,
@@ -98,6 +120,7 @@ export class FileGovStore implements GovStore {
     clock?: Clock,
   ) {
     this.filePath = filePath;
+    this.resourcesFilePath = deriveResourcesFilePath(filePath);
     // 组合内存实现复用写白名单的 id/时间戳/clamp 逻辑（零漂移）；它持有传入快照的可变副本。
     // 不传 clock 时沿用 InMemoryGovStore 默认（FixedClock(GOVERNANCE_SCENARIO_NOW)），与 real 路由同口径。
     this.inner = clock
@@ -105,7 +128,12 @@ export class FileGovStore implements GovStore {
       : new InMemoryGovStore(snapshot);
   }
 
-  /** 异步构造：从 dataFile 加载（不存在则 seed 起头并落盘）。 */
+  /**
+   * 异步构造：从 dataFile 加载（不存在则 seed 起头并落盘）。
+   * **R3 车持久化**：resources.json 与 gov.json 同目录、独立加载——
+   *  - resources.json 存在 → 严格解析（fail-closed）后**覆盖 inner 的 resources**（重启后团队建的车仍在）。
+   *  - 不存在 → 用 inner 的 seed resources（scheduleScenarioFixture 锚点车）落一份 resources.json。
+   */
   static async create(
     filePath: string,
     seed: GovernanceSnapshot = governanceScenarioFixture,
@@ -118,16 +146,51 @@ export class FileGovStore implements GovStore {
       if ((err as { code?: string }).code !== 'ENOENT') throw err;
     }
 
+    const store =
+      raw === null
+        ? new FileGovStore(filePath, cloneSnapshot(seed), clock)
+        : // 文件存在 → 严格解析（损坏则抛，不静默覆盖团队数据）。
+          new FileGovStore(
+            filePath,
+            GovernanceSnapshotSchema.parse(JSON.parse(raw)),
+            clock,
+          );
+
     if (raw === null) {
-      // 文件不存在 → seed 起头 + 落一次盘（首启动落种子治理场景 + 图纸版本日志）。
-      const store = new FileGovStore(filePath, cloneSnapshot(seed), clock);
+      // gov.json 不存在 → seed 起头 + 落一次盘（首启动落种子治理场景 + 图纸版本日志）。
       await store.persist();
-      return store;
     }
 
-    // 文件存在 → 严格解析（损坏则抛，不静默覆盖团队数据）。
-    const snapshot = GovernanceSnapshotSchema.parse(JSON.parse(raw));
-    return new FileGovStore(filePath, snapshot, clock);
+    await store.loadOrSeedResources();
+    return store;
+  }
+
+  /**
+   * R3 车持久化加载：resources.json 存在则 fail-closed 解析后覆盖 inner 的 resources；不存在则用 inner
+   * 的 seed resources 落一份。**为何覆盖**：inner 构造期已从 scheduleScenarioFixture seed 一份锚点车，
+   * 但磁盘上若有团队已建/已改的车，那才是单一真相——加载时整体替换内存数组的内容（保持引用，写白名单 + 回滚
+   * 仍指向同一可变数组）。
+   */
+  private async loadOrSeedResources(): Promise<void> {
+    let raw: string | null = null;
+    try {
+      raw = await readFile(this.resourcesFilePath, 'utf8');
+    } catch (err) {
+      if ((err as { code?: string }).code !== 'ENOENT') throw err;
+    }
+
+    if (raw === null) {
+      // resources.json 不存在 → 用 inner seed 落一份（首启动持久化锚点车）。
+      await this.persistResources();
+      return;
+    }
+
+    // 存在 → fail-closed 解析后覆盖 inner 的 live resources 数组（原地替换内容、保持引用）。
+    const loaded = ResourcesFileSchema.parse(JSON.parse(raw));
+    const live = this.inner.resourcesForRollback();
+    live.splice(0, live.length, ...loaded);
+    // 载入后重算建车计数器，避免重启后新建车复用磁盘上已有的 `res-new-N` id（碰撞回归）。
+    this.inner.resyncResourceSeq();
   }
 
   async getSnapshot(): Promise<GovernanceSnapshot> {
@@ -186,6 +249,32 @@ export class FileGovStore implements GovStore {
   // 语义相容：占用窗口粗粒度临时（今晚/明天，C1 低录入），不像图纸日志需永久。委托 inner 不调 persist()。
   async listResources(): Promise<SharedResource[]> {
     return this.inner.listResources();
+  }
+
+  // R3 车管理（D-072 §3.2/§3.3）：与 resourceSessions 不同——resources **落盘**到独立 resources.json
+  // （重启后团队建/退役的车仍在）。复用 inner 的 id/clamp/updatedAt 逻辑（零漂移）+ 每次成功写后原子写
+  // resources.json；persist 失败回滚刚追加 / 刚改的内存元素（镜像 governance.json 的 persistOrRollback）。
+  async createResource(draft: ResourceDraft): Promise<SharedResource> {
+    const resource = await this.inner.createResource(draft);
+    await this.persistResourcesOrRollback(() => this.removeResourceById(resource.id));
+    return resource;
+  }
+
+  async updateResourceStatus(
+    id: string,
+    patch: ResourceStatusPatch,
+  ): Promise<SharedResource | null> {
+    // idx 类：先存写前整条（失败时按 id 原地还原），未命中（null）不触发无谓写。
+    const live = this.inner.resourcesForRollback();
+    const idx = live.findIndex((r) => r.id === id);
+    const prior = idx >= 0 ? live[idx] : undefined;
+    const resource = await this.inner.updateResourceStatus(id, patch);
+    if (resource) {
+      await this.persistResourcesOrRollback(() => {
+        if (prior) live[idx] = prior;
+      });
+    }
+    return resource;
   }
 
   async listResourceSessions(): Promise<ResourceSession[]> {
@@ -286,6 +375,48 @@ export class FileGovStore implements GovStore {
       await rename(tmp, this.filePath);
     } catch (err) {
       // L2：rename 后失败会漏 .tmp；写失败也清残留，避免孤儿临时文件堆积。
+      await unlink(tmp).catch(() => {});
+      throw err;
+    }
+  }
+
+  // --- R3 车独立落盘（resources.json）：与 governance.json persist 逐条镜像，仅写不同文件 + 独立写链 ---
+
+  /** 回滚句柄：从 live resources 数组按 id 移除一条 append 的车（仅 createResource persist 失败时用）。 */
+  private removeResourceById(id: string): void {
+    const arr = this.inner.resourcesForRollback();
+    const idx = arr.findIndex((r) => r.id === id);
+    if (idx >= 0) arr.splice(idx, 1);
+  }
+
+  /** 写 resources.json；失败则回滚刚追加/刚改的内存车再把原错误抛给调用方。 */
+  private async persistResourcesOrRollback(rollback: () => void): Promise<void> {
+    try {
+      await this.persistResources();
+    } catch (err) {
+      rollback();
+      throw err;
+    }
+  }
+
+  /** 原子写 resources.json，独立写链串行化避免并发覆盖（H2 失败隔离，与 governance.json 同纪律）。 */
+  private async persistResources(): Promise<void> {
+    const op = this.resourcesWriteChain.then(() => this.writeResourcesOnce());
+    // H2：推进写链时吞掉本次错误（reset 为 resolved），否则一次瞬时磁盘抖动会让 resourcesWriteChain
+    // 永久 rejected → 之后每次 persistResources 的 .then 回调被静默跳过、内存与磁盘分叉。调用方仍拿到本次真实错误。
+    this.resourcesWriteChain = op.catch(() => undefined);
+    return op;
+  }
+
+  private async writeResourcesOnce(): Promise<void> {
+    await mkdir(dirname(this.resourcesFilePath), { recursive: true });
+    const tmp = `${this.resourcesFilePath}.tmp`;
+    const resources = await this.inner.listResources();
+    try {
+      await writeFile(tmp, JSON.stringify(resources, null, 2), 'utf8');
+      await rename(tmp, this.resourcesFilePath);
+    } catch (err) {
+      // L2：写失败 / rename 后失败都清残留 .tmp，避免孤儿临时文件堆积。
       await unlink(tmp).catch(() => {});
       throw err;
     }

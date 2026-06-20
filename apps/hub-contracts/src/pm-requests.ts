@@ -6,6 +6,10 @@ import {
   NeedSchema,
   ResourceSessionSchema,
   RelayHandoffSchema,
+  SharedResourceSchema,
+  ResourceKindSchema,
+  RobotTargetSchema,
+  ResourceStatusSchema,
 } from './governance.js';
 import { RelayStageSchema } from './relay.js';
 import { ArtifactRefSchema } from './schemas.js';
@@ -221,6 +225,45 @@ export const RelayBoardResponseSchema = z.object({
   handoffs: z.array(RelayHandoffSchema.omit({ confirmedBy: true })),
 });
 
+/**
+ * POST /api/resources（R3 车管理 / D-072 §3.2「车 = 带编号对象」）：建一台共享资源（整车）。
+ * 人填字段：projectId / name / kind / robotTarget（车号位 R1/R2/shared）+ 可选 season（赛季后两位 "26"）
+ * + 可选 version（第几代整车，默认 1）。
+ *
+ * **displayCode 禁手写**（D-072 §3.2 决定 K）——不在请求里，由 server 经 deriveDisplayCode(season, robotTarget, version)
+ * 派生（version 缺省 1）。同理 id / status（建车一律 clamp `available`）/ statusReason（建时 null）/
+ * statusSource（server 钉 `console`，C5 来源 seam）/ updatedAt（store 补 clock.now）皆不收。
+ * **反监视红线**：SharedResource 结构上无成员维度，本请求绝不收 memberId / 出勤。
+ */
+export const CreateResourceRequestSchema = z.object({
+  projectId: z.string().min(1),
+  name: z.string().min(1),
+  kind: ResourceKindSchema,
+  robotTarget: RobotTargetSchema,
+  season: z.string().min(1).optional(),
+  version: z.number().int().positive().optional(),
+});
+export const CreateResourceResponseSchema = z.object({
+  resource: SharedResourceSchema,
+});
+
+/**
+ * PATCH /api/resources/:id/status（R3 改状态 / D-072 §3.3 车生命周期）：既有车的状态迁移
+ *（维修 repair / 退役 retired / 拆解 disassembling / 回 available 等）。**退役 = 状态迁移、非物理删除**
+ *（整车留展示——ResourceSession 仍引用 resourceId，物删会悬空；故无 DELETE 路由）。
+ *
+ * `statusReason`（"撞坏底盘" 等中性事实自由注释，非归咎于人）optional+nullable：省略=不动既有 reason、
+ * 显式 null=清空、非空串=改写（""→拒）。statusSource 不由客户端给——server 一律钉 `console`（C5）。
+ * displayCode / season / version 不开 PATCH 口子（车编号一经派生不改；改代次=建新车）。
+ */
+export const UpdateResourceStatusRequestSchema = z.object({
+  status: ResourceStatusSchema,
+  statusReason: z.string().min(1).nullable().optional(),
+});
+export const UpdateResourceResponseSchema = z.object({
+  resource: SharedResourceSchema,
+});
+
 export type CreateTaskRequest = z.infer<typeof CreateTaskRequestSchema>;
 export type CreateTaskResponse = z.infer<typeof CreateTaskResponseSchema>;
 export type CreateDependencyRequest = z.infer<
@@ -263,3 +306,15 @@ export type CreateRelayHandoffRequest = z.infer<
 >;
 export type RelayHandoffResponse = z.infer<typeof RelayHandoffResponseSchema>;
 export type RelayBoardResponse = z.infer<typeof RelayBoardResponseSchema>;
+export type CreateResourceRequest = z.infer<
+  typeof CreateResourceRequestSchema
+>;
+export type CreateResourceResponse = z.infer<
+  typeof CreateResourceResponseSchema
+>;
+export type UpdateResourceStatusRequest = z.infer<
+  typeof UpdateResourceStatusRequestSchema
+>;
+export type UpdateResourceResponse = z.infer<
+  typeof UpdateResourceResponseSchema
+>;

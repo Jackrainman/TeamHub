@@ -25,8 +25,10 @@ import type {
   KnowledgeNodeDraft,
   NeedDraft,
   RelayHandoffDraft,
+  ResourceDraft,
   ResourceSessionDraft,
   ResourceSessionPatch,
+  ResourceStatusPatch,
   TaskDraft,
 } from './gov-store.js';
 
@@ -71,6 +73,7 @@ export class InMemoryGovStore implements GovStore {
   private needSeq: number;
   private knowledgeNodeSeq: number;
   private artifactSeq: number;
+  private resourceSeq: number;
   private resourceSessionSeq: number;
   private relayHandoffSeq: number;
 
@@ -102,6 +105,7 @@ export class InMemoryGovStore implements GovStore {
     this.needSeq = this.snapshot.needs.length;
     this.knowledgeNodeSeq = this.snapshot.knowledgeNodes.length;
     this.artifactSeq = this.snapshot.artifacts.length;
+    this.resourceSeq = this.resources.length;
     this.resourceSessionSeq = this.resourceSessions.length;
     this.relayHandoffSeq = this.relayHandoffs.length;
   }
@@ -131,6 +135,32 @@ export class InMemoryGovStore implements GovStore {
    */
   resourceSessionsForRollback(): ResourceSession[] {
     return this.resourceSessions;
+  }
+
+  /**
+   * @internal 持久层回滚专用（R3）：返回**可变的** live resources 数组引用（createResource push /
+   * updateResourceStatus 原地改的同一对象），让 FileGovStore 在 resources.json 写失败时撤回刚追加 /
+   * 刚改的整车（与 snapshotForRollback 同纪律，不对外公开）。resources 不在 GovernanceSnapshot 内，故单独开此句柄。
+   */
+  resourcesForRollback(): SharedResource[] {
+    return this.resources;
+  }
+
+  /**
+   * @internal R3 持久化载入后重算 resourceSeq：取现有 resources 里 `res-new-N` 后缀的最大值。
+   * FileGovStore 在构造后才把磁盘上的车 splice 进 live，若不重算、计数器仍停在构造期 seed 长度，
+   * 重启后再建车会复用同一 `res-new-N` → id 碰撞（覆盖既有车 / React key 冲突）。loadOrSeedResources 载入分支调用。
+   */
+  resyncResourceSeq(): void {
+    let max = 0;
+    for (const r of this.resources) {
+      const m = /^res-new-(\d+)$/.exec(r.id);
+      if (m) {
+        const n = Number(m[1]);
+        if (n > max) max = n;
+      }
+    }
+    this.resourceSeq = max;
   }
 
   /**
@@ -239,6 +269,52 @@ export class InMemoryGovStore implements GovStore {
   /** 共享物理资源只读（GET /api/schedule 组装 ScheduleSnapshot 用；GET /api/resources 可选读视图）。 */
   async listResources(): Promise<SharedResource[]> {
     return this.resources;
+  }
+
+  /**
+   * 建一台共享资源（POST /api/resources，R3 车管理 / D-072 §3.2）。Store 补 id=`res-new-N` + updatedAt、
+   * **钉 status=`available` / statusReason=null / statusSource=`console`**（C5：来源 seam server 钉，建车一律空闲可用）。
+   * displayCode **禁手写**——已由路由层经 deriveDisplayCode 派生并入 draft（给了 season 才有，否则 undefined）。
+   * **I0**：SharedResource 无 person 字段，draft 也不含——车是中性对象，绝无 memberId / 出勤。
+   */
+  async createResource(draft: ResourceDraft): Promise<SharedResource> {
+    const now = this.clock.now().toISOString();
+    const resource: SharedResource = {
+      ...draft,
+      id: `res-new-${++this.resourceSeq}`,
+      status: 'available',
+      statusReason: null,
+      statusSource: 'console',
+      updatedAt: now,
+    };
+    this.resources.push(resource);
+    return resource;
+  }
+
+  /**
+   * 既有车状态迁移（PATCH /api/resources/:id/status，R3 改状态 / D-072 §3.3）。在 ResourceStatus 枚举内流转
+   * （维修 / 退役 retired / 拆解 / 回 available）。**退役 = 改 status、非物删**（整车留展示，无 splice）。
+   * statusReason：未传（undefined）保留旧值、显式 null 清空、给非空串改写。**statusSource 钉 `console`**（C5），
+   * bump updatedAt。id 不存在 → null（路由转 404）。
+   */
+  async updateResourceStatus(
+    id: string,
+    patch: ResourceStatusPatch,
+  ): Promise<SharedResource | null> {
+    const idx = this.resources.findIndex((r) => r.id === id);
+    if (idx === -1) return null;
+    const now = this.clock.now().toISOString();
+    const prev = this.resources[idx];
+    const updated: SharedResource = {
+      ...prev,
+      status: patch.status,
+      // statusReason 可空：显式 null 清空、给值改写、未传（undefined）保留旧值。
+      statusReason: patch.statusReason !== undefined ? patch.statusReason : prev.statusReason,
+      statusSource: 'console',
+      updatedAt: now,
+    };
+    this.resources[idx] = updated;
+    return updated;
   }
 
   /** 占用窗口只读（GET /api/resource-sessions + GET /api/schedule 组装用）。 */

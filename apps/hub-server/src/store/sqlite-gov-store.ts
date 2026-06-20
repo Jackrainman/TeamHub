@@ -17,8 +17,10 @@ import type {
   KnowledgeNodeDraft,
   NeedDraft,
   RelayHandoffDraft,
+  ResourceDraft,
   ResourceSessionDraft,
   ResourceSessionPatch,
+  ResourceStatusPatch,
   TaskDraft,
 } from './gov-store.js';
 
@@ -61,6 +63,17 @@ export class SqliteGovStore implements GovStore {
   }
 
   async listResources(): Promise<SharedResource[]> {
+    throw new Error(SQLITE_NOT_IMPLEMENTED);
+  }
+
+  async createResource(_resource: ResourceDraft): Promise<SharedResource> {
+    throw new Error(SQLITE_NOT_IMPLEMENTED);
+  }
+
+  async updateResourceStatus(
+    _id: string,
+    _patch: ResourceStatusPatch,
+  ): Promise<SharedResource | null> {
     throw new Error(SQLITE_NOT_IMPLEMENTED);
   }
 

@@ -1967,6 +1967,144 @@ button {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
+   车管理（R3，D-072 §3.2/§3.3）：建车 / 改状态 / 退役。复用 inv/pm 既有面板 + 表单类，
+   只新增车号徽章 / 状态徽章 / 行内改状态控件。主键是车 / 车号 / 状态——无人维度（I0）。
+   ───────────────────────────────────────────────────────────────────────── */
+.resources-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.resources-page .panel {
+  padding: 14px;
+  min-height: 0;
+  gap: 12px;
+}
+/* 汇总两指标（车总数 / 还能上场的）→ 2 列，对齐 inv-summary。 */
+.resources-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.resources-section-title {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 650;
+}
+.resources-empty {
+  color: var(--muted);
+  margin: 0;
+}
+/* 车多时横向滚动（行内改状态控件不被挤压）。 */
+.resources-table-wrap {
+  min-width: 0;
+  overflow-x: auto;
+}
+.resources-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.resources-table th,
+.resources-table td {
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+.resources-table thead th {
+  background: var(--surface-raised);
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.resources-cell--name {
+  font-weight: 600;
+  color: var(--text);
+}
+/* 车号徽章（派生 displayCode，如 26R2）：等宽强调，建车预览与列表同形。 */
+.resources-code-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--surface-muted);
+  color: var(--text);
+  font-family: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.resources-preview {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+}
+/* 状态徽章：按状态分色（空着/在用=可上车绿系，在修/坏=红/琥珀，退役/拆解=灰）。 */
+.resources-status-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--surface-muted);
+  color: var(--muted);
+}
+.resources-status-badge--available,
+.resources-status-badge--inUse {
+  background: var(--green-soft);
+  color: var(--green);
+}
+.resources-status-badge--repair,
+.resources-status-badge--upgrading {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+.resources-status-badge--down {
+  background: var(--red-soft);
+  color: var(--red);
+}
+.resources-status-badge--retired,
+.resources-status-badge--disassembling {
+  background: var(--surface-muted);
+  color: var(--faint);
+}
+/* 中性事实注释（"撞坏底盘"）：徽章下方小灰字，非归咎于人。 */
+.resources-reason {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--faint);
+}
+/* 行内改状态：状态下拉 + 选填原因 + 改按钮，窄屏自动换行。 */
+.resources-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.resources-action select,
+.resources-reason-input {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+}
+.resources-reason-input {
+  min-width: 140px;
+}
+.resources-apply {
+  padding: 5px 12px;
+  font-size: 12px;
+}
+.resources-row-error {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--red);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
    接力顺序链（D-072 §2.2，多车并排）。只表先后、不表钟点；主键是车 / 组接力位置 / 任务——无人维度。
    ───────────────────────────────────────────────────────────────────────── */
 .relay-chain {

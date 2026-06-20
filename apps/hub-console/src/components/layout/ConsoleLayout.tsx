@@ -3,6 +3,7 @@ import {
   BookOpen,
   Boxes,
   CalendarClock,
+  Car,
   Compass,
   FileStack,
   Home,
@@ -21,6 +22,7 @@ export type ConsolePage =
   | 'pm'
   | 'archive'
   | 'inv'
+  | 'resources'
   | 'settings';
 
 interface NavItem {
@@ -44,6 +46,8 @@ const navItems: NavItem[] = [
   { labelKey: 'nav.archive', icon: FileStack, page: 'archive' },
   // 第三支柱：库存 / BOM（INV-BOM-CORE 已落地）。零件×车 矩阵 + 一句话快记 + 缺料告警。
   { labelKey: 'nav.inv', icon: Boxes, page: 'inv' },
+  // 车管理（R3，D-072 §3.2/§3.3）：建车 / 改状态 / 退役（退役=状态迁移，非物删）。无人维度。
+  { labelKey: 'nav.resources', icon: Car, page: 'resources' },
   { labelKey: 'nav.settings', icon: Settings, page: 'settings' },
 ];
 
