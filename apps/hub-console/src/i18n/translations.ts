@@ -149,10 +149,16 @@ const zh = {
   'depgraph.edge.deleteError': '没能删除连线：{detail}',
 
   // 新增页面导航 / 标题
-  'nav.kb': '知识库检索',
-  'nav.archive': '图纸档案',
+  // 知识页（IA 阶段 3 / D-075）：相似检索 + 图纸档案 Tab 合一。
+  'nav.knowledge': '知识库',
+  'toolbar.title.knowledge': '战队知识库 · 检索与图纸档案',
+  'knowledge.tab.search': '相似检索',
+  'knowledge.tab.archive': '图纸档案',
+  // toolbar.title.kb 降级为 KbSearchPage 内层 Tab 的 aria-label，仍被引用，保留。
   'toolbar.title.kb': '相似 Bug 检索 · 跨赛季召回',
-  'toolbar.title.archive': '图纸提交日志 · 版本时间线',
+  // 共享赛季选择「其它/手填」兜底（SeasonSelect）。
+  'season.other': '其它（手填）',
+  'season.otherHint': '输入赛季后两位，如 22',
 
   // 缺人方向（S2，D-069）：组级派生缺口，永不指向人（A1/I0）
   'nav.gaps': '缺人方向',
@@ -677,10 +683,13 @@ const en: Record<TranslationKey, string> = {
     'Link deleted — this dependency no longer blocks downstream.',
   'depgraph.edge.deleteError': 'Could not delete the link: {detail}',
 
-  'nav.kb': 'KB Search',
-  'nav.archive': 'Artifacts',
+  'nav.knowledge': 'Knowledge',
+  'toolbar.title.knowledge': 'Team Knowledge · Search & Artifacts',
+  'knowledge.tab.search': 'Similar search',
+  'knowledge.tab.archive': 'Artifacts',
   'toolbar.title.kb': 'Similar-bug Search · Cross-season Recall',
-  'toolbar.title.archive': 'Artifact Submission Log · Version Timeline',
+  'season.other': 'Other (type in)',
+  'season.otherHint': 'Last two digits, e.g. 22',
 
   // Direction gaps (S2, D-069): group-level derived gaps, never tied to a person (A1/I0)
   'nav.gaps': 'Direction Gaps',

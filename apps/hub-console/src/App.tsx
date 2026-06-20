@@ -9,8 +9,7 @@ import {
 import { OverviewPage } from './features/overview/OverviewPage';
 import { ProjectPage } from './features/project/ProjectPage';
 import { GapsPage } from './features/gaps/GapsPage';
-import { KbSearchPage } from './features/kb/KbSearchPage';
-import { ArchivePage } from './features/archive/ArchivePage';
+import { KnowledgePage } from './features/knowledge/KnowledgePage';
 import { InvPage } from './features/inv/InvPage';
 import { FleetPage } from './features/fleet/FleetPage';
 import { SettingsPage } from './features/settings/SettingsPage';
@@ -24,8 +23,7 @@ const TITLE_KEY: Record<ConsolePage, TranslationKey> = {
   overview: 'toolbar.title.overview',
   project: 'toolbar.title.project',
   gaps: 'toolbar.title.gaps',
-  kb: 'toolbar.title.kb',
-  archive: 'toolbar.title.archive',
+  knowledge: 'toolbar.title.knowledge',
   inv: 'toolbar.title.inv',
   fleet: 'toolbar.title.fleet',
   settings: 'toolbar.title.settings',
@@ -93,10 +91,8 @@ export function App() {
         <ProjectPage client={apiClient} source={SOURCE} />
       ) : page === 'gaps' ? (
         <GapsPage client={apiClient} source={SOURCE} />
-      ) : page === 'kb' ? (
-        <KbSearchPage client={apiClient} source={SOURCE} />
-      ) : page === 'archive' ? (
-        <ArchivePage client={apiClient} source={SOURCE} />
+      ) : page === 'knowledge' ? (
+        <KnowledgePage client={apiClient} source={SOURCE} />
       ) : page === 'inv' ? (
         <InvPage client={apiClient} source={SOURCE} />
       ) : page === 'fleet' ? (

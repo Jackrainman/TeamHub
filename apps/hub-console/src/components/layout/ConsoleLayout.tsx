@@ -4,7 +4,6 @@ import {
   Bot,
   Boxes,
   Compass,
-  FileStack,
   Home,
   LayoutGrid,
   Settings,
@@ -15,8 +14,7 @@ export type ConsolePage =
   | 'overview'
   | 'project'
   | 'gaps'
-  | 'kb'
-  | 'archive'
+  | 'knowledge'
   | 'inv'
   | 'fleet'
   | 'settings';
@@ -36,9 +34,8 @@ const navItems: NavItem[] = [
   { labelKey: 'nav.project', icon: LayoutGrid, page: 'project' },
   // 缺人方向（S2，D-069）：组级派生缺口，只到组、不指向人（A1）。
   { labelKey: 'nav.gaps', icon: Compass, page: 'gaps' },
-  { labelKey: 'nav.kb', icon: BookOpen, page: 'kb' },
-  // 图纸提交日志 / 版本时间线（A8）：真实页面，读治理快照 artifacts。
-  { labelKey: 'nav.archive', icon: FileStack, page: 'archive' },
+  // 知识库（IA 阶段 3 / D-075）：相似 Bug 检索 + 图纸档案 Tab 合一（沉淀知识单页）。
+  { labelKey: 'nav.knowledge', icon: BookOpen, page: 'knowledge' },
   // 第三支柱：库存 / BOM（INV-BOM-CORE 已落地）。零件×机器人 矩阵 + 一句话快记 + 缺料告警。
   { labelKey: 'nav.inv', icon: Boxes, page: 'inv' },
   // 机器人队（IA 阶段 1 / D-075）：机器人管理 + 在场排班接力画布合一（机器人域单页）。

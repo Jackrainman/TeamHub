@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
 import {
@@ -12,6 +12,7 @@ import {
 } from '../../api/schemas/resources';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { errorDetail } from '../../utils';
+import { SeasonSelect, guessSeason } from '../../components/SeasonSelect';
 import { Field } from '../../components/Field';
 import { MetricTile } from '../../components/MetricTile';
 
@@ -153,7 +154,8 @@ function CreateResourceForm({
   onCreated: () => void;
 }) {
   const { t } = useI18n();
-  const [season, setSeason] = useState('26');
+  const now = useMemo(() => new Date(), []);
+  const [season, setSeason] = useState(() => guessSeason(now));
   const [robotTarget, setRobotTarget] = useState<RobotTarget>('R1');
   const [name, setName] = useState('');
   const [kind, setKind] = useState<ResourceKind>('robot');
@@ -201,7 +203,7 @@ function CreateResourceForm({
       <form className="pm-form" onSubmit={submit}>
         <div className="pm-form__grid">
           <Field label={t('resources.field.season')}>
-            <input value={season} onChange={(e) => setSeason(e.target.value)} />
+            <SeasonSelect now={now} value={season} onChange={setSeason} />
           </Field>
           <Field label={t('resources.field.robotTarget')}>
             <select

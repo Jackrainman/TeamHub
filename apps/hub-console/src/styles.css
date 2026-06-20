@@ -1216,6 +1216,18 @@ button {
   width: 100%;
 }
 
+/* 共享赛季选择控件（SeasonSelect）：下拉 + 选「其它」时露出的手填输入框竖排。 */
+.season-select {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.season-select select,
+.season-select__other-input {
+  width: 100%;
+}
+
 .archive-row__detail {
   display: flex;
   flex-direction: column;
