@@ -4,6 +4,7 @@ import type { PresenceRecommendation } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { RelayCanvas } from './RelayCanvas';
+import { isoToday, relativeSegments } from './date-utils';
 
 // 差异化在场排班（D-029）。反监视纪律（A1/I0）：本页主键是 groupId + resourceId + 任务名，
 // 永不渲染 memberId / invitedMemberIds / 出勤计数——只回答「哪个组本窗要不要在场」。
@@ -21,23 +22,15 @@ export function SchedulePage({
   source: string;
 }) {
   const { t } = useI18n();
-  // 默认锚到 seed fixture 里的 '今晚'，可通过输入框切换其他窗口标签。
-  const [windowLabel, setWindowLabel] = useState('今晚');
-  const [inputValue, setInputValue] = useState('今晚');
+  // windowLabel = 真实日期串 'YYYY-MM-DD'，一天一计划；默认今天。后端零改动（windowLabel 本就是自由文本）。
+  const [windowLabel, setWindowLabel] = useState(isoToday);
+  // 三段（今天/明天/后天）在组件生命周期内固定，按挂载日算。
+  const [segments] = useState(relativeSegments);
 
   const query = useQuery({
     queryKey: ['schedule', source, windowLabel],
     queryFn: () => client.getSchedule(windowLabel),
   });
-
-  function handleApply() {
-    const trimmed = inputValue.trim();
-    if (trimmed) setWindowLabel(trimmed);
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter') handleApply();
-  }
 
   if (query.isLoading) {
     return (
@@ -61,30 +54,35 @@ export function SchedulePage({
       <p className="gaps-intro">{t('schedule.intro')}</p>
       <p className="gaps-note">{t('schedule.note')}</p>
 
-      {/* 窗口标签选择器 */}
-      <div className="schedule-window-selector">
-        <label className="schedule-window-label" htmlFor="schedule-window-input">
-          {t('schedule.windowLabel')}
+      {/* 日期选择器：左=今天/明天/后天分段，右=查找特定日期（windowLabel = 'YYYY-MM-DD'）。 */}
+      <div className="schedule-date-bar">
+        <div className="schedule-date-seg" role="group">
+          {segments.map((seg) => (
+            <button
+              key={seg.iso}
+              type="button"
+              className={`schedule-date-seg__btn${
+                windowLabel === seg.iso ? ' is-active' : ''
+              }`}
+              aria-pressed={windowLabel === seg.iso}
+              onClick={() => setWindowLabel(seg.iso)}
+            >
+              <span className="schedule-date-seg__name">{t(seg.labelKey)}</span>
+              <span className="schedule-date-seg__md">{seg.md}</span>
+            </button>
+          ))}
+        </div>
+        <label className="schedule-date-find">
+          <span className="schedule-date-find__label">
+            {t('schedule.date.findSpecific')}
+          </span>
+          <input
+            className="schedule-date-find__input"
+            type="date"
+            value={windowLabel}
+            onChange={(e) => setWindowLabel(e.target.value)}
+          />
         </label>
-        <input
-          id="schedule-window-input"
-          className="schedule-window-input"
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={t('schedule.windowPlaceholder')}
-        />
-        <button
-          className="schedule-window-apply"
-          type="button"
-          onClick={handleApply}
-        >
-          →
-        </button>
-        <span className="schedule-window-active">
-          {windowLabel}
-        </span>
       </div>
 
       {recommendations.length === 0 ? (

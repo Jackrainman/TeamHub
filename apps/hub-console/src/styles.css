@@ -2208,6 +2208,70 @@ button {
 .gap-chip--free {
   background: var(--surface);
 }
+/* ===== 在场排班日期选择器（A1）：左=今天/明天/后天分段，右=查找特定日期 ===== */
+.schedule-date-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 12px 0 16px;
+}
+.schedule-date-seg {
+  display: inline-flex;
+  padding: 4px;
+  gap: 3px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface-muted);
+}
+.schedule-date-seg__btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 7px 16px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1.2;
+}
+.schedule-date-seg__btn.is-active {
+  background: var(--surface);
+  color: var(--green);
+  box-shadow: var(--shadow);
+}
+.schedule-date-seg__name {
+  font-size: 13px;
+  font-weight: 700;
+}
+.schedule-date-seg__md {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+.schedule-date-find {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.schedule-date-find__label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.schedule-date-find__input {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
 .schedule-detail {
   margin-top: 10px;
 }

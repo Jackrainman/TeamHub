@@ -160,20 +160,22 @@ const zh = {
 
   // 差异化在场排班（D-029）：按组×窗口派生，I0 无人维度
   'nav.schedule': '在场排班',
-  'toolbar.title.schedule': '今晚谁在场',
-  'schedule.loading': '正在算今晚谁在场…',
+  'toolbar.title.schedule': '这天谁在场',
+  'schedule.loading': '正在算这天谁在场…',
   'schedule.error': '在场安排打不开（后端没连上？检查后端地址或服务是否在线）',
-  'schedule.intro': '今晚哪个组要到、哪个组不加班，按任务进度和机器人的状态自动算出来，不是手排的。',
-  'schedule.note': '只看组、不看人：告诉你哪个组今晚要到就行，不点名叫谁，也不算谁来了几次。',
-  'schedule.empty.title': '今晚还没有安排',
-  'schedule.empty.body': '队长还没录今晚的用机器人安排，或者这个时段跟你们组没关系。',
+  'schedule.intro': '这天哪个组要到、哪个组不加班，按任务进度和机器人的状态自动算出来，不是手排的。',
+  'schedule.note': '只看组、不看人：告诉你哪个组这天要到就行，不点名叫谁，也不算谁来了几次。',
+  'schedule.empty.title': '这天还没有安排',
+  'schedule.empty.body': '队长还没录这天的用机器人安排，或者这个时段跟你们组没关系。',
   'schedule.mode.present': '在场',
   'schedule.mode.onCall': '待命',
   'schedule.mode.free': '不加班',
   'schedule.card.relatedLabel': '有空看看别人写的代码',
   'schedule.card.orderLabel': '接力顺序',
-  'schedule.windowLabel': '查看时段',
-  'schedule.windowPlaceholder': '今晚',
+  'schedule.date.today': '今天',
+  'schedule.date.tomorrow': '明天',
+  'schedule.date.dayAfter': '后天',
+  'schedule.date.findSpecific': '查找特定日期计划',
   'gaps.loading': '正在加载方向缺口…',
   'gaps.error': '方向缺口不可用（后端没连上？检查后端地址或服务是否在线）',
   'gaps.intro': '按组显示当前 open / escalated 的缺人方向，帮组长一眼看清哪个组缺什么方向。',
@@ -386,17 +388,17 @@ const zh = {
   'kb.closeout.error': '归档失败：{detail}',
 
   // 接力顺序链（D-072 §2.2，多机器人并排）——「此刻轮到谁、谁可下班」，给人正名帮人省事，不盯出勤。
-  'schedule.relay.title': '今晚轮到谁 / 谁能先走',
-  'schedule.relay.empty': '今晚还没排机器人。队长登记好用机器人时间后，这里会自动显示谁先上、谁能先走。',
+  'schedule.relay.title': '这天轮到谁 / 谁能先走',
+  'schedule.relay.empty': '这天还没排机器人。队长登记好用机器人时间后，这里会自动显示谁先上、谁能先走。',
   'schedule.relay.stageOrder': '第 {n} 棒',
   'schedule.relay.onCall': '待命 · 快轮到',
-  'schedule.relay.offDuty': '今晚轮不到你们 · 能先走',
+  'schedule.relay.offDuty': '这天轮不到你们 · 能先走',
   'schedule.relay.boardingClosed': '这台机器人今天停用：{reason}',
   'schedule.relay.detailTitle': '各组详情',
 
   // 接力交接画布（R1，可编辑）——队长拖卡排先后、拉线表交接、点 ETA 写预估时间，所有人看同一块。
   'schedule.relay.canvasHint': '拖卡片排先后、卡片间拉线表示交接、点 ETA 写预估时间',
-  'schedule.relay.loading': '正在排今晚的接力顺序…',
+  'schedule.relay.loading': '正在排这天的接力顺序…',
   'schedule.relay.unavailable': '接力画布打不开（后端没连上？检查后端地址或服务是否在线）',
   'schedule.relay.eta': '预估',
   'schedule.relay.etaPlaceholder': '如 22:30',
@@ -659,20 +661,22 @@ const en: Record<TranslationKey, string> = {
 
   // Differentiated presence schedule (D-029): per group×window, I0 no person dimension
   'nav.schedule': 'Presence Schedule',
-  'toolbar.title.schedule': "Who's in tonight",
-  'schedule.loading': 'Working out who is in tonight…',
+  'toolbar.title.schedule': "Who's in",
+  'schedule.loading': 'Working out who is in…',
   'schedule.error': "Can't open the presence plan (backend offline? check address/service)",
-  'schedule.intro': 'Which groups need to come in tonight and which can sit it out, worked out automatically from task progress and rig status, not hand-assigned.',
+  'schedule.intro': 'Which groups need to come in and which can sit it out, worked out automatically from task progress and rig status, not hand-assigned.',
   'schedule.note': 'By group, never by name: it just says which group should show up, with no names and no attendance counts.',
-  'schedule.empty.title': 'Nothing scheduled tonight',
-  'schedule.empty.body': "The lead hasn't logged tonight's rig plan yet, or this time slot doesn't involve your group.",
+  'schedule.empty.title': 'Nothing scheduled',
+  'schedule.empty.body': "The lead hasn't logged the day's rig plan yet, or this time slot doesn't involve your group.",
   'schedule.mode.present': 'Present',
   'schedule.mode.onCall': 'On-call',
-  'schedule.mode.free': 'Off tonight',
+  'schedule.mode.free': 'Off',
   'schedule.card.relatedLabel': 'Code worth a look',
   'schedule.card.orderLabel': 'Relay order',
-  'schedule.windowLabel': 'Time slot',
-  'schedule.windowPlaceholder': 'Tonight',
+  'schedule.date.today': 'Today',
+  'schedule.date.tomorrow': 'Tomorrow',
+  'schedule.date.dayAfter': 'Day after',
+  'schedule.date.findSpecific': 'Find a specific date',
 
   'gaps.loading': 'Loading direction gaps…',
   'gaps.error':
@@ -886,12 +890,12 @@ const en: Record<TranslationKey, string> = {
   'kb.closeout.error': 'Archive failed: {detail}',
 
   // Relay-order chain (D-072 §2.2, multi-robot side-by-side) — "whose turn now, who can clock off".
-  'schedule.relay.title': 'Whose turn tonight / who can head off',
+  'schedule.relay.title': 'Whose turn / who can head off',
   'schedule.relay.empty':
-    "No rigs scheduled tonight yet. Once the lead logs the rig times, this shows who's up first and who can head off.",
+    "No rigs scheduled yet. Once the lead logs the rig times, this shows who's up first and who can head off.",
   'schedule.relay.stageOrder': 'Leg {n}',
   'schedule.relay.onCall': 'On-call · up soon',
-  'schedule.relay.offDuty': 'Not your turn tonight · you can head off',
+  'schedule.relay.offDuty': 'Not your turn · you can head off',
   'schedule.relay.boardingClosed': 'This rig is out today: {reason}',
   'schedule.relay.detailTitle': 'By group',
 
@@ -899,7 +903,7 @@ const en: Record<TranslationKey, string> = {
   // taps ETA to note an estimate; everyone sees the same board.
   'schedule.relay.canvasHint':
     'Drag cards to order them, draw a line between cards for a handoff, tap ETA to note a time',
-  'schedule.relay.loading': "Laying out tonight's relay order…",
+  'schedule.relay.loading': "Laying out the day's relay order…",
   'schedule.relay.unavailable':
     "Can't open the relay board (backend offline? check address/service)",
   'schedule.relay.eta': 'ETA',

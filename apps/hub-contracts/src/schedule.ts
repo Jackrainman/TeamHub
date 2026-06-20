@@ -199,13 +199,13 @@ function renderFact(
 ): string {
   switch (acc.reason) {
     case 'holdsResource':
-      return `${groupName}组今晚在场：用「${resourceName ?? '机器人'}」做${acc.holderTaskLabel ?? '联调'}。`;
+      return `${groupName}组这天在场：用「${resourceName ?? '机器人'}」做${acc.holderTaskLabel ?? '联调'}。`;
     case 'upstreamOnCall':
-      return `${groupName}组今晚待命：${acc.holderTaskLabel ?? '联调'}还在做，可能随时叫你们，别走远。`;
+      return `${groupName}组这天待命：${acc.holderTaskLabel ?? '联调'}还在做，可能随时叫你们，别走远。`;
     case 'blockedFree':
-      return `${groupName}组今晚不加班：你们的活被上游卡住、推不动；有空看看别人写的代码。`;
+      return `${groupName}组这天不加班：你们的活被上游卡住、推不动；有空看看别人写的代码。`;
     case 'resourceDown':
-      return `${groupName}组今晚不加班：「${resourceName ?? '机器人'}」${statusReason ?? '用不了'}，相关的活今天都停。`;
+      return `${groupName}组这天不加班：「${resourceName ?? '机器人'}」${statusReason ?? '用不了'}，相关的活今天都停。`;
   }
 }
 
