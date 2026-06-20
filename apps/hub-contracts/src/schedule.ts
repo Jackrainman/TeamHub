@@ -196,13 +196,13 @@ function renderFact(
 ): string {
   switch (acc.reason) {
     case 'holdsResource':
-      return `${groupName}组本窗在场：持有「${resourceName ?? '实车'}」做「${acc.holderTaskLabel ?? '联调'}」。`;
+      return `${groupName}组今晚在场：用「${resourceName ?? '实车'}」做${acc.holderTaskLabel ?? '联调'}。`;
     case 'upstreamOnCall':
-      return `${groupName}组本窗随叫：其任务在「${acc.holderTaskLabel ?? '联调'}」上游链上仍在推进，可能临时需要。`;
+      return `${groupName}组今晚待命：${acc.holderTaskLabel ?? '联调'}还在做，可能随时叫你们，别走远。`;
     case 'blockedFree':
-      return `${groupName}组本窗可不在场：相关任务被上游卡住、本窗无法推进，这段时间可看相关资料。`;
+      return `${groupName}组今晚不加班：你们的活被上游卡住、推不动；有空看看别人写的代码。`;
     case 'resourceDown':
-      return `${groupName}组本窗可不在场：「${resourceName ?? '实车'}」${statusReason ?? '不可用'}，依赖它的工作整片暂停。`;
+      return `${groupName}组今晚不加班：「${resourceName ?? '实车'}」${statusReason ?? '用不了'}，相关的活今天都停。`;
   }
 }
 
@@ -381,7 +381,8 @@ export function derivePresenceSchedule(
       factStatement: renderFact(
         acc,
         groupName,
-        resource?.name ?? null,
+        // 显示车号（displayCode 如 26R1），无则回退 name，让事实更具体（R2 文案）。
+        resource?.displayCode ?? resource?.name ?? null,
         resource?.statusReason ?? null,
       ),
       relatedKnowledge,

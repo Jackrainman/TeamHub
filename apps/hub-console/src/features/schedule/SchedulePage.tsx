@@ -69,7 +69,7 @@ export function SchedulePage({
       {/* 窗口标签选择器 */}
       <div className="schedule-window-selector">
         <label className="schedule-window-label" htmlFor="schedule-window-input">
-          {t('schedule.card.orderLabel')}
+          {t('schedule.windowLabel')}
         </label>
         <input
           id="schedule-window-input"
@@ -78,7 +78,7 @@ export function SchedulePage({
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="今晚"
+          placeholder={t('schedule.windowPlaceholder')}
         />
         <button
           className="schedule-window-apply"
