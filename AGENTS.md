@@ -2,6 +2,11 @@
 
 > 本手册假设你有 workflow 编排能力（Claude Code）：拆原子单元、用 `Workflow` fan-out / pipeline、
 > 每单元各自验证 + 单 commit + push；小改动直接做、不强起 workflow。
+> **并发写隔离（worktree）**：默认在主 checkout 干活——只读 / 单包小改 / 文档 / 串行任务**不开 worktree**
+> （纯开销，且 trunk-based 还要多一道合回 master）。**仅当同一轮 fan-out 有 ≥2 个 agent 会并发改重叠文件**时，
+> 才给这些 agent 传 `isolation: "worktree"`（EXPENSIVE，不冲突的 agent 不传）；各 worktree 改完仍按 §2.3
+> 各自验证 + 单 commit，push 前 `git fetch` + 必要 rebase（§2.4）。worktree 本身不费 token，token 成本来自
+> 并行 agent 各带上下文，与是否 worktree 无关。
 > **无 workflow 编排能力的串行轨工具（Codex / OpenCode）改读 `archive/legacy-harness/AGENTS-serial.md`**
 > （自含的 §6.A 串行轨 fallback）。harness 全改背景见 `docs/planning/decisions.md` D-066；旧双轨 + self-iterate
 > 全文冻结在 `archive/legacy-harness/`。
