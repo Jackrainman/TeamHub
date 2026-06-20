@@ -921,7 +921,7 @@
 
 ## D-076 — IA 重构阶段 2/3/4：项目页 + 知识页 + 导航分组（一轮收尾）+ 表单一致性
 
-- 状态：**DECIDED / IMPLEMENTED / VERIFIED（分支 `ia-phase2-4`，未回 merge master——云端 `a4033b8` 已并入本分支，回并到 master 现已是干净快进、待用户拍板触发）**（2026-06-20；前端为主 + 零契约/端点改；4 层 workflow 落 3 commit；本机三包 `verify:all` 全绿 + **WSL2 真机 Playwright 10/10 PASS** buildId `d0f858c`，截图 `docs/screenshots/wsl-ia-phase2-4-*`，结果 `wsl-ia-phase2-4-results.json`）。
+- 状态：**DECIDED / IMPLEMENTED / VERIFIED / MERGED（已并入 master `4da245e`，2026-06-20 干净 ff push origin/master——云端 `a4033b8` 先已并入工作分支；分支 `ia-phase2-4` 已 push、可清）**（2026-06-20；前端为主 + 零契约/端点改；4 层 workflow 落 3 commit；本机三包 `verify:all` 全绿 + **WSL2 真机 Playwright 10/10 PASS** buildId `d0f858c`，截图 `docs/screenshots/wsl-ia-phase2-4-*`，结果 `wsl-ia-phase2-4-results.json`）。
 - 上下文：D-075 阶段 1（机器人队页）已落地，但用户 2026-06-20「左侧还是一大堆」——阶段 1 仅 10→9 看不出，视觉 declutter 全在阶段 2-4。沿用 D-075「组合不重写」。spec = `docs/planning/ia-refactor-next-prompts.md` PROMPT 1+2，上游 `docs/design/sched-date-relay-robot-redesign.md` §B。本轮单开 `ia-phase2-4`、不在 master 直改；master 回并推迟到收尾（云端 a4033b8 已干净并入工作分支，merge-tree 零冲突实证）。
 - **用户拍板的覆盖项（优先于 spec 旧措辞）**：
   1. **gaps = C（独立顶级洞察项，非并入项目页 Tab）**：用户要求「以用户视角再讲一遍」后拍板——「缺人方向」是全队层面、只读、扫一眼的体检报告（哪个组缺哪个方向人手、只到组不点名＝I0），性质同「总览」＝仪表盘，故**留作顶级导航项、归洞察区与总览并排**，不并进项目页。→ 项目页只合 看板+依赖图（两视图切换），导航 **9→8→7**（非旧 spec 的 9→7→6）。原 spec「gaps 降为项目页洞察 Tab」与「洞察区＝总览/缺人方向」自相矛盾，C 解之。
