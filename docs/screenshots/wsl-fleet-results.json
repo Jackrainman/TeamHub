@@ -1,0 +1,38 @@
+{
+  "navCount": 9,
+  "navItems": [
+    "总览",
+    "依赖图",
+    "缺人方向",
+    "知识库检索",
+    "项目看板",
+    "图纸档案",
+    "库存/BOM",
+    "机器人队",
+    "设置"
+  ],
+  "hasFleet": true,
+  "noOldResources": true,
+  "noOldSchedule": true,
+  "toolbarTitle": "机器人队",
+  "hasRobotsSection": true,
+  "hasRelaySection": true,
+  "hasResourcesTable": true,
+  "hasRelayCanvas": true,
+  "coldstartPresent": true,
+  "emptyAddFirstBtn": true,
+  "emptyCarryBtn": true,
+  "addFormOpen": true,
+  "relayCardCount": 1,
+  "reactflowNodeVisibility": [
+    "visible"
+  ],
+  "noHiddenNodes": true,
+  "tomorrowCardsBefore": 0,
+  "tomorrowCardsAfterCarry": 1,
+  "carryWorked": true,
+  "addRobotOptionsBefore": 1,
+  "addRobotOptionsAfter": 0,
+  "statusReflect": true,
+  "domHasMemberId": false
+}
