@@ -917,4 +917,21 @@
 - 守恒/红线（I0）：结转一律经纯函数 `buildCarryOverDraft`——**只取** resourceId/项目/组/任务/接力序，`invitedMemberIds` 恒 `[]`（绝不跨日带成员维度，即便 `GET /api/resource-sessions` 读视图 I0 许可其存在）、`eta`/`note` 恒 null、不结转 handoffs。`CreateResourceSessionResponseSchema` **不动**（`invitedMemberIds` 留存是契约既定「本窗操作名单·I0 许可」，移除会破既有测试）。Fleet/排班渲染路径零成员维度（grep 实证）。
 - 缓解（对抗审查 4 点）：① I0 泄漏 → 纯函数 guard + `test/carry-over.test.ts`（换日保序 / invitedMemberIds 恒[] / eta·note 恒 null）+ 不渲染成员字段；② 画布高度 `calc(100vh-360px)` 魔法偏移失真 → 改 `clamp(420px,58vh,720px)` 内容无关定高；③ cache 碎片 + 15s staleTime → prefix 失效；④ §7.1 fixture 调和耦合 → 冻结、不动 fixture/seed。
 - 验证：本机 console `verify:all`（typecheck + 40 测含新 carry-over + 生产 build）全绿；contracts 151 / server 186 测不变；起服 4177 serve 生产 dist → index+asset 200；**HTTP 端到端 carry-over smoke**：源带 `m-progA` 的上一天棒 → 结转到次日 `invitedMemberIds:[]`、`/api/relay` 渲染该棒且 grep memberId 为空。**WSL 真机 Playwright 全 PASS**（buildId ce8d99a，截图 `docs/screenshots/wsl-fleet-*`，结果 `wsl-fleet-results.json`）：侧栏 9 项含机器人队·无旧机器人管理/在场排班；双区首屏（机器人清单 + 接力画布）渲染；空板引导卡两 CTA；**加棒后接力卡 reactflow 节点 visibility:visible（无 visibility:hidden 回归）**；沿用上一天 明天 0→1 卡；退役机器人后加棒可选项 1→0（即时反映）；DOM 无 memberId。
-- 事实源：本 ADR；定稿 `docs/design/schedule-ux-lock.md`；上游建议 `docs/design/sched-date-relay-robot-redesign.md` §B；plan `~/.claude/plans/teamhub-ia-atomic-cocke.md`；前序 D-072（排班定稿）/D-029（排班派生）/D-069（组级容量）。阶段 2/3/4（项目页/知识页/导航分组+工作台）仍 frontier。
+- 事实源：本 ADR；定稿 `docs/design/schedule-ux-lock.md`；上游建议 `docs/design/sched-date-relay-robot-redesign.md` §B；plan `~/.claude/plans/teamhub-ia-atomic-cocke.md`；前序 D-072（排班定稿）/D-029（排班派生）/D-069（组级容量）。阶段 2/3/4（项目页/知识页/导航分组）由 D-076 收尾。
+
+## D-076 — IA 重构阶段 2/3/4：项目页 + 知识页 + 导航分组（一轮收尾）+ 表单一致性
+
+- 状态：**DECIDED / IMPLEMENTING（分支 `ia-phase2-4`，云端 master `a4033b8` core-plugin PROPOSAL 文档已并入此分支·未回 merge master）**（2026-06-20；前端为主 + 零契约/端点改；4 层 workflow 落 3 commit，待本机三包 `verify:all` + WSL2 真机 Playwright 验收后补全本节验证小节）。
+- 上下文：D-075 阶段 1（机器人队页）已落地，但用户 2026-06-20「左侧还是一大堆」——阶段 1 仅 10→9 看不出，视觉 declutter 全在阶段 2-4。沿用 D-075「组合不重写」。spec = `docs/planning/ia-refactor-next-prompts.md` PROMPT 1+2，上游 `docs/design/sched-date-relay-robot-redesign.md` §B。本轮单开 `ia-phase2-4`、不在 master 直改；master 回并推迟到收尾（云端 a4033b8 已干净并入工作分支，merge-tree 零冲突实证）。
+- **用户拍板的覆盖项（优先于 spec 旧措辞）**：
+  1. **gaps = C（独立顶级洞察项，非并入项目页 Tab）**：用户要求「以用户视角再讲一遍」后拍板——「缺人方向」是全队层面、只读、扫一眼的体检报告（哪个组缺哪个方向人手、只到组不点名＝I0），性质同「总览」＝仪表盘，故**留作顶级导航项、归洞察区与总览并排**，不并进项目页。→ 项目页只合 看板+依赖图（两视图切换），导航 **9→8→7**（非旧 spec 的 9→7→6）。原 spec「gaps 降为项目页洞察 Tab」与「洞察区＝总览/缺人方向」自相矛盾，C 解之。
+  2. **Phase 4 = 仅导航分组，无工作台**：落地页**保留「总览」不变**（不新建工作台页、不做被卡项 CTA 落地页）——避免唯一非「组合」的新页。砍掉旧 PROMPT 1 Phase 4 的「默认落地改工作台」那段。侧栏平铺→分组：主操作区(项目/知识/库存/机器人队) ｜ 洞察区(总览/缺人方向，可折叠) ｜ 设置。
+  3. **表单一致性（PROMPT 2）并入 Phase 3**（archive 表单搬进知识页时顺手对齐机器人队 create 表单）：① 赛季统一**下拉** `seasonOptions(now)` ±2 年自动猜 + 「其它/手填」兜底（覆盖历史车，无需问用户）；② 第三项**保留两套语义**（`archive.robotCode` R1/R2/universal＝图纸适配哪台车 ｜ `fleet.robotTarget` R1/R2/shared＝实体占哪编号位），**契约枚举值不动**，只统一控件风格 + 文案规范（「通用」vs「共享」各自语义清晰）；③ 两处控件够像可抽共享 `<SeasonSelect>`，否则不强求。
+- 决策（沿用 D-075 组合不重写、零契约/端点改）：
+  - **Phase 2「项目」页** `features/project/ProjectPage.tsx` 新建：组合 `<PmBoardPage>`+`<DepGraphPage>`，顶部视图切换（看板⇄依赖图）；单一录入入口（一个 `PmCreatePanel`，去依赖图页重复建边/建任务入口）+ 单一改状态入口（两视图都能改）；`App.tsx` 的 `focusTaskId` 跨页跳转改**页内视图切换 + 选中**、去跨页 plumbing。导航删 pm/dep-graph 加 project，gaps 留。
+  - **Phase 3「知识」页** `features/knowledge/KnowledgePage.tsx` 新建：组合 `<KbSearchPage>`+`<ArchivePage>` 多 Tab；KB 结果 `archiveFileName`/归档指针做可点链→跳档案 Tab 定位。导航删 kb/archive 加 knowledge。+ 表单一致性（见覆盖项 3）。
+  - **Phase 4 导航分组**：`ConsoleLayout` `navItems`→分组 `navGroups`（主操作区/洞察区可折叠/设置）；`ConsolePage` 联合 + `App.tsx` 三元 + `TITLE_KEY` 收口；i18n nav.* 重整 + 删孤儿键（双侧成对）。落地页留 `overview`。
+  - 终态导航 7 项：`overview`(洞察) / `project` / `gaps`(洞察) / `knowledge` / `inv` / `fleet` / `settings`。
+- 铁律（继承 D-075）：组合不重写（`PmBoardPage`/`DepGraphPage`/`KbSearchPage`/`ArchivePage` 原样复用，只外层加视图/Tab 容器 + query-key 协调仿 D-075 prefix 失效）；@xyflow 两块画布（依赖图嵌 Tab 后）容器定高仿 D-075 `clamp` 防塌高/visibility:hidden；I0 反监视（项目页/缺人 Tab 仍只到组、不下钻人，grep memberId 净）；契约/端点零改（仅 UI）；本机三包 `verify:all` 全绿（typecheck 兜 union 收口 + i18n 双侧 key 平衡）；WSL2 4177 真机 Playwright + 截图 `docs/screenshots/wsl-ia-phase2-4-*`；3-4 独立 commit、收尾 push。
+- 工作流：4 层 workflow（design 3 opus 并行 / 对抗式风险审查 2 opus / 实现 3 opus 顺序 Phase2→3→4 各 commit / 终验 1 sonnet 三包 verify + grep + i18n 平衡）。
+- 事实源：本 ADR；spec `docs/planning/ia-refactor-next-prompts.md` PROMPT 1+2；上游 `docs/design/sched-date-relay-robot-redesign.md` §B；前序 D-075（阶段 1）。验证小节 = workflow + WSL 真机验收后补。
