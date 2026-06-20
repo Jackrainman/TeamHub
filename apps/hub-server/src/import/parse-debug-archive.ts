@@ -272,11 +272,16 @@ function unique(values: string[]): string[] {
  */
 function extractSection(body: string, markers: RegExp, limit = 700): string {
   const lines = body.split('\n');
-  const chunks: string[] = [];
+  // 每个 marker 命中 = 一段。段内续行是同一思路的换行/条目，用空格接（不再每行硬插 `；` 把
+  // 一句话拆成「因为电压；超过阈值」式伪分句，KB-IMPORT-FOLLOWUP nit②）；段与段之间才用 `；` 分隔。
+  // 全文始终完整留在 IssueCard.rawInput，本串只为关键词富集（kb-similar 打分），分隔符不影响召回。
+  const sections: string[] = [];
+  let total = 0;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     // 标题行 `### 根因` / 加粗行 `**根因**：xxx` / `**修复方案**:`
     if (!markers.test(line)) continue;
+    const parts: string[] = [];
     // 同行冒号后的内容：**先剥 marker**（连同其 `**` 包裹），再剥前导符号，最后清残留加粗。
     // 顺序很关键——若先剥前导 `**`，`**根因分析**` 的 marker 锚点会失配、把 `根因分析**` 留在正文（审计 nit）。
     const inline = line
@@ -284,20 +289,25 @@ function extractSection(body: string, markers: RegExp, limit = 700): string {
       .replace(/^[#*\s>（）()：:>-]+/, '')
       .replace(/\*\*/g, '')
       .trim();
-    if (inline.length > 0) chunks.push(inline);
+    if (inline.length > 0) parts.push(inline);
     // 续行直到下一个标题 / 连续空行 / 代码块围栏
     for (let j = i + 1; j < lines.length; j++) {
       const next = lines[j];
       if (/^#{1,6}\s/.test(next) || /^---\s*$/.test(next) || /^```/.test(next)) break;
       if (next.trim().length === 0) break;
-      chunks.push(next.replace(/^[*\s>-]+/, '').replace(/\*\*/g, '').trim());
+      const cleaned = next.replace(/^[*\s>-]+/, '').replace(/\*\*/g, '').trim();
+      if (cleaned.length > 0) parts.push(cleaned);
     }
-    if (chunks.join(' ').length >= limit) break;
+    const section = parts.join(' ').replace(/\s+/g, ' ').trim();
+    if (section.length > 0) {
+      sections.push(section);
+      total += section.length;
+    }
+    if (total >= limit) break;
   }
-  return chunks
+  return sections
     .join('；')
     .replace(/；{2,}/g, '；')
-    .replace(/\s+/g, ' ')
     .trim()
     .slice(0, limit);
 }

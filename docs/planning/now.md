@@ -13,7 +13,7 @@ frontier:                                # PRESENCE-RECONCILE-LOCK 需定稿；�
   - DEPGRAPH-AI-AUTODRAW                  # AI 自动布大致 DAG + 人拖拽微调（Q2 诉求；AI 只建议不落库，卡 Hermes 触点）← 跳过
   # 已落地(2026-06-19 无人值守轮)：INV-BOM-CORE 内核(一句话快记/矩阵/缺料/落盘) + PRESENCE-IMPL 安全增量(displayCode/接力释放/接力链视图/护栏) + WSL2 验收 + lark bin 修
   # 仍卡外部基建/排期：INV-Hermes 自动对话记账(卡 HUB-HERMES-ADAPTER) / KB-LARK 飞书 wiki·drive→KB 摄入(需落点 schema 定稿) / 正式部署上线(卡用户审批) / Hermes
-  # 后置(D-069)：STUDY-BROAD-D039-REVIVAL(HARD-GATED 封存·B1 已拍) / KB-IMPORT-FOLLOWUP nit①②
+  # 后置(D-069)：STUDY-BROAD-D039-REVIVAL(HARD-GATED 封存·B1 已拍)  ｜ KB-IMPORT-FOLLOWUP nit①② 已收口(2026-06-20，D-051 续)
   # 挂起(D-039 AI 退治理，spec 留、复活触发=未来要 AI 参与治理判断)：GOV-MEMBER-STATUS-DERIVE / GOV-RULES-LAYER-DESIGN + D-032~035 治理派生整簇 + 自动派活 + freeIdle·双写债
 # P1：~~INV-BOM 内核~~(已落地 2026-06-19，自保鲜护栏=对话记账/盘点不再造静态表，Hermes 自动记账仍待 HUB-HERMES-ADAPTER)+飞书 Bitable·sheets 读写+~~修 lark-cli bin bug~~(已修 5cb84cb)；P2：资料/代码批量整理(AI 安全车道)、给老师项目级汇报
 blocked: []

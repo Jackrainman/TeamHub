@@ -554,6 +554,7 @@
 - 验证：hub-server `verify:all`（typecheck + 74 测 + build）全过，新增 9 测（toIsoDateTime 日历边界 / fileNameToSlug 撞区消歧 4 例 / runImport IO：子目录跳过·README 大小写·撞 slug 两卡·重跑幂等）；6 真实归档重跑 5 导入 0 失败、slug 哈希后缀化、debug-checklist 日期由文件名正确解析（不再落兜底）、CAN/UART 查询召回 iss-pf-*、I0 探针 CLEAN。
 - 影响 / 落地：改 `apps/hub-server/src/import/{parse,import}-debug-archive.ts` + `test/parse-debug-archive.test.ts`；新 `test/import-debug-archive.test.ts`。
 - 后续（backlog）：`KB-IMPORT-FOLLOWUP` 收窄为剩余 nit ①②（非阻塞）；H2（FileKbStore writeChain）仍归 `AUDIT-FIXES`（长驻服务器路径）。
+- **收口（2026-06-20，nit ①② 全清）**：① nit① 经核 `appendCloseoutInto`（`mock-kb-store.ts`）早在 commit `732a2c9` 起已按**确定主键 upsert**（issueCard.id / errorEntry.id=`err-<issueId>` / archive.issueId，全确定）→ IMPORT_FORCE 重导本就幂等、数组不膨胀；非「修复」而是**证实 + 补回归测锁定**（`import-debug-archive.test.ts`：force 重导后三数组长度恒定）。② nit② `extractSection` 段内续行改**空格接**、仅段与段间用 `；`（消「因为电压；超过阈值」式伪分句；rawInput 全文不变、kb-similar 关键词召回无损），补回归测（`parse-debug-archive.test.ts`：段内空格 / 段间 `；`）。hub-server verify:all 绿（149 测含 +3 新）。`KB-IMPORT-FOLLOWUP` 全收口。
 - 事实源：本 ADR；独立二审 `wf_74dee37d-59b`（vs D-050 的 `wf_a52195b7-44e`）；`docs/planning/backlog.md` KB-IMPORT-FOLLOWUP；D-050。
 
 ## D-050 — KB-IMPORT-PROBEFLASH：ProbeFlash .debug-archive 一次性导入（frontier#1 done）

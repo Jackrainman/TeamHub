@@ -228,6 +228,31 @@ describe('parseDebugArchive — 无 frontmatter', () => {
   });
 });
 
+describe('extractSection — 段内续行不再硬插 `；`（nit②）', () => {
+  // 单段多续行：段内续行用空格接、不插 `；`；两个独立根因 marker 段之间才用 `；`。
+  const MULTILINE = `# 多行根因归档
+
+**根因**：FDCAN FIFO 在高负载下
+持续溢出导致丢帧
+最终触发失控
+
+## 根因补充
+中断优先级配置错误
+`;
+  const res = parseDebugArchive(MULTILINE, 'multiline-root.md')!;
+
+  test('同段续行用空格接、不被 `；` 切成伪分句', () => {
+    expect(res.parsed.rootCause).toContain('持续溢出导致丢帧');
+    expect(res.parsed.rootCause).toContain(
+      'FDCAN FIFO 在高负载下 持续溢出导致丢帧 最终触发失控',
+    );
+  });
+  test('两个独立根因段之间仍用 `；` 分隔（段内仍空格接）', () => {
+    // 段1 收尾「最终触发失控」→ `；` → 段2（`## 根因补充` 余「补充」+ 续行空格接）
+    expect(res.parsed.rootCause).toContain('最终触发失控；补充 中断优先级配置错误');
+  });
+});
+
 describe('parseDebugArchive — 边界', () => {
   test('空 body → null', () => {
     expect(parseDebugArchive('---\nstatus: x\n---\n', 'empty.md')).toBeNull();
