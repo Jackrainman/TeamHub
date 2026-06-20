@@ -2446,6 +2446,87 @@ button {
   opacity: 0.35;
   cursor: not-allowed;
 }
+/* 删一棒按钮（A2）：卡片底部窄文本按钮，红色语义（不可撤销 + 级联删交接线）。 */
+.relay-card__delete {
+  margin-top: 8px;
+  width: 100%;
+  padding: 3px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.relay-card__delete:hover {
+  border-color: var(--red);
+  color: var(--red);
+  background: var(--red-soft);
+}
+
+/* A2 加一棒：顶部工具条 + 「+ 加一棒」按钮。 */
+.relay-canvas__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.relay-canvas__add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid var(--green);
+  border-radius: 8px;
+  background: var(--green-soft);
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.relay-canvas__add:hover {
+  background: var(--green);
+  color: #fff;
+}
+
+/* A2 加一棒浮层表单：复用 .panel + .pm-create / .pm-form 范式。 */
+.relay-add {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+}
+.relay-add__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  background: var(--surface-raised);
+  color: var(--muted);
+  cursor: pointer;
+}
+.relay-add__close:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+.relay-add__cancel {
+  padding: 7px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.relay-add__cancel:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
 /* 交接线：绿色（与卡片可上场同色），区别于依赖图的红/蓝/琥珀语义边。 */
 .relay-edge .react-flow__edge-path {
   stroke: var(--green);

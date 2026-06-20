@@ -275,12 +275,12 @@ describe('hub console API client', () => {
   });
 
   test('R1 接力画布：getRelay / updateResourceSession / create+deleteRelayHandoff 命中正确路径与方法', async () => {
-    const fetcher = vi.fn(async (url: string, _init?: RequestInit) => {
+    const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
       const parsed = new URL(url, 'http://teamhub.local');
       return {
         ok: true,
         status: 200,
-        json: async () => relayResponseByPath(parsed.pathname),
+        json: async () => relayResponseByPath(parsed.pathname, init?.method),
       } as Response;
     });
 
@@ -337,6 +337,44 @@ describe('hub console API client', () => {
     );
     expect(delCall?.[1]?.method).toBe('DELETE');
     expect((delCall?.[1] as RequestInit | undefined)?.body).toBeUndefined();
+
+    // A2 加一棒：POST /api/resource-sessions，带 body；响应剥 confirmedBy。
+    const created = await client.createResourceSession({
+      projectId: 'proj-1',
+      resourceId: 'res-r1',
+      windowLabel: '2026-06-20',
+      orderInWindow: 1,
+      holderGroupId: 'grp-1',
+      holderTaskId: 'task-1',
+      invitedMemberIds: [],
+      note: null,
+      eta: null,
+      confirmedBy: { id: 'console-relay', displayName: 'x', source: 'console' },
+    });
+    expect(created.session).not.toHaveProperty('confirmedBy');
+    const sessPostCall = fetcher.mock.calls.find(
+      ([u, init]) =>
+        String(u).endsWith('/api/resource-sessions') &&
+        (init as RequestInit | undefined)?.method === 'POST',
+    );
+    expect(sessPostCall).toBeTruthy();
+    expect(JSON.parse(String(sessPostCall?.[1]?.body))).toMatchObject({
+      resourceId: 'res-r1',
+      windowLabel: '2026-06-20',
+      orderInWindow: 1,
+      invitedMemberIds: [],
+    });
+
+    // A2 删一棒：DELETE /api/resource-sessions/:id（无 body），后端级联删交接线。
+    const delSess = await client.deleteResourceSession('sess-1');
+    expect(delSess.deleted).toBe('sess-1');
+    const delSessCall = fetcher.mock.calls.find(
+      ([u, init]) =>
+        String(u).endsWith('/api/resource-sessions/sess-1') &&
+        (init as RequestInit | undefined)?.method === 'DELETE',
+    );
+    expect(delSessCall).toBeTruthy();
+    expect((delSessCall?.[1] as RequestInit | undefined)?.body).toBeUndefined();
   });
 
   test('R3 车管理：createResource POST /api/resources、updateResourceStatus PATCH /api/resources/:id/status 命中正确路径与方法', async () => {
@@ -408,9 +446,15 @@ describe('hub console API client', () => {
 });
 
 // R1 接力画布：GET 空板；PATCH/POST 回完整 session/handoff（schema parse 时自动剥 confirmedBy）。
-function relayResponseByPath(path: string): unknown {
+// A2：POST /api/resource-sessions 回 {session}；DELETE /api/resource-sessions/:id 回 {deleted}。
+function relayResponseByPath(path: string, method?: string): unknown {
   if (path === '/api/relay') return { stages: [], handoffs: [] };
+  if (path === '/api/resource-sessions') {
+    return { session: scheduleScenarioFixture.resourceSessions[0] };
+  }
   if (path.startsWith('/api/resource-sessions/')) {
+    // PATCH 受限编辑回 {session}；DELETE 删一棒回 {deleted}。
+    if (method === 'DELETE') return { deleted: path.split('/').pop() };
     return { session: scheduleScenarioFixture.resourceSessions[0] };
   }
   if (path.startsWith('/api/relay-handoffs/')) {

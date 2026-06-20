@@ -94,6 +94,10 @@ export class SqliteGovStore implements GovStore {
     throw new Error(SQLITE_NOT_IMPLEMENTED);
   }
 
+  async deleteResourceSession(_id: string): Promise<boolean> {
+    throw new Error(SQLITE_NOT_IMPLEMENTED);
+  }
+
   async listRelayHandoffs(): Promise<RelayHandoff[]> {
     throw new Error(SQLITE_NOT_IMPLEMENTED);
   }

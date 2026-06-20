@@ -515,6 +515,19 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     return UpdateResourceSessionResponseSchema.parse({ session });
   });
 
+  // 删一棒（DELETE /api/resource-sessions/:id，A2 接力画布「删除一棒」）。镜像 DELETE /api/relay-handoffs/:id：
+  // 命中删除 → 200 { deleted: id }；不存在 → 404。store.deleteResourceSession 内**级联删引用它的接力交接线**
+  // （删卡后箭头不悬空）。POST/PATCH/DELETE → 继承 H3 onRequest 鉴权 + 限流（R1 已把写钩子扩到含 DELETE）。
+  app.delete('/api/resource-sessions/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const ok = await store.deleteResourceSession(id);
+    if (!ok) {
+      void reply.code(404).send({ detail: 'resource session not found' });
+      return;
+    }
+    return { deleted: id };
+  });
+
   // 接力交接画布读视图（GET /api/relay?windowLabel=，R1）。组 ScheduleSnapshot（含 listRelayHandoffs）→
   // deriveRelayBoard 纯函数派生「一排接力站 + 站间交接线」。复用 ScheduleQuerySchema（windowLabel 必填）。
   // **反监视红线**：RelayStage 结构无人维度；handoffs 经 RelayBoardResponseSchema 剥 confirmedBy（ActorRef

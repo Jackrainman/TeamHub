@@ -69,11 +69,14 @@ import {
   RelayBoardResponseSchema,
   UpdateResourceSessionResponseSchema,
   RelayHandoffResponseSchema,
+  CreateResourceSessionResponseSchema,
   type RelayBoardResponse,
   type UpdateResourceSessionRequest,
   type UpdateResourceSessionResponse,
   type CreateRelayHandoffRequest,
   type RelayHandoffResponse,
+  type CreateResourceSessionRequest,
+  type CreateResourceSessionResponse,
 } from './schemas/schedule';
 import {
   CreateResourceResponseSchema,
@@ -146,10 +149,17 @@ export interface HubApiClient {
     id: string,
     patch: UpdateResourceSessionRequest,
   ): Promise<UpdateResourceSessionResponse>;
+  // A2 加一棒（POST /api/resource-sessions）：队长在画布上新增一条占用窗口（选机器人 + 任务 → 该机器人末棒 +1）。
+  // confirmedBy 随请求传入（录入即拍板）；I0：响应剥 confirmedBy，invitedMemberIds 由调用方传空。
+  createResourceSession(
+    req: CreateResourceSessionRequest,
+  ): Promise<CreateResourceSessionResponse>;
   createRelayHandoff(
     req: CreateRelayHandoffRequest,
   ): Promise<RelayHandoffResponse>;
   deleteRelayHandoff(id: string): Promise<{ deleted: string }>;
+  // A2 删一棒（DELETE /api/resource-sessions/:id）：删卡，后端级联删引用它的接力交接线（箭头不悬空）。
+  deleteResourceSession(id: string): Promise<{ deleted: string }>;
 }
 
 export function createHubApiClient(options: HubApiClientOptions = {}): HubApiClient {
@@ -403,6 +413,15 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         writeToken,
       );
     },
+    async createResourceSession(req: CreateResourceSessionRequest) {
+      return postJson(
+        `${baseUrl}/api/resource-sessions`,
+        req,
+        CreateResourceSessionResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
     async createRelayHandoff(req: CreateRelayHandoffRequest) {
       return postJson(
         `${baseUrl}/api/relay-handoffs`,
@@ -416,6 +435,16 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
       return sendJson(
         'DELETE',
         `${baseUrl}/api/relay-handoffs/${encodeURIComponent(id)}`,
+        undefined,
+        DeletedResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async deleteResourceSession(id: string) {
+      return sendJson(
+        'DELETE',
+        `${baseUrl}/api/resource-sessions/${encodeURIComponent(id)}`,
         undefined,
         DeletedResponseSchema,
         fetcher,

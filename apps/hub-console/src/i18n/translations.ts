@@ -412,6 +412,20 @@ const zh = {
   'schedule.relay.saveError': '没保存上：{detail}',
   'schedule.relay.actor': '队长（画布）',
 
+  // A2 加 / 删一棒：顶部「+ 加一棒」浮层（选机器人 + 任务）、每张卡「删除」按钮。
+  'schedule.relay.addLeg': '加一棒',
+  'schedule.relay.addSubtitle': '选一台机器人和它要做的任务，自动排到这台机器人的最后一棒。',
+  'schedule.relay.addRobot': '选机器人',
+  'schedule.relay.addTask': '选任务',
+  'schedule.relay.addSubmit': '添加',
+  'schedule.relay.addSubmitting': '正在添加…',
+  'schedule.relay.addCancel': '取消',
+  'schedule.relay.addEmpty': '还没有可上场的机器人或任务，先去机器人管理 / 项目看板建一个。',
+  'schedule.relay.addError': '没加上：{detail}',
+  'schedule.relay.deleteLeg': '删除',
+  'schedule.relay.deleteConfirm': '删掉这一棒？连带它的接力交接线也会一起删掉。',
+  'schedule.relay.deleteError': '没删掉：{detail}',
+
   // 库存 / BOM 第三支柱（INV-BOM-CORE）
   'toolbar.title.inv': '库存 / BOM',
   'inv.loading': '正在加载库存…',
@@ -917,6 +931,23 @@ const en: Record<TranslationKey, string> = {
   'schedule.relay.handoffDeleteError': "Couldn't remove the handoff line: {detail}",
   'schedule.relay.saveError': "Didn't save: {detail}",
   'schedule.relay.actor': 'Lead (canvas)',
+
+  // A2 add / remove a leg: top "+ Add a leg" form (pick robot + task), per-card "Remove" button.
+  'schedule.relay.addLeg': 'Add a leg',
+  'schedule.relay.addSubtitle':
+    "Pick a robot and the task it's running; it lands as that robot's last leg.",
+  'schedule.relay.addRobot': 'Robot',
+  'schedule.relay.addTask': 'Task',
+  'schedule.relay.addSubmit': 'Add',
+  'schedule.relay.addSubmitting': 'Adding…',
+  'schedule.relay.addCancel': 'Cancel',
+  'schedule.relay.addEmpty':
+    'No available robots or tasks yet — create one in Robots / Project board first.',
+  'schedule.relay.addError': "Couldn't add: {detail}",
+  'schedule.relay.deleteLeg': 'Remove',
+  'schedule.relay.deleteConfirm':
+    'Remove this leg? Its handoff lines will be removed too.',
+  'schedule.relay.deleteError': "Couldn't remove: {detail}",
 
   // Inventory / BOM third pillar (INV-BOM-CORE)
   'toolbar.title.inv': 'Inventory / BOM',

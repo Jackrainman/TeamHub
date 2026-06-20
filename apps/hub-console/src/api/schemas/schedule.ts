@@ -8,6 +8,9 @@ export {
   UpdateResourceSessionResponseSchema,
   CreateRelayHandoffRequestSchema,
   RelayHandoffResponseSchema,
+  // A2 加一棒：POST /api/resource-sessions 写契约（队长在画布上新增一条占用窗口）。
+  CreateResourceSessionRequestSchema,
+  CreateResourceSessionResponseSchema,
 } from '@teamhub/hub-contracts';
 export type {
   RelayStage,
@@ -17,4 +20,6 @@ export type {
   UpdateResourceSessionResponse,
   CreateRelayHandoffRequest,
   RelayHandoffResponse,
+  CreateResourceSessionRequest,
+  CreateResourceSessionResponse,
 } from '@teamhub/hub-contracts';

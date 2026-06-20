@@ -229,6 +229,14 @@ export interface GovStore {
     id: string,
     patch: ResourceSessionPatch,
   ): Promise<ResourceSession | null>;
+  /**
+   * 删一棒（DELETE /api/resource-sessions/:id，A2 接力画布「删除一棒」）。删该 session 本体，并**级联删除
+   * 引用它的接力交接线**（relayHandoffs 中 fromSessionId===id 或 toSessionId===id 的边——避免删卡后悬空箭头）。
+   * 命中（删了 session）返回 true、不存在 false（路由转 404）。与 session/handoff 同走内存、不落盘（D-029，
+   * 重启回 seed）。**注意**与 deleteResource 不同：ResourceSession 是粗粒度临时占用窗口、可物删；SharedResource
+   * 因被 session 引用故只退役不物删（见 updateResourceStatus 注释）。
+   */
+  deleteResourceSession(id: string): Promise<boolean>;
   /** 接力交接线只读（GET /api/relay 组 ScheduleSnapshot 用）。先后交接、**非**任务依赖；无 memberId。 */
   listRelayHandoffs(): Promise<RelayHandoff[]>;
   /**

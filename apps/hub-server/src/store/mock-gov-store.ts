@@ -365,6 +365,25 @@ export class InMemoryGovStore implements GovStore {
     return updated;
   }
 
+  /**
+   * 删一棒（DELETE /api/resource-sessions/:id，A2 接力画布「删除一棒」）。删该 session，并**级联删除引用它的
+   * 接力交接线**（fromSessionId===id 或 toSessionId===id 的边——删卡后箭头不悬空）。命中返回 true、不存在 false
+   * （路由转 404）。与 resourceSessions/relayHandoffs 同走内存、不落盘（D-029）。
+   */
+  async deleteResourceSession(id: string): Promise<boolean> {
+    const idx = this.resourceSessions.findIndex((s) => s.id === id);
+    if (idx === -1) return false;
+    this.resourceSessions.splice(idx, 1);
+    // 级联：原地清掉引用该 session 的接力交接线（保持 relayHandoffs 数组引用稳定，与 deleteRelayHandoff 同语义）。
+    for (let i = this.relayHandoffs.length - 1; i >= 0; i--) {
+      const h = this.relayHandoffs[i];
+      if (h.fromSessionId === id || h.toSessionId === id) {
+        this.relayHandoffs.splice(i, 1);
+      }
+    }
+    return true;
+  }
+
   /** 接力交接线只读（GET /api/relay 组 ScheduleSnapshot 用）。先后交接、**非**任务依赖；无 memberId。 */
   async listRelayHandoffs(): Promise<RelayHandoff[]> {
     return this.relayHandoffs;

@@ -297,6 +297,11 @@ export class FileGovStore implements GovStore {
     return this.inner.updateResourceSession(id, patch);
   }
 
+  // 删一棒（A2）：session + 级联接力交接线均不落盘（同上段 D-029）——委托 inner（级联在 inner 内做）、不调 persist()。
+  async deleteResourceSession(id: string): Promise<boolean> {
+    return this.inner.deleteResourceSession(id);
+  }
+
   async listRelayHandoffs(): Promise<RelayHandoff[]> {
     return this.inner.listRelayHandoffs();
   }

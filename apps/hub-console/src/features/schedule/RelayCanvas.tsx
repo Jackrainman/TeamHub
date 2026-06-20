@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Background,
@@ -16,10 +23,16 @@ import {
   type NodeTypes,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { ChevronDown, ChevronUp } from 'lucide-react';
-import type { RelayStage } from '../../api/schemas/schedule';
+import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
+import type {
+  RelayStage,
+  CreateResourceSessionRequest,
+} from '../../api/schemas/schedule';
 import type { HubApiClient } from '../../api/client';
+import { canBoardResource } from '@teamhub/hub-contracts';
+import type { SharedResource, Task } from '@teamhub/hub-contracts';
 import { useI18n } from '../../i18n';
+import { Field } from '../../components/Field';
 
 // 接力交接画布（R1，D-029）：把某窗口已确认的占用窗口铺成「机器人列 × 接力先后」的可拖卡片，
 // 队长拖卡片排先后（orderInWindow）、卡片间拉线表接力交接（fromSession→toSession，**非**任务依赖）、
@@ -43,6 +56,7 @@ type RelayNodeData = {
   onCommitEta: (sessionId: string, value: string) => void;
   onCancelEditEta: () => void;
   onMove: (sessionId: string, dir: -1 | 1) => void;
+  onDelete: (sessionId: string) => void;
 };
 type RelayFlowNode = Node<RelayNodeData, 'relay'>;
 
@@ -115,6 +129,14 @@ function RelayStageCard({ data }: NodeProps<RelayFlowNode>) {
           <ChevronDown size={13} aria-hidden="true" />
         </button>
       </div>
+      {/* 删一棒：确认后 DELETE /api/resource-sessions/:id，后端级联删引用它的接力交接线（箭头不悬空）。 */}
+      <button
+        type="button"
+        className="relay-card__delete"
+        onClick={() => data.onDelete(s.sessionId)}
+      >
+        {t('schedule.relay.deleteLeg')}
+      </button>
       <Handle type="source" position={Position.Bottom} />
     </div>
   );
@@ -197,6 +219,14 @@ export function RelayCanvas({
   const [banner, setBanner] = useState<{ kind: 'err' | 'ok'; text: string } | null>(
     null,
   );
+  // A2 加一棒浮层开关：顶部「+ 加一棒」按钮打开，选机器人 + 任务后提交。
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  // 加一棒表单数据源：机器人（boardable 才可上场）+ 任务（自带 groupId）。独立查询，失败不阻塞读视图。
+  const tasksQuery = useQuery({
+    queryKey: ['tasks', 'relay'],
+    queryFn: () => client.getTasks(),
+  });
 
   const refetch = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey });
@@ -268,6 +298,42 @@ export function RelayCanvas({
       }),
   });
 
+  // 删一棒（A2）：每张卡「删除」按钮确认后 → DELETE /api/resource-sessions/:id → refetch。
+  // 后端级联删引用它的接力交接线（前端只需 refetch，箭头不悬空）。
+  const deleteSessionMutation = useMutation({
+    mutationFn: (id: string) => client.deleteResourceSession(id),
+    onSuccess: () => {
+      setBanner(null);
+      refetch();
+    },
+    onError: (e) =>
+      setBanner({
+        kind: 'err',
+        text: t('schedule.relay.deleteError', {
+          detail: e instanceof Error ? e.message : String(e),
+        }),
+      }),
+  });
+
+  // 加一棒（A2）：POST /api/resource-sessions（windowLabel=当前选中日期、orderInWindow=该机器人末棒 +1）→ refetch。
+  // confirmedBy 随请求传入（录入即拍板）；I0：invitedMemberIds 传空、不收任何成员维度。
+  const createSessionMutation = useMutation({
+    mutationFn: (req: CreateResourceSessionRequest) =>
+      client.createResourceSession(req),
+    onSuccess: () => {
+      setShowAddForm(false);
+      setBanner(null);
+      refetch();
+    },
+    onError: (e) =>
+      setBanner({
+        kind: 'err',
+        text: t('schedule.relay.addError', {
+          detail: e instanceof Error ? e.message : String(e),
+        }),
+      }),
+  });
+
   const stages = query.data?.stages ?? null;
 
   // 横排序提交：把某机器人列按目标顺序重排 orderInWindow=0..n，仅对变化的 session 调 PATCH。
@@ -302,6 +368,50 @@ export function RelayCanvas({
       commitReorder(reordered.map((s) => s.sessionId));
     },
     [stages, commitReorder],
+  );
+
+  // 删一棒：先二次确认（删卡 + 级联删交接线，不可撤销）→ mutate。原生 confirm 够用（C3 小作坊）。
+  const handleDelete = useCallback(
+    (sessionId: string) => {
+      if (!window.confirm(t('schedule.relay.deleteConfirm'))) return;
+      deleteSessionMutation.mutate(sessionId);
+    },
+    [deleteSessionMutation, t],
+  );
+
+  // 加一棒提交：orderInWindow = 该机器人当前最大棒次 +1（没排过则 0）；holderGroupId 由任务派生。
+  const handleAddLeg = useCallback(
+    (vars: {
+      resourceId: string;
+      projectId: string;
+      taskId: string;
+      groupId: string;
+    }) => {
+      const existing = (stages ?? []).filter(
+        (s) => s.resourceId === vars.resourceId,
+      );
+      const nextOrder =
+        existing.length > 0
+          ? Math.max(...existing.map((s) => s.orderInWindow)) + 1
+          : 0;
+      createSessionMutation.mutate({
+        projectId: vars.projectId,
+        resourceId: vars.resourceId,
+        windowLabel,
+        orderInWindow: nextOrder,
+        holderGroupId: vars.groupId,
+        holderTaskId: vars.taskId,
+        invitedMemberIds: [],
+        note: null,
+        eta: null,
+        confirmedBy: {
+          id: 'console-relay',
+          displayName: t('schedule.relay.actor'),
+          source: 'console',
+        },
+      });
+    },
+    [stages, windowLabel, createSessionMutation, t],
   );
 
   const handleStartEditEta = useCallback((sessionId: string) => {
@@ -356,6 +466,7 @@ export function RelayCanvas({
           onCommitEta: handleCommitEta,
           onCancelEditEta: handleCancelEditEta,
           onMove: handleMove,
+          onDelete: handleDelete,
         },
       } satisfies RelayFlowNode;
     });
@@ -366,6 +477,7 @@ export function RelayCanvas({
     handleCommitEta,
     handleCancelEditEta,
     handleMove,
+    handleDelete,
   ]);
 
   // 本地节点 state：拖动时跟手（applyNodeChanges），松手后按 x 重排再 PATCH。
@@ -451,6 +563,41 @@ export function RelayCanvas({
     return () => clearTimeout(timer);
   }, [banner]);
 
+  // 加一棒数据源：机器人只列「能上场」的（canBoardResource，停用/退役不入选）；任务全列（自带 groupId）。
+  const boardableResources = useMemo(
+    () =>
+      (resourcesQuery.data?.resources ?? []).filter((r) =>
+        canBoardResource(r.status),
+      ),
+    [resourcesQuery.data],
+  );
+  const tasks = tasksQuery.data?.tasks ?? [];
+
+  // 顶部工具条「+ 加一棒」（空板 / 已有卡片都显示，否则空板无入口）。
+  const toolbar = (
+    <div className="relay-canvas__toolbar">
+      <button
+        type="button"
+        className="relay-canvas__add"
+        onClick={() => setShowAddForm((v) => !v)}
+        aria-expanded={showAddForm}
+      >
+        <Plus size={14} aria-hidden="true" />
+        {t('schedule.relay.addLeg')}
+      </button>
+    </div>
+  );
+
+  const addForm = showAddForm ? (
+    <AddLegForm
+      resources={boardableResources}
+      tasks={tasks}
+      pending={createSessionMutation.isPending}
+      onSubmit={handleAddLeg}
+      onCancel={() => setShowAddForm(false)}
+    />
+  ) : null;
+
   if (query.isLoading) {
     return (
       <div className="state-band" role="status" aria-live="polite">
@@ -467,15 +614,21 @@ export function RelayCanvas({
   }
   if (query.data.stages.length === 0) {
     return (
-      <div className="pm-coldstart">
-        <h3>{t('schedule.relay.title')}</h3>
-        <p>{t('schedule.relay.empty')}</p>
+      <div className="relay-canvas">
+        {toolbar}
+        {addForm}
+        <div className="pm-coldstart">
+          <h3>{t('schedule.relay.title')}</h3>
+          <p>{t('schedule.relay.empty')}</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="relay-canvas">
+      {toolbar}
+      {addForm}
       <p className="relay-canvas__hint">{t('schedule.relay.canvasHint')}</p>
       <div className="relay-canvas__board">
         {banner ? (
@@ -508,5 +661,126 @@ export function RelayCanvas({
         </ReactFlow>
       </div>
     </div>
+  );
+}
+
+/**
+ * 加一棒浮层表单（A2）：选**机器人**（仅能上场的）+ 选**任务**（自带 groupId）→ 新增一条占用窗口。
+ * holderGroupId 由任务派生、orderInWindow / windowLabel / confirmedBy 由调用方（RelayCanvas）补。
+ * **反监视红线**：表单只收机器人 / 任务，绝不收 / 显任何成员维度（memberId / 出勤）。
+ */
+function AddLegForm({
+  resources,
+  tasks,
+  pending,
+  onSubmit,
+  onCancel,
+}: {
+  resources: SharedResource[];
+  tasks: Task[];
+  pending: boolean;
+  onSubmit: (vars: {
+    resourceId: string;
+    projectId: string;
+    taskId: string;
+    groupId: string;
+  }) => void;
+  onCancel: () => void;
+}) {
+  const { t } = useI18n();
+  const [resourceId, setResourceId] = useState(resources[0]?.id ?? '');
+  const [taskId, setTaskId] = useState(tasks[0]?.id ?? '');
+
+  // 冷启动：列表初次为空 → 重填后同步缺省（不覆盖用户已选）。
+  useEffect(() => {
+    if (!resourceId && resources[0]) setResourceId(resources[0].id);
+  }, [resources, resourceId]);
+  useEffect(() => {
+    if (!taskId && tasks[0]) setTaskId(tasks[0].id);
+  }, [tasks, taskId]);
+
+  const resource = resources.find((r) => r.id === resourceId);
+  const task = tasks.find((tk) => tk.id === taskId);
+  const valid = Boolean(resource) && Boolean(task);
+  const noOptions = resources.length === 0 || tasks.length === 0;
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!valid || !resource || !task) return;
+    onSubmit({
+      resourceId: resource.id,
+      projectId: resource.projectId,
+      taskId: task.id,
+      groupId: task.groupId,
+    });
+  }
+
+  return (
+    <section
+      className="relay-add panel"
+      aria-label={t('schedule.relay.addLeg')}
+    >
+      <header className="pm-create__head">
+        <div>
+          <h2>{t('schedule.relay.addLeg')}</h2>
+          <p className="pm-create__note">{t('schedule.relay.addSubtitle')}</p>
+        </div>
+        <button
+          type="button"
+          className="relay-add__close"
+          aria-label={t('schedule.relay.addCancel')}
+          onClick={onCancel}
+        >
+          <X size={16} aria-hidden="true" />
+        </button>
+      </header>
+      {noOptions ? (
+        <p className="form-hint">{t('schedule.relay.addEmpty')}</p>
+      ) : (
+        <form className="pm-form" onSubmit={submit}>
+          <div className="pm-form__grid">
+            <Field label={t('schedule.relay.addRobot')}>
+              <select
+                value={resourceId}
+                onChange={(e) => setResourceId(e.target.value)}
+              >
+                {resources.map((r) => (
+                  <option value={r.id} key={r.id}>
+                    {r.displayCode ?? r.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label={t('schedule.relay.addTask')}>
+              <select value={taskId} onChange={(e) => setTaskId(e.target.value)}>
+                {tasks.map((tk) => (
+                  <option value={tk.id} key={tk.id}>
+                    {tk.title}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          <div className="pm-form__footer">
+            <button
+              className="kb-submit"
+              type="submit"
+              disabled={!valid || pending}
+            >
+              {pending
+                ? t('schedule.relay.addSubmitting')
+                : t('schedule.relay.addSubmit')}
+            </button>
+            <button
+              type="button"
+              className="relay-add__cancel"
+              onClick={onCancel}
+            >
+              {t('schedule.relay.addCancel')}
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
   );
 }
