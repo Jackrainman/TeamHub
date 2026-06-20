@@ -369,10 +369,18 @@ export function RelayCanvas({
   ]);
 
   // 本地节点 state：拖动时跟手（applyNodeChanges），松手后按 x 重排再 PATCH。
-  // baseNodes 变（refetch / 编辑态）→ 同步覆盖本地位置（后端是单一真相）。
+  // baseNodes 变（refetch / 编辑态 / 回调身份变）→ 同步后端真相，但**保留 ReactFlow 写回的测量尺寸**
+  // （node.measured）。否则每次重算都把节点打回「未测量」，ReactFlow 持续 visibility:hidden、画布首屏空白
+  // （WSL 真机实测：node 已测量出 416×236 但 inline visibility:hidden）。位置仍取 baseNodes（反映 orderInWindow）。
   const [nodes, setNodes] = useState<RelayFlowNode[]>(baseNodes);
   useEffect(() => {
-    setNodes(baseNodes);
+    setNodes((prev) => {
+      const measuredById = new Map(prev.map((n) => [n.id, n.measured] as const));
+      return baseNodes.map((n) => {
+        const measured = measuredById.get(n.id);
+        return measured ? { ...n, measured } : n;
+      });
+    });
   }, [baseNodes]);
 
   const onNodesChange = useCallback((changes: NodeChange<RelayFlowNode>[]) => {
@@ -482,10 +490,6 @@ export function RelayCanvas({
           </div>
         ) : null}
         <ReactFlow
-          // 节点异步到达：首帧 nodes 仍是 loading 渲染时的空态，fitView 会对空图生效、
-          // 之后到来的节点既不重新 fit 也可能停在 visibility:hidden（首屏空白）。
-          // 用 empty→loaded 的 key 让 ReactFlow 在节点就位后干净重挂一次，按真实节点测量 + fitView。
-          key={nodes.length === 0 ? 'relay-empty' : 'relay-loaded'}
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
