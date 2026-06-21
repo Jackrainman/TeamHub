@@ -13,16 +13,16 @@ const NOW = GOVERNANCE_SCENARIO_NOW;
 describe('deriveDirectionGaps — 组级方向缺口（S2，A1 归组不归人）', () => {
   const gaps = deriveDirectionGaps(governanceScenarioFixture, NOW);
 
-  test('fixture 仅 need-rtos(open/grp-program) 产缺口；claimed need-board-review 不计', () => {
-    // 两条 need：need-rtos=open(grp-program)、need-board-review=claimed(grp-circuit，排除)
+  test('fixture 仅 need-rtos(open/grp-ec) 产缺口；claimed need-board-review 不计', () => {
+    // 两条 need：need-rtos=open(grp-ec)、need-board-review=claimed(grp-circuit，排除)
     expect(gaps).toHaveLength(1);
     const g = gaps[0]!;
-    expect(g.groupId).toBe('grp-program');
+    expect(g.groupId).toBe('grp-ec');
     expect(g.neededSkills).toEqual(['CAN', 'RTOS']); // 并集、排序
     expect(g.evidenceNeedIds).toEqual(['need-rtos']);
     expect(g.evidenceTaskIds).toEqual(['t-r1-chassis']);
     expect(g.detectedBy).toBe('derived');
-    expect(g.factStatement).toContain('程序');
+    expect(g.factStatement).toContain('电控');
     expect(g.factStatement).toContain('RTOS');
   });
 
@@ -64,7 +64,7 @@ describe('deriveDirectionGaps — 组级方向缺口（S2，A1 归组不归人�
       ),
     };
     const g = deriveDirectionGaps(escalated, NOW).find(
-      (x) => x.groupId === 'grp-program',
+      (x) => x.groupId === 'grp-ec',
     );
     expect(g?.severity).toBe('pressing');
   });

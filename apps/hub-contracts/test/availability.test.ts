@@ -63,18 +63,20 @@ describe('deriveGroupAvailability — 只产组级 headcount 整数（A2 红线�
       expect(groupId.startsWith('grp-')).toBe(true);
       expect(groupId.startsWith('m-')).toBe(false);
     }
-    // 无人冲突时每个组的容量 = 该组成员数
-    expect(cap.get('grp-vision')).toBe(2); // m-visionA + m-visionC
+    // 无人冲突时每个组的容量 = 该组成员数（调和后 progA→电控、progB→视觉）
+    expect(cap.get('grp-vision')).toBe(3); // m-visionA + m-visionC + m-progB
     expect(cap.get('grp-mech')).toBe(2); // m-mechC + m-mechD
+    expect(cap.get('grp-ec')).toBe(2); // m-ecB + m-progA
+    expect(cap.get('grp-program') ?? 0).toBe(0); // 程序组无直属成员 → 0
   });
 
   test("visibility==='private' 的成员被跳过（私有课表绝不进派生）", () => {
-    // 视觉A 私有课表与窗口冲突，但 private → 不剔除（按"无冲突"计），组容量仍是 2
+    // 视觉A 私有课表与窗口冲突，但 private → 不剔除（按"无冲突"计），组容量仍是 3
     const privateBusy = [
       avail('m-visionA', 'private', [MON_AFTERNOON]),
     ];
     const cap = deriveGroupAvailability(privateBusy, MON_AFTERNOON, members);
-    expect(cap.get('grp-vision')).toBe(2);
+    expect(cap.get('grp-vision')).toBe(3);
   });
 
   test("visibility==='aggregateOnly' 且冲突 → 该组容量 -1（仍只是整数）", () => {
@@ -82,8 +84,8 @@ describe('deriveGroupAvailability — 只产组级 headcount 整数（A2 红线�
       avail('m-visionA', 'aggregateOnly', [MON_AFTERNOON]),
     ];
     const cap = deriveGroupAvailability(authorizedBusy, MON_AFTERNOON, members);
-    // 视觉A 授权且冲突 → 视觉组从 2 降到 1
-    expect(cap.get('grp-vision')).toBe(1);
+    // 视觉A 授权且冲突 → 视觉组从 3 降到 2
+    expect(cap.get('grp-vision')).toBe(2);
   });
 
   test('半开区间：相邻窗（16:00 结束 vs 16:00 开始）不误判为冲突', () => {
@@ -92,7 +94,7 @@ describe('deriveGroupAvailability — 只产组级 headcount 整数（A2 红线�
       avail('m-visionA', 'aggregateOnly', [{ dayOfWeek: 1, startMin: 720, endMin: 840 }]),
     ];
     const cap = deriveGroupAvailability(adjacent, MON_AFTERNOON, members);
-    expect(cap.get('grp-vision')).toBe(2); // 不冲突，仍是 2
+    expect(cap.get('grp-vision')).toBe(3); // 不冲突，仍是 3
   });
 
   test('不同 dayOfWeek 的占用段不算冲突', () => {
@@ -101,7 +103,7 @@ describe('deriveGroupAvailability — 只产组级 headcount 整数（A2 红线�
       avail('m-visionA', 'aggregateOnly', [{ dayOfWeek: 2, startMin: 840, endMin: 960 }]),
     ];
     const cap = deriveGroupAvailability(otherDay, MON_AFTERNOON, members);
-    expect(cap.get('grp-vision')).toBe(2);
+    expect(cap.get('grp-vision')).toBe(3);
   });
 
   test('单窗签名，结构上无法跨窗按人累计', () => {
@@ -116,9 +118,9 @@ describe('deriveGroupAvailability — 只产组级 headcount 整数（A2 红线�
       { dayOfWeek: 2, startMin: 840, endMin: 960 },
       members,
     );
-    // 各窗独立：周一冲突→1，周二冲突→1；二者绝不被合成"本周到场最少→多排"
-    expect(busyMon.get('grp-vision')).toBe(1);
-    expect(busyTue.get('grp-vision')).toBe(1);
+    // 各窗独立：周一冲突→2，周二冲突→2；二者绝不被合成"本周到场最少→多排"
+    expect(busyMon.get('grp-vision')).toBe(2);
+    expect(busyTue.get('grp-vision')).toBe(2);
   });
 });
 
@@ -148,19 +150,20 @@ describe('derivePresenceSchedule — 向后兼容（三参 feasibility=null）',
 });
 
 describe('derivePresenceSchedule — ctx 锚定时才写 feasibility', () => {
-  // 锚定 sess-tonight-prog（程序组持有 R1）到周一下午窗口。
+  // 锚定 sess-tonight-ec（电控组持有 R1 做系统调试）到周一下午窗口。
   const ctxAnchored: AvailabilityContext = {
     availabilities: [
-      // 程序组只有 m-progA / m-progB；让 progA 授权冲突 → 程序组容量 2→1 = tight
+      // 电控组有 m-ecB / m-progA；让 progA 授权冲突 → 电控组容量 2→1 = tight
       avail('m-progA', 'aggregateOnly', [MON_AFTERNOON]),
     ],
-    windowDefs: new Map([['sess-tonight-prog', MON_AFTERNOON]]),
+    windowDefs: new Map([['sess-tonight-ec', MON_AFTERNOON]]),
   };
   const recs = derivePresenceSchedule(scheduleScenarioFixture, NOW, '今晚', ctxAnchored);
   const byGroup = new Map(recs.map((r) => [r.groupId, r]));
 
-  test('程序组（持有窗）feasibility = tight（容量降到 1）', () => {
-    expect(byGroup.get('grp-program')!.feasibility).toBe('tight');
+  test('电控组（持有窗）feasibility = tight（容量降到 1）', () => {
+    expect(byGroup.get('grp-ec')!.feasibility).toBe('tight');
+    expect(byGroup.has('grp-program')).toBe(false); // 无成员、无建议
   });
 
   test('全部 feasibility ∈ {ample,tight,conflict,null}，无成员维度泄漏', () => {
@@ -176,7 +179,7 @@ describe('A2 红线：派生输出 JSON 不含个人课表明细 / memberId 出�
       avail('m-progA', 'aggregateOnly', [{ ...MON_AFTERNOON, label: '高数课' }]),
       avail('m-visionA', 'private', [{ ...MON_AFTERNOON, label: '英语课' }]),
     ],
-    windowDefs: new Map([['sess-tonight-prog', MON_AFTERNOON]]),
+    windowDefs: new Map([['sess-tonight-ec', MON_AFTERNOON]]),
   };
   const recs = derivePresenceSchedule(scheduleScenarioFixture, NOW, '今晚', ctx);
   const json = JSON.stringify(recs);

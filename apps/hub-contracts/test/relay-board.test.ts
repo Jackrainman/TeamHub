@@ -39,13 +39,13 @@ describe('deriveRelayBoard — 接力画布读视图', () => {
   test('字段正确：sessionId / displayCode / group / task / order / eta / boardable', () => {
     expect(board.stages).toHaveLength(1);
     const s = board.stages[0];
-    expect(s.sessionId).toBe('sess-tonight-prog');
+    expect(s.sessionId).toBe('sess-tonight-ec');
     expect(s.resourceId).toBe('res-r1');
     // displayCode 走车号回退链：26R1（deriveDisplayCode）
     expect(s.displayCode).toBe('26R1');
-    expect(s.groupId).toBe('grp-program');
-    expect(s.groupName).toBe('程序');
-    expect(s.taskLabel).toBe('R1 总联调');
+    expect(s.groupId).toBe('grp-ec');
+    expect(s.groupName).toBe('电控');
+    expect(s.taskLabel).toBe('R1 系统调试');
     expect(s.orderInWindow).toBe(0);
     expect(s.boardable).toBe(true);
     expect(s.statusReason).toBe(null);
@@ -84,7 +84,7 @@ describe('deriveRelayBoard — handoffs 按 windowLabel 过滤', () => {
     id: 'ho-tonight-1',
     projectId: 'prj-robots',
     windowLabel: '今晚',
-    fromSessionId: 'sess-tonight-prog',
+    fromSessionId: 'sess-tonight-ec',
     toSessionId: 'sess-tonight-mech',
     source: 'console',
     confirmedBy: null,

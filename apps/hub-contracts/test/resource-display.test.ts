@@ -58,10 +58,10 @@ describe('车不可上 → 接力释放（cascade 读 canBoardResource，非硬�
       GOVERNANCE_SCENARIO_NOW,
       '今晚',
     );
-    // sess-tonight-prog 持有组 grp-program 在 R1 down 时应落 free
-    const prog = recs.find((r) => r.groupId === 'grp-program');
-    expect(prog?.mode).toBe('free');
-    expect(prog?.reason).toBe('resourceDown');
+    // sess-tonight-ec 持有组 grp-ec 在 R1 down 时应落 free
+    const ec = recs.find((r) => r.groupId === 'grp-ec');
+    expect(ec?.mode).toBe('free');
+    expect(ec?.reason).toBe('resourceDown');
   });
 });
 

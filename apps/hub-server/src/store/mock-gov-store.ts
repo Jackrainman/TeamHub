@@ -59,7 +59,7 @@ export class InMemoryGovStore implements GovStore {
   private readonly clock: Clock;
   // 差异化在场排班（D-029）的两块数据**不在 GovernanceSnapshot 内**（见 gov-store.ts listResources 注释），
   // 故存独立可变数组。**seed 来源 = scheduleScenarioFixture**（=governanceScenarioFixture + res-r1/res-r2 +
-  // sess-tonight-prog[windowLabel='今晚']）——默认 governanceScenarioFixture 不含这两块，会让 GET /api/schedule
+  // sess-tonight-ec[今晚] + sess-convergence-day-r1/r2[总联调日]）——默认 governanceScenarioFixture 不含这两块，会让 GET /api/schedule
   // 第一请求即空、被误判「功能没接通」。引 schedule fixture 取这两块、克隆隔离（写方法 push 不污染共享 fixture）。
   private readonly resources: SharedResource[];
   private readonly resourceSessions: ResourceSession[];

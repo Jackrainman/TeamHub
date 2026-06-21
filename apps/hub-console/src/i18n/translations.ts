@@ -105,6 +105,7 @@ const zh = {
   'depgraph.node.unassigned': '未指派',
   'depgraph.node.blockedBy': '被「{label}」卡住',
   'depgraph.node.criticalChain': '关键链',
+  'depgraph.node.convergence': '全组',
   'depgraph.detail.title': '节点详情',
   'depgraph.detail.clickAny': '点击任意任务',
   'depgraph.detail.empty':
@@ -648,6 +649,7 @@ const en: Record<TranslationKey, string> = {
   'depgraph.node.unassigned': 'Unassigned',
   'depgraph.node.blockedBy': 'Blocked by “{label}”',
   'depgraph.node.criticalChain': 'Critical chain',
+  'depgraph.node.convergence': 'All groups',
   'depgraph.detail.title': 'Node detail',
   'depgraph.detail.clickAny': 'Click any task',
   'depgraph.detail.empty':

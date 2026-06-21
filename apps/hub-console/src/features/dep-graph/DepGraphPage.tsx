@@ -26,6 +26,7 @@ import {
   MapPin,
   RotateCcw,
   Trash2,
+  Users,
   Zap,
 } from 'lucide-react';
 import {
@@ -124,6 +125,12 @@ function DepNodeCard({ data, selected }: NodeProps<DepFlowNode>) {
         {n.isCritical ? (
           <span className="dag-node__tag dag-node__tag--critical">
             <Zap size={10} aria-hidden="true" /> {t('depgraph.node.criticalChain')}
+          </span>
+        ) : null}
+        {/* 收敛任务（总联调）：全组各一人在场，非个人指派 → 显「全组」徽章。 */}
+        {n.isConvergenceTask ? (
+          <span className="dag-node__tag dag-node__tag--convergence">
+            <Users size={10} aria-hidden="true" /> {t('depgraph.node.convergence')}
           </span>
         ) : null}
       </div>

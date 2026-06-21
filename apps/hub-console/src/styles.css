@@ -784,6 +784,12 @@ button {
   color: var(--blue);
 }
 
+/* 收敛任务（总联调）「全组」徽章：区别于关键链蓝，用绿色表「全组各一人到场」。 */
+.dag-node__tag--convergence {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
 /* 新增状态色（节点徽章 + 侧栏 status-pill 复用） */
 .status-working {
   background: var(--green-soft);

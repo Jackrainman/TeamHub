@@ -118,6 +118,33 @@ function indexBy<T>(items: T[], key: (item: T) => string): Map<string, T> {
   return map;
 }
 
+/**
+ * 收敛哨兵组 id（PRESENCE-RECONCILE-LOCK 路线 C）：仅承载总联调收敛任务的归属，
+ * 无成员、**绝不进派生在场输出**（render 循环显式跳过）、不算叶子组。
+ */
+const CONVERGENCE_SENTINEL_GROUP_ID = 'grp-convergence';
+
+/**
+ * 叶子组派生（PRESENCE-RECONCILE-LOCK 决定）：组树中**没有子组的节点** = 叶子组，
+ * 剔除收敛哨兵组（无成员、不进派生）。当前 fixture → [grp-mech, grp-circuit, grp-ec, grp-vision]
+ * （grp-program 有子组 grp-ec/grp-vision 故非叶子；grp-convergence 是哨兵故剔除；
+ * grp-mech/grp-circuit 虽是顶层但无子组 → 仍是叶子）。
+ * 总联调（convergenceScope='allLeafGroups'）即「这些叶子组各到至少一人在场」。
+ * 纯派生、不硬编码组数——未来给某叶子组加子组，它自动不再算叶子（期望行为）。
+ */
+export function deriveLeafGroups(groups: Group[]): string[] {
+  // 有子组的节点 = 非叶子（某 group.parentGroupId 指向它）。
+  const hasChildren = new Set(
+    groups.map((g) => g.parentGroupId).filter((p): p is string => p !== null),
+  );
+  return groups
+    .filter(
+      (g) =>
+        !hasChildren.has(g.id) && g.id !== CONVERGENCE_SENTINEL_GROUP_ID,
+    )
+    .map((g) => g.id);
+}
+
 /** 只走 active + 已确认（confirmedBy 非空）的边，aiSuggested 未确认不参与（C4）。 */
 function isLiveEdge(dep: Dependency): boolean {
   return dep.status === 'active' && dep.confirmedBy !== null;
@@ -296,15 +323,30 @@ export function derivePresenceSchedule(
       continue;
     }
 
-    // 持有组 → present。
-    upgrade(session.holderGroupId, {
-      mode: 'present',
-      reason: 'holdsResource',
-      resourceId: session.resourceId,
-      holderTaskLabel,
-      orderInWindow: session.orderInWindow,
-      feasibility: feasibilityFor(session.holderGroupId),
-    });
+    // 持有组 → present。收敛任务（总联调，convergenceScope='allLeafGroups'）分流：
+    //   真 → 所有叶子组各 present（全组各一人）；哨兵组 grp-convergence 本身不 upgrade（仅总联调日走这里）。
+    //   假 → 仅持有组 present（原逻辑不变；平日今晚走这里）。
+    if (holderTask?.convergenceScope === 'allLeafGroups') {
+      for (const gid of deriveLeafGroups(snapshot.groups)) {
+        upgrade(gid, {
+          mode: 'present',
+          reason: 'holdsResource',
+          resourceId: session.resourceId,
+          holderTaskLabel,
+          orderInWindow: session.orderInWindow,
+          feasibility: feasibilityFor(gid),
+        });
+      }
+    } else {
+      upgrade(session.holderGroupId, {
+        mode: 'present',
+        reason: 'holdsResource',
+        resourceId: session.resourceId,
+        holderTaskLabel,
+        orderInWindow: session.orderInWindow,
+        feasibility: feasibilityFor(session.holderGroupId),
+      });
+    }
 
     if (!holderTask) continue;
 
@@ -346,6 +388,9 @@ export function derivePresenceSchedule(
 
   const recs: PresenceRecommendation[] = [];
   for (const [groupId, acc] of byGroup) {
+    // 哨兵组不出排班建议：down 分支会经 t-r1-integration.groupId（=grp-convergence）混入 affected，
+    // render 跳过是唯一拦截点（收敛分支本身不 upgrade 哨兵，但 down 分支按任务 groupId 聚合会带入）。
+    if (groupId === CONVERGENCE_SENTINEL_GROUP_ID) continue;
     const groupName = groupsById.get(groupId)?.name ?? groupId;
     const resource = acc.resourceId ? resourcesById.get(acc.resourceId) : undefined;
 

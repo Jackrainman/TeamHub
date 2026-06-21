@@ -12,7 +12,7 @@ import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 // GET /api/relay 富集读视图（接力站 + 站间交接线，**无成员维度**）+ POST/DELETE 接力交接线
 // （拉线即先后交接，**非**任务依赖；自环 / 成环 400）。验证反监视红线 + 状态码契约。
 //
-// seed（scheduleScenarioFixture）：今晚 R1 一条已确认窗口 sess-tonight-prog（windowLabel='今晚'，
+// seed（scheduleScenarioFixture）：今晚 R1 一条已确认窗口 sess-tonight-ec（windowLabel='今晚'，
 // confirmedBy 非空），relayHandoffs=[]。多数用例先 POST 第二条今晚窗口，再在两站间拉线。
 
 /** 在指定 windowLabel 录入一条占用窗口，返回新 session.id。 */
@@ -46,7 +46,7 @@ describe('PATCH /api/resource-sessions/:id（接力画布编辑：排先后 + �
     try {
       const res = await app.inject({
         method: 'PATCH',
-        url: '/api/resource-sessions/sess-tonight-prog',
+        url: '/api/resource-sessions/sess-tonight-ec',
         payload: { orderInWindow: 5, eta: '约 22:30' },
       });
       expect(res.statusCode).toBe(200);
@@ -66,7 +66,7 @@ describe('PATCH /api/resource-sessions/:id（接力画布编辑：排先后 + �
       // 先设 eta
       const set = await app.inject({
         method: 'PATCH',
-        url: '/api/resource-sessions/sess-tonight-prog',
+        url: '/api/resource-sessions/sess-tonight-ec',
         payload: { eta: '搞到收工' },
       });
       expect(UpdateResourceSessionResponseSchema.parse(set.json()).session.eta).toBe(
@@ -75,7 +75,7 @@ describe('PATCH /api/resource-sessions/:id（接力画布编辑：排先后 + �
       // 只传 eta:null → 清空，order（seed=0）不变
       const clear = await app.inject({
         method: 'PATCH',
-        url: '/api/resource-sessions/sess-tonight-prog',
+        url: '/api/resource-sessions/sess-tonight-ec',
         payload: { eta: null },
       });
       const body = UpdateResourceSessionResponseSchema.parse(clear.json());
@@ -91,7 +91,7 @@ describe('PATCH /api/resource-sessions/:id（接力画布编辑：排先后 + �
     try {
       const res = await app.inject({
         method: 'PATCH',
-        url: '/api/resource-sessions/sess-tonight-prog',
+        url: '/api/resource-sessions/sess-tonight-ec',
         payload: {},
       });
       expect(res.statusCode).toBe(400);
@@ -105,7 +105,7 @@ describe('PATCH /api/resource-sessions/:id（接力画布编辑：排先后 + �
     try {
       const res = await app.inject({
         method: 'PATCH',
-        url: '/api/resource-sessions/sess-tonight-prog',
+        url: '/api/resource-sessions/sess-tonight-ec',
         payload: { eta: '' },
       });
       expect(res.statusCode).toBe(400);
@@ -139,12 +139,12 @@ describe('GET /api/relay（接力画布读视图，反监视红线无成员维�
       });
       expect(res.statusCode).toBe(200);
       const board = RelayBoardResponseSchema.parse(res.json());
-      // seed sess-tonight-prog（confirmedBy 非空）→ 上画布为一站
-      const stage = board.stages.find((s) => s.sessionId === 'sess-tonight-prog');
+      // seed sess-tonight-ec（confirmedBy 非空）→ 上画布为一站
+      const stage = board.stages.find((s) => s.sessionId === 'sess-tonight-ec');
       expect(stage).toBeDefined();
       expect(stage!.resourceId).toBe('res-r1');
       expect(stage!.displayCode).toBe('26R1'); // 车号回退链
-      expect(stage!.groupId).toBe('grp-program');
+      expect(stage!.groupId).toBe('grp-ec');
       expect(typeof stage!.boardable).toBe('boolean');
       expect(board.handoffs).toEqual([]); // seed 无交接线
     } finally {
@@ -164,7 +164,7 @@ describe('GET /api/relay（接力画布读视图，反监视红线无成员维�
         payload: {
           projectId: 'prj-robots',
           windowLabel: '今晚',
-          fromSessionId: 'sess-tonight-prog',
+          fromSessionId: 'sess-tonight-ec',
           toSessionId: to,
           confirmedBy: { id: 'm-progA', displayName: '程序A', source: 'console' },
         },
@@ -214,7 +214,7 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
     const store = new InMemoryGovStore();
     const app = buildHubServer({ store });
     try {
-      const from = 'sess-tonight-prog'; // seed
+      const from = 'sess-tonight-ec'; // seed
       const to = await postSession(app); // 第二条今晚窗口
       const post = await app.inject({
         method: 'POST',
@@ -256,8 +256,8 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
         payload: {
           projectId: 'prj-robots',
           windowLabel: '今晚',
-          fromSessionId: 'sess-tonight-prog',
-          toSessionId: 'sess-tonight-prog',
+          fromSessionId: 'sess-tonight-ec',
+          toSessionId: 'sess-tonight-ec',
           confirmedBy: null,
         },
       });
@@ -276,7 +276,7 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
         payload: {
           projectId: 'prj-robots',
           windowLabel: '今晚',
-          fromSessionId: 'sess-tonight-prog',
+          fromSessionId: 'sess-tonight-ec',
           toSessionId: 'sess-ghost',
           confirmedBy: null,
         },
@@ -291,7 +291,7 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
     const store = new InMemoryGovStore();
     const app = buildHubServer({ store });
     try {
-      const a = 'sess-tonight-prog';
+      const a = 'sess-tonight-ec';
       const b = await postSession(app);
       // A→B
       const ab = await app.inject({
@@ -328,7 +328,7 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
     const store = new InMemoryGovStore();
     const app = buildHubServer({ store });
     try {
-      const a = 'sess-tonight-prog';
+      const a = 'sess-tonight-ec';
       const b = await postSession(app);
       const post = await app.inject({
         method: 'POST',

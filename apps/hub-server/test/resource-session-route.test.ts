@@ -114,7 +114,7 @@ describe('A2 删一棒（DELETE /api/resource-sessions/:id）', () => {
     const app = buildHubServer({ store });
     try {
       // 两棒（a=seed 今晚 R1，b=新建第二棒）+ 一条 a→b 接力交接线
-      const a = 'sess-tonight-prog'; // seed
+      const a = 'sess-tonight-ec'; // seed
       const b = await postSession(app);
       const handoffId = await postHandoff(app, a, b);
 
@@ -152,7 +152,7 @@ describe('A2 删一棒（DELETE /api/resource-sessions/:id）', () => {
     const app = buildHubServer({ store });
     try {
       // a=seed, b, c 三棒；线 a→b（引用 a/b）与 b→c（引用 b/c）。删 a 只应清掉 a→b，保留 b→c。
-      const a = 'sess-tonight-prog';
+      const a = 'sess-tonight-ec';
       const b = await postSession(app);
       const c = await postSession(app);
       const ab = await postHandoff(app, a, b);

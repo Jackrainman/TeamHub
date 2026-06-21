@@ -260,3 +260,20 @@ describe('computeCriticalSet 含环图确定性：criticalCount 不随 tasks 顺
     expect(setA).toEqual(setB);
   });
 });
+
+describe('PRESENCE-RECONCILE-LOCK：收敛任务标记 + 常规 sink 不抢关键链', () => {
+  test('总联调：groupId=grp-convergence + convergenceScope=allLeafGroups + ownerId=null；isConvergenceTask=true；关键链仍成立', () => {
+    const t = F.tasks.find((x) => x.id === 't-r1-integration')!;
+    expect(t.groupId).toBe('grp-convergence');
+    expect(t.convergenceScope).toBe('allLeafGroups');
+    expect(t.ownerId).toBeNull();
+    const view = toDepGraphView(F, NOW);
+    const byId = new Map(view.nodes.map((n) => [n.id, n]));
+    expect(byId.get('t-r1-integration')!.isConvergenceTask).toBe(true);
+    expect(byId.get('t-r1-integration')!.isCritical).toBe(true);
+    // 平日常规 sink t-r1-system-tune：非收敛、不抢关键链、是 working 节点
+    expect(byId.get('t-r1-system-tune')!.isConvergenceTask).toBe(false);
+    expect(byId.get('t-r1-system-tune')!.isCritical).toBe(false);
+    expect(byId.get('t-r1-system-tune')!.status).toBe('working');
+  });
+});

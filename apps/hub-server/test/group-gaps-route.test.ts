@@ -15,11 +15,11 @@ describe('GET /api/group-gaps', () => {
     expect(response.statusCode).toBe(200);
     const body = GroupGapsResponseSchema.parse(response.json());
 
-    // 走了 deriveDirectionGaps：fixture 的 open need-rtos(grp-program) 产一条组级缺口
+    // 走了 deriveDirectionGaps：fixture 的 open need-rtos(grp-ec) 产一条组级缺口
     expect(body.gaps.length).toBeGreaterThan(0);
-    const program = body.gaps.find((g) => g.groupId === 'grp-program');
-    expect(program).toBeDefined();
-    expect(program!.neededSkills).toContain('RTOS');
+    const ec = body.gaps.find((g) => g.groupId === 'grp-ec');
+    expect(ec).toBeDefined();
+    expect(ec!.neededSkills).toContain('RTOS');
 
     // A1/I0 反监视护栏：整个响应体（含 factStatement）不含任何人维度
     const raw = response.body;

@@ -127,6 +127,10 @@ export const TaskSchema = z.object({
   collaboratorIds: z.array(z.string().min(1)),
   robotTarget: RobotTargetSchema,
   intrinsicComplexity: TaskComplexitySchema,
+  // 收敛任务标记（optional，仅总联调类型）：'allLeafGroups' = 所有叶子组各到至少一人在场
+  // （全组各一人，D-072 决定 L）。未填 = 普通任务（普通 groupId 持有语义，行为完全不变）。
+  // 纯增量 optional：既有 fixture / 落盘 JSON 不填 → parse 为 undefined，向后兼容。
+  convergenceScope: z.enum(['allLeafGroups']).optional(),
   lastProgressAt: isoDateTimeSchema.nullable(), // 最近推进信号（commit/check-in 派生）
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
@@ -305,6 +309,9 @@ export const DepNodeSchema = z.object({
   blockedByTaskId: z.string().min(1).nullable(),
   blockedByLabel: z.string().min(1).nullable(), // "R1 底盘调试"（任务名，非人名）
   isCritical: z.boolean(),
+  // 收敛任务（总联调，convergenceScope='allLeafGroups'）标记：前端 DAG 渲染「全组」徽章。
+  // 由 toDepGraphView 从 task.convergenceScope 投影，非人维度（仍是任务结构属性）。
+  isConvergenceTask: z.boolean(),
   intrinsicComplexity: TaskComplexitySchema,
   unmetNeedLabels: z.array(z.string().min(1)),
   // "被卡去学"挂接：被卡节点关联的知识/资料（中性给予，A3/D-027）。
@@ -605,6 +612,7 @@ export type Member = z.infer<typeof MemberSchema>;
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 export type TaskComplexity = z.infer<typeof TaskComplexitySchema>;
 export type Task = z.infer<typeof TaskSchema>;
+export type TaskConvergenceScope = NonNullable<Task['convergenceScope']>;
 export type DependencyType = z.infer<typeof DependencyTypeSchema>;
 export type DependencyStatus = z.infer<typeof DependencyStatusSchema>;
 export type DependencySource = z.infer<typeof DependencySourceSchema>;

@@ -25,20 +25,20 @@ describe('deriveStudySuggestions — 窄义学习建议（S3，B1；D-039 硬边
       expect(SelfStudySuggestionSchema.safeParse(s).success).toBe(true);
   });
 
-  test('组级 join：need-rtos(open,grp-program,[RTOS,CAN]) 命中 kn-rtos + kn-can', () => {
+  test('组级 join：need-rtos(open,grp-ec,[RTOS,CAN]) 命中 kn-rtos + kn-can', () => {
     // node.name 含 token：FreeRTOS… 含 "RTOS"；底盘 CAN… 含 "CAN"；视觉标定不含。
     expect(baseResult.group).toHaveLength(2);
     const byNode = new Map(baseResult.group.map((g) => [g.knowledgeNodeId, g]));
     const rtos = byNode.get('kn-rtos')!;
     const can = byNode.get('kn-can')!;
-    expect(rtos.groupId).toBe('grp-program');
+    expect(rtos.groupId).toBe('grp-ec');
     expect(rtos.matchedSkills).toEqual(['RTOS']);
     expect(can.matchedSkills).toEqual(['CAN']);
     expect(rtos.evidenceNeedIds).toEqual(['need-rtos']);
     expect(rtos.openGapCount).toBe(1);
     expect(rtos.detectedBy).toBe('derived');
     expect(rtos.audience).toBe('group');
-    expect(rtos.factStatement).toContain('程序');
+    expect(rtos.factStatement).toContain('电控');
     expect(rtos.factStatement).toContain('RTOS');
     // kn-vision-cal 不含 RTOS/CAN → 不产出。
     expect(byNode.has('kn-vision-cal')).toBe(false);

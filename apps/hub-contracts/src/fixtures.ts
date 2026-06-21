@@ -413,6 +413,9 @@ export const governanceScenarioFixture: GovernanceSnapshot = {
     { id: 'grp-program', seasonId: 'season-robocon-2026', parentGroupId: null, name: '程序', kind: 'program' },
     { id: 'grp-ec', seasonId: 'season-robocon-2026', parentGroupId: 'grp-program', name: '电控', kind: 'electrical' },
     { id: 'grp-vision', seasonId: 'season-robocon-2026', parentGroupId: 'grp-program', name: '视觉', kind: 'custom' },
+    // 哨兵组（PRESENCE-RECONCILE-LOCK 路线 C）：仅承载总联调收敛任务（convergenceScope='allLeafGroups'）
+    // 的 DAG/PM 归属——无成员、parentGroupId=null（非叶子）、绝不进派生在场输出/归因（schedule render 跳过）。
+    { id: 'grp-convergence', seasonId: 'season-robocon-2026', parentGroupId: null, name: '全组联调', kind: 'custom' },
   ],
   members: [
     { id: 'm-visionA', displayName: '视觉A', role: 'member', grade: 'junior', groupId: 'grp-vision', status: 'working', currentTaskId: 't-r1-dataset', updatedBy: 'git', updatedAt: GOVERNANCE_SCENARIO_NOW },
@@ -421,8 +424,10 @@ export const governanceScenarioFixture: GovernanceSnapshot = {
     { id: 'm-circuitD', displayName: '电路D', role: 'member', grade: 'junior', groupId: 'grp-circuit', status: 'working', currentTaskId: 't-r1-newboard', updatedBy: 'console', updatedAt: GOVERNANCE_SCENARIO_NOW },
     { id: 'm-visionC', displayName: '视觉C', role: 'member', grade: 'freshman', groupId: 'grp-vision', status: 'idle', currentTaskId: 't-r1-vision-stream', updatedBy: 'derived', updatedAt: GOVERNANCE_SCENARIO_NOW },
     { id: 'm-mechD', displayName: '机械D', role: 'member', grade: 'freshman', groupId: 'grp-mech', status: 'idle', currentTaskId: 't-r2-spare', updatedBy: 'derived', updatedAt: GOVERNANCE_SCENARIO_NOW },
-    { id: 'm-progA', displayName: '程序A', role: 'groupAdmin', grade: 'senior', groupId: 'grp-program', status: 'working', currentTaskId: 't-r1-integration', updatedBy: 'git', updatedAt: GOVERNANCE_SCENARIO_NOW },
-    { id: 'm-progB', displayName: '程序B', role: 'member', grade: 'junior', groupId: 'grp-program', status: 'working', currentTaskId: 't-r2-integration', updatedBy: 'git', updatedAt: GOVERNANCE_SCENARIO_NOW },
+    // PRESENCE-RECONCILE-LOCK：程序 AB 归口电控/视觉，程序组去领任务身份（仅留汇报视角）。
+    // m-progA 降为 member（Q6 不突出组长）、改持新常规任务 t-r1-system-tune（电控做 R1 系统调试）。
+    { id: 'm-progA', displayName: '程序A', role: 'member', grade: 'senior', groupId: 'grp-ec', status: 'working', currentTaskId: 't-r1-system-tune', updatedBy: 'git', updatedAt: GOVERNANCE_SCENARIO_NOW },
+    { id: 'm-progB', displayName: '程序B', role: 'member', grade: 'junior', groupId: 'grp-vision', status: 'working', currentTaskId: 't-r2-integration', updatedBy: 'git', updatedAt: GOVERNANCE_SCENARIO_NOW },
   ],
   tasks: [
     { id: 't-r1-arm-mount', projectId: 'prj-robots', groupId: 'grp-mech', title: 'R1 机械臂装配', rawSummary: '装好机械臂结构件', status: 'done', statusSource: 'console', ownerId: 'm-mechC', collaboratorIds: [], robotTarget: 'R1', intrinsicComplexity: 'normal', lastProgressAt: '2026-06-09T12:00:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
@@ -431,8 +436,13 @@ export const governanceScenarioFixture: GovernanceSnapshot = {
     { id: 't-r1-dataset', projectId: 'prj-robots', groupId: 'grp-vision', title: 'R1 视觉数据集采集', rawSummary: '在 R1 上跑数据采集', status: 'inProgress', statusSource: 'git', ownerId: 'm-visionA', collaboratorIds: [], robotTarget: 'R1', intrinsicComplexity: 'normal', lastProgressAt: '2026-06-11T01:00:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
     { id: 't-r1-vision-stream', projectId: 'prj-robots', groupId: 'grp-vision', title: 'R1 视觉→运动数据流', rawSummary: '本来很简单，就是把视觉结果接进运动', status: 'inProgress', statusSource: 'derived', ownerId: 'm-visionC', collaboratorIds: [], robotTarget: 'R1', intrinsicComplexity: 'trivial', lastProgressAt: '2026-06-08T18:00:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
     { id: 't-r2-spare', projectId: 'prj-robots', groupId: 'grp-mech', title: 'R2 备件整理', rawSummary: '整理 R2 备件清单', status: 'inProgress', statusSource: 'console', ownerId: 'm-mechD', collaboratorIds: [], robotTarget: 'R2', intrinsicComplexity: 'trivial', lastProgressAt: '2026-06-10T09:00:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
-    { id: 't-r1-integration', projectId: 'prj-robots', groupId: 'grp-program', title: 'R1 总联调', rawSummary: 'R1 整机联调', status: 'inProgress', statusSource: 'git', ownerId: 'm-progA', collaboratorIds: ['m-visionC', 'm-ecB'], robotTarget: 'R1', intrinsicComplexity: 'hard', lastProgressAt: '2026-06-10T23:30:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
-    { id: 't-r2-integration', projectId: 'prj-robots', groupId: 'grp-program', title: 'R2 总联调', rawSummary: 'R2 整机联调', status: 'inProgress', statusSource: 'git', ownerId: 'm-progB', collaboratorIds: [], robotTarget: 'R2', intrinsicComplexity: 'hard', lastProgressAt: '2026-06-10T23:00:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
+    // 总联调 = 收敛任务（convergenceScope='allLeafGroups'）：挂哨兵组 grp-convergence、无单一负责组长
+    // （ownerId=null、collaboratorIds=[]）；在场由派生给「全组各一人」。仍是最长链终点 → isCritical=true 不变。
+    { id: 't-r1-integration', projectId: 'prj-robots', groupId: 'grp-convergence', title: 'R1 总联调', rawSummary: 'R1 整机联调', status: 'inProgress', statusSource: 'git', ownerId: null, collaboratorIds: [], robotTarget: 'R1', intrinsicComplexity: 'hard', convergenceScope: 'allLeafGroups', lastProgressAt: '2026-06-10T23:30:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
+    { id: 't-r2-integration', projectId: 'prj-robots', groupId: 'grp-convergence', title: 'R2 总联调', rawSummary: 'R2 整机联调', status: 'inProgress', statusSource: 'git', ownerId: null, collaboratorIds: [], robotTarget: 'R2', intrinsicComplexity: 'hard', convergenceScope: 'allLeafGroups', lastProgressAt: '2026-06-10T23:00:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
+    // 路线 C 新增常规 sink：今晚电控做「R1 系统调试」（非总联调）。owner m-progA(working) → 节点 working、
+    // 不计 idle、不抢关键链（dep-004/005 仍指 integration，等长但 taskId 升序 integration 先到）。
+    { id: 't-r1-system-tune', projectId: 'prj-robots', groupId: 'grp-ec', title: 'R1 系统调试', rawSummary: 'R1 子系统联合调试（常规、非总联调）', status: 'inProgress', statusSource: 'git', ownerId: 'm-progA', collaboratorIds: [], robotTarget: 'R1', intrinsicComplexity: 'hard', lastProgressAt: '2026-06-10T23:30:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
   ],
   dependencies: [
     { id: 'dep-001', projectId: 'prj-robots', fromTaskId: 't-r1-arm-mount', toTaskId: 't-r1-chassis', type: 'requires', status: 'satisfied', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
@@ -440,9 +450,12 @@ export const governanceScenarioFixture: GovernanceSnapshot = {
     { id: 'dep-003', projectId: 'prj-robots', fromTaskId: 't-r1-chassis', toTaskId: 't-r1-vision-stream', type: 'blocks', status: 'active', source: 'aiSuggested', confirmedBy: PROVIDER_VISION_A, createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
     { id: 'dep-004', projectId: 'prj-robots', fromTaskId: 't-r1-vision-stream', toTaskId: 't-r1-integration', type: 'blocks', status: 'active', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
     { id: 'dep-005', projectId: 'prj-robots', fromTaskId: 't-r1-chassis', toTaskId: 't-r1-integration', type: 'blocks', status: 'active', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
+    // 路线 C：现有上游链接到常规 sink t-r1-system-tune（复刻今晚三态）。不动 dep-004/005（→ integration，保关键链）。
+    { id: 'dep-006', projectId: 'prj-robots', fromTaskId: 't-r1-vision-stream', toTaskId: 't-r1-system-tune', type: 'blocks', status: 'active', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
+    { id: 'dep-007', projectId: 'prj-robots', fromTaskId: 't-r1-chassis', toTaskId: 't-r1-system-tune', type: 'blocks', status: 'active', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
   ],
   needs: [
-    { id: 'need-rtos', projectId: 'prj-robots', onTaskId: 't-r1-chassis', description: '需要懂 RTOS 的人协助底盘中断时序', providerGroupId: 'grp-program', claimedByMemberId: null, status: 'open', neededSkills: ['RTOS', 'CAN'], source: 'aiSuggested', confirmedBy: PROVIDER_EC_B, openedAt: '2026-06-08T20:00:00.000Z', escalatedAt: null },
+    { id: 'need-rtos', projectId: 'prj-robots', onTaskId: 't-r1-chassis', description: '需要懂 RTOS 的人协助底盘中断时序', providerGroupId: 'grp-ec', claimedByMemberId: null, status: 'open', neededSkills: ['RTOS', 'CAN'], source: 'aiSuggested', confirmedBy: PROVIDER_EC_B, openedAt: '2026-06-08T20:00:00.000Z', escalatedAt: null },
     { id: 'need-board-review', projectId: 'prj-robots', onTaskId: 't-r1-chassis', description: '新版电路板需电控一起复核是否引入问题', providerGroupId: 'grp-circuit', claimedByMemberId: 'm-circuitD', status: 'claimed', neededSkills: ['circuit'], source: 'human', confirmedBy: PROVIDER_EC_B, openedAt: '2026-06-09T10:00:00.000Z', escalatedAt: null },
   ],
   knowledgeNodes: [
@@ -466,12 +479,14 @@ export const memberKnowledgeFixtures: MemberKnowledge[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// 差异化在场排班样例（D-029）：治理快照 + 机器人 + 今晚占用窗口。
+// 差异化在场排班样例（D-029；PRESENCE-RECONCILE-LOCK 路线 C 拆两场景）。
 //
-// 今晚 R1 归程序组调「R1 总联调」。期望派生：
-//   程序 = present（持有 R1，最后一关）；电控 / 电路 = onCall（上游链上仍在推进）；
-//   视觉 = free（被底盘卡，挂"可看的资料"）；机械 = 沉默（机械臂已装完，链上无活）。
-// down 变体：R1 撞坏 → R1 链相关组整片 free(resourceDown)。
+// 场景甲·平日差异化（windowLabel='今晚'，首屏默认）：R1 归电控做「R1 系统调试」（常规、非总联调）。
+//   电控 = present（持有 R1）；电路 = onCall（上游 t-r1-newboard 仍在推进）；
+//   视觉 = free（被底盘卡，挂"可看的资料"）；机械 = 沉默（链上无活）。→ 三态俱在。
+// 场景乙·总联调日（windowLabel='总联调日'）：收敛任务 t-r1/r2-integration → 四叶子组各 present
+//   （电控/视觉/机械/电路全组各一人）。两场景同 fixture，靠 windowLabel 分流、互不串场。
+// down 变体：R1 撞坏 → R1 链相关组整片 free(resourceDown)（仍跑「今晚」）。
 // ---------------------------------------------------------------------------
 
 export const scheduleScenarioFixture: ScheduleSnapshot = {
@@ -483,7 +498,13 @@ export const scheduleScenarioFixture: ScheduleSnapshot = {
     { id: 'res-r2', projectId: 'prj-robots', name: 'R2 比赛机器人', kind: 'robot', robotTarget: 'R2', status: 'available', statusReason: null, statusSource: 'console', season: '26', version: 1, displayCode: deriveDisplayCode('26', 'R2', 1), updatedAt: GOVERNANCE_SCENARIO_NOW },
   ],
   resourceSessions: [
-    { id: 'sess-tonight-prog', projectId: 'prj-robots', resourceId: 'res-r1', windowLabel: '今晚', orderInWindow: 0, holderGroupId: 'grp-program', holderTaskId: 't-r1-integration', invitedMemberIds: ['m-progA'], note: '今晚 R1 归程序调总联调', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, eta: null, createdAt: GOVERNANCE_SCENARIO_NOW },
+    // 今晚 = 平日差异化：电控持 R1 做「R1 系统调试」（非总联调 → 三态成立）。id 改名 sess-tonight-ec
+    // （Q1，仅不透明键）；invitedMemberIds 留空（Q2，永不进派生输出）。
+    { id: 'sess-tonight-ec', projectId: 'prj-robots', resourceId: 'res-r1', windowLabel: '今晚', orderInWindow: 0, holderGroupId: 'grp-ec', holderTaskId: 't-r1-system-tune', invitedMemberIds: [], note: '今晚 R1 归电控做系统调试（平日差异化场景）', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, eta: null, createdAt: GOVERNANCE_SCENARIO_NOW },
+    // 总联调日 = 全组各一人：收敛任务（convergenceScope='allLeafGroups'）→ 派生四叶子组全 present。
+    // 持有组填哨兵 grp-convergence；R1+R2 两台车都演示（Q4）。windowLabel 与今晚不同，互不串场（C-4）。
+    { id: 'sess-convergence-day-r1', projectId: 'prj-robots', resourceId: 'res-r1', windowLabel: '总联调日', orderInWindow: 0, holderGroupId: 'grp-convergence', holderTaskId: 't-r1-integration', invitedMemberIds: [], note: '总联调日：R1 全组各到一人', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, eta: null, createdAt: GOVERNANCE_SCENARIO_NOW },
+    { id: 'sess-convergence-day-r2', projectId: 'prj-robots', resourceId: 'res-r2', windowLabel: '总联调日', orderInWindow: 0, holderGroupId: 'grp-convergence', holderTaskId: 't-r2-integration', invitedMemberIds: [], note: '总联调日：R2 全组各到一人', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, eta: null, createdAt: GOVERNANCE_SCENARIO_NOW },
   ],
   // 接力交接线（R1）：默认空，重启回 seed（D-029，内存态）。队长在接力画布拉线产生。
   relayHandoffs: [],

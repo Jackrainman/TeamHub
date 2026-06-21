@@ -10,7 +10,7 @@ import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
 // SCHED-WIRE-EXISTING（D-029 差异化在场排班）：把已存在但零运行时引用的纯函数 derivePresenceSchedule
 // 接出成真实 API。验证：seed 锚点（scheduleScenarioFixture）→ GET /api/schedule?windowLabel=今晚 出非空建议、
-// 三态俱在（程序 present / 电控·电路 onCall / 视觉 free）；I0 输出无人维度；POST 录入一窗后排班含该窗派生。
+// 三态俱在（电控 present / 电路 onCall / 视觉 free）；I0 输出无人维度；POST 录入一窗后排班含该窗派生。
 
 describe('GET /api/schedule（差异化在场排班，I0 无人维度）', () => {
   test('windowLabel=今晚 → 非空 recommendations + present/onCall/free 三态俱在', async () => {
@@ -25,7 +25,7 @@ describe('GET /api/schedule（差异化在场排班，I0 无人维度）', () =>
       expect(body.windowLabel).toBe('今晚');
       expect(body.recommendations.length).toBeGreaterThan(0);
       const modes = new Set(body.recommendations.map((r) => r.mode));
-      // 今晚 R1 归程序总联调：程序 present、电控/电路 onCall、视觉 free（被底盘卡）。
+      // 今晚 R1 归电控做系统调试（平日差异化）：电控 present、电路 onCall、视觉 free（被底盘卡）。
       expect(modes.has('present')).toBe(true);
       expect(modes.has('onCall')).toBe(true);
       expect(modes.has('free')).toBe(true);
@@ -97,14 +97,14 @@ describe('GET /api/schedule（差异化在场排班，I0 无人维度）', () =>
 });
 
 describe('在场排班读视图 + 录入', () => {
-  test('GET /api/resource-sessions → seed 占用窗口（sess-tonight-prog）', async () => {
+  test('GET /api/resource-sessions → seed 占用窗口（sess-tonight-ec）', async () => {
     const app = buildHubServer();
     try {
       const res = await app.inject({ method: 'GET', url: '/api/resource-sessions' });
       expect(res.statusCode).toBe(200);
       const body = ResourceSessionsResponseSchema.parse(res.json());
       expect(body.sessions.length).toBeGreaterThanOrEqual(1);
-      expect(body.sessions.some((s) => s.id === 'sess-tonight-prog')).toBe(true);
+      expect(body.sessions.some((s) => s.id === 'sess-tonight-ec')).toBe(true);
     } finally {
       await app.close();
     }
