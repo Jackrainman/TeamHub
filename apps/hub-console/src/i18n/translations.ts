@@ -25,7 +25,6 @@ const zh = {
   'project.view.board': '看板',
   'project.view.graph': '依赖图',
   // 赛季下拉「其它/手填」兜底（SeasonSelect，表单一致 D-077）
-  'season.other': '其它（手填）',
   'season.otherHint': '输入赛季后两位，如 22',
 
   // 设置页
@@ -392,7 +391,7 @@ const zh = {
   'kb.severity.critical': '紧急',
   'kb.generatedBy.ai': 'AI 整理',
   'kb.generatedBy.manual': '人工整理',
-  'kb.generatedBy.hybrid': '人机协同',
+  'kb.generatedBy.hybrid': '人工+AI 合写',
   'kb.closeout.submit': '结案归档',
   'kb.closeout.submitting': '归档中…',
   'kb.closeout.success.title': '已归档结案',
@@ -545,6 +544,94 @@ const zh = {
   'resources.action.apply': '改',
   'resources.action.applying': '改中…',
   'resources.action.error': '改状态失败：{detail}',
+
+  // 依赖图工具条（新建任务）
+  'depgraph.toolbar.newTask': '在看板新建任务',
+
+  // 库存新增零件表单（INV-CREATE）
+  'inv.create.title': '新增零件',
+  'inv.create.subtitle': '先把零件建进库存，再去盘点 / 装机记账。',
+  'inv.create.field.partNumber': '零件编号',
+  'inv.create.field.partNumberPlaceholder': '如 GM6020 / C620 / main-controller',
+  'inv.create.field.name': '名称',
+  'inv.create.field.namePlaceholder': '如 6020 云台电机',
+  'inv.create.field.category': '类目',
+  'inv.create.field.unit': '单位',
+  'inv.create.field.unitPlaceholder': '如 个 / 套',
+  'inv.create.field.totalQuantity': '初始总数',
+  'inv.create.field.lowStockThreshold': '缺料阈值',
+  'inv.create.field.track': '追踪方式',
+  'inv.create.track.bulk': '按数量',
+  'inv.create.track.individual': '逐个体',
+  'inv.create.submit': '新增零件',
+  'inv.create.submitting': '提交中…',
+  'inv.create.success': '已新增「{name}」。',
+  'inv.create.error': '新增失败：{detail}',
+
+  // 库存类目选项
+  'inv.catopt.motor': '电机（如 6020 / 3508）',
+  'inv.catopt.esc': '电调（电机驱动）',
+  'inv.catopt.controller': '主控（控制板）',
+  'inv.catopt.mechanical': '机械件（结构 / 紧固）',
+  'inv.catopt.electronic': '电子件（线缆 / 模块）',
+  'inv.catopt.other': '其他',
+
+  // 逐个体追踪说明
+  'inv.track.individual.tag': '序号件',
+  'inv.track.individual.hint': '单件追踪：贵重件逐个体记血缘（电机 / 电调 / 主控）。',
+
+  // 图纸档案页 Tab 与分组筛选（A8 增补）
+  'archive.tab.view': '查看档案',
+  'archive.tab.register': '新登记',
+  'archive.view.groupFilter': '按学科组筛选',
+  'archive.groupEmpty': '该组还没有图纸记录。',
+
+  // 图纸档案表单补充字段
+  'archive.form.source': '来源',
+  'archive.form.sourceHint': '云端链接与本地文件可同时填——本地存档 + 云端引用双保险，至少给一个。',
+  'archive.form.subTypeHint': '选「驱动」会额外显示关联仓库 / 提交字段。',
+
+  // 知识库补充键
+  'kb.noResults.goArchive': '未找到？去归档',
+  'kb.closeout.field.projectId.placeholder': 'proj-xxx',
+  'kb.closeout.field.projectId.hint': '项目 ID，可在项目页复制',
+
+  // 机器人资源字段说明
+  'resources.field.robotTargetHint': '此值直接出现在机器人编号里（如 R1→26R1）',
+  'resources.field.previewHint': '机器人编号由赛季+编号位+代次派生，不可手填',
+
+  // 旧状态兼容（只作显示，不参与新状态流转）
+  'resources.status.down.legacy': '坏了（旧，≈在修）',
+  'resources.status.upgrading.legacy': '改造中（旧，≈在修）',
+
+  // 看板机器人简称
+  'pm.robot.R1': 'R1 机器人（比赛主机）',
+  'pm.robot.R2': 'R2 机器人（备用机）',
+
+  // PM 表单字段补充
+  'pm.field.actorHint': '填姓名即可，系统自动转 ID',
+  'pm.depType.hint.blocks': '前者完成前，后者无法开始',
+  'pm.depType.hint.requires': '后者需要前者的产出才能推进',
+  'pm.depType.hint.sharesResource': '两者共用同一台机器人，同时占用会冲突',
+
+  // PM 状态简称
+  'pm.status.short.pending': '待启动',
+  'pm.status.short.inProgress': '进行中',
+  'pm.status.short.blocked': '卡住',
+  'pm.status.short.done': '完成',
+  'pm.status.short.shelved': '搁置',
+
+  // PM 冷启动引导
+  'pm.coldstart.goCreate': '去新建任务',
+
+  // 设置页连接分区
+  'settings.section.connection': '连接',
+  'settings.about.mode.mockFirst': '本地演示',
+  'settings.about.mode.real': '真实后端',
+  'settings.about.mode.hybrid': '混合',
+
+  // 缺人方向卡片
+  'gaps.card.needCount': '{n} 条待补需求',
 } as const;
 
 export type TranslationKey = keyof typeof zh;
@@ -568,7 +655,6 @@ const en: Record<TranslationKey, string> = {
   'project.view.board': 'Board',
   'project.view.graph': 'Dependencies',
   // Season dropdown "other / type-in" fallback (SeasonSelect, form consistency D-077)
-  'season.other': 'Other (type in)',
   'season.otherHint': 'Last two digits, e.g. 22',
 
   'toolbar.title.settings': 'Settings',
@@ -703,7 +789,7 @@ const en: Record<TranslationKey, string> = {
     'Link deleted — this dependency no longer blocks downstream.',
   'depgraph.edge.deleteError': 'Could not delete the link: {detail}',
 
-  'nav.archive': 'Artifacts',
+  'nav.archive': 'Drawing Archive',
   'toolbar.title.kb': 'Similar-bug Search · Cross-season Recall',
   'toolbar.title.archive': 'Artifact Submission Log · Version Timeline',
 
@@ -939,7 +1025,7 @@ const en: Record<TranslationKey, string> = {
   'kb.severity.critical': 'Critical',
   'kb.generatedBy.ai': 'AI',
   'kb.generatedBy.manual': 'Manual',
-  'kb.generatedBy.hybrid': 'Hybrid',
+  'kb.generatedBy.hybrid': 'Manual + AI',
   'kb.closeout.submit': 'Archive closeout',
   'kb.closeout.submitting': 'Archiving…',
   'kb.closeout.success.title': 'Closeout archived',
@@ -1107,6 +1193,94 @@ const en: Record<TranslationKey, string> = {
   'resources.action.apply': 'Apply',
   'resources.action.applying': 'Applying…',
   'resources.action.error': 'Status change failed: {detail}',
+
+  // Dep-graph toolbar (new task)
+  'depgraph.toolbar.newTask': 'New task on board',
+
+  // Inventory — add new part form (INV-CREATE)
+  'inv.create.title': 'Add a part',
+  'inv.create.subtitle': 'Add the part to inventory first, then stocktake or log mounts against it.',
+  'inv.create.field.partNumber': 'Part number',
+  'inv.create.field.partNumberPlaceholder': 'e.g. GM6020 / C620 / main-controller',
+  'inv.create.field.name': 'Name',
+  'inv.create.field.namePlaceholder': 'e.g. 6020 gimbal motor',
+  'inv.create.field.category': 'Category',
+  'inv.create.field.unit': 'Unit',
+  'inv.create.field.unitPlaceholder': 'e.g. pcs / set',
+  'inv.create.field.totalQuantity': 'Initial total',
+  'inv.create.field.lowStockThreshold': 'Low-stock threshold',
+  'inv.create.field.track': 'Tracking',
+  'inv.create.track.bulk': 'By count',
+  'inv.create.track.individual': 'Per item',
+  'inv.create.submit': 'Add part',
+  'inv.create.submitting': 'Saving…',
+  'inv.create.success': 'Added "{name}".',
+  'inv.create.error': 'Add failed: {detail}',
+
+  // Inventory category options
+  'inv.catopt.motor': 'Motor (e.g. 6020 / 3508)',
+  'inv.catopt.esc': 'ESC (motor driver)',
+  'inv.catopt.controller': 'Controller (control board)',
+  'inv.catopt.mechanical': 'Mechanical (structure / fasteners)',
+  'inv.catopt.electronic': 'Electronic (cables / modules)',
+  'inv.catopt.other': 'Other',
+
+  // Per-item tracking hint
+  'inv.track.individual.tag': 'Serialized',
+  'inv.track.individual.hint': 'Tracked per item: serialized lineage for valuable parts (motor / ESC / controller).',
+
+  // Archive page tabs and group filter (A8 additions)
+  'archive.tab.view': 'Browse archive',
+  'archive.tab.register': 'New entry',
+  'archive.view.groupFilter': 'Filter by group',
+  'archive.groupEmpty': 'No artifacts in this group yet.',
+
+  // Archive form supplemental fields
+  'archive.form.source': 'Source',
+  'archive.form.sourceHint': 'Cloud link and local file can both be set — local copy plus cloud reference; give at least one.',
+  'archive.form.subTypeHint': 'Choosing “Driver” shows extra related repo / commit fields.',
+
+  // Knowledge base supplemental keys
+  'kb.noResults.goArchive': 'Not found? Archive it',
+  'kb.closeout.field.projectId.placeholder': 'proj-xxx',
+  'kb.closeout.field.projectId.hint': 'Project ID — copy it from the project page',
+
+  // Robot resource field hints
+  'resources.field.robotTargetHint': 'This slot appears directly in the robot code (e.g. R1→26R1)',
+  'resources.field.previewHint': 'Robot code is derived from season + slot + generation — not editable',
+
+  // Legacy status labels (display only, not in new status flow)
+  'resources.status.down.legacy': 'Down (legacy, ≈ in repair)',
+  'resources.status.upgrading.legacy': 'Upgrading (legacy, ≈ in repair)',
+
+  // Board robot shorthands
+  'pm.robot.R1': 'R1 robot (main competition)',
+  'pm.robot.R2': 'R2 robot (backup)',
+
+  // PM form field supplements
+  'pm.field.actorHint': 'Just write a name — the system resolves it to an ID',
+  'pm.depType.hint.blocks': 'Downstream cannot start until upstream is done',
+  'pm.depType.hint.requires': 'Downstream needs an output from upstream to proceed',
+  'pm.depType.hint.sharesResource': 'Both tasks share the same robot — concurrent use conflicts',
+
+  // PM status short labels
+  'pm.status.short.pending': 'Pending',
+  'pm.status.short.inProgress': 'In progress',
+  'pm.status.short.blocked': 'Blocked',
+  'pm.status.short.done': 'Done',
+  'pm.status.short.shelved': 'Shelved',
+
+  // PM cold-start CTA
+  'pm.coldstart.goCreate': 'Create a task',
+
+  // Settings — connection section
+  'settings.section.connection': 'Connection',
+  'settings.about.mode.mockFirst': 'Local demo (mock-first)',
+  'settings.about.mode.real': 'Real backend',
+  'settings.about.mode.hybrid': 'Hybrid',
+
+  // Direction gaps card
+  'gaps.card.needCount': '{n} open gap(s)',
 };
 
 export const translations: Record<Lang, Record<TranslationKey, string>> = {
