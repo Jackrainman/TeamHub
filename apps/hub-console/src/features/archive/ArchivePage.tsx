@@ -16,6 +16,7 @@ import { errorDetail, segClass } from '../../utils';
 import { MetaRow } from '../../components/MetaRow';
 import { SeasonSelect, guessSeason } from '../../components/SeasonSelect';
 import { Combobox } from '../../components/Combobox';
+import { FormActions } from '../../components/FormActions';
 
 type OwnerGroup = 'mechanical' | 'electrical' | 'ec' | 'vision';
 
@@ -408,32 +409,28 @@ export function ArchivePage({
           </div>
         ) : null}
 
-        <div className="pm-form__footer">
-          <button
-            className="kb-submit"
-            type="submit"
-            disabled={!valid || mutation.isPending}
-          >
-            {mutation.isPending ? t('archive.form.submitting') : t('archive.form.submit')}
-          </button>
-          {mutation.isSuccess ? (
-            <p className="form-banner form-banner--ok">
-              {t('archive.form.success', {
-                name: mutation.data.artifact.name,
-                revision: mutation.data.artifact.revision ?? '',
-              })}
-            </p>
-          ) : null}
-          {mutation.error ? (
-            <p className="form-banner form-banner--err">
-              {/401|unauthorized/i.test(errorDetail(mutation.error))
+        <FormActions
+          submitLabel={t('archive.form.submit')}
+          submittingLabel={t('archive.form.submitting')}
+          submitting={mutation.isPending}
+          disabled={!valid}
+          error={
+            mutation.error
+              ? // 401/未授权派生为专用文案、其余带 detail；FormBanner 不另起类（§1.3.4）。
+                /401|unauthorized/i.test(errorDetail(mutation.error))
                 ? t('archive.form.error401')
-                : t('archive.form.error', {
-                    detail: errorDetail(mutation.error),
-                  })}
-            </p>
-          ) : null}
-        </div>
+                : t('archive.form.error', { detail: errorDetail(mutation.error) })
+              : null
+          }
+          success={
+            mutation.isSuccess
+              ? t('archive.form.success', {
+                  name: mutation.data.artifact.name,
+                  revision: mutation.data.artifact.revision ?? '',
+                })
+              : null
+          }
+        />
       </form>
     </section>
   );

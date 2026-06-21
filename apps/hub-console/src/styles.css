@@ -962,6 +962,11 @@ button {
   cursor: not-allowed;
 }
 
+/* 零结果下「去归档」CTA：与上方提示拉开半行间距（取代旧内联 style）。 */
+.kb-noresults__action {
+  margin-top: 0.5rem;
+}
+
 .kb-results {
   display: flex;
   flex-direction: column;

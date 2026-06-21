@@ -7,6 +7,7 @@ import type { KbCloseoutRequest } from '../../api/schemas/kb';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { parseList, errorDetail } from '../../utils';
 import { Field } from '../../components/Field';
+import { FormActions } from '../../components/FormActions';
 import { MetaRow } from '../../components/MetaRow';
 
 const SEVERITIES: IssueSeverity[] = ['low', 'medium', 'high', 'critical'];
@@ -187,26 +188,20 @@ export function KbCloseoutForm({
         />
       </Field>
 
-      <div className="pm-form__footer">
-        <button
-          className="kb-submit"
-          type="submit"
-          disabled={!valid || mutation.isPending}
-        >
-          <Archive size={15} aria-hidden="true" />
-          {mutation.isPending
-            ? t('kb.closeout.submitting')
-            : t('kb.closeout.submit')}
-        </button>
-        {mutation.error ? (
-          <p className="form-banner form-banner--err">
-            {t('kb.closeout.error', {
-              detail: errorDetail(mutation.error),
-            })}
-          </p>
-        ) : null}
-      </div>
+      <FormActions
+        submitLabel={t('kb.closeout.submit')}
+        submittingLabel={t('kb.closeout.submitting')}
+        submitting={mutation.isPending}
+        disabled={!valid}
+        icon={<Archive size={15} aria-hidden="true" />}
+        error={
+          mutation.error
+            ? t('kb.closeout.error', { detail: errorDetail(mutation.error) })
+            : null
+        }
+      />
 
+      {/* 成功是富结果块（错误码 / 归档 / 知识点三行 + 可检索提示），保留原专有结构、不降级为单条 banner。 */}
       {mutation.isSuccess ? (
         <div className="kb-closeout__result">
           <p className="kb-closeout__result-head">

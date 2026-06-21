@@ -17,6 +17,7 @@ import type {
 import { useI18n, type TranslationKey } from '../../i18n';
 import { parseList, errorDetail, segClass } from '../../utils';
 import { Field } from '../../components/Field';
+import { FormActions } from '../../components/FormActions';
 
 type Mode = 'task' | 'dependency' | 'need';
 
@@ -281,11 +282,16 @@ function TaskForm({
         </Field>
       </div>
       <p className="form-hint">{t('pm.field.actorHint')}</p>
-      <FormFooter
+      <FormActions
         submitLabel={t('pm.create.submit.task')}
+        submittingLabel={t('pm.create.submitting')}
         submitting={mutation.isPending}
         disabled={!valid}
-        error={mutation.error}
+        error={
+          mutation.error
+            ? t('pm.create.error', { detail: errorDetail(mutation.error) })
+            : null
+        }
         success={
           mutation.isSuccess
             ? t('pm.create.success.task', { title: mutation.data.task.title })
@@ -383,11 +389,16 @@ function DependencyForm({
       <Field label={t('pm.field.confirmer')}>
         <input value={confirmer} onChange={(e) => setConfirmer(e.target.value)} />
       </Field>
-      <FormFooter
+      <FormActions
         submitLabel={t('pm.create.submit.dependency')}
+        submittingLabel={t('pm.create.submitting')}
         submitting={mutation.isPending}
         disabled={!valid}
-        error={mutation.error}
+        error={
+          mutation.error
+            ? t('pm.create.error', { detail: errorDetail(mutation.error) })
+            : null
+        }
         success={mutation.isSuccess ? t('pm.create.success.dependency') : null}
       />
     </form>
@@ -491,11 +502,16 @@ function NeedForm({
       <Field label={t('pm.field.confirmer')}>
         <input value={confirmer} onChange={(e) => setConfirmer(e.target.value)} />
       </Field>
-      <FormFooter
+      <FormActions
         submitLabel={t('pm.create.submit.need')}
+        submittingLabel={t('pm.create.submitting')}
         submitting={mutation.isPending}
         disabled={!valid}
-        error={mutation.error}
+        error={
+          mutation.error
+            ? t('pm.create.error', { detail: errorDetail(mutation.error) })
+            : null
+        }
         success={mutation.isSuccess ? t('pm.create.success.need') : null}
       />
     </form>
@@ -558,35 +574,6 @@ function SourceSelect({
         </option>
       ))}
     </select>
-  );
-}
-
-function FormFooter({
-  submitLabel,
-  submitting,
-  disabled,
-  error,
-  success,
-}: {
-  submitLabel: string;
-  submitting: boolean;
-  disabled: boolean;
-  error: unknown;
-  success: string | null;
-}) {
-  const { t } = useI18n();
-  return (
-    <div className="pm-form__footer">
-      <button className="kb-submit" type="submit" disabled={disabled || submitting}>
-        {submitting ? t('pm.create.submitting') : submitLabel}
-      </button>
-      {success ? <p className="form-banner form-banner--ok">{success}</p> : null}
-      {error ? (
-        <p className="form-banner form-banner--err">
-          {t('pm.create.error', { detail: errorDetail(error) })}
-        </p>
-      ) : null}
-    </div>
   );
 }
 

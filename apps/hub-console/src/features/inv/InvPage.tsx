@@ -10,6 +10,7 @@ import type {
 import { useI18n, type TranslationKey } from '../../i18n';
 import { errorDetail } from '../../utils';
 import { Field } from '../../components/Field';
+import { FormActions } from '../../components/FormActions';
 import { MetricTile } from '../../components/MetricTile';
 import { InvLedgerTable } from './InvLedgerTable';
 import { InvQuickRecordForm, type HolderOption } from './InvQuickRecordForm';
@@ -286,25 +287,22 @@ function CreatePartTypeForm({
             </button>
           </div>
         </Field>
-        <div className="pm-form__footer">
-          <button
-            className="kb-submit"
-            type="submit"
-            disabled={!valid || mutation.isPending}
-          >
-            {mutation.isPending ? t('inv.create.submitting') : t('inv.create.submit')}
-          </button>
-          {mutation.isSuccess ? (
-            <p className="form-banner form-banner--ok">
-              {t('inv.create.success', { name: mutation.data.partType.name })}
-            </p>
-          ) : null}
-          {mutation.error ? (
-            <p className="form-banner form-banner--err">
-              {t('inv.create.error', { detail: errorDetail(mutation.error) })}
-            </p>
-          ) : null}
-        </div>
+        <FormActions
+          submitLabel={t('inv.create.submit')}
+          submittingLabel={t('inv.create.submitting')}
+          submitting={mutation.isPending}
+          disabled={!valid}
+          error={
+            mutation.error
+              ? t('inv.create.error', { detail: errorDetail(mutation.error) })
+              : null
+          }
+          success={
+            mutation.isSuccess
+              ? t('inv.create.success', { name: mutation.data.partType.name })
+              : null
+          }
+        />
       </form>
     </section>
   );

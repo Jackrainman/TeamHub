@@ -9,6 +9,7 @@ import type {
 import { useI18n, type TranslationKey } from '../../i18n';
 import { errorDetail } from '../../utils';
 import { Field } from '../../components/Field';
+import { FormActions } from '../../components/FormActions';
 
 const IDLE_HOLDER = 'idle';
 
@@ -182,19 +183,18 @@ export function InvQuickRecordForm({
             <input value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
         ) : null}
-        <div className="pm-form__footer">
-          <button className="kb-submit" type="submit" disabled={!valid || mutation.isPending}>
-            {mutation.isPending ? t('inv.record.submitting') : t('inv.record.submit')}
-          </button>
-          {mutation.isSuccess ? (
-            <p className="form-banner form-banner--ok">{t('inv.record.success')}</p>
-          ) : null}
-          {mutation.error ? (
-            <p className="form-banner form-banner--err">
-              {t('inv.record.error', { detail: errorDetail(mutation.error) })}
-            </p>
-          ) : null}
-        </div>
+        <FormActions
+          submitLabel={t('inv.record.submit')}
+          submittingLabel={t('inv.record.submitting')}
+          submitting={mutation.isPending}
+          disabled={!valid}
+          error={
+            mutation.error
+              ? t('inv.record.error', { detail: errorDetail(mutation.error) })
+              : null
+          }
+          success={mutation.isSuccess ? t('inv.record.success') : null}
+        />
       </form>
     </section>
   );

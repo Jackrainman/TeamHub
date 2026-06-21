@@ -23,6 +23,7 @@ import { canBoardResource } from '@teamhub/hub-contracts';
 import type { SharedResource, Task } from '@teamhub/hub-contracts';
 import { useI18n } from '../../i18n';
 import { Field } from '../../components/Field';
+import { FormBanner } from '../../components/FormBanner';
 import { isoPrevDay } from './date-utils';
 import { buildCarryOverDraft } from './carry-over';
 
@@ -732,15 +733,12 @@ export function RelayCanvas({
         {addForm}
         {/* 空态也要能显示 carryEmpty / carryError / carryDone 反馈（此处非绝对定位，跟随冷卡上方）。 */}
         {banner ? (
-          <div
-            className={`form-banner ${
-              banner.kind === 'err' ? 'form-banner--err' : 'form-banner--ok'
-            }`}
+          <FormBanner
+            kind={banner.kind}
+            message={banner.text}
             role={banner.kind === 'err' ? 'alert' : 'status'}
             onClick={() => setBanner(null)}
-          >
-            {banner.text}
-          </div>
+          />
         ) : null}
         {/* 空态 = 带 CTA 的引导卡（不是静态告示）：直接给「加第一项」「沿用上一天」两个入口
             （SCHEDULE-DESIGN-LOCK §1：空板本身就是录入口，发现性问题一并解决）。 */}
@@ -778,15 +776,12 @@ export function RelayCanvas({
       {addForm}
       <p className="relay-canvas__hint">{t('schedule.relay.swimlaneHint')}</p>
       {banner ? (
-        <div
-          className={`form-banner ${
-            banner.kind === 'err' ? 'form-banner--err' : 'form-banner--ok'
-          }`}
+        <FormBanner
+          kind={banner.kind}
+          message={banner.text}
           role={banner.kind === 'err' ? 'alert' : 'status'}
           onClick={() => setBanner(null)}
-        >
-          {banner.text}
-        </div>
+        />
       ) : null}
       <div
         className="relay-swimlane"

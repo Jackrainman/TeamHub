@@ -14,6 +14,7 @@ import { useI18n, type TranslationKey } from '../../i18n';
 import { errorDetail } from '../../utils';
 import { SeasonSelect, guessSeason } from '../../components/SeasonSelect';
 import { Field } from '../../components/Field';
+import { FormActions } from '../../components/FormActions';
 import { MetricTile } from '../../components/MetricTile';
 
 // TODO(backend): 车型枚举待 hub-contracts 放开，新车型（如 R3/R4）需后端先扩展 RobotTarget 联合类型，
@@ -228,11 +229,14 @@ function CreateResourceForm({
               ariaLabelKey="resources.field.season"
             />
           </Field>
-          <Field label={t('resources.field.robotTarget')} className="kb-field--narrow">
+          <Field
+            label={t('resources.field.robotTarget')}
+            className="kb-field--narrow"
+            // 编号位直接出现在机器人编号中（如 R1→26R1）；hint 唯一承载说明，去掉 select 上的 title 双写。
+            hint={t('resources.field.robotTargetHint')}
+          >
             <select
               value={robotTarget}
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              title={t('resources.field.robotTargetHint')}
               onChange={(e) => setRobotTarget(e.target.value as RobotTarget)}
             >
               {ROBOT_TARGETS.map((rt) => (
@@ -241,9 +245,6 @@ function CreateResourceForm({
                 </option>
               ))}
             </select>
-            {/* 编号位直接出现在机器人编号中（如 R1→26R1），鼠标悬停 title 同义 */}
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            <span className="kb-field__hint">{t('resources.field.robotTargetHint')}</span>
           </Field>
           <Field label={t('resources.field.version')}>
             {/* 版本右侧内联只读预览徽章；机器人编号由 deriveDisplayCode 派生，禁手写。 */}
@@ -286,29 +287,24 @@ function CreateResourceForm({
             </select>
           </Field>
         </div>
-        <div className="pm-form__footer">
-          <button
-            className="kb-submit"
-            type="submit"
-            disabled={!valid || mutation.isPending}
-          >
-            {mutation.isPending
-              ? t('resources.create.submitting')
-              : t('resources.create.submit')}
-          </button>
-          {mutation.isSuccess ? (
-            <p className="form-banner form-banner--ok">
-              {t('resources.create.success', {
-                code: mutation.data.resource.displayCode ?? mutation.data.resource.name,
-              })}
-            </p>
-          ) : null}
-          {mutation.error ? (
-            <p className="form-banner form-banner--err">
-              {t('resources.create.error', { detail: errorDetail(mutation.error) })}
-            </p>
-          ) : null}
-        </div>
+        <FormActions
+          submitLabel={t('resources.create.submit')}
+          submittingLabel={t('resources.create.submitting')}
+          submitting={mutation.isPending}
+          disabled={!valid}
+          error={
+            mutation.error
+              ? t('resources.create.error', { detail: errorDetail(mutation.error) })
+              : null
+          }
+          success={
+            mutation.isSuccess
+              ? t('resources.create.success', {
+                  code: mutation.data.resource.displayCode ?? mutation.data.resource.name,
+                })
+              : null
+          }
+        />
       </form>
     </section>
   );

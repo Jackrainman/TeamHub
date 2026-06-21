@@ -4,6 +4,7 @@ import { Info, Search, Archive } from 'lucide-react';
 import type { SimilarIssueMatch } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n, type TranslationKey } from '../../i18n';
+import { Field } from '../../components/Field';
 import { MetaRow } from '../../components/MetaRow';
 import { KbCloseoutForm } from './KbCloseoutForm';
 
@@ -125,24 +126,22 @@ function KbSearchPanel({
   return (
     <div className="kb-search-panel">
       <form className="panel kb-search-form" onSubmit={handleSubmit}>
-        <label className="kb-field">
-          <span>{t('kb.search.symptomLabel')}</span>
+        <Field label={t('kb.search.symptomLabel')}>
           <textarea
             value={symptomInput}
             onChange={(event) => setSymptomInput(event.target.value)}
             placeholder={t('kb.search.symptomPlaceholder')}
             rows={3}
           />
-        </label>
-        <label className="kb-field">
-          <span>{t('kb.search.tagsLabel')}</span>
+        </Field>
+        <Field label={t('kb.search.tagsLabel')}>
           <input
             type="text"
             value={tagsInput}
             onChange={(event) => setTagsInput(event.target.value)}
             placeholder={t('kb.search.tagsPlaceholder')}
           />
-        </label>
+        </Field>
         <button
           className="kb-submit"
           type="submit"
@@ -170,8 +169,7 @@ function KbSearchPanel({
               <span>{t('kb.noResults')}</span>
               <button
                 type="button"
-                className="kb-submit"
-                style={{ marginTop: '0.5rem' }}
+                className="kb-submit kb-noresults__action"
                 onClick={onGoToCloseout}
               >
                 <Archive size={14} aria-hidden="true" /> {t('kb.noResults.goArchive')}
