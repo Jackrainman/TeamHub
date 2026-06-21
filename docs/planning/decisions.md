@@ -926,7 +926,7 @@
 
 ## D-077 — IA 重构修正：图纸档案拆回独立页 + 导航全摊平 + 缺人方向置末
 
-- 状态：**DECIDED / IMPLEMENTED（本地 master `9c4cc5d`，revert D-076 代码 → 从干净 D-075 处重做；本机三包 `verify:all` 全绿 + i18n 双侧 467 键平衡）；WSL2 真机 Playwright 待补**（测试机当时离线/ssh 超时，脚本+bundle 已传，上线即跑）；**待 push origin/master**（2026-06-21）。
+- 状态：**DECIDED / IMPLEMENTED / VERIFIED（本地 master `9c4cc5d`，revert D-076 代码 → 从干净 D-075 处重做；本机三包 `verify:all` 全绿 + i18n 双侧 467 键平衡 + WSL2 真机 Playwright 7/7 PASS buildId `9c4cc5d`，截图 `docs/screenshots/wsl-ia-fix-*`）；待 push origin/master**（2026-06-21）。
 - 上下文：D-076 阶段 2-4 并入 master 后用户验收发现两处设计错误：① 知识库把「图纸档案」和「相似搜索」合一是错的——KB 相似检索（调试结案 markdown 域）与图纸档案（CAD `ArtifactRef` 域）**八竿子打不着**（正是 D-076 实现期「archiveFileName 不做链」捕获的同一数据域分歧的延续）；② 「洞察」分组**不该可折叠**。
 - **用户拍板**：
   1. **图纸档案拆回独立顶级页**（知识库 = 纯相似检索 `KbSearchPage`；图纸档案 = 独立 `ArchivePage`）。
@@ -938,7 +938,7 @@
   - **revert**（commit `996df7d`）：`git revert d0f858c 9147462 9b090b7` + 删过时截图 `wsl-ia-phase2-4-*` → 回 D-075 干净基线，console src 实测与基线零 diff。
   - **重做**（commit `9c4cc5d`）：复用已验证好件（从被 revert 的 commit 取回 `ProjectPage.tsx` 看板+依赖图、`SeasonSelect.tsx` 赛季下拉一致、去重录入入口的 `DepGraphPage.tsx`、接 SeasonSelect 的 `ArchivePage`/`ResourcesPage`）；新写 `App.tsx`（路由 8 分支·删 focusTaskId·knowledge→KbSearchPage·archive→ArchivePage）、`ConsoleLayout.tsx`（扁平 `navItems` 8 项·新序·`ConsolePage` 联合 = overview\|project\|knowledge\|archive\|inv\|fleet\|gaps\|settings）、`i18n`（加 nav.project/nav.knowledge/toolbar.title.project·knowledge/project.view.*/season.* · 删 nav.depGraph/nav.pm/nav.kb + 对应 title · **保留** nav.archive/toolbar.title.archive、toolbar.title.kb=KbSearchPage 内层用）、`styles.css`（取 P3 版含 project-view-switch+season、无 nav-group）。**不重建** `KnowledgePage`。
 - 铁律：组合不重写；契约/端点零改；`robotCode`/`robotTarget` 枚举不动；I0 反监视；i18n 双侧成对。
-- 验证：本机 contracts 151 / server 186 / console(typecheck+test+build) 三包 `verify:all` 全绿；i18n zh/en 各 467 键平衡、无单侧孤儿；grep 实测无残留对已删 page id / i18n 键 / `KnowledgePage` 的引用。**WSL2 真机 Playwright 待补**（机器离线，上线即跑：扁平 8 项按序 / 无折叠 / 知识库无图纸 Tab / 图纸档案独立 / 项目页依赖图无 visibility:hidden / 两表单赛季下拉 / I0 净，截图入 `docs/screenshots/wsl-ia-fix-*`）。
+- 验证：本机 contracts 151 / server 186 / console(typecheck+test+build) 三包 `verify:all` 全绿；i18n zh/en 各 467 键平衡、无单侧孤儿；grep 实测无残留对已删 page id / i18n 键 / `KnowledgePage` 的引用。**WSL2 真机 Playwright 7/7 PASS**（rainman@100.78.202.84，buildId `9c4cc5d`，bundle 过 SSH + 单会话起服 4177，截图 `docs/screenshots/wsl-ia-fix-*` + `wsl-ia-fix-results.json`）：①扁平导航 8 项按序[总览/项目/知识库/图纸档案/库存/机器人队/缺人方向/设置] ②无折叠组(nav-group-header=0) ③项目页依赖图渲染无 visibility:hidden(react-flow 8 节点·任一 hidden=false) ④知识库=纯相似检索(主区图纸 Tab=0) ⑤图纸档案独立页+赛季下拉其它 ⑥机器人队 create 赛季下拉其它 ⑦I0 项目+知识库 DOM 无 memberId。（测试机一度 ssh 超时离线、/tmp 被清；改 bundle+runner 落 ~/ 持久目录 + FETCH_HEAD detached checkout 后跑通。）
 - 事实源：本 ADR；plan `~/.claude/plans/binary-munching-valley.md`；前序 D-076（全文 → `docs/archive/decisions-archive.md`）/ D-075（阶段 1）。
 - 上下文：D-075 阶段 1（机器人队页）已落地，但用户 2026-06-20「左侧还是一大堆」——阶段 1 仅 10→9 看不出，视觉 declutter 全在阶段 2-4。沿用 D-075「组合不重写」。spec = `docs/planning/ia-refactor-next-prompts.md` PROMPT 1+2，上游 `docs/design/sched-date-relay-robot-redesign.md` §B。本轮单开 `ia-phase2-4`、不在 master 直改；master 回并推迟到收尾（云端 a4033b8 已干净并入工作分支，merge-tree 零冲突实证）。
 - **用户拍板的覆盖项（优先于 spec 旧措辞）**：

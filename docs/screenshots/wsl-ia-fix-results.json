@@ -1,0 +1,42 @@
+{
+  "total": 7,
+  "passed": 7,
+  "failed": 0,
+  "results": [
+    {
+      "check": "扁平导航 8 项按序",
+      "pass": true,
+      "detail": "items=[总览 / 项目 / 知识库 / 图纸档案 / 库存/BOM / 机器人队 / 缺人方向 / 设置]"
+    },
+    {
+      "check": "无折叠组(洞察已删)",
+      "pass": true,
+      "detail": "nav-group-header=0"
+    },
+    {
+      "check": "项目页依赖图渲染无hidden",
+      "pass": true,
+      "detail": "react-flow=1 节点=8 任一hidden=false"
+    },
+    {
+      "check": "知识库=纯相似检索(无图纸Tab)",
+      "pass": true,
+      "detail": "相似检索=2 知识库内图纸Tab=0"
+    },
+    {
+      "check": "图纸档案独立页+赛季下拉其它",
+      "pass": true,
+      "detail": "其它option=1"
+    },
+    {
+      "check": "机器人队create赛季下拉其它",
+      "pass": true,
+      "detail": "其它option=1"
+    },
+    {
+      "check": "I0 反监视(DOM无memberId)",
+      "pass": true,
+      "detail": "项目+知识库 DOM 净"
+    }
+  ]
+}
