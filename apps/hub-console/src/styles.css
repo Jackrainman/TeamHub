@@ -2390,31 +2390,56 @@ button {
   color: var(--muted);
   font-size: 12.5px;
 }
-.relay-canvas__board {
-  position: relative;
-  /* 定高、内容无关（IA 阶段 1）：合并进机器人队页后画布上方多了机器人表，旧 calc(100vh-360px) 的
-     360px 魔法偏移失真。clamp 给 @xyflow 一个确定容器高度（不依赖上方内容高度），防首屏测量错位。 */
-  height: clamp(420px, 58vh, 720px);
+/* 泳道板 v1（取代旧 @xyflow 自由画布）：每台机器人一条横泳道，纵向堆叠；泳道内卡片横向并排 = 并行。 */
+.relay-swimlane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.relay-lane {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--surface-muted);
   box-shadow: var(--shadow);
   overflow: hidden;
 }
-.relay-canvas__banner {
-  position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 5;
-  max-width: 80%;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
+.relay-lane__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+.relay-lane__code {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--green-soft);
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 800;
+}
+.relay-lane__count {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted);
+}
+/* 泳道内的工作卡横排（并排=并行）；窄屏可横向滚动，不挤压换行破坏「同时干」语义。 */
+.relay-lane__cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+  padding: 12px;
+  list-style: none;
 }
 
-/* 接力卡片：左侧绿条 = 可上场（boardable）；灰条 + 降透明 = 机器人今天停用。 */
+/* 工作卡：左侧绿条 = 可上场（boardable）；灰条 + 降透明 = 机器人今天停用。泳道板不再拖拽，无 grab 光标。 */
 .relay-card {
   position: relative;
-  width: 208px;
+  width: 220px;
   min-height: 118px;
   padding: 10px 12px 10px 15px;
   border: 1px solid var(--border-strong);
@@ -2422,10 +2447,7 @@ button {
   border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow);
-  cursor: grab;
-}
-.relay-card:active {
-  cursor: grabbing;
+  list-style: none;
 }
 .relay-card--closed {
   border-left-color: var(--border-strong);
@@ -2520,13 +2542,11 @@ button {
   color: var(--text);
   font-size: 11px;
 }
+/* 泳道内次序 ◄►（取代旧自由拖拽）：横排放在卡头右侧。 */
 .relay-card__reorder {
-  position: absolute;
-  top: 8px;
-  right: 8px;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: row;
+  gap: 3px;
 }
 .relay-card__move {
   display: inline-flex;
@@ -2549,9 +2569,104 @@ button {
   opacity: 0.35;
   cursor: not-allowed;
 }
-/* 删一棒按钮（A2）：卡片底部窄文本按钮，红色语义（不可撤销 + 级联删交接线）。 */
-.relay-card__delete {
+/* 接力关系标签（v1 不画箭头）：源卡「→ 然后」=绿、目标卡「↳ 接在…之后」=蓝，各带删除 ×。 */
+.relay-rels {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 7px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.relay-rel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 2px 7px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.relay-rel--out {
+  background: var(--green-soft);
+  color: var(--green);
+}
+.relay-rel--in {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+.relay-rel__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.relay-rel__del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+}
+.relay-rel__del:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+/* 卡底动作行：「→ 然后接…」建接力 + 删一项。 */
+.relay-card__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   margin-top: 8px;
+}
+.relay-card__then {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.relay-card__then-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.relay-card__then-btn:hover:not(:disabled) {
+  border-color: var(--green);
+  color: var(--green);
+}
+.relay-card__then-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.relay-card__then-select {
+  width: 100%;
+  padding: 3px 6px;
+  border: 1px solid var(--green);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 11px;
+}
+
+/* 删一项按钮（A2）：卡片底部窄文本按钮，红色语义（不可撤销 + 级联删交接线）。 */
+.relay-card__delete {
   width: 100%;
   padding: 3px 6px;
   border: 1px solid var(--border-strong);
@@ -2657,8 +2772,4 @@ button {
 .relay-add__cancel:hover {
   border-color: var(--border-strong);
   color: var(--text);
-}
-/* 交接线：绿色（与卡片可上场同色），区别于依赖图的红/蓝/琥珀语义边。 */
-.relay-edge .react-flow__edge-path {
-  stroke: var(--green);
 }

@@ -410,8 +410,20 @@ const zh = {
   'schedule.relay.boardingClosed': '这台机器人今天停用：{reason}',
   'schedule.relay.detailTitle': '各组详情',
 
-  // 接力交接画布（R1，可编辑）——队长拖卡排先后、拉线表交接、点 ETA 写预估时间，所有人看同一块。
-  'schedule.relay.canvasHint': '拖卡片排先后、卡片间拉线表示交接、点 ETA 写预估时间',
+  // 泳道板 v1（R1，可编辑）——每台机器人一条横泳道、卡片并排=并行、关系标签表串行接力，所有人看同一块。
+  'schedule.relay.swimlaneHint':
+    '每台机器人一条泳道。并排的卡 = 同时干；要接力就点「→ 然后接…」，关系会写在卡上。',
+  'schedule.relay.swimlaneLabel': '机器人泳道板',
+  'schedule.relay.laneLabel': '{code} 的工作',
+  'schedule.relay.laneCount': '{n} 项',
+  'schedule.relay.relsLabel': '接力关系',
+  'schedule.relay.relThen': '→ 然后：{task}',
+  'schedule.relay.relAfter': '↳ 接在「{task}」之后',
+  'schedule.relay.addHandoff': '→ 然后接…',
+  'schedule.relay.handoffPick': '选一项接在它后面',
+  'schedule.relay.handoffDelete': '取消这条接力',
+  'schedule.relay.moveLeft': '往前挪一位',
+  'schedule.relay.moveRight': '往后挪一位',
   'schedule.relay.loading': '正在排这天的接力顺序…',
   'schedule.relay.unavailable': '接力画布打不开（后端没连上？检查后端地址或服务是否在线）',
   'schedule.relay.eta': '预估',
@@ -1046,10 +1058,21 @@ const en: Record<TranslationKey, string> = {
   'schedule.relay.boardingClosed': 'This rig is out today: {reason}',
   'schedule.relay.detailTitle': 'By group',
 
-  // Editable relay-handoff canvas (R1) — lead drags cards to order, draws lines for handoffs,
-  // taps ETA to note an estimate; everyone sees the same board.
-  'schedule.relay.canvasHint':
-    'Drag cards to order them, draw a line between cards for a handoff, tap ETA to note a time',
+  // Swimlane board v1 (R1, editable) — one horizontal lane per robot, side-by-side cards = parallel,
+  // relation labels express serial handoffs; everyone sees the same board.
+  'schedule.relay.swimlaneHint':
+    'One lane per robot. Side-by-side cards run at the same time; to chain them, tap "→ then…" and the link shows on the card.',
+  'schedule.relay.swimlaneLabel': 'Robot swimlane board',
+  'schedule.relay.laneLabel': "{code}'s work",
+  'schedule.relay.laneCount': '{n} item(s)',
+  'schedule.relay.relsLabel': 'Handoff links',
+  'schedule.relay.relThen': '→ then: {task}',
+  'schedule.relay.relAfter': '↳ after "{task}"',
+  'schedule.relay.addHandoff': '→ then…',
+  'schedule.relay.handoffPick': 'Pick what comes after it',
+  'schedule.relay.handoffDelete': 'Remove this handoff',
+  'schedule.relay.moveLeft': 'Move earlier',
+  'schedule.relay.moveRight': 'Move later',
   'schedule.relay.loading': "Laying out the day's relay order…",
   'schedule.relay.unavailable':
     "Can't open the relay board (backend offline? check address/service)",
