@@ -8,6 +8,8 @@ import { useI18n, type TranslationKey } from '../../i18n';
 import { parseList, errorDetail } from '../../utils';
 import { Field } from '../../components/Field';
 import { FormActions } from '../../components/FormActions';
+import { FormGrid } from '../../components/FormGrid';
+import { Select } from '../../components/Select';
 import { MetaRow } from '../../components/MetaRow';
 
 const SEVERITIES: IssueSeverity[] = ['low', 'medium', 'high', 'critical'];
@@ -110,7 +112,7 @@ export function KbCloseoutForm({
   return (
     <form className="panel kb-closeout-form" onSubmit={submit}>
       <p className="kb-closeout__intro">{t('kb.closeout.intro')}</p>
-      <div className="pm-form__grid">
+      <FormGrid>
         <Field label={t('kb.closeout.field.title')}>
           <input value={title} onChange={(e) => setTitle(e.target.value)} />
         </Field>
@@ -122,7 +124,7 @@ export function KbCloseoutForm({
           />
           <span className="kb-field__hint">{t('kb.closeout.field.projectId.hint')}</span>
         </Field>
-      </div>
+      </FormGrid>
       <Field label={t('kb.closeout.field.symptom')}>
         <textarea
           rows={2}
@@ -130,24 +132,20 @@ export function KbCloseoutForm({
           onChange={(e) => setSymptom(e.target.value)}
         />
       </Field>
-      <div className="pm-form__grid">
+      <FormGrid>
         <Field label={t('kb.closeout.field.severity')}>
-          <select
+          <Select
             value={severity}
-            onChange={(e) => setSeverity(e.target.value as IssueSeverity)}
-          >
-            {SEVERITIES.map((s) => (
-              <option value={s} key={s}>
-                {t(SEVERITY_KEY[s])}
-              </option>
-            ))}
-          </select>
+            onChange={setSeverity}
+            options={SEVERITIES}
+            renderOption={(s) => t(SEVERITY_KEY[s])}
+          />
         </Field>
         <Field label={t('kb.closeout.field.tags')}>
           <input value={tags} onChange={(e) => setTags(e.target.value)} />
         </Field>
-      </div>
-      <div className="pm-form__grid">
+      </FormGrid>
+      <FormGrid>
         <Field label={t('kb.closeout.field.rootCause')}>
           <textarea
             rows={2}
@@ -162,24 +160,20 @@ export function KbCloseoutForm({
             onChange={(e) => setResolution(e.target.value)}
           />
         </Field>
-      </div>
-      <div className="pm-form__grid">
+      </FormGrid>
+      <FormGrid>
         <Field label={t('kb.closeout.field.category')}>
           <input value={category} onChange={(e) => setCategory(e.target.value)} />
         </Field>
         <Field label={t('kb.closeout.field.generatedBy')}>
-          <select
+          <Select
             value={generatedBy}
-            onChange={(e) => setGeneratedBy(e.target.value as ArchiveGeneratedBy)}
-          >
-            {GENERATED_BY.map((g) => (
-              <option value={g} key={g}>
-                {t(GENERATED_BY_KEY[g])}
-              </option>
-            ))}
-          </select>
+            onChange={setGeneratedBy}
+            options={GENERATED_BY}
+            renderOption={(g) => t(GENERATED_BY_KEY[g])}
+          />
         </Field>
-      </div>
+      </FormGrid>
       <Field label={t('kb.closeout.field.prevention')}>
         <textarea
           rows={1}

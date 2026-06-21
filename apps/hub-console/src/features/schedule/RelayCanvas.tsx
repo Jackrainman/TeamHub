@@ -24,6 +24,7 @@ import type { SharedResource, Task } from '@teamhub/hub-contracts';
 import { useI18n } from '../../i18n';
 import { Field } from '../../components/Field';
 import { FormBanner } from '../../components/FormBanner';
+import { FormEmptyState } from '../../components/FormEmptyState';
 import { isoPrevDay } from './date-utils';
 import { buildCarryOverDraft } from './carry-over';
 
@@ -901,11 +902,14 @@ function AddLegForm({
       </header>
       {noOptions ? (
         // 拆成两条可执行引导（替原 addEmpty 死胡同）：缺机器人 → 同页上方就地建；缺任务 → 去项目看板。
-        <p className="form-hint">
-          {resources.length === 0
-            ? t('schedule.relay.addEmptyRobot')
-            : t('schedule.relay.addEmptyTask')}
-        </p>
+        // 早退提示统一走 FormEmptyState（吐同款 p.form-hint）；双提示按缺哪类候选派生文案。
+        <FormEmptyState
+          message={
+            resources.length === 0
+              ? t('schedule.relay.addEmptyRobot')
+              : t('schedule.relay.addEmptyTask')
+          }
+        />
       ) : (
         <form className="pm-form" onSubmit={submit}>
           <div className="pm-form__grid">

@@ -18,6 +18,10 @@ import { useI18n, type TranslationKey } from '../../i18n';
 import { parseList, errorDetail, segClass } from '../../utils';
 import { Field } from '../../components/Field';
 import { FormActions } from '../../components/FormActions';
+import { FormGrid } from '../../components/FormGrid';
+import { Select } from '../../components/Select';
+import { Combobox } from '../../components/Combobox';
+import { FormEmptyState } from '../../components/FormEmptyState';
 
 type Mode = 'task' | 'dependency' | 'need';
 
@@ -217,23 +221,20 @@ function TaskForm({
 
   return (
     <form className="pm-form" onSubmit={submit}>
-      <div className="pm-form__grid">
+      <FormGrid>
         <Field label={t('pm.field.projectId')}>
           <input value={projectId} onChange={(e) => setProjectId(e.target.value)} />
         </Field>
         <Field label={t('pm.field.groupId')}>
-          <input
+          {/* 候选可挑又需手填（groupId 会变）→ Combobox（input+datalist）。 */}
+          <Combobox
             value={groupId}
-            list="pm-group-options"
-            onChange={(e) => setGroupId(e.target.value)}
+            onChange={setGroupId}
+            options={groupOptions}
+            ariaLabel={t('pm.field.groupId')}
           />
-          <datalist id="pm-group-options">
-            {groupOptions.map((g) => (
-              <option value={g} key={g} />
-            ))}
-          </datalist>
         </Field>
-      </div>
+      </FormGrid>
       <Field label={t('pm.field.title')}>
         <input value={title} onChange={(e) => setTitle(e.target.value)} />
       </Field>
@@ -244,33 +245,25 @@ function TaskForm({
           onChange={(e) => setRawSummary(e.target.value)}
         />
       </Field>
-      <div className="pm-form__grid">
+      <FormGrid>
         <Field label={t('pm.field.robotTarget')} className="kb-field--narrow">
-          <select
+          <Select
             value={robotTarget}
-            onChange={(e) => setRobotTarget(e.target.value as RobotTarget)}
-          >
-            {ROBOT_TARGETS.map((rt) => (
-              <option value={rt} key={rt}>
-                {t(ROBOT_TARGET_KEY[rt])}
-              </option>
-            ))}
-          </select>
+            onChange={setRobotTarget}
+            options={ROBOT_TARGETS}
+            renderOption={(rt) => t(ROBOT_TARGET_KEY[rt])}
+          />
         </Field>
         <Field label={t('pm.field.complexity')}>
-          <select
+          <Select
             value={complexity}
-            onChange={(e) => setComplexity(e.target.value as TaskComplexity)}
-          >
-            {COMPLEXITIES.map((c) => (
-              <option value={c} key={c}>
-                {t(COMPLEXITY_KEY[c])}
-              </option>
-            ))}
-          </select>
+            onChange={setComplexity}
+            options={COMPLEXITIES}
+            renderOption={(c) => t(COMPLEXITY_KEY[c])}
+          />
         </Field>
-      </div>
-      <div className="pm-form__grid">
+      </FormGrid>
+      <FormGrid>
         <Field label={t('pm.field.owner')}>
           <input value={owner} onChange={(e) => setOwner(e.target.value)} />
         </Field>
@@ -280,7 +273,7 @@ function TaskForm({
             onChange={(e) => setCollaborators(e.target.value)}
           />
         </Field>
-      </div>
+      </FormGrid>
       <p className="form-hint">{t('pm.field.actorHint')}</p>
       <FormActions
         submitLabel={t('pm.create.submit.task')}
@@ -329,7 +322,7 @@ function DependencyForm({
   });
 
   if (tasks.length < 2) {
-    return <p className="form-hint">{t('pm.create.needTwoTasks')}</p>;
+    return <FormEmptyState message={t('pm.create.needTwoTasks')} />;
   }
 
   const fromTask = tasks.find((task) => task.id === fromTaskId);
@@ -357,35 +350,31 @@ function DependencyForm({
 
   return (
     <form className="pm-form" onSubmit={submit}>
-      <div className="pm-form__grid">
+      <FormGrid>
         <Field label={t('pm.field.fromTask')}>
           <TaskSelect tasks={tasks} value={fromTaskId} onChange={setFromTaskId} richLabel />
         </Field>
         <Field label={t('pm.field.toTask')}>
           <TaskSelect tasks={tasks} value={toTaskId} onChange={setToTaskId} richLabel />
         </Field>
-      </div>
+      </FormGrid>
       {fromTaskId && toTaskId && fromTaskId === toTaskId ? (
         <p className="form-hint form-hint--warn">{t('pm.create.depSelfEdge')}</p>
       ) : null}
-      <div className="pm-form__grid">
+      <FormGrid>
         <Field label={t('pm.field.depType')}>
-          <select
+          <Select
             value={type}
-            onChange={(e) => setType(e.target.value as DependencyType)}
-          >
-            {DEP_TYPES.map((dt) => (
-              <option value={dt} key={dt}>
-                {t(DEP_TYPE_KEY[dt])}
-              </option>
-            ))}
-          </select>
+            onChange={setType}
+            options={DEP_TYPES}
+            renderOption={(dt) => t(DEP_TYPE_KEY[dt])}
+          />
           <p className="form-hint">{t(DEP_TYPE_HINT_KEY[type])}</p>
         </Field>
         <Field label={t('pm.field.source')}>
           <SourceSelect value={source} onChange={setSource} />
         </Field>
-      </div>
+      </FormGrid>
       <Field label={t('pm.field.confirmer')}>
         <input value={confirmer} onChange={(e) => setConfirmer(e.target.value)} />
       </Field>
@@ -439,7 +428,7 @@ function NeedForm({
   });
 
   if (tasks.length < 1) {
-    return <p className="form-hint">{t('pm.create.needOneTask')}</p>;
+    return <FormEmptyState message={t('pm.create.needOneTask')} />;
   }
 
   const onTask = tasks.find((task) => task.id === onTaskId);
@@ -463,14 +452,14 @@ function NeedForm({
   return (
     <form className="pm-form" onSubmit={submit}>
       {/* onTask 与 source 并排同一行（表单密度优化）*/}
-      <div className="pm-form__grid">
+      <FormGrid>
         <Field label={t('pm.field.onTask')}>
           <TaskSelect tasks={tasks} value={onTaskId} onChange={setOnTaskId} richLabel />
         </Field>
         <Field label={t('pm.field.source')}>
           <SourceSelect value={source} onChange={setSource} />
         </Field>
-      </div>
+      </FormGrid>
       {/* description 保留全宽 */}
       <Field label={t('pm.field.needDescription')}>
         <textarea
@@ -479,18 +468,15 @@ function NeedForm({
           onChange={(e) => setDescription(e.target.value)}
         />
       </Field>
-      <div className="pm-form__grid">
+      <FormGrid>
         <Field label={t('pm.field.providerGroup')}>
-          <input
+          {/* 候选可挑又需手填（归组、组名会变）→ Combobox。 */}
+          <Combobox
             value={providerGroup}
-            list="pm-group-options-need"
-            onChange={(e) => setProviderGroup(e.target.value)}
+            onChange={setProviderGroup}
+            options={groupOptions}
+            ariaLabel={t('pm.field.providerGroup')}
           />
-          <datalist id="pm-group-options-need">
-            {groupOptions.map((g) => (
-              <option value={g} key={g} />
-            ))}
-          </datalist>
         </Field>
         <Field label={t('pm.field.neededSkills')}>
           <input
@@ -498,7 +484,7 @@ function NeedForm({
             onChange={(e) => setNeededSkills(e.target.value)}
           />
         </Field>
-      </div>
+      </FormGrid>
       <Field label={t('pm.field.confirmer')}>
         <input value={confirmer} onChange={(e) => setConfirmer(e.target.value)} />
       </Field>
@@ -541,17 +527,22 @@ function TaskSelect({
   richLabel?: boolean;
 }) {
   const { t } = useI18n();
+  // 固定枚举（任务 id）→ Select；richLabel 作 renderOption 选项保留（追加状态/组帮区分同名任务）。
+  // 占位 option 复用既有 pm.field.selectTask 文案。
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value="">{t('pm.field.selectTask')}</option>
-      {tasks.map((task) => (
-        <option value={task.id} key={task.id}>
-          {richLabel
-            ? `[${t(STATUS_SHORT_KEY[task.status])}·${task.groupId}] ${task.title}`
-            : task.title}
-        </option>
-      ))}
-    </select>
+    <Select
+      value={value}
+      onChange={onChange}
+      options={tasks.map((task) => task.id)}
+      placeholder={t('pm.field.selectTask')}
+      renderOption={(id) => {
+        const task = tasks.find((tk) => tk.id === id);
+        if (!task) return id;
+        return richLabel
+          ? `[${t(STATUS_SHORT_KEY[task.status])}·${task.groupId}] ${task.title}`
+          : task.title;
+      }}
+    />
   );
 }
 
@@ -564,16 +555,12 @@ function SourceSelect({
 }) {
   const { t } = useI18n();
   return (
-    <select
+    <Select
       value={value}
-      onChange={(e) => onChange(e.target.value as (typeof HUMAN_SOURCES)[number])}
-    >
-      {HUMAN_SOURCES.map((s) => (
-        <option value={s} key={s}>
-          {t(SOURCE_KEY[s])}
-        </option>
-      ))}
-    </select>
+      onChange={onChange}
+      options={HUMAN_SOURCES}
+      renderOption={(s) => t(SOURCE_KEY[s])}
+    />
   );
 }
 

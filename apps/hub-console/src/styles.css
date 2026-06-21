@@ -1630,6 +1630,11 @@ button {
   grid-template-columns: 1fr 1fr 1fr;
 }
 
+/* 栅格内全宽字段（FormGrid 的 span-all）：固定占满整行，不随条件渲染漂移。 */
+.pm-form__grid > .span-all {
+  grid-column: 1 / -1;
+}
+
 .pm-form__footer {
   display: flex;
   flex-wrap: wrap;

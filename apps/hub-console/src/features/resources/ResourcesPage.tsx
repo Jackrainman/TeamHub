@@ -15,6 +15,8 @@ import { errorDetail } from '../../utils';
 import { SeasonSelect, guessSeason } from '../../components/SeasonSelect';
 import { Field } from '../../components/Field';
 import { FormActions } from '../../components/FormActions';
+import { FormGrid } from '../../components/FormGrid';
+import { Select } from '../../components/Select';
 import { MetricTile } from '../../components/MetricTile';
 
 // TODO(backend): 车型枚举待 hub-contracts 放开，新车型（如 R3/R4）需后端先扩展 RobotTarget 联合类型，
@@ -220,7 +222,7 @@ function CreateResourceForm({
       </header>
       <form className="pm-form" onSubmit={submit}>
         {/* 第一行：赛季 / 编号位 / 第几代（三格），版本右侧内联预览徽章 */}
-        <div className="pm-form__grid pm-form__grid--3">
+        <FormGrid cols={3}>
           <Field label={t('resources.field.season')}>
             <SeasonSelect
               now={now}
@@ -235,19 +237,17 @@ function CreateResourceForm({
             // 编号位直接出现在机器人编号中（如 R1→26R1）；hint 唯一承载说明，去掉 select 上的 title 双写。
             hint={t('resources.field.robotTargetHint')}
           >
-            <select
+            <Select
               value={robotTarget}
-              onChange={(e) => setRobotTarget(e.target.value as RobotTarget)}
-            >
-              {ROBOT_TARGETS.map((rt) => (
-                <option value={rt} key={rt}>
-                  {rt === 'shared' ? t('resources.robot.shared') : rt}
-                </option>
-              ))}
-            </select>
+              onChange={setRobotTarget}
+              options={ROBOT_TARGETS}
+              renderOption={(rt) => (rt === 'shared' ? t('resources.robot.shared') : rt)}
+            />
           </Field>
           <Field label={t('resources.field.version')}>
-            {/* 版本右侧内联只读预览徽章；机器人编号由 deriveDisplayCode 派生，禁手写。 */}
+            {/* 版本右侧内联只读预览徽章（Field 内联预览槽）；机器人编号由 deriveDisplayCode 派生，禁手写。
+                input + 徽章是单格内的横排（flex），非表单栅格——故保留 resources-version-row 内联壳，
+                用 FormGrid（grid）会把徽章挤到次列、破坏内联布局。 */}
             <span className="resources-version-row">
               <input
                 type="number"
@@ -264,9 +264,9 @@ function CreateResourceForm({
               </span>
             </span>
           </Field>
-        </div>
+        </FormGrid>
         {/* 第二行：名字 / 类型（两格） */}
-        <div className="pm-form__grid">
+        <FormGrid>
           <Field label={t('resources.field.name')}>
             <input
               value={name}
@@ -275,18 +275,14 @@ function CreateResourceForm({
             />
           </Field>
           <Field label={t('resources.field.kind')}>
-            <select
+            <Select
               value={kind}
-              onChange={(e) => setKind(e.target.value as ResourceKind)}
-            >
-              {KINDS.map((k) => (
-                <option value={k} key={k}>
-                  {t(KIND_KEY[k])}
-                </option>
-              ))}
-            </select>
+              onChange={setKind}
+              options={KINDS}
+              renderOption={(k) => t(KIND_KEY[k])}
+            />
           </Field>
-        </div>
+        </FormGrid>
         <FormActions
           submitLabel={t('resources.create.submit')}
           submittingLabel={t('resources.create.submitting')}

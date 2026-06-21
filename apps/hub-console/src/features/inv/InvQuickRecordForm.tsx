@@ -10,6 +10,8 @@ import { useI18n, type TranslationKey } from '../../i18n';
 import { errorDetail } from '../../utils';
 import { Field } from '../../components/Field';
 import { FormActions } from '../../components/FormActions';
+import { FormGrid } from '../../components/FormGrid';
+import { Select } from '../../components/Select';
 
 const IDLE_HOLDER = 'idle';
 
@@ -131,29 +133,28 @@ export function InvQuickRecordForm({
         </div>
       </header>
       <form className="pm-form" onSubmit={submit}>
-        <div className="pm-form__grid">
+        <FormGrid>
           <Field label={t('inv.record.field.partType')}>
-            <select value={partTypeId} onChange={(e) => setPartTypeId(e.target.value)}>
-              {partTypes.map((p) => (
-                <option value={p.id} key={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+            {/* 零件下拉文案是各零件 name，非枚举键映射 → renderOption 回查 name。 */}
+            <Select
+              value={partTypeId}
+              onChange={setPartTypeId}
+              options={partTypes.map((p) => p.id)}
+              renderOption={(id) => partTypes.find((p) => p.id === id)?.name ?? id}
+            />
           </Field>
           <Field label={t('inv.record.field.kind')}>
-            <select value={kind} onChange={(e) => setKind(e.target.value as PartActionKind)}>
-              {KINDS.map((k) => (
-                <option value={k} key={k}>
-                  {t(KIND_KEY[k])}
-                </option>
-              ))}
-            </select>
+            <Select
+              value={kind}
+              onChange={setKind}
+              options={KINDS}
+              renderOption={(k) => t(KIND_KEY[k])}
+            />
           </Field>
-        </div>
+        </FormGrid>
         {/* 密度：需要机器人时本行 = 数量 + 机器人、备注独占下一行；不需要时把备注并到本行
             第二格，避免数量行半空 + 备注空占整行。 */}
-        <div className="pm-form__grid">
+        <FormGrid>
           <Field label={t('inv.record.field.quantity')}>
             <input
               type="number"
@@ -164,20 +165,21 @@ export function InvQuickRecordForm({
           </Field>
           {needsHolder(kind) ? (
             <Field label={t('inv.record.field.holder')}>
-              <select value={holder} onChange={(e) => setHolder(e.target.value)}>
-                {holderOptions.map((h) => (
-                  <option value={h.id} key={h.id}>
-                    {h.label}
-                  </option>
-                ))}
-              </select>
+              {/* holder 是已知货架/机器人的固定枚举（提交映射为 resourceId，手填会失效）→ Select 非 Combobox。
+                  下拉文案是 holderOption.label → renderOption 回查 label。 */}
+              <Select
+                value={holder}
+                onChange={setHolder}
+                options={holderOptions.map((h) => h.id)}
+                renderOption={(id) => holderOptions.find((h) => h.id === id)?.label ?? id}
+              />
             </Field>
           ) : (
             <Field label={t('inv.record.field.note')}>
               <input value={note} onChange={(e) => setNote(e.target.value)} />
             </Field>
           )}
-        </div>
+        </FormGrid>
         {needsHolder(kind) ? (
           <Field label={t('inv.record.field.note')}>
             <input value={note} onChange={(e) => setNote(e.target.value)} />

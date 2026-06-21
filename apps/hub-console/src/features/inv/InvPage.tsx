@@ -11,6 +11,9 @@ import { useI18n, type TranslationKey } from '../../i18n';
 import { errorDetail } from '../../utils';
 import { Field } from '../../components/Field';
 import { FormActions } from '../../components/FormActions';
+import { FormGrid } from '../../components/FormGrid';
+import { Select } from '../../components/Select';
+import { SegToggle } from '../../components/SegToggle';
 import { MetricTile } from '../../components/MetricTile';
 import { InvLedgerTable } from './InvLedgerTable';
 import { InvQuickRecordForm, type HolderOption } from './InvQuickRecordForm';
@@ -213,7 +216,7 @@ function CreatePartTypeForm({
         </div>
       </header>
       <form className="pm-form" onSubmit={submit}>
-        <div className="pm-form__grid">
+        <FormGrid>
           <Field label={t('inv.create.field.partNumber')}>
             <input
               value={partNumber}
@@ -228,19 +231,15 @@ function CreatePartTypeForm({
               onChange={(e) => setName(e.target.value)}
             />
           </Field>
-        </div>
-        <div className="pm-form__grid">
+        </FormGrid>
+        <FormGrid>
           <Field label={t('inv.create.field.category')}>
-            <select
+            <Select
               value={category}
-              onChange={(e) => setCategory(e.target.value as PartCategory)}
-            >
-              {CATEGORIES.map((c) => (
-                <option value={c} key={c}>
-                  {t(CATEGORY_OPTION_KEY[c])}
-                </option>
-              ))}
-            </select>
+              onChange={setCategory}
+              options={CATEGORIES}
+              renderOption={(c) => t(CATEGORY_OPTION_KEY[c])}
+            />
           </Field>
           <Field label={t('inv.create.field.unit')} className="kb-field--narrow">
             <input
@@ -249,8 +248,8 @@ function CreatePartTypeForm({
               onChange={(e) => setUnit(e.target.value)}
             />
           </Field>
-        </div>
-        <div className="pm-form__grid">
+        </FormGrid>
+        <FormGrid>
           <Field label={t('inv.create.field.totalQuantity')}>
             <input
               type="number"
@@ -267,26 +266,25 @@ function CreatePartTypeForm({
               onChange={(e) => setLowStockThreshold(e.target.value)}
             />
           </Field>
-        </div>
-        <Field label={t('inv.create.field.track')}>
-          {/* 是否单件追踪：贵重件（电机/电调/主控）逐个体记血缘；琐碎件不建实例。 */}
-          <div className="seg" role="group" aria-label={t('inv.create.field.track')}>
-            <button
-              type="button"
-              className={trackIndividually ? 'seg__btn' : 'seg__btn seg__btn--active'}
-              onClick={() => setTrackIndividually(false)}
-            >
-              {t('inv.create.track.bulk')}
-            </button>
-            <button
-              type="button"
-              className={trackIndividually ? 'seg__btn seg__btn--active' : 'seg__btn'}
-              onClick={() => setTrackIndividually(true)}
-            >
-              {t('inv.create.track.individual')}
-            </button>
-          </div>
-        </Field>
+        </FormGrid>
+        {/* 追踪粒度独占整行（FormGrid + span-all）。*/}
+        <FormGrid>
+          <Field label={t('inv.create.field.track')} className="span-all">
+            {/* 是否单件追踪：贵重件（电机/电调/主控）逐个体记血缘；琐碎件不建实例。
+                行为原样保留（陷阱 A）：默认 trackIndividually=false → bulk 高亮；
+                点 individual → true、individual 高亮。active 由 value===option.value 统一管，
+                不再各写镜像三元。 */}
+            <SegToggle<boolean>
+              value={trackIndividually}
+              onChange={setTrackIndividually}
+              ariaLabel={t('inv.create.field.track')}
+              options={[
+                { value: false, label: t('inv.create.track.bulk') },
+                { value: true, label: t('inv.create.track.individual') },
+              ]}
+            />
+          </Field>
+        </FormGrid>
         <FormActions
           submitLabel={t('inv.create.submit')}
           submittingLabel={t('inv.create.submitting')}
