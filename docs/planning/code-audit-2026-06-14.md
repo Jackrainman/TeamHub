@@ -1,6 +1,6 @@
 # 代码审计发现 — 2026-06-14
 
-- 状态：**RECORDED / 修复后置**（落档当轮；修复等彻底构建完统一批次处理，可起 D-049）
+> **2026-06-21 收口（立即可做轮）**：重新核实——in-scope 发现**绝大多数已在 D-044~D-077 演进中顺带修掉**（H1/M10 破环守卫、H2/L2/L3 KB 持久、H4 status 钳制、M6 confirmedBy I0、M7/M8/M9/M13、M15/M18/M19/M21、L1/L4/L5/L7-L10/L12、H3 鉴权/限流/bodyLimit 均已在 0dce8cb 之前落地）。本轮新补：**M16**(tab/tabpanel ARIA 双向关联)、**M17**(KB schema 字段 .max() 上限 + 派生字段截断不误拒)、**M14**(依赖图选中态受控单源)；**L11/M15 已 moot**(SOURCE 恒 real / nodesDraggable=false)；**L7** 设计如此(全库检索无 projectId 上下文)。**仍后置(部署/Hermes 决策门)**：H3 增强/H5/M11/M12/L6/M20/N3。详 D-077 后的 commit 串。
 - 日期：2026-06-14
 - 范围：当前构建（hub-contracts / hub-server / hub-console + lark-* 触点层）
 - 方法：15-agent 对抗式审计（7 维 finder → 逐维对抗式 verifier 驳斥 → opus 综合）；**confirmed 42 / refuted 1**
