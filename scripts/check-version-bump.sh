@@ -26,4 +26,23 @@ if [[ -n "$src_changed" && -z "$ver_changed" && "${SKIP_VERSION_BUMP:-0}" != "1"
     exit 1
   fi
 fi
+
+# 一致性哨兵：VERSION 与三包 package.json + 三包 package-lock(自指 version) 漂移即报警（warn-only）。
+# 历史 bug：bump 只同步 package.json，lock 顶层 version 停在 0.0.1（已修 + bump-version.sh 现一并同步）。
+node -e '
+  const fs = require("fs");
+  const want = fs.readFileSync("VERSION", "utf8").trim();
+  const files = [
+    "apps/hub-contracts/package.json", "apps/hub-server/package.json", "apps/hub-console/package.json",
+    "apps/hub-contracts/package-lock.json", "apps/hub-server/package-lock.json", "apps/hub-console/package-lock.json",
+  ];
+  const drift = files.filter((f) => {
+    try { return JSON.parse(fs.readFileSync(f, "utf8")).version !== want; } catch { return true; }
+  });
+  if (drift.length) {
+    console.error("⚠ 版本漂移（VERSION=" + want + " 但不一致）：" + drift.join(", "));
+    console.error("  一键修：scripts/bump-version.sh " + want);
+  }
+' || true
+
 exit 0

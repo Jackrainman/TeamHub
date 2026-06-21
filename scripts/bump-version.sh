@@ -40,5 +40,28 @@ for pkg in hub-contracts hub-server hub-console; do
   echo "  $f -> $next"
 done
 
-echo "产品版本 $cur -> $next（VERSION + 三包 package.json 已同步）"
-echo "下一步：git add VERSION apps/hub-*/package.json，并入本次 commit；commit message 体现版本（如 'feat(x): … v$next'）。"
+# package-lock.json 同步（历史漂移根因：旧脚本只同步 package.json，lock 顶层/工作区自指版本仍停在 0.0.1）。
+# 只改 @teamhub 自身/跨链工作区条目的 version（按 name 前缀 @teamhub/ + 顶层 + packages[""] 精准命中，
+# 绝不碰第三方依赖版本）。JSON 往返已实测保留 npm 格式（零无关 diff）。node 失败则 set -e 中止。
+node -e '
+  const fs = require("fs");
+  const v = process.argv[1];
+  for (const f of process.argv.slice(2)) {
+    if (!fs.existsSync(f)) continue;
+    const j = JSON.parse(fs.readFileSync(f, "utf8"));
+    if (typeof j.version === "string") j.version = v;
+    if (j.packages) {
+      for (const [k, p] of Object.entries(j.packages)) {
+        if (!p || typeof p.version !== "string") continue;
+        if (k === "" || (typeof p.name === "string" && p.name.startsWith("@teamhub/"))) {
+          p.version = v;
+        }
+      }
+    }
+    fs.writeFileSync(f, JSON.stringify(j, null, 2) + "\n");
+    console.log("  " + f + " -> " + v);
+  }
+' "$next" apps/hub-contracts/package-lock.json apps/hub-server/package-lock.json apps/hub-console/package-lock.json
+
+echo "产品版本 $cur -> $next（VERSION + 三包 package.json + 三包 package-lock.json 已同步）"
+echo "下一步：git add VERSION apps/hub-*/package.json apps/hub-*/package-lock.json，并入本次 commit；commit message 体现版本（如 'feat(x): … v$next'）。"

@@ -958,3 +958,21 @@
   3. **导航分组形态**：主操作区**无组标题**（项目/知识库/库存/机器人队 直接顶部排列）、洞察区有可折叠标题「洞察」（总览/缺人方向）、设置无标题——比「每组都加标题」更干净，洞察区因要折叠才需 header。
 - 验证：本机 console/contracts/server 三包 `verify:all` 全绿；i18n zh/en 双侧各 465 键平衡；终态导航 7 项 [overview/project/gaps/knowledge/inv/fleet/settings]。**WSL2 真机 Playwright 10/10 PASS**（rainman@100.78.202.84，buildId `d0f858c`，bundle 过 SSH 传 + 单会话起服 4177 + Playwright，截图 `docs/screenshots/wsl-ia-phase2-4-*` + `wsl-ia-phase2-4-results.json`）：①侧栏分组渲染(nav-group=3·洞察 header) ②导航 7 项内容正确 ③洞察区可折叠(展开→折叠→再展开) ④项目页默认看板 ⑤**依赖图嵌视图切换后渲染无 visibility:hidden**(react-flow 8 节点全 visible·任一 hidden=false·画布高 568——D-075 踩过的塌高/首屏空白回归未现，条件 mount 方案生效) ⑥知识页双 Tab(相似检索/图纸档案) ⑦图纸表单赛季下拉+其它 ⑧机器人队 create 赛季下拉+其它(原自由文本) ⑨I0 反监视：项目页+知识页 DOM 无 memberId。
 - 事实源：本 ADR；spec `docs/planning/ia-refactor-next-prompts.md` PROMPT 1+2；上游 `docs/design/sched-date-relay-robot-redesign.md` §B；前序 D-075（阶段 1）。
+
+## D-078 — 图纸文件链路收口（HUB-ARTIFACT-STORE-MECH 本地卷版）+ 表单控件修缮 + 部署/版本号修复
+
+- 状态：**DECIDED / IMPLEMENTED / VERIFIED（origin/master `0259c18`，worktree 隔离开发→rebase 上并发 session 提交→FF 合并→push；三包 `verify:all` 全绿 164/194/44 + 真机 API 冒烟全过）**（2026-06-21）。
+- 上下文：用户「系统性排查需求分析里的半成品」。揪出两类：①**图纸档案半成品**——只登记元数据、无文件上传；存储落点/是否用 git「看似无定论」（实则 D-025/D-038 早定：二进制不进 git、进本地卷/MinIO，只是没落代码）；下载按钮是摆设（无上传路径→卷里永无文件→恒 404，且**部署 env-var 名写错** `ARTIFACT_ROOT`≠server 实读的 `TEAMHUB_ARTIFACT_FILES_DIR`→线上双重 404）。②**表单控件错配**——适配机器人/赛季是窄下拉但战队编号会变需手填；编号位（robotTarget）2 字符却撑半幅栅格。另用户追加发现**版本号 lock 漂移**（hub-contracts/console package-lock 顶层 version 仍停 0.0.1）。
+- **用户拍板（三轮）**：① 存储 = **本地卷**（`TEAMHUB_ARTIFACT_FILES_DIR`，git 已否，MinIO 留可换接口）；② 适配机器人/赛季 = **组合框（候选+手填）**；③ 文件来源 = **本地文件 + 云端链接双存、行内双按钮并列**（先答「单选+文件优先」，再追问「我都有呢」后改为都可填、不互斥）。
+- 决策/实现：
+  1. **契约**：`ArtifactRefSchema.storedFile`（可选嵌套 filename/ext/sizeBytes/contentType/sha256/uploadedAt，全可选向后兼容旧 8 seed+JSON）；`CreateArtifactRequestSchema` omit storedFile（服务器独占，禁客户端注入）+ **robotCode 由 `z.enum(R1/R2/universal)` 放宽为 `z.string().min(1)`**（手填；不进版本键故安全）；新增 `UploadArtifactResponseSchema`。
+  2. **存储接缝** `apps/hub-server/src/artifact-storage.ts`：唯一触碰 `TEAMHUB_ARTIFACT_FILES_DIR` 的模块（MinIO 换点），原子写 tmp→rename + 清异后缀旧兄弟 + sha256 + 删孤儿。
+  3. **store**：`GovStore.setArtifactFile`（就地 idx 改 storedFile、非 append、重传=覆盖）三实现（InMemory / File 落盘回滚 / Sqlite stub）。
+  4. **路由** `POST /api/artifacts/:id/upload`（`@fastify/multipart` 单文件 50MB·后缀白名单以后缀为准·**先验归档物存在再写盘**避孤儿·落盘指针失败删字节·继承 H3 写鉴权+限流）；`download` 改用 `getArtifactDir` 单一真相。
+  5. **console**：`client.uploadArtifactFile`+`postFormData`（不手设 content-type）；ArchivePage 登记表单加文件 input（可选）+ 文件/云端链接**双存**（create 成功链式上传）；每条图纸行**下载(本地)+打开链接(云端)双按钮并列**·有谁显谁·都无灰显「暂无文件」+ 行内「上传/替换文件」——**消灭下载摆设**。新增通用 `Combobox`（input+datalist）；适配机器人/赛季改组合框（机器人候选取台账 displayCode 26R1/26R2+通用，复用 `getResources`）；`SeasonSelect` 由 select+其它 改 datalist；编号位/目标机器人套 `.kb-field--narrow` 收窄、`Field` 加 className 透传。i18n zh/en 成对。
+  6. **部署修复**：`compose.yaml`/`start-teamhub.sh`/`deploy/teamhub.env.example` 把 `ARTIFACT_ROOT` 改成 server 实读的 `TEAMHUB_ARTIFACT_FILES_DIR`（默认 `~/teamhub-data/artifacts`，挂卷重启不丢）。
+  7. **版本号 lock 漂移修复**：hub-contracts/console package-lock 自指 version `0.0.1`→`0.4.1`；硬化 `bump-version.sh`（node 同步三包 lock 的 @teamhub 自指/跨链 version，JSON 往返实测保留 npm 格式）；`check-version-bump.sh` 加 VERSION↔package.json/lock 漂移哨兵（warn）。
+- 守恒/红线（I0）：storedFile 全链路（契约/上传/落盘/读视图）无人员维度；上传 source 仍 server 钉、append-only 不开 update/delete；robotCode 放宽不影响版本键（组+赛季+机构三键）。
+- 验证：三包 `verify:all` 全绿（contracts 164 / server 194[+8 upload] / console 44）；**真机 API 冒烟**（本地起 server + FileGovStore）：手填 `26R3-试制`→201、上传 .md→storedFile 正确+落卷、download→拿字节、重传 .txt→清旧兄弟磁盘仅一份、`gov.json` 持久化指针（重启不丢）；负路径 415（坏后缀）/401（无 Bearer）/404（坏 id 无孤儿）/400（空 robotCode、未配目录）全对。WSL2 真机浏览器走查 = 下一步（见 push 后 WSL 构建轮）。
+- 并发处理：本轮单开 worktree `feat/artifact-archive-chain` 开发；另一 session 同时在 master 提交（M14/M16/M17+审计+presence 文档）。收尾 = rebase 到其最新提交（零文件重叠、零冲突）→ 无损丢弃 main 冗余 lock 噪声（我提交已含）→ **保留其未提交 WIP `docs/design/presence-reconcile-lock.md`**（未碰）→ FF 合并 → push。
+- 事实源：本 ADR；plan `~/.claude/plans/git-workflow-adaptive-grove.md`；前序 D-071（图纸档案 v2）/ D-074（版本号纪律）/ D-025·D-038（二进制不进 git·机械本地存真相）；backlog `HUB-ARTIFACT-STORE-MECH`（本刀本地卷版收口，AI 看图算量增强仍 pending）。
