@@ -8,7 +8,8 @@ const zh = {
   // 品牌 / 导航
   'brand.subtitle.real': '真实数据 · 连服务器',
   'nav.overview': '总览',
-  'nav.depGraph': '依赖图',
+  'nav.project': '项目',
+  'nav.knowledge': '知识库',
   'nav.settings': '设置',
   'nav.soon': '即将上线',
   'nav.inv': '库存/BOM',
@@ -16,8 +17,16 @@ const zh = {
   // 顶部工具条
   'toolbar.eyebrow': 'Team Hub',
   'toolbar.title.overview': '运维总览',
-  'toolbar.title.depGraph': '依赖链 · 阻塞归因',
+  'toolbar.title.project': '项目 · 看板与依赖图',
+  'toolbar.title.knowledge': '战队知识库 · 相似检索 · 跨赛季召回',
   'toolbar.refresh': '刷新总览',
+  // 项目页视图切换（D-077：看板 ⇄ 依赖图）
+  'project.view.aria': '项目视图切换',
+  'project.view.board': '看板',
+  'project.view.graph': '依赖图',
+  // 赛季下拉「其它/手填」兜底（SeasonSelect，表单一致 D-077）
+  'season.other': '其它（手填）',
+  'season.otherHint': '输入赛季后两位，如 22',
 
   // 设置页
   'toolbar.title.settings': '设置',
@@ -146,12 +155,9 @@ const zh = {
   'depgraph.edge.deleteSuccess': '已删除连线——这条依赖不再卡住下游。',
   'depgraph.edge.deleteError': '没能删除连线：{detail}',
 
-  // 新增页面导航 / 标题
-  'nav.kb': '知识库检索',
-  'nav.pm': '项目看板',
+  // 图纸档案（A8）：独立顶级页（D-077 与知识库拆开）。toolbar.title.kb 仍由 KbSearchPage 内层 Tab 用。
   'nav.archive': '图纸档案',
   'toolbar.title.kb': '相似 Bug 检索 · 跨赛季召回',
-  'toolbar.title.pm': '项目计划表 · 任务看板',
   'toolbar.title.archive': '图纸提交日志 · 版本时间线',
 
   // 缺人方向（S2，D-069）：组级派生缺口，永不指向人（A1/I0）
@@ -535,15 +541,24 @@ export type TranslationKey = keyof typeof zh;
 const en: Record<TranslationKey, string> = {
   'brand.subtitle.real': 'Live data · connected',
   'nav.overview': 'Overview',
-  'nav.depGraph': 'Dep graph',
+  'nav.project': 'Project',
+  'nav.knowledge': 'Knowledge',
   'nav.settings': 'Settings',
   'nav.soon': 'Coming soon',
   'nav.inv': 'Inventory/BOM',
 
   'toolbar.eyebrow': 'Team Hub',
   'toolbar.title.overview': 'Operations Console',
-  'toolbar.title.depGraph': 'Dependency · Blocking',
+  'toolbar.title.project': 'Project · Board & Dependencies',
+  'toolbar.title.knowledge': 'Team Knowledge · Similar-bug Search',
   'toolbar.refresh': 'Refresh overview',
+  // Project view switch (D-077: board <-> dependency graph)
+  'project.view.aria': 'Project view switch',
+  'project.view.board': 'Board',
+  'project.view.graph': 'Dependencies',
+  // Season dropdown "other / type-in" fallback (SeasonSelect, form consistency D-077)
+  'season.other': 'Other (type in)',
+  'season.otherHint': 'Last two digits, e.g. 22',
 
   'toolbar.title.settings': 'Settings',
   'settings.section.language': 'Language',
@@ -676,11 +691,8 @@ const en: Record<TranslationKey, string> = {
     'Link deleted — this dependency no longer blocks downstream.',
   'depgraph.edge.deleteError': 'Could not delete the link: {detail}',
 
-  'nav.kb': 'KB Search',
-  'nav.pm': 'PM Board',
   'nav.archive': 'Artifacts',
   'toolbar.title.kb': 'Similar-bug Search · Cross-season Recall',
-  'toolbar.title.pm': 'Project Plan · Task Board',
   'toolbar.title.archive': 'Artifact Submission Log · Version Timeline',
 
   // Direction gaps (S2, D-069): group-level derived gaps, never tied to a person (A1/I0)

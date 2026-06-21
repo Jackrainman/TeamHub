@@ -7,20 +7,18 @@ import {
   FileStack,
   Home,
   LayoutGrid,
-  Network,
   Settings,
 } from 'lucide-react';
 import { useI18n, type TranslationKey } from '../../i18n';
 
 export type ConsolePage =
   | 'overview'
-  | 'dep-graph'
-  | 'gaps'
-  | 'kb'
-  | 'pm'
+  | 'project'
+  | 'knowledge'
   | 'archive'
   | 'inv'
   | 'fleet'
+  | 'gaps'
   | 'settings';
 
 interface NavItem {
@@ -31,20 +29,22 @@ interface NavItem {
   tooltipKey?: TranslationKey;
 }
 
+// 扁平导航（IA D-077）：按数据域从上到下排，无分组、无折叠（用户拍板：洞察不该可收、摊开）。
+// 终态顺序固定：总览 → 项目 → 知识库 → 图纸档案 → 库存 → 机器人队 → 缺人方向 → 设置。
 const navItems: NavItem[] = [
   { labelKey: 'nav.overview', icon: Home, page: 'overview' },
-  { labelKey: 'nav.depGraph', icon: Network, page: 'dep-graph' },
-  // 缺人方向（S2，D-069）：组级派生缺口，只到组、不指向人（A1）。
-  { labelKey: 'nav.gaps', icon: Compass, page: 'gaps' },
-  { labelKey: 'nav.kb', icon: BookOpen, page: 'kb' },
-  { labelKey: 'nav.pm', icon: LayoutGrid, page: 'pm' },
-  // 图纸提交日志 / 版本时间线（A8）：真实页面，读治理快照 artifacts。
+  // 项目（IA 阶段 2 / D-076 续 D-077）：任务看板 + 依赖图视图切换（任务域单页，组合不重写）。
+  { labelKey: 'nav.project', icon: LayoutGrid, page: 'project' },
+  // 知识库 = 相似 Bug 检索（跨赛季召回）。与「图纸档案」是两个数据域，D-077 拆开各自顶级项。
+  { labelKey: 'nav.knowledge', icon: BookOpen, page: 'knowledge' },
+  // 图纸档案（A8）：图纸提交日志 / 版本时间线，读治理快照 artifacts。独立页（非并入知识库）。
   { labelKey: 'nav.archive', icon: FileStack, page: 'archive' },
-  // 第三支柱：库存 / BOM（INV-BOM-CORE 已落地）。零件×机器人 矩阵 + 一句话快记 + 缺料告警。
+  // 第三支柱：库存 / BOM（INV-BOM-CORE）。零件×机器人 矩阵 + 一句话快记 + 缺料告警。
   { labelKey: 'nav.inv', icon: Boxes, page: 'inv' },
   // 机器人队（IA 阶段 1 / D-075）：机器人管理 + 在场排班接力画布合一（机器人域单页）。
-  // 上半区建/改状态/退役（退役=状态迁移，非物删），下半区接力画布。I0 无人维度。
   { labelKey: 'nav.fleet', icon: Bot, page: 'fleet' },
+  // 缺人方向（S2，D-069）：组级派生缺口，只到组、不指向人（A1）。只读洞察、置于末尾。
+  { labelKey: 'nav.gaps', icon: Compass, page: 'gaps' },
   { labelKey: 'nav.settings', icon: Settings, page: 'settings' },
 ];
 
