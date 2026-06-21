@@ -6,6 +6,7 @@ import {
   type FormEvent,
 } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { FolderOpen, FilePlus } from 'lucide-react';
 import type { ArtifactRef } from '@teamhub/hub-contracts';
 import { nextArtifactVersionNo } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
@@ -19,6 +20,8 @@ import { Combobox } from '../../components/Combobox';
 type OwnerGroup = 'mechanical' | 'electrical' | 'ec' | 'vision';
 
 // 组别顺序 + 文案键（新增组别在此处一处登记；枚举漏配会编译报错）。
+// TODO(backend): 该枚举/顺序应从 hub-contracts 中心导出（OwnerGroup + 顺序），
+// 前端不再各自写死；当前本批次保持前端常量，待 contracts 落地后改为导入。
 const OWNER_GROUP_ORDER: readonly OwnerGroup[] = [
   'mechanical',
   'electrical',
@@ -105,6 +108,11 @@ export function ArchivePage({
   const { t, lang } = useI18n();
   const queryClient = useQueryClient();
   const now = useMemo(() => new Date(), []);
+
+  // 读写分页：查看档案（读，默认，高频）/ 新登记（写）。仿 KbSearchPage 的 seg 标签。
+  const [tab, setTab] = useState<'view' | 'register'>('view');
+  // 查看 tab 内的学科组横向切换：只展开当前组的机构列表（避免四组纵向全摊开页面极长）。
+  const [viewGroup, setViewGroup] = useState<OwnerGroup>('mechanical');
 
   const query = useQuery({
     queryKey: ['artifacts', source],
@@ -293,6 +301,7 @@ export function ArchivePage({
                 {t('enum.subType.driver')}
               </button>
             </div>
+            <span className="archive-file-hint">{t('archive.form.subTypeHint')}</span>
           </label>
         ) : null}
 
@@ -345,38 +354,41 @@ export function ArchivePage({
           </div>
         ) : null}
 
-        <div className="pm-form__grid">
-          <label className="kb-field">
-            <span>{t('archive.form.name')}</span>
-            <input
-              value={name}
-              placeholder={t('archive.form.nameHint')}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </label>
-          <label className="kb-field">
-            <span>{t('archive.form.uri')}</span>
-            <input
-              value={uri}
-              placeholder={t('archive.form.uriHint')}
-              onChange={(e) => setUri(e.target.value)}
-            />
-          </label>
-        </div>
-
-        {/* 图纸文件（可选，本地上传）：与上面云端链接可同时填——本地存 + 云端引用双保险。 */}
         <label className="kb-field">
-          <span>{t('archive.form.file')}</span>
+          <span>{t('archive.form.name')}</span>
           <input
-            ref={fileInputRef}
-            type="file"
-            accept={ARTIFACT_ACCEPT}
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            value={name}
+            placeholder={t('archive.form.nameHint')}
+            onChange={(e) => setName(e.target.value)}
           />
-          <span className="archive-file-hint">{t('archive.form.fileHint')}</span>
         </label>
 
-        {/* 关联仓库/提交：仅 electrical && driver 时显示 */}
+        {/* 「来源」一组：云端链接(uri) 与 本地文件可同时填——本地存 + 云端引用双保险，合并减少独立行数。 */}
+        <fieldset className="kb-field archive-source-group">
+          <legend>{t('archive.form.source')}</legend>
+          <div className="pm-form__grid">
+            <label className="kb-field">
+              <span>{t('archive.form.uri')}</span>
+              <input
+                value={uri}
+                placeholder={t('archive.form.uriHint')}
+                onChange={(e) => setUri(e.target.value)}
+              />
+            </label>
+            <label className="kb-field">
+              <span>{t('archive.form.file')}</span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ARTIFACT_ACCEPT}
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
+          </div>
+          <span className="archive-file-hint">{t('archive.form.sourceHint')}</span>
+        </fieldset>
+
+        {/* 关联仓库/提交：仅 electrical && driver 时显示，两字段并排 */}
         {ownerGroup === 'electrical' && subType === 'driver' ? (
           <div className="pm-form__grid">
             <label className="kb-field">
@@ -426,70 +438,120 @@ export function ArchivePage({
     </section>
   );
 
-  if (query.isLoading) {
+  // 单个分组段落渲染（机构两级 + 版本行），view tab 复用。
+  const renderSection = (section: OwnerGroupSection) => {
+    const sectionLabel = section.ownerGroup
+      ? t(GROUP_LABEL_KEY[section.ownerGroup])
+      : t('archive.ungrouped');
     return (
-      <div className="archive-page">
-        {form}
+      <section
+        className="panel"
+        key={section.ownerGroup ?? '__ungrouped__'}
+        aria-label={sectionLabel}
+      >
+        <div className="panel-header">
+          <h2>{sectionLabel}</h2>
+        </div>
+        {section.mechanisms.map((group) => (
+          <div key={group.mechanism} className="archive-mech-group">
+            <div className="panel-header" style={{ paddingTop: '0.5rem' }}>
+              <h3 style={{ fontSize: '0.95em', opacity: 0.85 }}>{group.mechanism}</h3>
+              <span>{t('archive.group.count', { n: group.entries.length })}</span>
+            </div>
+            <div className="stack-list">
+              {group.entries.map((artifact) => (
+                <ArtifactLogRow
+                  artifact={artifact}
+                  key={artifact.id}
+                  lang={lang}
+                  client={client}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </section>
+    );
+  };
+
+  // 查看 tab：横向学科组 seg + 当前组段落。未分组历史桶（ownerGroup=null）不在 4 个 seg 内，
+  // 故单独垫在当前组下方，保证历史数据仍可达。
+  const currentSection = sections.find((s) => s.ownerGroup === viewGroup) ?? null;
+  const ungroupedSection = sections.find((s) => s.ownerGroup === null) ?? null;
+
+  const viewContent = (
+    <div className="archive-view">
+      <div className="seg archive-group-seg" role="group" aria-label={t('archive.view.groupFilter')}>
+        {OWNER_GROUP_ORDER.map((g) => (
+          <button
+            key={g}
+            type="button"
+            className={segClass(viewGroup === g)}
+            onClick={() => setViewGroup(g)}
+          >
+            {t(GROUP_LABEL_KEY[g])}
+          </button>
+        ))}
+      </div>
+      {query.isLoading ? (
         <div className="state-band" role="status" aria-live="polite">{t('archive.loading')}</div>
-      </div>
-    );
-  }
-
-  if (query.error || !query.data) {
-    return (
-      <div className="archive-page">
-        {form}
+      ) : query.error || !query.data ? (
         <div className="state-band state-band-error" role="alert">{t('archive.error')}</div>
-      </div>
-    );
-  }
-
-  if (sections.length === 0) {
-    return (
-      <div className="archive-page">
-        {form}
+      ) : sections.length === 0 ? (
         <div className="state-band">{t('archive.empty')}</div>
-      </div>
-    );
-  }
+      ) : (
+        <>
+          {currentSection ? (
+            renderSection(currentSection)
+          ) : (
+            <div className="state-band">{t('archive.groupEmpty')}</div>
+          )}
+          {ungroupedSection ? renderSection(ungroupedSection) : null}
+        </>
+      )}
+    </div>
+  );
 
   return (
     <div className="archive-page">
-      {form}
-      {sections.map((section) => {
-        const sectionLabel = section.ownerGroup
-          ? t(GROUP_LABEL_KEY[section.ownerGroup])
-          : t('archive.ungrouped');
-        return (
-          <section
-            className="panel"
-            key={section.ownerGroup ?? '__ungrouped__'}
-            aria-label={sectionLabel}
-          >
-            <div className="panel-header">
-              <h2>{sectionLabel}</h2>
-            </div>
-            {section.mechanisms.map((group) => (
-              <div key={group.mechanism} className="archive-mech-group">
-                <div className="panel-header" style={{ paddingTop: '0.5rem' }}>
-                  <h3 style={{ fontSize: '0.95em', opacity: 0.85 }}>{group.mechanism}</h3>
-                  <span>{t('archive.group.count', { n: group.entries.length })}</span>
-                </div>
-                <div className="stack-list">
-                  {group.entries.map((artifact) => (
-                    <ArtifactLogRow
-                      artifact={artifact}
-                      key={artifact.id}
-                      lang={lang}
-                      client={client}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </section>
-        );
-      })}
+      <div className="seg kb-tabs" role="tablist" aria-label={t('archive.form.title')}>
+        <button
+          type="button"
+          role="tab"
+          id="archive-tab-view-btn"
+          aria-selected={tab === 'view'}
+          aria-controls="archive-tab-view"
+          className={segClass(tab === 'view')}
+          onClick={() => setTab('view')}
+        >
+          <FolderOpen size={14} aria-hidden="true" /> {t('archive.tab.view')}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="archive-tab-register-btn"
+          aria-selected={tab === 'register'}
+          aria-controls="archive-tab-register"
+          className={segClass(tab === 'register')}
+          onClick={() => setTab('register')}
+        >
+          <FilePlus size={14} aria-hidden="true" /> {t('archive.tab.register')}
+        </button>
+      </div>
+      {tab === 'view' ? (
+        <div role="tabpanel" id="archive-tab-view" aria-labelledby="archive-tab-view-btn" tabIndex={0}>
+          {viewContent}
+        </div>
+      ) : (
+        <div
+          role="tabpanel"
+          id="archive-tab-register"
+          aria-labelledby="archive-tab-register-btn"
+          tabIndex={0}
+        >
+          {form}
+        </div>
+      )}
     </div>
   );
 }

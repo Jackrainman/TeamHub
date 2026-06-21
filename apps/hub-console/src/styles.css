@@ -916,6 +916,13 @@ button {
   font-weight: 700;
 }
 
+/* 字段下方辅助说明（如编号位的"直接出现在机器人编号里"提示） */
+.kb-field__hint {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .kb-field textarea,
 .kb-field input {
   width: 100%;
@@ -1122,6 +1129,33 @@ button {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+/* 查看 tab：横向学科组 seg + 当前组段落，纵向堆叠。 */
+.archive-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 学科组横向切换 seg：左对齐、可换行，与读写 tab 区分（独立一行筛选器）。 */
+.archive-group-seg {
+  align-self: flex-start;
+  flex-wrap: wrap;
+}
+
+/* 登记表单「来源」合并组（云端链接 + 本地文件并排）：弱边框圈一组，减少独立行视觉噪声。 */
+.archive-source-group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.archive-source-group > legend {
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
 }
 
 .archive-row {
@@ -1584,6 +1618,11 @@ button {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+
+/* 三列变体：season/robotTarget/version 一行 */
+.pm-form__grid--3 {
+  grid-template-columns: 1fr 1fr 1fr;
 }
 
 .pm-form__footer {
@@ -2076,6 +2115,20 @@ button {
   display: inline-flex;
   align-items: center;
   min-height: 34px;
+}
+/* version 字段内联预览：input + 徽章横排，紧凑内联 */
+.resources-version-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.resources-version-row input {
+  flex: 1;
+  min-width: 0;
+}
+.resources-preview-inline {
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 /* 状态徽章：按状态分色（空着/在用=可上场绿系，在修/坏=红/琥珀，退役/拆解=灰）。 */
 .resources-status-badge {
