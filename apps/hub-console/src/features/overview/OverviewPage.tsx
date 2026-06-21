@@ -125,7 +125,7 @@ export function OverviewPage({
           ))}
         </div>
         <div className="overview-integrations-hint">
-          <HintLink label={t('overview.artifacts.toArchive')} page="knowledge" onNavigate={onNavigate} />
+          <HintLink label={t('overview.artifacts.toArchive')} page="archive" onNavigate={onNavigate} />
         </div>
       </section>
     </div>

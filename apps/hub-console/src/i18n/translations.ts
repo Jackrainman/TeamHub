@@ -8,22 +8,15 @@ const zh = {
   // 品牌 / 导航
   'brand.subtitle.real': '真实数据 · 连服务器',
   'nav.overview': '总览',
-  'nav.project': '项目',
+  'nav.depGraph': '依赖图',
   'nav.settings': '设置',
   'nav.soon': '即将上线',
   'nav.inv': '库存/BOM',
-  // 侧栏分组标题（IA 阶段 4 / D-076）：洞察区（总览 + 缺人方向），可折叠。
-  'nav.group.insights': '洞察',
-
-  // 项目页视图切换（IA 阶段 2 / D-075）：看板 + 依赖图
-  'project.view.aria': '项目视图切换',
-  'project.view.board': '看板',
-  'project.view.graph': '依赖图',
 
   // 顶部工具条
   'toolbar.eyebrow': 'Team Hub',
   'toolbar.title.overview': '运维总览',
-  'toolbar.title.project': '项目 · 看板与依赖图',
+  'toolbar.title.depGraph': '依赖链 · 阻塞归因',
   'toolbar.refresh': '刷新总览',
 
   // 设置页
@@ -124,8 +117,11 @@ const zh = {
   'depgraph.connect.success': '已建立依赖——卡住它的任务现在显示在图上了。',
   'depgraph.connect.error': '没能建立连线：{detail}',
   'depgraph.connect.actor': '画布连线',
-  // 依赖图提示（I0 负责人说明）：录入入口已并入项目页看板视图的常显面板，依赖图仅保留拖线建边。
+  // 录入浮层（DEPGRAPH-ENTRY-OVERLAY）+ I0 负责人说明
+  'depgraph.entry.open': '录入',
   'depgraph.entry.note': '图上只显任务、组和卡点，不排个人。',
+  'depgraph.entry.title': '录入到项目计划表',
+  'depgraph.entry.close': '关闭',
   'depgraph.detail.ownerNote': '负责人只表明分工，不代表进度快慢。',
 
   // 任务状态流转（详情面板，DEPGRAPH-STATUS-TRANSITION）
@@ -151,16 +147,12 @@ const zh = {
   'depgraph.edge.deleteError': '没能删除连线：{detail}',
 
   // 新增页面导航 / 标题
-  // 知识页（IA 阶段 3 / D-075）：相似检索 + 图纸档案 Tab 合一。
-  'nav.knowledge': '知识库',
-  'toolbar.title.knowledge': '战队知识库 · 检索与图纸档案',
-  'knowledge.tab.search': '相似检索',
-  'knowledge.tab.archive': '图纸档案',
-  // toolbar.title.kb 降级为 KbSearchPage 内层 Tab 的 aria-label，仍被引用，保留。
+  'nav.kb': '知识库检索',
+  'nav.pm': '项目看板',
+  'nav.archive': '图纸档案',
   'toolbar.title.kb': '相似 Bug 检索 · 跨赛季召回',
-  // 共享赛季选择「其它/手填」兜底（SeasonSelect）。
-  'season.other': '其它（手填）',
-  'season.otherHint': '输入赛季后两位，如 22',
+  'toolbar.title.pm': '项目计划表 · 任务看板',
+  'toolbar.title.archive': '图纸提交日志 · 版本时间线',
 
   // 缺人方向（S2，D-069）：组级派生缺口，永不指向人（A1/I0）
   'nav.gaps': '缺人方向',
@@ -543,19 +535,14 @@ export type TranslationKey = keyof typeof zh;
 const en: Record<TranslationKey, string> = {
   'brand.subtitle.real': 'Live data · connected',
   'nav.overview': 'Overview',
-  'nav.project': 'Project',
+  'nav.depGraph': 'Dep graph',
   'nav.settings': 'Settings',
   'nav.soon': 'Coming soon',
   'nav.inv': 'Inventory/BOM',
-  'nav.group.insights': 'Insights',
-
-  'project.view.aria': 'Project view switch',
-  'project.view.board': 'Board',
-  'project.view.graph': 'Dependencies',
 
   'toolbar.eyebrow': 'Team Hub',
   'toolbar.title.overview': 'Operations Console',
-  'toolbar.title.project': 'Project · Board & Dependencies',
+  'toolbar.title.depGraph': 'Dependency · Blocking',
   'toolbar.refresh': 'Refresh overview',
 
   'toolbar.title.settings': 'Settings',
@@ -658,7 +645,10 @@ const en: Record<TranslationKey, string> = {
   'depgraph.connect.success': 'Dependency created — the blocker now shows on the graph.',
   'depgraph.connect.error': 'Could not create the link: {detail}',
   'depgraph.connect.actor': 'Canvas link',
+  'depgraph.entry.open': 'Add entry',
   'depgraph.entry.note': 'The graph shows tasks, groups and blockers, not a ranking of people.',
+  'depgraph.entry.title': 'Add to the project plan',
+  'depgraph.entry.close': 'Close',
   'depgraph.detail.ownerNote': 'Owner shows who is on it, not who is fast or slow.',
 
   // Task status transition (DEPGRAPH-STATUS-TRANSITION)
@@ -686,13 +676,12 @@ const en: Record<TranslationKey, string> = {
     'Link deleted — this dependency no longer blocks downstream.',
   'depgraph.edge.deleteError': 'Could not delete the link: {detail}',
 
-  'nav.knowledge': 'Knowledge',
-  'toolbar.title.knowledge': 'Team Knowledge · Search & Artifacts',
-  'knowledge.tab.search': 'Similar search',
-  'knowledge.tab.archive': 'Artifacts',
+  'nav.kb': 'KB Search',
+  'nav.pm': 'PM Board',
+  'nav.archive': 'Artifacts',
   'toolbar.title.kb': 'Similar-bug Search · Cross-season Recall',
-  'season.other': 'Other (type in)',
-  'season.otherHint': 'Last two digits, e.g. 22',
+  'toolbar.title.pm': 'Project Plan · Task Board',
+  'toolbar.title.archive': 'Artifact Submission Log · Version Timeline',
 
   // Direction gaps (S2, D-069): group-level derived gaps, never tied to a person (A1/I0)
   'nav.gaps': 'Direction Gaps',

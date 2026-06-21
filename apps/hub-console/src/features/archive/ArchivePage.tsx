@@ -7,7 +7,25 @@ import type { CreateArtifactRequest } from '../../api/schemas/pm';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { errorDetail, segClass } from '../../utils';
 import { MetaRow } from '../../components/MetaRow';
-import { SeasonSelect, guessSeason } from '../../components/SeasonSelect';
+
+// guessSeason：纯 UI helper，猜当前赛季年份（后两位数字字符串，如 "25"）。
+// 赛季切换惯例：赛季年份 = 日历年 - 1（赛季到次年前数月结束）。
+// 截止月：若当前月份 <= 4（1~4月），视为"上个赛季年"仍在进行，用 (year-1) 的后两位；否则用 year 后两位。
+function guessSeason(now: Date): string {
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1; // 1-indexed
+  const seasonYear = month <= 4 ? year - 1 : year;
+  return String(seasonYear).slice(-2);
+}
+
+// 从当前猜测赛季生成 ±2 年的选项列表（字符串后两位）
+function seasonOptions(now: Date): string[] {
+  const base = guessSeason(now);
+  const baseYear = 2000 + parseInt(base, 10);
+  return [-2, -1, 0, 1, 2].map((offset) =>
+    String(baseYear + offset).slice(-2),
+  );
+}
 
 type OwnerGroup = 'mechanical' | 'electrical' | 'ec' | 'vision';
 
@@ -222,21 +240,29 @@ export function ArchivePage({
 
           <label className="kb-field archive-field--season">
             <span>{t('archive.form.season')}</span>
-            <SeasonSelect now={now} value={season} onChange={setSeason} />
+            <select value={season} onChange={(e) => setSeason(e.target.value)}>
+              {seasonOptions(now).map((s) => (
+                <option value={s} key={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label className="kb-field archive-field--robot">
             <span>{t('archive.form.robot')}</span>
-            <select
-              value={robotCode}
-              onChange={(e) => setRobotCode(e.target.value as RobotCode)}
-            >
+            <div className="seg" role="group" aria-label={t('archive.form.robot')}>
               {ROBOT_CODES.map((rc) => (
-                <option value={rc} key={rc}>
+                <button
+                  key={rc}
+                  type="button"
+                  className={segClass(robotCode === rc)}
+                  onClick={() => setRobotCode(rc)}
+                >
                   {rc === 'universal' ? t('enum.robot.universal') : rc}
-                </option>
+                </button>
               ))}
-            </select>
+            </div>
           </label>
         </div>
 
