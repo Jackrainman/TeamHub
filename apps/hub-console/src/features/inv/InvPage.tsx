@@ -1,12 +1,25 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState, type FormEvent } from 'react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
-import type { PartAction, PartActionKind } from '../../api/schemas/inv';
+import type {
+  PartAction,
+  PartActionKind,
+  PartCategory,
+  CreatePartTypeRequest,
+} from '../../api/schemas/inv';
 import { useI18n, type TranslationKey } from '../../i18n';
+import { errorDetail } from '../../utils';
+import { Field } from '../../components/Field';
 import { MetricTile } from '../../components/MetricTile';
 import { InvLedgerTable } from './InvLedgerTable';
 import { InvQuickRecordForm, type HolderOption } from './InvQuickRecordForm';
 
 const IDLE_HOLDER = 'idle';
+
+// 新建零件归属的项目：与种子整机 / 机器人队页（ResourcesPage）同口径用 prj-robots，
+// 库存录入不暴露项目维度。有既有零件时优先沿用其 projectId（同库同项目）。
+// TODO(backend): 理想是 server 端按当前队伍/默认项目兜底 projectId，console 不该硬编码常量。
+const DEFAULT_PROJECT_ID = 'prj-robots';
 
 const KIND_KEY: Record<PartActionKind, TranslationKey> = {
   stocktake: 'inv.kind.stocktake',
@@ -16,6 +29,25 @@ const KIND_KEY: Record<PartActionKind, TranslationKey> = {
   reserve: 'inv.kind.reserve',
   release: 'inv.kind.release',
   damage: 'inv.kind.damage',
+};
+
+const CATEGORIES: PartCategory[] = [
+  'motor',
+  'esc',
+  'controller',
+  'mechanical',
+  'electronic',
+  'other',
+];
+
+// 类目下拉文案：带中文说明更可读（枚举值不变，仅 option 展示更自解）。
+const CATEGORY_OPTION_KEY: Record<PartCategory, TranslationKey> = {
+  motor: 'inv.catopt.motor',
+  esc: 'inv.catopt.esc',
+  controller: 'inv.catopt.controller',
+  mechanical: 'inv.catopt.mechanical',
+  electronic: 'inv.catopt.electronic',
+  other: 'inv.catopt.other',
 };
 
 /**
@@ -80,6 +112,12 @@ export function InvPage({
         />
       </section>
 
+      <CreatePartTypeForm
+        client={client}
+        defaultProjectId={partTypes[0]?.projectId ?? DEFAULT_PROJECT_ID}
+        onCreated={refresh}
+      />
+
       <InvQuickRecordForm
         client={client}
         partTypes={partTypes}
@@ -98,6 +136,177 @@ export function InvPage({
         kindKey={KIND_KEY}
       />
     </div>
+  );
+}
+
+// --- 新增零件 --------------------------------------------------------------
+
+/**
+ * 新增零件（建底前置）：填编号 / 名称 / 类目 / 单位 / 初始数量 / 缺料阈值 / 是否单件追踪
+ * → POST /api/inventory/part-types（client.upsertPartType，无 id 即创建）。
+ * 反监视纪律（I0）：零件维度本就无成员字段，表单不收集 / 不展示任何人维度。
+ */
+function CreatePartTypeForm({
+  client,
+  defaultProjectId,
+  onCreated,
+}: {
+  client: HubApiClient;
+  defaultProjectId: string;
+  onCreated: () => void;
+}) {
+  const { t } = useI18n();
+  const [partNumber, setPartNumber] = useState('');
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState<PartCategory>('mechanical');
+  const [unit, setUnit] = useState('个');
+  const [totalQuantity, setTotalQuantity] = useState('0');
+  const [lowStockThreshold, setLowStockThreshold] = useState('0');
+  const [trackIndividually, setTrackIndividually] = useState(false);
+
+  const mutation = useMutation({
+    mutationFn: (req: CreatePartTypeRequest) => client.upsertPartType(req),
+    onSuccess: () => {
+      setPartNumber('');
+      setName('');
+      setTotalQuantity('0');
+      setLowStockThreshold('0');
+      setTrackIndividually(false);
+      onCreated();
+    },
+  });
+
+  const total = Number.parseInt(totalQuantity, 10);
+  const low = Number.parseInt(lowStockThreshold, 10);
+  const valid =
+    partNumber.trim().length > 0 &&
+    name.trim().length > 0 &&
+    unit.trim().length > 0 &&
+    Number.isInteger(total) &&
+    total >= 0 &&
+    Number.isInteger(low) &&
+    low >= 0;
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!valid) return;
+    mutation.mutate({
+      projectId: defaultProjectId,
+      partNumber: partNumber.trim(),
+      name: name.trim(),
+      category,
+      unit: unit.trim(),
+      trackIndividually,
+      totalQuantity: total,
+      allocations: [], // 新建零件无机器人占用，矩阵从空起；装机后由动作日志派生。
+      lowStockThreshold: low,
+    });
+  }
+
+  return (
+    <section className="inv-create panel" aria-label={t('inv.create.title')}>
+      <header className="pm-create__head">
+        <div>
+          <h2>{t('inv.create.title')}</h2>
+          <p className="pm-create__note">{t('inv.create.subtitle')}</p>
+        </div>
+      </header>
+      <form className="pm-form" onSubmit={submit}>
+        <div className="pm-form__grid">
+          <Field label={t('inv.create.field.partNumber')}>
+            <input
+              value={partNumber}
+              placeholder={t('inv.create.field.partNumberPlaceholder')}
+              onChange={(e) => setPartNumber(e.target.value)}
+            />
+          </Field>
+          <Field label={t('inv.create.field.name')}>
+            <input
+              value={name}
+              placeholder={t('inv.create.field.namePlaceholder')}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </Field>
+        </div>
+        <div className="pm-form__grid">
+          <Field label={t('inv.create.field.category')}>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value as PartCategory)}
+            >
+              {CATEGORIES.map((c) => (
+                <option value={c} key={c}>
+                  {t(CATEGORY_OPTION_KEY[c])}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={t('inv.create.field.unit')} className="kb-field--narrow">
+            <input
+              value={unit}
+              placeholder={t('inv.create.field.unitPlaceholder')}
+              onChange={(e) => setUnit(e.target.value)}
+            />
+          </Field>
+        </div>
+        <div className="pm-form__grid">
+          <Field label={t('inv.create.field.totalQuantity')}>
+            <input
+              type="number"
+              min={0}
+              value={totalQuantity}
+              onChange={(e) => setTotalQuantity(e.target.value)}
+            />
+          </Field>
+          <Field label={t('inv.create.field.lowStockThreshold')}>
+            <input
+              type="number"
+              min={0}
+              value={lowStockThreshold}
+              onChange={(e) => setLowStockThreshold(e.target.value)}
+            />
+          </Field>
+        </div>
+        <Field label={t('inv.create.field.track')}>
+          {/* 是否单件追踪：贵重件（电机/电调/主控）逐个体记血缘；琐碎件不建实例。 */}
+          <div className="seg" role="group" aria-label={t('inv.create.field.track')}>
+            <button
+              type="button"
+              className={trackIndividually ? 'seg__btn' : 'seg__btn seg__btn--active'}
+              onClick={() => setTrackIndividually(false)}
+            >
+              {t('inv.create.track.bulk')}
+            </button>
+            <button
+              type="button"
+              className={trackIndividually ? 'seg__btn seg__btn--active' : 'seg__btn'}
+              onClick={() => setTrackIndividually(true)}
+            >
+              {t('inv.create.track.individual')}
+            </button>
+          </div>
+        </Field>
+        <div className="pm-form__footer">
+          <button
+            className="kb-submit"
+            type="submit"
+            disabled={!valid || mutation.isPending}
+          >
+            {mutation.isPending ? t('inv.create.submitting') : t('inv.create.submit')}
+          </button>
+          {mutation.isSuccess ? (
+            <p className="form-banner form-banner--ok">
+              {t('inv.create.success', { name: mutation.data.partType.name })}
+            </p>
+          ) : null}
+          {mutation.error ? (
+            <p className="form-banner form-banner--err">
+              {t('inv.create.error', { detail: errorDetail(mutation.error) })}
+            </p>
+          ) : null}
+        </div>
+      </form>
+    </section>
   );
 }
 

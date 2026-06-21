@@ -56,7 +56,16 @@ export function InvLedgerTable({
                   <span className="inv-part-name">{row.partType.name}</span>
                   <span className="inv-part-meta">
                     {row.partType.partNumber} · {t(CATEGORY_KEY[row.partType.category])}
-                    {row.partType.trackIndividually ? ' · ●' : ''}
+                    {row.partType.trackIndividually ? (
+                      <>
+                        {' · '}
+                        {/* 单件追踪：贵重件逐个体记血缘（电机/电调/主控）。裸 ● 含义不自解，
+                            包成短标签 + abbr title 让人悬停即懂。 */}
+                        <abbr className="inv-track-mark" title={t('inv.track.individual.hint')}>
+                          {t('inv.track.individual.tag')}
+                        </abbr>
+                      </>
+                    ) : null}
                   </span>
                 </td>
                 <td className="inv-table__idle">

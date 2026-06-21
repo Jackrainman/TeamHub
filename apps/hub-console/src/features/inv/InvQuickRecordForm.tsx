@@ -12,14 +12,16 @@ import { Field } from '../../components/Field';
 
 const IDLE_HOLDER = 'idle';
 
+// 顺序即引导（与空态「先盘点建底」一致）：盘点 / 补料 这类「建底 / 进货」动作提前，
+// damage 等日常消耗动作往后；冷启动默认选 stocktake（见 initialKind）。
 const KINDS: PartActionKind[] = [
-  'damage',
+  'stocktake',
+  'restock',
   'mount',
   'dismount',
   'reserve',
   'release',
-  'restock',
-  'stocktake',
+  'damage',
 ];
 
 const KIND_KEY: Record<PartActionKind, TranslationKey> = {
@@ -35,6 +37,14 @@ const KIND_KEY: Record<PartActionKind, TranslationKey> = {
 /** 装/拆/预留/释放需指定一台机器人（toHolder/fromHolder=resourceId）；盘点/补料/损坏只动总数。 */
 function needsHolder(kind: PartActionKind): boolean {
   return kind === 'mount' || kind === 'dismount' || kind === 'reserve' || kind === 'release';
+}
+
+/**
+ * 冷启动判定：没有任何零件、或所有零件都还没盘点过（lastCountedAt 全空）。
+ * 此时默认动作选 stocktake，引导「先盘点建底」；否则保留日常主路径 damage。
+ */
+function coldStart(partTypes: PartType[]): boolean {
+  return partTypes.length === 0 || partTypes.every((p) => p.lastCountedAt == null);
 }
 
 export interface HolderOption {
@@ -59,7 +69,10 @@ export function InvQuickRecordForm({
 }) {
   const { t } = useI18n();
   const [partTypeId, setPartTypeId] = useState(partTypes[0]?.id ?? '');
-  const [kind, setKind] = useState<PartActionKind>('damage');
+  // 冷启动（无零件 / 无盘点史）默认 stocktake 引导建底；有底后默认日常主路径 damage。
+  const [kind, setKind] = useState<PartActionKind>(() =>
+    coldStart(partTypes) ? 'stocktake' : 'damage',
+  );
   const [quantity, setQuantity] = useState('1');
   const [holder, setHolder] = useState(holderOptions[0]?.id ?? IDLE_HOLDER);
   const [note, setNote] = useState('');
@@ -137,6 +150,8 @@ export function InvQuickRecordForm({
             </select>
           </Field>
         </div>
+        {/* 密度：需要机器人时本行 = 数量 + 机器人、备注独占下一行；不需要时把备注并到本行
+            第二格，避免数量行半空 + 备注空占整行。 */}
         <div className="pm-form__grid">
           <Field label={t('inv.record.field.quantity')}>
             <input
@@ -156,11 +171,17 @@ export function InvQuickRecordForm({
                 ))}
               </select>
             </Field>
-          ) : null}
+          ) : (
+            <Field label={t('inv.record.field.note')}>
+              <input value={note} onChange={(e) => setNote(e.target.value)} />
+            </Field>
+          )}
         </div>
-        <Field label={t('inv.record.field.note')}>
-          <input value={note} onChange={(e) => setNote(e.target.value)} />
-        </Field>
+        {needsHolder(kind) ? (
+          <Field label={t('inv.record.field.note')}>
+            <input value={note} onChange={(e) => setNote(e.target.value)} />
+          </Field>
+        ) : null}
         <div className="pm-form__footer">
           <button className="kb-submit" type="submit" disabled={!valid || mutation.isPending}>
             {mutation.isPending ? t('inv.record.submitting') : t('inv.record.submit')}
