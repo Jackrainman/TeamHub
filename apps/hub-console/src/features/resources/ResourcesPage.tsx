@@ -205,7 +205,7 @@ function CreateResourceForm({
           <Field label={t('resources.field.season')}>
             <SeasonSelect now={now} value={season} onChange={setSeason} />
           </Field>
-          <Field label={t('resources.field.robotTarget')}>
+          <Field label={t('resources.field.robotTarget')} className="kb-field--narrow">
             <select
               value={robotTarget}
               onChange={(e) => setRobotTarget(e.target.value as RobotTarget)}

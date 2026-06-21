@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ArtifactRef } from '@teamhub/hub-contracts';
 import { nextArtifactVersionNo } from '@teamhub/hub-contracts';
@@ -8,6 +14,7 @@ import { useI18n, type TranslationKey } from '../../i18n';
 import { errorDetail, segClass } from '../../utils';
 import { MetaRow } from '../../components/MetaRow';
 import { SeasonSelect, guessSeason } from '../../components/SeasonSelect';
+import { Combobox } from '../../components/Combobox';
 
 type OwnerGroup = 'mechanical' | 'electrical' | 'ec' | 'vision';
 
@@ -24,9 +31,11 @@ const GROUP_LABEL_KEY: Record<OwnerGroup, TranslationKey> = {
   ec: 'enum.group.ec',
   vision: 'enum.group.vision',
 };
-// 适配机器人三选（值 + 显示）：universal=通用/不上固定机器人。
-type RobotCode = 'R1' | 'R2' | 'universal';
-const ROBOT_CODES: readonly RobotCode[] = ['R1', 'R2', 'universal'];
+
+// 上传文件后缀白名单（与 server ARTIFACT_ALLOWED_EXT 对齐）：CAD / 文档 / 图 / 包 / 固件。
+// 前端 accept 仅是提示，真正把关在 server（415）。
+const ARTIFACT_ACCEPT =
+  '.step,.stp,.iges,.igs,.sldprt,.sldasm,.slddrw,.dwg,.f3d,.pdf,.md,.txt,.png,.jpg,.jpeg,.zip,.bin,.hex';
 
 interface MechanismGroup {
   mechanism: string;
@@ -102,21 +111,39 @@ export function ArchivePage({
     queryFn: () => client.getArtifacts(),
   });
 
+  // 机器人台账（适配机器人组合框候选源）：复用 ResourcesPage 同 key 缓存，缺失则组合框退化为纯手填。
+  const resourcesQuery = useQuery({
+    queryKey: ['resources', source],
+    queryFn: () => client.getResources(),
+  });
+
   const sections = useMemo(
     () => groupArtifacts(query.data?.artifacts ?? []),
     [query.data],
   );
 
+  // 适配机器人候选：「通用」+ 台账里 kind=robot 的 displayCode（如 26R1/26R2），去重保序。
+  const robotOptions = useMemo(() => {
+    const robots = (resourcesQuery.data?.resources ?? [])
+      .filter((r) => r.kind === 'robot')
+      .map((r) => r.displayCode ?? r.name);
+    return Array.from(new Set([t('enum.robot.universal'), ...robots]));
+  }, [resourcesQuery.data, t]);
+
   // 登记表单状态 v2（I0：无提交人字段）
   const [ownerGroup, setOwnerGroup] = useState<OwnerGroup>('mechanical');
   const [season, setSeason] = useState(() => guessSeason(now));
-  const [robotCode, setRobotCode] = useState<RobotCode>('R1');
+  // 适配机器人：自由串（候选 + 手填），默认空、必填（战队编号会变，旧固定三选已放开）。
+  const [robotCode, setRobotCode] = useState('');
   const [isNewMechanism, setIsNewMechanism] = useState(false);
   const [mechanism, setMechanism] = useState('');
   const [mechanismNew, setMechanismNew] = useState('');
   const [subType, setSubType] = useState<'drawing' | 'driver'>('drawing');
   const [name, setName] = useState('');
   const [uri, setUri] = useState('');
+  // 文件来源「都能填」：本地上传文件 + 云端链接(uri) 可同时给，互不排斥（下载本地、打开云端两按钮并列）。
+  const [file, setFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [relatedCommit, setRelatedCommit] = useState('');
   const [relatedRepo, setRelatedRepo] = useState('');
 
@@ -155,23 +182,32 @@ export function ArchivePage({
     return `${mech} · v${vno}`;
   }, [query.data, ownerGroup, season, effectiveMechanism]);
 
+  // 登记 = 创建元数据；若选了文件则链式上传（两步，文件可缺）。任一步错都抛给 mutation.error 显示。
   const mutation = useMutation({
-    mutationFn: (req: CreateArtifactRequest) => client.createArtifact(req),
+    mutationFn: async (vars: { req: CreateArtifactRequest; file: File | null }) => {
+      const res = await client.createArtifact(vars.req);
+      if (vars.file) {
+        await client.uploadArtifactFile(res.artifact.id, vars.file);
+      }
+      return res;
+    },
     onSuccess: () => {
       setMechanism('');
       setMechanismNew('');
       setIsNewMechanism(false);
       setName('');
       setUri('');
+      setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       setRelatedCommit('');
       setRelatedRepo('');
       void queryClient.invalidateQueries({ queryKey: ['artifacts'] });
     },
   });
 
-  // 地址(uri) 可选，不进必填校验。
+  // uri / 文件均可选；机构 + 名称 + 赛季 + 适配机器人 必填。
   const valid =
-    effectiveMechanism.trim() && name.trim() && season.trim();
+    effectiveMechanism.trim() && name.trim() && season.trim() && robotCode.trim();
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -180,7 +216,7 @@ export function ArchivePage({
     const req: CreateArtifactRequest = {
       ownerGroup,
       season: season.trim(),
-      robotCode,
+      robotCode: robotCode.trim(),
       mechanism: mech,
       name: name.trim(),
     };
@@ -192,7 +228,7 @@ export function ArchivePage({
       if (relatedCommit.trim()) req.relatedCommit = relatedCommit.trim();
       if (relatedRepo.trim()) req.relatedRepo = relatedRepo.trim();
     }
-    mutation.mutate(req);
+    mutation.mutate({ req, file });
   }
 
   // 登记表单：始终渲染，不受 sections.length 守门（否则空档案时无法录入第一条）。
@@ -202,7 +238,7 @@ export function ArchivePage({
         <h2>{t('archive.form.title')}</h2>
       </div>
       <form className="pm-form" onSubmit={submit}>
-        {/* 顶部一行：组别（4 seg）｜ 赛季（窄）｜ 适配机器人（R1/R2/通用 seg）*/}
+        {/* 顶部一行：组别（4 seg）｜ 赛季（组合框）｜ 适配机器人（组合框：候选+手填）*/}
         <div className="archive-top-row">
           <label className="kb-field archive-field--group">
             <span>{t('archive.form.group')}</span>
@@ -227,16 +263,13 @@ export function ArchivePage({
 
           <label className="kb-field archive-field--robot">
             <span>{t('archive.form.robot')}</span>
-            <select
+            <Combobox
               value={robotCode}
-              onChange={(e) => setRobotCode(e.target.value as RobotCode)}
-            >
-              {ROBOT_CODES.map((rc) => (
-                <option value={rc} key={rc}>
-                  {rc === 'universal' ? t('enum.robot.universal') : rc}
-                </option>
-              ))}
-            </select>
+              onChange={setRobotCode}
+              options={robotOptions}
+              placeholder={t('archive.form.robotHint')}
+              ariaLabel={t('archive.form.robot')}
+            />
           </label>
         </div>
 
@@ -325,10 +358,23 @@ export function ArchivePage({
             <span>{t('archive.form.uri')}</span>
             <input
               value={uri}
+              placeholder={t('archive.form.uriHint')}
               onChange={(e) => setUri(e.target.value)}
             />
           </label>
         </div>
+
+        {/* 图纸文件（可选，本地上传）：与上面云端链接可同时填——本地存 + 云端引用双保险。 */}
+        <label className="kb-field">
+          <span>{t('archive.form.file')}</span>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ARTIFACT_ACCEPT}
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          />
+          <span className="archive-file-hint">{t('archive.form.fileHint')}</span>
+        </label>
 
         {/* 关联仓库/提交：仅 electrical && driver 时显示 */}
         {ownerGroup === 'electrical' && subType === 'driver' ? (
@@ -435,6 +481,7 @@ export function ArchivePage({
                       artifact={artifact}
                       key={artifact.id}
                       lang={lang}
+                      client={client}
                     />
                   ))}
                 </div>
@@ -450,22 +497,32 @@ export function ArchivePage({
 function ArtifactLogRow({
   artifact,
   lang,
+  client,
 }: {
   artifact: ArtifactRef;
   lang: 'zh' | 'en';
+  client: HubApiClient;
 }) {
   const { t } = useI18n();
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // 行内上传/替换：给这条图纸补传或换本地文件（不新增版本行，覆盖 storedFile）。
+  const upload = useMutation({
+    mutationFn: (f: File) => client.uploadArtifactFile(artifact.id, f),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['artifacts'] }),
+  });
   // 单个版本徽章：优先 versionNo（v3），旧裸 seed 缺则用 revision 兜底。
   const versionLabel =
     artifact.versionNo != null
       ? `v${artifact.versionNo}`
       : (artifact.revision ?? null);
-  // 适配机器人徽章：universal → 「通用」。
+  // 适配机器人徽章：遗留字面 universal → 「通用」；其余（含手填 26R1）原样显示。
   const robotLabel = artifact.robotCode
     ? artifact.robotCode === 'universal'
       ? t('enum.robot.universal')
       : artifact.robotCode
     : null;
+  const hasFile = Boolean(artifact.storedFile);
   return (
     <article className="data-row archive-row">
       <div className="archive-row__content">
@@ -505,15 +562,62 @@ function ArtifactLogRow({
           ) : null}
         </dl>
       </div>
-      {/* 下载：直链命中 server 的 GET /api/artifacts/:id/download（读端点、无需令牌）。
-          目录里有对应 <id>.<ext> 文件才下得到，否则后端 404。 */}
-      <a
-        className="archive-download"
-        href={`/api/artifacts/${encodeURIComponent(artifact.id)}/download`}
-        download
-      >
-        {t('archive.download')}
-      </a>
+      {/* 文件来源「连在一起」：本地下载 + 云端打开两个动作并列、有谁显谁；都无则灰显。
+          再加行内上传/替换。下载直链命中 GET /api/artifacts/:id/download（读端点、无需令牌）。 */}
+      <div className="archive-row__actions">
+        {hasFile ? (
+          <a
+            className="archive-download"
+            href={`/api/artifacts/${encodeURIComponent(artifact.id)}/download`}
+            download
+          >
+            {t('archive.download')}
+          </a>
+        ) : null}
+        {artifact.uri ? (
+          <a
+            className="archive-download archive-openlink"
+            href={artifact.uri}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {t('archive.openLink')}
+          </a>
+        ) : null}
+        {!hasFile && !artifact.uri ? (
+          <span className="archive-nofile">{t('archive.noFile')}</span>
+        ) : null}
+        <button
+          type="button"
+          className="archive-upload-btn"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={upload.isPending}
+        >
+          {upload.isPending
+            ? t('archive.uploading')
+            : hasFile
+              ? t('archive.replaceFile')
+              : t('archive.uploadFile')}
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={ARTIFACT_ACCEPT}
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) upload.mutate(f);
+            e.target.value = ''; // 允许同名文件再次触发 change
+          }}
+        />
+        {upload.error ? (
+          <span className="archive-upload-err">
+            {/401|unauthorized/i.test(errorDetail(upload.error))
+              ? t('archive.form.error401')
+              : t('archive.uploadError', { detail: errorDetail(upload.error) })}
+          </span>
+        ) : null}
+      </div>
     </article>
   );
 }

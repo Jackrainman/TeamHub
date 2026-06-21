@@ -44,6 +44,7 @@ import {
   TransitionTaskStatusResponseSchema,
   WaiveDependencyResponseSchema,
   CreateArtifactResponseSchema,
+  UploadArtifactResponseSchema,
   type CreateTaskRequest,
   type CreateTaskResponse,
   type CreateDependencyRequest,
@@ -54,6 +55,7 @@ import {
   type WaiveDependencyResponse,
   type CreateArtifactRequest,
   type CreateArtifactResponse,
+  type UploadArtifactResponse,
 } from './schemas/pm';
 import {
   InventoryResponseSchema,
@@ -136,6 +138,8 @@ export interface HubApiClient {
   waiveDependency(depId: string): Promise<WaiveDependencyResponse>;
   // 图纸档案写侧（V1-FOLLOWUPS ④，append-only）。I0：请求无人维度，submittedVia 由 server 钉 console（C5）。
   createArtifact(req: CreateArtifactRequest): Promise<CreateArtifactResponse>;
+  // 给既有图纸上传/替换真实文件（multipart，HUB-ARTIFACT-STORE-MECH 本地卷）。字节进本地卷、回带 storedFile 指针。
+  uploadArtifactFile(id: string, file: File): Promise<UploadArtifactResponse>;
   // 库存 / BOM（INV-BOM-CORE）。读：零件 + 个体件 + 矩阵派生 + 缺料；I0：返回体无人维度。
   // 写：盘点 / 调整零件 + 一句话快记动作（source 由 server 钉 human，C5；recordedBy 绝无 memberId）。
   getInventory(): Promise<InventoryResponse>;
@@ -368,6 +372,15 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         writeToken,
       );
     },
+    async uploadArtifactFile(id: string, file: File) {
+      return postFormData(
+        `${baseUrl}/api/artifacts/${encodeURIComponent(id)}/upload`,
+        file,
+        UploadArtifactResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
     async getInventory() {
       return fetchJson(
         `${baseUrl}/api/inventory`,
@@ -508,6 +521,29 @@ async function sendJson<T>(
   });
   if (!response.ok) {
     // 后端校验失败（400/422）带 { detail }：透出给表单错误条，便于人看清缺了什么。
+    const detail = await readDetail(response);
+    throw new Error(
+      detail ? `${response.status}: ${detail}` : `Hub API ${response.status}: ${url}`,
+    );
+  }
+  return schema.parse(await response.json());
+}
+
+// 文件上传（multipart）：不能走 sendJson（它 JSON.stringify body）。用 FormData，**不手设 content-type**——
+// 浏览器自带 multipart boundary；写鉴权 Bearer 同 sendJson；错误同走 { detail } 透出。
+async function postFormData<T>(
+  url: string,
+  file: File,
+  schema: { parse(value: unknown): T },
+  fetcher: FetchLike,
+  writeToken?: string,
+): Promise<T> {
+  const form = new FormData();
+  form.append('file', file);
+  const headers: Record<string, string> = {};
+  if (writeToken) headers.authorization = `Bearer ${writeToken}`;
+  const response = await fetcher(url, { method: 'POST', headers, body: form });
+  if (!response.ok) {
     const detail = await readDetail(response);
     throw new Error(
       detail ? `${response.status}: ${detail}` : `Hub API ${response.status}: ${url}`,

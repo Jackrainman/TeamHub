@@ -13,6 +13,7 @@ export {
   WaiveDependencyResponseSchema,
   CreateArtifactRequestSchema,
   CreateArtifactResponseSchema,
+  UploadArtifactResponseSchema,
   CreateResourceSessionRequestSchema,
   CreateResourceSessionResponseSchema,
 } from '@teamhub/hub-contracts';
@@ -27,6 +28,7 @@ export type {
   WaiveDependencyResponse,
   CreateArtifactRequest,
   CreateArtifactResponse,
+  UploadArtifactResponse,
   CreateResourceSessionRequest,
   CreateResourceSessionResponse,
 } from '@teamhub/hub-contracts';

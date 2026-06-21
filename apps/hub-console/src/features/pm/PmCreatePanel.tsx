@@ -235,7 +235,7 @@ function TaskForm({
         />
       </Field>
       <div className="pm-form__grid">
-        <Field label={t('pm.field.robotTarget')}>
+        <Field label={t('pm.field.robotTarget')} className="kb-field--narrow">
           <select
             value={robotTarget}
             onChange={(e) => setRobotTarget(e.target.value as RobotTarget)}

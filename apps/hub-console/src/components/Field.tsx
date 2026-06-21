@@ -8,12 +8,15 @@ import type { ReactNode } from 'react';
 export function Field({
   label,
   children,
+  className,
 }: {
   label: string;
   children: ReactNode;
+  // 可选修饰类（如 kb-field--narrow 收窄短内容控件）；并到基类 kb-field 上。
+  className?: string;
 }) {
   return (
-    <label className="kb-field">
+    <label className={className ? `kb-field ${className}` : 'kb-field'}>
       <span>{label}</span>
       {children}
     </label>
