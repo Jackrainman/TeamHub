@@ -117,7 +117,9 @@ export function KbCloseoutForm({
           <input
             value={projectId}
             onChange={(e) => setProjectId(e.target.value)}
+            placeholder={t('kb.closeout.field.projectId.placeholder')}
           />
+          <span className="kb-field__hint">{t('kb.closeout.field.projectId.hint')}</span>
         </Field>
       </div>
       <Field label={t('kb.closeout.field.symptom')}>
@@ -144,20 +146,22 @@ export function KbCloseoutForm({
           <input value={tags} onChange={(e) => setTags(e.target.value)} />
         </Field>
       </div>
-      <Field label={t('kb.closeout.field.rootCause')}>
-        <textarea
-          rows={2}
-          value={rootCause}
-          onChange={(e) => setRootCause(e.target.value)}
-        />
-      </Field>
-      <Field label={t('kb.closeout.field.resolution')}>
-        <textarea
-          rows={2}
-          value={resolution}
-          onChange={(e) => setResolution(e.target.value)}
-        />
-      </Field>
+      <div className="pm-form__grid">
+        <Field label={t('kb.closeout.field.rootCause')}>
+          <textarea
+            rows={2}
+            value={rootCause}
+            onChange={(e) => setRootCause(e.target.value)}
+          />
+        </Field>
+        <Field label={t('kb.closeout.field.resolution')}>
+          <textarea
+            rows={2}
+            value={resolution}
+            onChange={(e) => setResolution(e.target.value)}
+          />
+        </Field>
+      </div>
       <div className="pm-form__grid">
         <Field label={t('kb.closeout.field.category')}>
           <input value={category} onChange={(e) => setCategory(e.target.value)} />
@@ -177,7 +181,7 @@ export function KbCloseoutForm({
       </div>
       <Field label={t('kb.closeout.field.prevention')}>
         <textarea
-          rows={2}
+          rows={1}
           value={prevention}
           onChange={(e) => setPrevention(e.target.value)}
         />

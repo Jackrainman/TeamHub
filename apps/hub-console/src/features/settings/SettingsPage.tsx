@@ -32,6 +32,29 @@ const BOT_CHANNEL_PILL_CLASS: Record<BotChannel['status'], string> = {
   unconfigured: 'status-unconfigured',
 };
 
+// 语言选项——扩展时须同步 i18n 键（settings.language.<value>）与 Lang 类型。
+const LANG_OPTIONS = [
+  { value: 'zh' as const, labelKey: 'settings.language.zh' as const },
+  { value: 'en' as const, labelKey: 'settings.language.en' as const },
+];
+
+// 主题选项——扩展时须同步 i18n 键（settings.theme.<value>）与 Theme 类型。
+const THEME_OPTIONS = [
+  { value: 'classic' as const, labelKey: 'settings.theme.classic' as const },
+  { value: 'warm' as const, labelKey: 'settings.theme.warm' as const },
+];
+
+// 服务端运行模式枚举文案（mock-first / real / hybrid）。枚举原值不翻译，title 作注释。
+// 键名须在 translations.ts 中存在（settings.about.mode.mockFirst / .real / .hybrid）。
+const MODE_LABEL: Record<'mock-first' | 'real' | 'hybrid', TranslationKey> = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  'mock-first': 'settings.about.mode.mockFirst',
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  real: 'settings.about.mode.real',
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  hybrid: 'settings.about.mode.hybrid',
+};
+
 interface IntegrationRow {
   key: string;
   name: string;
@@ -63,20 +86,16 @@ export function SettingsPage({
             role="group"
             aria-label={t('settings.section.language')}
           >
-            <button
-              type="button"
-              className={segClass(lang === 'zh')}
-              onClick={() => setLang('zh')}
-            >
-              {t('settings.language.zh')}
-            </button>
-            <button
-              type="button"
-              className={segClass(lang === 'en')}
-              onClick={() => setLang('en')}
-            >
-              {t('settings.language.en')}
-            </button>
+            {LANG_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className={segClass(lang === opt.value)}
+                onClick={() => setLang(opt.value)}
+              >
+                {t(opt.labelKey)}
+              </button>
+            ))}
           </div>
         </div>
       </section>
@@ -92,27 +111,22 @@ export function SettingsPage({
             role="group"
             aria-label={t('settings.section.appearance')}
           >
-            <button
-              type="button"
-              className={segClass(theme === 'classic')}
-              onClick={() => setTheme('classic')}
-            >
-              {t('settings.theme.classic')}
-            </button>
-            <button
-              type="button"
-              className={segClass(theme === 'warm')}
-              onClick={() => setTheme('warm')}
-            >
-              {t('settings.theme.warm')}
-            </button>
+            {THEME_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className={segClass(theme === opt.value)}
+                onClick={() => setTheme(opt.value)}
+              >
+                {t(opt.labelKey)}
+              </button>
+            ))}
           </div>
         </div>
       </section>
 
       <IntegrationsSection client={client} source={source} />
-      <ApiBaseSection />
-      <WriteTokenSection />
+      <ConnectionSection />
       <AboutSection client={client} source={source} />
     </div>
   );
@@ -232,83 +246,41 @@ function IntegrationGroup({
   );
 }
 
-// 后端地址：localStorage 覆盖 VITE_API_BASE。改动后 reload 让 client 按新 base 重建。
-function ApiBaseSection() {
+// 连接：后端地址 + 写入令牌合并为单一 panel，减少滚动。
+// 后端地址覆盖 VITE_API_BASE；写入令牌在 server 绑公网时保证写端点授权。
+// 改动后 reload 让 client 按新配置重建。
+function ConnectionSection() {
   const { t } = useI18n();
-  const stored = window.localStorage.getItem(APIBASE_KEY) ?? '';
-  const [value, setValue] = useState(stored);
-  const effective = stored.trim() || (import.meta.env.VITE_API_BASE ?? '/');
 
-  function apply() {
-    const next = value.trim();
+  // --- 后端地址状态 ---
+  const storedBase = window.localStorage.getItem(APIBASE_KEY) ?? '';
+  const [baseValue, setBaseValue] = useState(storedBase);
+  const effectiveBase = storedBase.trim() || (import.meta.env.VITE_API_BASE ?? '/');
+
+  function applyBase() {
+    const next = baseValue.trim();
     if (next) window.localStorage.setItem(APIBASE_KEY, next);
     else window.localStorage.removeItem(APIBASE_KEY);
     window.location.reload();
   }
 
-  function reset() {
+  function resetBase() {
     window.localStorage.removeItem(APIBASE_KEY);
     window.location.reload();
   }
 
-  return (
-    <section className="panel settings-panel">
-      <div className="panel-header">
-        <h2>{t('settings.section.apiBase')}</h2>
-      </div>
-      <div className="settings-section">
-        <p className="settings-desc">{t('settings.apiBase.desc')}</p>
-        <label className="kb-field">
-          <span>{t('settings.apiBase.label')}</span>
-          <input
-            type="text"
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-            placeholder={t('settings.apiBase.placeholder')}
-          />
-        </label>
-        <p className="settings-current">
-          {t('settings.apiBase.current', { value: effective })}
-        </p>
-        <div className="settings-actions">
-          <button
-            type="button"
-            className="kb-submit"
-            onClick={apply}
-            disabled={value.trim() === stored.trim()}
-          >
-            {t('settings.apiBase.apply')}
-          </button>
-          <button
-            type="button"
-            className="settings-btn"
-            onClick={reset}
-            disabled={stored.trim() === ''}
-          >
-            {t('settings.apiBase.reset')}
-          </button>
-        </div>
-      </div>
-    </section>
-  );
-}
+  // --- 写入令牌状态 ---
+  const storedToken = window.localStorage.getItem(WRITE_TOKEN_KEY) ?? '';
+  const [tokenValue, setTokenValue] = useState(storedToken);
 
-// 写入令牌：server 绑非 loopback（0.0.0.0）时写端点（登记图纸 / 录入任务等 POST）须带
-// Authorization: Bearer <token>。把服务启动日志里那串 TEAMHUB_WRITE_TOKEN 粘进来即可。
-// 与"后端地址"同套路：存 localStorage，改动后 reload 让 client 带上令牌重建。
-function WriteTokenSection() {
-  const { t } = useI18n();
-  const stored = window.localStorage.getItem(WRITE_TOKEN_KEY) ?? '';
-  const [value, setValue] = useState(stored);
-
-  function apply() {
-    const next = value.trim();
+  function applyToken() {
+    const next = tokenValue.trim();
     if (next) window.localStorage.setItem(WRITE_TOKEN_KEY, next);
     else window.localStorage.removeItem(WRITE_TOKEN_KEY);
     window.location.reload();
   }
 
-  function reset() {
+  function resetToken() {
     window.localStorage.removeItem(WRITE_TOKEN_KEY);
     window.location.reload();
   }
@@ -316,22 +288,57 @@ function WriteTokenSection() {
   return (
     <section className="panel settings-panel">
       <div className="panel-header">
-        <h2>{t('settings.section.writeToken')}</h2>
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        <h2>{t('settings.section.connection' as any)}</h2>
       </div>
       <div className="settings-section">
-        <p className="settings-desc">{t('settings.writeToken.desc')}</p>
+        {/* 后端地址 */}
+        <p className="settings-desc">{t('settings.apiBase.desc')}</p>
+        <label className="kb-field">
+          <span>{t('settings.apiBase.label')}</span>
+          <input
+            type="text"
+            value={baseValue}
+            onChange={(event) => setBaseValue(event.target.value)}
+            placeholder={t('settings.apiBase.placeholder')}
+          />
+        </label>
+        <p className="settings-current">
+          {t('settings.apiBase.current', { value: effectiveBase })}
+        </p>
+        <div className="settings-actions">
+          <button
+            type="button"
+            className="kb-submit"
+            onClick={applyBase}
+            disabled={baseValue.trim() === storedBase.trim()}
+          >
+            {t('settings.apiBase.apply')}
+          </button>
+          <button
+            type="button"
+            className="settings-btn"
+            onClick={resetBase}
+            disabled={storedBase.trim() === ''}
+          >
+            {t('settings.apiBase.reset')}
+          </button>
+        </div>
+
+        {/* 写入令牌 */}
+        <p className="settings-desc settings-desc--spaced">{t('settings.writeToken.desc')}</p>
         <label className="kb-field">
           <span>{t('settings.writeToken.label')}</span>
           <input
             type="password"
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
+            value={tokenValue}
+            onChange={(event) => setTokenValue(event.target.value)}
             placeholder={t('settings.writeToken.placeholder')}
             autoComplete="off"
           />
         </label>
         <p className="settings-current">
-          {value.trim()
+          {tokenValue.trim()
             ? t('settings.writeToken.set')
             : t('settings.writeToken.unset')}
         </p>
@@ -339,16 +346,16 @@ function WriteTokenSection() {
           <button
             type="button"
             className="kb-submit"
-            onClick={apply}
-            disabled={value.trim() === stored.trim()}
+            onClick={applyToken}
+            disabled={tokenValue.trim() === storedToken.trim()}
           >
             {t('settings.writeToken.apply')}
           </button>
           <button
             type="button"
             className="settings-btn"
-            onClick={reset}
-            disabled={stored.trim() === ''}
+            onClick={resetToken}
+            disabled={storedToken.trim() === ''}
           >
             {t('settings.writeToken.reset')}
           </button>
@@ -358,7 +365,8 @@ function WriteTokenSection() {
   );
 }
 
-// 关于：service · version · 服务端模式取 /api/system/status。单一真实后端，无数据源回显。
+// 关于：service · version · 服务端模式取 /api/system/status。
+// mode 枚举原值（mock-first / real / hybrid）附带 title 说明，方便快速理解含义。
 function AboutSection({
   client,
   source,
@@ -371,6 +379,14 @@ function AboutSection({
     queryKey: ['system-status', source],
     queryFn: () => client.getSystemStatus(),
   });
+
+  // 安全地将 mode 映射到 i18n 键；未知值直接回显原值。
+  function modeLabel(mode: string): string {
+    if (mode === 'mock-first' || mode === 'real' || mode === 'hybrid') {
+      return `${mode} — ${t(MODE_LABEL[mode])}`;
+    }
+    return mode;
+  }
 
   return (
     <section className="panel settings-panel">
@@ -397,7 +413,7 @@ function AboutSection({
             />
             <MetaRow
               label={t('settings.about.mode')}
-              value={statusQuery.data.mode}
+              value={modeLabel(statusQuery.data.mode)}
               mono
             />
           </dl>

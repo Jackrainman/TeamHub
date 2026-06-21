@@ -52,7 +52,7 @@ export function KbSearchPage({
           aria-labelledby="kb-tab-search-btn"
           tabIndex={0}
         >
-          <KbSearchPanel client={client} source={source} />
+          <KbSearchPanel client={client} source={source} onGoToCloseout={() => setTab('closeout')} />
         </div>
       ) : (
         <div
@@ -85,9 +85,11 @@ interface SubmittedQuery {
 function KbSearchPanel({
   client,
   source,
+  onGoToCloseout,
 }: {
   client: HubApiClient;
   source: string;
+  onGoToCloseout: () => void;
 }) {
   const { t } = useI18n();
   const [symptomInput, setSymptomInput] = useState('');
@@ -164,7 +166,17 @@ function KbSearchPanel({
             <span>{query.data.note}</span>
           </div>
           {query.data.items.length === 0 ? (
-            <div className="state-band">{t('kb.noResults')}</div>
+            <div className="state-band">
+              <span>{t('kb.noResults')}</span>
+              <button
+                type="button"
+                className="kb-submit"
+                style={{ marginTop: '0.5rem' }}
+                onClick={onGoToCloseout}
+              >
+                <Archive size={14} aria-hidden="true" /> {t('kb.noResults.goArchive')}
+              </button>
+            </div>
           ) : (
             <>
               <p className="kb-result-count">

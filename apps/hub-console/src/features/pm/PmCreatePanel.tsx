@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode, type RefObject } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { ListPlus, GitFork, HelpCircle } from 'lucide-react';
 import type {
@@ -21,6 +21,12 @@ import { Field } from '../../components/Field';
 type Mode = 'task' | 'dependency' | 'need';
 
 const ROBOT_TARGETS: RobotTarget[] = ['R1', 'R2', 'shared'];
+// TODO(backend): RobotTarget 枚举目前硬编码 R1/R2/shared；真扩展（增 R3 等）需改 hub-contracts RobotTargetSchema + server 迁移。
+const ROBOT_TARGET_KEY: Record<RobotTarget, TranslationKey> = {
+  R1: 'pm.robot.R1',
+  R2: 'pm.robot.R2',
+  shared: 'pm.robot.shared',
+};
 const COMPLEXITIES: TaskComplexity[] = ['trivial', 'normal', 'hard'];
 const DEP_TYPES: DependencyType[] = ['blocks', 'requires', 'sharesResource'];
 const HUMAN_SOURCES = ['human', 'aiSuggested'] as const;
@@ -45,16 +51,19 @@ export function PmCreatePanel({
   client,
   tasks,
   onCreated,
+  panelRef,
 }: {
   client: HubApiClient;
   tasks: Task[];
   onCreated: () => void;
+  /** 可选 ref：外部（PmBoardPage 冷启动 CTA）滚动聚焦到面板用 */
+  panelRef?: RefObject<HTMLElement | null>;
 }) {
   const { t } = useI18n();
   const [mode, setMode] = useState<Mode>('task');
 
   return (
-    <section className="pm-create panel" aria-label={t('pm.create.title')}>
+    <section className="pm-create panel" aria-label={t('pm.create.title')} ref={panelRef as RefObject<HTMLElement>}>
       <header className="pm-create__head">
         <div>
           <h2>{t('pm.create.title')}</h2>
@@ -242,7 +251,7 @@ function TaskForm({
           >
             {ROBOT_TARGETS.map((rt) => (
               <option value={rt} key={rt}>
-                {rt === 'shared' ? t('pm.robot.shared') : rt}
+                {t(ROBOT_TARGET_KEY[rt])}
               </option>
             ))}
           </select>
@@ -271,6 +280,7 @@ function TaskForm({
           />
         </Field>
       </div>
+      <p className="form-hint">{t('pm.field.actorHint')}</p>
       <FormFooter
         submitLabel={t('pm.create.submit.task')}
         submitting={mutation.isPending}
@@ -333,14 +343,20 @@ function DependencyForm({
     });
   }
 
+  const DEP_TYPE_HINT_KEY: Record<DependencyType, TranslationKey> = {
+    blocks: 'pm.depType.hint.blocks',
+    requires: 'pm.depType.hint.requires',
+    sharesResource: 'pm.depType.hint.sharesResource',
+  };
+
   return (
     <form className="pm-form" onSubmit={submit}>
       <div className="pm-form__grid">
         <Field label={t('pm.field.fromTask')}>
-          <TaskSelect tasks={tasks} value={fromTaskId} onChange={setFromTaskId} />
+          <TaskSelect tasks={tasks} value={fromTaskId} onChange={setFromTaskId} richLabel />
         </Field>
         <Field label={t('pm.field.toTask')}>
-          <TaskSelect tasks={tasks} value={toTaskId} onChange={setToTaskId} />
+          <TaskSelect tasks={tasks} value={toTaskId} onChange={setToTaskId} richLabel />
         </Field>
       </div>
       {fromTaskId && toTaskId && fromTaskId === toTaskId ? (
@@ -358,6 +374,7 @@ function DependencyForm({
               </option>
             ))}
           </select>
+          <p className="form-hint">{t(DEP_TYPE_HINT_KEY[type])}</p>
         </Field>
         <Field label={t('pm.field.source')}>
           <SourceSelect value={source} onChange={setSource} />
@@ -434,9 +451,16 @@ function NeedForm({
 
   return (
     <form className="pm-form" onSubmit={submit}>
-      <Field label={t('pm.field.onTask')}>
-        <TaskSelect tasks={tasks} value={onTaskId} onChange={setOnTaskId} />
-      </Field>
+      {/* onTask 与 source 并排同一行（表单密度优化）*/}
+      <div className="pm-form__grid">
+        <Field label={t('pm.field.onTask')}>
+          <TaskSelect tasks={tasks} value={onTaskId} onChange={setOnTaskId} richLabel />
+        </Field>
+        <Field label={t('pm.field.source')}>
+          <SourceSelect value={source} onChange={setSource} />
+        </Field>
+      </div>
+      {/* description 保留全宽 */}
       <Field label={t('pm.field.needDescription')}>
         <textarea
           rows={2}
@@ -464,14 +488,9 @@ function NeedForm({
           />
         </Field>
       </div>
-      <div className="pm-form__grid">
-        <Field label={t('pm.field.source')}>
-          <SourceSelect value={source} onChange={setSource} />
-        </Field>
-        <Field label={t('pm.field.confirmer')}>
-          <input value={confirmer} onChange={(e) => setConfirmer(e.target.value)} />
-        </Field>
-      </div>
+      <Field label={t('pm.field.confirmer')}>
+        <input value={confirmer} onChange={(e) => setConfirmer(e.target.value)} />
+      </Field>
       <FormFooter
         submitLabel={t('pm.create.submit.need')}
         submitting={mutation.isPending}
@@ -485,14 +504,25 @@ function NeedForm({
 
 // --- 共享小组件 -------------------------------------------------------------
 
+const STATUS_SHORT_KEY: Record<Task['status'], TranslationKey> = {
+  pending: 'pm.status.short.pending',
+  inProgress: 'pm.status.short.inProgress',
+  blocked: 'pm.status.short.blocked',
+  done: 'pm.status.short.done',
+  shelved: 'pm.status.short.shelved',
+};
+
 function TaskSelect({
   tasks,
   value,
   onChange,
+  /** richLabel=true 时 option 文案追加状态与所属组，帮区分同名任务 */
+  richLabel,
 }: {
   tasks: Task[];
   value: string;
   onChange: (id: string) => void;
+  richLabel?: boolean;
 }) {
   const { t } = useI18n();
   return (
@@ -500,7 +530,9 @@ function TaskSelect({
       <option value="">{t('pm.field.selectTask')}</option>
       {tasks.map((task) => (
         <option value={task.id} key={task.id}>
-          {task.title}
+          {richLabel
+            ? `[${t(STATUS_SHORT_KEY[task.status])}·${task.groupId}] ${task.title}`
+            : task.title}
         </option>
       ))}
     </select>

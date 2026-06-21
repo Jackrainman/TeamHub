@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Network } from 'lucide-react';
 import type { Task, TaskStatus } from '@teamhub/hub-contracts';
@@ -41,6 +42,7 @@ export function PmBoardPage({
 }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
+  const panelRef = useRef<HTMLElement>(null);
   const query = useQuery({
     queryKey: ['tasks', source],
     queryFn: () => client.getTasks(),
@@ -71,7 +73,7 @@ export function PmBoardPage({
 
   return (
     <div className="pm-page">
-      <PmCreatePanel client={client} tasks={tasks} onCreated={refreshTasks} />
+      <PmCreatePanel client={client} tasks={tasks} onCreated={refreshTasks} panelRef={panelRef} />
       <section className="pm-summary" aria-label={t('pm.section.summary')}>
         <MetricTile label={t('pm.summary.total')} value={String(tasks.length)} />
         <MetricTile
@@ -89,6 +91,16 @@ export function PmBoardPage({
         <div className="pm-coldstart">
           <h3>{t('pm.coldstart.title')}</h3>
           <p>{t('pm.coldstart.body')}</p>
+          <button
+            type="button"
+            className="kb-submit"
+            onClick={() => {
+              panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              panelRef.current?.focus({ preventScroll: true });
+            }}
+          >
+            {t('pm.coldstart.goCreate')}
+          </button>
         </div>
       ) : (
         <div className="pm-board">
