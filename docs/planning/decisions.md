@@ -976,3 +976,14 @@
 - 验证：三包 `verify:all` 全绿（contracts 164 / server 194[+8 upload] / console 44）；**真机 API 冒烟**（本地起 server + FileGovStore）：手填 `26R3-试制`→201、上传 .md→storedFile 正确+落卷、download→拿字节、重传 .txt→清旧兄弟磁盘仅一份、`gov.json` 持久化指针（重启不丢）；负路径 415（坏后缀）/401（无 Bearer）/404（坏 id 无孤儿）/400（空 robotCode、未配目录）全对。WSL2 真机浏览器走查 = 下一步（见 push 后 WSL 构建轮）。
 - 并发处理：本轮单开 worktree `feat/artifact-archive-chain` 开发；另一 session 同时在 master 提交（M14/M16/M17+审计+presence 文档）。收尾 = rebase 到其最新提交（零文件重叠、零冲突）→ 无损丢弃 main 冗余 lock 噪声（我提交已含）→ **保留其未提交 WIP `docs/design/presence-reconcile-lock.md`**（未碰）→ FF 合并 → push。
 - 事实源：本 ADR；plan `~/.claude/plans/git-workflow-adaptive-grove.md`；前序 D-071（图纸档案 v2）/ D-074（版本号纪律）/ D-025·D-038（二进制不进 git·机械本地存真相）；backlog `HUB-ARTIFACT-STORE-MECH`（本刀本地卷版收口，AI 看图算量增强仍 pending）。
+
+## D-079 — 差异化在场排班 fixture/派生调和定稿（PRESENCE-RECONCILE-LOCK，路线 C 锁定 + 7 决议）
+
+- 状态：**DECIDED / DESIGN-LOCKED（文档就绪，实现待落；阶段② 实现提示词已交付用户去跑）**（2026-06-21）。
+- 上下文：在场排班 fixture 遗留——`grp-program` 仍持两个 `t-r*-integration` 总联调任务、`m-progA/B` 挂程序组，与「总联调=全组各一人」收敛语义、差异化三态 demo 不符。前序 D-072（表现形式 + 资源领域模型定稿）已立 `convergenceScope` + `grp-convergence` 哨兵机制方向。本轮把字段/派生/fixture/测试级调和**定稿**，并就 7 个设计抉择逐一拍板。
+- **路线选定（用户拍板）**：**路线 C = 总联调收敛语义忠实落地，但 demo 拆两场景**——今晚/首屏 = 平日差异化（三态：电控 present / 电路 onCall / 视觉 blockedFree），「总联调日」= 全组各一人。A 的核心机制（`convergenceScope='allLeafGroups'` flag + `grp-convergence` sentinel + 全叶子组 upgrade present）全保留；C 多做一步 demo 拆分，保住三态可见 + `schedule-route.test.ts` 三态断言零改 + blockedFree 测试保持绿。被否的 A（今晚=总联调，三态压成全 present）存档于定稿 §10。
+- **7 项 open question 决议**（2026-06-21）：① 今晚 session id **改名** `sess-tonight-prog→sess-tonight-ec`（同步 ~5 处测试引用）；② 今晚 `invitedMemberIds` **留空 `[]`**；③ 总联调日 `windowLabel='总联调日'`；④ 总联调日 **加 R2**（新增第二条 sess→`t-r2-integration`，两车都演示收敛）；⑤ `convergenceScope` **进 console**（DepNode `+isConvergenceTask` + DAG「全组」徽章）；⑥ `m-progA` `role=member`，且成员展示不突出组长（console 现状已满足，不改）；⑦ `need-rtos` 归口 **grp-ec**（程序组已无直属成员，挂之则空挂）。④⑤ 为较初稿的 2 处加项。
+- 落地（**阶段② 待实现，非本轮**）：contracts `governance.ts`(convergenceScope + DepNode.isConvergenceTask + toDepGraphView) / `fixtures.ts`(grp-convergence 哨兵·m-progA→grp-ec 持 t-r1-system-tune·两 integration→grp-convergence+convergenceScope+ownerId=null 保 isCritical·dep-006/007·need-rtos→grp-ec·sess 改名+留空+新增 R1/R2 总联调) / `schedule.ts`(deriveLeafGroups + 持有组按 convergenceScope 分流全叶子组 present + render 跳哨兵) / `attribution.ts`(哨兵不漏)；console 仅 DAG「全组」徽章；~10 测试 + AGENTS.md §1。
+- 守恒/红线（I0）：永不渲染 memberId/invitedMemberId；`invitedMemberIds` 永不进派生输出；今晚三态保留；`t-r1/r2-integration` 保持 `isCritical=true`。
+- 协调：本轮 = **AI 只写文档**（定稿收口 + 本 ADR + now.md），实现交付简短提示词由用户掌控落点（代码改动触发 D-074 自动 bump 钩子；PRESENCE=feature → `VERSION_BUMP_LEVEL=minor`；勿碰 AGENTS §7 / `scripts/`）。
+- 事实源：定稿 `docs/design/presence-reconcile-lock.md`（§11 决议表 + §12 实现清单 = 实现真相）；前序 D-072（PRESENCE-VIZ-RESOURCE-MODEL）/ D-029（差异化在场排班立项）；提示词在 plan `~/.claude/plans/binary-munching-valley.md`。
