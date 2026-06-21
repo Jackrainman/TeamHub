@@ -919,9 +919,27 @@
 - 验证：本机 console `verify:all`（typecheck + 40 测含新 carry-over + 生产 build）全绿；contracts 151 / server 186 测不变；起服 4177 serve 生产 dist → index+asset 200；**HTTP 端到端 carry-over smoke**：源带 `m-progA` 的上一天棒 → 结转到次日 `invitedMemberIds:[]`、`/api/relay` 渲染该棒且 grep memberId 为空。**WSL 真机 Playwright 全 PASS**（buildId ce8d99a，截图 `docs/screenshots/wsl-fleet-*`，结果 `wsl-fleet-results.json`）：侧栏 9 项含机器人队·无旧机器人管理/在场排班；双区首屏（机器人清单 + 接力画布）渲染；空板引导卡两 CTA；**加棒后接力卡 reactflow 节点 visibility:visible（无 visibility:hidden 回归）**；沿用上一天 明天 0→1 卡；退役机器人后加棒可选项 1→0（即时反映）；DOM 无 memberId。
 - 事实源：本 ADR；定稿 `docs/design/schedule-ux-lock.md`；上游建议 `docs/design/sched-date-relay-robot-redesign.md` §B；plan `~/.claude/plans/teamhub-ia-atomic-cocke.md`；前序 D-072（排班定稿）/D-029（排班派生）/D-069（组级容量）。阶段 2/3/4（项目页/知识页/导航分组）由 D-076 收尾。
 
-## D-076 — IA 重构阶段 2/3/4：项目页 + 知识页 + 导航分组（一轮收尾）+ 表单一致性
+## D-076 — IA 重构阶段 2/3/4：项目页 + 知识页 + 导航分组【SUPERSEDED-BY D-077·全文归档】
 
-- 状态：**DECIDED / IMPLEMENTED / VERIFIED / MERGED（已并入 master `4da245e`，2026-06-20 干净 ff push origin/master——云端 `a4033b8` 先已并入工作分支；分支 `ia-phase2-4` 已 push、可清）**（2026-06-20；前端为主 + 零契约/端点改；4 层 workflow 落 3 commit；本机三包 `verify:all` 全绿 + **WSL2 真机 Playwright 10/10 PASS** buildId `d0f858c`，截图 `docs/screenshots/wsl-ia-phase2-4-*`，结果 `wsl-ia-phase2-4-results.json`）。
+- 状态：**SUPERSEDED-BY D-077**（2026-06-21）。结论：阶段 2-4 首版已并入 master 又被用户验收推翻两处——**Phase 2 项目页（看板+依赖图）设计有效、D-077 沿用**；**知识页合并图纸档案 ✗**（两数据域八竿子打不着）+ **导航折叠分组 ✗**（洞察不该可收）被推翻。
+- 全文（覆盖项 gaps=C / 表单一致 / 实现期偏离 / 验证）→ `docs/archive/decisions-archive.md` D-076 段。后继 D-077。
+
+## D-077 — IA 重构修正：图纸档案拆回独立页 + 导航全摊平 + 缺人方向置末
+
+- 状态：**DECIDED / IMPLEMENTED（本地 master `9c4cc5d`，revert D-076 代码 → 从干净 D-075 处重做；本机三包 `verify:all` 全绿 + i18n 双侧 467 键平衡）；WSL2 真机 Playwright 待补**（测试机当时离线/ssh 超时，脚本+bundle 已传，上线即跑）；**待 push origin/master**（2026-06-21）。
+- 上下文：D-076 阶段 2-4 并入 master 后用户验收发现两处设计错误：① 知识库把「图纸档案」和「相似搜索」合一是错的——KB 相似检索（调试结案 markdown 域）与图纸档案（CAD `ArtifactRef` 域）**八竿子打不着**（正是 D-076 实现期「archiveFileName 不做链」捕获的同一数据域分歧的延续）；② 「洞察」分组**不该可折叠**。
+- **用户拍板**：
+  1. **图纸档案拆回独立顶级页**（知识库 = 纯相似检索 `KbSearchPage`；图纸档案 = 独立 `ArchivePage`）。
+  2. **导航全摊平**：删「洞察」折叠分组，无分组、无折叠。
+  3. **缺人方向留、置末**（设置之前）。
+  4. **git 方式 = revert 整个 Phase2-4 再从干净（D-075）处重做**：好坏交织在同一 commit（P3 含好的 SeasonSelect、P4 含要的扁平基础）、commit 粒度无法只回退坏的；revert 是新增反向 commit、不改写已推送历史。
+- 终态导航（8 项·扁平·固定顺序）：`overview` 总览 / `project` 项目(看板+依赖图视图切换) / `knowledge` 知识库(纯相似检索) / `archive` 图纸档案(独立) / `inv` 库存 / `fleet` 机器人队 / `gaps` 缺人方向 / `settings` 设置。
+- 实现（沿用 D-075「组合不重写」）：
+  - **revert**（commit `996df7d`）：`git revert d0f858c 9147462 9b090b7` + 删过时截图 `wsl-ia-phase2-4-*` → 回 D-075 干净基线，console src 实测与基线零 diff。
+  - **重做**（commit `9c4cc5d`）：复用已验证好件（从被 revert 的 commit 取回 `ProjectPage.tsx` 看板+依赖图、`SeasonSelect.tsx` 赛季下拉一致、去重录入入口的 `DepGraphPage.tsx`、接 SeasonSelect 的 `ArchivePage`/`ResourcesPage`）；新写 `App.tsx`（路由 8 分支·删 focusTaskId·knowledge→KbSearchPage·archive→ArchivePage）、`ConsoleLayout.tsx`（扁平 `navItems` 8 项·新序·`ConsolePage` 联合 = overview\|project\|knowledge\|archive\|inv\|fleet\|gaps\|settings）、`i18n`（加 nav.project/nav.knowledge/toolbar.title.project·knowledge/project.view.*/season.* · 删 nav.depGraph/nav.pm/nav.kb + 对应 title · **保留** nav.archive/toolbar.title.archive、toolbar.title.kb=KbSearchPage 内层用）、`styles.css`（取 P3 版含 project-view-switch+season、无 nav-group）。**不重建** `KnowledgePage`。
+- 铁律：组合不重写；契约/端点零改；`robotCode`/`robotTarget` 枚举不动；I0 反监视；i18n 双侧成对。
+- 验证：本机 contracts 151 / server 186 / console(typecheck+test+build) 三包 `verify:all` 全绿；i18n zh/en 各 467 键平衡、无单侧孤儿；grep 实测无残留对已删 page id / i18n 键 / `KnowledgePage` 的引用。**WSL2 真机 Playwright 待补**（机器离线，上线即跑：扁平 8 项按序 / 无折叠 / 知识库无图纸 Tab / 图纸档案独立 / 项目页依赖图无 visibility:hidden / 两表单赛季下拉 / I0 净，截图入 `docs/screenshots/wsl-ia-fix-*`）。
+- 事实源：本 ADR；plan `~/.claude/plans/binary-munching-valley.md`；前序 D-076（全文 → `docs/archive/decisions-archive.md`）/ D-075（阶段 1）。
 - 上下文：D-075 阶段 1（机器人队页）已落地，但用户 2026-06-20「左侧还是一大堆」——阶段 1 仅 10→9 看不出，视觉 declutter 全在阶段 2-4。沿用 D-075「组合不重写」。spec = `docs/planning/ia-refactor-next-prompts.md` PROMPT 1+2，上游 `docs/design/sched-date-relay-robot-redesign.md` §B。本轮单开 `ia-phase2-4`、不在 master 直改；master 回并推迟到收尾（云端 a4033b8 已干净并入工作分支，merge-tree 零冲突实证）。
 - **用户拍板的覆盖项（优先于 spec 旧措辞）**：
   1. **gaps = C（独立顶级洞察项，非并入项目页 Tab）**：用户要求「以用户视角再讲一遍」后拍板——「缺人方向」是全队层面、只读、扫一眼的体检报告（哪个组缺哪个方向人手、只到组不点名＝I0），性质同「总览」＝仪表盘，故**留作顶级导航项、归洞察区与总览并排**，不并进项目页。→ 项目页只合 看板+依赖图（两视图切换），导航 **9→8→7**（非旧 spec 的 9→7→6）。原 spec「gaps 降为项目页洞察 Tab」与「洞察区＝总览/缺人方向」自相矛盾，C 解之。
