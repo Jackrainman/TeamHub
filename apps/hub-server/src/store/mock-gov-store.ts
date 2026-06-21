@@ -266,6 +266,21 @@ export class InMemoryGovStore implements GovStore {
     return artifact;
   }
 
+  /**
+   * 给既有归档物挂文件指针（POST /api/artifacts/:id/upload）。**就地 idx 改**：只换 storedFile、不动其余字段、
+   * 不新增行（重传=覆盖）。id 不存在回 null（路由 → 404）。I0：storedFile 无人员维度。
+   */
+  async setArtifactFile(
+    id: string,
+    file: NonNullable<ArtifactRef['storedFile']>,
+  ): Promise<ArtifactRef | null> {
+    const idx = this.snapshot.artifacts.findIndex((a) => a.id === id);
+    if (idx === -1) return null;
+    const updated: ArtifactRef = { ...this.snapshot.artifacts[idx], storedFile: file };
+    this.snapshot.artifacts[idx] = updated;
+    return updated;
+  }
+
   /** 共享物理资源只读（GET /api/schedule 组装 ScheduleSnapshot 用；GET /api/resources 可选读视图）。 */
   async listResources(): Promise<SharedResource[]> {
     return this.resources;

@@ -1,7 +1,14 @@
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
+import multipart from '@fastify/multipart';
 import { readFile, readdir } from 'node:fs/promises';
 import { extname, isAbsolute, join, relative } from 'node:path';
+import {
+  getArtifactDir,
+  sha256Of,
+  writeArtifactFile,
+  deleteArtifactFile,
+} from './artifact-storage.js';
 import {
   AgentBackendCapabilitiesResponseSchema,
   AgentBackendHealthResponseSchema,
@@ -33,6 +40,7 @@ import {
   WaiveDependencyResponseSchema,
   CreateArtifactRequestSchema,
   CreateArtifactResponseSchema,
+  UploadArtifactResponseSchema,
   nextArtifactVersionNo,
   deriveArtifactKind,
   TasksResponseSchema,
@@ -134,7 +142,35 @@ export interface BuildHubServerOptions {
    * 客户端 IP，限流按客户端分桶。直连暴露时保持 false（否则 X-Forwarded-For 可伪造）。透传给 Fastify。
    */
   trustProxy?: boolean | string;
+  /** 归档物上传单文件字节上限（默认 50MB）。测试可调小以触发 413、免造大文件。 */
+  artifactMaxBytes?: number;
 }
+
+// 归档物文件上传上限（50MB）：覆盖机械 CAD（step/stp/sldprt）+ 电路 PDF + 固件，又约束资源耗尽面。
+const ARTIFACT_MAX_BYTES = 50 * 1024 * 1024;
+
+// 上传后缀白名单 → 规范 contentType。**以后缀为准**（CAD 的浏览器 MIME 多为 octet-stream，不可信）。
+// 战队格式：CAD（机械）/ 文档（图纸说明、电路 PDF）/ 图（截图）/ 包（多文件打包）/ 固件（电控/驱动）。
+const ARTIFACT_ALLOWED_EXT = new Map<string, string>([
+  ['.step', 'application/step'],
+  ['.stp', 'application/step'],
+  ['.iges', 'model/iges'],
+  ['.igs', 'model/iges'],
+  ['.sldprt', 'application/octet-stream'],
+  ['.sldasm', 'application/octet-stream'],
+  ['.slddrw', 'application/octet-stream'],
+  ['.dwg', 'application/acad'],
+  ['.f3d', 'application/octet-stream'],
+  ['.pdf', 'application/pdf'],
+  ['.md', 'text/markdown'],
+  ['.txt', 'text/plain'],
+  ['.png', 'image/png'],
+  ['.jpg', 'image/jpeg'],
+  ['.jpeg', 'image/jpeg'],
+  ['.zip', 'application/zip'],
+  ['.bin', 'application/octet-stream'],
+  ['.hex', 'application/octet-stream'],
+]);
 
 export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInstance {
   // H3（AUDIT-FIXES）：显式 bodyLimit 收口写端点请求体上限（默认 Fastify 1MB 仍偏大，配合 KB 整文件重写是
@@ -191,6 +227,13 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     } else {
       hit.count += 1;
     }
+  });
+
+  // 归档物（图纸）文件上传：multipart 流式，单文件。**全局 bodyLimit(256KB) 不约束 multipart**——
+  // 故须在此显式钉 fileSize 上限（50MB，覆盖 CAD/PDF 又约束资源耗尽面，与 H3 同源关切）。
+  // 注册在写鉴权钩子之后、路由之前；onRequest 钩子先于 body 解析跑，故上传仍受 Bearer + 限流 gate。
+  app.register(multipart, {
+    limits: { fileSize: options.artifactMaxBytes ?? ARTIFACT_MAX_BYTES, files: 1 },
   });
 
   app.get('/health', async () => {
@@ -292,7 +335,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   app.get<{ Params: { id: string } }>(
     '/api/artifacts/:id/download',
     async (request, reply) => {
-      const dir = process.env.TEAMHUB_ARTIFACT_FILES_DIR;
+      const dir = getArtifactDir();
       if (!dir) {
         void reply.code(404).send({ detail: '未配置归档物文件目录' });
         return reply;
@@ -370,6 +413,96 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     void reply.code(201);
     return CreateArtifactResponseSchema.parse({ artifact });
   });
+
+  // 归档物（图纸）文件上传（HUB-ARTIFACT-STORE-MECH 本地卷版，两步式：先登记元数据再传文件 / 也可登记即传）。
+  // 字节落本地卷（artifact-storage 接缝，D-025：不进 git），storedFile 指针经 store.setArtifactFile 落库（覆盖=重传）。
+  // POST → 继承 H3 onRequest 鉴权+限流。**I0**：storedFile 无人维度。**安全**：先验归档物存在再写、避免孤儿；
+  // 后缀白名单（以后缀为准，CAD 的 MIME 不可信）；fileSize 上限由 multipart limits 钉（全局 bodyLimit 不管 multipart）。
+  app.post<{ Params: { id: string } }>(
+    '/api/artifacts/:id/upload',
+    async (request, reply) => {
+      const dir = getArtifactDir();
+      if (!dir) {
+        // 配置缺失（非 not-found）：用 400 与「归档物不存在」404 区分，便于运维定位。
+        void reply.code(400).send({ detail: '未配置归档物文件目录' });
+        return reply;
+      }
+      const { id } = request.params;
+      // 先验归档物存在——再消费流写盘，杜绝给不存在 id 留下孤儿文件。
+      const snapshot = await store.getSnapshot();
+      if (!snapshot.artifacts.some((a) => a.id === id)) {
+        void reply.code(404).send({ detail: '归档物不存在' });
+        return reply;
+      }
+      let data;
+      try {
+        data = await request.file();
+      } catch {
+        void reply.code(400).send({ detail: '请求体不是 multipart 表单' });
+        return reply;
+      }
+      if (!data) {
+        void reply.code(400).send({ detail: '未收到文件' });
+        return reply;
+      }
+      const ext = extname(data.filename ?? '').toLowerCase();
+      const contentType = ARTIFACT_ALLOWED_EXT.get(ext);
+      if (!contentType) {
+        await data.toBuffer().catch(() => {}); // 排空流，避免连接挂起
+        void reply.code(415).send({ detail: `不支持的文件类型：${ext || '（无后缀）'}` });
+        return reply;
+      }
+      let buf: Buffer;
+      try {
+        buf = await data.toBuffer();
+      } catch (err) {
+        if ((err as { code?: string })?.code === 'FST_REQ_FILE_TOO_LARGE') {
+          void reply.code(413).send({ detail: '文件过大（上限 50MB）' });
+          return reply;
+        }
+        void reply.code(400).send({ detail: '读取文件失败' });
+        return reply;
+      }
+      if (data.file.truncated) {
+        void reply.code(413).send({ detail: '文件过大（上限 50MB）' });
+        return reply;
+      }
+      const sha256 = sha256Of(buf);
+      const sizeBytes = buf.length;
+      let filename: string;
+      try {
+        filename = await writeArtifactFile(dir, id, ext, buf);
+      } catch {
+        void reply.code(500).send({ detail: '写入文件失败' });
+        return reply;
+      }
+      const meta = {
+        filename,
+        ext,
+        sizeBytes,
+        contentType,
+        sha256,
+        uploadedAt: clock.now().toISOString(),
+      };
+      let updated;
+      try {
+        updated = await store.setArtifactFile(id, meta);
+      } catch {
+        // 落盘指针失败：删刚写的字节，避免「有文件无指针」孤儿。
+        await deleteArtifactFile(dir, id).catch(() => {});
+        void reply.code(500).send({ detail: '保存文件指针失败' });
+        return reply;
+      }
+      if (!updated) {
+        // 竞态：写盘期间归档物消失（append-only 无 delete，理论不至）。清孤儿 + 404。
+        await deleteArtifactFile(dir, id).catch(() => {});
+        void reply.code(404).send({ detail: '归档物不存在' });
+        return reply;
+      }
+      void reply.code(200);
+      return UploadArtifactResponseSchema.parse({ artifact: updated });
+    },
+  );
 
   // 依赖链 · 阻塞归因视图：治理快照经纯函数 toDepGraphView 实时派生（D-040 首任务收敛）。
   // 解 hub-console real 模式 GET /api/dep-graph 的 404；输出主键为 task/group/dependency，无 memberId 维度（C2）。

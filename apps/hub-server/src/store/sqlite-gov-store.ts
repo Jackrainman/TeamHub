@@ -62,6 +62,13 @@ export class SqliteGovStore implements GovStore {
     throw new Error(SQLITE_NOT_IMPLEMENTED);
   }
 
+  async setArtifactFile(
+    _id: string,
+    _file: NonNullable<ArtifactRef['storedFile']>,
+  ): Promise<ArtifactRef | null> {
+    throw new Error(SQLITE_NOT_IMPLEMENTED);
+  }
+
   async listResources(): Promise<SharedResource[]> {
     throw new Error(SQLITE_NOT_IMPLEMENTED);
   }

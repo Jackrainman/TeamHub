@@ -243,6 +243,24 @@ export class FileGovStore implements GovStore {
     return artifact;
   }
 
+  // 给既有归档物挂文件指针（POST /api/artifacts/:id/upload）：idx 类——委托 inner 就地改 storedFile + 落盘累积，
+  // persist 失败按 id 原地还原旧条（镜像 updateTaskStatus）。storedFile 指针落 gov-data.json，字节在独立卷、重启不丢。
+  async setArtifactFile(
+    id: string,
+    file: NonNullable<ArtifactRef['storedFile']>,
+  ): Promise<ArtifactRef | null> {
+    const snap = this.inner.snapshotForRollback();
+    const idx = snap.artifacts.findIndex((a) => a.id === id);
+    const prior = idx >= 0 ? snap.artifacts[idx] : undefined; // 写前整条（idx 类回滚需存旧值）
+    const artifact = await this.inner.setArtifactFile(id, file);
+    if (artifact) {
+      await this.persistOrRollback(() => {
+        if (prior) snap.artifacts[idx] = prior;
+      });
+    }
+    return artifact;
+  }
+
   // 差异化在场排班（D-029，SCHED-WIRE-EXISTING）：resources/resourceSessions **不在 GovernanceSnapshot 内**，
   // 故**不落盘**（落盘会牵动 GovernanceSnapshotSchema + GOVERNANCE_ARRAY_FIELDS + 已部署 ~/teamhub-data JSON 兼容，
   // 属本刀 DoD 外的落盘格式变更）。读直接委托 inner；写仅落 inner 内存（进程重启回 seed scheduleScenarioFixture）。

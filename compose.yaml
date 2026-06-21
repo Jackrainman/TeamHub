@@ -16,7 +16,9 @@ services:
       # v1：治理快照落盘到挂卷（同 KB 的 H5 持久化纪律）——否则重启丢 PM 录入 / 图纸提交日志 /
       # 结案知识节点。文件不存在时 FileGovStore seed 真实场景 + 图纸版本日志。
       TEAMHUB_GOV_DATA_FILE: /var/lib/teamhub/gov/gov-data.json
-      ARTIFACT_ROOT: /var/lib/teamhub/artifacts
+      # 归档物（图纸）字节落挂卷（HUB-ARTIFACT-STORE-MECH 本地卷版，D-025：不进 git）——server 读的是
+      # TEAMHUB_ARTIFACT_FILES_DIR（旧 ARTIFACT_ROOT 名字错、server 从不读，导致上传/下载在部署里恒 404）。
+      TEAMHUB_ARTIFACT_FILES_DIR: /var/lib/teamhub/artifacts
     ports:
       - "${TEAMHUB_HOST_PORT:-4177}:4177"
     volumes:

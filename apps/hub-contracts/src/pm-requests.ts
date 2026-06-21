@@ -122,12 +122,15 @@ export const CreateArtifactRequestSchema = ArtifactRefSchema.omit({
   kind: true,
   versionNo: true,
   revision: true,
+  // storedFile 服务器独占（仅上传路由写），登记时禁客户端注入文件元数据。
+  storedFile: true,
 })
   .extend({
     ownerGroup: z.enum(['mechanical', 'electrical', 'ec', 'vision']),
     season: z.string().min(1),
-    // 适配机器人三选：R1 / R2 / universal（通用·不上固定机器人）。是版本属性、不进版本键。
-    robotCode: z.enum(['R1', 'R2', 'universal']),
+    // 适配机器人：自由串手填（真实战队机器人编号会变，如 26R1 / 26R3-试制 / 通用）。
+    // 是版本属性、不进版本键（server 版本号按 组别+赛季+机构 三键自增），故放宽为任意非空串安全。
+    robotCode: z.string().min(1),
     mechanism: z.string().min(1),
     subType: z.enum(['drawing', 'driver']).optional(),
   })
@@ -149,6 +152,10 @@ export const CreateArtifactRequestSchema = ArtifactRefSchema.omit({
     }
   });
 export const CreateArtifactResponseSchema = z.object({
+  artifact: ArtifactRefSchema,
+});
+// POST /api/artifacts/:id/upload 响应：回带写入 storedFile 后的整条归档物（含文件指针）。
+export const UploadArtifactResponseSchema = z.object({
   artifact: ArtifactRefSchema,
 });
 
@@ -288,6 +295,9 @@ export type CreateArtifactRequest = z.infer<
 >;
 export type CreateArtifactResponse = z.infer<
   typeof CreateArtifactResponseSchema
+>;
+export type UploadArtifactResponse = z.infer<
+  typeof UploadArtifactResponseSchema
 >;
 export type CreateResourceSessionRequest = z.infer<
   typeof CreateResourceSessionRequestSchema

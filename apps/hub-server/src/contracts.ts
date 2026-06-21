@@ -55,6 +55,7 @@ export {
   WaiveDependencyResponseSchema,
   CreateArtifactRequestSchema,
   CreateArtifactResponseSchema,
+  UploadArtifactResponseSchema,
   // 图纸档案 v2（HUB-ARTIFACT-ARCHIVE-V2）：路由 owns 派生（C5）——版本号自增 + kind 派生纯函数。
   nextArtifactVersionNo,
   deriveArtifactKind,

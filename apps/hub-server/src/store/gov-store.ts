@@ -186,6 +186,16 @@ export interface GovStore {
    */
   appendArtifact(draft: ArtifactDraft): Promise<ArtifactRef>;
 
+  /**
+   * 给既有归档物挂上「已上传文件」指针（POST /api/artifacts/:id/upload，HUB-ARTIFACT-STORE-MECH 本地卷版）。
+   * **就地 idx 改**（非 append，不新增行、不动 versionNo）——只把 storedFile 换成新文件指针，故重传=覆盖语义。
+   * id 不存在回 `null`（路由 → 404）。**I0**：storedFile 无人员维度；字节由路由层先落本地卷，本方法只写索引/校验和。
+   */
+  setArtifactFile(
+    id: string,
+    file: NonNullable<ArtifactRef['storedFile']>,
+  ): Promise<ArtifactRef | null>;
+
   // --- 差异化在场排班读写（D-029；SCHED-WIRE-EXISTING 接出死代码 derivePresenceSchedule）---
   /**
    * 共享物理资源（实车 / 测试台）只读。**为何独立读口**：SharedResource / ResourceSession 不在

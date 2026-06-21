@@ -2,6 +2,8 @@ import { describe, expect, test } from 'vitest';
 import {
   deriveArtifactKind,
   nextArtifactVersionNo,
+  ArtifactRefSchema,
+  CreateArtifactRequestSchema,
   type ArtifactRef,
   type ArtifactVersionKey,
 } from '../src/index.js';
@@ -104,5 +106,77 @@ describe('deriveArtifactKind', () => {
 
   test('视觉 → firmware', () => {
     expect(deriveArtifactKind('vision', undefined)).toBe('firmware');
+  });
+});
+
+describe('ArtifactRefSchema.storedFile — 文件指针（向后兼容 + 校验）', () => {
+  const base = {
+    id: 'a-1',
+    kind: 'report' as const,
+    name: '底盘总成',
+    createdAt: NOW,
+  };
+  const goodFile = {
+    filename: 'a-1.pdf',
+    ext: '.pdf',
+    sizeBytes: 12345,
+    contentType: 'application/pdf',
+    sha256: 'a'.repeat(64),
+    uploadedAt: NOW,
+  };
+
+  test('无 storedFile 仍解析（旧 8 seed / 旧 JSON 兼容）', () => {
+    expect(ArtifactRefSchema.parse(base).storedFile).toBeUndefined();
+  });
+
+  test('合法 storedFile 解析', () => {
+    const parsed = ArtifactRefSchema.parse({ ...base, storedFile: goodFile });
+    expect(parsed.storedFile?.sha256).toHaveLength(64);
+    expect(parsed.storedFile?.ext).toBe('.pdf');
+  });
+
+  test('坏 sha256（长度≠64）报错', () => {
+    expect(() =>
+      ArtifactRefSchema.parse({ ...base, storedFile: { ...goodFile, sha256: 'deadbeef' } }),
+    ).toThrow();
+  });
+
+  test('负 sizeBytes 报错', () => {
+    expect(() =>
+      ArtifactRefSchema.parse({ ...base, storedFile: { ...goodFile, sizeBytes: -1 } }),
+    ).toThrow();
+  });
+});
+
+describe('CreateArtifactRequestSchema — robotCode 放宽手填 + storedFile 服务器独占', () => {
+  const req = {
+    ownerGroup: 'mechanical' as const,
+    season: '26',
+    robotCode: '26R3-试制',
+    mechanism: '底盘',
+    name: '总成图',
+  };
+
+  test('robotCode 接受任意非空串（手填非台账编号）', () => {
+    expect(CreateArtifactRequestSchema.parse(req).robotCode).toBe('26R3-试制');
+  });
+
+  test('robotCode 空串仍报错（min(1)）', () => {
+    expect(() => CreateArtifactRequestSchema.parse({ ...req, robotCode: '' })).toThrow();
+  });
+
+  test('客户端塞 storedFile 被剥（omit，不落库）', () => {
+    const parsed = CreateArtifactRequestSchema.parse({
+      ...req,
+      storedFile: {
+        filename: 'x.pdf',
+        ext: '.pdf',
+        sizeBytes: 1,
+        contentType: 'application/pdf',
+        sha256: 'a'.repeat(64),
+        uploadedAt: NOW,
+      },
+    });
+    expect('storedFile' in parsed).toBe(false);
   });
 });

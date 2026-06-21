@@ -204,6 +204,20 @@ export const ArtifactRefSchema = z.object({
   versionNo: z.number().int().positive().optional(),
   subType: z.enum(['drawing', 'driver']).optional(),
   createdAt: isoDateTimeSchema,
+  // 已上传真实文件的指针（HUB-ARTIFACT-STORE-MECH 本地卷版，全可选、向后兼容）：
+  // 字节落本地卷 TEAMHUB_ARTIFACT_FILES_DIR（D-025/D-038：二进制不进 git），此处只存索引/校验和——
+  // 旧 8 seed + 旧持久化 JSON 无此字段仍解析。filename=存储基名 `<id><ext>`、ext 含前导点（对齐 extname()）。
+  // 服务器独占：仅上传路由经 store.setArtifactFile 写，登记写契约 omit 之、禁客户端注入。I0：无人员维度。
+  storedFile: z
+    .object({
+      filename: z.string().min(1),
+      ext: z.string().min(1),
+      sizeBytes: z.number().int().nonnegative(),
+      contentType: z.string().min(1),
+      sha256: z.string().length(64),
+      uploadedAt: isoDateTimeSchema,
+    })
+    .optional(),
 });
 
 export const ErrorResponseSchema = z.object({

@@ -15,6 +15,8 @@
 #   TEAMHUB_GOV_DATA_FILE 治理快照落盘文件（默认 ~/teamhub-data/gov.json，重启不丢；PM 任务/依赖/图纸提交日志/
 #                         结案知识节点）。**漏设则 main.ts 回落 InMemoryGovStore、每次重启清回演示 fixture**——
 #                         D-061 治理落盘在真实启动路径上失效。本脚本默认接好，与 KB 落盘同纪律。
+#   TEAMHUB_ARTIFACT_FILES_DIR  归档物（图纸）文件落盘目录（默认 ~/teamhub-data/artifacts，重启不丢）。
+#                         漏设则上传/下载端点恒 404「未配置归档物文件目录」。字节不进 git（D-025）、只在此卷。
 #   TEAMHUB_WRITE_TOKEN   写端点鉴权密钥（AUDIT H3）。绑非 loopback（0.0.0.0）时必填，未填则本脚本自动生成并打印；
 #                         写端点 POST /api/* 须带 `Authorization: Bearer <token>`，读端点不受影响。
 #   TEAMHUB_SKIP_BUILD=1  跳过构建（只重启时用）
@@ -29,6 +31,7 @@ HUB_HOST="${HUB_HOST:-127.0.0.1}"
 HUB_PORT="${HUB_PORT:-4177}"
 TEAMHUB_KB_DATA_FILE="${TEAMHUB_KB_DATA_FILE:-${HOME}/teamhub-data/kb.json}"
 TEAMHUB_GOV_DATA_FILE="${TEAMHUB_GOV_DATA_FILE:-${HOME}/teamhub-data/gov.json}"
+TEAMHUB_ARTIFACT_FILES_DIR="${TEAMHUB_ARTIFACT_FILES_DIR:-${HOME}/teamhub-data/artifacts}"
 TEAMHUB_WRITE_TOKEN="${TEAMHUB_WRITE_TOKEN:-}"
 # 活体戳：注入 git short SHA 进 /health.buildId，重启后一行 curl 即知在服哪个构建（feiyue ?v= 校验等价）。
 TEAMHUB_BUILD_ID="${TEAMHUB_BUILD_ID:-$(git -C "${ROOT_DIR}" rev-parse --short HEAD 2>/dev/null || echo nogit)}"
@@ -63,8 +66,8 @@ for dir in "${CONSOLE_DIR}" "${SERVER_DIR}"; do
   fi
 done
 
-# 语料 / 治理落盘目录就位（server 启动即读：/api/kb/similar 召回 + PM 录入 / 图纸日志重启不丢）
-mkdir -p "$(dirname "${TEAMHUB_KB_DATA_FILE}")" "$(dirname "${TEAMHUB_GOV_DATA_FILE}")"
+# 语料 / 治理 / 归档物落盘目录就位（server 启动即读：KB 召回 + PM 录入 + 图纸文件上传下载，重启不丢）
+mkdir -p "$(dirname "${TEAMHUB_KB_DATA_FILE}")" "$(dirname "${TEAMHUB_GOV_DATA_FILE}")" "${TEAMHUB_ARTIFACT_FILES_DIR}"
 
 if [[ "${SKIP_BUILD}" != "1" ]]; then
   echo "[1/2] 构建 console（产出静态站 dist/）…"
@@ -75,12 +78,13 @@ fi
 
 # console 静态产物交给 server 单端口托管
 export TEAMHUB_CONSOLE_DIST_DIR="${CONSOLE_DIR}/dist"
-export TEAMHUB_KB_DATA_FILE TEAMHUB_GOV_DATA_FILE HUB_HOST HUB_PORT TEAMHUB_WRITE_TOKEN TEAMHUB_BUILD_ID
+export TEAMHUB_KB_DATA_FILE TEAMHUB_GOV_DATA_FILE TEAMHUB_ARTIFACT_FILES_DIR HUB_HOST HUB_PORT TEAMHUB_WRITE_TOKEN TEAMHUB_BUILD_ID
 
 echo "──────────────────────────────────────────────"
 echo " Team Hub v${TEAMHUB_VERSION} 启动 → http://${HUB_HOST}:${HUB_PORT}  (console + API 同端口)"
 echo " 语料文件：${TEAMHUB_KB_DATA_FILE}"
 echo " 治理文件：${TEAMHUB_GOV_DATA_FILE}（PM/图纸/结案重启不丢）"
+echo " 归档物目录：${TEAMHUB_ARTIFACT_FILES_DIR}（图纸文件上传下载，重启不丢）"
 echo " 版本：v${TEAMHUB_VERSION}（/api/system/status.version 同源）　构建戳：${TEAMHUB_BUILD_ID}（/health.buildId）"
 if [[ "${HUB_HOST}" != "127.0.0.1" && "${HUB_HOST}" != "localhost" && "${HUB_HOST}" != "::1" ]]; then
   echo " 已绑 ${HUB_HOST}：写端点 POST /api/* 须带 Authorization: Bearer <token>（读端点不限）。"
