@@ -16,6 +16,8 @@ import { SeasonSelect, guessSeason } from '../../components/SeasonSelect';
 import { Field } from '../../components/Field';
 import { MetricTile } from '../../components/MetricTile';
 
+// TODO(backend): 车型枚举待 hub-contracts 放开，新车型（如 R3/R4）需后端先扩展 RobotTarget 联合类型，
+// 前端届时再改此数组；现在不假装可随意扩展。
 const ROBOT_TARGETS: RobotTarget[] = ['R1', 'R2', 'shared'];
 const KINDS: ResourceKind[] = ['robot', 'testRig', 'instrument'];
 
@@ -41,6 +43,21 @@ const STATUS_KEY: Record<ResourceStatus, TranslationKey> = {
   inUse: 'resources.status.inUse',
   down: 'resources.status.down',
   upgrading: 'resources.status.upgrading',
+  repair: 'resources.status.repair',
+  retired: 'resources.status.retired',
+  disassembling: 'resources.status.disassembling',
+};
+
+// 状态下拉选项文案：down/upgrading 是 legacy 态，语义上也「不可上场」，但与正式「在修(repair)」重叠易混。
+// 下拉里给 legacy 态加「（旧，≈在修）」后缀澄清；表格行里沿用原 STATUS_KEY 保持简洁。
+// NOTE: down.legacy / upgrading.legacy 是新键，待 translations.ts 补全后 TypeScript 完全收口。
+const STATUS_OPTION_KEY: Record<ResourceStatus, TranslationKey> = {
+  available: 'resources.status.available',
+  inUse: 'resources.status.inUse',
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  down: 'resources.status.down.legacy',
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  upgrading: 'resources.status.upgrading.legacy',
   repair: 'resources.status.repair',
   retired: 'resources.status.retired',
   disassembling: 'resources.status.disassembling',
@@ -201,13 +218,21 @@ function CreateResourceForm({
         </div>
       </header>
       <form className="pm-form" onSubmit={submit}>
-        <div className="pm-form__grid">
+        {/* 第一行：赛季 / 编号位 / 第几代（三格），版本右侧内联预览徽章 */}
+        <div className="pm-form__grid pm-form__grid--3">
           <Field label={t('resources.field.season')}>
-            <SeasonSelect now={now} value={season} onChange={setSeason} />
+            <SeasonSelect
+              now={now}
+              value={season}
+              onChange={setSeason}
+              ariaLabelKey="resources.field.season"
+            />
           </Field>
           <Field label={t('resources.field.robotTarget')} className="kb-field--narrow">
             <select
               value={robotTarget}
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              title={t('resources.field.robotTargetHint')}
               onChange={(e) => setRobotTarget(e.target.value as RobotTarget)}
             >
               {ROBOT_TARGETS.map((rt) => (
@@ -216,8 +241,30 @@ function CreateResourceForm({
                 </option>
               ))}
             </select>
+            {/* 编号位直接出现在机器人编号中（如 R1→26R1），鼠标悬停 title 同义 */}
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            <span className="kb-field__hint">{t('resources.field.robotTargetHint')}</span>
+          </Field>
+          <Field label={t('resources.field.version')}>
+            {/* 版本右侧内联只读预览徽章；机器人编号由 deriveDisplayCode 派生，禁手写。 */}
+            <span className="resources-version-row">
+              <input
+                type="number"
+                min={1}
+                value={version}
+                onChange={(e) => setVersion(e.target.value)}
+              />
+              <span
+                className="resources-code-badge resources-preview-inline"
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                title={t('resources.field.previewHint')}
+              >
+                {preview}
+              </span>
+            </span>
           </Field>
         </div>
+        {/* 第二行：名字 / 类型（两格） */}
         <div className="pm-form__grid">
           <Field label={t('resources.field.name')}>
             <input
@@ -237,22 +284,6 @@ function CreateResourceForm({
                 </option>
               ))}
             </select>
-          </Field>
-        </div>
-        <div className="pm-form__grid">
-          <Field label={t('resources.field.version')}>
-            <input
-              type="number"
-              min={1}
-              value={version}
-              onChange={(e) => setVersion(e.target.value)}
-            />
-          </Field>
-          <Field label={t('resources.field.preview')}>
-            {/* 机器人编号是派生的、不让人手填——所以预览是只读徽章而非输入框。 */}
-            <span className="resources-preview">
-              <span className="resources-code-badge">{preview}</span>
-            </span>
           </Field>
         </div>
         <div className="pm-form__footer">
@@ -343,7 +374,7 @@ function ResourceRow({
           >
             {STATUSES.map((s) => (
               <option value={s} key={s}>
-                {t(STATUS_KEY[s])}
+                {t(STATUS_OPTION_KEY[s])}
               </option>
             ))}
           </select>
