@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 #
-# 版本号 bump 哨兵（D-074）。
+# 版本号 bump 哨兵 + 自动自增（D-074）。
 #
 # feiyue 的 Tampermonkey「@version 不自增就不给用户更新」是个天然下游强制函数——忘了 bump
 # 立刻被用户的「没更新」暴露。服务端 app 没有这个压力：版本停在 0.x 也照跑，于是悄悄漂移。
-# 本哨兵替代它：暂存区改了 apps/hub-*/src 行为、却没动 VERSION，就报警。
+# 本反射替代它：暂存区改了 apps/hub-*/src 行为、却没动 VERSION，就**自动 bump 并把版本文件
+# （VERSION + 三包 package.json + 三包 package-lock.json）git add 进本次提交**——= feiyue
+# 「改脚本必自增 @version」的服务端反射。靠 pre-commit 钩子触发（scripts/install-hooks.sh 安装）。
 #
-# 默认 warn（exit 0，只打印提醒，不卡 D-064 无人值守 commit）。
-#   VERSION_BUMP_STRICT=1 → 升为硬门（exit 1）。
-#   SKIP_VERSION_BUMP=1   → 单次豁免（纯 bugfix 串/确实不该 bump）。
+# 默认自增级别 = patch（exit 0，不卡 D-064 无人值守 commit）。
+#   VERSION_BUMP_LEVEL=minor|major → 改自增级别（向下兼容新功能=minor，破坏对外接口=major）。
+#   SKIP_VERSION_BUMP=1            → 单次豁免（纯 bugfix 串/确实不该 bump），跳过自增。
+#   VERSION_BUMP_STRICT=1          → 自动 bump 失败时硬阻断（exit 1）；默认失败只 warn。
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
@@ -18,12 +21,22 @@ src_changed="$(git diff --cached --name-only -- \
 ver_changed="$(git diff --cached --name-only -- VERSION 2>/dev/null || true)"
 
 if [[ -n "$src_changed" && -z "$ver_changed" && "${SKIP_VERSION_BUMP:-0}" != "1" ]]; then
-  echo "⚠ 改了 hub-* 源码但没 bump VERSION（当前 $(tr -d ' \n' < VERSION)）。" >&2
-  echo "  按 D-074：fix→patch / 向下兼容新功能→minor / 破坏对外接口→major。" >&2
-  echo "  一键：scripts/bump-version.sh <patch|minor|major>" >&2
-  echo "  确实不该 bump：本次 commit 设 SKIP_VERSION_BUMP=1 跳过。" >&2
-  if [[ "${VERSION_BUMP_STRICT:-0}" == "1" ]]; then
-    exit 1
+  level="${VERSION_BUMP_LEVEL:-patch}"
+  cur="$(tr -d ' \n' < VERSION)"
+  echo "ℹ 改了 hub-* 源码但没 bump VERSION（当前 ${cur}）→ 自动 bump ${level}" >&2
+  echo "  （= feiyue「改脚本必自增 @version」的服务端反射；改级别 VERSION_BUMP_LEVEL=minor|major；跳过 SKIP_VERSION_BUMP=1）" >&2
+  if bash "$ROOT_DIR/scripts/bump-version.sh" "$level" >&2; then
+    if git add VERSION \
+        apps/hub-contracts/package.json apps/hub-server/package.json apps/hub-console/package.json \
+        apps/hub-contracts/package-lock.json apps/hub-server/package-lock.json apps/hub-console/package-lock.json; then
+      echo "✓ 已自动 bump ${cur} → $(tr -d ' \n' < VERSION)，版本文件已并入本次提交。" >&2
+    else
+      echo "⚠ bump 已改文件但 git add 失败，请手动 add 版本文件后再提交。" >&2
+      if [[ "${VERSION_BUMP_STRICT:-0}" == "1" ]]; then exit 1; fi
+    fi
+  else
+    echo "⚠ 自动 bump 失败，请手动：scripts/bump-version.sh ${level}" >&2
+    if [[ "${VERSION_BUMP_STRICT:-0}" == "1" ]]; then exit 1; fi
   fi
 fi
 

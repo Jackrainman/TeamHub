@@ -2,7 +2,7 @@
 #
 # TeamHub pre-commit 门（feiyue CLAUDE.md 铁律 #5：密钥绝不进仓）。
 #
-# 安装为 git 钩子：  ln -sf ../../scripts/pre-commit.sh .git/hooks/pre-commit
+# 安装为 git 钩子：  bash scripts/install-hooks.sh   （clone 后跑一次；幂等）
 # 手动跑：          bash scripts/pre-commit.sh
 #
 # 默认（快，钩子用）：1) 暂存新增行密钥扫描   2) git diff --check 空白错误
