@@ -29,7 +29,8 @@ export function ProjectPage({
   source: string;
 }) {
   const { t } = useI18n();
-  const [view, setView] = useState<ProjectView>('board');
+  // 依赖图为项目页默认视图（用户拍板）：先看「卡在哪/谁空着」的结构图，看板退第二。
+  const [view, setView] = useState<ProjectView>('graph');
   // 看板「在依赖图看此节点」目标 id：DepGraphPage 加载后选中并消费掉（页内、不跨页）。
   const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
 
@@ -92,6 +93,7 @@ export function ProjectPage({
             source={source}
             focusTaskId={focusTaskId}
             onConsumeFocus={() => setFocusTaskId(null)}
+            onOpenBoard={() => setView('board')}
           />
         </div>
       )}

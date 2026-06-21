@@ -18,13 +18,12 @@ import '@xyflow/react/dist/style.css';
 import {
   Activity,
   AlertCircle,
-  ArrowUpRight,
   BookOpen,
   CheckCircle2,
   CircleDashed,
   Lock,
   MapPin,
-  RotateCcw,
+  Plus,
   Trash2,
   Users,
   Zap,
@@ -187,11 +186,14 @@ export function DepGraphPage({
   source,
   focusTaskId,
   onConsumeFocus,
+  onOpenBoard,
 }: {
   client: HubApiClient;
   source: string;
   focusTaskId?: string | null;
   onConsumeFocus?: () => void;
+  // 依赖图作默认视图后，建任务入口在看板——点此切回看板（由 ProjectPage 接 setView('board')）。
+  onOpenBoard?: () => void;
 }) {
   const { t } = useI18n();
   const query = useQuery({
@@ -372,6 +374,11 @@ export function DepGraphPage({
     <div className="dep-graph-page">
       <div className="dep-graph-topbar">
         <span className="dep-graph-topbar__note">{t('depgraph.entry.note')}</span>
+        {onOpenBoard ? (
+          <button type="button" className="kb-submit" onClick={onOpenBoard}>
+            <Plus size={14} aria-hidden="true" /> {t('depgraph.toolbar.newTask')}
+          </button>
+        ) : null}
       </div>
       <section className="dep-graph-summary" aria-label={t('depgraph.summary.aria')}>
         <MetricTile label={t('depgraph.summary.critical')} value={String(graph.summary.criticalCount)} />
@@ -505,7 +512,6 @@ function DetailPanel({
     );
   }
   const meta = STATUS_META[node.status];
-  const isDone = node.status === 'done';
   const onSelectStatus = (next: TaskStatus) => {
     if (next === 'shelved') {
       setPendingShelve(true);
@@ -553,25 +559,7 @@ function DetailPanel({
         ) : null}
       </div>
       <div className="detail-actions">
-        {isDone ? (
-          <button
-            type="button"
-            className="detail-action-btn detail-action-btn--ghost"
-            disabled={statusPending}
-            onClick={() => onChangeStatus('inProgress')}
-          >
-            <RotateCcw size={14} aria-hidden="true" /> {t('depgraph.status.reopen')}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="detail-action-btn detail-action-btn--primary"
-            disabled={statusPending}
-            onClick={() => onChangeStatus('done')}
-          >
-            <CheckCircle2 size={14} aria-hidden="true" /> {t('depgraph.status.markDone')}
-          </button>
-        )}
+        {/* 二态快捷按钮（标记完成/重新开启）已与下方五态状态下拉职责重叠，统一收敛到单一下拉控件。 */}
         <label className="detail-status-select">
           <span>{t('depgraph.status.changeLabel')}</span>
           <select
@@ -622,12 +610,14 @@ function DetailPanel({
           <h4>
             <BookOpen size={13} aria-hidden="true" /> {t('depgraph.detail.learnTitle')}
           </h4>
+          {/* TODO(backend): relatedKnowledge.uri 当前无真实可达资源（原为 preventDefault 死链）。
+              暂降级为纯文本 + 即将上线小角标，去掉可点外观，避免「点了没反应」的死胡同；
+              后端把 KB 条目链接接通后，恢复为真实 <a href>。 */}
           <ul>
             {node.relatedKnowledge.map((k) => (
-              <li key={k.uri ?? k.title}>
-                <a href={k.uri ?? '#'} onClick={(e) => e.preventDefault()}>
-                  <ArrowUpRight size={12} aria-hidden="true" /> {k.title}
-                </a>
+              <li key={k.uri ?? k.title} className="learn-block__pending">
+                <span>{k.title}</span>
+                <span className="soon-badge">{t('nav.soon')}</span>
               </li>
             ))}
           </ul>
@@ -639,7 +629,9 @@ function DetailPanel({
           aria-disabled="true"
           title={t('nav.soon')}
         >
+          {/* 「我的地图」后端未就绪：内联显示即将上线角标，不再只靠 hover title 暗示。 */}
           <MapPin size={13} aria-hidden="true" /> {t('depgraph.detail.myMap')}
+          <span className="soon-badge">{t('nav.soon')}</span>
         </span>
       ) : null}
     </aside>
