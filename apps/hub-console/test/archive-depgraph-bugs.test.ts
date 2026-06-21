@@ -168,3 +168,43 @@ describe('Fix 4: DepGraphPage PmCreatePanel gate', () => {
     expect(shouldRenderPmCreatePanel({ tasks: [{ id: 't-1' }] })).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// M14: DepGraphPage 节点选中态由 selectedId 单一来源派生（受控）
+// ---------------------------------------------------------------------------
+// 原 bug：节点对象不带 selected，视觉高亮只在用户点节点时由 ReactFlow 内部选中态触发；
+// focusTaskId 程序化跳转走 setSelectedId，ReactFlow 内部不知情 → 详情面板已切、卡片不高亮（分叉）。
+// 修复：displayNodes 在 memo 里按 selectedId 给每个节点打 selected，点选/程序化跳转皆一致。
+
+/** 与 DepGraphPage 内 displayNodes memo 对称的纯函数。 */
+function deriveNodeSelection<T extends { id: string }>(
+  nodes: T[],
+  selectedId: string | null,
+): Array<T & { selected: boolean }> {
+  return nodes.map((n) => ({ ...n, selected: n.id === selectedId }));
+}
+
+describe('M14: DepGraphPage 节点选中态恒等于 selectedId', () => {
+  const nodes = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+
+  test('selectedId 命中某节点 → 仅该节点 selected', () => {
+    const out = deriveNodeSelection(nodes, 'b');
+    expect(out.map((n) => n.selected)).toEqual([false, true, false]);
+  });
+
+  test('selectedId 为 null（点空白/无选中）→ 全部 unselected', () => {
+    const out = deriveNodeSelection(nodes, null);
+    expect(out.every((n) => !n.selected)).toBe(true);
+  });
+
+  test('程序化 focus 跳转：setSelectedId 到任意存在节点都会让卡片高亮（不再分叉）', () => {
+    // 模拟 focusTaskId='c' 经 setSelectedId 后 displayNodes 的派生结果
+    const out = deriveNodeSelection(nodes, 'c');
+    expect(out.find((n) => n.id === 'c')?.selected).toBe(true);
+  });
+
+  test('selectedId 指向不存在的节点 → 无节点被高亮（不报错）', () => {
+    const out = deriveNodeSelection(nodes, 'missing');
+    expect(out.every((n) => !n.selected)).toBe(true);
+  });
+});

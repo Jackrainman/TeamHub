@@ -205,6 +205,14 @@ export function DepGraphPage({
     () => (graph ? layoutGraph(graph) : { nodes: [], edges: [] }),
     [graph],
   );
+  // M14：节点选中态由 selectedId 单一来源驱动（受控）。此前节点对象不带 selected，
+  // 视觉高亮（dag-node--selected）只在用户点节点时由 ReactFlow 内部选中态触发；而 focusTaskId
+  // 跳转走 setSelectedId 程序化选中，ReactFlow 内部并不知情 → 详情面板已切到该节点、卡片却不高亮（分叉）。
+  // 改为在 memo 里按 selectedId 给节点打 selected，使「卡片高亮」与「详情面板」恒一致（点选/程序化跳转皆然）。
+  const displayNodes = useMemo<DepFlowNode[]>(
+    () => nodes.map((n) => ({ ...n, selected: n.id === selectedId })),
+    [nodes, selectedId],
+  );
   // 选中连线高亮（仅在已 memo 的 edges 上做轻量映射，不重跑 dagre 布局）。
   const displayEdges = useMemo<Edge[]>(
     () =>
@@ -411,7 +419,7 @@ export function DepGraphPage({
             </div>
           ) : null}
           <ReactFlow
-            nodes={nodes}
+            nodes={displayNodes}
             edges={displayEdges}
             nodeTypes={nodeTypes}
             onNodeClick={(_, node) => {
