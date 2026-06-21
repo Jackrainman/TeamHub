@@ -5,6 +5,7 @@ import {
   RelayHandoffResponseSchema,
   UpdateResourceSessionResponseSchema,
   CreateResourceSessionResponseSchema,
+  SCENARIO_WINDOW_WEEKDAY,
 } from '../src/contracts.js';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
@@ -12,7 +13,7 @@ import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 // GET /api/relay 富集读视图（接力站 + 站间交接线，**无成员维度**）+ POST/DELETE 接力交接线
 // （拉线即先后交接，**非**任务依赖；自环 / 成环 400）。验证反监视红线 + 状态码契约。
 //
-// seed（scheduleScenarioFixture）：今晚 R1 一条已确认窗口 sess-tonight-ec（windowLabel='今晚'，
+// seed（scheduleScenarioFixture）：今晚 R1 一条已确认窗口 sess-tonight-ec（windowLabel=SCENARIO_WINDOW_WEEKDAY，
 // confirmedBy 非空），relayHandoffs=[]。多数用例先 POST 第二条今晚窗口，再在两站间拉线。
 
 /** 在指定 windowLabel 录入一条占用窗口，返回新 session.id。 */
@@ -26,7 +27,7 @@ async function postSession(
     payload: {
       projectId: 'prj-robots',
       resourceId: 'res-r1',
-      windowLabel: '今晚',
+      windowLabel: SCENARIO_WINDOW_WEEKDAY,
       orderInWindow: 1,
       holderGroupId: 'grp-mech',
       holderTaskId: null,
@@ -135,7 +136,7 @@ describe('GET /api/relay（接力画布读视图，反监视红线无成员维�
     try {
       const res = await app.inject({
         method: 'GET',
-        url: '/api/relay?windowLabel=' + encodeURIComponent('今晚'),
+        url: '/api/relay?windowLabel=' + encodeURIComponent(SCENARIO_WINDOW_WEEKDAY),
       });
       expect(res.statusCode).toBe(200);
       const board = RelayBoardResponseSchema.parse(res.json());
@@ -163,7 +164,7 @@ describe('GET /api/relay（接力画布读视图，反监视红线无成员维�
         url: '/api/relay-handoffs',
         payload: {
           projectId: 'prj-robots',
-          windowLabel: '今晚',
+          windowLabel: SCENARIO_WINDOW_WEEKDAY,
           fromSessionId: 'sess-tonight-ec',
           toSessionId: to,
           confirmedBy: { id: 'm-progA', displayName: '程序A', source: 'console' },
@@ -173,7 +174,7 @@ describe('GET /api/relay（接力画布读视图，反监视红线无成员维�
 
       const res = await app.inject({
         method: 'GET',
-        url: '/api/relay?windowLabel=' + encodeURIComponent('今晚'),
+        url: '/api/relay?windowLabel=' + encodeURIComponent(SCENARIO_WINDOW_WEEKDAY),
       });
       expect(res.statusCode).toBe(200);
       const raw = res.payload;
@@ -221,7 +222,7 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
         url: '/api/relay-handoffs',
         payload: {
           projectId: 'prj-robots',
-          windowLabel: '今晚',
+          windowLabel: SCENARIO_WINDOW_WEEKDAY,
           fromSessionId: from,
           toSessionId: to,
           confirmedBy: { id: 'm-progA', displayName: '程序A', source: 'console' },
@@ -238,7 +239,7 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
       // GET /api/relay 应回这条交接线
       const get = await app.inject({
         method: 'GET',
-        url: '/api/relay?windowLabel=' + encodeURIComponent('今晚'),
+        url: '/api/relay?windowLabel=' + encodeURIComponent(SCENARIO_WINDOW_WEEKDAY),
       });
       const board = RelayBoardResponseSchema.parse(get.json());
       expect(board.handoffs.some((h) => h.id === body.handoff.id)).toBe(true);
@@ -255,7 +256,7 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
         url: '/api/relay-handoffs',
         payload: {
           projectId: 'prj-robots',
-          windowLabel: '今晚',
+          windowLabel: SCENARIO_WINDOW_WEEKDAY,
           fromSessionId: 'sess-tonight-ec',
           toSessionId: 'sess-tonight-ec',
           confirmedBy: null,
@@ -275,7 +276,7 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
         url: '/api/relay-handoffs',
         payload: {
           projectId: 'prj-robots',
-          windowLabel: '今晚',
+          windowLabel: SCENARIO_WINDOW_WEEKDAY,
           fromSessionId: 'sess-tonight-ec',
           toSessionId: 'sess-ghost',
           confirmedBy: null,
@@ -299,7 +300,7 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
         url: '/api/relay-handoffs',
         payload: {
           projectId: 'prj-robots',
-          windowLabel: '今晚',
+          windowLabel: SCENARIO_WINDOW_WEEKDAY,
           fromSessionId: a,
           toSessionId: b,
           confirmedBy: null,
@@ -312,7 +313,7 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
         url: '/api/relay-handoffs',
         payload: {
           projectId: 'prj-robots',
-          windowLabel: '今晚',
+          windowLabel: SCENARIO_WINDOW_WEEKDAY,
           fromSessionId: b,
           toSessionId: a,
           confirmedBy: null,
@@ -335,7 +336,7 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
         url: '/api/relay-handoffs',
         payload: {
           projectId: 'prj-robots',
-          windowLabel: '今晚',
+          windowLabel: SCENARIO_WINDOW_WEEKDAY,
           fromSessionId: a,
           toSessionId: b,
           confirmedBy: null,
@@ -351,7 +352,7 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
 
       const get = await app.inject({
         method: 'GET',
-        url: '/api/relay?windowLabel=' + encodeURIComponent('今晚'),
+        url: '/api/relay?windowLabel=' + encodeURIComponent(SCENARIO_WINDOW_WEEKDAY),
       });
       const board = RelayBoardResponseSchema.parse(get.json());
       expect(board.handoffs.some((h) => h.id === id)).toBe(false);

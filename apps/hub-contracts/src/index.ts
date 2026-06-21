@@ -75,6 +75,8 @@ export {
   memberKnowledgeFixtures,
   scheduleScenarioFixture,
   scheduleResourceDownFixture,
+  SCENARIO_WINDOW_WEEKDAY,
+  SCENARIO_WINDOW_CONVERGENCE,
   GOVERNANCE_SCENARIO_TIME,
   GOVERNANCE_SCENARIO_NOW,
 } from './fixtures.js';

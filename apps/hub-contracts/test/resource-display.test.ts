@@ -7,6 +7,7 @@ import {
   derivePresenceSchedule,
   scheduleScenarioFixture,
   scheduleResourceDownFixture,
+  SCENARIO_WINDOW_WEEKDAY,
   GOVERNANCE_SCENARIO_NOW,
 } from '../src/index.js';
 import type { ResourceStatus } from '../src/index.js';
@@ -56,7 +57,7 @@ describe('车不可上 → 接力释放（cascade 读 canBoardResource，非硬�
     const recs = derivePresenceSchedule(
       scheduleResourceDownFixture,
       GOVERNANCE_SCENARIO_NOW,
-      '今晚',
+      SCENARIO_WINDOW_WEEKDAY,
     );
     // sess-tonight-ec 持有组 grp-ec 在 R1 down 时应落 free
     const ec = recs.find((r) => r.groupId === 'grp-ec');
@@ -75,7 +76,7 @@ describe('反监视护栏（结构约束，§2.4/§3.6）', () => {
     const recs = derivePresenceSchedule(
       scheduleScenarioFixture,
       GOVERNANCE_SCENARIO_NOW,
-      '今晚',
+      SCENARIO_WINDOW_WEEKDAY,
     );
     expect(recs.length).toBeGreaterThan(0);
     expect(JSON.stringify(recs)).not.toContain('memberId');

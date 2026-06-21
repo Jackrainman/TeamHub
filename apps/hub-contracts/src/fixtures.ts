@@ -481,13 +481,23 @@ export const memberKnowledgeFixtures: MemberKnowledge[] = [
 // ---------------------------------------------------------------------------
 // 差异化在场排班样例（D-029；PRESENCE-RECONCILE-LOCK 路线 C 拆两场景）。
 //
-// 场景甲·平日差异化（windowLabel='今晚'，首屏默认）：R1 归电控做「R1 系统调试」（常规、非总联调）。
+// windowLabel = 真实日期串 'YYYY-MM-DD'（A1 / SCHED 设计：接力画布默认按今天日期查；旧 '今晚'/'总联调日'
+//   文本标签已退役——它们永不等于任何真实日期，导致首屏示例 / 各组详情整块不显）。演示锚点日落进种子=
+//   数据库（resourceSessions 走内存、重启回 seed=本 fixture，D-029）。队长在画布按当天「+加一棒」录真实
+//   占用，或用「查找特定日期」切到锚点日即见示例。两常量为单一真相，供 contracts / server 测试复用；
+//   要刷新演示日期只改这两行。
+//
+// 场景甲·平日差异化（SCENARIO_WINDOW_WEEKDAY）：R1 归电控做「R1 系统调试」（常规、非总联调）。
 //   电控 = present（持有 R1）；电路 = onCall（上游 t-r1-newboard 仍在推进）；
 //   视觉 = free（被底盘卡，挂"可看的资料"）；机械 = 沉默（链上无活）。→ 三态俱在。
-// 场景乙·总联调日（windowLabel='总联调日'）：收敛任务 t-r1/r2-integration → 四叶子组各 present
+// 场景乙·总联调日（SCENARIO_WINDOW_CONVERGENCE）：收敛任务 t-r1/r2-integration → 四叶子组各 present
 //   （电控/视觉/机械/电路全组各一人）。两场景同 fixture，靠 windowLabel 分流、互不串场。
-// down 变体：R1 撞坏 → R1 链相关组整片 free(resourceDown)（仍跑「今晚」）。
+// down 变体：R1 撞坏 → R1 链相关组整片 free(resourceDown)（仍跑平日窗口）。
 // ---------------------------------------------------------------------------
+
+// 演示锚点日（固定示范日期，非动态——不引入运行期 remap"模式"，直接落数据）。
+export const SCENARIO_WINDOW_WEEKDAY = '2026-06-21'; // 场景甲·平日差异化（接力画布首屏默认即今天时命中）
+export const SCENARIO_WINDOW_CONVERGENCE = '2026-06-28'; // 场景乙·总联调日
 
 export const scheduleScenarioFixture: ScheduleSnapshot = {
   ...governanceScenarioFixture,
@@ -498,13 +508,13 @@ export const scheduleScenarioFixture: ScheduleSnapshot = {
     { id: 'res-r2', projectId: 'prj-robots', name: 'R2 比赛机器人', kind: 'robot', robotTarget: 'R2', status: 'available', statusReason: null, statusSource: 'console', season: '26', version: 1, displayCode: deriveDisplayCode('26', 'R2', 1), updatedAt: GOVERNANCE_SCENARIO_NOW },
   ],
   resourceSessions: [
-    // 今晚 = 平日差异化：电控持 R1 做「R1 系统调试」（非总联调 → 三态成立）。id 改名 sess-tonight-ec
+    // 平日差异化：电控持 R1 做「R1 系统调试」（非总联调 → 三态成立）。id 改名 sess-tonight-ec
     // （Q1，仅不透明键）；invitedMemberIds 留空（Q2，永不进派生输出）。
-    { id: 'sess-tonight-ec', projectId: 'prj-robots', resourceId: 'res-r1', windowLabel: '今晚', orderInWindow: 0, holderGroupId: 'grp-ec', holderTaskId: 't-r1-system-tune', invitedMemberIds: [], note: '今晚 R1 归电控做系统调试（平日差异化场景）', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, eta: null, createdAt: GOVERNANCE_SCENARIO_NOW },
+    { id: 'sess-tonight-ec', projectId: 'prj-robots', resourceId: 'res-r1', windowLabel: SCENARIO_WINDOW_WEEKDAY, orderInWindow: 0, holderGroupId: 'grp-ec', holderTaskId: 't-r1-system-tune', invitedMemberIds: [], note: 'R1 归电控做系统调试（平日差异化场景）', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, eta: null, createdAt: GOVERNANCE_SCENARIO_NOW },
     // 总联调日 = 全组各一人：收敛任务（convergenceScope='allLeafGroups'）→ 派生四叶子组全 present。
-    // 持有组填哨兵 grp-convergence；R1+R2 两台车都演示（Q4）。windowLabel 与今晚不同，互不串场（C-4）。
-    { id: 'sess-convergence-day-r1', projectId: 'prj-robots', resourceId: 'res-r1', windowLabel: '总联调日', orderInWindow: 0, holderGroupId: 'grp-convergence', holderTaskId: 't-r1-integration', invitedMemberIds: [], note: '总联调日：R1 全组各到一人', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, eta: null, createdAt: GOVERNANCE_SCENARIO_NOW },
-    { id: 'sess-convergence-day-r2', projectId: 'prj-robots', resourceId: 'res-r2', windowLabel: '总联调日', orderInWindow: 0, holderGroupId: 'grp-convergence', holderTaskId: 't-r2-integration', invitedMemberIds: [], note: '总联调日：R2 全组各到一人', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, eta: null, createdAt: GOVERNANCE_SCENARIO_NOW },
+    // 持有组填哨兵 grp-convergence；R1+R2 两台车都演示（Q4）。windowLabel 与平日不同，互不串场（C-4）。
+    { id: 'sess-convergence-day-r1', projectId: 'prj-robots', resourceId: 'res-r1', windowLabel: SCENARIO_WINDOW_CONVERGENCE, orderInWindow: 0, holderGroupId: 'grp-convergence', holderTaskId: 't-r1-integration', invitedMemberIds: [], note: '总联调日：R1 全组各到一人', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, eta: null, createdAt: GOVERNANCE_SCENARIO_NOW },
+    { id: 'sess-convergence-day-r2', projectId: 'prj-robots', resourceId: 'res-r2', windowLabel: SCENARIO_WINDOW_CONVERGENCE, orderInWindow: 0, holderGroupId: 'grp-convergence', holderTaskId: 't-r2-integration', invitedMemberIds: [], note: '总联调日：R2 全组各到一人', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, eta: null, createdAt: GOVERNANCE_SCENARIO_NOW },
   ],
   // 接力交接线（R1）：默认空，重启回 seed（D-029，内存态）。队长在接力画布拉线产生。
   relayHandoffs: [],

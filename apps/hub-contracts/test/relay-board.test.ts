@@ -7,6 +7,7 @@ import {
   deriveRelayBoard,
   scheduleResourceDownFixture,
   scheduleScenarioFixture,
+  SCENARIO_WINDOW_WEEKDAY,
 } from '../src/index.js';
 import type { RelayHandoff } from '../src/index.js';
 
@@ -29,7 +30,7 @@ describe('ResourceSession.eta 向后兼容', () => {
 });
 
 describe('deriveRelayBoard — 接力画布读视图', () => {
-  const board = deriveRelayBoard(scheduleScenarioFixture, '今晚');
+  const board = deriveRelayBoard(scheduleScenarioFixture, SCENARIO_WINDOW_WEEKDAY);
 
   test('每条 stage 满足 RelayStageSchema', () => {
     for (const s of board.stages)
@@ -66,7 +67,7 @@ describe('deriveRelayBoard — 接力画布读视图', () => {
   });
 
   test('车不可上时 boardable=false 且带 statusReason（撞坏维修中）', () => {
-    const down = deriveRelayBoard(scheduleResourceDownFixture, '今晚');
+    const down = deriveRelayBoard(scheduleResourceDownFixture, SCENARIO_WINDOW_WEEKDAY);
     const s = down.stages.find((x) => x.resourceId === 'res-r1')!;
     expect(s.boardable).toBe(false);
     expect(s.statusReason).toBe('撞坏维修中');
@@ -83,7 +84,7 @@ describe('deriveRelayBoard — handoffs 按 windowLabel 过滤', () => {
   const tonightHandoff: RelayHandoff = {
     id: 'ho-tonight-1',
     projectId: 'prj-robots',
-    windowLabel: '今晚',
+    windowLabel: SCENARIO_WINDOW_WEEKDAY,
     fromSessionId: 'sess-tonight-ec',
     toSessionId: 'sess-tonight-mech',
     source: 'console',
@@ -106,7 +107,7 @@ describe('deriveRelayBoard — handoffs 按 windowLabel 过滤', () => {
   });
 
   test('只返回同窗口的交接线', () => {
-    const board = deriveRelayBoard(withHandoffs, '今晚');
+    const board = deriveRelayBoard(withHandoffs, SCENARIO_WINDOW_WEEKDAY);
     expect(board.handoffs.map((h) => h.id)).toEqual(['ho-tonight-1']);
   });
 

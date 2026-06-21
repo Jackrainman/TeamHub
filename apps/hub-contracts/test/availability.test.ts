@@ -8,6 +8,7 @@ import {
   deriveGroupAvailability,
   derivePresenceSchedule,
   scheduleScenarioFixture,
+  SCENARIO_WINDOW_WEEKDAY,
   type AvailabilityContext,
   type Member,
   type MemberAvailability,
@@ -125,7 +126,7 @@ describe('deriveGroupAvailability — 只产组级 headcount 整数（A2 红线�
 });
 
 describe('derivePresenceSchedule — 向后兼容（三参 feasibility=null）', () => {
-  const threeArg = derivePresenceSchedule(scheduleScenarioFixture, NOW, '今晚');
+  const threeArg = derivePresenceSchedule(scheduleScenarioFixture, NOW, SCENARIO_WINDOW_WEEKDAY);
 
   test('三参路径每条 feasibility 恒为 null（键存在、值为 null）', () => {
     for (const r of threeArg) {
@@ -139,7 +140,7 @@ describe('derivePresenceSchedule — 向后兼容（三参 feasibility=null）',
       availabilities: [avail('m-progA', 'aggregateOnly', [MON_AFTERNOON])],
       windowDefs: new Map(), // 无 session.id 锚定
     };
-    const fourArg = derivePresenceSchedule(scheduleScenarioFixture, NOW, '今晚', ctx);
+    const fourArg = derivePresenceSchedule(scheduleScenarioFixture, NOW, SCENARIO_WINDOW_WEEKDAY, ctx);
     expect(JSON.stringify(fourArg)).toBe(JSON.stringify(threeArg));
   });
 
@@ -158,7 +159,7 @@ describe('derivePresenceSchedule — ctx 锚定时才写 feasibility', () => {
     ],
     windowDefs: new Map([['sess-tonight-ec', MON_AFTERNOON]]),
   };
-  const recs = derivePresenceSchedule(scheduleScenarioFixture, NOW, '今晚', ctxAnchored);
+  const recs = derivePresenceSchedule(scheduleScenarioFixture, NOW, SCENARIO_WINDOW_WEEKDAY, ctxAnchored);
   const byGroup = new Map(recs.map((r) => [r.groupId, r]));
 
   test('电控组（持有窗）feasibility = tight（容量降到 1）', () => {
@@ -181,7 +182,7 @@ describe('A2 红线：派生输出 JSON 不含个人课表明细 / memberId 出�
     ],
     windowDefs: new Map([['sess-tonight-ec', MON_AFTERNOON]]),
   };
-  const recs = derivePresenceSchedule(scheduleScenarioFixture, NOW, '今晚', ctx);
+  const recs = derivePresenceSchedule(scheduleScenarioFixture, NOW, SCENARIO_WINDOW_WEEKDAY, ctx);
   const json = JSON.stringify(recs);
 
   test('输出 JSON grep 不到课表 label / startMin / dayOfWeek 明细', () => {

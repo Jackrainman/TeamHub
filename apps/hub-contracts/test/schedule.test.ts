@@ -8,6 +8,8 @@ import {
   derivePresenceSchedule,
   scheduleResourceDownFixture,
   scheduleScenarioFixture,
+  SCENARIO_WINDOW_WEEKDAY,
+  SCENARIO_WINDOW_CONVERGENCE,
 } from '../src/index.js';
 
 const NOW = GOVERNANCE_SCENARIO_NOW;
@@ -22,7 +24,7 @@ describe('排班 fixtures 满足 schema', () => {
 });
 
 describe('derivePresenceSchedule — 差异化在场（在场 / 随叫 / 去学 / 沉默）', () => {
-  const recs = derivePresenceSchedule(scheduleScenarioFixture, NOW, '今晚');
+  const recs = derivePresenceSchedule(scheduleScenarioFixture, NOW, SCENARIO_WINDOW_WEEKDAY);
   const byGroup = new Map(recs.map((r) => [r.groupId, r]));
 
   test('每条满足 PresenceRecommendationSchema', () => {
@@ -94,7 +96,7 @@ describe('derivePresenceSchedule — 差异化在场（在场 / 随叫 / 去学 
 });
 
 describe('derivePresenceSchedule — 车撞坏：整片下游今晚作罢', () => {
-  const recs = derivePresenceSchedule(scheduleResourceDownFixture, NOW, '今晚');
+  const recs = derivePresenceSchedule(scheduleResourceDownFixture, NOW, SCENARIO_WINDOW_WEEKDAY);
   const byGroup = new Map(recs.map((r) => [r.groupId, r]));
 
   test('R1 链相关组全部 free / resourceDown', () => {
@@ -158,7 +160,7 @@ describe('blockedFree relatedKnowledge 跨 task 去重（URI 唯一）', () => {
   };
 
   test('视觉组 free，relatedKnowledge URI 不重复', () => {
-    const recs = derivePresenceSchedule(tampered, NOW, '今晚');
+    const recs = derivePresenceSchedule(tampered, NOW, SCENARIO_WINDOW_WEEKDAY);
     const vision = recs.find((r) => r.groupId === 'grp-vision');
     expect(vision?.reason).toBe('blockedFree');
     const uris = vision!.relatedKnowledge.map((k) => k.uri);
@@ -169,7 +171,7 @@ describe('blockedFree relatedKnowledge 跨 task 去重（URI 唯一）', () => {
 });
 
 describe('derivePresenceSchedule — 总联调日（全组各一人，收敛任务）', () => {
-  const recs = derivePresenceSchedule(scheduleScenarioFixture, NOW, '总联调日');
+  const recs = derivePresenceSchedule(scheduleScenarioFixture, NOW, SCENARIO_WINDOW_CONVERGENCE);
   const byGroup = new Map(recs.map((r) => [r.groupId, r]));
 
   test('四叶子组各 present；reason=holdsResource、标签=R1 总联调', () => {

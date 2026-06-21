@@ -61,6 +61,9 @@ export {
   deriveArtifactKind,
   // 差异化在场排班（D-029，SCHED-WIRE-EXISTING）：纯派生函数 + 读/写契约。
   derivePresenceSchedule,
+  // 演示锚点窗口日期（种子 = 数据库；接力画布首屏默认按今天日期查时命中——见 fixtures.ts）。
+  SCENARIO_WINDOW_WEEKDAY,
+  SCENARIO_WINDOW_CONVERGENCE,
   PresenceScheduleResponseSchema,
   ResourceSessionsResponseSchema,
   SharedResourcesResponseSchema,

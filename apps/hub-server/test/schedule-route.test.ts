@@ -5,6 +5,7 @@ import {
   ResourceSessionsResponseSchema,
   SharedResourcesResponseSchema,
   CreateResourceSessionResponseSchema,
+  SCENARIO_WINDOW_WEEKDAY,
 } from '../src/contracts.js';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
@@ -18,11 +19,11 @@ describe('GET /api/schedule（差异化在场排班，I0 无人维度）', () =>
     try {
       const res = await app.inject({
         method: 'GET',
-        url: '/api/schedule?windowLabel=' + encodeURIComponent('今晚'),
+        url: '/api/schedule?windowLabel=' + encodeURIComponent(SCENARIO_WINDOW_WEEKDAY),
       });
       expect(res.statusCode).toBe(200);
       const body = PresenceScheduleResponseSchema.parse(res.json());
-      expect(body.windowLabel).toBe('今晚');
+      expect(body.windowLabel).toBe(SCENARIO_WINDOW_WEEKDAY);
       expect(body.recommendations.length).toBeGreaterThan(0);
       const modes = new Set(body.recommendations.map((r) => r.mode));
       // 今晚 R1 归电控做系统调试（平日差异化）：电控 present、电路 onCall、视觉 free（被底盘卡）。
@@ -39,7 +40,7 @@ describe('GET /api/schedule（差异化在场排班，I0 无人维度）', () =>
     try {
       const res = await app.inject({
         method: 'GET',
-        url: '/api/schedule?windowLabel=' + encodeURIComponent('今晚'),
+        url: '/api/schedule?windowLabel=' + encodeURIComponent(SCENARIO_WINDOW_WEEKDAY),
       });
       expect(res.statusCode).toBe(200);
       const raw = res.payload;
@@ -169,7 +170,7 @@ describe('在场排班读视图 + 录入', () => {
         payload: {
           projectId: 'prj-robots',
           resourceId: 'res-r1',
-          windowLabel: '今晚',
+          windowLabel: SCENARIO_WINDOW_WEEKDAY,
           orderInWindow: 1,
           holderGroupId: 'grp-mech',
           holderTaskId: null,
@@ -182,7 +183,7 @@ describe('在场排班读视图 + 录入', () => {
 
       const res = await app.inject({
         method: 'GET',
-        url: '/api/schedule?windowLabel=' + encodeURIComponent('今晚'),
+        url: '/api/schedule?windowLabel=' + encodeURIComponent(SCENARIO_WINDOW_WEEKDAY),
       });
       expect(res.statusCode).toBe(200);
       const body = PresenceScheduleResponseSchema.parse(res.json());

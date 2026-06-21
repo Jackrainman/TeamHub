@@ -4,6 +4,7 @@ import {
   CreateResourceSessionResponseSchema,
   RelayBoardResponseSchema,
   RelayHandoffResponseSchema,
+  SCENARIO_WINDOW_WEEKDAY,
 } from '../src/contracts.js';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
@@ -22,7 +23,7 @@ async function postSession(
     payload: {
       projectId: 'prj-robots',
       resourceId: 'res-r1',
-      windowLabel: '今晚',
+      windowLabel: SCENARIO_WINDOW_WEEKDAY,
       orderInWindow: 1,
       holderGroupId: 'grp-mech',
       holderTaskId: null,
@@ -47,7 +48,7 @@ async function postHandoff(
     url: '/api/relay-handoffs',
     payload: {
       projectId: 'prj-robots',
-      windowLabel: '今晚',
+      windowLabel: SCENARIO_WINDOW_WEEKDAY,
       fromSessionId: from,
       toSessionId: to,
       confirmedBy: null,
@@ -67,7 +68,7 @@ describe('A2 加一棒（POST /api/resource-sessions）→ GET /api/relay 出现
 
       const get = await app.inject({
         method: 'GET',
-        url: '/api/relay?windowLabel=' + encodeURIComponent('今晚'),
+        url: '/api/relay?windowLabel=' + encodeURIComponent(SCENARIO_WINDOW_WEEKDAY),
       });
       expect(get.statusCode).toBe(200);
       const board = RelayBoardResponseSchema.parse(get.json());
@@ -94,7 +95,7 @@ describe('A2 删一棒（DELETE /api/resource-sessions/:id）', () => {
 
       const get = await app.inject({
         method: 'GET',
-        url: '/api/relay?windowLabel=' + encodeURIComponent('今晚'),
+        url: '/api/relay?windowLabel=' + encodeURIComponent(SCENARIO_WINDOW_WEEKDAY),
       });
       const board = RelayBoardResponseSchema.parse(get.json());
       expect(board.stages.some((s) => s.sessionId === id)).toBe(false);
@@ -135,7 +136,7 @@ describe('A2 删一棒（DELETE /api/resource-sessions/:id）', () => {
       // 路由层：GET /api/relay 既不含 b 站、也不含该交接线（箭头不悬空）
       const get = await app.inject({
         method: 'GET',
-        url: '/api/relay?windowLabel=' + encodeURIComponent('今晚'),
+        url: '/api/relay?windowLabel=' + encodeURIComponent(SCENARIO_WINDOW_WEEKDAY),
       });
       const board = RelayBoardResponseSchema.parse(get.json());
       expect(board.stages.some((s) => s.sessionId === b)).toBe(false);

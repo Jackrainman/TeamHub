@@ -2371,21 +2371,13 @@ button {
   margin-top: 10px;
 }
 
-/* ===== 机器人队页（IA 阶段 1 / D-075）：机器人管理 + 在场排班合一 ===== */
+/* ===== 机器人队页（IA 阶段 1 / D-075）：机器人管理 + 在场排班，Tab 左右切换 ===== */
+/* 顶部 seg kb-tabs 切换「机器人清单 ⇄ 接力画布」，当前 tab 占满整宽（接力画布横向泳道需宽度）。
+   tab 样式复用 .seg / .seg__btn / .kb-tabs；本页只留容器纵向间距。 */
 .fleet-page {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-}
-.fleet-section-title {
-  margin: 0 0 12px;
-  font-size: 16px;
-  font-weight: 700;
-}
-/* 下半区（接力画布）与上半区（机器人清单）之间一条分隔，视觉上分清两个数据域。 */
-.fleet-section--relay {
-  border-top: 1px solid var(--border);
-  padding-top: 18px;
+  gap: 18px;
 }
 
 /* ===== 接力交接画布（R1，可编辑 @xyflow 画布；参考 dep-graph 节点 + relay-* 类） ===== */
