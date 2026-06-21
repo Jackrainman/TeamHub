@@ -67,14 +67,20 @@ function buildLanes(stages: RelayStage[]): Lane[] {
 }
 
 // ETA 内联输入：失焦 / 回车提交；Escape 取消。受控本地 state，避免每键 mutate。
+// FORM-UNIFY B3：明确归「即时控件」类（§1.3.7）——纯即时生效、不套表单标准、不设提交按钮；
+// 错误统一走父层 RelayCanvas 的 FormBanner（updateMutation.onError → setBanner）。
+// 无障碍：补 aria-label 关联可见 label（卡内「ETA」标签 schedule.relay.eta）。
+// 接 ariaLabel prop（调用点传已翻译好的字符串），不持 i18n key。
 function EtaInput({
   initial,
   placeholder,
+  ariaLabel,
   onCommit,
   onCancel,
 }: {
   initial: string;
   placeholder: string;
+  ariaLabel: string;
   onCommit: (value: string) => void;
   onCancel: () => void;
 }) {
@@ -90,6 +96,7 @@ function EtaInput({
       className="relay-card__eta-input"
       type="text"
       value={value}
+      aria-label={ariaLabel}
       placeholder={placeholder}
       onChange={(e) => setValue(e.target.value)}
       onBlur={() => onCommit(value)}
@@ -239,6 +246,7 @@ function WorkCard({
           <EtaInput
             initial={s.eta ?? ''}
             placeholder={t('schedule.relay.etaPlaceholder')}
+            ariaLabel={t('schedule.relay.eta')}
             onCommit={(value) => onCommitEta(s.sessionId, value)}
             onCancel={onCancelEditEta}
           />
@@ -270,6 +278,8 @@ function WorkCard({
             {t('schedule.relay.addHandoff')}
           </button>
           {showPicker ? (
+            // handoff picker：FORM-UNIFY B3 归「即时控件」类（§1.3.7）——选中即建接力、不套表单、无提交按钮；
+            // 错误走父层 FormBanner（createHandoffMutation.onError → setBanner）。已带 aria-label 关联可见用途。
             <select
               className="relay-card__then-select"
               aria-label={t('schedule.relay.handoffPick')}

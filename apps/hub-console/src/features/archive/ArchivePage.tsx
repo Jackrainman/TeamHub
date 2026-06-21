@@ -17,6 +17,8 @@ import { MetaRow } from '../../components/MetaRow';
 import { SeasonSelect, guessSeason } from '../../components/SeasonSelect';
 import { Combobox } from '../../components/Combobox';
 import { FormActions } from '../../components/FormActions';
+import { Field } from '../../components/Field';
+import { SegToggle } from '../../components/SegToggle';
 
 type OwnerGroup = 'mechanical' | 'electrical' | 'ec' | 'vision';
 
@@ -249,21 +251,19 @@ export function ArchivePage({
       <form className="pm-form" onSubmit={submit}>
         {/* 顶部一行：组别（4 seg）｜ 赛季（组合框）｜ 适配机器人（组合框：候选+手填）*/}
         <div className="archive-top-row">
-          <label className="kb-field archive-field--group">
-            <span>{t('archive.form.group')}</span>
-            <div className="seg" role="group" aria-label={t('archive.form.group')}>
-              {OWNER_GROUP_ORDER.map((g) => (
-                <button
-                  key={g}
-                  type="button"
-                  className={segClass(ownerGroup === g)}
-                  onClick={() => setOwnerGroup(g)}
-                >
-                  {t(GROUP_LABEL_KEY[g])}
-                </button>
-              ))}
-            </div>
-          </label>
+          {/* 组别 seg → SegToggle（FORM-UNIFY B3）：吐同款 div.seg[role=group] + seg__btn(segClass)，像素零变；
+              外层 Field（默认 label）保留 <label class="kb-field archive-field--group"><span> 外壳逐字一致。 */}
+          <Field label={t('archive.form.group')} className="archive-field--group">
+            <SegToggle
+              value={ownerGroup}
+              options={OWNER_GROUP_ORDER.map((g) => ({
+                value: g,
+                label: t(GROUP_LABEL_KEY[g]),
+              }))}
+              onChange={setOwnerGroup}
+              ariaLabel={t('archive.form.group')}
+            />
+          </Field>
 
           <label className="kb-field archive-field--season">
             <span>{t('archive.form.season')}</span>
@@ -282,33 +282,28 @@ export function ArchivePage({
           </label>
         </div>
 
-        {/* 电路子类型（仅 electrical 时单独一行）*/}
+        {/* 电路子类型 seg → SegToggle（FORM-UNIFY B3）：吐同款 div.seg + seg__btn(segClass)，像素零变。
+            hint 仍走 archive-file-hint 子节点（非 Field.hint：archive-file-hint 与 kb-field__hint 字号/字重不同，
+            用 Field.hint 会换类致像素变），故作 Field 的子节点排在 SegToggle 之后、顺序与原 label 一致。 */}
         {ownerGroup === 'electrical' ? (
-          <label className="kb-field">
-            <span>{t('archive.form.subType')}</span>
-            <div className="seg" role="group" aria-label={t('archive.form.subType')}>
-              <button
-                type="button"
-                className={segClass(subType === 'drawing')}
-                onClick={() => setSubType('drawing')}
-              >
-                {t('enum.subType.drawing')}
-              </button>
-              <button
-                type="button"
-                className={segClass(subType === 'driver')}
-                onClick={() => setSubType('driver')}
-              >
-                {t('enum.subType.driver')}
-              </button>
-            </div>
+          <Field label={t('archive.form.subType')}>
+            <SegToggle
+              value={subType}
+              options={[
+                { value: 'drawing' as const, label: t('enum.subType.drawing') },
+                { value: 'driver' as const, label: t('enum.subType.driver') },
+              ]}
+              onChange={setSubType}
+              ariaLabel={t('archive.form.subType')}
+            />
             <span className="archive-file-hint">{t('archive.form.subTypeHint')}</span>
-          </label>
+          </Field>
         ) : null}
 
-        {/* 机构：新机构勾选框切文本 / 否则下拉 */}
-        <div className="kb-field">
-          <span>{t('archive.form.mechanism')}</span>
+        {/* 机构：新机构勾选框切文本 / 否则下拉。外层 div.kb-field → Field as="div"（FORM-UNIFY B3）：
+            Field as="div" 吐 <div class="kb-field"><span>label</span>{children}</div>，与原 DOM/类逐字一致、像素零变；
+            内层 archive-mechanism-row（含 checkbox 行）原样作子节点。 */}
+        <Field label={t('archive.form.mechanism')} as="div">
           <div className="archive-mechanism-row">
             <label className="archive-mechanism-checkbox">
               <input
@@ -344,7 +339,7 @@ export function ArchivePage({
               </select>
             )}
           </div>
-        </div>
+        </Field>
 
         {/* 版本预览（只读）*/}
         {versionPreview ? (
@@ -364,9 +359,15 @@ export function ArchivePage({
           />
         </label>
 
-        {/* 「来源」一组：云端链接(uri) 与 本地文件可同时填——本地存 + 云端引用双保险，合并减少独立行数。 */}
-        <fieldset className="kb-field archive-source-group">
-          <legend>{t('archive.form.source')}</legend>
+        {/* 「来源」一组：云端链接(uri) 与 本地文件可同时填——本地存 + 云端引用双保险，合并减少独立行数。
+            fieldset/legend → Field as="fieldset"（FORM-UNIFY B3）：吐 <fieldset class="kb-field archive-source-group">
+            + <legend>label</legend>{children}，与原 DOM/类逐字一致、像素零变。sourceHint 仍走 archive-file-hint
+            子节点（非 Field.hint：字号/字重不同），顺序排在栅格之后与原 fieldset 一致。 */}
+        <Field
+          label={t('archive.form.source')}
+          as="fieldset"
+          className="archive-source-group"
+        >
           <div className="pm-form__grid">
             <label className="kb-field">
               <span>{t('archive.form.uri')}</span>
@@ -387,7 +388,7 @@ export function ArchivePage({
             </label>
           </div>
           <span className="archive-file-hint">{t('archive.form.sourceHint')}</span>
-        </fieldset>
+        </Field>
 
         {/* 关联仓库/提交：仅 electrical && driver 时显示，两字段并排 */}
         {ownerGroup === 'electrical' && subType === 'driver' ? (
@@ -622,7 +623,9 @@ function ArtifactLogRow({
         </dl>
       </div>
       {/* 文件来源「连在一起」：本地下载 + 云端打开两个动作并列、有谁显谁；都无则灰显。
-          再加行内上传/替换。下载直链命中 GET /api/artifacts/:id/download（读端点、无需令牌）。 */}
+          再加行内上传/替换。下载直链命中 GET /api/artifacts/:id/download（读端点、无需令牌）。
+          FORM-UNIFY B3：行内上传 = 即时控件（§1.3.7）——按钮触发隐藏 file input、选中即 upload.mutate，
+          不套表单、无提交按钮；故不补 <form>。 */}
       <div className="archive-row__actions">
         {hasFile ? (
           <a
@@ -669,6 +672,9 @@ function ArtifactLogRow({
             e.target.value = ''; // 允许同名文件再次触发 change
           }}
         />
+        {/* archive-upload-err = 纯红字（color/font-size 11.5px/max-width 12rem，无背景/内边距/圆角），
+            与 FormBanner--err 的红底色块（red-soft 背景 + padding + radius + 600 字重）样式不同；
+            行内动作区窄列里塞 banner 会撑破布局 → 按像素规则保留原内联渲染，不换 FormBanner。 */}
         {upload.error ? (
           <span className="archive-upload-err">
             {/401|unauthorized/i.test(errorDetail(upload.error))

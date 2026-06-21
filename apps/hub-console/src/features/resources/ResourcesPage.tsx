@@ -330,7 +330,11 @@ function ResourceRow({
     },
   });
 
-  function apply() {
+  // 行内改状态提交（FORM-UNIFY B3）：form 化后由 onSubmit 触发，逻辑与旧 apply 逐字一致、行为不变。
+  // I0：只改资源状态 / 原因，绝不收任何成员维度。
+  function apply(event: FormEvent) {
+    event.preventDefault();
+    if (!dirty || mutation.isPending) return;
     // statusReason：填了→改写；留空→不动既有 reason（不传字段）。退役只是状态迁移、不删行。
     const trimmed = reason.trim();
     mutation.mutate({
@@ -358,7 +362,11 @@ function ResourceRow({
         ) : null}
       </td>
       <td>
-        <div className="resources-action">
+        {/* 行内改状态：div → 真 <form onSubmit>（FORM-UNIFY B3）。.resources-action 类不变（CSS 按类命中、
+            tag 改为 form 像素零变）；apply 改 type=submit（消除 type=button onClick 提交歧异）。
+            紧凑行内控件用 aria-label（无可见 label）→ 不套 Field：包 Field 会引入可见 <span> 标签 +
+            kb-field 列向外壳，破坏 .resources-action 横排（视觉回退），故按「零视觉回退」铁律保留裸控件。 */}
+        <form className="resources-action" onSubmit={apply}>
           <select
             value={status}
             aria-label={t('resources.action.statusLabel')}
@@ -378,16 +386,18 @@ function ResourceRow({
             onChange={(e) => setReason(e.target.value)}
           />
           <button
-            type="button"
+            type="submit"
             className="kb-submit resources-apply"
             disabled={!dirty || mutation.isPending}
-            onClick={apply}
           >
             {mutation.isPending
               ? t('resources.action.applying')
               : t('resources.action.apply')}
           </button>
-        </div>
+        </form>
+        {/* resources-row-error = 纯红字（仅 color/font-size 11px/margin，无背景/内边距/圆角）；
+            FormBanner--err 是红底色块（red-soft 背景 + padding 7/11 + radius 7 + 600 字重）样式不同，
+            换成 banner 会视觉回退 → 按像素规则保留原内联渲染（结构上仍在 form 之后、不挪布局）。 */}
         {mutation.error ? (
           <p className="resources-row-error">
             {t('resources.action.error', { detail: errorDetail(mutation.error) })}
