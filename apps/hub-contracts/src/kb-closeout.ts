@@ -8,6 +8,7 @@ import {
   IssueCardSchema,
   KB_ARRAY_MAX,
   KB_LONG_TEXT_MAX,
+  KB_MARKDOWN_MAX,
   KB_TEXT_MAX,
 } from './kb.js';
 import type {
@@ -157,7 +158,7 @@ function renderArchiveMarkdown(
     ...records.flatMap((record) => record.linkedCommits),
   ]);
 
-  return [
+  const markdown = [
     `# ${issueCard.title}`,
     '',
     '## Summary',
@@ -191,6 +192,12 @@ function renderArchiveMarkdown(
     formatList(relatedCommits),
     '',
   ].join('\n');
+  // markdownContent 是派生字段：体积由各输入字段（均已 .max() 上限）+ 100 条时间线 + 文件/commit 列表
+  // 决定，schema-合法的极端输入可拼出数 MB。绝不因派生体积超限而拒绝合法结案——超限就**截断**（非拒绝），
+  // 保证 ArchiveDocumentSchema.markdownContent.max(KB_MARKDOWN_MAX) 永远满足。真实排障篇幅远在上限内、不受影响。
+  if (markdown.length <= KB_MARKDOWN_MAX) return markdown;
+  const marker = '\n\n…（归档正文过长，已截断到上限）';
+  return markdown.slice(0, KB_MARKDOWN_MAX - marker.length) + marker;
 }
 
 function safeParseOrFailure<T>(

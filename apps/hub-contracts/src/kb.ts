@@ -37,8 +37,13 @@ export const KB_TITLE_MAX = 500;
 export const KB_TEXT_MAX = 2_000;
 export const KB_LONG_TEXT_MAX = 20_000;
 export const KB_ARRAY_MAX = 100;
-/** markdown 归档正文上限：与 server bodyLimit(256KB) 同量级，留足真实排障篇幅。 */
+/** markdown 归档正文上限：与 server bodyLimit(256KB) 同量级，留足真实排障篇幅。
+ *  注意：markdownContent 是**派生**字段（renderArchiveMarkdown 拼接 + 截断到此上限），
+ *  绝不因派生体积超限而拒绝一个输入合法的结案——超长在 renderArchiveMarkdown 里 clamp，不在 schema 拒。 */
 export const KB_MARKDOWN_MAX = 200_000;
+/** 派生 prevention 上限：derivePrevention = 固定前缀 + resolution(≤KB_LONG_TEXT_MAX)，留前缀余量，
+ *  使「空 prevention + resolution 顶格」的合法结案不被 ErrorEntry 校验误拒。 */
+export const KB_DERIVED_PREVENTION_MAX = KB_LONG_TEXT_MAX + 64;
 
 export const IssueSeveritySchema = z.enum(['low', 'medium', 'high', 'critical']);
 
@@ -115,7 +120,7 @@ export const ErrorEntrySchema = z.object({
   symptom: z.string().max(KB_LONG_TEXT_MAX),
   rootCause: z.string().max(KB_LONG_TEXT_MAX),
   resolution: z.string().max(KB_LONG_TEXT_MAX),
-  prevention: z.string().trim().min(1).max(KB_LONG_TEXT_MAX),
+  prevention: z.string().trim().min(1).max(KB_DERIVED_PREVENTION_MAX),
   tags: z.array(z.string().max(KB_TAG_MAX)).max(KB_ARRAY_MAX).optional(),
   relatedFiles: z.array(z.string().max(KB_TEXT_MAX)).max(KB_ARRAY_MAX),
   relatedCommits: z.array(z.string().max(KB_TEXT_MAX)).max(KB_ARRAY_MAX),

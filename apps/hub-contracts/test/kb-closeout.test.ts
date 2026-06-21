@@ -3,11 +3,19 @@ import { describe, expect, test } from 'vitest';
 import {
   ArchiveDocumentSchema,
   ErrorEntrySchema,
+  KB_ARRAY_MAX,
+  KB_DERIVED_PREVENTION_MAX,
+  KB_LONG_TEXT_MAX,
+  KB_MARKDOWN_MAX,
   buildCloseoutFromIssue,
   deriveKnowledgeNodeFromIssue,
   kbScenarioFixture,
 } from '../src/index.js';
-import type { CloseoutOptions, IssueCard } from '../src/index.js';
+import type {
+  CloseoutOptions,
+  InvestigationRecord,
+  IssueCard,
+} from '../src/index.js';
 
 // U3（KB-CORE）：buildCloseoutFromIssue 纯函数 + deriveKnowledgeNodeFromIssue（结案派生知识节点）。
 
@@ -115,5 +123,63 @@ describe('buildCloseoutFromIssue 结案闭环', () => {
     // 指定组时落到该组
     const grouped = deriveKnowledgeNodeFromIssue({ issue: openIssue(), groupId: 'grp-ec' });
     expect(grouped.groupId).toBe('grp-ec');
+  });
+});
+
+// M17 回归（对抗审查 2026-06-21 捕获）：给输入字段加 .max() 后，**派生**字段
+// （ErrorEntry.prevention via derivePrevention、ArchiveDocument.markdownContent via renderArchiveMarkdown）
+// 可能因体积超自身上限而把一个输入合法的结案静默判失败。修法 = prevention 留前缀余量 + markdown 超限截断（非拒绝）。
+describe('M17 回归：派生字段上限不得误拒合法结案', () => {
+  test('空 prevention + resolution 顶格(KB_LONG_TEXT_MAX) → 派生 prevention 超长但 ≤ 派生上限，结案成功', () => {
+    const resolution = 'x'.repeat(KB_LONG_TEXT_MAX);
+    const result = buildCloseoutFromIssue(
+      openIssue(),
+      [],
+      { category: '云台', rootCause: '根因顶格测试', resolution, prevention: '' },
+      opts,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // 派生 prevention = 固定前缀 + resolution，> KB_LONG_TEXT_MAX 但被 KB_DERIVED_PREVENTION_MAX 容纳
+    expect(result.errorEntry.prevention.length).toBeGreaterThan(KB_LONG_TEXT_MAX);
+    expect(result.errorEntry.prevention.length).toBeLessThanOrEqual(
+      KB_DERIVED_PREVENTION_MAX,
+    );
+    expect(() => ErrorEntrySchema.parse(result.errorEntry)).not.toThrow();
+  });
+
+  test('100 条顶格时间线 + 顶格根因/方案 → 派生 markdown 截断到上限而非拒绝，结案成功', () => {
+    const records: InvestigationRecord[] = Array.from(
+      { length: KB_ARRAY_MAX },
+      (_, i) => ({
+        id: `rec-${i}`,
+        issueId: 'iss-live',
+        type: 'observation',
+        rawText: 'r'.repeat(KB_LONG_TEXT_MAX),
+        polishedText: 'p'.repeat(KB_LONG_TEXT_MAX),
+        aiExtractedSignals: [],
+        linkedFiles: [],
+        linkedCommits: [],
+        createdAt: '2026-06-13T08:00:00.000Z',
+      }),
+    );
+    const result = buildCloseoutFromIssue(
+      openIssue(),
+      records,
+      {
+        category: '云台',
+        rootCause: 'r'.repeat(KB_LONG_TEXT_MAX),
+        resolution: 's'.repeat(KB_LONG_TEXT_MAX),
+        prevention: '',
+      },
+      opts,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.archiveDocument.markdownContent.length).toBeLessThanOrEqual(
+      KB_MARKDOWN_MAX,
+    );
+    expect(result.archiveDocument.markdownContent).toContain('已截断');
+    expect(() => ArchiveDocumentSchema.parse(result.archiveDocument)).not.toThrow();
   });
 });
