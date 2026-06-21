@@ -6,6 +6,9 @@ import {
   ErrorEntrySchema,
   InvestigationRecordSchema,
   IssueCardSchema,
+  KB_ARRAY_MAX,
+  KB_LONG_TEXT_MAX,
+  KB_TEXT_MAX,
 } from './kb.js';
 import type {
   ArchiveDocument,
@@ -353,11 +356,11 @@ export function buildCloseoutFromIssue(
  */
 export const KbCloseoutRequestSchema = z.object({
   issue: IssueCardSchema,
-  records: z.array(InvestigationRecordSchema).default([]),
-  category: z.string().default(''),
-  rootCause: z.string().trim().min(1),
-  resolution: z.string().trim().min(1),
-  prevention: z.string().default(''),
+  records: z.array(InvestigationRecordSchema).max(KB_ARRAY_MAX).default([]),
+  category: z.string().max(KB_TEXT_MAX).default(''),
+  rootCause: z.string().trim().min(1).max(KB_LONG_TEXT_MAX),
+  resolution: z.string().trim().min(1).max(KB_LONG_TEXT_MAX),
+  prevention: z.string().max(KB_LONG_TEXT_MAX).default(''),
   generatedBy: ArchiveGeneratedBySchema.default('hybrid'),
 });
 
