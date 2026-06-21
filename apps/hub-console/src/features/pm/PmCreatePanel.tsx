@@ -79,15 +79,30 @@ export function PmCreatePanel({
       </header>
 
       {mode === 'task' ? (
-        <div role="tabpanel" id="pm-tab-task" tabIndex={0}>
+        <div
+          role="tabpanel"
+          id="pm-tab-task"
+          aria-labelledby="pm-tab-task-btn"
+          tabIndex={0}
+        >
           <TaskForm client={client} tasks={tasks} onCreated={onCreated} />
         </div>
       ) : mode === 'dependency' ? (
-        <div role="tabpanel" id="pm-tab-dep" tabIndex={0}>
+        <div
+          role="tabpanel"
+          id="pm-tab-dep"
+          aria-labelledby="pm-tab-dep-btn"
+          tabIndex={0}
+        >
           <DependencyForm client={client} tasks={tasks} onCreated={onCreated} />
         </div>
       ) : (
-        <div role="tabpanel" id="pm-tab-need" tabIndex={0}>
+        <div
+          role="tabpanel"
+          id="pm-tab-need"
+          aria-labelledby="pm-tab-need-btn"
+          tabIndex={0}
+        >
           <NeedForm client={client} tasks={tasks} onCreated={onCreated} />
         </div>
       )}
@@ -110,6 +125,7 @@ function SegButton({
     <button
       type="button"
       role="tab"
+      id={`${controls}-btn`}
       aria-selected={active}
       aria-controls={controls}
       className={segClass(active)}

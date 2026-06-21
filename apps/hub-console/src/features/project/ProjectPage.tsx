@@ -43,7 +43,9 @@ export function ProjectPage({
         <button
           type="button"
           role="tab"
+          id="project-view-board-btn"
           aria-selected={view === 'board'}
+          aria-controls="project-view-board"
           className={segClass(view === 'board')}
           onClick={() => setView('board')}
         >
@@ -52,7 +54,9 @@ export function ProjectPage({
         <button
           type="button"
           role="tab"
+          id="project-view-graph-btn"
           aria-selected={view === 'graph'}
+          aria-controls="project-view-graph"
           className={segClass(view === 'graph')}
           onClick={() => setView('graph')}
         >
@@ -61,21 +65,35 @@ export function ProjectPage({
       </div>
       {/* 条件 mount：隐藏视图整体卸载，规避 ReactFlow 塌高；board↔graph 共享 tasks 缓存 */}
       {view === 'board' ? (
-        <PmBoardPage
-          client={client}
-          source={source}
-          onOpenInDepGraph={(id) => {
-            setFocusTaskId(id);
-            setView('graph');
-          }}
-        />
+        <div
+          role="tabpanel"
+          id="project-view-board"
+          aria-labelledby="project-view-board-btn"
+          tabIndex={0}
+        >
+          <PmBoardPage
+            client={client}
+            source={source}
+            onOpenInDepGraph={(id) => {
+              setFocusTaskId(id);
+              setView('graph');
+            }}
+          />
+        </div>
       ) : (
-        <DepGraphPage
-          client={client}
-          source={source}
-          focusTaskId={focusTaskId}
-          onConsumeFocus={() => setFocusTaskId(null)}
-        />
+        <div
+          role="tabpanel"
+          id="project-view-graph"
+          aria-labelledby="project-view-graph-btn"
+          tabIndex={0}
+        >
+          <DepGraphPage
+            client={client}
+            source={source}
+            focusTaskId={focusTaskId}
+            onConsumeFocus={() => setFocusTaskId(null)}
+          />
+        </div>
       )}
     </div>
   );

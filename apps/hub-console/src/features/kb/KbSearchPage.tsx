@@ -25,6 +25,7 @@ export function KbSearchPage({
         <button
           type="button"
           role="tab"
+          id="kb-tab-search-btn"
           aria-selected={tab === 'search'}
           aria-controls="kb-tab-search"
           className={tab === 'search' ? 'seg__btn seg__btn--active' : 'seg__btn'}
@@ -35,6 +36,7 @@ export function KbSearchPage({
         <button
           type="button"
           role="tab"
+          id="kb-tab-closeout-btn"
           aria-selected={tab === 'closeout'}
           aria-controls="kb-tab-closeout"
           className={tab === 'closeout' ? 'seg__btn seg__btn--active' : 'seg__btn'}
@@ -44,11 +46,21 @@ export function KbSearchPage({
         </button>
       </div>
       {tab === 'search' ? (
-        <div role="tabpanel" id="kb-tab-search" tabIndex={0}>
+        <div
+          role="tabpanel"
+          id="kb-tab-search"
+          aria-labelledby="kb-tab-search-btn"
+          tabIndex={0}
+        >
           <KbSearchPanel client={client} source={source} />
         </div>
       ) : (
-        <div role="tabpanel" id="kb-tab-closeout" tabIndex={0}>
+        <div
+          role="tabpanel"
+          id="kb-tab-closeout"
+          aria-labelledby="kb-tab-closeout-btn"
+          tabIndex={0}
+        >
           <KbCloseoutForm client={client} source={source} />
         </div>
       )}
