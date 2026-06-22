@@ -1,5 +1,7 @@
 import {
   GOVERNANCE_SCENARIO_NOW,
+  GOVERNANCE_SNAPSHOT_ARRAY_KEYS,
+  deriveDisplayCode,
   governanceScenarioFixture,
   scheduleScenarioFixture,
 } from '@teamhub/hub-contracts';
@@ -33,18 +35,12 @@ import type {
 } from './gov-store.js';
 
 /**
- * 治理快照全 8 数组字段（写方法可能 push/splice 的集合）——构造期克隆隔离 + getSnapshot 浅拷贝共用。
- * 与 FileGovStore 的同名常量逐字对应（见 attribution.ts GovernanceSnapshot SYNC 注释：增删字段须同步两处）。
+ * 治理快照全数组字段键（写方法可能 push/splice 的集合）——构造期克隆隔离 + getSnapshot 浅拷贝共用。
+ * 键表已**单源于 contracts**（GOVERNANCE_SNAPSHOT_ARRAY_KEYS，见 attribution.ts SYNC 注释：增删数组字段须同步那处）；
+ * 本地以可变副本承接（cloneArrayFields 形参要 mutable keyof[]，而单源常量是 ReadonlyArray）。
  */
 const GOVERNANCE_ARRAY_FIELDS: (keyof GovernanceSnapshot)[] = [
-  'groups',
-  'members',
-  'tasks',
-  'dependencies',
-  'needs',
-  'knowledgeNodes',
-  'taskKnowledgeTags',
-  'artifacts',
+  ...GOVERNANCE_SNAPSHOT_ARRAY_KEYS,
 ];
 
 /**
@@ -281,17 +277,25 @@ export class InMemoryGovStore implements GovStore {
   /**
    * 建一台共享资源（POST /api/resources，R3 车管理 / D-072 §3.2）。Store 补 id=`res-new-N` + updatedAt、
    * **钉 status=`available` / statusReason=null / statusSource=`console`**（C5：来源 seam server 钉，建车一律空闲可用）。
-   * displayCode **禁手写**——已由路由层经 deriveDisplayCode 派生并入 draft（给了 season 才有，否则 undefined）。
+   * displayCode **禁手写**（D-072 §3.2 决定 K）——**store 内派生**（与 status/statusSource 同列由 server 钉）：
+   * 给了 season 才经 deriveDisplayCode(season, robotTarget, version ?? 1) 派生，否则 undefined（读视图回退 name）。
+   * 调用方（路由 / FileGovStore 委托）绝不传 displayCode（ResourceDraft 已 Omit 之）。
    * **I0**：SharedResource 无 person 字段，draft 也不含——车是中性对象，绝无 memberId / 出勤。
    */
   async createResource(draft: ResourceDraft): Promise<SharedResource> {
     const now = this.clock.now().toISOString();
+    // displayCode 在 store 内派生（禁手写）：给了 season 才有 `赛季+位置(+vN)`，否则 undefined。
+    const displayCode =
+      draft.season !== undefined
+        ? deriveDisplayCode(draft.season, draft.robotTarget, draft.version ?? 1)
+        : undefined;
     const resource: SharedResource = {
       ...draft,
       id: `res-new-${++this.resourceSeq}`,
       status: 'available',
       statusReason: null,
       statusSource: 'console',
+      displayCode,
       updatedAt: now,
     };
     this.resources.push(resource);

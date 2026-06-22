@@ -121,15 +121,16 @@ export type RelayHandoffDraft = Omit<
 /**
  * createResource 入参（R3 车管理 / D-072 §3.2「车 = 带编号对象」）：建一台共享资源（整车）。
  * 人本字段 = projectId / name / kind / robotTarget（车号位）+ 可选 season / version（极低频代次）。
- * **displayCode 禁手写**（D-072 §3.2 决定 K）：不由调用方给——路由层经 `deriveDisplayCode(season, robotTarget,
- * version ?? 1)` 派生后并入 draft（给了 season 才派生，否则 undefined）。Store 补 id + updatedAt、**钉
- * status=`available`**（建车一律空闲可用）/ statusReason=null（建时无事实注释）/ statusSource=`console`
- * （C5：来源 seam server 钉）。故 draft 仅 Omit id/status/statusReason/statusSource/updatedAt。
+ * **displayCode 禁手写**（D-072 §3.2 决定 K）：**由 Store 内部经 `deriveDisplayCode(season, robotTarget,
+ * version ?? 1)` 派生，调用方绝不传**（如同从不传 status/statusSource——故 ResourceDraft 一并 Omit displayCode）。
+ * 给了 season 才派生，否则 undefined（读视图回退 name）。Store 还补 id + updatedAt、**钉 status=`available`**
+ * （建车一律空闲可用）/ statusReason=null（建时无事实注释）/ statusSource=`console`（C5：来源 seam server 钉）。
+ * 故 draft Omit id/status/statusReason/statusSource/displayCode/updatedAt。
  * **反监视红线**：SharedResource 结构无成员维度，draft 也绝不含 memberId / 出勤。
  */
 export type ResourceDraft = Omit<
   SharedResource,
-  'id' | 'status' | 'statusReason' | 'statusSource' | 'updatedAt'
+  'id' | 'status' | 'statusReason' | 'statusSource' | 'displayCode' | 'updatedAt'
 >;
 
 /**
@@ -207,7 +208,7 @@ export interface GovStore {
   /**
    * 建一台共享资源（POST /api/resources，R3 车管理 / D-072 §3.2）。Store 补 id + updatedAt、
    * **钉 status=`available` / statusReason=null / statusSource=`console`**（C5 来源 seam）。
-   * displayCode 由路由层经 deriveDisplayCode 派生后并入 draft（**禁手写**，D-072 §3.2 决定 K）。
+   * displayCode 由 **Store 内部**经 deriveDisplayCode 派生（**禁手写**，调用方绝不传，D-072 §3.2 决定 K）。
    * **持久化（R3 核心）**：FileGovStore 落盘到独立 resources.json（不入 GovernanceSnapshot）；
    * InMemoryGovStore 仅改内存数组。**I0**：SharedResource 无成员维度，绝不引入 memberId / 出勤。
    */

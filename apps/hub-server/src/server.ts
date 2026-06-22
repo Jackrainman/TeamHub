@@ -63,7 +63,6 @@ import {
   CreateRelayHandoffRequestSchema,
   RelayHandoffResponseSchema,
   RelayBoardResponseSchema,
-  deriveDisplayCode,
   CreateResourceRequestSchema,
   CreateResourceResponseSchema,
   UpdateResourceStatusRequestSchema,
@@ -579,9 +578,10 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   });
 
   // 建车（POST /api/resources，R3 车管理 / D-072 §3.2「车 = 带编号对象」）。镜像 POST /api/resource-sessions：
-  // safeParse→400/201。**displayCode 禁手写**——给了 season 才经 deriveDisplayCode(season, robotTarget, version??1)
-  // 派生（否则 undefined）；server 钉 status=available / statusReason=null / statusSource=console、补 id/updatedAt
-  //（store.createResource 内做）。POST /api/* → 继承 H3 onRequest 鉴权 + 限流。**I0**：SharedResource 无成员维度。
+  // safeParse→400/201。**displayCode 禁手写 / store 内派生**——draft 只传人工输入字段（如同从不传 status）；
+  // store.createResource 内经 deriveDisplayCode(season, robotTarget, version??1) 派生（给了 season 才有）+ 钉
+  // status=available / statusReason=null / statusSource=console、补 id/updatedAt。POST /api/* → 继承 H3 onRequest
+  // 鉴权 + 限流。**I0**：SharedResource 无成员维度。
   app.post('/api/resources', async (request, reply) => {
     const parsed = CreateResourceRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
@@ -589,11 +589,6 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
       return;
     }
     const { projectId, name, kind, robotTarget, season, version } = parsed.data;
-    // displayCode 派生（禁手写）：给了 season 才派生 `赛季+位置(+vN)`；没给则 undefined（读视图回退 name）。
-    const displayCode =
-      season !== undefined
-        ? deriveDisplayCode(season, robotTarget, version ?? 1)
-        : undefined;
     const resource = await store.createResource({
       projectId,
       name,
@@ -601,7 +596,6 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
       robotTarget,
       season,
       version,
-      displayCode,
     });
     void reply.code(201);
     return CreateResourceResponseSchema.parse({ resource });

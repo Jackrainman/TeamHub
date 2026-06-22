@@ -1,6 +1,14 @@
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test } from 'vitest';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import {
+  GOVERNANCE_SNAPSHOT_ARRAY_KEYS,
+  governanceScenarioFixture,
+} from '@teamhub/hub-contracts';
 import { buildHubServer } from '../src/server.js';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
+import { FileGovStore } from '../src/store/file-gov-store.js';
 import { InMemoryKbStore } from '../src/store/mock-kb-store.js';
 import { InMemoryInvStore } from '../src/store/mock-inv-store.js';
 import { SqliteGovStore } from '../src/store/sqlite-gov-store.js';
@@ -136,5 +144,32 @@ describe('base 收口刀: GovStore 写白名单 + 扩展点 + 持久化切换合
     const app = buildHubServer({ store: persisted });
     expect(app).toBeDefined();
     void app.close();
+  });
+});
+
+// B2（SSOT 收口）：数组键表 GOVERNANCE_SNAPSHOT_ARRAY_KEYS 单源于 contracts 后，克隆隔离仍生效——
+// 两 Store 的 getSnapshot() 对每个数组键返回的数组与 seed fixture **引用不同**（!== seed.xxx），
+// 证明构造期 cloneArrayFields 仍逐数组克隆、写方法 push/splice 不会污染共享 fixture（M7/M13 回归护栏）。
+describe('B2: GOVERNANCE_SNAPSHOT_ARRAY_KEYS 单源后克隆隔离仍生效（数组引用与 seed 不同）', () => {
+  let dir = '';
+  afterEach(async () => {
+    if (dir) await rm(dir, { recursive: true, force: true });
+  });
+
+  test('InMemoryGovStore.getSnapshot() 每个数组键与 seed fixture 引用不同', async () => {
+    const store = new InMemoryGovStore(); // seed = governanceScenarioFixture
+    const snap = await store.getSnapshot();
+    for (const key of GOVERNANCE_SNAPSHOT_ARRAY_KEYS) {
+      expect(snap[key]).not.toBe(governanceScenarioFixture[key]);
+    }
+  });
+
+  test('FileGovStore.getSnapshot() 每个数组键与 seed fixture 引用不同', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'gov-b2-clone-'));
+    const store = await FileGovStore.create(join(dir, 'gov.json'));
+    const snap = await store.getSnapshot();
+    for (const key of GOVERNANCE_SNAPSHOT_ARRAY_KEYS) {
+      expect(snap[key]).not.toBe(governanceScenarioFixture[key]);
+    }
   });
 });

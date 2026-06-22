@@ -3,7 +3,10 @@ import {
   BlockAttributionSchema,
   GOVERNANCE_SCENARIO_NOW,
   GOVERNANCE_SCENARIO_TIME,
+  GOVERNANCE_SNAPSHOT_ARRAY_KEYS,
+  GovernanceSnapshotSchema,
   deriveBlockAttributions,
+  governanceScenarioFixture,
 } from '../src/index.js';
 import type {
   Dependency,
@@ -123,5 +126,39 @@ describe('classifyReason — sharesResource 边驱动 sharedResourceBusy 分支'
     for (const key of Object.keys(attrs[0]!)) {
       expect(key).not.toMatch(/member|owner|count|score|rank|percent|completed|duration/i);
     }
+  });
+});
+
+/**
+ * B1 drift-canary（SSOT 收口护栏）：GovernanceSnapshotSchema 现单源于 attribution.ts，且 GovernanceSnapshot
+ * 是手写 interface（非 z.infer，D-051）——两者会 drift。本测守两条不变量：
+ * ① schema **声明字段集**（`.shape`，**非 parse 输出**——schema 带 `.passthrough()`，parse 会原样保留未知键、
+ *    使 `Object.keys(parse(x))` 恒等于 `Object.keys(x)`，对漏字段完全失明）== fixture key 集：interface 加字段
+ *    却漏加进 schema 时 `.shape` 缺该键 → 失败。
+ * ② 数组键表 == fixture 上**全部**数组字段（双向集合相等）：interface 加数组字段却漏加进
+ *    GOVERNANCE_SNAPSHOT_ARRAY_KEYS（克隆漏隔离、M7/M13 可变快照 bug）时 → 失败。
+ * 另断言 parse(fixture) 不抛——确保 fixture 真合 schema（已声明字段的类型 drift 亦被捕获）。
+ */
+describe('GovernanceSnapshotSchema drift-canary（interface ↔ schema key 集一致）', () => {
+  test('schema 声明字段集（.shape）== fixture 的 key 集——漏加字段即失败', () => {
+    expect(Object.keys(GovernanceSnapshotSchema.shape).sort()).toEqual(
+      Object.keys(governanceScenarioFixture).sort(),
+    );
+  });
+
+  test('parse(fixture) 不抛——fixture 合 schema（已声明字段类型亦校验）', () => {
+    const roundTripped = JSON.parse(JSON.stringify(governanceScenarioFixture));
+    expect(() => GovernanceSnapshotSchema.parse(roundTripped)).not.toThrow();
+  });
+
+  test('GOVERNANCE_SNAPSHOT_ARRAY_KEYS == fixture 上全部数组字段——漏列即失败', () => {
+    const actualArrayKeys = Object.keys(governanceScenarioFixture)
+      .filter((k) =>
+        Array.isArray(
+          (governanceScenarioFixture as unknown as Record<string, unknown>)[k],
+        ),
+      )
+      .sort();
+    expect([...GOVERNANCE_SNAPSHOT_ARRAY_KEYS].sort()).toEqual(actualArrayKeys);
   });
 });

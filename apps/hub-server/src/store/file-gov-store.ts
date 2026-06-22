@@ -2,15 +2,9 @@ import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
 import {
-  ArtifactRefSchema,
-  DependencySchema,
-  GroupSchema,
-  KnowledgeNodeSchema,
-  MemberSchema,
-  NeedSchema,
+  GOVERNANCE_SNAPSHOT_ARRAY_KEYS,
+  GovernanceSnapshotSchema,
   SharedResourceSchema,
-  TaskKnowledgeTagSchema,
-  TaskSchema,
   governanceScenarioFixture,
 } from '@teamhub/hub-contracts';
 import type {
@@ -56,22 +50,10 @@ import type {
  * **复用 InMemoryGovStore**（组合，零重复 / 零漂移，等同 FileKbStore 复用 appendCloseoutInto）；
  * 本 Store 只在每次成功写后追加一次 persist()。
  *
- * GovernanceSnapshot 无 zod schema（是手写 interface），故这里用各实体 schema 拼一个解析 schema 做
- * fail-closed 加载（与 FileKbStore 的 KbSnapshotSchema 同口径）。
+ * GovernanceSnapshot 仍是手写 interface（无 z.infer，D-051），其 fail-closed 加载 schema
+ * `GovernanceSnapshotSchema` 现**单源于 contracts**（apps/hub-contracts/src/attribution.ts，带 .passthrough()
+ * 防 load-time 丢字段 + drift-canary 守 key 集），本文件 import 之、不再各实体 schema 手拼（SSOT-B1 收口）。
  */
-const GovernanceSnapshotSchema = z.object({
-  seasonId: z.string().min(1),
-  projectId: z.string().min(1),
-  stage: z.string().min(1),
-  groups: z.array(GroupSchema),
-  members: z.array(MemberSchema),
-  tasks: z.array(TaskSchema),
-  dependencies: z.array(DependencySchema),
-  needs: z.array(NeedSchema),
-  knowledgeNodes: z.array(KnowledgeNodeSchema),
-  taskKnowledgeTags: z.array(TaskKnowledgeTagSchema),
-  artifacts: z.array(ArtifactRefSchema),
-});
 
 /**
  * R3 车管理独立落盘格式（resources.json）：纯 SharedResource 数组。**为何独立于 governance.json**：
@@ -87,20 +69,9 @@ function deriveResourcesFilePath(govFilePath: string): string {
   return join(dirname(govFilePath), 'resources.json');
 }
 
-/** 治理快照全 8 数组字段（写方法可能 push/splice 的集合）——克隆隔离用。 */
-const GOVERNANCE_ARRAY_FIELDS: (keyof GovernanceSnapshot)[] = [
-  'groups',
-  'members',
-  'tasks',
-  'dependencies',
-  'needs',
-  'knowledgeNodes',
-  'taskKnowledgeTags',
-  'artifacts',
-];
-
 function cloneSnapshot(seed: GovernanceSnapshot): GovernanceSnapshot {
-  return cloneArrayFields(seed, GOVERNANCE_ARRAY_FIELDS);
+  // 数组键表已**单源于 contracts**（GOVERNANCE_SNAPSHOT_ARRAY_KEYS，见 attribution.ts）——不再本地手抄。
+  return cloneArrayFields(seed, [...GOVERNANCE_SNAPSHOT_ARRAY_KEYS]);
 }
 
 export class FileGovStore implements GovStore {

@@ -1,3 +1,11 @@
+import { z } from 'zod';
+import {
+  DependencySchema,
+  GroupSchema,
+  MemberSchema,
+  NeedSchema,
+  TaskSchema,
+} from './governance.js';
 import type {
   BlockAttribution,
   BlockAttributionReason,
@@ -14,7 +22,9 @@ import type {
   Task,
   TaskComplexity,
 } from './governance.js';
+import { KnowledgeNodeSchema, TaskKnowledgeTagSchema } from './growth.js';
 import type { KnowledgeNode, TaskKnowledgeTag } from './growth.js';
+import { ArtifactRefSchema } from './schemas.js';
 import type { ArtifactRef } from './schemas.js';
 
 /**
@@ -25,9 +35,13 @@ import type { ArtifactRef } from './schemas.js';
  * "有没有一条 active 确认依赖边指向未完成上游"这个布尔事实——没有这条边，
  * 不产生归因（沉默，A4）。
  *
- * SYNC: 本 interface 是手写（无对应 ZodSchema）；hub-server `file-gov-store.ts` 的 `GovernanceSnapshotSchema`
- * 手工拼合了字段对应的解析 schema（fail-closed 加载用）。**本 interface 增删字段时，须同步那处 schema**
- * （及 `GOVERNANCE_ARRAY_FIELDS` / `InMemoryGovStore` 克隆数组列表），否则落盘加载会漏校验新字段。
+ * SYNC（B1+B2 SSOT 收口后）：本 interface 仍**手写**（非 z.infer，D-051：ScheduleSnapshot extends
+ * GovernanceSnapshot 依赖它是 interface）。fail-closed 加载用的 `GovernanceSnapshotSchema` 现**单源于本文件**
+ * （下方紧挨 interface 导出，带 `.passthrough()` 防 load-time 静默丢字段 + drift-canary 测试守 key 集一致）；
+ * 克隆隔离用的数组键表 `GOVERNANCE_SNAPSHOT_ARRAY_KEYS` 亦**单源于此**（hub-server 两 Store import 之，不再各自手抄）。
+ * **仍须人工同步的红线**：本 interface 新增**数组**字段时，**必须**同步把该键加进 `GOVERNANCE_SNAPSHOT_ARRAY_KEYS`
+ * （否则 Store 克隆漏隔离该数组 → 写方法 push/splice 污染共享 fixture，重蹈 M7/M13 可变快照引用 bug）；新增任意
+ * 字段也应在 `GovernanceSnapshotSchema` 加对应解析（drift-canary 会在漏加时让测试失败、而非运行时静默丢字段）。
  */
 export interface GovernanceSnapshot {
   seasonId: string;
@@ -45,6 +59,44 @@ export interface GovernanceSnapshot {
   // 不存"谁提交"作排名依据（I0/A4）。GET /api/artifacts 读这个数组。
   artifacts: ArtifactRef[];
 }
+
+/**
+ * `GovernanceSnapshot` 的 fail-closed 解析 schema（**单一真相**，hub-server `file-gov-store.ts` import 之）。
+ * 各实体 schema 拼合而成（GovernanceSnapshot 本身手写 interface、无 z.infer，D-051）；字段集与映射须与上方
+ * interface 逐字一致。`.passthrough()` 是关键：interface 加了字段却漏加这里时，load 阶段保留未知键而非静默丢，
+ * drift-canary 测试（test/attribution.test.ts）会断言 parse 结果 key 集 == fixture key 集、漏加即失败。
+ */
+export const GovernanceSnapshotSchema = z
+  .object({
+    seasonId: z.string().min(1),
+    projectId: z.string().min(1),
+    stage: z.string().min(1),
+    groups: z.array(GroupSchema),
+    members: z.array(MemberSchema),
+    tasks: z.array(TaskSchema),
+    dependencies: z.array(DependencySchema),
+    needs: z.array(NeedSchema),
+    knowledgeNodes: z.array(KnowledgeNodeSchema),
+    taskKnowledgeTags: z.array(TaskKnowledgeTagSchema),
+    artifacts: z.array(ArtifactRefSchema),
+  })
+  .passthrough();
+
+/**
+ * `GovernanceSnapshot` 全部**数组**字段键（**单一真相**，hub-server 两 Store 克隆隔离 import 之）。
+ * 写方法可能 push/splice 这些数组，Store 构造 / getSnapshot 据此逐数组克隆，防外部 mutate live store
+ * （M7/M13）。**红线**：interface 新增数组字段时必须同步加进本表，否则该数组漏隔离。
+ */
+export const GOVERNANCE_SNAPSHOT_ARRAY_KEYS: ReadonlyArray<keyof GovernanceSnapshot> = [
+  'groups',
+  'members',
+  'tasks',
+  'dependencies',
+  'needs',
+  'knowledgeNodes',
+  'taskKnowledgeTags',
+  'artifacts',
+] as const;
 
 const COMPLEXITY_CN: Record<TaskComplexity, string> = {
   trivial: '简单',

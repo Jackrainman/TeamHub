@@ -282,8 +282,10 @@ describe('FileGovStore 车落盘（resources.json，重启不丢）', () => {
       robotTarget: 'R2',
       season: '26',
       version: undefined,
-      displayCode: '26R2', // 路由层已派生并入 draft
+      // displayCode 不传——store 内经 deriveDisplayCode 派生（B3 store 内派生强方案）
     });
+    // store 派生 displayCode = 26R2（证明禁手写、store 内派生）
+    expect(created.displayCode).toBe('26R2');
 
     // 落盘断言
     const onDisk = JSON.parse(await readFile(join(dir, 'resources.json'), 'utf8'));
@@ -310,8 +312,8 @@ describe('FileGovStore 车落盘（resources.json，重启不丢）', () => {
       robotTarget: 'R2',
       season: '26',
       version: undefined,
-      displayCode: '26R2',
     });
+    expect(first.displayCode).toBe('26R2'); // store 内派生
 
     // 模拟重启：新实例从同一 resources.json 载入（含 first）
     const reloaded = await FileGovStore.create(file);
@@ -322,8 +324,8 @@ describe('FileGovStore 车落盘（resources.json，重启不丢）', () => {
       robotTarget: 'shared',
       season: '26',
       version: undefined,
-      displayCode: undefined,
     });
+    expect(second.displayCode).toBe('26shared'); // store 内派生（season 给了）
 
     // 重启后建的车 id 必须不同于重启前的车（否则覆盖既有车 / React key 冲突）
     expect(second.id).not.toBe(first.id);
