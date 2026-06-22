@@ -47,11 +47,8 @@ const THEME_OPTIONS = [
 // 服务端运行模式枚举文案（mock-first / real / hybrid）。枚举原值不翻译，title 作注释。
 // 键名须在 translations.ts 中存在（settings.about.mode.mockFirst / .real / .hybrid）。
 const MODE_LABEL: Record<'mock-first' | 'real' | 'hybrid', TranslationKey> = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   'mock-first': 'settings.about.mode.mockFirst',
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   real: 'settings.about.mode.real',
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   hybrid: 'settings.about.mode.hybrid',
 };
 
@@ -284,8 +281,7 @@ function ConnectionSection() {
   return (
     <section className="panel settings-panel">
       <div className="panel-header">
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        <h2>{t('settings.section.connection' as any)}</h2>
+        <h2>{t('settings.section.connection')}</h2>
       </div>
       <div className="settings-section">
         {/* 后端地址：apply 改真 <form onSubmit>（FORM-UNIFY B3）。form 用 display:contents——

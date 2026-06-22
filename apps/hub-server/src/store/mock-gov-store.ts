@@ -129,15 +129,6 @@ export class InMemoryGovStore implements GovStore {
   }
 
   /**
-   * @internal 持久层回滚专用：返回**可变的** live resourceSessions 数组引用（createResourceSession push 的同一对象），
-   * 让 FileGovStore 在 persist() 失败时撤回刚追加的窗口（与 snapshotForRollback 同纪律，不对外公开）。
-   * 排班资源 / 窗口不在 GovernanceSnapshot 内，故单独开此回滚句柄。
-   */
-  resourceSessionsForRollback(): ResourceSession[] {
-    return this.resourceSessions;
-  }
-
-  /**
    * @internal 持久层回滚专用（R3）：返回**可变的** live resources 数组引用（createResource push /
    * updateResourceStatus 原地改的同一对象），让 FileGovStore 在 resources.json 写失败时撤回刚追加 /
    * 刚改的整车（与 snapshotForRollback 同纪律，不对外公开）。resources 不在 GovernanceSnapshot 内，故单独开此句柄。
@@ -283,7 +274,8 @@ export class InMemoryGovStore implements GovStore {
 
   /** 共享物理资源只读（GET /api/schedule 组装 ScheduleSnapshot 用；GET /api/resources 可选读视图）。 */
   async listResources(): Promise<SharedResource[]> {
-    return this.resources;
+    // 浅拷贝（对齐 getSnapshot 的克隆封装）：防外部读到 live 数组后 push/splice 绕过写白名单。
+    return [...this.resources];
   }
 
   /**
@@ -334,7 +326,8 @@ export class InMemoryGovStore implements GovStore {
 
   /** 占用窗口只读（GET /api/resource-sessions + GET /api/schedule 组装用）。 */
   async listResourceSessions(): Promise<ResourceSession[]> {
-    return this.resourceSessions;
+    // 浅拷贝（对齐 getSnapshot 的克隆封装）：防外部读到 live 数组后 push/splice 绕过写白名单。
+    return [...this.resourceSessions];
   }
 
   /**
@@ -401,7 +394,8 @@ export class InMemoryGovStore implements GovStore {
 
   /** 接力交接线只读（GET /api/relay 组 ScheduleSnapshot 用）。先后交接、**非**任务依赖；无 memberId。 */
   async listRelayHandoffs(): Promise<RelayHandoff[]> {
-    return this.relayHandoffs;
+    // 浅拷贝（对齐 getSnapshot 的克隆封装）：防外部读到 live 数组后 push/splice 绕过写白名单。
+    return [...this.relayHandoffs];
   }
 
   /**

@@ -172,6 +172,25 @@ const ARTIFACT_ALLOWED_EXT = new Map<string, string>([
   ['.hex', 'application/octet-stream'],
 ]);
 
+// 写路由 safeParse 失败 → 取首条 Zod issue message 作 400 detail（缺省回 fallback）。
+// 收口全表单路由重复的 `parsed.error.issues[0]?.message ?? <fallback>` 模式。
+function firstZodMsg(err: import('zod').ZodError, fallback = 'invalid body'): string {
+  return err.issues[0]?.message ?? fallback;
+}
+
+// 把治理快照 + 共享资源 + 占用窗口 + 接力交接线拼成 ScheduleSnapshot（GET /api/schedule、/api/relay 共用装配）。
+// relayHandoffs 是 ScheduleSnapshot 必填字段（R1 接力画布并入）；在场建议派生不读它，仍带上以满足类型。
+// 四次读独立、无依赖 → Promise.all 并发取。
+async function buildScheduleSnapshot(store: GovStore): Promise<ScheduleSnapshot> {
+  const [snapshot, resources, resourceSessions, relayHandoffs] = await Promise.all([
+    store.getSnapshot(),
+    store.listResources(),
+    store.listResourceSessions(),
+    store.listRelayHandoffs(),
+  ]);
+  return { ...snapshot, resources, resourceSessions, relayHandoffs };
+}
+
 export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInstance {
   // H3（AUDIT-FIXES）：显式 bodyLimit 收口写端点请求体上限（默认 Fastify 1MB 仍偏大，配合 KB 整文件重写是
   // 低成本资源耗尽面，见 M17）；256KB 足够任务 / 结案录入。
@@ -302,7 +321,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     // （此前唯一仍用抛错 .parse 的 POST；correlationId:'' / 非串都会触发 500 泄漏 Zod 内部、破坏错误契约）。
     const parsed = AgentBackendInvokeRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
-      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
       return;
     }
     return AgentBackendInvokeResponseSchema.parse(
@@ -387,7 +406,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   app.post('/api/artifacts', async (request, reply) => {
     const parsed = CreateArtifactRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
-      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
       return;
     }
     const { ownerGroup, season, mechanism, subType } = parsed.data;
@@ -533,21 +552,11 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     if (!parsed.success) {
       void reply
         .code(400)
-        .send({ detail: parsed.error.issues[0]?.message ?? 'windowLabel required' });
+        .send({ detail: firstZodMsg(parsed.error, 'windowLabel required') });
       return;
     }
     const { windowLabel } = parsed.data;
-    const snapshot = await store.getSnapshot();
-    const resources = await store.listResources();
-    const resourceSessions = await store.listResourceSessions();
-    // relayHandoffs 是 ScheduleSnapshot 必填字段（R1 接力画布并入）；在场建议派生不读它，仍带上以满足类型。
-    const relayHandoffs = await store.listRelayHandoffs();
-    const scheduleSnapshot: ScheduleSnapshot = {
-      ...snapshot,
-      resources,
-      resourceSessions,
-      relayHandoffs,
-    };
+    const scheduleSnapshot = await buildScheduleSnapshot(store);
     const recommendations = derivePresenceSchedule(
       scheduleSnapshot,
       clock.now().toISOString(),
@@ -576,7 +585,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   app.post('/api/resources', async (request, reply) => {
     const parsed = CreateResourceRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
-      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
       return;
     }
     const { projectId, name, kind, robotTarget, season, version } = parsed.data;
@@ -605,7 +614,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     const { id } = request.params as { id: string };
     const parsed = UpdateResourceStatusRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
-      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
       return;
     }
     const resource = await store.updateResourceStatus(id, parsed.data);
@@ -622,7 +631,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   app.post('/api/resource-sessions', async (request, reply) => {
     const parsed = CreateResourceSessionRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
-      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
       return;
     }
     const session = await store.createResourceSession(parsed.data);
@@ -637,7 +646,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     const { id } = request.params as { id: string };
     const parsed = UpdateResourceSessionRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
-      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
       return;
     }
     const session = await store.updateResourceSession(id, parsed.data);
@@ -670,20 +679,11 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     if (!parsed.success) {
       void reply
         .code(400)
-        .send({ detail: parsed.error.issues[0]?.message ?? 'windowLabel required' });
+        .send({ detail: firstZodMsg(parsed.error, 'windowLabel required') });
       return;
     }
     const { windowLabel } = parsed.data;
-    const snapshot = await store.getSnapshot();
-    const resources = await store.listResources();
-    const resourceSessions = await store.listResourceSessions();
-    const relayHandoffs = await store.listRelayHandoffs();
-    const scheduleSnapshot: ScheduleSnapshot = {
-      ...snapshot,
-      resources,
-      resourceSessions,
-      relayHandoffs,
-    };
+    const scheduleSnapshot = await buildScheduleSnapshot(store);
     const board = deriveRelayBoard(scheduleSnapshot, windowLabel);
     return RelayBoardResponseSchema.parse(board);
   });
@@ -695,15 +695,23 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   app.post('/api/relay-handoffs', async (request, reply) => {
     const parsed = CreateRelayHandoffRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
-      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
       return;
     }
     const { fromSessionId, toSessionId, windowLabel } = parsed.data;
-    const sessionIds = new Set(
-      (await store.listResourceSessions()).map((s) => s.id),
+    const sessionsById = new Map(
+      (await store.listResourceSessions()).map((s) => [s.id, s] as const),
     );
-    if (!sessionIds.has(fromSessionId) || !sessionIds.has(toSessionId)) {
+    const fromSession = sessionsById.get(fromSessionId);
+    const toSession = sessionsById.get(toSessionId);
+    if (!fromSession || !toSession) {
       void reply.code(400).send({ detail: 'from/to session not found' });
+      return;
+    }
+    if (fromSession.windowLabel !== windowLabel || toSession.windowLabel !== windowLabel) {
+      void reply.code(400).send({
+        detail: 'from/to sessions must belong to the same windowLabel as the handoff',
+      });
       return;
     }
     // 自环 + 成环守卫：把已有接力线映射成 wouldCreateCycle 期望的 {fromTaskId,toTaskId} 边形（session id 入位）。
@@ -721,7 +729,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
       });
       return;
     }
-    void windowLabel; // 仅校验已隐含在 schema（min(1)）；落 draft 整体传入。
+    // windowLabel 由 schema .min(1) 校验、经上方 cross-window 检查后随 parsed.data 整体落 createRelayHandoff。
     const handoff = await store.createRelayHandoff(parsed.data);
     void reply.code(201);
     return RelayHandoffResponseSchema.parse({ handoff });
@@ -761,7 +769,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   app.post('/api/inventory/part-types', async (request, reply) => {
     const parsed = CreatePartTypeRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
-      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
       return;
     }
     const partType = await invStore.upsertPartType(parsed.data);
@@ -776,7 +784,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   app.post('/api/inventory/actions', async (request, reply) => {
     const parsed = CreatePartActionRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
-      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
       return;
     }
     const validResourceIds = new Set(
@@ -806,7 +814,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   app.post('/api/tasks', async (request, reply) => {
     const parsed = CreateTaskRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
-      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
       return;
     }
     const task = await store.createTask(parsed.data);
@@ -828,7 +836,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     const { taskId } = request.params as { taskId: string };
     const parsed = TransitionTaskStatusRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
-      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
       return;
     }
     const task = await store.updateTaskStatus(taskId, parsed.data.status);
@@ -844,7 +852,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   app.post('/api/dependencies', async (request, reply) => {
     const parsed = CreateDependencyRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
-      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
       return;
     }
     // H1（AUDIT-FIXES 部署前必修）：落库前拒自环 / 成环。后端原零语义校验——一条成环边会让下次
@@ -890,7 +898,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   app.post('/api/needs', async (request, reply) => {
     const parsed = CreateNeedRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
-      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
       return;
     }
     const need = await store.createNeed(parsed.data);
@@ -903,7 +911,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   app.get('/api/kb/similar', async (request, reply) => {
     const parsed = KbSimilarQuerySchema.safeParse(request.query ?? {});
     if (!parsed.success) {
-      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid query' });
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error, 'invalid query') });
       return;
     }
     const { symptom, tags, projectId, limit, minScore } = parsed.data;
@@ -948,7 +956,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   app.post('/api/kb/closeout', async (request, reply) => {
     const parsed = KbCloseoutRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
-      void reply.code(400).send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
       return;
     }
     const { issue, records, category, rootCause, resolution, prevention, generatedBy } =

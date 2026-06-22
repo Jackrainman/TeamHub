@@ -288,6 +288,27 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
     }
   });
 
+  test('跨窗交接（toSession 属另一 windowLabel）→ 400', async () => {
+    const app = buildHubServer();
+    try {
+      // handoff.windowLabel=平日窗，但 toSessionId 属总联调窗（sess-convergence-day-r1）→ 跨窗 400
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/relay-handoffs',
+        payload: {
+          projectId: 'prj-robots',
+          windowLabel: SCENARIO_WINDOW_WEEKDAY,
+          fromSessionId: 'sess-tonight-ec',
+          toSessionId: 'sess-convergence-day-r1',
+          confirmedBy: null,
+        },
+      });
+      expect(res.statusCode).toBe(400);
+    } finally {
+      await app.close();
+    }
+  });
+
   test('成环（A→B 已存在，再建 B→A）→ 400', async () => {
     const store = new InMemoryGovStore();
     const app = buildHubServer({ store });

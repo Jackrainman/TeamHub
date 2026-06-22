@@ -427,6 +427,68 @@ describe('hub console API client', () => {
     });
   });
 
+  test('writeToken 正向：createTask + uploadArtifactFile 均带 Bearer 头', async () => {
+    const capturedInits: RequestInit[] = [];
+    const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+      capturedInits.push(init ?? {});
+      const path = new URL(url, 'http://teamhub.local').pathname;
+      // uploadArtifactFile 走 /api/artifacts/:id/upload
+      if (path.endsWith('/upload')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ artifact: governanceScenarioFixture.artifacts[0] }),
+        } as Response;
+      }
+      return {
+        ok: true,
+        status: 201,
+        json: async () => writeResponseByPath(path),
+      } as Response;
+    });
+
+    const client = createHubApiClient({
+      baseUrl: 'http://127.0.0.1:4177',
+      fetcher: fetcher as unknown as typeof fetch,
+      writeToken: 'tok-abc',
+    });
+
+    // JSON 写端点（sendJson 路径）
+    await client.createTask({ title: 'bearer-test' } as unknown as CreateTaskRequest);
+    const jsonInit = capturedInits[capturedInits.length - 1];
+    expect((jsonInit.headers as Record<string, string>).authorization).toBe('Bearer tok-abc');
+
+    // multipart 路径（postFormData 路径）：uploadArtifactFile
+    const file = new File(['hello'], 'test.bin', { type: 'application/octet-stream' });
+    await client.uploadArtifactFile('artifact-001', file);
+    const formInit = capturedInits[capturedInits.length - 1];
+    expect((formInit.headers as Record<string, string>).authorization).toBe('Bearer tok-abc');
+  });
+
+  test('writeToken 守卫：纯空白 token → 请求头无 authorization 键', async () => {
+    const capturedInits: RequestInit[] = [];
+    const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+      capturedInits.push(init ?? {});
+      const path = new URL(url, 'http://teamhub.local').pathname;
+      return {
+        ok: true,
+        status: 201,
+        json: async () => writeResponseByPath(path),
+      } as Response;
+    });
+
+    const client = createHubApiClient({
+      baseUrl: 'http://127.0.0.1:4177',
+      fetcher: fetcher as unknown as typeof fetch,
+      writeToken: '  ',
+    });
+
+    await client.createTask({ title: 'no-token-test' } as unknown as CreateTaskRequest);
+    const init = capturedInits[capturedInits.length - 1];
+    const headers = init.headers as Record<string, string>;
+    expect(headers).not.toHaveProperty('authorization');
+  });
+
   test('postJson 把后端 400 的 detail 透出到抛错（表单错误条）', async () => {
     const fetcher = vi.fn(async () => ({
       ok: false,

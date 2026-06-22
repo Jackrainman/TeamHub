@@ -61,8 +61,7 @@ function GapCard({ gap }: { gap: DirectionGap }) {
           {t(SEVERITY_KEY[gap.severity])}
         </span>
         <span className="gap-card__count">
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          {t('gaps.card.needCount' as any, { n: gap.evidenceNeedIds.length })}
+          {t('gaps.card.needCount', { n: gap.evidenceNeedIds.length })}
         </span>
       </header>
       {/* factStatement = 后端派生的中性事实（组名 + 缺口数 + 方向），无人维度 */}

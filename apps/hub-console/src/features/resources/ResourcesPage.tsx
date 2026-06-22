@@ -57,9 +57,7 @@ const STATUS_KEY: Record<ResourceStatus, TranslationKey> = {
 const STATUS_OPTION_KEY: Record<ResourceStatus, TranslationKey> = {
   available: 'resources.status.available',
   inUse: 'resources.status.inUse',
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   down: 'resources.status.down.legacy',
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   upgrading: 'resources.status.upgrading.legacy',
   repair: 'resources.status.repair',
   retired: 'resources.status.retired',
@@ -257,7 +255,6 @@ function CreateResourceForm({
               />
               <span
                 className="resources-code-badge resources-preview-inline"
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 title={t('resources.field.previewHint')}
               >
                 {preview}
