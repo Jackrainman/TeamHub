@@ -1,7 +1,7 @@
 {
   "name": "@teamhub/hub-server",
   "private": true,
-  "version": "0.7.9",
+  "version": "0.7.10",
   "description": "Team Hub backend shell: health, system status, and mock adapter registry",
   "type": "module",
   "main": "dist/main.js",
