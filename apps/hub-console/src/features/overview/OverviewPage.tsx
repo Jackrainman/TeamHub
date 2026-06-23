@@ -67,6 +67,7 @@ export function OverviewPage({
         <MetricTile
           label={t('overview.metric.bridge')}
           value={t('overview.blocked', { n: blocked })}
+          accent={blocked > 0 ? 'red' : undefined}
         />
         <MetricTile
           label={t('overview.metric.repos')}

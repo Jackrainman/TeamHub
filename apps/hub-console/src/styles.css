@@ -40,6 +40,7 @@
   --text-md: 15px;
   --text-lg: 20px;
   --text-xl: 24px;
+  --text-2xl: 28px; /* 2026-06-23 批次C：总览/看板指标数字放大档（原顶到 lg=20，数字与标签权重相近）。 */
   --weight-normal: 400;
   --weight-medium: 600;
   --weight-bold: 700;
@@ -75,7 +76,7 @@
    2026-06-23：补 8 个语义 accent 暖调覆盖（原跨主题通用使主按钮蓝在暖纸上突兀、换肤近乎不可感），
    并把 surface/border 进一步提暖以增强可感；色温微调、语义不变，可在 4188/4177 实时再调。 */
 :root[data-theme='warm'] {
-  --page-bg: #f6f4ee;
+  --page-bg: #f0ebe1; /* 2026-06-23 批次C：原 #f6f4ee 与 surface #fefcf5 明度差仅 3-6，分区感丢失；压深拉开 ~12 明度差。 */
   --surface: #fefcf5;
   --surface-muted: #efeadf;
   --surface-raised: #f8f4ea;
@@ -355,7 +356,8 @@ button,
 
 .metric-tile strong {
   color: var(--text);
-  font-size: var(--text-lg);
+  font-size: var(--text-2xl); /* 批次C：数字放大成视觉锚点 */
+  font-weight: var(--weight-heavy);
   line-height: 1.1;
 }
 
@@ -1603,13 +1605,18 @@ button,
   justify-content: space-between;
   gap: 8px;
   padding: 10px 12px;
-  border-bottom: 2px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong); /* 批次C：2px→1px，弱化「信号灯」色块感 */
   border-radius: var(--radius-lg) var(--radius-lg) 0 0; /* 跟随 .pm-column 升 lg，顶角对齐。 */
   background: var(--surface-raised);
   font-size: var(--text-base);
   font-weight: var(--weight-heavy);
 }
 
+/* 待办列原无专属色（默认黑），视觉最模糊 → muted，与「进行中」蓝成前进序列（批次C）。 */
+.pm-column__head.pm-col-pending {
+  border-bottom-color: var(--border-strong);
+  color: var(--muted);
+}
 .pm-column__head.pm-col-inProgress {
   border-bottom-color: var(--blue);
   color: var(--blue);
@@ -2022,6 +2029,13 @@ button,
 }
 .gap-card--free {
   border-left-color: var(--border-strong);
+}
+/* 批次C：状态色淡底 tint（整排白卡看起来一模一样 → 一眼分在场/随叫；free 留中性）。 */
+.gap-card--present {
+  background: color-mix(in srgb, var(--green) 7%, var(--surface));
+}
+.gap-card--onCall {
+  background: color-mix(in srgb, var(--amber) 7%, var(--surface));
 }
 .gap-card__head {
   display: flex;
@@ -2487,13 +2501,15 @@ button,
   flex-wrap: wrap;
   gap: 6px;
 }
+/* 批次C：虚线横幅显「草稿/占位感」→ 实线 + 绿左线 info-banner（「可下班」是正式通知，非未完成区）。 */
 .relay-offduty {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border: 1px dashed var(--border-strong);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--green);
   border-radius: var(--radius-lg);
   background: var(--surface-muted);
 }
@@ -2885,6 +2901,7 @@ button,
 }
 
 /* 删一项按钮（A2）：卡片底部窄文本按钮，红色语义（不可撤销 + 级联删交接线）。 */
+/* 批次C：删除是危险操作但原与「建接力」同级 → 降级（更小+半透明），仅 hover 显红，降误触。 */
 .relay-card__delete {
   width: 100%;
   padding: 3px 6px;
@@ -2892,14 +2909,16 @@ button,
   border-radius: var(--radius-sm);
   background: var(--surface-raised);
   color: var(--muted);
-  font-size: var(--text-xs);
+  font-size: var(--text-2xs);
   font-weight: var(--weight-bold);
+  opacity: 0.6;
   cursor: pointer;
 }
 .relay-card__delete:hover {
   border-color: var(--red);
   color: var(--red);
   background: var(--red-soft);
+  opacity: 1;
 }
 
 /* A2 加一棒：顶部工具条 + 「+ 加一棒」按钮。 */
