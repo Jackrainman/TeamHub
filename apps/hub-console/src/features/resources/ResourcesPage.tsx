@@ -137,11 +137,11 @@ export function ResourcesPage({
             <table className="resources-table">
               <thead>
                 <tr>
-                  <th>{t('resources.col.code')}</th>
-                  <th>{t('resources.col.name')}</th>
-                  <th>{t('resources.col.kind')}</th>
-                  <th>{t('resources.col.status')}</th>
-                  <th>{t('resources.col.actions')}</th>
+                  <th scope="col">{t('resources.col.code')}</th>
+                  <th scope="col">{t('resources.col.name')}</th>
+                  <th scope="col">{t('resources.col.kind')}</th>
+                  <th scope="col">{t('resources.col.status')}</th>
+                  <th scope="col">{t('resources.col.actions')}</th>
                 </tr>
               </thead>
               <tbody>
