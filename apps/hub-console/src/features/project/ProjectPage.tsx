@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LayoutGrid, Network } from 'lucide-react';
 import type { HubApiClient } from '../../api/client';
@@ -7,7 +7,12 @@ import { segClass } from '../../utils';
 import { SideDrawer } from '../../components/SideDrawer';
 import { PmBoardPage } from '../pm/PmBoardPage';
 import { PmCreatePanel } from '../pm/PmCreatePanel';
-import { DepGraphPage } from '../dep-graph/DepGraphPage';
+
+// 依赖图重依赖（@xyflow/react + @dagrejs/dagre）按需加载：拆成独立 chunk，
+// 只在打开依赖图视图时拉取，总览/知识库/库存首屏不再背这坨（修 build chunk>500kB 警告）。
+const DepGraphPage = lazy(() =>
+  import('../dep-graph/DepGraphPage').then((m) => ({ default: m.DepGraphPage })),
+);
 
 type ProjectView = 'board' | 'graph';
 
@@ -111,13 +116,21 @@ export function ProjectPage({
           aria-labelledby="project-view-graph-btn"
           tabIndex={0}
         >
-          <DepGraphPage
-            client={client}
-            source={source}
-            focusTaskId={focusTaskId}
-            onConsumeFocus={() => setFocusTaskId(null)}
-            onNewTask={() => setCreateOpen(true)}
-          />
+          <Suspense
+            fallback={
+              <div className="state-band" role="status" aria-live="polite">
+                {t('depgraph.loading')}
+              </div>
+            }
+          >
+            <DepGraphPage
+              client={client}
+              source={source}
+              focusTaskId={focusTaskId}
+              onConsumeFocus={() => setFocusTaskId(null)}
+              onNewTask={() => setCreateOpen(true)}
+            />
+          </Suspense>
         </div>
       )}
       <SideDrawer

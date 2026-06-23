@@ -354,9 +354,7 @@ const zh = {
   'pm.field.providerGroup': '由哪个组提供（可选）',
   'pm.field.neededSkills': '需要的技能（可选，逗号分隔）',
   'pm.field.selectTask': '— 选择任务 —',
-  'pm.depType.blocks': '阻塞',
-  'pm.depType.requires': '需要其产出',
-  'pm.depType.sharesResource': '共享资源',
+  'pm.depType.blocks': '阻塞',  'pm.depType.sharesResource': '共享资源',
   'pm.source.human': '人工',
   'pm.source.aiSuggested': 'AI 建议',
   'pm.create.submit.task': '新建任务',
@@ -626,9 +624,7 @@ const zh = {
 
   // PM 表单字段补充
   'pm.field.actorHint': '填姓名即可，系统自动转 ID',
-  'pm.depType.hint.blocks': '前者完成前，后者无法开始',
-  'pm.depType.hint.requires': '后者需要前者的产出才能推进',
-  'pm.depType.hint.sharesResource': '两者共用同一台机器人，同时占用会冲突',
+  'pm.depType.hint.blocks': '前者完成前，后者无法开始',  'pm.depType.hint.sharesResource': '两者共用同一台机器人，同时占用会冲突',
 
   // PM 状态简称
   'pm.status.short.pending': '待启动',
@@ -1001,9 +997,7 @@ const en: Record<TranslationKey, string> = {
   'pm.field.providerGroup': 'Which group provides it (optional)',
   'pm.field.neededSkills': 'Skills needed (optional, comma-separated)',
   'pm.field.selectTask': '— select a task —',
-  'pm.depType.blocks': 'Blocks',
-  'pm.depType.requires': 'Requires its output',
-  'pm.depType.sharesResource': 'Shares a resource',
+  'pm.depType.blocks': 'Blocks',  'pm.depType.sharesResource': 'Shares a resource',
   'pm.source.human': 'Human',
   'pm.source.aiSuggested': 'AI-suggested',
   'pm.create.submit.task': 'Create task',
@@ -1288,9 +1282,7 @@ const en: Record<TranslationKey, string> = {
 
   // PM form field supplements
   'pm.field.actorHint': 'Just write a name — the system resolves it to an ID',
-  'pm.depType.hint.blocks': 'Downstream cannot start until upstream is done',
-  'pm.depType.hint.requires': 'Downstream needs an output from upstream to proceed',
-  'pm.depType.hint.sharesResource': 'Both tasks share the same robot — concurrent use conflicts',
+  'pm.depType.hint.blocks': 'Downstream cannot start until upstream is done',  'pm.depType.hint.sharesResource': 'Both tasks share the same robot — concurrent use conflicts',
 
   // PM status short labels
   'pm.status.short.pending': 'Pending',

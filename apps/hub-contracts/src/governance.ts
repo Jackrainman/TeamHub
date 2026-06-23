@@ -142,7 +142,6 @@ export const TaskSchema = z.object({
 
 export const DependencyTypeSchema = z.enum([
   'blocks', // from 阻塞 to
-  'requires', // to 需要 from 的产出
   'sharesResource', // 共享稀缺资源（机器人），互斥（同时用会撞）
 ]);
 

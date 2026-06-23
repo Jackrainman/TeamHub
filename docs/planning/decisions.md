@@ -987,3 +987,15 @@
 - 守恒/红线（I0）：永不渲染 memberId/invitedMemberId；`invitedMemberIds` 永不进派生输出；今晚三态保留；`t-r1/r2-integration` 保持 `isCritical=true`。
 - 协调：本轮 = **AI 只写文档**（定稿收口 + 本 ADR + now.md），实现交付简短提示词由用户掌控落点（代码改动触发 D-074 自动 bump 钩子；PRESENCE=feature → `VERSION_BUMP_LEVEL=minor`；勿碰 AGENTS §7 / `scripts/`）。
 - 事实源：定稿 `docs/design/presence-reconcile-lock.md`（§11 决议表 + §12 实现清单 = 实现真相）；前序 D-072（PRESENCE-VIZ-RESOURCE-MODEL）/ D-029（差异化在场排班立项）；提示词在 plan `~/.claude/plans/binary-munching-valley.md`。
+
+## D-080 — 录入收尾：新建任务抽屉化 + 连依赖/暴露需求 tab 下线定调 + requires 全砍
+
+- 状态：**DECIDED / IMPLEMENTED（前半 origin/master `3e12e50` v0.7.11；本条 requires 清理 + DepGraph 懒加载本轮落地待 push）**（2026-06-23）。
+- 上下文：「新建任务」原是看板顶部常驻录入面板（含「布置任务/连依赖/暴露需求」三 tab）。用户要改成右侧抽屉、依赖图与看板共用同一「新建任务」入口（`3e12e50` 已落：新增 `SideDrawer` + 抽屉状态提升至 `ProjectPage`），并删掉连依赖/暴露需求两 tab。随后讨论这两个被删功能以何形式回来。
+- **调研定调（用户三轮拍板）**：
+  1. **连依赖 = 拖拽连线 blocks-only**。常见情况（blocks + 人工确认）依赖图 `onConnect` 已完整覆盖（建边 + 自环/重复/成环守卫 + 选中边 waive 删）。表单多出的 `sharesResource` 图上看不见（edge kind 只看 status/criticality 不看 type）、仅改一句归因文案；aiSuggested/具名确认人仅 AI 参与治理才用（D-039 已退）。**不重建依赖表单**；`sharesResource`/AI 建议录入按需后置。
+  2. **`requires` 全砍**——全代码零下游消费的废枚举。`DependencyTypeSchema` 移除之（→ `['blocks','sharesResource']`）+ fixture `dep-001` 改 `blocks`（方向/语义不变）+ 删 4 条死 i18n（`pm.depType.requires` / `pm.depType.hint.requires`，zh+en）。**迁移红线**：`FileGovStore.create()` 加载 `gov.json` 严格 `GovernanceSnapshotSchema.parse()` fail-closed，旧种子含 `type:'requires'` → redeploy **必先重置/迁移** `~/teamhub-data/gov.json`（rm 重种子，或 `sed 's/"requires"/"blocks"/g'`），否则服务起不来；`resources.json` / `kb.json` 不受影响。
+  3. **暴露需求(Need) 暂时搁置**。Need 是 任务→组 缺口（非任务→任务，画不成连线）；唯一活体消费 = 缺人方向/Gaps 只读页 + 归因 `unmetNeed`；认领/升级是死代码；所属治理派生簇 D-032~D-035 已被 **D-039** 整簇挂起。**不重建录入 UI、不删 schema / `direction-gaps` / Gaps 页 / 2 条种子需求**（休眠保留可演示）。复活条件 = 「缺人方向」真成产品目标（按 D-039 惯例从挂起区取回）。
+  4. **构建 chunk>500kB 警告**：`@xyflow/react` + `@dagrejs/dagre`（仅 DepGraphPage 用）压成 694kB 单 chunk → `ProjectPage` 用 `React.lazy` + `Suspense` 把 DepGraphPage 拆成按需 chunk（总览/知识库/库存首屏不再背）。
+- 守恒/红线（I0）：抽屉/任务表单/拖拽建边全链路无人员维度；依赖 `confirmedBy` 仍 server 钉、I0 永不回显；Need schema 休眠、不动其 I0 守卫。
+- 事实源：本 ADR；plan `~/.claude/plans/cached-dazzling-dream.md`；前半 commit `3e12e50`；上位 D-039（AI 退治理→治理派生簇挂起）/ D-075·D-077（项目页组合 · 看板⇄依赖图）。
