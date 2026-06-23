@@ -453,7 +453,7 @@ export function ArchivePage({
         {section.mechanisms.map((group) => (
           <div key={group.mechanism} className="archive-mech-group">
             <div className="panel-header" style={{ paddingTop: '0.5rem' }}>
-              <h3 style={{ fontSize: '0.95em', opacity: 0.85 }}>{group.mechanism}</h3>
+              <h3 className="archive-mechanism-title">{group.mechanism}</h3>
               <span>{t('archive.group.count', { n: group.entries.length })}</span>
             </div>
             <div className="stack-list">

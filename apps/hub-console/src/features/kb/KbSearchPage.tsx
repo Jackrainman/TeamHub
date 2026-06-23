@@ -78,6 +78,15 @@ const KB_STATUS_KEY: Record<SimilarIssueMatch['status'], TranslationKey> = {
   needsManualReview: 'kb.status.needsManualReview',
 };
 
+// 状态语义色类（2026-06-23 视觉打磨批次B：原 .kb-card .status-pill 一律灰，丢状态语义）。
+const KB_STATUS_PILL_CLASS: Record<SimilarIssueMatch['status'], string> = {
+  open: 'kb-status--open',
+  investigating: 'kb-status--investigating',
+  resolved: 'kb-status--resolved',
+  archived: 'kb-status--archived',
+  needsManualReview: 'kb-status--needsManualReview',
+};
+
 interface SubmittedQuery {
   symptom: string;
   tags: string[];
@@ -200,7 +209,9 @@ function KbResultCard({ item }: { item: SimilarIssueMatch }) {
       <div className="kb-card__head">
         <h3>{item.title}</h3>
         <div className="kb-card__badges">
-          <span className="status-pill">{t(KB_STATUS_KEY[item.status])}</span>
+          <span className={`status-pill ${KB_STATUS_PILL_CLASS[item.status]}`}>
+            {t(KB_STATUS_KEY[item.status])}
+          </span>
           <span className="kb-score">{t('kb.result.score', { n: item.score })}</span>
         </div>
       </div>

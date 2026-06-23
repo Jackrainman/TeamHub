@@ -122,9 +122,7 @@ function RecommendationCard({ rec }: { rec: PresenceRecommendation }) {
       {/* factStatement = 后端派生的中性事实（组名 + 任务名 + 资源名），无人维度 */}
       <p className="gap-card__fact">{rec.factStatement}</p>
       {rec.holderTaskLabel ? (
-        <p className="gap-card__fact" style={{ opacity: 0.7, fontSize: '0.85em' }}>
-          {rec.holderTaskLabel}
-        </p>
+        <p className="gap-card__fact gap-card__fact--sub">{rec.holderTaskLabel}</p>
       ) : null}
       {rec.mode === 'free' && rec.relatedKnowledge.length > 0 ? (
         <div className="gap-card__skills">

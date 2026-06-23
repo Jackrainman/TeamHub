@@ -932,6 +932,19 @@ button,
   color: var(--muted);
 }
 
+/* 「即将上线」徽章（DepGraphPage 用，原全站零样式呈纯文本，2026-06-23 批次B 补齐）。 */
+.soon-badge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--amber-soft);
+  color: var(--amber);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-heavy);
+  line-height: 1.5;
+}
+
 @media (max-width: 980px) {
   .dep-graph-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1155,9 +1168,28 @@ button,
 }
 
 .kb-card .status-pill {
+  /* 只收窄（KB 卡不要 92px min），颜色交给 .kb-status--* 语义类（2026-06-23 批次B：原一律灰丢状态语义）。 */
   min-width: 0;
+}
+.kb-status--open {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+.kb-status--investigating {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+.kb-status--resolved {
+  background: var(--green-soft);
+  color: var(--green);
+}
+.kb-status--archived {
   background: var(--surface-muted);
   color: var(--muted);
+}
+.kb-status--needsManualReview {
+  background: var(--red-soft);
+  color: var(--red);
 }
 
 .kb-score {
@@ -1516,10 +1548,17 @@ button,
   flex: 1;
 }
 
-/* Archive version preview label (extracted from inline styles) */
+/* Archive version preview label（2026-06-23 批次B：相对 em/opacity → 尺度 token + muted）。 */
 .archive-version-preview {
-  opacity: 0.7;
-  font-size: 0.85em;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+/* 学科组小标题（原 ArchivePage h3 内联 style 0.95em/opacity，提取为 token 类）。 */
+.archive-mechanism-title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  color: var(--muted);
 }
 
 /* ===== 项目看板页 ===== */
@@ -1974,6 +2013,16 @@ button,
 .gap-card--pressing {
   border-left-color: var(--red);
 }
+/* 在场排班三态左边线（SchedulePage 复用 gap-card；原 present/onCall/free 无 modifier 呈默认灰边，2026-06-23 批次B）。 */
+.gap-card--present {
+  border-left-color: var(--green);
+}
+.gap-card--onCall {
+  border-left-color: var(--amber);
+}
+.gap-card--free {
+  border-left-color: var(--border-strong);
+}
 .gap-card__head {
   display: flex;
   align-items: center;
@@ -1989,6 +2038,12 @@ button,
 }
 .gap-badge--pressing {
   color: var(--red);
+}
+.gap-badge--present {
+  color: var(--green);
+}
+.gap-badge--onCall {
+  color: var(--amber);
 }
 .gap-card__count {
   font-size: var(--text-sm);
@@ -2180,6 +2235,23 @@ button,
 .inv-kind-badge--restock {
   background: var(--blue-soft);
   color: var(--blue);
+}
+/* 拆卸=同 mount 绿轴（部件回流），领取=同 reserve 琥珀轴（占用）——色编类别、文字编方向。
+   原 dismount/release 无 modifier 呈默认灰（2026-06-23 批次B）。 */
+.inv-kind-badge--dismount {
+  background: var(--green-soft);
+  color: var(--green);
+}
+.inv-kind-badge--release {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+/* 单件追踪标记（abbr，原无样式靠浏览器默认虚线下划线）。 */
+.inv-track-mark {
+  text-decoration: underline dotted var(--blue);
+  text-underline-offset: 2px;
+  color: var(--blue);
+  cursor: help;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -2495,6 +2567,16 @@ button,
   color: var(--text);
   font: inherit;
   font-size: var(--text-base);
+}
+/* 与全站输入框 focus 一致（原缺 focus 环，2026-06-23 批次B）。 */
+.schedule-date-find__input:focus {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+/* holderTaskLabel 次级事实行（原内联 style opacity/0.85em，提取为 token 类）。 */
+.gap-card__fact--sub {
+  font-size: var(--text-sm);
+  color: var(--muted);
 }
 
 .schedule-detail {
