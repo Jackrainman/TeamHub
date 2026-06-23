@@ -12,7 +12,7 @@
   --surface-raised: #f9fbf8;
   --text: #16201c;
   --muted: #65706b;
-  --faint: #7d8782;
+  --faint: #5f6a64; /* 2026-06-23 视觉打磨：原 #7d8782 在浅底上对比 ~3.3:1，大量 11-12px 小字踩 WCAG AA 下限，压深一档达标。 */
   --border: #d8e0d6;
   --border-strong: #b8c6b4;
   --green: #1f8a5f;
@@ -24,6 +24,13 @@
   --blue: #2f6f9f;
   --blue-soft: #dceaf2;
   --shadow: 0 14px 32px rgba(32, 43, 36, 0.08);
+  /* 阴影分三档（2026-06-23 视觉打磨）：原单一 --shadow 把小控件/卡片/浮层压成同一夸张 32px 投影，
+     既不精致也无纵深。xs=小控件(icon/seg active)、sm=卡片、md=浮层/选中(=旧 --shadow)。warm 见下方覆盖。 */
+  --shadow-xs: 0 1px 2px rgba(32, 43, 36, 0.06);
+  --shadow-sm: 0 2px 8px rgba(32, 43, 36, 0.06);
+  --shadow-md: 0 14px 32px rgba(32, 43, 36, 0.08);
+  /* 交互过渡（全站首个常态 transition；reduced-motion 兜底见下方全局规则）。 */
+  --transition: 140ms ease;
   /* 尺度 token（设计系统刻度，2026-06-23 视觉一致性收口）——字号/字重/圆角/间距统一刻度，
      全站消费 var(--*)；刻度与主题无关，故 warm 不覆盖这些槽，只覆盖颜色。 */
   --text-2xs: 10px;
@@ -74,13 +81,16 @@
   --surface-raised: #f8f4ea;
   --text: #37352f;
   --muted: #6b675e;
-  --faint: #8a857a;
+  --faint: #76705f; /* 2026-06-23 视觉打磨：暖底上压深一档拉对比（同 classic）。 */
   --border: #e6ddca;
   --border-strong: #cdc2a8;
   --sidebar-bg: #2b2922;
   --sidebar-text: #efe9dc;
   --font-title: Georgia, 'Songti SC', 'Noto Serif SC', serif;
   --shadow: 0 14px 32px rgba(60, 50, 35, 0.1);
+  --shadow-xs: 0 1px 2px rgba(60, 50, 35, 0.08);
+  --shadow-sm: 0 2px 8px rgba(60, 50, 35, 0.08);
+  --shadow-md: 0 14px 32px rgba(60, 50, 35, 0.1);
   /* 暖调 accent（向暖纸纸面靠拢，主按钮蓝降冷、绿琥珀红微暖；-soft 背景偏暖偏黄）。 */
   --green: #2f7d59;
   --green-soft: #e2ecdd;
@@ -104,6 +114,80 @@ body {
 
 button {
   font: inherit;
+}
+
+/* ===== 交互态系统（2026-06-23 视觉打磨批次 A）=====
+   全站此前仅 1 处 transition（drawer 入场），hover/focus 全瞬切、大量可点元素零反馈。
+   下面补：① 常态过渡 ② hover 反馈 ③ 全局键盘焦点 ④ reduced-motion 兜底。纯样式、零结构。 */
+a,
+button,
+.nav-item,
+.seg__btn,
+.schedule-date-seg__btn,
+.icon-button,
+.metric-tile,
+.pm-card,
+.kb-card,
+.gap-card,
+.data-row,
+.adapter-row,
+.kb-field input,
+.kb-field textarea,
+.kb-field select,
+.detail-action-btn,
+.settings-btn {
+  transition:
+    background-color var(--transition),
+    border-color var(--transition),
+    color var(--transition),
+    box-shadow var(--transition);
+}
+
+/* hover 反馈：可点卡片升一档影 + 描边加深；列表行淡底；导航/分段非激活项微亮；输入框描边加深。 */
+.pm-card:hover,
+.kb-card:hover,
+.gap-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+.metric-tile:hover {
+  border-color: var(--border-strong);
+}
+.data-row:hover,
+.adapter-row:hover {
+  background: var(--surface-muted);
+}
+.nav-item:hover:not(.nav-item-active):not(:disabled) {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--sidebar-text);
+}
+.seg__btn:hover:not(.seg__btn--active),
+.schedule-date-seg__btn:hover:not(.is-active) {
+  color: var(--text);
+}
+.kb-field input:hover:not(:focus),
+.kb-field textarea:hover:not(:focus),
+.kb-field select:hover:not(:focus) {
+  border-color: var(--text);
+}
+.icon-button:hover {
+  border-color: var(--border-strong);
+}
+
+/* 全局键盘焦点环（:focus-visible 只在键盘导航时出现，不残留鼠标点击蓝框）。 */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 
 .console-shell {
@@ -214,7 +298,7 @@ button {
   color: var(--faint);
   font-size: var(--text-xs);
   font-weight: var(--weight-heavy);
-  letter-spacing: 0;
+  letter-spacing: 0.06em; /* 2026-06-23 视觉打磨：全大写小标题零字距字母拥挤，加字距提质感。 */
   text-transform: uppercase;
 }
 
@@ -227,7 +311,7 @@ button {
   border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-xs);
   cursor: pointer;
 }
 
@@ -247,9 +331,9 @@ button {
 .metric-tile,
 .panel {
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg); /* 2026-06-23 视觉打磨：容器级面板升 lg(12)，按钮/输入保持 md(8)，拉开层级、更柔和。 */
   background: var(--surface);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
 }
 
 .metric-tile {
@@ -401,10 +485,10 @@ button {
 .state-band {
   padding: 18px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--muted);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
 }
 
 @media (max-width: 980px) {
@@ -726,7 +810,7 @@ button {
   border-left: 4px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--surface);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
 }
 
@@ -780,7 +864,7 @@ button {
 
 .dag-node__title {
   font-size: var(--text-base);
-  font-weight: var(--weight-heavy);
+  font-weight: var(--weight-bold); /* 2026-06-23 视觉打磨：卡片级标题 800→700，800 太黑且字重二值化；heavy 留给页标题/数字/pill。 */
   line-height: 1.2;
 }
 
@@ -1046,9 +1130,9 @@ button {
   gap: 11px;
   padding: 15px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--surface);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
 }
 
 .kb-card__head {
@@ -1469,9 +1553,9 @@ button {
   flex-direction: column;
   min-width: 0;
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--surface-muted);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
 }
 
 .pm-column__head {
@@ -1481,7 +1565,7 @@ button {
   gap: 8px;
   padding: 10px 12px;
   border-bottom: 2px solid var(--border-strong);
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0; /* 跟随 .pm-column 升 lg，顶角对齐。 */
   background: var(--surface-raised);
   font-size: var(--text-base);
   font-weight: var(--weight-heavy);
@@ -1539,7 +1623,7 @@ button {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
 }
 
 .pm-card__title {
@@ -1555,7 +1639,7 @@ button {
 
 .pm-badge {
   padding: 3px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill); /* 2026-06-23 视觉打磨：badge 家族圆角归一到 pill（原 sm 在一堆 pill 里方角突兀）。 */
   background: var(--surface-muted);
   color: var(--muted);
   font-size: var(--text-xs);
@@ -1617,7 +1701,7 @@ button {
 
 .pm-create__head h2 {
   font-size: var(--text-md);
-  font-weight: var(--weight-heavy);
+  font-weight: var(--weight-bold);
 }
 
 .pm-create__note {
@@ -1652,7 +1736,7 @@ button {
 .seg__btn--active {
   background: var(--surface);
   color: var(--blue);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-xs);
 }
 
 .pm-form {
@@ -1729,7 +1813,7 @@ button {
 
 .pm-coldstart h3 {
   font-size: var(--text-md);
-  font-weight: var(--weight-heavy);
+  font-weight: var(--weight-bold);
 }
 
 .pm-coldstart p {
@@ -1883,9 +1967,9 @@ button {
   padding: 12px 13px;
   border: 1px solid var(--border);
   border-left: 3px solid var(--border-strong);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--surface);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
 }
 .gap-card--pressing {
   border-left-color: var(--red);
@@ -1897,7 +1981,7 @@ button {
 }
 .gap-badge {
   padding: 3px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill); /* 同 pm-badge：badge 圆角归一 pill。 */
   background: var(--surface-muted);
   color: var(--muted);
   font-size: var(--text-xs);
@@ -2381,7 +2465,7 @@ button {
 .schedule-date-seg__btn.is-active {
   background: var(--surface);
   color: var(--blue);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-xs);
 }
 .schedule-date-seg__name {
   font-size: var(--text-base);
@@ -2448,7 +2532,7 @@ button {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface-muted);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
 .relay-lane__head {
@@ -2494,7 +2578,7 @@ button {
   border-left: 4px solid var(--green);
   border-radius: var(--radius-md);
   background: var(--surface);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
   list-style: none;
 }
 .relay-card--closed {
@@ -2537,7 +2621,7 @@ button {
 .relay-card__group {
   margin-top: 6px;
   font-size: var(--text-base);
-  font-weight: var(--weight-heavy);
+  font-weight: var(--weight-bold);
   color: var(--text);
   line-height: 1.2;
 }
@@ -2877,7 +2961,7 @@ button {
 }
 .drawer__title {
   font-size: var(--text-md);
-  font-weight: var(--weight-heavy);
+  font-weight: var(--weight-bold);
 }
 .drawer__close {
   display: inline-flex;
