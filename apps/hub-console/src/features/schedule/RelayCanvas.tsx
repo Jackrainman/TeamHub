@@ -27,6 +27,7 @@ import { FormBanner } from '../../components/FormBanner';
 import { FormEmptyState } from '../../components/FormEmptyState';
 import { isoPrevDay } from './date-utils';
 import { buildCarryOverDraft } from './carry-over';
+import { buildLanes, type Lane } from './relay-lanes';
 
 // 泳道板 v1（R1，D-029，取代旧 @xyflow 自由拖拽画布）：每台机器人一条横泳道，组级、不带人。
 // 泳道内是「工作卡」（每张 = 一条已确认 ResourceSession）：默认并行（并排摆、零连线）；
@@ -38,33 +39,6 @@ import { buildCarryOverDraft } from './carry-over';
 
 // 一条接力交接关系（源→目标），从后端 handoffs 派生，挂到卡上当关系标签。
 type Handoff = { id: string; fromSessionId: string; toSessionId: string };
-
-// 一条泳道：一台机器人 + 其名下按 orderInWindow 排好的工作卡。
-type Lane = {
-  resourceId: string;
-  displayCode: string;
-  stages: RelayStage[];
-};
-
-// 把 stages 按 resourceId 分组成泳道，保持 stages 首次出现顺序（后端已按资源登记顺序排好），
-// 泳道内按 orderInWindow 升序。
-function buildLanes(stages: RelayStage[]): Lane[] {
-  const laneByResource = new Map<string, Lane>();
-  const order: string[] = [];
-  for (const s of stages) {
-    let lane = laneByResource.get(s.resourceId);
-    if (!lane) {
-      lane = { resourceId: s.resourceId, displayCode: s.displayCode, stages: [] };
-      laneByResource.set(s.resourceId, lane);
-      order.push(s.resourceId);
-    }
-    lane.stages.push(s);
-  }
-  for (const lane of laneByResource.values()) {
-    lane.stages.sort((a, b) => a.orderInWindow - b.orderInWindow);
-  }
-  return order.map((id) => laneByResource.get(id)!);
-}
 
 // ETA 内联输入：失焦 / 回车提交；Escape 取消。受控本地 state，避免每键 mutate。
 // FORM-UNIFY B3：明确归「即时控件」类（§1.3.7）——纯即时生效、不套表单标准、不设提交按钮；

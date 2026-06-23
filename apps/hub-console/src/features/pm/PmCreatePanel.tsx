@@ -6,9 +6,9 @@ import type {
   RobotTarget,
   TaskComplexity,
   DependencyType,
-  ActorRef,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
+import { actorFromName } from './actor';
 import type {
   CreateTaskRequest,
   CreateDependencyRequest,
@@ -562,11 +562,4 @@ function SourceSelect({
       renderOption={(s) => t(SOURCE_KEY[s])}
     />
   );
-}
-
-function actorFromName(name: string): ActorRef | null {
-  const trimmed = name.trim();
-  if (!trimmed) return null;
-  const id = trimmed.toLowerCase().replace(/\s+/g, '-');
-  return { id, displayName: trimmed, source: 'console' };
 }
