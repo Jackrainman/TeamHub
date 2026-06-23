@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from 'vitest';
 import {
   apiContractFixtures,
   governanceScenarioFixture,
+  inventoryScenarioFixture,
   kbScenarioFixture,
   scheduleScenarioFixture,
 } from '@teamhub/hub-contracts';
@@ -12,6 +13,10 @@ import type {
   CreateArtifactRequest,
 } from '@teamhub/hub-contracts';
 import type { KbCloseoutRequest } from '../src/api/schemas/kb';
+import type {
+  CreatePartTypeRequest,
+  CreatePartActionRequest,
+} from '../src/api/schemas/inv';
 import { createHubApiClient } from '../src/api/client';
 import { OverviewSnapshotSchema } from '../src/api/schemas/system';
 
@@ -504,6 +509,89 @@ describe('hub console API client', () => {
     await expect(
       client.createTask({} as unknown as CreateTaskRequest),
     ).rejects.toThrow('400: invalid body');
+  });
+
+  test('库存写侧：upsertPartType / recordPartAction POST 正确路径、带 body、解析响应（C6）', async () => {
+    const fetcher = vi.fn(async (url: string, _init?: RequestInit) => {
+      const path = new URL(url, 'http://teamhub.local').pathname;
+      const body =
+        path === '/api/inventory/part-types'
+          ? { partType: inventoryScenarioFixture.partTypes[0] }
+          : { action: inventoryScenarioFixture.actions[0] };
+      return { ok: true, status: 201, json: async () => body } as Response;
+    });
+
+    const client = createHubApiClient({
+      baseUrl: 'http://127.0.0.1:4177',
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+
+    // 新增/改零件类型：POST /api/inventory/part-types。client 不校验 body，只验 URL/method/body 透传 + 响应解析。
+    const partReq = {
+      projectId: 'prj-robots',
+      partNumber: 'GM6020',
+      name: 'GM6020 电机',
+    } as unknown as CreatePartTypeRequest;
+    const partRes = await client.upsertPartType(partReq);
+    expect(partRes.partType.id).toBeTruthy();
+    const partCall = fetcher.mock.calls.find(([u]) =>
+      String(u).endsWith('/api/inventory/part-types'),
+    );
+    expect(partCall?.[1]?.method).toBe('POST');
+    expect(JSON.parse(String(partCall?.[1]?.body))).toEqual(partReq);
+
+    // 一句话快记/拆装：POST /api/inventory/actions。recordedBy 由 server 钉 source（C5）——请求体不带。
+    const actionReq = {
+      projectId: 'prj-robots',
+      partTypeId: 'parttype-gm6020',
+      kind: 'damage',
+      quantityDelta: -1,
+      note: '坏了一个 GM6020',
+    } as unknown as CreatePartActionRequest;
+    const actionRes = await client.recordPartAction(actionReq);
+    expect(actionRes.action.id).toBeTruthy();
+    // I0：action.recordedBy 只到 source、绝无 memberId 维度。
+    expect(actionRes.action.recordedBy).not.toHaveProperty('memberId');
+    const actionCall = fetcher.mock.calls.find(([u]) =>
+      String(u).endsWith('/api/inventory/actions'),
+    );
+    expect(actionCall?.[1]?.method).toBe('POST');
+    const sentBody = JSON.parse(String(actionCall?.[1]?.body));
+    expect(sentBody).toEqual(actionReq);
+    // C5：写侧不传 recordedBy（server 钉 source）。
+    expect(sentBody).not.toHaveProperty('recordedBy');
+  });
+
+  test('uploadArtifactFile：构造 FormData、刻意不手设 content-type（浏览器掌 boundary）、命中 /upload（C7）', async () => {
+    const capturedInits: RequestInit[] = [];
+    const fetcher = vi.fn(async (_url: string, init?: RequestInit) => {
+      capturedInits.push(init ?? {});
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ artifact: governanceScenarioFixture.artifacts[0] }),
+      } as Response;
+    });
+
+    const client = createHubApiClient({
+      baseUrl: 'http://127.0.0.1:4177',
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+
+    const file = new File(['chassis-data'], 'chassis.pdf', { type: 'application/pdf' });
+    const res = await client.uploadArtifactFile('artifact-gripper-v1', file);
+    expect(res.artifact.id).toBeTruthy(); // 响应解析成功
+
+    const call = fetcher.mock.calls.find(([u]) =>
+      String(u).endsWith('/api/artifacts/artifact-gripper-v1/upload'),
+    );
+    expect(call).toBeTruthy();
+    const init = call?.[1] as RequestInit;
+    expect(init.method).toBe('POST');
+    expect(init.body).toBeInstanceOf(FormData);
+    // 关键契约：multipart 绝不手设 content-type——否则覆盖浏览器自带 boundary、后端解析失败。
+    const headers = (init.headers ?? {}) as Record<string, string>;
+    expect(headers['content-type']).toBeUndefined();
   });
 });
 
