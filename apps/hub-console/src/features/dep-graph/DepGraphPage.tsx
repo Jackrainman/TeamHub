@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTheme } from '../../theme';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dagre from '@dagrejs/dagre';
 import {
@@ -196,6 +197,9 @@ export function DepGraphPage({
   onNewTask?: () => void;
 }) {
   const { t } = useI18n();
+  // ReactFlow <Background> 的点阵色经 SVG fill 属性传入、不吃 CSS var，故按主题取具体值（批次H 暗色暗坑）。
+  const { theme } = useTheme();
+  const bgDotColor = theme === 'dark' ? '#33413a' : theme === 'warm' ? '#e6ddca' : '#d8e0d6';
   const query = useQuery({
     queryKey: ['dep-graph', source],
     queryFn: () => client.getDepGraph(),
@@ -455,7 +459,7 @@ export function DepGraphPage({
             nodesConnectable={true}
             nodesDraggable={false}
           >
-            <Background gap={18} color="#d8e0d6" />
+            <Background gap={18} color={bgDotColor} />
             <Controls showInteractive={false} />
           </ReactFlow>
         </div>

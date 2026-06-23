@@ -103,6 +103,44 @@
   --blue-soft: #e1e6e6;
 }
 
+/* 暗色（批次H，2026-06-23）——第三套纯 CSS-variable 主题，架构同 warm（data-theme + 全站 var 消费，零组件改动）。
+   accent 取偏亮值（绝大多数用法是 accent 当文字/边框/徽章打在暗底/软底上）；soft 槽改暗色调背景（承载同名
+   accent 文字的徽章/软提示）。dep-graph 连线色已是 var() 自动随动；ReactFlow <Background> 点阵色走 JS
+   （DepGraphPage 按主题取值，SVG fill 不吃 var）。少数「亮 accent 实底 + 白字」按钮在末尾把字反成近黑。 */
+:root[data-theme='dark'] {
+  --page-bg: #0f1411;
+  --surface: #171f1b;
+  --surface-muted: #131a16;
+  --surface-raised: #1e2723;
+  --text: #e7eeea;
+  --muted: #a6b2ac;
+  --faint: #8b958f;
+  --border: #2c3832;
+  --border-strong: #3e4d45;
+  --sidebar-bg: #0b0f0d;
+  --sidebar-text: #e7eeea;
+  --font-title: inherit;
+  --shadow: 0 14px 32px rgba(0, 0, 0, 0.5);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 14px 32px rgba(0, 0, 0, 0.5);
+  --green: #4cba85;
+  --green-soft: #182c22;
+  --amber: #d6a24f;
+  --amber-soft: #2f2614;
+  --red: #ef8b84;
+  --red-soft: #36211f;
+  --blue: #66a8df;
+  --blue-soft: #16293a;
+}
+/* 亮 accent 实底按钮在暗色下把白字反成近黑（亮底白字对比不足）。kb-submit 禁用态另有 surface-muted/faint，故排除。 */
+:root[data-theme='dark'] .brand-mark,
+:root[data-theme='dark'] .kb-submit:not(:disabled),
+:root[data-theme='dark'] .relay-canvas__add,
+:root[data-theme='dark'] .inv-short-badge {
+  color: #10140f;
+}
+
 * {
   box-sizing: border-box;
 }

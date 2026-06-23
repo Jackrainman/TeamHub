@@ -42,6 +42,7 @@ const LANG_OPTIONS = [
 const THEME_OPTIONS = [
   { value: 'classic' as const, labelKey: 'settings.theme.classic' as const },
   { value: 'warm' as const, labelKey: 'settings.theme.warm' as const },
+  { value: 'dark' as const, labelKey: 'settings.theme.dark' as const },
 ];
 
 // 服务端运行模式枚举文案（mock-first / real / hybrid）。枚举原值不翻译，title 作注释。

@@ -11,7 +11,7 @@ import type { PropsWithChildren } from 'react';
 // 外观主题：纯 CSS-variable 换肤，不引 Tailwind/Radix（D-060 Phase 0 的「可切换」版）。
 // 架构逐行镜像 i18n/index.tsx 的 LanguageProvider——localStorage 持久 + documentElement 属性 +
 // 设置页 .seg 选择器。第二套 token 挂在 :root[data-theme='warm']，全站组件已消费 var(--*)，故零组件改动。
-export type Theme = 'classic' | 'warm';
+export type Theme = 'classic' | 'warm' | 'dark';
 
 const STORAGE_KEY = 'teamhub.theme';
 const DEFAULT_THEME: Theme = 'classic'; // 默认现行绿，暖纸 opt-in（不惊扰现有用户）
@@ -21,7 +21,9 @@ const DEFAULT_THEME: Theme = 'classic'; // 默认现行绿，暖纸 opt-in（不
  * 避免测 DOM/RTL，符合本仓「测逻辑不测 DOM」风格。
  */
 export function normalizeTheme(value: string | null): Theme {
-  return value === 'warm' || value === 'classic' ? value : DEFAULT_THEME;
+  return value === 'warm' || value === 'classic' || value === 'dark'
+    ? value
+    : DEFAULT_THEME;
 }
 
 interface ThemeContextValue {
