@@ -126,7 +126,7 @@ const zh = {
   'depgraph.connect.selfEdge': '不能把任务连到它自己。',
   'depgraph.connect.duplicate': '这条依赖已经存在了。',
   'depgraph.connect.cycle': '这样会绕成环（A 卡 B、B 又卡 A），不允许。',
-  'depgraph.connect.success': '已建立依赖——卡住它的任务现在显示在图上了。',
+  'depgraph.connect.success': '已建立依赖。卡住它的任务现在会显示在图上。',
   'depgraph.connect.error': '没能建立连线：{detail}',
   'depgraph.connect.actor': '画布连线',
   // 录入浮层（DEPGRAPH-ENTRY-OVERLAY）+ I0 负责人说明
@@ -149,13 +149,13 @@ const zh = {
   'depgraph.status.shelveConfirmPrompt': '搁置该任务？它会从活跃流程中移出。',
   'depgraph.status.shelveConfirm': '确认搁置',
   'depgraph.status.shelveCancel': '取消',
-  'depgraph.status.changeSuccess': '状态已更新——图已重新计算。',
+  'depgraph.status.changeSuccess': '状态已更新，依赖图重新算过了。',
   'depgraph.status.changeError': '没能更新状态：{detail}',
   // 删除连线（软删除，DEPGRAPH-EDGE-DELETE）
   'depgraph.edge.deletePrompt': '删除这条依赖连线？卡住关系会从图上消失。',
   'depgraph.edge.deleteConfirm': '删除连线',
   'depgraph.edge.deleteCancel': '取消',
-  'depgraph.edge.deleteSuccess': '已删除连线——这条依赖不再卡住下游。',
+  'depgraph.edge.deleteSuccess': '已删除连线。这条依赖不再卡住下游。',
   'depgraph.edge.deleteError': '没能删除连线：{detail}',
 
   // 图纸档案（A8）：独立顶级页（D-077 与知识库拆开）。toolbar.title.kb 仍由 KbSearchPage 内层 Tab 用。
@@ -170,7 +170,7 @@ const zh = {
   // 差异化在场排班（D-029）：按组×窗口派生，I0 无人维度
   'schedule.loading': '正在算这天谁在场…',
   'schedule.error': '在场安排打不开（后端没连上？检查后端地址或服务是否在线）',
-  'schedule.intro': '哪个组今天要到，哪个组不用来——根据任务进度和机器人状态算的，不是手排的。',
+  'schedule.intro': '哪个组今天要到、哪个组不用来，是按任务进度和机器人状态算的，不是手排的。',
   'schedule.note': '只到组这一级，不往下到人：知道哪个组要到就够了，不点名，也不记出勤次数。',
   'schedule.empty.title': '这天还没有安排',
   'schedule.empty.body': '队长还没录这天的用机器人安排，或者这个时段跟你们组没关系。',
@@ -186,7 +186,7 @@ const zh = {
   'gaps.loading': '正在加载方向缺口…',
   'gaps.error': '方向缺口不可用（后端没连上？检查后端地址或服务是否在线）',
   'gaps.intro': '按组列出现在 open / escalated 的方向缺口，组长一眼看清哪里缺人手。',
-  'gaps.note': '缺口到组，不到人——是「哪个组缺什么方向」，不是「谁该来」，没有具体人。',
+  'gaps.note': '缺口只到组、不到人：是「哪个组缺什么方向」，不是「谁该来」，没有具体人。',
   'gaps.empty.title': '暂无方向缺口',
   'gaps.empty.body': '当前没有待补的 open / escalated 缺口。',
   'gaps.severity.emerging': '苗头',
@@ -362,7 +362,7 @@ const zh = {
   'pm.create.submit.need': '暴露需求',
   'pm.create.submitting': '提交中…',
   'pm.create.success.task': '已布置任务：{title}',
-  'pm.create.success.dependency': '已建立依赖——卡住关系会显示在依赖图上。',
+  'pm.create.success.dependency': '已建立依赖。卡住关系会显示在依赖图上。',
   'pm.create.success.need': '已提交需求（归到组，等人认领）。',
   'pm.create.error': '提交失败：{detail}',
   'pm.create.needTwoTasks': '建依赖至少要有两个任务，先去「布置任务」。',
@@ -602,7 +602,7 @@ const zh = {
 
   // 图纸档案表单补充字段
   'archive.form.source': '来源',
-  'archive.form.sourceHint': '云端链接与本地文件可同时填——本地存档 + 云端引用双保险，至少给一个。',
+  'archive.form.sourceHint': '云端链接与本地文件可同时填：本地存档 + 云端引用双保险，至少给一个。',
   'archive.form.subTypeHint': '选「驱动」会额外显示关联仓库 / 提交字段。',
 
   // 知识库补充键
