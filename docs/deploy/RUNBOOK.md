@@ -36,8 +36,8 @@
    否则写限流塌成**全队共用一个桶**（任一客户端可 DoS 全队写入）。**直连暴露时保持 false**
    （否则 `X-Forwarded-For` 可伪造）。
 
-4. **落盘 env 都接上**：`TEAMHUB_KB_DATA_FILE` + `TEAMHUB_GOV_DATA_FILE` 都要设——
-   **漏 gov 那个，PM/图纸/结案数据每次重启清回 fixture**（A1 同源教训，见 [H5](../dev-debug-archive/2026-06-14-audit-h5-compose-phantom-postgres.md)）。
+4. **落盘 env 都接上**：`TEAMHUB_KB_DATA_FILE` + `TEAMHUB_GOV_DATA_FILE` + `TEAMHUB_INV_DATA_FILE` 都要设——
+   **漏哪个，对应支柱数据每次重启清回 fixture**（漏 gov→PM/图纸/结案丢；漏 inv→库存盘点/拆装/快记丢；A1 同源教训，见 [H5](../dev-debug-archive/2026-06-14-audit-h5-compose-phantom-postgres.md)）。
    `start-teamhub.sh` / `compose.yaml` 已默认接好，自定义环境别漏。
 
 5. **空板 vs 演示**：真实团队设 `TEAMHUB_DEMO_SEED=false`（新建落盘文件 seed 空板）；走查留默认（演示场景）。
