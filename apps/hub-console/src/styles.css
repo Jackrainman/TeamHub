@@ -24,6 +24,33 @@
   --blue: #2f6f9f;
   --blue-soft: #dceaf2;
   --shadow: 0 14px 32px rgba(32, 43, 36, 0.08);
+  /* 尺度 token（设计系统刻度，2026-06-23 视觉一致性收口）——字号/字重/圆角/间距统一刻度，
+     全站消费 var(--*)；刻度与主题无关，故 warm 不覆盖这些槽，只覆盖颜色。 */
+  --text-2xs: 10px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 15px;
+  --text-lg: 20px;
+  --text-xl: 24px;
+  --weight-normal: 400;
+  --weight-medium: 600;
+  --weight-bold: 700;
+  --weight-heavy: 800;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  /* 紧凑行内控件（机器人队/接力卡片等即时编辑控件，有意比标准 kb-field 矮一档；文档化为分层而非随机不一致）。 */
+  --control-pad-compact: 5px 8px;
+  --control-text-compact: var(--text-sm);
+  /* 侧边栏次级文字（品牌副标题 / nav 项）——派生自 sidebar-text，warm 自动联动。 */
+  --sidebar-text-muted: color-mix(in srgb, var(--sidebar-text) 62%, transparent);
   /* 主题可换 token（classic 默认值；warm 见下方 [data-theme='warm'] 覆盖）。 */
   --page-bg: #f4f7f2;
   --sidebar-bg: #17231d;
@@ -33,21 +60,31 @@
 
 /* 暖纸编辑风（Aurash，D-068）——纯 CSS-variable 覆盖，全站组件已消费 var(--*) 故零组件改动。
    特异度 :root[data-theme='warm'] = 0,2,0 > :root 的 0,1,0，可靠覆盖。
-   accent（绿/红/琥珀/蓝 + *-soft）暂留为状态语义色、跨主题通用；起步值，可在 4177 实时微调。 */
+   2026-06-23：补 8 个语义 accent 暖调覆盖（原跨主题通用使主按钮蓝在暖纸上突兀、换肤近乎不可感），
+   并把 surface/border 进一步提暖以增强可感；色温微调、语义不变，可在 4188/4177 实时再调。 */
 :root[data-theme='warm'] {
-  --page-bg: #f7f6f3;
-  --surface: #fffdf9;
-  --surface-muted: #efece5;
-  --surface-raised: #faf8f3;
+  --page-bg: #f6f4ee;
+  --surface: #fefcf5;
+  --surface-muted: #efeadf;
+  --surface-raised: #f8f4ea;
   --text: #37352f;
   --muted: #6b675e;
   --faint: #8a857a;
-  --border: #e3ded3;
-  --border-strong: #cdc6b6;
+  --border: #e6ddca;
+  --border-strong: #cdc2a8;
   --sidebar-bg: #2b2922;
   --sidebar-text: #efe9dc;
   --font-title: Georgia, 'Songti SC', 'Noto Serif SC', serif;
   --shadow: 0 14px 32px rgba(60, 50, 35, 0.1);
+  /* 暖调 accent（向暖纸纸面靠拢，主按钮蓝降冷、绿琥珀红微暖；-soft 背景偏暖偏黄）。 */
+  --green: #2f7d59;
+  --green-soft: #e2ecdd;
+  --amber: #976212;
+  --amber-soft: #f2e6c8;
+  --red: #a93a33;
+  --red-soft: #efdbd3;
+  --blue: #3f6c90;
+  --blue-soft: #e1e6e6;
 }
 
 * {
@@ -93,11 +130,11 @@ button {
   width: 38px;
   height: 38px;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  background: #2d7c5a;
+  border-radius: var(--radius-md);
+  background: var(--green);
   color: #ffffff;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: var(--text-base);
+  font-weight: var(--weight-heavy);
 }
 
 .console-brand div {
@@ -107,12 +144,12 @@ button {
 }
 
 .console-brand strong {
-  font-size: 14px;
+  font-size: var(--text-md);
 }
 
 .console-brand span:last-child {
-  color: #a8b9ae;
-  font-size: 12px;
+  color: var(--sidebar-text-muted);
+  font-size: var(--text-sm);
 }
 
 .console-nav {
@@ -127,10 +164,10 @@ button {
   gap: 10px;
   min-height: 38px;
   padding: 0 10px;
-  border-radius: 8px;
-  color: #c8d7cf;
-  font-size: 13px;
-  font-weight: 700;
+  border-radius: var(--radius-md);
+  color: var(--sidebar-text-muted);
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
   text-decoration: none;
 }
 
@@ -163,15 +200,15 @@ button {
 }
 
 .console-toolbar h1 {
-  font-size: 24px;
+  font-size: var(--text-xl);
   line-height: 1.15;
 }
 
 .eyebrow {
   margin: 0 0 4px;
   color: var(--faint);
-  font-size: 11px;
-  font-weight: 800;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-heavy);
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -182,7 +219,7 @@ button {
   width: 38px;
   height: 38px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text);
   box-shadow: var(--shadow);
@@ -205,7 +242,7 @@ button {
 .metric-tile,
 .panel {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   box-shadow: var(--shadow);
 }
@@ -223,13 +260,13 @@ button {
 .data-row span,
 .adapter-row span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.45;
 }
 
 .metric-tile strong {
   color: var(--text);
-  font-size: 20px;
+  font-size: var(--text-lg);
   line-height: 1.1;
 }
 
@@ -256,7 +293,7 @@ button {
 }
 
 .panel-header h2 {
-  font-size: 14px;
+  font-size: var(--text-md);
 }
 
 .adapter-grid {
@@ -276,8 +313,8 @@ button {
 .integration-group__title {
   margin: 0;
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
   letter-spacing: 0.02em;
 }
 
@@ -303,7 +340,7 @@ button {
   margin-bottom: 3px;
   overflow: hidden;
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--text-base);
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -328,9 +365,9 @@ button {
   flex: 0 0 auto;
   min-width: 92px;
   padding: 5px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 800;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-heavy);
   line-height: 1;
   text-align: center;
 }
@@ -359,7 +396,7 @@ button {
 .state-band {
   padding: 18px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--muted);
   box-shadow: var(--shadow);
@@ -466,7 +503,7 @@ button {
      防首屏测量错位（仿 .relay-canvas__board 同手法）。 */
   height: clamp(460px, 60vh, 760px);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface-muted);
   box-shadow: var(--shadow);
   overflow: hidden;
@@ -493,7 +530,7 @@ button {
 .detail-empty {
   padding: 16px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.5;
 }
 
@@ -512,13 +549,13 @@ button {
 
 .detail-row span {
   color: var(--faint);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
 }
 
 .detail-row strong {
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--text-base);
   line-height: 1.4;
 }
 
@@ -526,7 +563,7 @@ button {
   margin: 0 14px 14px;
   padding: 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface-raised);
 }
 
@@ -536,7 +573,7 @@ button {
   gap: 6px;
   margin: 0 0 8px;
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .learn-block ul {
@@ -553,7 +590,7 @@ button {
   align-items: center;
   gap: 6px;
   color: var(--blue);
-  font-size: 12px;
+  font-size: var(--text-sm);
   text-decoration: none;
 }
 
@@ -563,7 +600,7 @@ button {
   gap: 6px;
   margin: 0 14px 16px;
   color: var(--faint);
-  font-size: 12px;
+  font-size: var(--text-sm);
   text-decoration: none;
 }
 
@@ -590,23 +627,17 @@ button {
   gap: 6px;
   padding: 7px 12px;
   border: 1px solid var(--border-strong);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
   cursor: pointer;
 }
 
 .detail-action-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
-}
-
-.detail-action-btn--primary {
-  border-color: var(--blue);
-  background: var(--blue-soft);
-  color: var(--blue);
 }
 
 .detail-action-btn--danger {
@@ -628,17 +659,17 @@ button {
 
 .detail-status-select span {
   color: var(--faint);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
 }
 
 .detail-status-select select {
   padding: 6px 8px;
   border: 1px solid var(--border-strong);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .detail-confirm {
@@ -647,13 +678,13 @@ button {
   gap: 8px;
   padding: 10px;
   border: 1px solid var(--red);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--red-soft);
 }
 
 .detail-confirm span {
   color: var(--red);
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.4;
 }
 
@@ -669,10 +700,10 @@ button {
   gap: 12px;
   padding: 10px 14px;
   border: 1px solid var(--blue);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .dep-graph-edge-action__btns {
@@ -688,7 +719,7 @@ button {
   padding: 10px 12px 10px 15px;
   border: 1px solid var(--border-strong);
   border-left: 4px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   box-shadow: var(--shadow);
   cursor: pointer;
@@ -743,22 +774,22 @@ button {
 }
 
 .dag-node__title {
-  font-size: 12.5px;
-  font-weight: 800;
+  font-size: var(--text-base);
+  font-weight: var(--weight-heavy);
   line-height: 1.2;
 }
 
 .dag-node__owner {
   margin-top: 5px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 
 .dag-node__blocked {
   margin-top: 4px;
   color: var(--red);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
 }
 
 .dag-node__badges {
@@ -773,9 +804,9 @@ button {
   align-items: center;
   gap: 3px;
   padding: 1px 7px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 800;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-heavy);
   line-height: 1.5;
 }
 
@@ -848,14 +879,14 @@ button {
 .settings-desc {
   margin: 0;
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: var(--text-base);
   line-height: 1.6;
 }
 
 .settings-current {
   margin: 0;
   color: var(--faint);
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.5;
 }
 
@@ -872,11 +903,11 @@ button {
   gap: 6px;
   padding: 9px 16px;
   border: 1px solid var(--border-strong);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
   cursor: pointer;
 }
 
@@ -912,14 +943,14 @@ button {
 
 .kb-field > span {
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
 }
 
 /* 字段下方辅助说明（如编号位的"直接出现在机器人编号里"提示） */
 .kb-field__hint {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-xs);
   line-height: 1.4;
 }
 
@@ -928,11 +959,11 @@ button {
   width: 100%;
   padding: 9px 11px;
   border: 1px solid var(--border-strong);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--surface-raised);
   color: var(--text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-base);
   resize: vertical;
 }
 
@@ -949,16 +980,17 @@ button {
   align-self: flex-start;
   padding: 9px 16px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--blue);
   color: #ffffff;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
   cursor: pointer;
 }
 
 .kb-submit:disabled {
-  background: var(--border-strong);
+  background: var(--surface-muted);
+  color: var(--faint);
   cursor: not-allowed;
 }
 
@@ -979,10 +1011,10 @@ button {
   gap: 8px;
   padding: 11px 13px;
   border: 1px solid var(--amber);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--amber-soft);
   color: var(--amber);
-  font-size: 12.5px;
+  font-size: var(--text-base);
   line-height: 1.5;
 }
 
@@ -993,8 +1025,8 @@ button {
 
 .kb-result-count {
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
 }
 
 .kb-card-list {
@@ -1009,7 +1041,7 @@ button {
   gap: 11px;
   padding: 15px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   box-shadow: var(--shadow);
 }
@@ -1022,7 +1054,7 @@ button {
 }
 
 .kb-card__head h3 {
-  font-size: 14.5px;
+  font-size: var(--text-md);
   line-height: 1.35;
 }
 
@@ -1041,11 +1073,11 @@ button {
 
 .kb-score {
   padding: 5px 9px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--blue-soft);
   color: var(--blue);
-  font-size: 11px;
-  font-weight: 800;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-heavy);
   white-space: nowrap;
 }
 
@@ -1065,11 +1097,11 @@ button {
 
 .kb-chip {
   padding: 3px 9px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface-muted);
   color: var(--muted);
-  font-size: 11.5px;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
 }
 
 .kb-reasons {
@@ -1078,14 +1110,14 @@ button {
   gap: 5px;
   padding: 10px 12px;
   border-left: 3px solid var(--green);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--green-soft);
 }
 
 .kb-reasons__label {
   color: var(--green);
-  font-size: 11px;
-  font-weight: 800;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-heavy);
   letter-spacing: 0.02em;
 }
 
@@ -1093,7 +1125,7 @@ button {
   margin: 0;
   padding-left: 18px;
   color: var(--text);
-  font-size: 12.5px;
+  font-size: var(--text-base);
   line-height: 1.55;
 }
 
@@ -1113,20 +1145,20 @@ button {
 
 .kb-meta__row dt {
   color: var(--muted);
-  font-size: 11.5px;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
 }
 
 .kb-meta__row dd {
   margin: 0;
   color: var(--text);
-  font-size: 12.5px;
+  font-size: var(--text-base);
   line-height: 1.5;
 }
 
 .kb-mono {
   font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 /* ===== 图纸档案页（A8：提交日志 / 版本时间线） ===== */
@@ -1152,14 +1184,14 @@ button {
 /* 登记表单「来源」合并组（云端链接 + 本地文件并排）：弱边框圈一组，减少独立行视觉噪声。 */
 .archive-source-group {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 10px 12px;
 }
 
 .archive-source-group > legend {
   padding: 0 6px;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
   color: var(--muted);
 }
 
@@ -1184,11 +1216,11 @@ button {
   align-self: center;
   padding: 5px 12px;
   border: 1px solid var(--border-strong);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--surface-raised);
   color: var(--blue);
-  font-size: 12.5px;
-  font-weight: 700;
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
@@ -1215,17 +1247,17 @@ button {
 .archive-nofile {
   align-self: center;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .archive-upload-btn {
   padding: 5px 12px;
   border: 1px dashed var(--border-strong);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--muted);
-  font-size: 12.5px;
-  font-weight: 700;
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -1241,16 +1273,16 @@ button {
 }
 
 .archive-upload-err {
-  color: var(--danger, #c0392b);
-  font-size: 11.5px;
+  color: var(--red);
+  font-size: var(--text-sm);
   max-width: 12rem;
 }
 
 /* 登记表单里文件输入下方的小灰提示。 */
 .archive-file-hint {
   color: var(--muted);
-  font-size: 11.5px;
-  font-weight: 400;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-normal);
 }
 
 /* 收窄短内容控件（编号位 / 目标机器人等 2-3 字符 select）：按内容定宽、不撑满栅格半列；
@@ -1276,7 +1308,7 @@ button {
   align-items: center;
   gap: 6px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   white-space: normal;
 }
 
@@ -1289,11 +1321,11 @@ button {
 
 .archive-badge {
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--blue-soft);
   color: var(--blue);
-  font-size: 11px;
-  font-weight: 800;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-heavy);
   line-height: 1.4;
 }
 
@@ -1302,7 +1334,7 @@ button {
   background: transparent;
   color: var(--muted);
   border: 1px solid var(--border-strong);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 }
 
 /* 登记表单顶部一行：组别（自然宽）｜ 赛季（窄）｜ 适配机器人（自然宽），窄屏自动换行。 */
@@ -1348,15 +1380,15 @@ button {
 
 .archive-meta__row dt {
   color: var(--muted);
-  font-size: 11.5px;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
 }
 
 .archive-meta__row dd {
   margin: 0;
   overflow-wrap: anywhere;
   color: var(--text);
-  font-size: 12.5px;
+  font-size: var(--text-base);
   line-height: 1.5;
 }
 
@@ -1427,7 +1459,7 @@ button {
   flex-direction: column;
   min-width: 0;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface-muted);
   box-shadow: var(--shadow);
 }
@@ -1439,10 +1471,10 @@ button {
   gap: 8px;
   padding: 10px 12px;
   border-bottom: 2px solid var(--border-strong);
-  border-radius: 8px 8px 0 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
   background: var(--surface-raised);
-  font-size: 12.5px;
-  font-weight: 800;
+  font-size: var(--text-base);
+  font-weight: var(--weight-heavy);
 }
 
 .pm-column__head.pm-col-inProgress {
@@ -1468,10 +1500,10 @@ button {
 .pm-column__count {
   min-width: 22px;
   padding: 1px 7px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface);
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-xs);
   text-align: center;
 }
 
@@ -1485,7 +1517,7 @@ button {
 .pm-column__empty {
   padding: 8px 4px;
   color: var(--faint);
-  font-size: 12px;
+  font-size: var(--text-sm);
   text-align: center;
 }
 
@@ -1495,35 +1527,35 @@ button {
   gap: 8px;
   padding: 11px 12px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   box-shadow: var(--shadow);
 }
 
 .pm-card__title {
-  font-size: 13px;
+  font-size: var(--text-base);
   line-height: 1.35;
 }
 
 .pm-card__summary {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.5;
 }
 
 .pm-badge {
   padding: 3px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface-muted);
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
 }
 
 .pm-badge--robot {
   background: var(--blue-soft);
   color: var(--blue);
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
 }
 
 @media (max-width: 980px) {
@@ -1546,11 +1578,11 @@ button {
   width: 100%;
   padding: 9px 11px;
   border: 1px solid var(--border-strong);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--surface-raised);
   color: var(--text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 
 .kb-field select:focus {
@@ -1574,21 +1606,21 @@ button {
 }
 
 .pm-create__head h2 {
-  font-size: 15px;
-  font-weight: 800;
+  font-size: var(--text-md);
+  font-weight: var(--weight-heavy);
 }
 
 .pm-create__note {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .seg {
   display: inline-flex;
   padding: 3px;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--surface-muted);
   gap: 2px;
 }
@@ -1599,11 +1631,11 @@ button {
   gap: 5px;
   padding: 6px 12px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--muted);
-  font-size: 12.5px;
-  font-weight: 700;
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
   cursor: pointer;
 }
 
@@ -1645,9 +1677,9 @@ button {
 .form-banner {
   margin: 0;
   padding: 7px 11px;
-  border-radius: 7px;
-  font-size: 12.5px;
-  font-weight: 600;
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
 }
 
 .form-banner--ok {
@@ -1664,10 +1696,10 @@ button {
   margin: 0;
   padding: 10px 12px;
   border: 1px dashed var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface-raised);
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: var(--text-base);
 }
 
 .form-hint--warn {
@@ -1680,20 +1712,20 @@ button {
 .pm-coldstart {
   padding: 22px 18px;
   border: 1px dashed var(--border-strong);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--surface-raised);
   text-align: center;
 }
 
 .pm-coldstart h3 {
-  font-size: 14px;
-  font-weight: 800;
+  font-size: var(--text-md);
+  font-weight: var(--weight-heavy);
 }
 
 .pm-coldstart p {
   margin-top: 6px;
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: var(--text-base);
   line-height: 1.6;
 }
 
@@ -1717,7 +1749,7 @@ button {
 .kb-closeout__intro {
   margin: 0;
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: var(--text-base);
   line-height: 1.6;
 }
 
@@ -1727,7 +1759,7 @@ button {
   gap: 8px;
   padding: 12px 14px;
   border: 1px solid var(--green);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--green-soft);
 }
 
@@ -1737,14 +1769,14 @@ button {
   gap: 7px;
   margin: 0;
   color: var(--green);
-  font-size: 13px;
-  font-weight: 800;
+  font-size: var(--text-base);
+  font-weight: var(--weight-heavy);
 }
 
 .kb-closeout__searchable {
   margin: 0;
   color: var(--green);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 /* 依赖图录入浮层（DEPGRAPH-ENTRY-OVERLAY） */
@@ -1757,13 +1789,13 @@ button {
 
 .dep-graph-topbar__note {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .detail-note {
   margin: -6px 0 0;
   color: var(--faint);
-  font-size: 11px;
+  font-size: var(--text-xs);
   line-height: 1.4;
 }
 
@@ -1776,8 +1808,8 @@ button {
   border: none;
   background: none;
   color: var(--blue);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
   cursor: pointer;
 }
 
@@ -1788,7 +1820,7 @@ button {
   align-items: center;
   padding: 10px 14px;
   border: 1px dashed var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface-muted);
 }
 
@@ -1797,14 +1829,14 @@ button {
   border: none;
   background: none;
   color: var(--blue);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
   cursor: pointer;
 }
 
 .overview-integrations-hint span {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 
 /* 缺人方向（S2，D-069）：组级缺口卡片。无人维度、纯结构展示。 */
@@ -1815,15 +1847,15 @@ button {
   padding: 16px 20px;
 }
 .gaps-intro {
-  font-size: 13px;
+  font-size: var(--text-base);
   color: var(--text);
 }
 .gaps-note {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--muted);
   padding: 8px 11px;
   background: var(--surface-muted);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
 }
 .gaps-list {
   display: grid;
@@ -1838,7 +1870,7 @@ button {
   padding: 12px 13px;
   border: 1px solid var(--border);
   border-left: 3px solid var(--border-strong);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   box-shadow: var(--shadow);
 }
@@ -1852,21 +1884,21 @@ button {
 }
 .gap-badge {
   padding: 3px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface-muted);
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
 }
 .gap-badge--pressing {
   color: var(--red);
 }
 .gap-card__count {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 .gap-card__fact {
-  font-size: 13px;
+  font-size: var(--text-base);
   line-height: 1.4;
   color: var(--text);
 }
@@ -1877,16 +1909,16 @@ button {
   gap: 6px;
 }
 .gap-card__skills-label {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 .gap-chip {
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface-muted);
   color: var(--text);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -1913,8 +1945,8 @@ button {
 }
 .inv-section-title {
   margin: 0 0 12px;
-  font-size: 15px;
-  font-weight: 650;
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
 }
 /* 矩阵横向溢出时滚动（多机器人并排不挤压，呼应 presence §6 overflow-x:auto 纪律）。 */
 .inv-table-wrap {
@@ -1924,7 +1956,7 @@ button {
 .inv-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 .inv-table th,
 .inv-table td {
@@ -1935,7 +1967,7 @@ button {
 }
 .inv-table thead th {
   background: var(--surface-raised);
-  font-weight: 600;
+  font-weight: var(--weight-medium);
   color: var(--muted);
 }
 .inv-table__part {
@@ -1943,29 +1975,29 @@ button {
 }
 .inv-table__idle {
   background: var(--surface-muted);
-  font-weight: 600;
+  font-weight: var(--weight-medium);
 }
 .inv-part-name {
   display: block;
-  font-weight: 600;
+  font-weight: var(--weight-medium);
   color: var(--text);
 }
 .inv-part-meta {
   display: block;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--faint);
 }
 .inv-idle-value {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
 }
 .inv-idle-total {
   color: var(--faint);
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 .inv-reserved {
   color: var(--amber);
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 .inv-cell--zero {
   color: var(--faint);
@@ -1981,11 +2013,11 @@ button {
   display: inline-block;
   margin-left: 6px;
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--red);
   color: #fff;
-  font-size: 10px;
-  font-weight: 700;
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
 }
 /* 记账历史 */
 .inv-history {
@@ -2006,12 +2038,12 @@ button {
   gap: 10px;
   padding: 6px 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 .inv-history__part {
-  font-weight: 600;
+  font-weight: var(--weight-medium);
 }
 .inv-history__qty {
   color: var(--muted);
@@ -2024,14 +2056,14 @@ button {
 .inv-history__src {
   margin-left: auto;
   color: var(--faint);
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 .inv-kind-badge {
   display: inline-block;
   padding: 1px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
   background: var(--surface-muted);
   color: var(--muted);
 }
@@ -2075,8 +2107,8 @@ button {
 }
 .resources-section-title {
   margin: 0 0 12px;
-  font-size: 15px;
-  font-weight: 650;
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
 }
 .resources-empty {
   color: var(--muted);
@@ -2090,7 +2122,7 @@ button {
 .resources-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 .resources-table th,
 .resources-table td {
@@ -2101,24 +2133,24 @@ button {
 }
 .resources-table thead th {
   background: var(--surface-raised);
-  font-weight: 600;
+  font-weight: var(--weight-medium);
   color: var(--muted);
   white-space: nowrap;
 }
 .resources-cell--name {
-  font-weight: 600;
+  font-weight: var(--weight-medium);
   color: var(--text);
 }
 /* 机器人编号徽章（派生 displayCode，如 26R2）：等宽强调，新建预览与列表同形。 */
 .resources-code-badge {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface-muted);
   color: var(--text);
   font-family: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
   letter-spacing: 0.02em;
 }
 .resources-preview {
@@ -2144,9 +2176,9 @@ button {
 .resources-status-badge {
   display: inline-block;
   padding: 1px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
   background: var(--surface-muted);
   color: var(--muted);
 }
@@ -2173,7 +2205,7 @@ button {
 .resources-reason {
   display: block;
   margin-top: 4px;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--faint);
 }
 /* 行内改状态：状态下拉 + 选填原因 + 改按钮，窄屏自动换行。 */
@@ -2187,21 +2219,21 @@ button {
 .resources-reason-input {
   padding: 5px 8px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 .resources-reason-input {
   min-width: 140px;
 }
 .resources-apply {
   padding: 5px 12px;
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 .resources-row-error {
   margin: 6px 0 0;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--red);
 }
 
@@ -2224,7 +2256,7 @@ button {
 .relay-col {
   flex: 0 0 280px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   padding: 12px 14px;
 }
@@ -2237,16 +2269,16 @@ button {
   padding-bottom: 8px;
 }
 .relay-col__robot {
-  font-weight: 700;
-  font-size: 15px;
+  font-weight: var(--weight-bold);
+  font-size: var(--text-md);
 }
 .relay-col__closed {
   margin: 0;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--red-soft);
   color: var(--red);
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 .relay-stages {
   list-style: none;
@@ -2261,9 +2293,9 @@ button {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface-raised);
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 .relay-stage--present {
   border-left: 3px solid var(--green);
@@ -2273,7 +2305,7 @@ button {
   flex-wrap: wrap;
 }
 .relay-stage__order {
-  font-weight: 600;
+  font-weight: var(--weight-medium);
   color: var(--muted);
   white-space: nowrap;
 }
@@ -2293,11 +2325,11 @@ button {
   gap: 8px;
   padding: 10px 12px;
   border: 1px dashed var(--border-strong);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--surface-muted);
 }
 .relay-offduty__label {
-  font-weight: 600;
+  font-weight: var(--weight-medium);
   color: var(--muted);
 }
 .gap-chip--free {
@@ -2316,7 +2348,7 @@ button {
   padding: 4px;
   gap: 3px;
   border: 1px solid var(--border);
-  border-radius: 11px;
+  border-radius: var(--radius-lg);
   background: var(--surface-muted);
 }
 .schedule-date-seg__btn {
@@ -2326,7 +2358,7 @@ button {
   gap: 1px;
   padding: 7px 16px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -2338,12 +2370,12 @@ button {
   box-shadow: var(--shadow);
 }
 .schedule-date-seg__name {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
 }
 .schedule-date-seg__md {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
   opacity: 0.75;
 }
 .schedule-date-find {
@@ -2353,18 +2385,18 @@ button {
   margin-left: auto;
 }
 .schedule-date-find__label {
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
   color: var(--muted);
 }
 .schedule-date-find__input {
   padding: 7px 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 
 .schedule-detail {
@@ -2390,7 +2422,7 @@ button {
 .relay-canvas__hint {
   margin: 0;
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: var(--text-base);
 }
 /* 泳道板 v1（取代旧 @xyflow 自由画布）：每台机器人一条横泳道，纵向堆叠；泳道内卡片横向并排 = 并行。 */
 .relay-swimlane {
@@ -2400,7 +2432,7 @@ button {
 }
 .relay-lane {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--surface-muted);
   box-shadow: var(--shadow);
   overflow: hidden;
@@ -2417,15 +2449,15 @@ button {
   display: inline-flex;
   align-items: center;
   padding: 2px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--green-soft);
   color: var(--green);
-  font-size: 12px;
-  font-weight: 800;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-heavy);
 }
 .relay-lane__count {
-  font-size: 11.5px;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
   color: var(--muted);
 }
 /* 泳道内的工作卡横排（并排=并行）；窄屏可横向滚动，不挤压换行破坏「同时干」语义。 */
@@ -2446,7 +2478,7 @@ button {
   padding: 10px 12px 10px 15px;
   border: 1px solid var(--border-strong);
   border-left: 4px solid var(--green);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   box-shadow: var(--shadow);
   list-style: none;
@@ -2472,40 +2504,40 @@ button {
   display: inline-flex;
   align-items: center;
   padding: 1px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--green-soft);
   color: var(--green);
-  font-size: 11px;
-  font-weight: 800;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-heavy);
 }
 .relay-card--closed .relay-card__code {
   background: var(--surface-muted);
   color: var(--muted);
 }
 .relay-card__leg {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
   color: var(--muted);
   white-space: nowrap;
 }
 .relay-card__group {
   margin-top: 6px;
-  font-size: 12.5px;
-  font-weight: 800;
+  font-size: var(--text-base);
+  font-weight: var(--weight-heavy);
   color: var(--text);
   line-height: 1.2;
 }
 .relay-card__task {
   margin-top: 3px;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted);
   line-height: 1.3;
 }
 .relay-card__closed-note {
   margin-top: 5px;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--red);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 }
 .relay-card__eta {
   display: flex;
@@ -2514,8 +2546,8 @@ button {
   margin-top: 7px;
 }
 .relay-card__eta-label {
-  font-size: 10px;
-  font-weight: 800;
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-heavy);
   color: var(--faint);
   white-space: nowrap;
 }
@@ -2525,10 +2557,10 @@ button {
   text-align: left;
   padding: 2px 6px;
   border: 1px dashed var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface-raised);
   color: var(--text);
-  font-size: 11px;
+  font-size: var(--text-xs);
   cursor: text;
 }
 .relay-card__eta-value:hover {
@@ -2539,10 +2571,10 @@ button {
   min-width: 0;
   padding: 2px 6px;
   border: 1px solid var(--green);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--text);
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 /* 泳道内次序 ◄►（取代旧自由拖拽）：横排放在卡头右侧。 */
 .relay-card__reorder {
@@ -2558,7 +2590,7 @@ button {
   height: 18px;
   padding: 0;
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: var(--surface-raised);
   color: var(--muted);
   cursor: pointer;
@@ -2585,9 +2617,9 @@ button {
   align-items: center;
   gap: 6px;
   padding: 2px 4px 2px 7px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 700;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
   line-height: 1.25;
 }
 .relay-rel--out {
@@ -2613,7 +2645,7 @@ button {
   height: 18px;
   padding: 0;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: inherit;
   opacity: 0.7;
@@ -2642,11 +2674,11 @@ button {
   gap: 5px;
   padding: 3px 8px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface-raised);
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
   cursor: pointer;
 }
 .relay-card__then-btn:hover:not(:disabled) {
@@ -2661,10 +2693,10 @@ button {
   width: 100%;
   padding: 3px 6px;
   border: 1px solid var(--green);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--text);
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 
 /* 删一项按钮（A2）：卡片底部窄文本按钮，红色语义（不可撤销 + 级联删交接线）。 */
@@ -2672,11 +2704,11 @@ button {
   width: 100%;
   padding: 3px 6px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface-raised);
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
   cursor: pointer;
 }
 .relay-card__delete:hover {
@@ -2691,22 +2723,22 @@ button {
   align-items: center;
   gap: 10px;
 }
+/* 主操作按钮：与全站 .kb-submit 同一蓝实心语言（2026-06-23 收口 #2，原绿-soft 自成一套已弃）。 */
 .relay-canvas__add {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 14px;
-  border: 1px solid var(--green);
-  border-radius: 8px;
-  background: var(--green-soft);
-  color: var(--green);
-  font-size: 13px;
-  font-weight: 800;
+  padding: 9px 16px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--blue);
+  color: #ffffff;
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
   cursor: pointer;
 }
 .relay-canvas__add:hover {
-  background: var(--green);
-  color: #fff;
+  filter: brightness(0.94);
 }
 /* 「沿用上一天计划」次按钮 + 空态引导卡的 CTA 行（SCHEDULE-DESIGN-LOCK）。 */
 .relay-canvas__carry {
@@ -2715,11 +2747,11 @@ button {
   gap: 6px;
   padding: 7px 14px;
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface-raised);
   color: var(--text);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
   cursor: pointer;
 }
 .relay-canvas__carry:hover:not(:disabled) {
@@ -2752,7 +2784,7 @@ button {
   height: 28px;
   padding: 0;
   border: 1px solid var(--border-strong);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--surface-raised);
   color: var(--muted);
   cursor: pointer;
@@ -2764,11 +2796,11 @@ button {
 .relay-add__cancel {
   padding: 7px 14px;
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface-raised);
   color: var(--muted);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
   cursor: pointer;
 }
 .relay-add__cancel:hover {
