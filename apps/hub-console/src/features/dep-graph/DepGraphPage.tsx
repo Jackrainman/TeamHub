@@ -186,14 +186,14 @@ export function DepGraphPage({
   source,
   focusTaskId,
   onConsumeFocus,
-  onOpenBoard,
+  onNewTask,
 }: {
   client: HubApiClient;
   source: string;
   focusTaskId?: string | null;
   onConsumeFocus?: () => void;
-  // 依赖图作默认视图后，建任务入口在看板——点此切回看板（由 ProjectPage 接 setView('board')）。
-  onOpenBoard?: () => void;
+  // 「新建任务」直接弹出共享的右侧抽屉就地建任务（由 ProjectPage 接 setCreateOpen(true)），不再切视图。
+  onNewTask?: () => void;
 }) {
   const { t } = useI18n();
   const query = useQuery({
@@ -374,8 +374,8 @@ export function DepGraphPage({
     <div className="dep-graph-page">
       <div className="dep-graph-topbar">
         <span className="dep-graph-topbar__note">{t('depgraph.entry.note')}</span>
-        {onOpenBoard ? (
-          <button type="button" className="kb-submit" onClick={onOpenBoard}>
+        {onNewTask ? (
+          <button type="button" className="kb-submit" onClick={onNewTask}>
             <Plus size={14} aria-hidden="true" /> {t('depgraph.toolbar.newTask')}
           </button>
         ) : null}

@@ -1,11 +1,9 @@
-import { useRef } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Network } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Network, Plus } from 'lucide-react';
 import type { Task, TaskStatus } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { MetricTile } from '../../components/MetricTile';
-import { PmCreatePanel } from './PmCreatePanel';
 
 // 看板列固定顺序（任务流向，不按人）。反排名（C2）：看板主键是 task/status，无 memberId 维度、
 // 不展示「谁完成多少」；任务自身难度让「本来简单却被卡」可见。
@@ -34,15 +32,15 @@ const PM_COMPLEXITY_KEY: Record<Task['intrinsicComplexity'], TranslationKey> = {
 export function PmBoardPage({
   client,
   source,
+  onNewTask,
   onOpenInDepGraph,
 }: {
   client: HubApiClient;
   source: string;
+  onNewTask: () => void;
   onOpenInDepGraph?: (taskId: string) => void;
 }) {
   const { t } = useI18n();
-  const queryClient = useQueryClient();
-  const panelRef = useRef<HTMLElement>(null);
   const query = useQuery({
     queryKey: ['tasks', source],
     queryFn: () => client.getTasks(),
@@ -67,13 +65,13 @@ export function PmBoardPage({
   }
   const byStatus = (status: TaskStatus) => statusMap.get(status) ?? [];
 
-  // 写表单成功后失效任务查询 → 看板即时刷新（命中后端读视图）。
-  const refreshTasks = () =>
-    void queryClient.invalidateQueries({ queryKey: ['tasks', source] });
-
   return (
     <div className="pm-page">
-      <PmCreatePanel client={client} tasks={tasks} onCreated={refreshTasks} panelRef={panelRef} />
+      <div className="pm-toolbar">
+        <button type="button" className="kb-submit" onClick={onNewTask}>
+          <Plus size={14} aria-hidden="true" /> {t('pm.create.open')}
+        </button>
+      </div>
       <section className="pm-summary" aria-label={t('pm.section.summary')}>
         <MetricTile label={t('pm.summary.total')} value={String(tasks.length)} />
         <MetricTile
@@ -91,14 +89,7 @@ export function PmBoardPage({
         <div className="pm-coldstart">
           <h3>{t('pm.coldstart.title')}</h3>
           <p>{t('pm.coldstart.body')}</p>
-          <button
-            type="button"
-            className="kb-submit"
-            onClick={() => {
-              panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              panelRef.current?.focus({ preventScroll: true });
-            }}
-          >
+          <button type="button" className="kb-submit" onClick={onNewTask}>
             {t('pm.coldstart.goCreate')}
           </button>
         </div>

@@ -5,6 +5,9 @@
 export type Lang = 'zh' | 'en';
 
 const zh = {
+  // 通用
+  'common.close': '关闭',
+
   // 品牌 / 导航
   'brand.subtitle.real': '真实数据 · 连服务器',
   'nav.overview': '总览',
@@ -329,6 +332,7 @@ const zh = {
   // PM 录入（写侧表单）
   'pm.create.title': '录入 · 全员都看得到',
   'pm.create.subtitle': '记任务、依赖、缺口，不比快慢。',
+  'pm.create.open': '新建任务',
   'pm.create.tab.task': '布置任务',
   'pm.create.tab.dependency': '连依赖',
   'pm.create.tab.need': '暴露需求',
@@ -355,7 +359,7 @@ const zh = {
   'pm.depType.sharesResource': '共享资源',
   'pm.source.human': '人工',
   'pm.source.aiSuggested': 'AI 建议',
-  'pm.create.submit.task': '布置任务',
+  'pm.create.submit.task': '新建任务',
   'pm.create.submit.dependency': '建立依赖',
   'pm.create.submit.need': '暴露需求',
   'pm.create.submitting': '提交中…',
@@ -558,7 +562,7 @@ const zh = {
   'resources.action.error': '改状态失败：{detail}',
 
   // 依赖图工具条（新建任务）
-  'depgraph.toolbar.newTask': '在看板新建任务',
+  'depgraph.toolbar.newTask': '新建任务',
 
   // 库存新增零件表单（INV-CREATE）
   'inv.create.title': '新增零件',
@@ -649,6 +653,7 @@ const zh = {
 export type TranslationKey = keyof typeof zh;
 
 const en: Record<TranslationKey, string> = {
+  'common.close': 'Close',
   'brand.subtitle.real': 'Live data · connected',
   'nav.overview': 'Overview',
   'nav.project': 'Project',
@@ -974,6 +979,7 @@ const en: Record<TranslationKey, string> = {
   'pm.create.title': 'Add an entry · everyone can see it',
   'pm.create.subtitle':
     'Just tasks, dependencies and gaps. Never who is faster or slower.',
+  'pm.create.open': 'New task',
   'pm.create.tab.task': 'New task',
   'pm.create.tab.dependency': 'Link dependency',
   'pm.create.tab.need': 'Raise a need',
@@ -1218,7 +1224,7 @@ const en: Record<TranslationKey, string> = {
   'resources.action.error': 'Status change failed: {detail}',
 
   // Dep-graph toolbar (new task)
-  'depgraph.toolbar.newTask': 'New task on board',
+  'depgraph.toolbar.newTask': 'New task',
 
   // Inventory — add new part form (INV-CREATE)
   'inv.create.title': 'Add a part',
