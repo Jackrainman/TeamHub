@@ -1846,16 +1846,19 @@ button {
   gap: 10px;
   padding: 16px 20px;
 }
+/* 页面说明文字统一到 settings-desc 一档（muted/base/lh1.6）；次级注释用 settings-current 一档
+   （faint/sm），去掉原 gaps-note 的圆角灰底框——全站说明文字不再三种观感（审计 #7）。 */
 .gaps-intro {
+  margin: 0;
   font-size: var(--text-base);
-  color: var(--text);
+  color: var(--muted);
+  line-height: 1.6;
 }
 .gaps-note {
+  margin: 0;
   font-size: var(--text-sm);
-  color: var(--muted);
-  padding: 8px 11px;
-  background: var(--surface-muted);
-  border-radius: var(--radius-md);
+  color: var(--faint);
+  line-height: 1.5;
 }
 .gaps-list {
   display: grid;
@@ -2345,10 +2348,10 @@ button {
 }
 .schedule-date-seg {
   display: inline-flex;
-  padding: 4px;
+  padding: 3px;
   gap: 3px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--surface-muted);
 }
 .schedule-date-seg__btn {
@@ -2364,9 +2367,10 @@ button {
   cursor: pointer;
   line-height: 1.2;
 }
+/* active 态与全站 .seg__btn--active 同色（蓝），原绿色自成一套已弃（审计 #9）。 */
 .schedule-date-seg__btn.is-active {
   background: var(--surface);
-  color: var(--green);
+  color: var(--blue);
   box-shadow: var(--shadow);
 }
 .schedule-date-seg__name {
@@ -2570,11 +2574,16 @@ button {
   flex: 1;
   min-width: 0;
   padding: 2px 6px;
-  border: 1px solid var(--green);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--text);
   font-size: var(--text-xs);
+}
+/* 绿框只用于 focus（原常态绿边与 focus/disabled 语义混淆，审计 #8）。 */
+.relay-card__eta-input:focus {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
 }
 /* 泳道内次序 ◄►（取代旧自由拖拽）：横排放在卡头右侧。 */
 .relay-card__reorder {
@@ -2741,14 +2750,15 @@ button {
   filter: brightness(0.94);
 }
 /* 「沿用上一天计划」次按钮 + 空态引导卡的 CTA 行（SCHEDULE-DESIGN-LOCK）。 */
+/* 次级按钮：与 .settings-btn 同一观感（surface 底 / border-strong / text）——次级动作全站一套（审计 #3）。 */
 .relay-canvas__carry {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 14px;
+  padding: 8px 14px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  background: var(--surface-raised);
+  background: var(--surface);
   color: var(--text);
   font-size: var(--text-base);
   font-weight: var(--weight-bold);
@@ -2794,11 +2804,11 @@ button {
   color: var(--red);
 }
 .relay-add__cancel {
-  padding: 7px 14px;
+  padding: 8px 14px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  background: var(--surface-raised);
-  color: var(--muted);
+  background: var(--surface);
+  color: var(--text);
   font-size: var(--text-base);
   font-weight: var(--weight-bold);
   cursor: pointer;
