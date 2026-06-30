@@ -21,6 +21,7 @@ export function Field({
   className,
   hint,
   error,
+  required,
   as = 'label',
 }: {
   label: string;
@@ -31,11 +32,27 @@ export function Field({
   hint?: ReactNode;
   // 字段级内联错误（→ form-hint--warn）。已翻译好的字符串 / 节点。
   error?: ReactNode;
+  // 必填视觉标记：label 末尾加红 `*`（aria-hidden，必填语义由控件的 aria-required 传递给 AT）。
+  required?: boolean;
   // 外壳元素：复合控件 / checkbox 行用 'div'、真分组用 'fieldset'+legend。
   as?: 'label' | 'div' | 'fieldset';
 }) {
   const classes = className ? `kb-field ${className}` : 'kb-field';
-  const labelNode = as === 'fieldset' ? <legend>{label}</legend> : <span>{label}</span>;
+  const marker = required ? (
+    <span className="kb-field__req" aria-hidden="true"> *</span>
+  ) : null;
+  const labelNode =
+    as === 'fieldset' ? (
+      <legend>
+        {label}
+        {marker}
+      </legend>
+    ) : (
+      <span>
+        {label}
+        {marker}
+      </span>
+    );
   const body = (
     <>
       {labelNode}

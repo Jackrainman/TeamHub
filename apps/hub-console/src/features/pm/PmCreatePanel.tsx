@@ -100,27 +100,33 @@ export function PmCreatePanel({
   return (
     <form className="pm-form" onSubmit={submit}>
       <FormGrid>
-        <Field label={t('pm.field.projectId')}>
-          <input value={projectId} onChange={(e) => setProjectId(e.target.value)} />
+        <Field label={t('pm.field.projectId')} required>
+          <input
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+            aria-required
+          />
         </Field>
-        <Field label={t('pm.field.groupId')}>
+        <Field label={t('pm.field.groupId')} required>
           {/* 候选可挑又需手填（groupId 会变）→ Combobox（input+datalist）。 */}
           <Combobox
             value={groupId}
             onChange={setGroupId}
             options={groupOptions}
             ariaLabel={t('pm.field.groupId')}
+            required
           />
         </Field>
       </FormGrid>
-      <Field label={t('pm.field.title')}>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} />
+      <Field label={t('pm.field.title')} required>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} aria-required />
       </Field>
-      <Field label={t('pm.field.rawSummary')}>
+      <Field label={t('pm.field.rawSummary')} required>
         <textarea
           rows={2}
           value={rawSummary}
           onChange={(e) => setRawSummary(e.target.value)}
+          aria-required
         />
       </Field>
       <FormGrid>

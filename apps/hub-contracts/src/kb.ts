@@ -76,7 +76,7 @@ export const IssueCardSchema = z.object({
   relatedFiles: z.array(z.string().min(1).max(KB_TEXT_MAX)).max(KB_ARRAY_MAX),
   relatedCommits: z.array(z.string().min(1).max(KB_TEXT_MAX)).max(KB_ARRAY_MAX),
   relatedHistoricalIssueIds: z
-    .array(z.string().max(KB_ID_MAX))
+    .array(z.string().min(1).max(KB_ID_MAX))
     .max(KB_ARRAY_MAX)
     .default([]),
   createdAt: isoDateTimeSchema,
@@ -97,7 +97,7 @@ export const InvestigationRecordSchema = z.object({
   id: z.string().min(1).max(KB_ID_MAX),
   issueId: z.string().min(1).max(KB_ID_MAX),
   type: InvestigationRecordTypeSchema,
-  rawText: z.string().max(KB_LONG_TEXT_MAX),
+  rawText: z.string().min(1).max(KB_LONG_TEXT_MAX),
   polishedText: z.string().max(KB_LONG_TEXT_MAX),
   aiExtractedSignals: z.array(z.string().max(KB_TEXT_MAX)).max(KB_ARRAY_MAX),
   linkedFiles: z.array(z.string().max(KB_TEXT_MAX)).max(KB_ARRAY_MAX),

@@ -37,6 +37,7 @@ export function SegToggle<T extends string | boolean>({
           key={String(opt.value)}
           type="button"
           className={segClass(value === opt.value)}
+          aria-pressed={value === opt.value}
           onClick={() => onChange(opt.value)}
         >
           {opt.label}

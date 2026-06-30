@@ -363,7 +363,9 @@ export class FileGovStore implements GovStore {
   private async writeOnce(): Promise<void> {
     await mkdir(dirname(this.filePath), { recursive: true });
     const tmp = `${this.filePath}.tmp`;
-    const snapshot = await this.inner.getSnapshot();
+    // 只读序列化，无需 getSnapshot 的数组克隆隔离（JSON 与 live 逐字相同，见 getSnapshot 注释）；
+    // JSON.stringify 同步读取、无 await 间隙，用 live 引用即可，省每次写的 8 数组克隆。
+    const snapshot = this.inner.snapshotForRollback();
     try {
       await writeFile(tmp, JSON.stringify(snapshot, null, 2), 'utf8');
       await rename(tmp, this.filePath);

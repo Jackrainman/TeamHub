@@ -1089,6 +1089,11 @@ button,
   font-weight: var(--weight-bold);
 }
 
+/* 必填标记：label 末尾的红 `*`（Field required）。aria-hidden，仅视觉提示。 */
+.kb-field__req {
+  color: var(--red);
+}
+
 /* 字段下方辅助说明（如编号位的"直接出现在机器人编号里"提示） */
 .kb-field__hint {
   color: var(--muted);

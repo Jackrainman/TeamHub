@@ -140,7 +140,9 @@ export class FileInvStore implements InvStore {
   private async writeOnce(): Promise<void> {
     await mkdir(dirname(this.filePath), { recursive: true });
     const tmp = `${this.filePath}.tmp`;
-    const snapshot = await this.inner.getInventorySnapshot();
+    // 只读序列化，无需 getInventorySnapshot 的数组克隆隔离（JSON 与 live 逐字相同）；
+    // JSON.stringify 同步读取、无 await 间隙，用 live 引用即可，省每次写的数组克隆。
+    const snapshot = this.inner.snapshotForRollback();
     try {
       await writeFile(tmp, JSON.stringify(snapshot, null, 2), 'utf8');
       await rename(tmp, this.filePath);

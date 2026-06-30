@@ -485,6 +485,7 @@ export function ArchivePage({
             key={g}
             type="button"
             className={segClass(viewGroup === g)}
+            aria-pressed={viewGroup === g}
             onClick={() => setViewGroup(g)}
           >
             {t(GROUP_LABEL_KEY[g])}

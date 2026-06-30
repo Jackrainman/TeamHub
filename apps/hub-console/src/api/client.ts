@@ -468,7 +468,7 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
 }
 
 // DELETE /api/relay-handoffs/:id 命中返回 { deleted: id }（server.ts:541）。
-const DeletedResponseSchema = z.object({ deleted: z.string() });
+const DeletedResponseSchema = z.object({ deleted: z.string().min(1) });
 
 function normalizeBaseUrl(value: string | undefined): string {
   const trimmed = value?.trim();
@@ -486,7 +486,11 @@ async function fetchJson<T>(
 ): Promise<T> {
   const response = await fetcher(url);
   if (!response.ok) {
-    throw new Error(`Hub API ${response.status}: ${url}`);
+    // 读侧也透出后端 { detail }（与 sendJson 对称）：否则只剩 "Hub API 400: url"、真实原因丢失。
+    const detail = await readDetail(response);
+    throw new Error(
+      detail ? `${response.status}: ${detail}` : `Hub API ${response.status}: ${url}`,
+    );
   }
   return schema.parse(await response.json());
 }

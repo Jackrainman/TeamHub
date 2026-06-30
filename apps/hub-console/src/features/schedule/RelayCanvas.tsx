@@ -23,6 +23,7 @@ import { canBoardResource } from '@teamhub/hub-contracts';
 import type { SharedResource, Task } from '@teamhub/hub-contracts';
 import { useI18n } from '../../i18n';
 import { Field } from '../../components/Field';
+import { FormGrid } from '../../components/FormGrid';
 import { FormBanner } from '../../components/FormBanner';
 import { FormEmptyState } from '../../components/FormEmptyState';
 import { isoPrevDay } from './date-utils';
@@ -896,7 +897,7 @@ function AddLegForm({
         />
       ) : (
         <form className="pm-form" onSubmit={submit}>
-          <div className="pm-form__grid">
+          <FormGrid>
             <Field label={t('schedule.relay.addRobot')}>
               <select
                 value={resourceId}
@@ -918,7 +919,7 @@ function AddLegForm({
                 ))}
               </select>
             </Field>
-          </div>
+          </FormGrid>
           <div className="pm-form__footer">
             <button
               className="kb-submit"

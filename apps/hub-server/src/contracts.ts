@@ -1,11 +1,5 @@
 import { z } from 'zod';
 export {
-  AdapterCapabilitiesResponseSchema,
-  AdapterDescriptorSchema,
-  AdapterHealthResponseSchema,
-  AdapterInvokeRequestSchema,
-  AdapterInvokeResponseSchema,
-  AdaptersResponseSchema,
   AgentBackendCapabilitiesResponseSchema,
   AgentBackendHealthResponseSchema,
   AgentBackendInvokeRequestSchema,
@@ -94,12 +88,6 @@ export {
   CreatePartActionResponseSchema,
 } from '@teamhub/hub-contracts';
 export type {
-  AdapterCapabilitiesResponse,
-  AdapterDescriptor,
-  AdapterHealthResponse,
-  AdapterInvokeRequest,
-  AdapterInvokeResponse,
-  AdaptersResponse,
   AgentBackend,
   AgentBackendCapabilitiesResponse,
   AgentBackendHealthResponse,
@@ -131,7 +119,6 @@ export type {
   WaiveDependencyResponse,
   CreateArtifactRequest,
   CreateArtifactResponse,
-  ArtifactVersionKey,
   KbSimilarResponse,
   KbCloseoutRequest,
   KbCloseoutResponse,

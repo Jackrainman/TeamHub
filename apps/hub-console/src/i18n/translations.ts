@@ -184,6 +184,7 @@ const zh = {
   'schedule.date.tomorrow': '明天',
   'schedule.date.dayAfter': '后天',
   'schedule.date.findSpecific': '查找特定日期计划',
+  'schedule.date.segLabel': '选择日期',
   'gaps.loading': '正在加载方向缺口…',
   'gaps.error': '方向缺口不可用（后端没连上？检查后端地址或服务是否在线）',
   'gaps.intro': '按组列出现在 open / escalated 的方向缺口，组长一眼看清哪里缺人手。',
@@ -504,6 +505,7 @@ const zh = {
   'inv.kind.dismount': '拆下',
   'inv.kind.reserve': '预留',
   'inv.kind.release': '释放预留',
+  'inv.reserved.tooltip': '预留',
   'inv.kind.damage': '损坏',
   'inv.holder.idle': '货架 / 闲置',
   'inv.history.title': '拆装 / 记账历史',
@@ -828,6 +830,7 @@ const en: Record<TranslationKey, string> = {
   'schedule.date.tomorrow': 'Tomorrow',
   'schedule.date.dayAfter': 'Day after',
   'schedule.date.findSpecific': 'Find a specific date',
+  'schedule.date.segLabel': 'Select date',
 
   'gaps.loading': 'Loading direction gaps…',
   'gaps.error':
@@ -1161,6 +1164,7 @@ const en: Record<TranslationKey, string> = {
   'inv.kind.dismount': 'Dismount',
   'inv.kind.reserve': 'Reserve',
   'inv.kind.release': 'Release',
+  'inv.reserved.tooltip': 'Reserved',
   'inv.kind.damage': 'Damage',
   'inv.holder.idle': 'Shelf / idle',
   'inv.history.title': 'Mount / log history',

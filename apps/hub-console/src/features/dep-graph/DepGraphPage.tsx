@@ -340,7 +340,7 @@ export function DepGraphPage({
         },
       });
     },
-    [graph, t, connectMutation],
+    [graph, t, connectMutation.mutate],
   );
 
   // 成功/错误横幅几秒后自动消失：否则它一直占着画布顶部、挡住删除条等后续操作。
@@ -630,7 +630,6 @@ function DetailPanel({
       {showMyMap ? (
         <span
           className="my-map-link my-map-link--disabled"
-          aria-disabled="true"
           title={t('nav.soon')}
         >
           {/* 「我的地图」后端未就绪：内联显示即将上线角标，不再只靠 hover title 暗示。 */}

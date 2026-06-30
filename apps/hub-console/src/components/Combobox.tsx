@@ -10,6 +10,7 @@ export function Combobox({
   placeholder,
   ariaLabel,
   className,
+  required,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -17,6 +18,8 @@ export function Combobox({
   placeholder?: string;
   ariaLabel?: string;
   className?: string;
+  // 必填：透传 aria-required 给 AT（与 Field required 视觉标记配套）。
+  required?: boolean;
 }) {
   const listId = useId();
   return (
@@ -27,6 +30,7 @@ export function Combobox({
         value={value}
         placeholder={placeholder}
         aria-label={ariaLabel}
+        aria-required={required || undefined}
         onChange={(e) => onChange(e.target.value)}
       />
       <datalist id={listId}>

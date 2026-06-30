@@ -56,7 +56,7 @@ export function SchedulePage({
 
       {/* 日期选择器：左=今天/明天/后天分段，右=查找特定日期（windowLabel = 'YYYY-MM-DD'）。 */}
       <div className="schedule-date-bar">
-        <div className="schedule-date-seg" role="group">
+        <div className="schedule-date-seg" role="group" aria-label={t('schedule.date.segLabel')}>
           {segments.map((seg) => (
             <button
               key={seg.iso}

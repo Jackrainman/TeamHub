@@ -81,7 +81,7 @@ export function InvLedgerTable({
                       <>
                         <span>{c.used}</span>
                         {c.reserved > 0 ? (
-                          <span className="inv-reserved" title="预留 / reserved">
+                          <span className="inv-reserved" title={t('inv.reserved.tooltip')}>
                             {' '}
                             (+{c.reserved})
                           </span>
