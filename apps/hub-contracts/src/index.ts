@@ -79,6 +79,19 @@ export {
   SCENARIO_WINDOW_CONVERGENCE,
   GOVERNANCE_SCENARIO_TIME,
   GOVERNANCE_SCENARIO_NOW,
+  // per-module seed builder（模块化第5步·§5）：无机器人租户可只调 buildPmSeed()+buildKbSeed()
+  buildPmSeed,
+  buildKbSeed,
+  buildLedgerSeed,
+  buildArchiveSeed,
+  buildGovernanceSeed,
+  buildScheduleSeed,
+  buildScheduleResourceDownVariant,
+} from './fixtures.js';
+export type {
+  PmSeedFixture,
+  KbGrowthSeedFixture,
+  LedgerAllocationRefs,
 } from './fixtures.js';
 
 // 共享基元（ActorRef / isoDateTime）+ 治理主轴域（D-028，拆 pm-core/schedule-infra 两文件）

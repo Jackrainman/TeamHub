@@ -13,7 +13,8 @@ import type {
   GitRepoRef,
   HubEvent,
 } from './schemas.js';
-import type { MemberKnowledge } from './growth.js';
+import type { Dependency, Group, Member, Need, Task } from './pm-core.js';
+import type { KnowledgeNode, MemberKnowledge, TaskKnowledgeTag } from './growth.js';
 import type { KbSnapshot } from './kb.js';
 import type { InventorySnapshot, TrackedPart } from './inventory.js';
 
@@ -403,7 +404,24 @@ const PROVIDER_EC_B = {
   source: 'console' as const,
 };
 
-export const governanceScenarioFixture: GovernanceSnapshot = {
+/**
+ * PM 核心域 seed builder（模块化第5步·§5）：season/project/stage + groups/members/tasks/
+ * dependencies/needs —— 纯 PM 实体，不含 KB 成长树 / artifacts / schedule 资源。
+ * 与 buildKbSeed() 组合即"无机器人租户"干净首屏（不出现任何 R1/R2 SharedResource）。
+ */
+export interface PmSeedFixture {
+  seasonId: string;
+  projectId: string;
+  stage: string;
+  groups: Group[];
+  members: Member[];
+  tasks: Task[];
+  dependencies: Dependency[];
+  needs: Need[];
+}
+
+export function buildPmSeed(): PmSeedFixture {
+  return {
   seasonId: 'season-robocon-2026',
   projectId: 'prj-robots',
   stage: '备赛-整机调试',
@@ -458,19 +476,59 @@ export const governanceScenarioFixture: GovernanceSnapshot = {
     { id: 'need-rtos', projectId: 'prj-robots', onTaskId: 't-r1-chassis', description: '需要懂 RTOS 的人协助底盘中断时序', providerGroupId: 'grp-ec', claimedByMemberId: null, status: 'open', neededSkills: ['RTOS', 'CAN'], source: 'aiSuggested', confirmedBy: PROVIDER_EC_B, openedAt: '2026-06-08T20:00:00.000Z', escalatedAt: null },
     { id: 'need-board-review', projectId: 'prj-robots', onTaskId: 't-r1-chassis', description: '新版电路板需电控一起复核是否引入问题', providerGroupId: 'grp-circuit', claimedByMemberId: 'm-circuitD', status: 'claimed', neededSkills: ['circuit'], source: 'human', confirmedBy: PROVIDER_EC_B, openedAt: '2026-06-09T10:00:00.000Z', escalatedAt: null },
   ],
-  knowledgeNodes: [
-    { id: 'kn-rtos', name: 'FreeRTOS 中断与任务调度', groupId: 'grp-ec', parentNodeId: null, resourceLinks: [{ label: '去年底盘中断笔记', uri: 'repo://r1-chassis/notes/irq.md' }], createdAt: GOVERNANCE_SCENARIO_TIME },
-    { id: 'kn-can', name: '底盘 CAN 通信协议', groupId: 'grp-ec', parentNodeId: null, resourceLinks: [{ label: 'CAN 协议文档', uri: 'doc://can-protocol' }], createdAt: GOVERNANCE_SCENARIO_TIME },
-    { id: 'kn-vision-cal', name: 'R1 视觉标定流程', groupId: 'grp-vision', parentNodeId: null, resourceLinks: [{ label: 'R2 同款视觉代码', uri: 'repo://r2-vision/src' }], createdAt: GOVERNANCE_SCENARIO_TIME },
-  ],
-  taskKnowledgeTags: [
-    { id: 'tkt-1', taskId: 't-r1-chassis', knowledgeNodeId: 'kn-rtos', source: 'aiSuggested', confirmedBy: PROVIDER_EC_B },
-    { id: 'tkt-2', taskId: 't-r1-chassis', knowledgeNodeId: 'kn-can', source: 'human', confirmedBy: PROVIDER_EC_B },
-    { id: 'tkt-3', taskId: 't-r1-vision-stream', knowledgeNodeId: 'kn-vision-cal', source: 'human', confirmedBy: PROVIDER_VISION_A },
-  ],
-  // 图纸提交日志/时间线 seed（v1，A6）：8 条跨机构跨日期迭代历史，GET /api/artifacts 读这个。
-  artifacts: artifactVersionLogFixtures,
-};
+  };
+}
+
+/**
+ * KB 成长树 seed builder：GovernanceSnapshot 内嵌的 knowledgeNodes/taskKnowledgeTags
+ * （growth.ts 知识树部分，随 knowledge-base 模块走）。kb.ts 域自身的 KbSnapshot（bug 追踪归档，
+ * 见下方 kbScenarioFixture）本就独立于本 spread，未纳入本 builder——不是本次多域耦合的对象。
+ */
+export interface KbGrowthSeedFixture {
+  knowledgeNodes: KnowledgeNode[];
+  taskKnowledgeTags: TaskKnowledgeTag[];
+}
+
+export function buildKbSeed(): KbGrowthSeedFixture {
+  return {
+    knowledgeNodes: [
+      { id: 'kn-rtos', name: 'FreeRTOS 中断与任务调度', groupId: 'grp-ec', parentNodeId: null, resourceLinks: [{ label: '去年底盘中断笔记', uri: 'repo://r1-chassis/notes/irq.md' }], createdAt: GOVERNANCE_SCENARIO_TIME },
+      { id: 'kn-can', name: '底盘 CAN 通信协议', groupId: 'grp-ec', parentNodeId: null, resourceLinks: [{ label: 'CAN 协议文档', uri: 'doc://can-protocol' }], createdAt: GOVERNANCE_SCENARIO_TIME },
+      { id: 'kn-vision-cal', name: 'R1 视觉标定流程', groupId: 'grp-vision', parentNodeId: null, resourceLinks: [{ label: 'R2 同款视觉代码', uri: 'repo://r2-vision/src' }], createdAt: GOVERNANCE_SCENARIO_TIME },
+    ],
+    taskKnowledgeTags: [
+      { id: 'tkt-1', taskId: 't-r1-chassis', knowledgeNodeId: 'kn-rtos', source: 'aiSuggested', confirmedBy: PROVIDER_EC_B },
+      { id: 'tkt-2', taskId: 't-r1-chassis', knowledgeNodeId: 'kn-can', source: 'human', confirmedBy: PROVIDER_EC_B },
+      { id: 'tkt-3', taskId: 't-r1-vision-stream', knowledgeNodeId: 'kn-vision-cal', source: 'human', confirmedBy: PROVIDER_VISION_A },
+    ],
+  };
+}
+
+/**
+ * archive 模块 seed builder：图纸/固件提交时间线（ArtifactRef[]，v1，A6，8 条跨机构跨日期迭代历史），
+ * GET /api/artifacts 读这个数组；随 archive 模块走。
+ */
+export function buildArchiveSeed(): ArtifactRef[] {
+  return artifactVersionLogFixtures;
+}
+
+/**
+ * 组合 PM + KB成长 + archive 三个 builder 成 GovernanceSnapshot——替掉原先手写的多域大字面量
+ * （fixtures.ts 原 :406-473）。无机器人租户只需调 buildPmSeed()+buildKbSeed()，不触发本函数、
+ * 不出现任何 R1/R2 SharedResource；机器人全套 seed 由本函数组合，保持不变。
+ */
+export function buildGovernanceSeed(): GovernanceSnapshot {
+  const pm = buildPmSeed();
+  const kb = buildKbSeed();
+  return {
+    ...pm,
+    knowledgeNodes: kb.knowledgeNodes,
+    taskKnowledgeTags: kb.taskKnowledgeTags,
+    artifacts: buildArchiveSeed(),
+  };
+}
+
+export const governanceScenarioFixture: GovernanceSnapshot = buildGovernanceSeed();
 
 // 私有兴趣关系样例（D-027 护栏：visibility 默认 private，无 score/完成率）。
 export const memberKnowledgeFixtures: MemberKnowledge[] = [
@@ -499,34 +557,53 @@ export const memberKnowledgeFixtures: MemberKnowledge[] = [
 export const SCENARIO_WINDOW_WEEKDAY = '2026-06-21'; // 场景甲·平日差异化（接力画布首屏默认即今天时命中）
 export const SCENARIO_WINDOW_CONVERGENCE = '2026-06-28'; // 场景乙·总联调日
 
-export const scheduleScenarioFixture: ScheduleSnapshot = {
-  ...governanceScenarioFixture,
-  // D-072 §3.2「机器人 = 带编号对象」：26 赛季 R1 / R2 两台，displayCode 派生（禁手写，decision I/K）。
-  // displayCode 同时被库存总表（INV-BOM-CORE）当机器人列表头复用（displayCode ?? name → 26R1 / 26R2）。
-  resources: [
-    { id: 'res-r1', projectId: 'prj-robots', name: 'R1 比赛机器人', kind: 'robot', robotTarget: 'R1', status: 'inUse', statusReason: null, statusSource: 'console', season: '26', version: 1, displayCode: deriveDisplayCode('26', 'R1', 1), updatedAt: GOVERNANCE_SCENARIO_NOW },
-    { id: 'res-r2', projectId: 'prj-robots', name: 'R2 比赛机器人', kind: 'robot', robotTarget: 'R2', status: 'available', statusReason: null, statusSource: 'console', season: '26', version: 1, displayCode: deriveDisplayCode('26', 'R2', 1), updatedAt: GOVERNANCE_SCENARIO_NOW },
-  ],
-  resourceSessions: [
-    // 平日差异化：电控持 R1 做「R1 系统调试」（非总联调 → 三态成立）。id 改名 sess-tonight-ec
-    // （Q1，仅不透明键）；invitedMemberIds 留空（Q2，永不进派生输出）。
-    { id: 'sess-tonight-ec', projectId: 'prj-robots', resourceId: 'res-r1', windowLabel: SCENARIO_WINDOW_WEEKDAY, orderInWindow: 0, holderGroupId: 'grp-ec', holderTaskId: 't-r1-system-tune', invitedMemberIds: [], note: 'R1 归电控做系统调试（平日差异化场景）', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, eta: null, createdAt: GOVERNANCE_SCENARIO_NOW },
-    // 总联调日 = 全组各一人：收敛任务（convergenceScope='allLeafGroups'）→ 派生四叶子组全 present。
-    // 持有组填哨兵 grp-convergence；R1+R2 两台车都演示（Q4）。windowLabel 与平日不同，互不串场（C-4）。
-    { id: 'sess-convergence-day-r1', projectId: 'prj-robots', resourceId: 'res-r1', windowLabel: SCENARIO_WINDOW_CONVERGENCE, orderInWindow: 0, holderGroupId: 'grp-convergence', holderTaskId: 't-r1-integration', invitedMemberIds: [], note: '总联调日：R1 全组各到一人', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, eta: null, createdAt: GOVERNANCE_SCENARIO_NOW },
-    { id: 'sess-convergence-day-r2', projectId: 'prj-robots', resourceId: 'res-r2', windowLabel: SCENARIO_WINDOW_CONVERGENCE, orderInWindow: 0, holderGroupId: 'grp-convergence', holderTaskId: 't-r2-integration', invitedMemberIds: [], note: '总联调日：R2 全组各到一人', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, eta: null, createdAt: GOVERNANCE_SCENARIO_NOW },
-  ],
-  // 接力交接线（R1）：默认空，重启回 seed（D-029，内存态）。队长在接力画布拉线产生。
-  relayHandoffs: [],
-};
+/**
+ * SCHEDULE（presence-schedule，robotics-only）模块 seed builder：在 base（任意 GovernanceSnapshot——
+ * 机器人租户传 governanceScenarioFixture，未来别的垂直包可传自己的 PM+KB+ARTIFACT 组合）之上叠
+ * resources/resourceSessions/relayHandoffs。函数组合替掉原顶层对象 spread
+ * （fixtures.ts 原 :503 `scheduleScenarioFixture = {...governanceScenarioFixture, resources, ...}`）。
+ * 不注册 presence-schedule 模块的租户永不调用本函数、永不出现 resources。
+ */
+export function buildScheduleSeed(base: GovernanceSnapshot): ScheduleSnapshot {
+  return {
+    ...base,
+    // D-072 §3.2「机器人 = 带编号对象」：26 赛季 R1 / R2 两台，displayCode 派生（禁手写，decision I/K）。
+    // displayCode 同时被库存总表（INV-BOM-CORE）当机器人列表头复用（displayCode ?? name → 26R1 / 26R2）。
+    resources: [
+      { id: 'res-r1', projectId: 'prj-robots', name: 'R1 比赛机器人', kind: 'robot', robotTarget: 'R1', status: 'inUse', statusReason: null, statusSource: 'console', season: '26', version: 1, displayCode: deriveDisplayCode('26', 'R1', 1), updatedAt: GOVERNANCE_SCENARIO_NOW },
+      { id: 'res-r2', projectId: 'prj-robots', name: 'R2 比赛机器人', kind: 'robot', robotTarget: 'R2', status: 'available', statusReason: null, statusSource: 'console', season: '26', version: 1, displayCode: deriveDisplayCode('26', 'R2', 1), updatedAt: GOVERNANCE_SCENARIO_NOW },
+    ],
+    resourceSessions: [
+      // 平日差异化：电控持 R1 做「R1 系统调试」（非总联调 → 三态成立）。id 改名 sess-tonight-ec
+      // （Q1，仅不透明键）；invitedMemberIds 留空（Q2，永不进派生输出）。
+      { id: 'sess-tonight-ec', projectId: 'prj-robots', resourceId: 'res-r1', windowLabel: SCENARIO_WINDOW_WEEKDAY, orderInWindow: 0, holderGroupId: 'grp-ec', holderTaskId: 't-r1-system-tune', invitedMemberIds: [], note: 'R1 归电控做系统调试（平日差异化场景）', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, eta: null, createdAt: GOVERNANCE_SCENARIO_NOW },
+      // 总联调日 = 全组各一人：收敛任务（convergenceScope='allLeafGroups'）→ 派生四叶子组全 present。
+      // 持有组填哨兵 grp-convergence；R1+R2 两台车都演示（Q4）。windowLabel 与平日不同，互不串场（C-4）。
+      { id: 'sess-convergence-day-r1', projectId: 'prj-robots', resourceId: 'res-r1', windowLabel: SCENARIO_WINDOW_CONVERGENCE, orderInWindow: 0, holderGroupId: 'grp-convergence', holderTaskId: 't-r1-integration', invitedMemberIds: [], note: '总联调日：R1 全组各到一人', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, eta: null, createdAt: GOVERNANCE_SCENARIO_NOW },
+      { id: 'sess-convergence-day-r2', projectId: 'prj-robots', resourceId: 'res-r2', windowLabel: SCENARIO_WINDOW_CONVERGENCE, orderInWindow: 0, holderGroupId: 'grp-convergence', holderTaskId: 't-r2-integration', invitedMemberIds: [], note: '总联调日：R2 全组各到一人', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, eta: null, createdAt: GOVERNANCE_SCENARIO_NOW },
+    ],
+    // 接力交接线（R1）：默认空，重启回 seed（D-029，内存态）。队长在接力画布拉线产生。
+    relayHandoffs: [],
+  };
+}
 
-export const scheduleResourceDownFixture: ScheduleSnapshot = {
-  ...scheduleScenarioFixture,
-  resources: [
-    { ...scheduleScenarioFixture.resources[0], status: 'down', statusReason: '撞坏维修中' },
-    scheduleScenarioFixture.resources[1],
-  ],
-};
+export const scheduleScenarioFixture: ScheduleSnapshot = buildScheduleSeed(governanceScenarioFixture);
+
+/**
+ * down 变体 builder：R1 撞坏 → status down，其余不变。替掉原顶层再 spread
+ * （fixtures.ts 原 :524 `scheduleResourceDownFixture = {...scheduleScenarioFixture, resources: [...]}`）。
+ */
+export function buildScheduleResourceDownVariant(base: ScheduleSnapshot): ScheduleSnapshot {
+  return {
+    ...base,
+    resources: [
+      { ...base.resources[0], status: 'down', statusReason: '撞坏维修中' },
+      base.resources[1],
+    ],
+  };
+}
+
+export const scheduleResourceDownFixture: ScheduleSnapshot = buildScheduleResourceDownVariant(scheduleScenarioFixture);
 
 /**
  * 战队知识库锚点场景（KB-CORE）：跨赛季重踩的真实 bug 历史（CAN / 3508 电机 / MicroROS），
@@ -642,15 +719,6 @@ export const kbScenarioFixture: KbSnapshot = {
   ],
 };
 
-/**
- * 库存 / BOM 锚点场景（INV-BOM-CORE，demo 模式才注入；TEAMHUB_DEMO_SEED=false → 空板）。
- * 机器人列复用 GovStore 的 res-r1 / res-r2（PRESENCE 给资源补 displayCode 后矩阵列自动切到 26R1 / 26R2）。
- * 三个 trackIndividually 件（电机/电调/主控）+ 一个按数量件（M4 螺丝）；个体实例与 allocations.used 计数一致：
- *  - GM6020 电机 total 9：res-r1 用 2 / res-r2 用 4 / 闲置 3（历史：盘点 10 → 烧坏 1 → 9）。
- *  - C620 电调 total 9：同上分布。
- *  - 主控板 total 3：res-r1 / res-r2 各 1 / 闲置 1，threshold 2 → 闲置 1 < 2 触发缺料告警（demo 红）。
- *  - M4 螺丝 total 200（按数量、无个体件），threshold 50。
- */
 function makeTrackedParts(
   partTypeId: string,
   prefix: string,
@@ -668,136 +736,179 @@ function makeTrackedParts(
   }));
 }
 
-const GM6020_HOLDERS = ['res-r1', 'res-r1', 'res-r2', 'res-r2', 'res-r2', 'res-r2', 'idle', 'idle', 'idle'];
-const C620_HOLDERS = ['res-r1', 'res-r1', 'res-r2', 'res-r2', 'res-r2', 'res-r2', 'idle', 'idle', 'idle'];
-const MC_HOLDERS = ['res-r1', 'res-r2', 'idle'];
+/**
+ * ledger（INV-BOM-CORE）跨域外键注入点：机器人矩阵列轴的两个持有方引用，由调用方注入
+ * （机器人租户传 schedule 的 res-r1/res-r2 id；不启用 presence-schedule 的租户可传自己的
+ * deployable-unit id）。ledger 模块内部不硬编码 SCHEDULE 域资源 id 字面量
+ * （修 fixtures.ts 原 :671-673 `GM6020_HOLDERS/C620_HOLDERS/MC_HOLDERS` 硬编 res-r1/res-r2 的
+ * INV→SCHEDULE 跨域外键）。
+ */
+export interface LedgerAllocationRefs {
+  primary: string;
+  secondary: string;
+}
 
-export const inventoryScenarioFixture: InventorySnapshot = {
-  projectId: 'prj-robots',
-  partTypes: [
-    {
-      id: 'parttype-gm6020',
-      projectId: 'prj-robots',
-      partNumber: 'GM6020',
-      name: 'GM6020 电机',
-      category: 'motor',
-      unit: '个',
-      trackIndividually: true,
-      totalQuantity: 9,
-      allocations: [
-        { resourceId: 'res-r1', used: 2, reserved: 0 },
-        { resourceId: 'res-r2', used: 4, reserved: 0 },
-      ],
-      lowStockThreshold: 2,
-      lastCountedAt: GOVERNANCE_SCENARIO_TIME,
-      updatedAt: GOVERNANCE_SCENARIO_NOW,
-    },
-    {
-      id: 'parttype-c620',
-      projectId: 'prj-robots',
-      partNumber: 'C620',
-      name: 'C620 电调',
-      category: 'esc',
-      unit: '个',
-      trackIndividually: true,
-      totalQuantity: 9,
-      allocations: [
-        { resourceId: 'res-r1', used: 2, reserved: 0 },
-        { resourceId: 'res-r2', used: 4, reserved: 0 },
-      ],
-      lowStockThreshold: 2,
-      lastCountedAt: GOVERNANCE_SCENARIO_TIME,
-      updatedAt: GOVERNANCE_SCENARIO_NOW,
-    },
-    {
-      id: 'parttype-maincontroller',
-      projectId: 'prj-robots',
-      partNumber: 'main-controller',
-      name: '主控板',
-      category: 'controller',
-      unit: '块',
-      trackIndividually: true,
-      totalQuantity: 3,
-      allocations: [
-        { resourceId: 'res-r1', used: 1, reserved: 0 },
-        { resourceId: 'res-r2', used: 1, reserved: 0 },
-      ],
-      lowStockThreshold: 2,
-      lastCountedAt: GOVERNANCE_SCENARIO_TIME,
-      updatedAt: GOVERNANCE_SCENARIO_NOW,
-    },
-    {
-      id: 'parttype-m4screw',
-      projectId: 'prj-robots',
-      partNumber: 'M4x10',
-      name: 'M4 螺丝',
-      category: 'mechanical',
-      unit: '颗',
-      trackIndividually: false,
-      totalQuantity: 200,
-      allocations: [],
-      lowStockThreshold: 50,
-      lastCountedAt: GOVERNANCE_SCENARIO_TIME,
-      updatedAt: GOVERNANCE_SCENARIO_NOW,
-    },
-  ],
-  trackedParts: [
-    ...makeTrackedParts('parttype-gm6020', 'part-gm', GM6020_HOLDERS),
-    ...makeTrackedParts('parttype-c620', 'part-c620', C620_HOLDERS),
-    ...makeTrackedParts('parttype-maincontroller', 'part-mc', MC_HOLDERS),
-  ],
-  actions: [
-    {
-      id: 'act-gm-stocktake',
-      projectId: 'prj-robots',
-      partTypeId: 'parttype-gm6020',
-      trackedPartId: null,
-      kind: 'stocktake',
-      quantityDelta: 10,
-      fromHolder: null,
-      toHolder: null,
-      note: '赛季初盘点 GM6020 电机',
-      recordedBy: { source: 'human', at: GOVERNANCE_SCENARIO_TIME },
-      recordedAt: GOVERNANCE_SCENARIO_TIME,
-    },
-    {
-      id: 'act-gm-mount-r2',
-      projectId: 'prj-robots',
-      partTypeId: 'parttype-gm6020',
-      trackedPartId: 'part-gm-3',
-      kind: 'mount',
-      quantityDelta: 1,
-      fromHolder: 'idle',
-      toHolder: 'res-r2',
-      note: 'GM6020 装到 R2 底盘',
-      recordedBy: { source: 'human', at: '2026-06-10T03:00:00.000Z' },
-      recordedAt: '2026-06-10T03:00:00.000Z',
-    },
-    {
-      id: 'act-gm-damage',
-      projectId: 'prj-robots',
-      partTypeId: 'parttype-gm6020',
-      trackedPartId: null,
-      kind: 'damage',
-      quantityDelta: 1,
-      fromHolder: null,
-      toHolder: null,
-      note: '坏了一个 3508、烧了',
-      recordedBy: { source: 'human', at: GOVERNANCE_SCENARIO_NOW },
-      recordedAt: GOVERNANCE_SCENARIO_NOW,
-    },
-    {
-      id: 'act-mc-stocktake',
-      projectId: 'prj-robots',
-      partTypeId: 'parttype-maincontroller',
-      trackedPartId: null,
-      kind: 'stocktake',
-      quantityDelta: 3,
-      fromHolder: null,
-      toHolder: null,
-      note: '盘点主控板',
-      recordedBy: { source: 'human', at: GOVERNANCE_SCENARIO_TIME },
-      recordedAt: GOVERNANCE_SCENARIO_TIME,
-    },
-  ],
-};
+function resolveHolderPattern(
+  pattern: ReadonlyArray<'primary' | 'secondary' | 'idle'>,
+  refs: LedgerAllocationRefs,
+): string[] {
+  return pattern.map((tag) => (tag === 'idle' ? 'idle' : refs[tag]));
+}
+
+/**
+ * 库存 / BOM 锚点场景（INV-BOM-CORE，demo 模式才注入；TEAMHUB_DEMO_SEED=false → 空板）。
+ * 机器人列引用由 resourceRefs 注入（不直连 SCHEDULE 资源 id 字面量，见上）。
+ * 三个 trackIndividually 件（电机/电调/主控）+ 一个按数量件（M4 螺丝）；个体实例与 allocations.used 计数一致：
+ *  - GM6020 电机 total 9：primary 用 2 / secondary 用 4 / 闲置 3（历史：盘点 10 → 烧坏 1 → 9）。
+ *  - C620 电调 total 9：同上分布。
+ *  - 主控板 total 3：primary / secondary 各 1 / 闲置 1，threshold 2 → 闲置 1 < 2 触发缺料告警（demo 红）。
+ *  - M4 螺丝 total 200（按数量、无个体件），threshold 50。
+ */
+export function buildLedgerSeed(resourceRefs: LedgerAllocationRefs): InventorySnapshot {
+  const GM6020_HOLDERS = resolveHolderPattern(
+    ['primary', 'primary', 'secondary', 'secondary', 'secondary', 'secondary', 'idle', 'idle', 'idle'],
+    resourceRefs,
+  );
+  const C620_HOLDERS = resolveHolderPattern(
+    ['primary', 'primary', 'secondary', 'secondary', 'secondary', 'secondary', 'idle', 'idle', 'idle'],
+    resourceRefs,
+  );
+  const MC_HOLDERS = resolveHolderPattern(['primary', 'secondary', 'idle'], resourceRefs);
+
+  return {
+    projectId: 'prj-robots',
+    partTypes: [
+      {
+        id: 'parttype-gm6020',
+        projectId: 'prj-robots',
+        partNumber: 'GM6020',
+        name: 'GM6020 电机',
+        category: 'motor',
+        unit: '个',
+        trackIndividually: true,
+        totalQuantity: 9,
+        allocations: [
+          { resourceId: resourceRefs.primary, used: 2, reserved: 0 },
+          { resourceId: resourceRefs.secondary, used: 4, reserved: 0 },
+        ],
+        lowStockThreshold: 2,
+        lastCountedAt: GOVERNANCE_SCENARIO_TIME,
+        updatedAt: GOVERNANCE_SCENARIO_NOW,
+      },
+      {
+        id: 'parttype-c620',
+        projectId: 'prj-robots',
+        partNumber: 'C620',
+        name: 'C620 电调',
+        category: 'esc',
+        unit: '个',
+        trackIndividually: true,
+        totalQuantity: 9,
+        allocations: [
+          { resourceId: resourceRefs.primary, used: 2, reserved: 0 },
+          { resourceId: resourceRefs.secondary, used: 4, reserved: 0 },
+        ],
+        lowStockThreshold: 2,
+        lastCountedAt: GOVERNANCE_SCENARIO_TIME,
+        updatedAt: GOVERNANCE_SCENARIO_NOW,
+      },
+      {
+        id: 'parttype-maincontroller',
+        projectId: 'prj-robots',
+        partNumber: 'main-controller',
+        name: '主控板',
+        category: 'controller',
+        unit: '块',
+        trackIndividually: true,
+        totalQuantity: 3,
+        allocations: [
+          { resourceId: resourceRefs.primary, used: 1, reserved: 0 },
+          { resourceId: resourceRefs.secondary, used: 1, reserved: 0 },
+        ],
+        lowStockThreshold: 2,
+        lastCountedAt: GOVERNANCE_SCENARIO_TIME,
+        updatedAt: GOVERNANCE_SCENARIO_NOW,
+      },
+      {
+        id: 'parttype-m4screw',
+        projectId: 'prj-robots',
+        partNumber: 'M4x10',
+        name: 'M4 螺丝',
+        category: 'mechanical',
+        unit: '颗',
+        trackIndividually: false,
+        totalQuantity: 200,
+        allocations: [],
+        lowStockThreshold: 50,
+        lastCountedAt: GOVERNANCE_SCENARIO_TIME,
+        updatedAt: GOVERNANCE_SCENARIO_NOW,
+      },
+    ],
+    trackedParts: [
+      ...makeTrackedParts('parttype-gm6020', 'part-gm', GM6020_HOLDERS),
+      ...makeTrackedParts('parttype-c620', 'part-c620', C620_HOLDERS),
+      ...makeTrackedParts('parttype-maincontroller', 'part-mc', MC_HOLDERS),
+    ],
+    actions: [
+      {
+        id: 'act-gm-stocktake',
+        projectId: 'prj-robots',
+        partTypeId: 'parttype-gm6020',
+        trackedPartId: null,
+        kind: 'stocktake',
+        quantityDelta: 10,
+        fromHolder: null,
+        toHolder: null,
+        note: '赛季初盘点 GM6020 电机',
+        recordedBy: { source: 'human', at: GOVERNANCE_SCENARIO_TIME },
+        recordedAt: GOVERNANCE_SCENARIO_TIME,
+      },
+      {
+        id: 'act-gm-mount-r2',
+        projectId: 'prj-robots',
+        partTypeId: 'parttype-gm6020',
+        trackedPartId: 'part-gm-3',
+        kind: 'mount',
+        quantityDelta: 1,
+        fromHolder: 'idle',
+        toHolder: resourceRefs.secondary,
+        note: 'GM6020 装到 R2 底盘',
+        recordedBy: { source: 'human', at: '2026-06-10T03:00:00.000Z' },
+        recordedAt: '2026-06-10T03:00:00.000Z',
+      },
+      {
+        id: 'act-gm-damage',
+        projectId: 'prj-robots',
+        partTypeId: 'parttype-gm6020',
+        trackedPartId: null,
+        kind: 'damage',
+        quantityDelta: 1,
+        fromHolder: null,
+        toHolder: null,
+        note: '坏了一个 3508、烧了',
+        recordedBy: { source: 'human', at: GOVERNANCE_SCENARIO_NOW },
+        recordedAt: GOVERNANCE_SCENARIO_NOW,
+      },
+      {
+        id: 'act-mc-stocktake',
+        projectId: 'prj-robots',
+        partTypeId: 'parttype-maincontroller',
+        trackedPartId: null,
+        kind: 'stocktake',
+        quantityDelta: 3,
+        fromHolder: null,
+        toHolder: null,
+        note: '盘点主控板',
+        recordedBy: { source: 'human', at: GOVERNANCE_SCENARIO_TIME },
+        recordedAt: GOVERNANCE_SCENARIO_TIME,
+      },
+    ],
+  };
+}
+
+// 机器人租户全套 seed：主/副机分别注入 schedule 的 res-r1/res-r2（本 fixture 自身的资源 id 单一真相
+// 仍是 scheduleScenarioFixture.resources，ledger 不重复硬编码——修跨域外键）。
+export const inventoryScenarioFixture: InventorySnapshot = buildLedgerSeed({
+  primary: scheduleScenarioFixture.resources[0].id,
+  secondary: scheduleScenarioFixture.resources[1].id,
+});
