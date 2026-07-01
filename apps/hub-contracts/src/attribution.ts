@@ -408,7 +408,9 @@ export function toDepGraphView(
       label: task.title,
       groupId: task.groupId,
       groupName: groupsById.get(task.groupId)?.name ?? task.groupId,
-      robotTarget: task.robotTarget,
+      // HUB-MODULARIZATION 第4步：targetLabel 优先（泛化槽），无则回退 robotTarget（robotics 垂直），
+      // 两者皆缺（无机器人租户未填）则 null——DepNode.robotTarget 已放宽为可空自由字符串。
+      robotTarget: task.targetLabel ?? task.robotTarget ?? null,
       ownerLabel: task.ownerId
         ? (membersById.get(task.ownerId)?.displayName ?? null)
         : null,

@@ -23,7 +23,10 @@ import { ArtifactRefSchema } from './schemas.js';
 
 /**
  * POST /api/tasks：人本字段；server 补 id/时间戳、默认 status=pending/statusSource=console。
- * **D-042**：必填 projectId/groupId/title/rawSummary/robotTarget/intrinsicComplexity；
+ * **D-042**：必填 projectId/groupId/title/rawSummary/intrinsicComplexity；
+ * **HUB-MODULARIZATION 第4步**：`robotTarget`（+ 新增 `targetLabel`）随 `TaskSchema` 一并改
+ * optional——本 schema 由 `TaskSchema.omit(...)` 派生，两字段不在 omit 列表里，故自动继承
+ * optional 语义，无需在此单独声明；robotics 垂直租户的表单仍会照常填 robotTarget。
  * **不引入 `dueDate`**（G4 无硬截止 / 甘特暂缓）。Task 无 confirmedBy 字段，本路由不触 I0 确认语义。
  */
 export const CreateTaskRequestSchema = TaskSchema.omit({

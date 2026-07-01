@@ -11,6 +11,9 @@ import { FormGrid } from '../../components/FormGrid';
 import { Select } from '../../components/Select';
 import { Combobox } from '../../components/Combobox';
 
+// HUB-MODULARIZATION 第4步：Task.robotTarget 已在 hub-contracts 改 optional + 新增泛化槽
+// targetLabel（无机器人租户可填自由标签）。本表单暂留硬编码 R1/R2/shared 下拉作 fallback——
+// 真正"按租户词汇注入"（VocabularyRegistry 提供选项/翻译）留待 §5 第6步收口，本步不做。
 const ROBOT_TARGETS: RobotTarget[] = ['R1', 'R2', 'shared'];
 // TODO(backend): RobotTarget 枚举目前硬编码 R1/R2/shared；真扩展（增 R3 等）需改 hub-contracts RobotTargetSchema + server 迁移。
 const ROBOT_TARGET_KEY: Record<RobotTarget, TranslationKey> = {

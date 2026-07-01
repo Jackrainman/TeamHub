@@ -111,9 +111,11 @@ function DepNodeCard({ data, selected }: NodeProps<DepFlowNode>) {
         <Icon size={14} aria-hidden="true" />
         <span className="dag-node__title">{n.label}</span>
       </div>
-      {/* I0：负责人(ownerLabel)降级到 DetailPanel，不在节点上常显——节点只显结构键(组·机器人)。 */}
+      {/* I0：负责人(ownerLabel)降级到 DetailPanel，不在节点上常显——节点只显结构键(组·目标标签)。
+          n.robotTarget 已放宽为可空自由字符串（HUB-MODULARIZATION 第4步），无机器人租户可能为 null。 */}
       <div className="dag-node__owner">
-        {n.groupName} · {n.robotTarget}
+        {n.groupName}
+        {n.robotTarget ? ` · ${n.robotTarget}` : ''}
       </div>
       {n.status === 'blockedIdle' && n.blockedByLabel ? (
         <div className="dag-node__blocked">
@@ -541,7 +543,9 @@ function DetailPanel({
         <p className="detail-note">{t('depgraph.detail.ownerNote')}</p>
         <DetailRow
           label={t('depgraph.detail.robotComplexity')}
-          value={`${node.robotTarget} · ${t(complexityKey(node.intrinsicComplexity))}`}
+          value={[node.robotTarget, t(complexityKey(node.intrinsicComplexity))]
+            .filter(Boolean)
+            .join(' · ')}
         />
         {node.status === 'blockedIdle' && node.blockedByLabel ? (
           <DetailRow

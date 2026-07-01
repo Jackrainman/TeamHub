@@ -13,8 +13,16 @@ import { ActorRefSchema, isoDateTimeSchema } from './common.js';
  *
  * 本文件 = PM 通用 CASE 层实体（HUB-MODULARIZATION 第3步，从 governance.ts 纯搬移）：
  * Season/Project/Group/Member/Task/Dependency/Need + 其枚举 + 派生归因/DepGraph 视图契约。
- * `RobotTargetSchema` 暂留本文件（未来 optional 化留待 §5 第4步，本步不动语义）。
  * 机器人在场层（SharedResource/ResourceSession/RelayHandoff/Presence*）已迁至 `schedule-infra.ts`。
+ *
+ * **HUB-MODULARIZATION 第4步（RobotTarget 去渗透）**：`Task.robotTarget` / `Project.robotTargets`
+ * 由必填改 `.optional()`——核心（无机器人租户）不再强制填写机器人枚举；新增中性泛化槽
+ * `Task.targetLabel?: string` 承载"目标标签"这一更通用的语义（robotics 垂直仍显示 R1/R2/shared，
+ * 由 step6 词汇注入层把 `targetLabel` 收紧回 `RobotTargetSchema` 三值枚举；本步 UI/表单暂留
+ * `robotTarget` 硬编码下拉作为 fallback，不等 step6）。**放弃的编译期保证**：`robotTarget` 曾是
+ * `z.enum` 强校验，非法值在 schema parse 阶段就被拒；改 optional 后，闭集校验下沉到"路由层
+ * VocabularyRegistry 校验器"（尚未实现，见 docs/design/modularization-feasibility.md §3.4 A①），
+ * 在该校验器补齐前，服务器对 `targetLabel` 自由字符串**不做闭集校验**，只能靠测试兜底。
  */
 
 // ---------------------------------------------------------------------------
@@ -43,7 +51,12 @@ export const ProjectSchema = z.object({
   seasonId: z.string().min(1),
   name: z.string().min(1),
   // R1/R2 用标签，不为每台机器人割裂出 Project（保留跨机器人共享散件依赖）。
-  robotTargets: z.array(RobotTargetSchema).min(1),
+  // HUB-MODULARIZATION 第4步：改 optional——无机器人租户的 Project 不必填此机器人枚举数组
+  // （Project 目前未进 GovernanceSnapshot/落盘，属尚未接线的 scaffolding 类型，改动零消费点回归面）。
+  robotTargets: z.array(RobotTargetSchema).min(1).optional(),
+  // 中性泛化槽，与 Task.targetLabel 对称（数组形态承接 robotTargets 复数）；同样尚无消费点，
+  // 迁移脚本 scripts/migrate-robottarget.mjs 预留回填逻辑，供未来 Project 真正接入落盘时使用。
+  targetLabels: z.array(z.string().min(1)).optional(),
   status: z.enum(['active', 'archived']),
   createdAt: isoDateTimeSchema,
 });
@@ -130,7 +143,11 @@ export const TaskSchema = z.object({
   statusSource: GovActorSourceSchema, // C5：git/lark/derived 优先于 console
   ownerId: z.string().min(1).nullable(),
   collaboratorIds: z.array(z.string().min(1)),
-  robotTarget: RobotTargetSchema,
+  // HUB-MODULARIZATION 第4步：改 optional——无机器人租户建任务不必填机器人枚举。
+  robotTarget: RobotTargetSchema.optional(),
+  // 中性泛化槽：无机器人租户填"目标平台/特性域"等自由标签；robotics 垂直暂仍走 robotTarget
+  // 三值枚举（表单/卡片 fallback，step6 收口）。派生投影（toDepGraphView）读 targetLabel ?? robotTarget。
+  targetLabel: z.string().min(1).optional(),
   intrinsicComplexity: TaskComplexitySchema,
   // 收敛任务标记（optional，仅总联调类型）：'allLeafGroups' = 所有叶子组各到至少一人在场
   // （全组各一人，D-072 决定 L）。未填 = 普通任务（普通 groupId 持有语义，行为完全不变）。
@@ -307,7 +324,9 @@ export const DepNodeSchema = z.object({
   label: z.string().min(1),
   groupId: z.string().min(1),
   groupName: z.string().min(1),
-  robotTarget: RobotTargetSchema,
+  // HUB-MODULARIZATION 第4步：由必填 RobotTargetSchema 三值枚举放宽为自由字符串（可空）——
+  // toDepGraphView 投影读 task.targetLabel ?? task.robotTarget，无机器人租户两者皆缺时填 null。
+  robotTarget: z.string().min(1).nullable(),
   ownerLabel: z.string().min(1).nullable(), // 仅显示名，无效率/完成量
   status: DepNodeStatusSchema,
   blockedByTaskId: z.string().min(1).nullable(),

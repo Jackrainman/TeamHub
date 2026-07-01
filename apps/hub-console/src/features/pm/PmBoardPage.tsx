@@ -133,14 +133,17 @@ function PmTaskCard({
   onOpenInDepGraph?: (taskId: string) => void;
 }) {
   const { t } = useI18n();
+  // HUB-MODULARIZATION 第4步：targetLabel 优先（泛化槽），无则回退 robotTarget（robotics 垂直 fallback），
+  // 两者皆缺（无机器人租户未填）则不渲染该徽章。
   const robot =
-    task.robotTarget === 'shared' ? t('pm.robot.shared') : task.robotTarget;
+    task.targetLabel ??
+    (task.robotTarget === 'shared' ? t('pm.robot.shared') : task.robotTarget);
   return (
     <article className="pm-card">
       <h3 className="pm-card__title">{task.title}</h3>
       <p className="pm-card__summary">{task.rawSummary}</p>
       <div className="pm-card__badges">
-        <span className="pm-badge pm-badge--robot">{robot}</span>
+        {robot ? <span className="pm-badge pm-badge--robot">{robot}</span> : null}
         <span className="pm-badge">
           {t('pm.card.complexity')} ·{' '}
           {t(PM_COMPLEXITY_KEY[task.intrinsicComplexity])}
