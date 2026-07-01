@@ -5,7 +5,7 @@ import {
   MemberSchema,
   NeedSchema,
   TaskSchema,
-} from './governance.js';
+} from './pm-core.js';
 import type {
   BlockAttribution,
   BlockAttributionReason,
@@ -21,7 +21,7 @@ import type {
   Need,
   Task,
   TaskComplexity,
-} from './governance.js';
+} from './pm-core.js';
 import { KnowledgeNodeSchema, TaskKnowledgeTagSchema } from './growth.js';
 import type { KnowledgeNode, TaskKnowledgeTag } from './growth.js';
 import { ArtifactRefSchema } from './schemas.js';

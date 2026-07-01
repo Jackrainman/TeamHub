@@ -1,5 +1,5 @@
 import { deriveBlockAttributions, type GovernanceSnapshot } from './attribution.js';
-import type { DirectionGap, DirectionGapSeverity, Group } from './governance.js';
+import type { DirectionGap, DirectionGapSeverity, Group } from './pm-core.js';
 
 /**
  * 方向缺口派生（S2，D-069）——纯函数，无 IO，可单测。

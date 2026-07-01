@@ -4,13 +4,15 @@ import {
   TaskStatusSchema,
   DependencySchema,
   NeedSchema,
+  RobotTargetSchema,
+} from './pm-core.js';
+import {
   ResourceSessionSchema,
   RelayHandoffSchema,
   SharedResourceSchema,
   ResourceKindSchema,
-  RobotTargetSchema,
   ResourceStatusSchema,
-} from './governance.js';
+} from './schedule-infra.js';
 import { ArtifactRefSchema } from './schemas.js';
 
 // PM 项目计划表「写侧请求契约」单一源（D-052 重复真相收口）。

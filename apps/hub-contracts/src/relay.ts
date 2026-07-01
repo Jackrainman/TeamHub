@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { canBoardResource, RelayHandoffSchema } from './governance.js';
-import type { RelayHandoff } from './governance.js';
+import { canBoardResource, RelayHandoffSchema } from './schedule-infra.js';
+import type { RelayHandoff } from './schedule-infra.js';
 import type { ScheduleSnapshot } from './schedule.js';
 
 /**

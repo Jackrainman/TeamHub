@@ -3,12 +3,15 @@ import {
   toDepGraphView,
   type GovernanceSnapshot,
 } from './attribution.js';
-import { canBoardResource } from './governance.js';
+import { canBoardResource } from './schedule-infra.js';
 import type {
   Dependency,
   DepNodeKnowledge,
   Group,
   Member,
+  Task,
+} from './pm-core.js';
+import type {
   PresenceFeasibility,
   PresenceMode,
   PresenceReason,
@@ -16,9 +19,8 @@ import type {
   RelayHandoff,
   ResourceSession,
   SharedResource,
-  Task,
   WindowDef,
-} from './governance.js';
+} from './schedule-infra.js';
 import type { MemberAvailability } from './growth.js';
 
 /**

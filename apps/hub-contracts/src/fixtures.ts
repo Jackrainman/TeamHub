@@ -1,5 +1,5 @@
 import type { GovernanceSnapshot } from './attribution.js';
-import { deriveDisplayCode } from './governance.js';
+import { deriveDisplayCode } from './schedule-infra.js';
 import type { ScheduleSnapshot } from './schedule.js';
 import type {
   AgentBackend,
