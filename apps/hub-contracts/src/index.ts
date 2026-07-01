@@ -99,3 +99,5 @@ export * from './inventory.js';
 export * from './error-code.js';
 export * from './system-status.js';
 export * from './pm-requests.js';
+// 装配契约（HUB-MODULARIZATION 第2步）：ModuleDescriptor / TenantConfig / VocabularyRegistry，只接口不实现。
+export * from './assembly.js';

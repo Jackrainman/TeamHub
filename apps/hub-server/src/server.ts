@@ -79,7 +79,8 @@ import {
   ScheduleQuerySchema,
   apiContractFixtures,
 } from './contracts.js';
-import type { IssueCard, ScheduleSnapshot } from '@teamhub/hub-contracts';
+import type { IssueCard, ScheduleSnapshot, ModuleId, TenantConfig } from '@teamhub/hub-contracts';
+import { ROBOTICS_TENANT_CONFIG, isModuleEnabled } from '@teamhub/hub-contracts';
 import { deriveErrorCode } from './kb/error-code.js';
 import { FixedClock } from './clock.js';
 import type { Clock } from './clock.js';
@@ -143,6 +144,12 @@ export interface BuildHubServerOptions {
   trustProxy?: boolean | string;
   /** 归档物上传单文件字节上限（默认 50MB）。测试可调小以触发 413、免造大文件。 */
   artifactMaxBytes?: number;
+  /**
+   * 租户模块开关（HUB-MODULARIZATION 第2步，装配契约见 `@teamhub/hub-contracts` 的 `TenantConfig`）。
+   * 缺省 = `ROBOTICS_TENANT_CONFIG`（机器人战队全 6 模块启用），与拆分前 master 行为等价。
+   * 未启用的模块，其路由整段不挂（见下方 `registerXxxRoutes` 调用点），不是"挂了但拒绝"。
+   */
+  tenantConfig?: TenantConfig;
 }
 
 // 归档物文件上传上限（50MB）：覆盖机械 CAD（step/stp/sldprt）+ 电路 PDF + 固件，又约束资源耗尽面。
@@ -190,70 +197,24 @@ async function buildScheduleSnapshot(store: GovStore): Promise<ScheduleSnapshot>
   return { ...snapshot, resources, resourceSessions, relayHandoffs };
 }
 
-export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInstance {
-  // H3（AUDIT-FIXES）：显式 bodyLimit 收口写端点请求体上限（默认 Fastify 1MB 仍偏大，配合 KB 整文件重写是
-  // 低成本资源耗尽面，见 M17）；256KB 足够任务 / 结案录入。
-  const app = Fastify({
-    logger: false,
-    bodyLimit: 256 * 1024,
-    // 反代信任（默认 false）：开启后 request.ip 解析为转发的真实客户端 IP，限流才按客户端分桶
-    // （见 BuildHubServerOptions.trustProxy；4177 反代部署须开，否则限流塌成全局单桶）。
-    trustProxy: options.trustProxy ?? false,
-  });
-  const store: GovStore = options.store ?? new InMemoryGovStore();
-  const clock: Clock =
-    options.clock ?? new FixedClock(new Date(GOVERNANCE_SCENARIO_NOW));
-  // KB-CORE：知识库相似检索语料读出入口（缺省 InMemoryKbStore seed kbScenarioFixture），由 GET /api/kb/similar 消费。
-  // invStore 仍只钉 options 字段、无消费方（INV 支柱落地时透传），符合 base 收口刀「扩展点先行、路由后置」节奏。
-  const kbStore: KbStore = options.kbStore ?? new InMemoryKbStore();
-  // INV-BOM-CORE：库存 / BOM 读写出入口（缺省 InMemoryInvStore seed inventoryScenarioFixture），由
-  // GET /api/inventory + POST /api/inventory/{part-types,actions} 消费。独立于 GovStore（InventorySnapshot
-  // 不在 GovernanceSnapshot 内）；车列复用 GovStore.listResources 的资源（显示 displayCode ?? name）。
-  const invStore: InvStore = options.invStore ?? new InMemoryInvStore();
+/**
+ * 模块路由注册共享上下文（对应 `ModuleDescriptor.registerRoutes(app, ctx)` 的 Ctx 型参，
+ * 在 hub-server 侧收紧为具体 store/clock 依赖）。装配外壳（buildHubServer）按 `TenantConfig.enabledModules`
+ * 遍历调用下方各 `registerXxxRoutes`，未启用模块的函数根本不被调用——端点整段不挂，非"挂了但鉴权拒绝"。
+ */
+interface ModuleRouteCtx {
+  store: GovStore;
+  clock: Clock;
+  kbStore: KbStore;
+  invStore: InvStore;
+  artifactMaxBytes: number;
+}
 
-  // H3（AUDIT-FIXES 部署前必修）：写端点信任边界 = 共享密钥鉴权 + 每 IP 限流。
-  // 作用于全部**写方法** /api/*（POST/PATCH/PUT/DELETE；读路由 GET/HEAD / 静态站 / health 不受影响）。
-  // R1 接力画布引入 PATCH /api/resource-sessions/:id 与 DELETE /api/relay-handoffs/:id——若仍只认 POST，
-  // 这两条会绕过鉴权 + 限流（旧注释「用 PATCH/DELETE 会绕过鉴权」正是此缺口）。这是让 I0 泄漏 / 环卡死 /
-  // KB 撑爆被第三方真正触达的边界——未鉴权客户端不能刷爆全队要读的 dep-graph、不能猛打 closeout 撑爆 KB 文件。
-  const writeToken = options.writeToken;
-  const rateLimit = options.writeRateLimit ?? { max: 120, windowMs: 60_000 };
-  const rateHits = new Map<string, { count: number; resetAt: number }>();
-  const WRITE_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
-  app.addHook('onRequest', async (request, reply) => {
-    if (!WRITE_METHODS.has(request.method) || !request.url.startsWith('/api/')) return;
-    // 鉴权（配了 token 才强制 Bearer；未配=loopback dev 放行）
-    if (writeToken && request.headers.authorization !== `Bearer ${writeToken}`) {
-      void reply.code(401).send({ detail: 'unauthorized' });
-      return reply;
-    }
-    // 限流（真实墙钟 Date.now，与派生用的 clock 解耦；每实例独立、重启即重置）。
-    // 分桶键 = request.ip：直连=源 IP；反代后须开 trustProxy（见上）才是真实客户端 IP，否则塌成全局单桶。
-    const ip = request.ip;
-    const nowMs = Date.now();
-    const hit = rateHits.get(ip);
-    if (!hit || nowMs >= hit.resetAt) {
-      // 懒驱逐：rateHits 无 TTL 清理、按 IP 无界增长（长跑 / IP 轮换 / 扫描会撑大内存）。
-      // 仅在 Map 超过阈值时一次性清掉已过窗口的死条目（O(n) 但极少触发），不引新依赖 / 不开后台定时器。
-      if (rateHits.size > 10_000) {
-        for (const [k, v] of rateHits) if (v.resetAt <= nowMs) rateHits.delete(k);
-      }
-      rateHits.set(ip, { count: 1, resetAt: nowMs + rateLimit.windowMs });
-    } else if (hit.count >= rateLimit.max) {
-      void reply.code(429).send({ detail: 'rate limit exceeded' });
-      return reply;
-    } else {
-      hit.count += 1;
-    }
-  });
-
-  // 归档物（图纸）文件上传：multipart 流式，单文件。**全局 bodyLimit(256KB) 不约束 multipart**——
-  // 故须在此显式钉 fileSize 上限（50MB，覆盖 CAD/PDF 又约束资源耗尽面，与 H3 同源关切）。
-  // 注册在写鉴权钩子之后、路由之前；onRequest 钩子先于 body 解析跑，故上传仍受 Bearer + 限流 gate。
-  app.register(multipart, {
-    limits: { fileSize: options.artifactMaxBytes ?? ARTIFACT_MAX_BYTES, files: 1 },
-  });
-
+// ============================================================================
+// system 模块（核心常装）：健康检查 / 系统状态 / BotChannel·AgentBackend·DataSource / 事件 / 桥接成员 / git repos。
+// 完全通用（§3.3），无机器人词汇，任何租户都保留。
+// ============================================================================
+function registerSystemRoutes(app: FastifyInstance): void {
   app.get('/health', async () => {
     return HealthResponseSchema.parse(buildHealthResponse());
   });
@@ -338,6 +299,20 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
 
   app.get('/api/git/repos', async () => {
     return GitReposResponseSchema.parse(apiContractFixtures.gitRepos);
+  });
+}
+
+// ============================================================================
+// archive 模块（可选）：图纸/归档物提交日志 + 版本时间线 + 文件上传下载。
+// ============================================================================
+function registerArchiveRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
+  const { store, clock, artifactMaxBytes } = ctx;
+
+  // 归档物（图纸）文件上传：multipart 流式，单文件。**全局 bodyLimit(256KB) 不约束 multipart**——
+  // 故须在此显式钉 fileSize 上限（50MB，覆盖 CAD/PDF 又约束资源耗尽面，与 H3 同源关切）。
+  // 注册在写鉴权钩子之后、路由之前；onRequest 钩子先于 body 解析跑，故上传仍受 Bearer + 限流 gate。
+  void app.register(multipart, {
+    limits: { fileSize: artifactMaxBytes, files: 1 },
   });
 
   // 图纸提交日志 / 版本时间线（v1，A2）：从治理快照读 artifacts（持久化时由 FileGovStore 落盘累积），
@@ -521,6 +496,13 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
       return UploadArtifactResponseSchema.parse({ artifact: updated });
     },
   );
+}
+
+// ============================================================================
+// pm-core 模块（核心必装）：DAG 归因读视图 + 方向缺口 + 任务/依赖/前置需求写侧。
+// ============================================================================
+function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
+  const { store, clock } = ctx;
 
   // 依赖链 · 阻塞归因视图：治理快照经纯函数 toDepGraphView 实时派生（D-040 首任务收敛）。
   // 解 hub-console real 模式 GET /api/dep-graph 的 404；输出主键为 task/group/dependency，无 memberId 维度（C2）。
@@ -539,6 +521,300 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
       generatedAt: now,
     });
   });
+
+  // PM 项目计划表：单条任务录入（C1 兜底录入口）。server 补 id/时间戳/派生默认（status=pending/statusSource=console）。
+  // 卡住原因走人建 Dependency 边由 toDepGraphView 派生（G2 不在 Task 上另存 blockedBy）；不引入 dueDate（G4）。
+  app.post('/api/tasks', async (request, reply) => {
+    const parsed = CreateTaskRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const task = await store.createTask(parsed.data);
+    void reply.code(201);
+    return CreateTaskResponseSchema.parse({ task });
+  });
+
+  // PM 读视图：任务列表（看板列 / 列表双视图的读原语）。Task 无 confirmedBy、ownerId 只表「谁负责」(D-041 安全堆)，
+  // 无完成量维度（C2/I0 安全）；依赖/缺口的结构视图走 GET /api/dep-graph（blockedByLabel 上游任务名，不暴露人）。
+  app.get('/api/tasks', async () => {
+    const snapshot = await store.getSnapshot();
+    return TasksResponseSchema.parse({ tasks: snapshot.tasks });
+  });
+
+  // PM 任务状态流转（人工标进度，含 inProgress→done 标真实完成）。POST 子资源动作 → 继承 H3 鉴权+限流
+  // （写钩子只认 POST；用 PATCH/DELETE 会绕过鉴权）。受限状态机迁移、非通用 update。
+  // C5：server 钉 statusSource=console（请求不收 statusSource，结构上杜绝冒充 derived/git/lark）。
+  app.post('/api/tasks/:taskId/status', async (request, reply) => {
+    const { taskId } = request.params as { taskId: string };
+    const parsed = TransitionTaskStatusRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const task = await store.updateTaskStatus(taskId, parsed.data.status);
+    if (!task) {
+      void reply.code(404).send({ detail: 'task not found' });
+      return;
+    }
+    // 流转非创建 → 默认 200。
+    return TransitionTaskStatusResponseSchema.parse({ task });
+  });
+
+  // PM 依赖边录入（人手建有向边）。server clamp status=active（D-042 初始态）；confirmedBy 内部凭证不经读视图暴露。
+  app.post('/api/dependencies', async (request, reply) => {
+    const parsed = CreateDependencyRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    // H1（AUDIT-FIXES 部署前必修）：落库前拒自环 / 成环。后端原零语义校验——一条成环边会让下次
+    // GET /api/dep-graph 的 computeCriticalSet / toDepGraphView 派生死循环、卡死整个 server（单请求 DoS）。
+    const snapshot = await store.getSnapshot();
+    const { fromTaskId, toTaskId } = parsed.data;
+    // 只滤 waived 边（已作废、从 dep-graph 隐藏、不构成真实阻塞路径）。否则 waive 一条 A→B 后想建反向
+    // B→A 会被永久误拒——逆向边并不与一条已死的边成环。satisfied 边仍是真实历史路径、必须参与环检测。
+    if (
+      wouldCreateCycle(
+        snapshot.dependencies.filter((d) => d.status !== 'waived'),
+        fromTaskId,
+        toTaskId,
+      )
+    ) {
+      void reply.code(400).send({
+        detail:
+          fromTaskId === toTaskId
+            ? 'self dependency not allowed'
+            : 'dependency would create a cycle',
+      });
+      return;
+    }
+    const dependency = await store.createDependency(parsed.data);
+    void reply.code(201);
+    return CreateDependencyResponseSchema.parse({ dependency });
+  });
+
+  // PM 连线作废（软删除）。POST 子资源动作 → 继承 H3 鉴权+限流。转 waived 后从 dep-graph edges 隐藏
+  // （toDepGraphView 跳过 waived），但库里保留 confirmedBy/createdAt（G2 可审计）。无 body 字段。
+  // waive 只删边、不可能成环，故无需 wouldCreateCycle 守卫。I0：响应剥 confirmedBy。
+  app.post('/api/dependencies/:depId/waive', async (request, reply) => {
+    const { depId } = request.params as { depId: string };
+    const dependency = await store.waiveDependency(depId);
+    if (!dependency) {
+      void reply.code(404).send({ detail: 'dependency not found' });
+      return;
+    }
+    return WaiveDependencyResponseSchema.parse({ dependency });
+  });
+
+  // PM 前置需求录入（G3 一等公民）。server clamp status=open；A1 缺口归组不归人。
+  app.post('/api/needs', async (request, reply) => {
+    const parsed = CreateNeedRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const need = await store.createNeed(parsed.data);
+    void reply.code(201);
+    return CreateNeedResponseSchema.parse({ need });
+  });
+}
+
+// ============================================================================
+// knowledge-base 模块（可选）：症状 → 相似历史 bug 召回 + 结案闭环。零机器人词汇（§3.3 generic）。
+// ============================================================================
+function registerKnowledgeBaseRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
+  const { store, clock, kbStore } = ctx;
+
+  // KB-CORE：症状 → top-N 相似历史 bug（跨赛季同类 bug 召回）。纯函数 rankSimilarIssues 在 KbStore 语料上排序。
+  // A4 护栏：响应 note 明示「只列候选、不断言同因、由人选用」；返回主键是 issue/errorCode，无人维度（C2）。
+  app.get('/api/kb/similar', async (request, reply) => {
+    const parsed = KbSimilarQuerySchema.safeParse(request.query ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error, 'invalid query') });
+      return;
+    }
+    const { symptom, tags, projectId, limit, minScore } = parsed.data;
+    const kb = await kbStore.getKbSnapshot();
+    const now = clock.now().toISOString();
+    // 用症状构造一张「当前问题卡」喂排序纯函数；id 不与历史撞、projectId 默认对齐语料库
+    const currentIssue: IssueCard = {
+      id: 'iss-probe',
+      projectId: projectId ?? kb.projectId,
+      title: symptom,
+      rawInput: symptom,
+      normalizedSummary: symptom,
+      symptomSummary: symptom,
+      suspectedDirections: [],
+      suggestedActions: [],
+      status: 'open',
+      severity: 'medium',
+      tags,
+      relatedFiles: [],
+      relatedCommits: [],
+      relatedHistoricalIssueIds: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    const items = rankSimilarIssues({
+      currentIssue,
+      issues: kb.issueCards,
+      errorEntries: kb.errorEntries,
+      archives: kb.archiveDocuments,
+      limit,
+      minScore,
+    });
+    return KbSimilarResponseSchema.parse({
+      query: { symptom, tags },
+      items,
+      note: KB_SIMILAR_NOTE,
+    });
+  });
+
+  // KB-CORE：结案闭环（用着就沉淀）。结案输入 → 归档 + 错误表 + 已归档卡 + 结案派生 KnowledgeNode（持久到 store）。
+  // I0：errorCode/id 由 clock + issue.id 确定性派生（不记结案人）；派生节点无人维度，来源凭证是结构。
+  app.post('/api/kb/closeout', async (request, reply) => {
+    const parsed = KbCloseoutRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const { issue, records, category, rootCause, resolution, prevention, generatedBy } =
+      parsed.data;
+    const now = clock.now().toISOString();
+    // M9（AUDIT-FIXES 部署前必修）：errorCode NNN 用「同日既有 ErrorEntry 数 + 1」的单调序号，
+    // 避免哈希 mod 1000 在 ~38 次/日时生日碰撞 → 静默覆盖、污染 kb-similar 跨赛季查找。
+    const kbSnapshot = await kbStore.getKbSnapshot();
+    const dayPrefix = `DBG-${now.slice(0, 10).replace(/-/g, '')}-`;
+    // known-low（不在本批处理）：sameDaySeq 的 read-then-write 是 TOCTOU——两个并发 closeout 可能读到同一
+    // count、派生相同 errorCode。需真并发才触发、量小，小作坊（单端口 / 极少并发写）可接受；真要彻底消除得在
+    // store 层把序号分配做成原子计数器。本批只修「同一结案重试」的重复主键（见 appendCloseoutInto upsert）。
+    const sameDaySeq =
+      kbSnapshot.errorEntries.filter((e) => e.errorCode.startsWith(dayPrefix)).length + 1;
+    const result = buildCloseoutFromIssue(
+      issue,
+      records,
+      { category, rootCause, resolution, prevention },
+      {
+        now,
+        errorEntryId: `err-${issue.id}`,
+        errorCode: deriveErrorCode(now, issue.id, sameDaySeq),
+        generatedBy,
+      },
+    );
+    if (!result.ok) {
+      // 结案校验失败（如缺 rootCause / 卡已归档）→ 422，不伪造完成（§10）
+      void reply.code(422).send({ detail: result.reason });
+      return;
+    }
+    // 结案派生知识节点持久到治理快照（复用同一 GovernanceSnapshot，对抗核实确认成立）。
+    // 两步写（GovStore.closeoutKbNode + KbStore.appendCloseout）跨两个独立 store、无分布式事务。
+    // 第一步失败 → 整个请求抛错（无副作用，客户端可安全重试）。第二步失败 → 知识节点已落 GovStore、
+    // 但相似检索语料没回灌 → 两库分叉（GET /api/kb/similar 查不到本次结案）。这种分叉不能静默吞——
+    // app.log.error 记录下来，让运维能发现并补回灌；仍把错误抛给客户端（500，别伪造 201 成功）。
+    // 幂等护栏（见 closeoutKbNode 的 dedup / appendCloseoutInto 的 upsert）：重试同一结案不产生重复主键。
+    const knowledgeNode = await store.closeoutKbNode(result.knowledgeNodeDraft);
+    try {
+      // 回灌相似检索语料（AI+知识库闭环）：archived 卡 / 错误表 / 归档写回 kbStore，
+      // 否则本次上传后下次 GET /api/kb/similar 查不到（闭环断）。无人维度（C2）：主键 issue/errorCode。
+      await kbStore.appendCloseout({
+        issueCard: result.updatedIssueCard,
+        errorEntry: result.errorEntry,
+        archiveDocument: result.archiveDocument,
+      });
+    } catch (err) {
+      app.log.error(
+        { err, issueId: issue.id, knowledgeNodeId: knowledgeNode.id, errorCode: result.errorEntry.errorCode },
+        'kb closeout two-step diverged: knowledge node persisted but corpus reload failed; retry safe (idempotent upsert)',
+      );
+      throw err;
+    }
+    // L4：与其余 create 路由（tasks/dependencies/needs）一致，结案创建归档/错误表/知识节点 → 201。
+    void reply.code(201);
+    return KbCloseoutResponseSchema.parse({
+      archiveDocument: result.archiveDocument,
+      errorEntry: result.errorEntry,
+      updatedIssueCard: result.updatedIssueCard,
+      knowledgeNode,
+    });
+  });
+}
+
+// ============================================================================
+// ledger 模块（可选）：零件/个体件/库存总表读视图 + 缺料告警 + 录入。
+// ============================================================================
+function registerLedgerRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
+  const { store, invStore } = ctx;
+
+  // 库存 / BOM 读视图（INV-BOM-CORE）：零件 + 个体件 + 库存总表派生（零件×车 矩阵）+ 缺料告警。
+  // 车列复用 GovStore.listResources（显示 displayCode ?? name，与 PRESENCE 解耦）。**I0**：返回体无任何
+  // memberId / 按人聚合——PartAction.recordedBy 只到 source，矩阵主键是零件×车。
+  app.get('/api/inventory', async () => {
+    const snapshot = await invStore.getInventorySnapshot();
+    const resources = await store.listResources();
+    const ledger = deriveInventoryLedger(snapshot, resources);
+    const shortfalls = deriveShortfalls(snapshot);
+    return InventoryResponseSchema.parse({
+      partTypes: snapshot.partTypes,
+      trackedParts: snapshot.trackedParts,
+      ledger,
+      shortfalls,
+      actions: snapshot.actions,
+    });
+  });
+
+  // 库存零件录入 / 调整（POST /api/inventory/part-types，盘点建底 / 补料 / 调阈值）。带 id 命中即更新。
+  // POST → 继承 H3 onRequest 鉴权 + 限流。store 补 lastCountedAt / updatedAt（C5 来源 seam server 钉）。
+  app.post('/api/inventory/part-types', async (request, reply) => {
+    const parsed = CreatePartTypeRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const partType = await invStore.upsertPartType(parsed.data);
+    void reply.code(201);
+    return CreatePartTypeResponseSchema.parse({ partType });
+  });
+
+  // 库存动作记一笔（POST /api/inventory/actions）：一句话快记=damage、拆装=mount/dismount、预留=reserve/release。
+  // **recordedBy 不收客户端**——server 钉 source=human（C5；I0 绝无 memberId）。Hermes 将来调同一接口自动填。
+  // 校验两层：① 未知 resourceId（toHolder/fromHolder 不是 idle 也不在 listResources）→ 400；
+  // ② 非法迁移（负库存 / used 超 total / 缺持有者）由 store 抛 InvalidPartActionError → 400（不静默吞）。
+  app.post('/api/inventory/actions', async (request, reply) => {
+    const parsed = CreatePartActionRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const validResourceIds = new Set(
+      (await store.listResources()).map((r) => r.id),
+    );
+    for (const holder of [parsed.data.fromHolder, parsed.data.toHolder]) {
+      if (holder && holder !== IDLE_HOLDER && !validResourceIds.has(holder)) {
+        void reply.code(400).send({ detail: `未知 resourceId: ${holder}` });
+        return;
+      }
+    }
+    try {
+      const action = await invStore.recordPartAction({ ...parsed.data, source: 'human' });
+      void reply.code(201);
+      return CreatePartActionResponseSchema.parse({ action });
+    } catch (err) {
+      if (err instanceof InvalidPartActionError) {
+        void reply.code(400).send({ detail: err.message });
+        return;
+      }
+      throw err;
+    }
+  });
+}
+
+// ============================================================================
+// presence-schedule 模块（robotics 垂直专属，游戏工作室等租户不注册）：
+// 差异化在场排班 / 车（SharedResource）管理 / 接力交接画布。
+// ============================================================================
+function registerPresenceScheduleRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
+  const { store, clock } = ctx;
 
   // 差异化在场排班（D-029，SCHED-WIRE-EXISTING）：把治理快照 + 共享资源 + 占用窗口拼成 ScheduleSnapshot，
   // 经纯函数 derivePresenceSchedule 实时派生「按组×窗口 谁在场/随叫/可不来」。now 用 clock（与 dep-graph/
@@ -740,278 +1016,99 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     }
     return { deleted: id };
   });
+}
 
-  // 库存 / BOM 读视图（INV-BOM-CORE）：零件 + 个体件 + 库存总表派生（零件×车 矩阵）+ 缺料告警。
-  // 车列复用 GovStore.listResources（显示 displayCode ?? name，与 PRESENCE 解耦）。**I0**：返回体无任何
-  // memberId / 按人聚合——PartAction.recordedBy 只到 source，矩阵主键是零件×车。
-  app.get('/api/inventory', async () => {
-    const snapshot = await invStore.getInventorySnapshot();
-    const resources = await store.listResources();
-    const ledger = deriveInventoryLedger(snapshot, resources);
-    const shortfalls = deriveShortfalls(snapshot);
-    return InventoryResponseSchema.parse({
-      partTypes: snapshot.partTypes,
-      trackedParts: snapshot.trackedParts,
-      ledger,
-      shortfalls,
-      actions: snapshot.actions,
-    });
+export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInstance {
+  // H3（AUDIT-FIXES）：显式 bodyLimit 收口写端点请求体上限（默认 Fastify 1MB 仍偏大，配合 KB 整文件重写是
+  // 低成本资源耗尽面，见 M17）；256KB 足够任务 / 结案录入。
+  const app = Fastify({
+    logger: false,
+    bodyLimit: 256 * 1024,
+    // 反代信任（默认 false）：开启后 request.ip 解析为转发的真实客户端 IP，限流才按客户端分桶
+    // （见 BuildHubServerOptions.trustProxy；4177 反代部署须开，否则限流塌成全局单桶）。
+    trustProxy: options.trustProxy ?? false,
   });
+  const store: GovStore = options.store ?? new InMemoryGovStore();
+  const clock: Clock =
+    options.clock ?? new FixedClock(new Date(GOVERNANCE_SCENARIO_NOW));
+  // KB-CORE：知识库相似检索语料读出入口（缺省 InMemoryKbStore seed kbScenarioFixture），由 GET /api/kb/similar 消费。
+  // invStore 仍只钉 options 字段、无消费方（INV 支柱落地时透传），符合 base 收口刀「扩展点先行、路由后置」节奏。
+  const kbStore: KbStore = options.kbStore ?? new InMemoryKbStore();
+  // INV-BOM-CORE：库存 / BOM 读写出入口（缺省 InMemoryInvStore seed inventoryScenarioFixture），由
+  // GET /api/inventory + POST /api/inventory/{part-types,actions} 消费。独立于 GovStore（InventorySnapshot
+  // 不在 GovernanceSnapshot 内）；车列复用 GovStore.listResources 的资源（显示 displayCode ?? name）。
+  const invStore: InvStore = options.invStore ?? new InMemoryInvStore();
+  // 装配外壳（HUB-MODULARIZATION 第2步）：租户模块开关，缺省 = 机器人战队全 6 模块启用（与拆分前等价）。
+  const tenantConfig: TenantConfig = options.tenantConfig ?? ROBOTICS_TENANT_CONFIG;
 
-  // 库存零件录入 / 调整（POST /api/inventory/part-types，盘点建底 / 补料 / 调阈值）。带 id 命中即更新。
-  // POST → 继承 H3 onRequest 鉴权 + 限流。store 补 lastCountedAt / updatedAt（C5 来源 seam server 钉）。
-  app.post('/api/inventory/part-types', async (request, reply) => {
-    const parsed = CreatePartTypeRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
+  // H3（AUDIT-FIXES 部署前必修）：写端点信任边界 = 共享密钥鉴权 + 每 IP 限流。
+  // 作用于全部**写方法** /api/*（POST/PATCH/PUT/DELETE；读路由 GET/HEAD / 静态站 / health 不受影响）。
+  // R1 接力画布引入 PATCH /api/resource-sessions/:id 与 DELETE /api/relay-handoffs/:id——若仍只认 POST，
+  // 这两条会绕过鉴权 + 限流（旧注释「用 PATCH/DELETE 会绕过鉴权」正是此缺口）。这是让 I0 泄漏 / 环卡死 /
+  // KB 撑爆被第三方真正触达的边界——未鉴权客户端不能刷爆全队要读的 dep-graph、不能猛打 closeout 撑爆 KB 文件。
+  // 该钩子是宿主级横切关切（鉴权/限流），对全部模块统一生效，不随 enabledModules 变化。
+  const writeToken = options.writeToken;
+  const rateLimit = options.writeRateLimit ?? { max: 120, windowMs: 60_000 };
+  const rateHits = new Map<string, { count: number; resetAt: number }>();
+  const WRITE_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
+  app.addHook('onRequest', async (request, reply) => {
+    if (!WRITE_METHODS.has(request.method) || !request.url.startsWith('/api/')) return;
+    // 鉴权（配了 token 才强制 Bearer；未配=loopback dev 放行）
+    if (writeToken && request.headers.authorization !== `Bearer ${writeToken}`) {
+      void reply.code(401).send({ detail: 'unauthorized' });
+      return reply;
     }
-    const partType = await invStore.upsertPartType(parsed.data);
-    void reply.code(201);
-    return CreatePartTypeResponseSchema.parse({ partType });
-  });
-
-  // 库存动作记一笔（POST /api/inventory/actions）：一句话快记=damage、拆装=mount/dismount、预留=reserve/release。
-  // **recordedBy 不收客户端**——server 钉 source=human（C5；I0 绝无 memberId）。Hermes 将来调同一接口自动填。
-  // 校验两层：① 未知 resourceId（toHolder/fromHolder 不是 idle 也不在 listResources）→ 400；
-  // ② 非法迁移（负库存 / used 超 total / 缺持有者）由 store 抛 InvalidPartActionError → 400（不静默吞）。
-  app.post('/api/inventory/actions', async (request, reply) => {
-    const parsed = CreatePartActionRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
-    const validResourceIds = new Set(
-      (await store.listResources()).map((r) => r.id),
-    );
-    for (const holder of [parsed.data.fromHolder, parsed.data.toHolder]) {
-      if (holder && holder !== IDLE_HOLDER && !validResourceIds.has(holder)) {
-        void reply.code(400).send({ detail: `未知 resourceId: ${holder}` });
-        return;
+    // 限流（真实墙钟 Date.now，与派生用的 clock 解耦；每实例独立、重启即重置）。
+    // 分桶键 = request.ip：直连=源 IP；反代后须开 trustProxy（见上）才是真实客户端 IP，否则塌成全局单桶。
+    const ip = request.ip;
+    const nowMs = Date.now();
+    const hit = rateHits.get(ip);
+    if (!hit || nowMs >= hit.resetAt) {
+      // 懒驱逐：rateHits 无 TTL 清理、按 IP 无界增长（长跑 / IP 轮换 / 扫描会撑大内存）。
+      // 仅在 Map 超过阈值时一次性清掉已过窗口的死条目（O(n) 但极少触发），不引新依赖 / 不开后台定时器。
+      if (rateHits.size > 10_000) {
+        for (const [k, v] of rateHits) if (v.resetAt <= nowMs) rateHits.delete(k);
       }
-    }
-    try {
-      const action = await invStore.recordPartAction({ ...parsed.data, source: 'human' });
-      void reply.code(201);
-      return CreatePartActionResponseSchema.parse({ action });
-    } catch (err) {
-      if (err instanceof InvalidPartActionError) {
-        void reply.code(400).send({ detail: err.message });
-        return;
-      }
-      throw err;
+      rateHits.set(ip, { count: 1, resetAt: nowMs + rateLimit.windowMs });
+    } else if (hit.count >= rateLimit.max) {
+      void reply.code(429).send({ detail: 'rate limit exceeded' });
+      return reply;
+    } else {
+      hit.count += 1;
     }
   });
 
-  // PM 项目计划表：单条任务录入（C1 兜底录入口）。server 补 id/时间戳/派生默认（status=pending/statusSource=console）。
-  // 卡住原因走人建 Dependency 边由 toDepGraphView 派生（G2 不在 Task 上另存 blockedBy）；不引入 dueDate（G4）。
-  app.post('/api/tasks', async (request, reply) => {
-    const parsed = CreateTaskRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
-    const task = await store.createTask(parsed.data);
-    void reply.code(201);
-    return CreateTaskResponseSchema.parse({ task });
-  });
+  const ctx: ModuleRouteCtx = {
+    store,
+    clock,
+    kbStore,
+    invStore,
+    artifactMaxBytes: options.artifactMaxBytes ?? ARTIFACT_MAX_BYTES,
+  };
+  const moduleEnabled = (id: ModuleId): boolean => isModuleEnabled(tenantConfig, id);
 
-  // PM 读视图：任务列表（看板列 / 列表双视图的读原语）。Task 无 confirmedBy、ownerId 只表「谁负责」(D-041 安全堆)，
-  // 无完成量维度（C2/I0 安全）；依赖/缺口的结构视图走 GET /api/dep-graph（blockedByLabel 上游任务名，不暴露人）。
-  app.get('/api/tasks', async () => {
-    const snapshot = await store.getSnapshot();
-    return TasksResponseSchema.parse({ tasks: snapshot.tasks });
-  });
-
-  // PM 任务状态流转（人工标进度，含 inProgress→done 标真实完成）。POST 子资源动作 → 继承 H3 鉴权+限流
-  // （写钩子只认 POST；用 PATCH/DELETE 会绕过鉴权）。受限状态机迁移、非通用 update。
-  // C5：server 钉 statusSource=console（请求不收 statusSource，结构上杜绝冒充 derived/git/lark）。
-  app.post('/api/tasks/:taskId/status', async (request, reply) => {
-    const { taskId } = request.params as { taskId: string };
-    const parsed = TransitionTaskStatusRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
-    const task = await store.updateTaskStatus(taskId, parsed.data.status);
-    if (!task) {
-      void reply.code(404).send({ detail: 'task not found' });
-      return;
-    }
-    // 流转非创建 → 默认 200。
-    return TransitionTaskStatusResponseSchema.parse({ task });
-  });
-
-  // PM 依赖边录入（人手建有向边）。server clamp status=active（D-042 初始态）；confirmedBy 内部凭证不经读视图暴露。
-  app.post('/api/dependencies', async (request, reply) => {
-    const parsed = CreateDependencyRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
-    // H1（AUDIT-FIXES 部署前必修）：落库前拒自环 / 成环。后端原零语义校验——一条成环边会让下次
-    // GET /api/dep-graph 的 computeCriticalSet / toDepGraphView 派生死循环、卡死整个 server（单请求 DoS）。
-    const snapshot = await store.getSnapshot();
-    const { fromTaskId, toTaskId } = parsed.data;
-    // 只滤 waived 边（已作废、从 dep-graph 隐藏、不构成真实阻塞路径）。否则 waive 一条 A→B 后想建反向
-    // B→A 会被永久误拒——逆向边并不与一条已死的边成环。satisfied 边仍是真实历史路径、必须参与环检测。
-    if (
-      wouldCreateCycle(
-        snapshot.dependencies.filter((d) => d.status !== 'waived'),
-        fromTaskId,
-        toTaskId,
-      )
-    ) {
-      void reply.code(400).send({
-        detail:
-          fromTaskId === toTaskId
-            ? 'self dependency not allowed'
-            : 'dependency would create a cycle',
-      });
-      return;
-    }
-    const dependency = await store.createDependency(parsed.data);
-    void reply.code(201);
-    return CreateDependencyResponseSchema.parse({ dependency });
-  });
-
-  // PM 连线作废（软删除）。POST 子资源动作 → 继承 H3 鉴权+限流。转 waived 后从 dep-graph edges 隐藏
-  // （toDepGraphView 跳过 waived），但库里保留 confirmedBy/createdAt（G2 可审计）。无 body 字段。
-  // waive 只删边、不可能成环，故无需 wouldCreateCycle 守卫。I0：响应剥 confirmedBy。
-  app.post('/api/dependencies/:depId/waive', async (request, reply) => {
-    const { depId } = request.params as { depId: string };
-    const dependency = await store.waiveDependency(depId);
-    if (!dependency) {
-      void reply.code(404).send({ detail: 'dependency not found' });
-      return;
-    }
-    return WaiveDependencyResponseSchema.parse({ dependency });
-  });
-
-  // PM 前置需求录入（G3 一等公民）。server clamp status=open；A1 缺口归组不归人。
-  app.post('/api/needs', async (request, reply) => {
-    const parsed = CreateNeedRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
-    const need = await store.createNeed(parsed.data);
-    void reply.code(201);
-    return CreateNeedResponseSchema.parse({ need });
-  });
-
-  // KB-CORE：症状 → top-N 相似历史 bug（跨赛季同类 bug 召回）。纯函数 rankSimilarIssues 在 KbStore 语料上排序。
-  // A4 护栏：响应 note 明示「只列候选、不断言同因、由人选用」；返回主键是 issue/errorCode，无人维度（C2）。
-  app.get('/api/kb/similar', async (request, reply) => {
-    const parsed = KbSimilarQuerySchema.safeParse(request.query ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error, 'invalid query') });
-      return;
-    }
-    const { symptom, tags, projectId, limit, minScore } = parsed.data;
-    const kb = await kbStore.getKbSnapshot();
-    const now = clock.now().toISOString();
-    // 用症状构造一张「当前问题卡」喂排序纯函数；id 不与历史撞、projectId 默认对齐语料库
-    const currentIssue: IssueCard = {
-      id: 'iss-probe',
-      projectId: projectId ?? kb.projectId,
-      title: symptom,
-      rawInput: symptom,
-      normalizedSummary: symptom,
-      symptomSummary: symptom,
-      suspectedDirections: [],
-      suggestedActions: [],
-      status: 'open',
-      severity: 'medium',
-      tags,
-      relatedFiles: [],
-      relatedCommits: [],
-      relatedHistoricalIssueIds: [],
-      createdAt: now,
-      updatedAt: now,
-    };
-    const items = rankSimilarIssues({
-      currentIssue,
-      issues: kb.issueCards,
-      errorEntries: kb.errorEntries,
-      archives: kb.archiveDocuments,
-      limit,
-      minScore,
-    });
-    return KbSimilarResponseSchema.parse({
-      query: { symptom, tags },
-      items,
-      note: KB_SIMILAR_NOTE,
-    });
-  });
-
-  // KB-CORE：结案闭环（用着就沉淀）。结案输入 → 归档 + 错误表 + 已归档卡 + 结案派生 KnowledgeNode（持久到 store）。
-  // I0：errorCode/id 由 clock + issue.id 确定性派生（不记结案人）；派生节点无人维度，来源凭证是结构。
-  app.post('/api/kb/closeout', async (request, reply) => {
-    const parsed = KbCloseoutRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
-    const { issue, records, category, rootCause, resolution, prevention, generatedBy } =
-      parsed.data;
-    const now = clock.now().toISOString();
-    // M9（AUDIT-FIXES 部署前必修）：errorCode NNN 用「同日既有 ErrorEntry 数 + 1」的单调序号，
-    // 避免哈希 mod 1000 在 ~38 次/日时生日碰撞 → 静默覆盖、污染 kb-similar 跨赛季查找。
-    const kbSnapshot = await kbStore.getKbSnapshot();
-    const dayPrefix = `DBG-${now.slice(0, 10).replace(/-/g, '')}-`;
-    // known-low（不在本批处理）：sameDaySeq 的 read-then-write 是 TOCTOU——两个并发 closeout 可能读到同一
-    // count、派生相同 errorCode。需真并发才触发、量小，小作坊（单端口 / 极少并发写）可接受；真要彻底消除得在
-    // store 层把序号分配做成原子计数器。本批只修「同一结案重试」的重复主键（见 appendCloseoutInto upsert）。
-    const sameDaySeq =
-      kbSnapshot.errorEntries.filter((e) => e.errorCode.startsWith(dayPrefix)).length + 1;
-    const result = buildCloseoutFromIssue(
-      issue,
-      records,
-      { category, rootCause, resolution, prevention },
-      {
-        now,
-        errorEntryId: `err-${issue.id}`,
-        errorCode: deriveErrorCode(now, issue.id, sameDaySeq),
-        generatedBy,
-      },
-    );
-    if (!result.ok) {
-      // 结案校验失败（如缺 rootCause / 卡已归档）→ 422，不伪造完成（§10）
-      void reply.code(422).send({ detail: result.reason });
-      return;
-    }
-    // 结案派生知识节点持久到治理快照（复用同一 GovernanceSnapshot，对抗核实确认成立）。
-    // 两步写（GovStore.closeoutKbNode + KbStore.appendCloseout）跨两个独立 store、无分布式事务。
-    // 第一步失败 → 整个请求抛错（无副作用，客户端可安全重试）。第二步失败 → 知识节点已落 GovStore、
-    // 但相似检索语料没回灌 → 两库分叉（GET /api/kb/similar 查不到本次结案）。这种分叉不能静默吞——
-    // app.log.error 记录下来，让运维能发现并补回灌；仍把错误抛给客户端（500，别伪造 201 成功）。
-    // 幂等护栏（见 closeoutKbNode 的 dedup / appendCloseoutInto 的 upsert）：重试同一结案不产生重复主键。
-    const knowledgeNode = await store.closeoutKbNode(result.knowledgeNodeDraft);
-    try {
-      // 回灌相似检索语料（AI+知识库闭环）：archived 卡 / 错误表 / 归档写回 kbStore，
-      // 否则本次上传后下次 GET /api/kb/similar 查不到（闭环断）。无人维度（C2）：主键 issue/errorCode。
-      await kbStore.appendCloseout({
-        issueCard: result.updatedIssueCard,
-        errorEntry: result.errorEntry,
-        archiveDocument: result.archiveDocument,
-      });
-    } catch (err) {
-      app.log.error(
-        { err, issueId: issue.id, knowledgeNodeId: knowledgeNode.id, errorCode: result.errorEntry.errorCode },
-        'kb closeout two-step diverged: knowledge node persisted but corpus reload failed; retry safe (idempotent upsert)',
-      );
-      throw err;
-    }
-    // L4：与其余 create 路由（tasks/dependencies/needs）一致，结案创建归档/错误表/知识节点 → 201。
-    void reply.code(201);
-    return KbCloseoutResponseSchema.parse({
-      archiveDocument: result.archiveDocument,
-      errorEntry: result.errorEntry,
-      updatedIssueCard: result.updatedIssueCard,
-      knowledgeNode,
-    });
-  });
+  // 装配外壳核心：遍历 enabledModules → 挂载各域路由。未启用模块的函数根本不被调用，端点整段不挂
+  // （§3.4-A；游戏工作室等租户可省 presence-schedule，此步无需拆 ScheduleStore——GovStore 的 schedule
+  // 方法对未启用租户单纯不被调用即可，是最便宜实现）。system/pm-core 虽标"核心常装/必装"，装配层仍统一走
+  // enabledModules 判断、不写结构性例外——常装与否由 TenantConfig 的内容体现。
+  if (moduleEnabled('system')) {
+    registerSystemRoutes(app);
+  }
+  if (moduleEnabled('archive')) {
+    registerArchiveRoutes(app, ctx);
+  }
+  if (moduleEnabled('pm-core')) {
+    registerPmCoreRoutes(app, ctx);
+  }
+  if (moduleEnabled('knowledge-base')) {
+    registerKnowledgeBaseRoutes(app, ctx);
+  }
+  if (moduleEnabled('ledger')) {
+    registerLedgerRoutes(app, ctx);
+  }
+  if (moduleEnabled('presence-schedule')) {
+    registerPresenceScheduleRoutes(app, ctx);
+  }
 
   app.setNotFoundHandler(async (request, reply) => {
     if (await tryServeStaticConsole(request, reply, options.consoleDistDir)) {

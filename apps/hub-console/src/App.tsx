@@ -2,34 +2,13 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { RefreshCw } from 'lucide-react';
 import { createHubApiClient } from './api/client';
-import {
-  ConsoleLayout,
-  type ConsolePage,
-} from './components/layout/ConsoleLayout';
-import { OverviewPage } from './features/overview/OverviewPage';
-import { ProjectPage } from './features/project/ProjectPage';
-import { KbSearchPage } from './features/kb/KbSearchPage';
-import { ArchivePage } from './features/archive/ArchivePage';
-import { GapsPage } from './features/gaps/GapsPage';
-import { InvPage } from './features/inv/InvPage';
-import { FleetPage } from './features/fleet/FleetPage';
-import { SettingsPage } from './features/settings/SettingsPage';
-import { useI18n, type TranslationKey } from './i18n';
+import { ConsoleLayout } from './components/layout/ConsoleLayout';
+import { CONSOLE_PAGES, type ConsolePage, type PageRenderCtx } from './console-pages';
+import { useI18n } from './i18n';
 import { APIBASE_KEY, WRITE_TOKEN_KEY } from './constants';
 // 单一真实后端：queryKey 维度保留稳定常量（曾区分 mock/real，现恒为 real），
 // 避免改动各页 queryKey 形状。
 const SOURCE = 'real';
-
-const TITLE_KEY: Record<ConsolePage, TranslationKey> = {
-  overview: 'toolbar.title.overview',
-  project: 'toolbar.title.project',
-  knowledge: 'toolbar.title.knowledge',
-  archive: 'toolbar.title.archive',
-  inv: 'toolbar.title.inv',
-  fleet: 'toolbar.title.fleet',
-  gaps: 'toolbar.title.gaps',
-  settings: 'toolbar.title.settings',
-};
 
 // 后端地址：localStorage 覆盖（设置页可改）> VITE_API_BASE > 同源 '/'。
 function readApiBase(): string {
@@ -63,12 +42,25 @@ export function App() {
     queryFn: () => apiClient.getOverview(),
   });
 
+  // 页面注册表（console-pages.tsx）驱动渲染 + 标题——不再是 if-else 链（HUB-MODULARIZATION 第2步）。
+  const activePage = CONSOLE_PAGES.find((p) => p.key === page);
+  const renderCtx: PageRenderCtx = {
+    apiClient,
+    source: SOURCE,
+    onNavigate: setPage,
+    overview: {
+      isLoading: overviewQuery.isLoading,
+      error: overviewQuery.error,
+      data: overviewQuery.data,
+    },
+  };
+
   return (
     <ConsoleLayout page={page} onNavigate={setPage}>
       <div className="console-toolbar">
         <div>
           <p className="eyebrow">{t('toolbar.eyebrow')}</p>
-          <h1>{t(TITLE_KEY[page])}</h1>
+          <h1>{activePage ? t(activePage.titleKey) : null}</h1>
         </div>
         {page === 'overview' ? (
           <button
@@ -82,28 +74,7 @@ export function App() {
           </button>
         ) : null}
       </div>
-      {page === 'overview' ? (
-        <OverviewPage
-          isLoading={overviewQuery.isLoading}
-          error={overviewQuery.error}
-          snapshot={overviewQuery.data}
-          onNavigate={setPage}
-        />
-      ) : page === 'project' ? (
-        <ProjectPage client={apiClient} source={SOURCE} />
-      ) : page === 'knowledge' ? (
-        <KbSearchPage client={apiClient} source={SOURCE} />
-      ) : page === 'archive' ? (
-        <ArchivePage client={apiClient} source={SOURCE} />
-      ) : page === 'inv' ? (
-        <InvPage client={apiClient} source={SOURCE} />
-      ) : page === 'fleet' ? (
-        <FleetPage client={apiClient} source={SOURCE} />
-      ) : page === 'gaps' ? (
-        <GapsPage client={apiClient} source={SOURCE} />
-      ) : page === 'settings' ? (
-        <SettingsPage client={apiClient} source={SOURCE} />
-      ) : null}
+      {activePage ? activePage.render(renderCtx) : null}
     </ConsoleLayout>
   );
 }
