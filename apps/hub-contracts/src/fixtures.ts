@@ -1,6 +1,7 @@
 import type { GovernanceSnapshot } from './attribution.js';
-import { deriveDisplayCode } from './schedule-infra.js';
 import type { ScheduleSnapshot } from './schedule.js';
+// deriveDisplayCode 已移至 robotics 垂直包（HUB-MODULARIZATION 第6步，见 verticals/robotics.ts）。
+import { deriveDisplayCode } from './verticals/robotics.js';
 import type {
   AgentBackend,
   AgentBackendCapabilitiesResponse,

@@ -59,20 +59,10 @@ export function canBoardResource(status: ResourceStatus): boolean {
   return BOARDABLE_STATUSES.has(status);
 }
 
-/**
- * 机器人编号派生（D-072 §3.2 决定 K，**禁手写**）：`赛季后两位 + 位置 (+ 版本)`。
- *  - deriveDisplayCode('25','R1',1) → '25R1'
- *  - deriveDisplayCode('26','R1',2) → '26R1-v2'（v = 第几代整机，整机全拆重做才升，默认 v1）
- * position 直接用 RobotTarget（R1/R2/shared）；version<2 不显 `-vN`（默认 v1 不啰嗦）。
- */
-export function deriveDisplayCode(
-  season: string,
-  position: string,
-  version = 1,
-): string {
-  const base = `${season}${position}`;
-  return version > 1 ? `${base}-v${version}` : base;
-}
+// deriveDisplayCode（机器人编号派生，D-072 §3.2 决定 K）已移至 `verticals/robotics.ts`
+// （HUB-MODULARIZATION 第6步）：presence-schedule 模块本就 robotics-only（§3.3 模块清单），本函数
+// 随词汇一起搬到垂直包更贴合归属。签名/行为不变，消费点仍从包入口 `@teamhub/hub-contracts` 导入，
+// 本文件内不再需要它（唯一调用点在 fixtures.ts，已改从 './verticals/robotics.js' 导入）。
 
 export const SharedResourceSchema = z.object({
   id: z.string().min(1),

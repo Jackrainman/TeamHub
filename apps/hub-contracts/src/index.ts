@@ -116,3 +116,5 @@ export * from './system-status.js';
 export * from './pm-requests.js';
 // 装配契约（HUB-MODULARIZATION 第2步）：ModuleDescriptor / TenantConfig / VocabularyRegistry，只接口不实现。
 export * from './assembly.js';
+// robotics 垂直包（HUB-MODULARIZATION 第6步）：词汇 + 词汇相关派生函数，只此一个已注册垂直包。
+export * from './verticals/robotics.js';

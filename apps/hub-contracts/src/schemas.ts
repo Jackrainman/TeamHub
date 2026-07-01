@@ -171,15 +171,12 @@ export const GitRepoRefSchema = z.object({
 
 export const ArtifactRefSchema = z.object({
   id: z.string().min(1),
-  kind: z.enum([
-    'firmware',
-    'log',
-    'rosbag',
-    'image',
-    'video',
-    'report',
-    'other',
-  ]),
+  // HUB-MODULARIZATION 第6步（词汇注入收口）：由闭集 z.enum 放宽为开放 string——归档物种类是
+  // 租户词汇，非核心结构。机器人租户已知值（含 firmware/rosbag）见
+  // `verticals/robotics.ts:ROBOTICS_ARTIFACT_KIND_VALUES`；闭集校验（如需要）下沉到路由层
+  // VocabularyRegistry 校验器（尚未实现，见 docs/design/modularization-feasibility.md §3.4-A①），
+  // 在该校验器补齐前对非法值不做闭集校验，只能靠测试兜底（放弃编译期枚举安全换运行期可注入）。
+  kind: z.string().min(1),
   name: z.string().min(1),
   // 地址（URI）可选：登记时允许只记机构/版本、文件链接事后补（用户要求"地址改为可填项"）。
   uri: z.string().min(1).optional(),
@@ -198,7 +195,10 @@ export const ArtifactRefSchema = z.object({
   //   故一条机构的版本线可跨机器人（v2 适配 R2、v3 适配 R1），版本号仍按机构连续。
   // versionNo = 自增版本号（server 派生，键=组别+赛季+机构，不含机器人）。
   // subType = 子类型 图纸/驱动（仅电路带）。I0：均无人员维度。
-  ownerGroup: z.enum(['mechanical', 'electrical', 'ec', 'vision']).optional(),
+  // HUB-MODULARIZATION 第6步：由闭集 z.enum 放宽为开放 string（本就 optional，最易先示范）——
+  // 机器人租户已知值见 `verticals/robotics.ts:ROBOTICS_OWNER_GROUP_VALUES`；写侧
+  // `pm-requests.ts:CreateArtifactRequestSchema` 仍收紧为该值的 z.enum（过渡态，同上）。
+  ownerGroup: z.string().min(1).optional(),
   season: z.string().min(1).optional(),
   robotCode: z.string().min(1).optional(),
   versionNo: z.number().int().positive().optional(),

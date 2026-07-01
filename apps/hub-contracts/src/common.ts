@@ -13,7 +13,11 @@ export const isoDateTimeSchema = z.string().datetime({ offset: true });
 export const ActorRefSchema = z.object({
   id: z.string().min(1),
   displayName: z.string().min(1),
-  source: z.enum(['lark', 'git', 'console', 'unknown']),
+  // HUB-MODULARIZATION 第6步（词汇注入收口）：'lark'（飞书）是渠道值，硬编码进闭集 enum 即渠道
+  // 泄漏进核心原语——放宽为开放 string（可注入来源）。'git'/'console'/'unknown' 仍是核心通用来源
+  // （非渠道概念）；飞书/slack/discord 等 IM 渠道值由集成层（BotChannel.platform，schemas.ts）提供，
+  // 本原语不再假定"lark 是唯一的第三方渠道"。闭集校验（如需要）同样下沉到路由层 VocabularyRegistry。
+  source: z.string().min(1),
 });
 
 export type ActorRef = z.infer<typeof ActorRefSchema>;

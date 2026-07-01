@@ -14,6 +14,10 @@ import {
   ResourceStatusSchema,
 } from './schedule-infra.js';
 import { ArtifactRefSchema } from './schemas.js';
+// robotics 垂直包词汇（HUB-MODULARIZATION 第6步）：写侧 ownerGroup 闭集校验复用同一份值，
+// 避免与 verticals/robotics.ts 的参考表两处硬编码漂移（闭集校验下沉到路由层 VocabularyRegistry
+// 校验器前的过渡态，见该文件头部注释）。
+import { ROBOTICS_OWNER_GROUP_VALUES } from './verticals/robotics.js';
 
 // PM 项目计划表「写侧请求契约」单一源（D-052 重复真相收口）。
 // 此前 hub-server/src/contracts.ts 与 hub-console/src/api/schemas/pm.ts 各从 hub-contracts
@@ -130,7 +134,7 @@ export const CreateArtifactRequestSchema = ArtifactRefSchema.omit({
   storedFile: true,
 })
   .extend({
-    ownerGroup: z.enum(['mechanical', 'electrical', 'ec', 'vision']),
+    ownerGroup: z.enum(ROBOTICS_OWNER_GROUP_VALUES),
     season: z.string().min(1),
     // 适配机器人：自由串手填（真实战队机器人编号会变，如 26R1 / 26R3-试制 / 通用）。
     // 是版本属性、不进版本键（server 版本号按 组别+赛季+机构 三键自增），故放宽为任意非空串安全。

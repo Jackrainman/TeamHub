@@ -19,29 +19,18 @@ import { Combobox } from '../../components/Combobox';
 import { FormActions } from '../../components/FormActions';
 import { Field } from '../../components/Field';
 import { SegToggle } from '../../components/SegToggle';
-
-type OwnerGroup = 'mechanical' | 'electrical' | 'ec' | 'vision';
-
-// 组别顺序 + 文案键（新增组别在此处一处登记；枚举漏配会编译报错）。
-// TODO(backend): 该枚举/顺序应从 hub-contracts 中心导出（OwnerGroup + 顺序），
-// 前端不再各自写死；当前本批次保持前端常量，待 contracts 落地后改为导入。
-const OWNER_GROUP_ORDER: readonly OwnerGroup[] = [
-  'mechanical',
-  'electrical',
-  'ec',
-  'vision',
-];
-const GROUP_LABEL_KEY: Record<OwnerGroup, TranslationKey> = {
-  mechanical: 'enum.group.mechanical',
-  electrical: 'enum.group.electrical',
-  ec: 'enum.group.ec',
-  vision: 'enum.group.vision',
-};
+// 组别闭集 + 顺序 + 文案键 + 上传后缀白名单已移至 robotics 垂直包（HUB-MODULARIZATION 第6步）——
+// 原 TODO(backend)「该枚举/顺序应从中心导出」在此落地：不再是前端各自写死的常量。
+import {
+  type OwnerGroup,
+  OWNER_GROUP_ORDER,
+  GROUP_LABEL_KEY,
+  ARTIFACT_ACCEPT_EXT,
+} from '../../verticals/robotics';
 
 // 上传文件后缀白名单（与 server ARTIFACT_ALLOWED_EXT 对齐）：CAD / 文档 / 图 / 包 / 固件。
 // 前端 accept 仅是提示，真正把关在 server（415）。
-const ARTIFACT_ACCEPT =
-  '.step,.stp,.iges,.igs,.sldprt,.sldasm,.slddrw,.dwg,.f3d,.pdf,.md,.txt,.png,.jpg,.jpeg,.zip,.bin,.hex';
+const ARTIFACT_ACCEPT = ARTIFACT_ACCEPT_EXT.join(',');
 
 interface MechanismGroup {
   mechanism: string;
@@ -49,18 +38,20 @@ interface MechanismGroup {
 }
 
 interface OwnerGroupSection {
-  ownerGroup: OwnerGroup | null; // null = 未分组/历史桶
+  // HUB-MODULARIZATION 第6步：读侧 ArtifactRef.ownerGroup 已放宽为开放 string（可注入），
+  // 分组只按值分桶、不假定闭集——非机器人已知值一律落「未分组/历史」旁的独立桶而非崩溃。
+  ownerGroup: string | null; // null = 未分组/历史桶
   mechanisms: MechanismGroup[];
 }
 
 // 两级分组：外层 ownerGroup（机械/电路）+ 未分组历史桶，内层 mechanism，组内 createdAt 倒序。
 function groupArtifacts(artifacts: ArtifactRef[]): OwnerGroupSection[] {
   // 先按 ownerGroup 分桶
-  const byOwner = new Map<OwnerGroup | null, Map<string, ArtifactRef[]>>();
-  const ownerOrder: (OwnerGroup | null)[] = [];
+  const byOwner = new Map<string | null, Map<string, ArtifactRef[]>>();
+  const ownerOrder: (string | null)[] = [];
 
   for (const artifact of artifacts) {
-    const og: OwnerGroup | null = artifact.ownerGroup ?? null;
+    const og: string | null = artifact.ownerGroup ?? null;
     if (!byOwner.has(og)) {
       byOwner.set(og, new Map());
       ownerOrder.push(og);
@@ -72,12 +63,15 @@ function groupArtifacts(artifacts: ArtifactRef[]): OwnerGroupSection[] {
   }
 
   // 构建结果：机械 → 电路 → 电控 → 视觉 → null（未分组历史桶垫底）
-  const sorted: (OwnerGroup | null)[] = [];
+  const sorted: (string | null)[] = [];
   for (const og of OWNER_GROUP_ORDER) {
     if (byOwner.has(og)) sorted.push(og);
   }
+  // OWNER_GROUP_ORDER 的元素类型仍是闭集 OwnerGroup（供写侧表单复用），但此处 og 已是开放
+  // string（读侧数据）——显式转宽比较数组，只影响本行"是否为已知机器人组别"判断，不改行为。
+  const knownOwnerGroups: readonly string[] = OWNER_GROUP_ORDER;
   for (const og of ownerOrder) {
-    if (og !== null && !OWNER_GROUP_ORDER.includes(og)) sorted.push(og);
+    if (og !== null && !knownOwnerGroups.includes(og)) sorted.push(og);
     else if (og === null) sorted.push(og);
   }
 
@@ -438,9 +432,14 @@ export function ArchivePage({
 
   // 单个分组段落渲染（机构两级 + 版本行），view tab 复用。
   const renderSection = (section: OwnerGroupSection) => {
-    const sectionLabel = section.ownerGroup
-      ? t(GROUP_LABEL_KEY[section.ownerGroup])
-      : t('archive.ungrouped');
+    // 读侧 ownerGroup 已放宽为开放 string（HUB-MODULARIZATION 第6步）：机器人已知值走 i18n 文案，
+    // 非机器人已知值（理论上今天不会出现，属未来垂直包/脏数据兜底）原样显示，不查表崩溃。
+    const groupKey = section.ownerGroup
+      ? (GROUP_LABEL_KEY as Partial<Record<string, TranslationKey>>)[section.ownerGroup]
+      : undefined;
+    const sectionLabel = groupKey
+      ? t(groupKey)
+      : (section.ownerGroup ?? t('archive.ungrouped'));
     return (
       <section
         className="panel"
