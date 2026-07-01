@@ -1,6 +1,12 @@
 import { z } from 'zod';
 
-import { ActorRefSchema, isoDateTimeSchema } from './common.js';
+import {
+  ActorRefSchema,
+  isoDateTimeSchema,
+  WeeklyMinuteWindowBaseSchema,
+  weeklyMinuteWindowRefine,
+  WEEKLY_MINUTE_WINDOW_REFINE_MSG,
+} from './common.js';
 
 /**
  * 治理数据真相层（D-026 第①层）+ 阻塞归因派生输出 + DepGraph 前端视图契约。
@@ -429,31 +435,9 @@ export const SharedResourceSchema = z.object({
   updatedAt: isoDateTimeSchema,
 });
 
-/**
- * 周内分钟段基元（共享）：dayOfWeek 0-6（周日=0）、startMin/endMin 为当日 0 点起的分钟数。
- * 半开区间 [startMin, endMin)；refine 强制 startMin<endMin。
- * **不支持跨夜**（如 22:00-次日 02:00）——跨夜请拆成两条段。
- * recurringBusy（成员私有课表）与 WindowDef（在场窗口锚定）共用此基元，避免区间校验重复两处。
- *
- * 裸 object 形状单独导出（WeeklyMinuteWindowBaseSchema），供 recurringBusy 等
- * 需要 .extend({ label }) 的场景复用（ZodEffects 不能 .extend）；带 refine 的
- * 上界检查由 WeeklyMinuteWindowSchema / WindowDefSchema 承载。
- */
-export const WeeklyMinuteWindowBaseSchema = z.object({
-  dayOfWeek: z.number().int().min(0).max(6),
-  startMin: z.number().int().min(0).max(1439),
-  endMin: z.number().int().min(1).max(1440),
-});
-
-/** 周内分钟段 refine：startMin<endMin（不支持跨夜，跨夜请拆两条）。 */
-export const weeklyMinuteWindowRefine = (w: {
-  startMin: number;
-  endMin: number;
-}): boolean => w.startMin < w.endMin;
-
-export const WEEKLY_MINUTE_WINDOW_REFINE_MSG =
-  'startMin 必须 < endMin（不支持跨夜窗口，跨夜请拆两条）';
-
+// WeeklyMinuteWindowBaseSchema / weeklyMinuteWindowRefine / WEEKLY_MINUTE_WINDOW_REFINE_MSG
+// 已上移至 common.ts（core 基元层），本文件从 './common.js' import——step1 剪 growth→governance 跨域环。
+// 带 refine 的上界检查（WeeklyMinuteWindowSchema / WindowDefSchema）仍属调度域，留在本文件。
 export const WeeklyMinuteWindowSchema = WeeklyMinuteWindowBaseSchema.refine(
   weeklyMinuteWindowRefine,
   { message: WEEKLY_MINUTE_WINDOW_REFINE_MSG },

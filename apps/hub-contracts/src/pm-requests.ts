@@ -11,7 +11,6 @@ import {
   RobotTargetSchema,
   ResourceStatusSchema,
 } from './governance.js';
-import { RelayStageSchema } from './relay.js';
 import { ArtifactRefSchema } from './schemas.js';
 
 // PM 项目计划表「写侧请求契约」单一源（D-052 重复真相收口）。
@@ -221,16 +220,8 @@ export const RelayHandoffResponseSchema = z.object({
   handoff: RelayHandoffSchema.omit({ confirmedBy: true }),
 });
 
-/**
- * GET /api/relay?windowLabel= 读响应（R1 接力画布读视图）：一排接力站（RelayStage）+ 站间交接线。
- * 由 deriveRelayBoard 纯函数派生（无 IO）。handoffs 经读边界**剥 confirmedBy**（I0：ActorRef 永不过边界）。
- * **反监视红线**：stages / handoffs 任何字段都无 memberId / invitedMemberIds / 出勤计数——
- * RelayStageSchema 结构上无人维度，RelayHandoff 剥 confirmedBy 后亦无人键。
- */
-export const RelayBoardResponseSchema = z.object({
-  stages: z.array(RelayStageSchema),
-  handoffs: z.array(RelayHandoffSchema.omit({ confirmedBy: true })),
-});
+// RelayBoardResponseSchema / RelayBoardResponse 已迁至 relay.ts（接力本域，与 RelayBoard 接口同处）——
+// step1 剪 pm-requests→relay 跨域环。
 
 /**
  * POST /api/resources（R3 机器人管理 / D-072 §3.2「机器人 = 带编号对象」）：建一台共享资源（整机）。
@@ -315,7 +306,6 @@ export type CreateRelayHandoffRequest = z.infer<
   typeof CreateRelayHandoffRequestSchema
 >;
 export type RelayHandoffResponse = z.infer<typeof RelayHandoffResponseSchema>;
-export type RelayBoardResponse = z.infer<typeof RelayBoardResponseSchema>;
 export type CreateResourceRequest = z.infer<
   typeof CreateResourceRequestSchema
 >;

@@ -1,11 +1,12 @@
 import { z } from 'zod';
 
-import { ActorRefSchema, isoDateTimeSchema } from './common.js';
 import {
+  ActorRefSchema,
+  isoDateTimeSchema,
   WEEKLY_MINUTE_WINDOW_REFINE_MSG,
   WeeklyMinuteWindowBaseSchema,
   weeklyMinuteWindowRefine,
-} from './governance.js';
+} from './common.js';
 
 /**
  * 成长轴（D-027，与治理主干并列）。MVP 只做"任务知识标注，树从标注长出"。
@@ -61,8 +62,8 @@ export const MemberKnowledgeSchema = z.object({
 // MemberAvailability（成员私有课表信号；S1，A2）
 //
 // 与 MemberKnowledge 同范式：成员私有信号，明细永不进第三方 / 聚合视图，
-// 只在派生时被压成"无人维度的组级整数 headcount"。recurringBusy 复用 governance.ts
-// 的 WeeklyMinuteWindowSchema 周内分钟段基元（与 WindowDef 同一基元，避免区间校验重复）。
+// 只在派生时被压成"无人维度的组级整数 headcount"。recurringBusy 复用 common.ts
+// 的 WeeklyMinuteWindowBaseSchema 周内分钟段基元（与 WindowDef 同一基元，避免区间校验重复）。
 // ---------------------------------------------------------------------------
 
 export const MemberAvailabilityVisibilitySchema = z.enum([

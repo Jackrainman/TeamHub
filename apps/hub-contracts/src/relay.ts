@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { canBoardResource } from './governance.js';
+import { canBoardResource, RelayHandoffSchema } from './governance.js';
 import type { RelayHandoff } from './governance.js';
 import type { ScheduleSnapshot } from './schedule.js';
 
@@ -39,6 +39,20 @@ export interface RelayBoard {
   stages: RelayStage[];
   handoffs: RelayHandoff[];
 }
+
+/**
+ * GET /api/relay?windowLabel= 读响应（R1 接力画布读视图）：一排接力站（RelayStage）+ 站间交接线。
+ * 由 deriveRelayBoard 纯函数派生（无 IO）。handoffs 经读边界**剥 confirmedBy**（I0：ActorRef 永不过边界）。
+ * **反监视红线**：stages / handoffs 任何字段都无 memberId / invitedMemberIds / 出勤计数——
+ * RelayStageSchema 结构上无人维度，RelayHandoff 剥 confirmedBy 后亦无人键。
+ * （原住 pm-requests.ts，step1 迁回接力本域以剪 pm-requests→relay 跨域环。）
+ */
+export const RelayBoardResponseSchema = z.object({
+  stages: z.array(RelayStageSchema),
+  handoffs: z.array(RelayHandoffSchema.omit({ confirmedBy: true })),
+});
+
+export type RelayBoardResponse = z.infer<typeof RelayBoardResponseSchema>;
 
 function indexBy<T>(items: T[], key: (item: T) => string): Map<string, T> {
   const map = new Map<string, T>();
