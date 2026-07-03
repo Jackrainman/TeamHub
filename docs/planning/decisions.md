@@ -999,3 +999,32 @@
   4. **构建 chunk>500kB 警告**：`@xyflow/react` + `@dagrejs/dagre`（仅 DepGraphPage 用）压成 694kB 单 chunk → `ProjectPage` 用 `React.lazy` + `Suspense` 把 DepGraphPage 拆成按需 chunk（总览/知识库/库存首屏不再背）。
 - 守恒/红线（I0）：抽屉/任务表单/拖拽建边全链路无人员维度；依赖 `confirmedBy` 仍 server 钉、I0 永不回显；Need schema 休眠、不动其 I0 守卫。
 - 事实源：本 ADR；plan `~/.claude/plans/cached-dazzling-dream.md`；前半 commit `3e12e50`；上位 D-039（AI 退治理→治理派生簇挂起）/ D-075·D-077（项目页组合 · 看板⇄依赖图）。
+
+## D-081 — 模块化阶段一收口：机器人单体拆成 CASE base + 机器人层
+
+- 状态：**DECIDED / IMPLEMENTED / VERIFIED（分支 `feat/plugin-core` 6 commit `6fc32fb`→`c84f4a9`，07-03 FF 合并 origin/master，VERSION 0.9.7）**（2026-07-03）。
+- 上下文：TeamHub 内核目前与「机器人战队」垂直场景强耦合（术语/枚举/fixtures 全写死机器人语义），后续要向游戏工作室/软件开发等其他协作场景复用，须先把内核模块化。`docs/design/modularization-feasibility.md` 定两阶段：阶段一先在同一 master 上把单体拆成 CASE base + 机器人层（不建新 worktree、不破坏现有部署）；阶段二再从合并后 master 分出 game-studio/software-dev 等垂直包 worktree。
+- 决策/实现（feat/plugin-core，6 commit）：
+  1. **剪两条跨域 import 环**（`6fc32fb`）：growth→governance、pm-requests→relay，为后续拆包解除循环依赖。
+  2. **装配外壳 + 装配契约**（`3542845`）：新增 `ModuleDescriptor`/`TenantConfig` 契约——每个垂直包声明自己提供的模块，租户配置决定装配哪些模块，为阶段二垂直包留好接口。
+  3. **`governance.ts` 拆分**（`dafc68a`）：巨文件拆成 `pm-core.ts`（项目管理核心，跨垂直通用）+ `schedule-infra.ts`（排班基础设施，机器人场景更重但结构仍通用）。
+  4. **`RobotTarget` 去渗透**（`e583643`）：Task/Project 上原本写死的机器人枚举字段改 optional，非机器人垂直包可以不填；配套迁移脚本 `scripts/migrate-robottarget.mjs` 处理旧数据。
+  5. **fixtures 拆 per-module builder**（`15d2ec1`）：原单块 fixtures.ts 多域 seed 拆成各模块独立 builder，便于阶段二垂直包只装配自己需要的种子数据。
+  6. **verticals-robotics 词汇包成形**（`c84f4a9`）：机器人特有词汇（displayCode/robotTarget 等）收进独立词汇注入层，为阶段二游戏工作室/软件开发词汇包打样。
+- 验证：07-02 WSL 全绿——三包 `verify:all` 432 测、迁移脚本 `scripts/migrate-robottarget.mjs` 在真实 gov.json 副本上跑零丢失、Playwright health-check 8 页 0 错等价 master、真实未迁移的 gov.json 在新 schema 下加载成功（向后兼容实证）。07-03 FF 合并 master（`c84f4a9`）已 push origin。
+- 设计真相 = `docs/design/modularization-feasibility.md`（本轮实际执行的方案）；`docs/design/core-plugin-architecture.md` 是更宽的长期愿景，仍 **PROPOSAL**、与本轮实现尚未对齐，后续需要专门核对差异。
+- **已知延后（阶段二前置，未在本轮做）**：① console 侧装配未接线——`console-pages.tsx` 仍是全量静态注册，未消费 `TenantConfig`；② `i18n/vocabulary-overrides.ts` 未接线，词汇包目前只在 contracts 层生效；③ `GovStore` god-interface 仅在独立部署（非 monorepo 内共享）场景才会成为真实阻塞，本轮不处理；④ i18n 巨表未拆分（未按模块拆分翻译键）；⑤ 测试从未跑过非默认 TenantConfig 的装配路径——现有 432 测全部走默认（机器人）装配。
+- 阶段二：从合并后 master 切 `game-studio`/`software-dev` 等垂直包 worktree；前置 = 上述①②延后项先补上（见 backlog `PHASE2-CONSOLE-ASSEMBLY`）。
+- 事实源：本 ADR；`docs/design/modularization-feasibility.md`；`docs/design/core-plugin-architecture.md`（PROPOSAL）；memory `teamhub-modularization`。
+
+## D-082 — daily-plan-presets 实现拍板
+
+- 状态：**DECIDED（口径已锁，2026-07-03 实现轮启动）**。
+- 上下文：设计稿 `docs/design/daily-plan-presets.md` 于 06-24 完成三项决策（D1/D2/D3 均选 A，见该文档 §6）：D1 = 表格「今日任务」格挂正式任务、轻量录入；D2 = `defaultPreset.lineup=[{groupId,taskId?}]`，铺出来组+任务都预填；D3 = 赛季第一天无「昨天」时「继续昨天」按钮灰掉+提示。本条把设计稿锁定为**实现口径**，解冻进入本轮实现。
+- 决策（实现口径，四点）：
+  1. **采纳 §6.D1「复用优先」优化全文**：每车 `defaultPreset.lineup[].taskId` 挂**常驻任务**（如 26R1「系统调试」是持续复用的同一个 Task，不每天新建）；表格里输任务名先**按该车现有任务标题匹配复用**，匹配不到才**显式确认**建新任务（非静默暴增）；**不自动建空依赖任务**——无依赖车默认 present、不假装智能。
+  2. **`defaultPreset` 写回端点** = `PATCH /api/resources/:id/preset`，镜像既有 `status` 端点的鉴权/校验模式（H3 写鉴权口径不变）。
+  3. **「确认」批量建 session** = `POST /api/resource-sessions/batch` 原子端点：全体校验通过后一次性落盘，避免半成功状态（部分车建成、部分车失败导致数据不一致）。
+  4. **§5 空状态路由 + fixtures 收口**：当日 `ResourceSession` 数为 0 时自动落到表格页（而非空白泳道图）；demo 车 fixtures 顺带种好 `defaultPreset`——这一并是「日期锚定空屏债」（换天首屏空屏，见 D-075 已修的舍弃预烤 seed 教训）的收口刀。既有锚点 seed（06-21/06-28 场景）**保留不拆**，仍服务差异化三态/总联调全组演示。
+- 守恒/红线（I0）：预设/表格/泳道图全程只到**组**级，绝不渲染/录入/派生 `memberId`/`invitedMemberIds`/出勤维度；`carryForwardPlan` 与新纯函数 `deriveTodayPlanFromPresets` 均恒清空 `invitedMemberIds`（继承 D-075 carry-over 红线）。
+- 事实源：本 ADR；设计稿 `docs/design/daily-plan-presets.md`（§4 数据模型 + §6 决议）；前序 D-075（SCHEDULE-DESIGN-LOCK，carry-over 纯函数先例）。
