@@ -11,6 +11,14 @@ export {
   // A2 加一棒：POST /api/resource-sessions 写契约（队长在画布上新增一条占用窗口）。
   CreateResourceSessionRequestSchema,
   CreateResourceSessionResponseSchema,
+  // D-082 今日计划表格：PATCH /api/resources/:id/preset（每车默认阵型写回）+
+  // POST /api/resource-sessions/batch（表格【确认】原子落盘）。
+  UpdateResourceDefaultPresetRequestSchema,
+  UpdateResourceDefaultPresetResponseSchema,
+  CreateResourceSessionsBatchRequestSchema,
+  CreateResourceSessionsBatchResponseSchema,
+  // 「使用预设」纯函数 + 草稿类型（表格页消费，见 features/schedule/today-plan.ts）。
+  deriveTodayPlanFromPresets,
 } from '@teamhub/hub-contracts';
 export type {
   RelayStage,
@@ -22,4 +30,10 @@ export type {
   RelayHandoffResponse,
   CreateResourceSessionRequest,
   CreateResourceSessionResponse,
+  UpdateResourceDefaultPresetRequest,
+  UpdateResourceDefaultPresetResponse,
+  CreateResourceSessionsBatchRequest,
+  CreateResourceSessionsBatchResponse,
+  DefaultPreset,
+  TodayPlanSessionDraft,
 } from '@teamhub/hub-contracts';

@@ -1,6 +1,7 @@
 import type {
   ArchiveDocument,
   ArtifactRef,
+  DefaultPreset,
   Dependency,
   ErrorEntry,
   GovernanceSnapshot,
@@ -146,6 +147,13 @@ export interface ResourceStatusPatch {
 }
 
 /**
+ * setResourceDefaultPreset 入参（PATCH /api/resources/:id/preset，D-082 §6 D2）：既有车的默认阵型
+ * 整体写回。传 `DefaultPreset` 对象 = 设置/整体替换（非增量合并 lineup，C3 受限编辑）；传 `null` = 清除
+ * （该车退出「使用预设」铺底，回到 §6 D1 手填路径）。镜像 ResourceStatusPatch 同一「受限单字段迁移」范式。
+ */
+export type ResourceDefaultPresetPatch = DefaultPreset | null;
+
+/**
  * 三支柱共享底座的读写出入口。
  *
  * 读：`getSnapshot()`（D-040 首刀，已实现）。
@@ -224,6 +232,15 @@ export interface GovStore {
     id: string,
     patch: ResourceStatusPatch,
   ): Promise<SharedResource | null>;
+  /**
+   * 既有车默认阵型写回（PATCH /api/resources/:id/preset，D-082 §6 D2「使用预设」铺底基线）。
+   * 整体替换 `defaultPreset`（传对象=设/改，传 `null`=清除）；不开局部 lineup 增量合并口子（C3）。
+   * id 不存在 → 返回 null（路由层转 404）。FileGovStore 与 status 同落 resources.json（同一持久化面）。
+   */
+  setResourceDefaultPreset(
+    id: string,
+    preset: ResourceDefaultPresetPatch,
+  ): Promise<SharedResource | null>;
   /** 占用窗口（GET /api/resource-sessions 读视图）。invitedMemberIds 是本窗操作名单（I0 许可），绝不按人聚合。 */
   listResourceSessions(): Promise<ResourceSession[]>;
   /**
@@ -232,6 +249,17 @@ export interface GovStore {
    * 不进派生输出维度；GET /api/schedule 只回 derivePresenceSchedule 的组键建议，绝不回原始 session。
    */
   createResourceSession(draft: ResourceSessionDraft): Promise<ResourceSession>;
+  /**
+   * 占用窗口批量原子创建（POST /api/resource-sessions/batch，D-082 §5 表格页【确认】）。
+   * 路由层已完成全量校验（resource/group/task 存在、同车同窗 orderInWindow 不冲突）——本方法只负责
+   * 「全部通过才一次落盘、任一构造失败整批不落」的原子语义。纯内存构造 + 一次性 push，无 IO 间隙，
+   * 天然原子（不会出现半成功）。每条 Store 补 id=`sess-new-N` + createdAt、钉 `source='human'`；
+   * **invitedMemberIds 恒被强制清空为 `[]`**（I0 双保险：即便 draft 夹带成员 id 也在此原地清空，
+   * 不信任调用方已清空）。confirmedBy 由调用方（路由）在每条 draft 上统一注入（点【确认】时一次性给）。
+   */
+  createResourceSessionsBatch(
+    drafts: ResourceSessionDraft[],
+  ): Promise<ResourceSession[]>;
   /**
    * 占用窗口受限编辑（PATCH /api/resource-sessions/:id，R1 接力画布）。只改 orderInWindow / eta
    * （C3 受限编辑、非通用字段 update）。id 不存在 → null（路由层转 404）。与 session 同走内存、不落盘。

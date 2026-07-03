@@ -12,6 +12,7 @@ import type {
   Task,
 } from './pm-core.js';
 import type {
+  DefaultPreset,
   PresenceFeasibility,
   PresenceMode,
   PresenceReason,
@@ -450,4 +451,55 @@ export function derivePresenceSchedule(
       MODE_RANK[b.mode] - MODE_RANK[a.mode] || a.groupId.localeCompare(b.groupId),
   );
   return recs;
+}
+
+/**
+ * 「使用预设」铺今日计划的草稿形状（D-082）：对齐 ResourceSession 创建入参
+ * （镜像 `pm-requests.ts` 的 `CreateResourceSessionRequestSchema` = Omit id/source/createdAt），
+ * 但**不含 `confirmedBy`**——这一层只产生"未确认草稿"，供表格页预览/微调；`confirmedBy` 由队长
+ * 点【确认】时随批量落盘请求一并给出（下一阶段 server `POST /api/resource-sessions/batch` 消费）。
+ * `source` 恒 `'human'`（队长一键铺即视为人工基线，同 buildCarryOverDraft 的定调）。
+ */
+export type TodayPlanSessionDraft = Omit<
+  ResourceSession,
+  'id' | 'createdAt' | 'confirmedBy'
+>;
+
+/**
+ * 「使用预设」(D-082 daily-plan-presets §4.2/§6)：按每车 `defaultPreset.lineup` 一键铺出今天的
+ * 占用窗口草稿（纯函数，零副作用，不落盘、不产生 id）。
+ *
+ * 规则：
+ * - 只遍历**可上场**车（`canBoardResource`，非维修/退役/拆解）且带 `defaultPreset` 的车；
+ *   跳过不可上场车与未设预设的车（沉默，同 derivePresenceSchedule 的"无关不产生建议"风格）。
+ * - 每条 `lineup` entry → 一条 session 草稿：`resourceId`=该车 id、`holderGroupId`=entry.groupId、
+ *   `holderTaskId`=entry.taskId ?? null（复用优先，D1 优化：挂常驻任务，不新建）、
+ *   `orderInWindow`=该车 lineup 内下标（0,1,2…，同车多条 = 接力/并行序）、`windowLabel`=date。
+ * - `invitedMemberIds` 恒 `[]`（I0 红线：预设/表格全程不进 memberId 维度）；`eta`/`note` 恒 `null`。
+ */
+export function deriveTodayPlanFromPresets(
+  resources: SharedResource[],
+  date: string,
+): TodayPlanSessionDraft[] {
+  const drafts: TodayPlanSessionDraft[] = [];
+  for (const resource of resources) {
+    if (!canBoardResource(resource.status)) continue;
+    const preset: DefaultPreset | undefined = resource.defaultPreset;
+    if (!preset) continue;
+    preset.lineup.forEach((entry, index) => {
+      drafts.push({
+        projectId: resource.projectId,
+        resourceId: resource.id,
+        windowLabel: date,
+        orderInWindow: index,
+        holderGroupId: entry.groupId,
+        holderTaskId: entry.taskId ?? null,
+        invitedMemberIds: [],
+        note: null,
+        source: 'human',
+        eta: null,
+      });
+    });
+  }
+  return drafts;
 }

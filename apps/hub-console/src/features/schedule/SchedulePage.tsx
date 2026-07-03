@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { PresenceRecommendation } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n, type TranslationKey } from '../../i18n';
+import { segClass } from '../../utils';
 import { RelayCanvas } from './RelayCanvas';
+import { TodayPlanTable } from './TodayPlanTable';
 import { isoToday, relativeSegments } from './date-utils';
 
 // 差异化在场排班（D-029）。反监视纪律（A1/I0）：本页主键是 groupId + resourceId + 任务名，
@@ -31,8 +33,23 @@ export function SchedulePage({
     queryKey: ['schedule', source, windowLabel],
     queryFn: () => client.getSchedule(windowLabel),
   });
+  // 空状态路由（D-082 §5）：这天 session 数=0 → 自动落表格页；否则落泳道图。
+  // 与 TodayPlanTable 内部判「继续昨天」是否可用同一 queryKey（['resource-sessions']，无参数），react-query 去重。
+  const sessionsQuery = useQuery({
+    queryKey: ['resource-sessions'],
+    queryFn: () => client.getResourceSessions(),
+  });
+  const todayCount =
+    sessionsQuery.data?.sessions.filter((s) => s.windowLabel === windowLabel).length ?? null;
 
-  if (query.isLoading) {
+  // 用户手动切换的视图覆盖（表格⇄泳道图双向入口）；换日期时清掉，让空状态判定重新接管默认落点。
+  const [manualView, setManualView] = useState<'table' | 'lanes' | null>(null);
+  useEffect(() => {
+    setManualView(null);
+  }, [windowLabel]);
+  const view: 'table' | 'lanes' = manualView ?? (todayCount === 0 ? 'table' : 'lanes');
+
+  if (query.isLoading || sessionsQuery.isLoading) {
     return (
       <div className="state-band" role="status" aria-live="polite">
         {t('schedule.loading')}
@@ -85,11 +102,39 @@ export function SchedulePage({
         </label>
       </div>
 
-      {/* 接力画布**永远渲染**（含「+加一棒」工具条与空态引导卡）——不再被 recommendations.length
-          短路。否则新一天 0 建议时整块画布连同加棒入口被吞掉成一张没有按钮的死卡
-          （SCHEDULE-DESIGN-LOCK 根因，见 docs/design/schedule-ux-lock.md §0.0）。
-          空与非空的分支判断全部下沉到 RelayCanvas 内部。 */}
-      <RelayCanvas client={client} windowLabel={windowLabel} />
+      {/* 表格⇄泳道图双向入口（D-082 §5）：默认落点由空状态判定给，用户随时能手动切换。 */}
+      <div className="seg schedule-view-toggle" role="group" aria-label={t('schedule.view.switchLabel')}>
+        <button
+          type="button"
+          className={segClass(view === 'table')}
+          aria-pressed={view === 'table'}
+          onClick={() => setManualView('table')}
+        >
+          {t('schedule.view.table')}
+        </button>
+        <button
+          type="button"
+          className={segClass(view === 'lanes')}
+          aria-pressed={view === 'lanes'}
+          onClick={() => setManualView('lanes')}
+        >
+          {t('schedule.view.lanes')}
+        </button>
+      </div>
+
+      {view === 'table' ? (
+        <TodayPlanTable
+          client={client}
+          windowLabel={windowLabel}
+          onConfirmed={() => setManualView('lanes')}
+        />
+      ) : (
+        // 接力画布**永远渲染**（含「+加一棒」工具条与空态引导卡）——不再被 recommendations.length
+        // 短路。否则新一天 0 建议时整块画布连同加棒入口被吞掉成一张没有按钮的死卡
+        // （SCHEDULE-DESIGN-LOCK 根因，见 docs/design/schedule-ux-lock.md §0.0）。
+        // 空与非空的分支判断全部下沉到 RelayCanvas 内部。
+        <RelayCanvas client={client} windowLabel={windowLabel} />
+      )}
       {/* 「各组详情」卡片网格只 gate 它自己：有建议才显示（被卡组的「可看资料」收在这里）。 */}
       {recommendations.length > 0 ? (
         <section className="schedule-detail" aria-label={t('schedule.relay.detailTitle')}>

@@ -473,6 +473,39 @@ const zh = {
   'schedule.relay.addEmptyRobot': '还没有可上场的机器人，先在上面新建一台。',
   'schedule.relay.addEmptyTask': '还没有任务可排，先去项目看板建一条任务。',
 
+  // 表格⇄泳道图切换（D-082 §5）
+  'schedule.view.switchLabel': '切换今日计划的看法',
+  'schedule.view.table': '表格',
+  'schedule.view.lanes': '泳道图',
+
+  // 今日计划表格（D-082 §5/§6.D1，TodayPlanTable）
+  'schedule.table.loading': '正在准备今日计划表格…',
+  'schedule.table.unavailable': '今日计划表格打不开（后端没连上？检查后端地址或服务是否在线）',
+  'schedule.table.hint': '车是固定的，选好负责组和今日任务，改完点【确认】。留空的车今天不排。',
+  'schedule.table.noResources': '还没有车，先去机器人队页新建一台。',
+  'schedule.table.usePreset': '使用预设',
+  'schedule.table.presetEmpty': '还没有车设置默认阵型，先去机器人队页给车配一个，或者直接在表格里手填。',
+  'schedule.table.carryOver': '继续昨天',
+  'schedule.table.carryDisabledHint': '昨天也没排，没东西可继续。',
+  'schedule.table.carryError': '没能读到昨天的安排：{detail}',
+  'schedule.table.colResource': '车',
+  'schedule.table.colGroup': '负责组',
+  'schedule.table.colTask': '今日任务',
+  'schedule.table.colNote': '备注',
+  'schedule.table.groupPlaceholder': '选负责组',
+  'schedule.table.taskPlaceholder': '选或填任务名',
+  'schedule.table.notePlaceholder': '可留空',
+  'schedule.table.confirmNewTask': '建新任务：{title}',
+  'schedule.table.addRow': '这台车再加一组',
+  'schedule.table.removeRow': '删掉这一行',
+  'schedule.table.confirm': '确认',
+  'schedule.table.confirming': '正在确认…',
+  'schedule.table.actor': '队长（今日计划表格）',
+  'schedule.table.errGroupRequired': '{code} 这行填了内容但没选负责组，补上或清空这行。',
+  'schedule.table.errConfirmNeeded': '「{title}」在候选里找不到，是要建一条新任务吗？勾选后再点确认。',
+  'schedule.table.errNothing': '表格是空的，至少排一辆车再确认。',
+  'schedule.table.confirmError': '没能落盘：{detail}',
+
   // 库存 / BOM 第三支柱（INV-BOM-CORE）
   'toolbar.title.inv': '库存 / BOM',
   // 机器人队页（IA 阶段 1 / D-075）：机器人管理 + 在场排班合一。
@@ -624,6 +657,24 @@ const zh = {
   // 旧状态兼容（只作显示，不参与新状态流转）
   'resources.status.down.legacy': '坏了（旧，≈在修）',
   'resources.status.upgrading.legacy': '改造中（旧，≈在修）',
+
+  // 每车默认阵型（D-082）：机器人队页每行「预设」列的展开编辑器
+  'resources.col.preset': '默认阵型',
+  'resources.preset.summaryCount': '{count} 条',
+  'resources.preset.none': '未设置',
+  'resources.preset.edit': '编辑',
+  'resources.preset.close': '收起',
+  'resources.preset.empty': '还没加行，点下面 + 加一行。',
+  'resources.preset.groupPlaceholder': '选组',
+  'resources.preset.groupLabel': '默认阵型 · 负责组',
+  'resources.preset.taskLabel': '默认阵型 · 常驻任务',
+  'resources.preset.taskNone': '不挂任务（每天现填）',
+  'resources.preset.addRow': '加一行',
+  'resources.preset.removeRow': '删掉这一行',
+  'resources.preset.save': '保存',
+  'resources.preset.saving': '保存中…',
+  'resources.preset.clear': '清空预设',
+  'resources.preset.error': '保存失败：{detail}',
 
   // 看板机器人简称
   'pm.robot.R1': 'R1 机器人（比赛主机）',
@@ -1130,6 +1181,44 @@ const en: Record<TranslationKey, string> = {
   'schedule.relay.addEmptyTask':
     'No task to schedule yet — create one on the project board first.',
 
+  // Table <-> swimlane switch (D-082 §5)
+  'schedule.view.switchLabel': "Switch how today's plan is shown",
+  'schedule.view.table': 'Table',
+  'schedule.view.lanes': 'Swimlane',
+
+  // Today's plan table (D-082 §5/§6.D1, TodayPlanTable)
+  'schedule.table.loading': "Setting up today's plan table…",
+  'schedule.table.unavailable':
+    "Can't open today's plan table (backend offline? check address/service)",
+  'schedule.table.hint':
+    'The rig column is fixed — pick a group and task for each, then hit Confirm. Rows left blank just skip that rig today.',
+  'schedule.table.noResources': 'No rigs yet — add one on the Robot Fleet page first.',
+  'schedule.table.usePreset': 'Use preset',
+  'schedule.table.presetEmpty':
+    'No rig has a default lineup yet — set one on the Robot Fleet page, or just fill the table by hand.',
+  'schedule.table.carryOver': 'Continue from yesterday',
+  'schedule.table.carryDisabledHint': 'Yesterday is empty too — nothing to continue.',
+  'schedule.table.carryError': "Couldn't read yesterday's plan: {detail}",
+  'schedule.table.colResource': 'Rig',
+  'schedule.table.colGroup': 'Group',
+  'schedule.table.colTask': "Today's task",
+  'schedule.table.colNote': 'Note',
+  'schedule.table.groupPlaceholder': 'Pick a group',
+  'schedule.table.taskPlaceholder': 'Pick or type a task',
+  'schedule.table.notePlaceholder': 'Optional',
+  'schedule.table.confirmNewTask': 'Create new task: {title}',
+  'schedule.table.addRow': 'Add another group for this rig',
+  'schedule.table.removeRow': 'Remove this row',
+  'schedule.table.confirm': 'Confirm',
+  'schedule.table.confirming': 'Confirming…',
+  'schedule.table.actor': "Lead (today's plan table)",
+  'schedule.table.errGroupRequired':
+    "{code} has content but no group picked — fill it in or clear the row.",
+  'schedule.table.errConfirmNeeded':
+    '"{title}" has no match — create it as a new task? Check the box, then confirm again.',
+  'schedule.table.errNothing': 'The table is empty — schedule at least one rig before confirming.',
+  'schedule.table.confirmError': "Didn't save: {detail}",
+
   // Inventory / BOM third pillar (INV-BOM-CORE)
   'toolbar.title.inv': 'Inventory / BOM',
   // Robot Fleet page (IA phase 1 / D-075): robot management + presence schedule merged.
@@ -1285,6 +1374,24 @@ const en: Record<TranslationKey, string> = {
   // Legacy status labels (display only, not in new status flow)
   'resources.status.down.legacy': 'Down (legacy, ≈ in repair)',
   'resources.status.upgrading.legacy': 'Upgrading (legacy, ≈ in repair)',
+
+  // Default lineup preset per rig (D-082): expandable editor in the "Preset" column of the fleet row
+  'resources.col.preset': 'Default lineup',
+  'resources.preset.summaryCount': '{count} entries',
+  'resources.preset.none': 'Not set',
+  'resources.preset.edit': 'Edit',
+  'resources.preset.close': 'Close',
+  'resources.preset.empty': 'No entries yet — click + to add one.',
+  'resources.preset.groupPlaceholder': 'Pick a group',
+  'resources.preset.groupLabel': 'Default lineup · group',
+  'resources.preset.taskLabel': 'Default lineup · standing task',
+  'resources.preset.taskNone': 'No task (fill in each day)',
+  'resources.preset.addRow': 'Add a row',
+  'resources.preset.removeRow': 'Remove this row',
+  'resources.preset.save': 'Save',
+  'resources.preset.saving': 'Saving…',
+  'resources.preset.clear': 'Clear preset',
+  'resources.preset.error': 'Save failed: {detail}',
 
   // Board robot shorthands
   'pm.robot.R1': 'R1 robot (main competition)',

@@ -76,6 +76,11 @@ export {
   CreateResourceResponseSchema,
   UpdateResourceStatusRequestSchema,
   UpdateResourceResponseSchema,
+  // 今日计划：每车预设写回 + 表格页批量确认落盘（D-082 daily-plan-presets）。
+  UpdateResourceDefaultPresetRequestSchema,
+  UpdateResourceDefaultPresetResponseSchema,
+  CreateResourceSessionsBatchRequestSchema,
+  CreateResourceSessionsBatchResponseSchema,
   // 库存 / BOM 第三支柱（INV-BOM-CORE，D-042 决策 4）：派生函数 + 动作语义错误类 + 读/写契约。
   deriveInventoryLedger,
   deriveShortfalls,
@@ -146,6 +151,11 @@ export type {
   CreateResourceResponse,
   UpdateResourceStatusRequest,
   UpdateResourceResponse,
+  UpdateResourceDefaultPresetRequest,
+  UpdateResourceDefaultPresetResponse,
+  CreateResourceSessionsBatchRequest,
+  CreateResourceSessionsBatchResponse,
+  DefaultPreset,
   // 库存 / BOM 读/写响应类型 + 派生行类型。
   InventorySnapshot,
   PartType,

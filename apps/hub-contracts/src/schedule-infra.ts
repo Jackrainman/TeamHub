@@ -64,6 +64,21 @@ export function canBoardResource(status: ResourceStatus): boolean {
 // 随词汇一起搬到垂直包更贴合归属。签名/行为不变，消费点仍从包入口 `@teamhub/hub-contracts` 导入，
 // 本文件内不再需要它（唯一调用点在 fixtures.ts，已改从 './verticals/robotics.js' 导入）。
 
+/**
+ * 每车默认阵型（D-082，daily-plan-presets §6 D2）：队长「使用预设」一键铺今日计划的基线来源。
+ * `lineup` 通常 1 条（单组常驻，如电控独占）、可多条（多组接力/并行，如电控+视觉两条 session）。
+ * `taskId` 指向该车的**常驻任务**（复用优先，§6 D1 优化：挂长期任务、不每天新建，依赖挂在它上才稳定）；
+ * 可空 = 该条 lineup 只定组，任务留每天现场填。
+ */
+export const DefaultPresetSchema = z.object({
+  lineup: z.array(
+    z.object({
+      groupId: z.string().min(1),
+      taskId: z.string().min(1).optional(),
+    }),
+  ),
+});
+
 export const SharedResourceSchema = z.object({
   id: z.string().min(1),
   projectId: z.string().min(1),
@@ -78,6 +93,8 @@ export const SharedResourceSchema = z.object({
   season: z.string().min(1).optional(), // 赛季后两位 "26"
   version: z.number().int().positive().optional(), // 第几代整机，默认 1（极低频升）
   displayCode: z.string().min(1).optional(), // deriveDisplayCode(season, robotTarget, version)
+  // D-082：每车默认阵型，optional 向后兼容既有车 / 已落盘 JSON（不填 → 该车不参与「使用预设」铺底）。
+  defaultPreset: DefaultPresetSchema.optional(),
   updatedAt: isoDateTimeSchema,
 });
 
@@ -214,6 +231,7 @@ export type ResourceKind = z.infer<typeof ResourceKindSchema>;
 export type ResourceStatus = z.infer<typeof ResourceStatusSchema>;
 export type WeeklyMinuteWindow = z.infer<typeof WeeklyMinuteWindowSchema>;
 export type WindowDef = z.infer<typeof WindowDefSchema>;
+export type DefaultPreset = z.infer<typeof DefaultPresetSchema>;
 export type SharedResource = z.infer<typeof SharedResourceSchema>;
 export type ResourceSession = z.infer<typeof ResourceSessionSchema>;
 export type RelayHandoff = z.infer<typeof RelayHandoffSchema>;

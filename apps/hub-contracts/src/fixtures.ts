@@ -571,8 +571,10 @@ export function buildScheduleSeed(base: GovernanceSnapshot): ScheduleSnapshot {
     // D-072 §3.2「机器人 = 带编号对象」：26 赛季 R1 / R2 两台，displayCode 派生（禁手写，decision I/K）。
     // displayCode 同时被库存总表（INV-BOM-CORE）当机器人列表头复用（displayCode ?? name → 26R1 / 26R2）。
     resources: [
-      { id: 'res-r1', projectId: 'prj-robots', name: 'R1 比赛机器人', kind: 'robot', robotTarget: 'R1', status: 'inUse', statusReason: null, statusSource: 'console', season: '26', version: 1, displayCode: deriveDisplayCode('26', 'R1', 1), updatedAt: GOVERNANCE_SCENARIO_NOW },
-      { id: 'res-r2', projectId: 'prj-robots', name: 'R2 比赛机器人', kind: 'robot', robotTarget: 'R2', status: 'available', statusReason: null, statusSource: 'console', season: '26', version: 1, displayCode: deriveDisplayCode('26', 'R2', 1), updatedAt: GOVERNANCE_SCENARIO_NOW },
+      // defaultPreset（D-082）：R1 单组阵型——平日常驻电控做「R1 系统调试」（挂现有常驻任务，复用优先）。
+      { id: 'res-r1', projectId: 'prj-robots', name: 'R1 比赛机器人', kind: 'robot', robotTarget: 'R1', status: 'inUse', statusReason: null, statusSource: 'console', season: '26', version: 1, displayCode: deriveDisplayCode('26', 'R1', 1), defaultPreset: { lineup: [{ groupId: 'grp-ec', taskId: 't-r1-system-tune' }] }, updatedAt: GOVERNANCE_SCENARIO_NOW },
+      // defaultPreset：R2 双组阵型——机械挂常驻「R2 备件整理」+ 电控只定组、任务每天现场填（taskId 可空示例）。
+      { id: 'res-r2', projectId: 'prj-robots', name: 'R2 比赛机器人', kind: 'robot', robotTarget: 'R2', status: 'available', statusReason: null, statusSource: 'console', season: '26', version: 1, displayCode: deriveDisplayCode('26', 'R2', 1), defaultPreset: { lineup: [{ groupId: 'grp-mech', taskId: 't-r2-spare' }, { groupId: 'grp-ec' }] }, updatedAt: GOVERNANCE_SCENARIO_NOW },
     ],
     resourceSessions: [
       // 平日差异化：电控持 R1 做「R1 系统调试」（非总联调 → 三态成立）。id 改名 sess-tonight-ec

@@ -27,6 +27,7 @@ import type {
   KnowledgeNodeDraft,
   NeedDraft,
   RelayHandoffDraft,
+  ResourceDefaultPresetPatch,
   ResourceDraft,
   ResourceSessionDraft,
   ResourceSessionPatch,
@@ -328,6 +329,33 @@ export class InMemoryGovStore implements GovStore {
     return updated;
   }
 
+  /**
+   * 既有车默认阵型写回（PATCH /api/resources/:id/preset，D-082 §6 D2）。**整体替换**：传对象=设/改
+   * `defaultPreset`（不与旧值合并 lineup）、传 `null`=清除（车退出「使用预设」铺底）。bump updatedAt；
+   * `statusSource`/`status` 等其余字段不动（本方法只碰 defaultPreset 一个字段，C3 受限编辑）。
+   * id 不存在 → null（路由转 404）。
+   */
+  async setResourceDefaultPreset(
+    id: string,
+    preset: ResourceDefaultPresetPatch,
+  ): Promise<SharedResource | null> {
+    const idx = this.resources.findIndex((r) => r.id === id);
+    if (idx === -1) return null;
+    const now = this.clock.now().toISOString();
+    const prev = this.resources[idx];
+    // preset===null → 整条不含 defaultPreset 键（DefaultPresetSchema 是 .optional() 非 .nullable()，
+    // 落盘/序列化层面等价「未设」；非 undefined 而是显式 omit，避免遗留 `defaultPreset: null` 与 schema 型不符）。
+    const updated: SharedResource =
+      preset === null
+        ? (() => {
+            const { defaultPreset: _drop, ...rest } = prev;
+            return { ...rest, updatedAt: now };
+          })()
+        : { ...prev, defaultPreset: preset, updatedAt: now };
+    this.resources[idx] = updated;
+    return updated;
+  }
+
   /** 占用窗口只读（GET /api/resource-sessions + GET /api/schedule 组装用）。 */
   async listResourceSessions(): Promise<ResourceSession[]> {
     // 浅拷贝（对齐 getSnapshot 的克隆封装）：防外部读到 live 数组后 push/splice 绕过写白名单。
@@ -352,6 +380,27 @@ export class InMemoryGovStore implements GovStore {
     };
     this.resourceSessions.push(session);
     return session;
+  }
+
+  /**
+   * 占用窗口批量原子创建（POST /api/resource-sessions/batch，D-082 §5 表格页【确认】）。路由层已做
+   * 全量校验（resource/group/task 存在、同车同窗 orderInWindow 不冲突）；本方法只负责「全部构造完毕才
+   * 一次性 push」的原子语义——纯内存操作、无 IO 间隙，构造阶段不会出现部分失败。逐条补 id=`sess-new-N` +
+   * createdAt、钉 `source='human'`；**invitedMemberIds 恒强制清空 []**（I0 双保险，不信任 draft 已清空）。
+   */
+  async createResourceSessionsBatch(
+    drafts: ResourceSessionDraft[],
+  ): Promise<ResourceSession[]> {
+    const now = this.clock.now().toISOString();
+    const sessions: ResourceSession[] = drafts.map((draft) => ({
+      ...draft,
+      id: `sess-new-${++this.resourceSessionSeq}`,
+      source: 'human',
+      invitedMemberIds: [],
+      createdAt: now,
+    }));
+    this.resourceSessions.push(...sessions);
+    return sessions;
   }
 
   /**

@@ -72,6 +72,8 @@ import {
   UpdateResourceSessionResponseSchema,
   RelayHandoffResponseSchema,
   CreateResourceSessionResponseSchema,
+  UpdateResourceDefaultPresetResponseSchema,
+  CreateResourceSessionsBatchResponseSchema,
   type RelayBoardResponse,
   type UpdateResourceSessionRequest,
   type UpdateResourceSessionResponse,
@@ -79,6 +81,10 @@ import {
   type RelayHandoffResponse,
   type CreateResourceSessionRequest,
   type CreateResourceSessionResponse,
+  type UpdateResourceDefaultPresetRequest,
+  type UpdateResourceDefaultPresetResponse,
+  type CreateResourceSessionsBatchRequest,
+  type CreateResourceSessionsBatchResponse,
 } from './schemas/schedule';
 import {
   CreateResourceResponseSchema,
@@ -164,6 +170,16 @@ export interface HubApiClient {
   deleteRelayHandoff(id: string): Promise<{ deleted: string }>;
   // A2 删一棒（DELETE /api/resource-sessions/:id）：删卡，后端级联删引用它的接力交接线（箭头不悬空）。
   deleteResourceSession(id: string): Promise<{ deleted: string }>;
+  // 今日计划表格（D-082）。写每车默认阵型（传 null=清除该车预设）；批量原子确认落盘
+  // （【确认】按钮一次性 POST，全部校验通过才落盘，避免半成功）。I0：批量请求即便夹带
+  // invitedMemberIds，服务端也原地清空——console 侧仍恒传 []（双保险，不依赖信任后端）。
+  updateResourceDefaultPreset(
+    id: string,
+    patch: UpdateResourceDefaultPresetRequest,
+  ): Promise<UpdateResourceDefaultPresetResponse>;
+  createResourceSessionsBatch(
+    req: CreateResourceSessionsBatchRequest,
+  ): Promise<CreateResourceSessionsBatchResponse>;
 }
 
 export function createHubApiClient(options: HubApiClientOptions = {}): HubApiClient {
@@ -460,6 +476,28 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         `${baseUrl}/api/resource-sessions/${encodeURIComponent(id)}`,
         undefined,
         DeletedResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async updateResourceDefaultPreset(
+      id: string,
+      patch: UpdateResourceDefaultPresetRequest,
+    ) {
+      return sendJson(
+        'PATCH',
+        `${baseUrl}/api/resources/${encodeURIComponent(id)}/preset`,
+        patch,
+        UpdateResourceDefaultPresetResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async createResourceSessionsBatch(req: CreateResourceSessionsBatchRequest) {
+      return postJson(
+        `${baseUrl}/api/resource-sessions/batch`,
+        req,
+        CreateResourceSessionsBatchResponseSchema,
         fetcher,
         writeToken,
       );

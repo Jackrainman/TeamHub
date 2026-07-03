@@ -17,6 +17,7 @@ import type {
   KnowledgeNodeDraft,
   NeedDraft,
   RelayHandoffDraft,
+  ResourceDefaultPresetPatch,
   ResourceDraft,
   ResourceSessionDraft,
   ResourceSessionPatch,
@@ -84,6 +85,13 @@ export class SqliteGovStore implements GovStore {
     throw new Error(SQLITE_NOT_IMPLEMENTED);
   }
 
+  async setResourceDefaultPreset(
+    _id: string,
+    _preset: ResourceDefaultPresetPatch,
+  ): Promise<SharedResource | null> {
+    throw new Error(SQLITE_NOT_IMPLEMENTED);
+  }
+
   async listResourceSessions(): Promise<ResourceSession[]> {
     throw new Error(SQLITE_NOT_IMPLEMENTED);
   }
@@ -91,6 +99,12 @@ export class SqliteGovStore implements GovStore {
   async createResourceSession(
     _draft: ResourceSessionDraft,
   ): Promise<ResourceSession> {
+    throw new Error(SQLITE_NOT_IMPLEMENTED);
+  }
+
+  async createResourceSessionsBatch(
+    _drafts: ResourceSessionDraft[],
+  ): Promise<ResourceSession[]> {
     throw new Error(SQLITE_NOT_IMPLEMENTED);
   }
 

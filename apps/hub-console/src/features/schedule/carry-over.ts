@@ -1,6 +1,7 @@
 import type {
   CreateResourceSessionRequest,
   ResourceSession,
+  TodayPlanSessionDraft,
 } from '@teamhub/hub-contracts';
 
 /**
@@ -31,4 +32,30 @@ export function buildCarryOverDraft(
     eta: null,
     confirmedBy,
   };
+}
+
+/**
+ * 「继续昨天」的表格版（D-082 §5 表格页）：与 `buildCarryOverDraft` 同一套 I0 guard（结转机器人/组/任务/
+ * 接力序，`invitedMemberIds` 恒 `[]`、`eta`/`note` 恒 `null`），但产出 `TodayPlanSessionDraft[]`——未确认
+ * 草稿，供表格预览/微调（`draftsToRows` 消费），而非直接可 POST 的 `CreateResourceSessionRequest`。
+ * 两者并存、互不影响：画布上原有的「沿用上一天计划」按钮仍走 `buildCarryOverDraft` 直接写库；
+ * 表格页的「继续昨天」走这个函数只铺草稿，落盘统一走【确认】→ POST /api/resource-sessions/batch。
+ * `source` 恒 `'human'`（沿用即视为人工基线，同 `deriveTodayPlanFromPresets` 的定调）。
+ */
+export function buildCarryOverPlan(
+  prevDaySessions: ResourceSession[],
+  targetWindowLabel: string,
+): TodayPlanSessionDraft[] {
+  return prevDaySessions.map((session) => ({
+    projectId: session.projectId,
+    resourceId: session.resourceId,
+    windowLabel: targetWindowLabel,
+    orderInWindow: session.orderInWindow,
+    holderGroupId: session.holderGroupId,
+    holderTaskId: session.holderTaskId,
+    invitedMemberIds: [],
+    note: null,
+    source: 'human',
+    eta: null,
+  }));
 }

@@ -1,15 +1,18 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { Plus, X } from 'lucide-react';
 import type { HubApiClient } from '../../api/client';
 import {
   deriveDisplayCode,
   type CreateResourceRequest,
+  type DefaultPreset,
   type ResourceKind,
   type ResourceStatus,
   type RobotTarget,
   type SharedResource,
   type UpdateResourceStatusRequest,
 } from '../../api/schemas/resources';
+import type { Task } from '@teamhub/hub-contracts';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { errorDetail } from '../../utils';
 import { SeasonSelect, guessSeason } from '../../components/SeasonSelect';
@@ -18,6 +21,7 @@ import { FormActions } from '../../components/FormActions';
 import { FormGrid } from '../../components/FormGrid';
 import { Select } from '../../components/Select';
 import { MetricTile } from '../../components/MetricTile';
+import { candidateTasksForResource } from '../schedule/today-plan';
 
 // TODO(backend): 车型枚举待 hub-contracts 放开，新车型（如 R3/R4）需后端先扩展 RobotTarget 联合类型，
 // 前端届时再改此数组；现在不假装可随意扩展。
@@ -83,6 +87,31 @@ export function ResourcesPage({
     queryKey: ['resources', source],
     queryFn: () => client.getResources(),
   });
+  // 默认阵型编辑器（D-082）的候选数据源：该车候选任务 + 负责组下拉。两个查询各自独立、失败不阻塞主表
+  // （同今日计划表格 TodayPlanTable 的取数模式）。
+  const tasksQuery = useQuery({
+    queryKey: ['tasks', 'resourcesPreset'],
+    queryFn: () => client.getTasks(),
+  });
+  const depGraphQuery = useQuery({
+    queryKey: ['dep-graph', 'resourcesPreset'],
+    queryFn: () => client.getDepGraph(),
+  });
+
+  const resources = query.data?.resources ?? [];
+  const tasks = tasksQuery.data?.tasks ?? [];
+  // 「负责组」下拉候选：组 id -> 组名，来源=依赖图节点 + 各车已有预设 lineup 里出现过的组（兜底：万一
+  // 某组既无任务也未被别的车选过，选中值仍要能显示，不留空白 option）——与 TodayPlanTable 同一套逻辑。
+  const groupOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const n of depGraphQuery.data?.nodes ?? []) map.set(n.groupId, n.groupName);
+    for (const r of resources) {
+      for (const entry of r.defaultPreset?.lineup ?? []) {
+        if (!map.has(entry.groupId)) map.set(entry.groupId, entry.groupId);
+      }
+    }
+    return map;
+  }, [depGraphQuery.data, resources]);
 
   if (query.isLoading) {
     return (
@@ -99,7 +128,6 @@ export function ResourcesPage({
     );
   }
 
-  const resources = query.data.resources;
   const activeCount = resources.filter(
     (r) => r.status !== 'retired' && r.status !== 'disassembling',
   ).length;
@@ -142,6 +170,7 @@ export function ResourcesPage({
                   <th scope="col">{t('resources.col.kind')}</th>
                   <th scope="col">{t('resources.col.status')}</th>
                   <th scope="col">{t('resources.col.actions')}</th>
+                  <th scope="col">{t('resources.col.preset')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -150,6 +179,8 @@ export function ResourcesPage({
                     key={r.id}
                     resource={r}
                     client={client}
+                    tasks={tasks}
+                    groupOptions={groupOptions}
                     onUpdated={refresh}
                   />
                 ))}
@@ -308,15 +339,20 @@ function CreateResourceForm({
 function ResourceRow({
   resource,
   client,
+  tasks,
+  groupOptions,
   onUpdated,
 }: {
   resource: SharedResource;
   client: HubApiClient;
+  tasks: Task[];
+  groupOptions: Map<string, string>;
   onUpdated: () => void;
 }) {
   const { t } = useI18n();
   const [status, setStatus] = useState<ResourceStatus>(resource.status);
   const [reason, setReason] = useState('');
+  const [presetOpen, setPresetOpen] = useState(false);
 
   const mutation = useMutation({
     mutationFn: (patch: UpdateResourceStatusRequest) =>
@@ -342,65 +378,284 @@ function ResourceRow({
 
   const code = resource.displayCode ?? resource.name;
   const dirty = status !== resource.status || reason.trim().length > 0;
+  const presetCount = resource.defaultPreset?.lineup.length ?? 0;
 
   return (
-    <tr>
-      <td>
-        <span className="resources-code-badge">{code}</span>
-      </td>
-      <td className="resources-cell--name">{resource.name}</td>
-      <td>{t(KIND_KEY[resource.kind])}</td>
-      <td>
-        <span className={`resources-status-badge resources-status-badge--${resource.status}`}>
-          {t(STATUS_KEY[resource.status])}
-        </span>
-        {resource.statusReason ? (
-          <span className="resources-reason">{resource.statusReason}</span>
-        ) : null}
-      </td>
-      <td>
-        {/* 行内改状态：div → 真 <form onSubmit>（FORM-UNIFY B3）。.resources-action 类不变（CSS 按类命中、
-            tag 改为 form 像素零变）；apply 改 type=submit（消除 type=button onClick 提交歧异）。
-            紧凑行内控件用 aria-label（无可见 label）→ 不套 Field：包 Field 会引入可见 <span> 标签 +
-            kb-field 列向外壳，破坏 .resources-action 横排（视觉回退），故按「零视觉回退」铁律保留裸控件。 */}
-        <form className="resources-action" onSubmit={apply}>
-          <select
-            value={status}
-            aria-label={t('resources.action.statusLabel')}
-            onChange={(e) => setStatus(e.target.value as ResourceStatus)}
-          >
-            {STATUSES.map((s) => (
-              <option value={s} key={s}>
-                {t(STATUS_OPTION_KEY[s])}
-              </option>
-            ))}
-          </select>
-          <input
-            className="resources-reason-input"
-            value={reason}
-            placeholder={t('resources.action.reasonPlaceholder')}
-            aria-label={t('resources.action.reasonLabel')}
-            onChange={(e) => setReason(e.target.value)}
-          />
+    <>
+      <tr>
+        <td>
+          <span className="resources-code-badge">{code}</span>
+        </td>
+        <td className="resources-cell--name">{resource.name}</td>
+        <td>{t(KIND_KEY[resource.kind])}</td>
+        <td>
+          <span className={`resources-status-badge resources-status-badge--${resource.status}`}>
+            {t(STATUS_KEY[resource.status])}
+          </span>
+          {resource.statusReason ? (
+            <span className="resources-reason">{resource.statusReason}</span>
+          ) : null}
+        </td>
+        <td>
+          {/* 行内改状态：div → 真 <form onSubmit>（FORM-UNIFY B3）。.resources-action 类不变（CSS 按类命中、
+              tag 改为 form 像素零变）；apply 改 type=submit（消除 type=button onClick 提交歧异）。
+              紧凑行内控件用 aria-label（无可见 label）→ 不套 Field：包 Field 会引入可见 <span> 标签 +
+              kb-field 列向外壳，破坏 .resources-action 横排（视觉回退），故按「零视觉回退」铁律保留裸控件。 */}
+          <form className="resources-action" onSubmit={apply}>
+            <select
+              value={status}
+              aria-label={t('resources.action.statusLabel')}
+              onChange={(e) => setStatus(e.target.value as ResourceStatus)}
+            >
+              {STATUSES.map((s) => (
+                <option value={s} key={s}>
+                  {t(STATUS_OPTION_KEY[s])}
+                </option>
+              ))}
+            </select>
+            <input
+              className="resources-reason-input"
+              value={reason}
+              placeholder={t('resources.action.reasonPlaceholder')}
+              aria-label={t('resources.action.reasonLabel')}
+              onChange={(e) => setReason(e.target.value)}
+            />
+            <button
+              type="submit"
+              className="kb-submit resources-apply"
+              disabled={!dirty || mutation.isPending}
+            >
+              {mutation.isPending
+                ? t('resources.action.applying')
+                : t('resources.action.apply')}
+            </button>
+          </form>
+          {/* resources-row-error = 纯红字（仅 color/font-size 11px/margin，无背景/内边距/圆角）；
+              FormBanner--err 是红底色块（red-soft 背景 + padding 7/11 + radius 7 + 600 字重）样式不同，
+              换成 banner 会视觉回退 → 按像素规则保留原内联渲染（结构上仍在 form 之后、不挪布局）。 */}
+          {mutation.error ? (
+            <p className="resources-row-error">
+              {t('resources.action.error', { detail: errorDetail(mutation.error) })}
+            </p>
+          ) : null}
+        </td>
+        <td>
           <button
-            type="submit"
-            className="kb-submit resources-apply"
-            disabled={!dirty || mutation.isPending}
+            type="button"
+            className="resources-preset-toggle"
+            onClick={() => setPresetOpen((v) => !v)}
           >
-            {mutation.isPending
-              ? t('resources.action.applying')
-              : t('resources.action.apply')}
+            {presetCount > 0
+              ? t('resources.preset.summaryCount', { count: presetCount })
+              : t('resources.preset.none')}
+            {' · '}
+            {presetOpen ? t('resources.preset.close') : t('resources.preset.edit')}
           </button>
-        </form>
-        {/* resources-row-error = 纯红字（仅 color/font-size 11px/margin，无背景/内边距/圆角）；
-            FormBanner--err 是红底色块（red-soft 背景 + padding 7/11 + radius 7 + 600 字重）样式不同，
-            换成 banner 会视觉回退 → 按像素规则保留原内联渲染（结构上仍在 form 之后、不挪布局）。 */}
-        {mutation.error ? (
-          <p className="resources-row-error">
-            {t('resources.action.error', { detail: errorDetail(mutation.error) })}
-          </p>
+        </td>
+      </tr>
+      {presetOpen ? (
+        <tr className="resources-preset-row">
+          <td colSpan={6}>
+            <DefaultPresetEditor
+              resource={resource}
+              client={client}
+              tasks={tasks}
+              groupOptions={groupOptions}
+              onUpdated={onUpdated}
+            />
+          </td>
+        </tr>
+      ) : null}
+    </>
+  );
+}
+
+// --- 默认阵型（每车预设，D-082） ---------------------------------------------
+
+interface PresetLineupRow {
+  key: string;
+  groupId: string;
+  taskId: string; // '' = 未选（可选字段，落盘时不带 taskId）
+}
+
+function lineupToRows(preset: DefaultPreset | undefined): PresetLineupRow[] {
+  return (preset?.lineup ?? []).map((entry, i) => ({
+    key: `${i}-${entry.groupId}-${entry.taskId ?? ''}`,
+    groupId: entry.groupId,
+    taskId: entry.taskId ?? '',
+  }));
+}
+
+function makePresetRowKey(): string {
+  return `new-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+/**
+ * 每车默认阵型编辑器（D-082 §4.1）：组下拉 + 该车常驻任务下拉，加/删行，保存整体替换
+ * SharedResource.defaultPreset（PATCH /api/resources/:id/preset），行数清空后保存 = 恢复「无预设」。
+ * 交互贴 ResourceRow 行内改状态的样式（原生控件 + resources-action 同族按钮）。
+ *
+ * I0：本编辑器只到组级——组下拉 + 任务下拉（该车候选任务），结构上不含 memberId。
+ */
+function DefaultPresetEditor({
+  resource,
+  client,
+  tasks,
+  groupOptions,
+  onUpdated,
+}: {
+  resource: SharedResource;
+  client: HubApiClient;
+  tasks: Task[];
+  groupOptions: Map<string, string>;
+  onUpdated: () => void;
+}) {
+  const { t } = useI18n();
+  const [rows, setRows] = useState<PresetLineupRow[]>(() => lineupToRows(resource.defaultPreset));
+  // 服务端预设变了（保存/清空成功后 onUpdated 刷新了 resource）才重同步本地编辑态，
+  // 避免每次父层 refetch（如改状态）打断正在编辑的行。用 updatedAt 而非 defaultPreset 引用判等，
+  // 因为纯函数派生的新数组每次 refetch 都是新引用、会误判「变了」。
+  const [syncedAt, setSyncedAt] = useState(resource.updatedAt);
+  useEffect(() => {
+    if (resource.updatedAt !== syncedAt) {
+      setRows(lineupToRows(resource.defaultPreset));
+      setSyncedAt(resource.updatedAt);
+    }
+  }, [resource.updatedAt, resource.defaultPreset, syncedAt]);
+
+  const candidates = useMemo(() => candidateTasksForResource(tasks, resource), [tasks, resource]);
+  const tasksById = useMemo(() => new Map(tasks.map((tk) => [tk.id, tk])), [tasks]);
+  const rowGroupOptions = useMemo(() => {
+    const map = new Map(groupOptions);
+    for (const row of rows) {
+      if (row.groupId && !map.has(row.groupId)) map.set(row.groupId, row.groupId);
+    }
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+  }, [groupOptions, rows]);
+
+  const mutation = useMutation({
+    mutationFn: (defaultPreset: DefaultPreset | null) =>
+      client.updateResourceDefaultPreset(resource.id, { defaultPreset }),
+    onSuccess: onUpdated,
+  });
+
+  function updateRow(key: string, patch: Partial<PresetLineupRow>) {
+    setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  }
+  function addRow() {
+    setRows((rs) => [...rs, { key: makePresetRowKey(), groupId: '', taskId: '' }]);
+  }
+  function removeRow(key: string) {
+    setRows((rs) => rs.filter((r) => r.key !== key));
+  }
+
+  const allGroupsFilled = rows.every((r) => r.groupId.trim() !== '');
+
+  function handleSave() {
+    if (rows.length === 0) {
+      // 行数清空 = 恢复「无预设」，与「清空」按钮同一落点。
+      mutation.mutate(null);
+      return;
+    }
+    if (!allGroupsFilled) return; // 按钮已 disabled，双保险
+    mutation.mutate({
+      lineup: rows.map((r) => ({
+        groupId: r.groupId.trim(),
+        ...(r.taskId ? { taskId: r.taskId } : {}),
+      })),
+    });
+  }
+  function handleClear() {
+    setRows([]);
+    mutation.mutate(null);
+  }
+
+  return (
+    <div className="resources-preset-editor">
+      {rows.length === 0 ? (
+        <p className="form-hint">{t('resources.preset.empty')}</p>
+      ) : (
+        <ul className="resources-preset-list">
+          {rows.map((row) => (
+            <li key={row.key} className="resources-preset-list__row">
+              <select
+                value={row.groupId}
+                aria-label={t('resources.preset.groupLabel')}
+                onChange={(e) => updateRow(row.key, { groupId: e.target.value })}
+              >
+                <option value="">{t('resources.preset.groupPlaceholder')}</option>
+                {rowGroupOptions.map((g) => (
+                  <option value={g.id} key={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={row.taskId}
+                aria-label={t('resources.preset.taskLabel')}
+                onChange={(e) => updateRow(row.key, { taskId: e.target.value })}
+              >
+                <option value="">{t('resources.preset.taskNone')}</option>
+                {candidates.map((tk) => (
+                  <option value={tk.id} key={tk.id}>
+                    {tk.title}
+                  </option>
+                ))}
+                {row.taskId && !candidates.some((c) => c.id === row.taskId) ? (
+                  <option value={row.taskId}>
+                    {tasksById.get(row.taskId)?.title ?? row.taskId}
+                  </option>
+                ) : null}
+              </select>
+              <button
+                type="button"
+                className="today-plan-table__rowBtn today-plan-table__rowBtn--danger"
+                title={t('resources.preset.removeRow')}
+                aria-label={t('resources.preset.removeRow')}
+                onClick={() => removeRow(row.key)}
+              >
+                <X size={13} aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="resources-preset-editor__actions">
+        <button
+          type="button"
+          className="today-plan-table__rowBtn"
+          title={t('resources.preset.addRow')}
+          aria-label={t('resources.preset.addRow')}
+          onClick={addRow}
+        >
+          <Plus size={13} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className="kb-submit resources-apply"
+          disabled={mutation.isPending || (rows.length > 0 && !allGroupsFilled)}
+          onClick={handleSave}
+        >
+          {mutation.isPending ? t('resources.preset.saving') : t('resources.preset.save')}
+        </button>
+        {resource.defaultPreset ? (
+          <button
+            type="button"
+            className="resources-preset-editor__clear"
+            disabled={mutation.isPending}
+            onClick={handleClear}
+          >
+            {t('resources.preset.clear')}
+          </button>
         ) : null}
-      </td>
-    </tr>
+      </div>
+      {mutation.error ? (
+        <p className="resources-row-error">
+          {t('resources.preset.error', { detail: errorDetail(mutation.error) })}
+        </p>
+      ) : null}
+    </div>
   );
 }

@@ -6,10 +6,12 @@ import {
   ResourceSessionSchema,
   SharedResourceSchema,
   derivePresenceSchedule,
+  deriveTodayPlanFromPresets,
   scheduleResourceDownFixture,
   scheduleScenarioFixture,
   SCENARIO_WINDOW_WEEKDAY,
   SCENARIO_WINDOW_CONVERGENCE,
+  type SharedResource,
 } from '../src/index.js';
 
 const NOW = GOVERNANCE_SCENARIO_NOW;
@@ -202,5 +204,84 @@ describe('derivePresenceSchedule — 总联调日（全组各一人，收敛任�
   test('I0：总联调日输出仍零 memberId', () => {
     expect(JSON.stringify(recs)).not.toContain('memberId');
     expect(JSON.stringify(recs)).not.toContain('invitedMemberIds');
+  });
+});
+
+describe('SharedResourceSchema — defaultPreset 向后兼容（D-082）', () => {
+  test('旧落盘数据（无 defaultPreset 键）parse 仍通过', () => {
+    const { defaultPreset: _omit, ...legacy } = scheduleScenarioFixture.resources[0];
+    expect(SharedResourceSchema.safeParse(legacy).success).toBe(true);
+  });
+
+  test('fixture 车带 defaultPreset 时 parse 通过', () => {
+    for (const r of scheduleScenarioFixture.resources) {
+      expect(SharedResourceSchema.safeParse(r).success).toBe(true);
+    }
+  });
+});
+
+describe('deriveTodayPlanFromPresets — 「使用预设」一键铺今日计划草稿（D-082）', () => {
+  const DATE = '2026-07-05';
+
+  test('单组阵型（R1）铺出 1 条草稿：字段对齐 lineup entry', () => {
+    const drafts = deriveTodayPlanFromPresets(scheduleScenarioFixture.resources, DATE);
+    const r1Drafts = drafts.filter((d) => d.resourceId === 'res-r1');
+    expect(r1Drafts).toHaveLength(1);
+    expect(r1Drafts[0]).toMatchObject({
+      projectId: 'prj-robots',
+      resourceId: 'res-r1',
+      windowLabel: DATE,
+      orderInWindow: 0,
+      holderGroupId: 'grp-ec',
+      holderTaskId: 't-r1-system-tune',
+      invitedMemberIds: [],
+      note: null,
+      source: 'human',
+      eta: null,
+    });
+  });
+
+  test('多组阵型（R2）lineup 多条 → 多条草稿，orderInWindow 按下标；taskId 可空则 holderTaskId=null', () => {
+    const drafts = deriveTodayPlanFromPresets(scheduleScenarioFixture.resources, DATE);
+    const r2Drafts = drafts
+      .filter((d) => d.resourceId === 'res-r2')
+      .sort((a, b) => a.orderInWindow - b.orderInWindow);
+    expect(r2Drafts).toHaveLength(2);
+    expect(r2Drafts[0]).toMatchObject({
+      orderInWindow: 0,
+      holderGroupId: 'grp-mech',
+      holderTaskId: 't-r2-spare',
+    });
+    expect(r2Drafts[1]).toMatchObject({
+      orderInWindow: 1,
+      holderGroupId: 'grp-ec',
+      holderTaskId: null,
+    });
+  });
+
+  test('跳过不可上场车（down/repair/retired/disassembling）即便带 defaultPreset', () => {
+    const downResources: SharedResource[] = scheduleScenarioFixture.resources.map((r) =>
+      r.id === 'res-r1' ? { ...r, status: 'down' as const } : r,
+    );
+    const drafts = deriveTodayPlanFromPresets(downResources, DATE);
+    expect(drafts.some((d) => d.resourceId === 'res-r1')).toBe(false);
+    expect(drafts.some((d) => d.resourceId === 'res-r2')).toBe(true);
+  });
+
+  test('未设 defaultPreset 的车沉默跳过（不铺、不报错）', () => {
+    const noPreset: SharedResource[] = scheduleScenarioFixture.resources.map((r) =>
+      r.id === 'res-r2' ? { ...r, defaultPreset: undefined } : r,
+    );
+    const drafts = deriveTodayPlanFromPresets(noPreset, DATE);
+    expect(drafts.some((d) => d.resourceId === 'res-r2')).toBe(false);
+    expect(drafts.some((d) => d.resourceId === 'res-r1')).toBe(true);
+  });
+
+  test('I0：invitedMemberIds 恒为空数组，草稿全程无 memberId 维度', () => {
+    const drafts = deriveTodayPlanFromPresets(scheduleScenarioFixture.resources, DATE);
+    for (const d of drafts) {
+      expect(d.invitedMemberIds).toEqual([]);
+    }
+    expect(JSON.stringify(drafts)).not.toContain('memberId');
   });
 });

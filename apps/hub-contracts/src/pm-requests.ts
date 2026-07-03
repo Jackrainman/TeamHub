@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ActorRefSchema } from './common.js';
 import {
   TaskSchema,
   TaskStatusSchema,
@@ -12,6 +13,7 @@ import {
   SharedResourceSchema,
   ResourceKindSchema,
   ResourceStatusSchema,
+  DefaultPresetSchema,
 } from './schedule-infra.js';
 import { ArtifactRefSchema } from './schemas.js';
 // robotics 垂直包词汇（HUB-MODULARIZATION 第6步）：写侧 ownerGroup 闭集校验复用同一份值，
@@ -271,6 +273,49 @@ export const UpdateResourceResponseSchema = z.object({
   resource: SharedResourceSchema,
 });
 
+/**
+ * PATCH /api/resources/:id/preset（D-082 daily-plan-presets §6 D2）：既有车的默认阵型整体写回。
+ * 镜像 PATCH /api/resources/:id/status 同模式——单字段 body、safeParse→400、id 不存在→404。
+ * `defaultPreset` 传对象=设置/整体替换该车预设；传 `null`=清除（该车退出「使用预设」铺底，
+ * 回到 §6 D1 手填路径）。不开 PATCH 局部合并 lineup 的口子（C3 小作坊：受限编辑，整体替换而非增量）。
+ */
+export const UpdateResourceDefaultPresetRequestSchema = z.object({
+  defaultPreset: DefaultPresetSchema.nullable(),
+});
+export const UpdateResourceDefaultPresetResponseSchema = z.object({
+  resource: SharedResourceSchema,
+});
+
+/**
+ * POST /api/resource-sessions/batch（D-082 §5 表格页【确认】）：把「使用预设」/「继续昨天」铺出、
+ * 队长微调过的今日计划草稿一次性原子落盘。逐条镜像 `CreateResourceSessionRequestSchema`（省 id/source/
+ * createdAt，server 补 + 钉 source=`human`），但 `confirmedBy` 提到**请求整体一层**——队长点【确认】即对
+ * 这一批草稿统一拍板，不逐条要求各自的确认凭证（与 `deriveTodayPlanFromPresets` 产出的
+ * `TodayPlanSessionDraft[]` 天生不含 confirmedBy 对齐）。
+ * **I0 双保险**：请求体允许每条草稿带 `invitedMemberIds`，但 server/store 落盘时恒强制清空为 `[]`
+ * （预设/表格全程不进 memberId 维度——即便客户端夹带也在服务端原地清空，非信任客户端已清空）。
+ * 路由层还须做 schema 之外的全量校验（resource/group/task 存在、同车同窗 orderInWindow 不冲突），
+ * 全部通过才调用 store 原子批量创建；任一条不过 → 整批 400、不留半成功。
+ */
+export const CreateResourceSessionsBatchRequestSchema = z.object({
+  windowLabel: z.string().min(1),
+  sessions: z
+    .array(
+      ResourceSessionSchema.omit({
+        id: true,
+        source: true,
+        createdAt: true,
+        confirmedBy: true,
+      }),
+    )
+    .min(1),
+  confirmedBy: ActorRefSchema,
+});
+export const CreateResourceSessionsBatchResponseSchema = z.object({
+  // 同 create 系——响应剥 confirmedBy（I0：ActorRef 永不过读边界）。
+  sessions: z.array(ResourceSessionSchema.omit({ confirmedBy: true })),
+});
+
 export type CreateTaskRequest = z.infer<typeof CreateTaskRequestSchema>;
 export type CreateTaskResponse = z.infer<typeof CreateTaskResponseSchema>;
 export type CreateDependencyRequest = z.infer<
@@ -326,4 +371,16 @@ export type UpdateResourceStatusRequest = z.infer<
 >;
 export type UpdateResourceResponse = z.infer<
   typeof UpdateResourceResponseSchema
+>;
+export type UpdateResourceDefaultPresetRequest = z.infer<
+  typeof UpdateResourceDefaultPresetRequestSchema
+>;
+export type UpdateResourceDefaultPresetResponse = z.infer<
+  typeof UpdateResourceDefaultPresetResponseSchema
+>;
+export type CreateResourceSessionsBatchRequest = z.infer<
+  typeof CreateResourceSessionsBatchRequestSchema
+>;
+export type CreateResourceSessionsBatchResponse = z.infer<
+  typeof CreateResourceSessionsBatchResponseSchema
 >;

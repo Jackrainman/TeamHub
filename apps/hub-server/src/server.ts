@@ -67,6 +67,10 @@ import {
   CreateResourceResponseSchema,
   UpdateResourceStatusRequestSchema,
   UpdateResourceResponseSchema,
+  UpdateResourceDefaultPresetRequestSchema,
+  UpdateResourceDefaultPresetResponseSchema,
+  CreateResourceSessionsBatchRequestSchema,
+  CreateResourceSessionsBatchResponseSchema,
   deriveInventoryLedger,
   deriveShortfalls,
   InvalidPartActionError,
@@ -895,6 +899,24 @@ function registerPresenceScheduleRoutes(app: FastifyInstance, ctx: ModuleRouteCt
     return UpdateResourceResponseSchema.parse({ resource });
   });
 
+  // 默认阵型写回（PATCH /api/resources/:id/preset，D-082 daily-plan-presets §6 D2「使用预设」铺底基线）。
+  // 逐字镜像上方 PATCH /api/resources/:id/status：safeParse→400；setResourceDefaultPreset 返回 null
+  // （id 不存在）→ 404；否则 200 {resource}。`defaultPreset` 传对象=整体替换、传 `null`=清除该车预设。
+  app.patch('/api/resources/:id/preset', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = UpdateResourceDefaultPresetRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const resource = await store.setResourceDefaultPreset(id, parsed.data.defaultPreset);
+    if (!resource) {
+      void reply.code(404).send({ detail: 'resource not found' });
+      return;
+    }
+    return UpdateResourceDefaultPresetResponseSchema.parse({ resource });
+  });
+
   // 在场排班录入（POST /api/resource-sessions，D-029 队长一拍即录）。镜像 POST /api/needs：safeParse→400/201。
   // server 钉 source=human、补 id/createdAt；confirmedBy 随请求传入（录入即确认拍板）。
   // POST /api/* → 继承 H3 onRequest 鉴权+限流（不另写鉴权）。I0：响应剥 confirmedBy（ActorRef 永不过读边界）。
@@ -907,6 +929,83 @@ function registerPresenceScheduleRoutes(app: FastifyInstance, ctx: ModuleRouteCt
     const session = await store.createResourceSession(parsed.data);
     void reply.code(201);
     return CreateResourceSessionResponseSchema.parse({ session });
+  });
+
+  // 今日计划批量确认落盘（POST /api/resource-sessions/batch，D-082 §5 表格页【确认】）。
+  // safeParse 之外还须做四类跨表校验（resource/group/task 存在、同车同窗 orderInWindow 不冲突）——
+  // **全部通过才调用 store 原子批量创建**；任一条不过 → 整批 400、不落一条（避免半成功，见 gov-store.ts
+  // createResourceSessionsBatch 注释）。confirmedBy 请求整体一层，落盘前逐条注入每条草稿；
+  // invitedMemberIds 无论请求传什么，这里一律清空（I0 双保险，store 侧再清一次）。
+  app.post('/api/resource-sessions/batch', async (request, reply) => {
+    const parsed = CreateResourceSessionsBatchRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const { windowLabel, sessions, confirmedBy } = parsed.data;
+
+    const [snapshot, resources, existingSessions] = await Promise.all([
+      store.getSnapshot(),
+      store.listResources(),
+      store.listResourceSessions(),
+    ]);
+    const resourceIds = new Set(resources.map((r) => r.id));
+    const groupIds = new Set(snapshot.groups.map((g) => g.id));
+    const taskIds = new Set(snapshot.tasks.map((t) => t.id));
+
+    // 同车同窗 orderInWindow 冲突键：resourceId|windowLabel|orderInWindow。先纳入既有 sessions 起底，
+    // 再逐条校验本批（批内相互冲突、或撞已落盘的 session，皆拒）。
+    const orderKeys = new Set(
+      existingSessions.map((s) => `${s.resourceId}|${s.windowLabel}|${s.orderInWindow}`),
+    );
+
+    for (const [index, draft] of sessions.entries()) {
+      if (draft.windowLabel !== windowLabel) {
+        void reply.code(400).send({
+          detail: `sessions[${index}].windowLabel 须与请求 windowLabel 一致`,
+        });
+        return;
+      }
+      if (!resourceIds.has(draft.resourceId)) {
+        void reply.code(400).send({ detail: `sessions[${index}]: 未知 resourceId ${draft.resourceId}` });
+        return;
+      }
+      if (!groupIds.has(draft.holderGroupId)) {
+        void reply.code(400).send({
+          detail: `sessions[${index}]: 未知 holderGroupId ${draft.holderGroupId}`,
+        });
+        return;
+      }
+      if (draft.holderTaskId !== null && !taskIds.has(draft.holderTaskId)) {
+        void reply.code(400).send({ detail: `sessions[${index}]: 未知 holderTaskId ${draft.holderTaskId}` });
+        return;
+      }
+      const orderKey = `${draft.resourceId}|${draft.windowLabel}|${draft.orderInWindow}`;
+      if (orderKeys.has(orderKey)) {
+        void reply.code(400).send({
+          detail: `sessions[${index}]: 该车该窗口 orderInWindow=${draft.orderInWindow} 已被占用`,
+        });
+        return;
+      }
+      orderKeys.add(orderKey);
+    }
+
+    const drafts = sessions.map((draft) => ({
+      projectId: draft.projectId,
+      resourceId: draft.resourceId,
+      windowLabel: draft.windowLabel,
+      orderInWindow: draft.orderInWindow,
+      holderGroupId: draft.holderGroupId,
+      holderTaskId: draft.holderTaskId,
+      // I0 双保险：无论请求体传什么，批量落盘一律清空（store 侧 createResourceSessionsBatch 再清一次）。
+      invitedMemberIds: [],
+      note: draft.note,
+      eta: draft.eta,
+      confirmedBy,
+    }));
+    const created = await store.createResourceSessionsBatch(drafts);
+    void reply.code(201);
+    return CreateResourceSessionsBatchResponseSchema.parse({ sessions: created });
   });
 
   // 接力画布·占用窗口受限编辑（PATCH /api/resource-sessions/:id，R1）。队长拖卡片排先后（orderInWindow）/

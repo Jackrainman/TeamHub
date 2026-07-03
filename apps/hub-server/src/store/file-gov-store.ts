@@ -29,6 +29,7 @@ import type {
   KnowledgeNodeDraft,
   NeedDraft,
   RelayHandoffDraft,
+  ResourceDefaultPresetPatch,
   ResourceDraft,
   ResourceSessionDraft,
   ResourceSessionPatch,
@@ -266,6 +267,25 @@ export class FileGovStore implements GovStore {
     return resource;
   }
 
+  // 默认阵型写回（PATCH /api/resources/:id/preset，D-082 §6 D2）：与 updateResourceStatus 同一持久化面
+  // ——resources 落盘 resources.json，本方法改 inner 内存后同样走 persistResourcesOrRollback + idx 类回滚
+  // （写前存整条，persist 失败按 id 原地还原）。
+  async setResourceDefaultPreset(
+    id: string,
+    preset: ResourceDefaultPresetPatch,
+  ): Promise<SharedResource | null> {
+    const live = this.inner.resourcesForRollback();
+    const idx = live.findIndex((r) => r.id === id);
+    const prior = idx >= 0 ? live[idx] : undefined;
+    const resource = await this.inner.setResourceDefaultPreset(id, preset);
+    if (resource) {
+      await this.persistResourcesOrRollback(() => {
+        if (prior) live[idx] = prior;
+      });
+    }
+    return resource;
+  }
+
   async listResourceSessions(): Promise<ResourceSession[]> {
     return this.inner.listResourceSessions();
   }
@@ -275,6 +295,15 @@ export class FileGovStore implements GovStore {
   ): Promise<ResourceSession> {
     // 不落盘（见上）：直接委托 inner，重启回 seed。无 persistOrRollback 包裹（无磁盘副作用可回滚）。
     return this.inner.createResourceSession(draft);
+  }
+
+  // 批量原子创建（POST /api/resource-sessions/batch，D-082 §5）：与单条 createResourceSession 同段
+  // 不落盘（resourceSessions 不在 GovernanceSnapshot 内、亦不入 resources.json）——委托 inner，
+  // 原子语义（全部构造完毕才一次性 push）由 inner 内实现，重启回 seed。
+  async createResourceSessionsBatch(
+    drafts: ResourceSessionDraft[],
+  ): Promise<ResourceSession[]> {
+    return this.inner.createResourceSessionsBatch(drafts);
   }
 
   // 接力画布编辑 / 交接线（R1）：与 resource/session 同段不落盘（D-029，见上方注释）——eta/orderInWindow
