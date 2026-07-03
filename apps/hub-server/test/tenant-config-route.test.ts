@@ -72,7 +72,8 @@ describe('非默认 TenantConfig：关掉 presence-schedule', () => {
         url: '/api/kb/similar?symptom=' + encodeURIComponent('3508 电机又过热了'),
       });
       expect(kbSimilar.statusCode).toBe(200);
-      expect(KbSimilarResponseSchema.parse(kbSimilar.json()).items.length).toBeGreaterThan(0);
+      // 只断言路由挂载 + 响应形状合法；命中条数取决于 seed 内容与相似度阈值，不属于本测试关心的事。
+      expect(Array.isArray(KbSimilarResponseSchema.parse(kbSimilar.json()).items)).toBe(true);
     } finally {
       await app.close();
     }

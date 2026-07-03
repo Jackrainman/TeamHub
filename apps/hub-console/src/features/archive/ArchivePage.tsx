@@ -215,7 +215,7 @@ export function ArchivePage({
       }
       return { artifact };
     },
-    onSuccess: (res) => {
+    onSuccess: () => {
       setPendingArtifact(null);
       setMechanism('');
       setMechanismNew('');
