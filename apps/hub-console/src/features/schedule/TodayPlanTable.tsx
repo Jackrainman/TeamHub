@@ -297,6 +297,11 @@ export function TodayPlanTable({
       void queryClient.invalidateQueries({ queryKey: ['dep-graph'] });
       onConfirmed();
     } catch (e) {
+      // 走到这里时「建新任务」那步（2）可能已经成功——batch（4）才失败。不 invalidate 的话
+      // tasksQuery 缓存还是旧数据，用户直接重试会因为 matchTaskByTitle 找不到刚建的任务而
+      // 把同名任务再建一次。这里 invalidate 后组件重渲染会拿到最新 tasks，下次 handleConfirm
+      // 开头的分类循环会自动把这些行匹配成既有任务（kind: 'existing'），不再重新 createTask。
+      void queryClient.invalidateQueries({ queryKey: ['tasks'] });
       setBanner({ kind: 'err', text: t('schedule.table.confirmError', { detail: errorDetail(e) }) });
     } finally {
       setConfirming(false);

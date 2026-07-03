@@ -48,6 +48,8 @@ export function ProjectPage({
   const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
   // 新建任务抽屉开关（看板 / 依赖图共享）。
   const [createOpen, setCreateOpen] = useState(false);
+  // 抽屉表单脏状态（FORM-GUARD）：由 PmCreatePanel 上抛，关闭前用它决定要不要弹确认。
+  const [createFormDirty, setCreateFormDirty] = useState(false);
 
   // 抽屉表单用的 tasks：与 board/graph 命中同一缓存，无额外网络。
   const tasksQuery = useQuery({
@@ -137,11 +139,15 @@ export function ProjectPage({
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         title={t('pm.create.open')}
+        confirmDiscard={() =>
+          !createFormDirty || window.confirm(t('common.confirmDiscard'))
+        }
       >
         <PmCreatePanel
           client={client}
           tasks={tasksQuery.data?.tasks ?? []}
           onCreated={onCreated}
+          onDirtyChange={setCreateFormDirty}
         />
       </SideDrawer>
     </div>

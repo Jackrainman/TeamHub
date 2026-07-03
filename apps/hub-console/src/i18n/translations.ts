@@ -11,6 +11,9 @@ export type Lang = 'zh' | 'en';
 const zh = {
   // 通用
   'common.close': '关闭',
+  'common.confirmDiscard': '有未保存内容，确定放弃？',
+  'common.fieldRequired': '此项必填',
+  'common.error401': '操作失败：未授权（401）。请到设置页填写入令牌后重试。',
 
   // 品牌 / 导航
   'brand.subtitle.real': '真实数据 · 连服务器',
@@ -53,6 +56,7 @@ const zh = {
   'settings.apiBase.current': '当前生效：{value}',
   'settings.apiBase.apply': '应用并重载',
   'settings.apiBase.reset': '恢复默认',
+  'settings.connection.reloadConfirm': '应用后页面将刷新，确定继续吗？',
   'settings.section.writeToken': '写入令牌',
   'settings.writeToken.desc':
     '后端绑公网地址时写操作要带令牌。把服务启动日志里的 TEAMHUB_WRITE_TOKEN 粘进来，改完自动重载。',
@@ -62,6 +66,8 @@ const zh = {
   'settings.writeToken.unset': '未设置（仅本机 loopback 可写）',
   'settings.writeToken.apply': '应用并重载',
   'settings.writeToken.reset': '清除',
+  'settings.writeToken.show': '显示令牌',
+  'settings.writeToken.hide': '隐藏令牌',
   'settings.about.service': '服务',
   'settings.about.version': '版本',
   'settings.about.mode': '运行模式',
@@ -249,6 +255,7 @@ const zh = {
   'archive.form.success': '已登记：{name}（{revision}）',
   'archive.form.error': '登记失败：{detail}',
   'archive.form.error401': '登记失败：未授权（401）。请到「设置 → 写入令牌」填入令牌后重试。',
+  'archive.form.uploadPartialError': '记录已登记，仅文件未上传，可在下方列表该条目重新上传。',
   // 总览跳图纸档案页链接
   'overview.artifacts.toArchive': '查看图纸档案 / 登记新图纸 →',
 
@@ -344,12 +351,14 @@ const zh = {
   'pm.create.tab.need': '暴露需求',
   'pm.field.projectId': '项目 ID',
   'pm.field.groupId': '负责小组 ID',
+  'pm.field.groupId.placeholder': '如 mech-drivetrain',
+  'pm.field.groupId.hint': '优先挑下拉里已有的组；手滑打错 ID 会建出孤儿组',
   'pm.field.title': '任务标题',
   'pm.field.rawSummary': '一句原话描述',
   'pm.field.robotTarget': '目标机器人',
   'pm.field.complexity': '任务难度',
   'pm.field.owner': '谁负责（可选）',
-  'pm.field.collaborators': '协作者 ID（可选，逗号分隔）',
+  'pm.field.collaborators': '协作者（可选，填姓名即可，逗号分隔）',
   'pm.field.fromTask': '上游任务（卡住源头 / 被依赖）',
   'pm.field.toTask': '下游任务（被卡的）',
   'pm.field.depType': '依赖类型',
@@ -468,7 +477,7 @@ const zh = {
   'schedule.relay.carryConfirm': '这天已经排了，沿用上一天会再叠一份，确定？',
   'schedule.relay.carryEmpty': '上一天也没排，没东西可沿用。',
   'schedule.relay.carryDone': '已沿用上一天的 {n} 棒。',
-  'schedule.relay.carryError': '没沿用上：{detail}',
+  'schedule.relay.carryError': '没沿用上，整批都没落盘（原子提交，要么全成要么全不成），直接重试就行：{detail}',
   // 加棒缺项两条可执行引导（§2，替原 addEmpty 死胡同）
   'schedule.relay.addEmptyRobot': '还没有可上场的机器人，先在上面新建一台。',
   'schedule.relay.addEmptyTask': '还没有任务可排，先去项目看板建一条任务。',
@@ -529,7 +538,11 @@ const zh = {
   'inv.record.subtitle': '选零件记一笔，AI 助手以后也走这个接口自动填。',
   'inv.record.field.partType': '零件',
   'inv.record.field.kind': '动作',
-  'inv.record.field.quantity': '数量',
+  'inv.record.field.quantity': '本次数量',
+  'inv.record.field.quantity.placeholder': '这次变动几个',
+  'inv.record.field.quantity.stocktakeLabel': '当前实际总数',
+  'inv.record.field.quantity.stocktakePlaceholder': '现在总共有几个',
+  'inv.record.field.quantity.stocktakeHint': '填现在总共有几个，不是这次变动几个',
   'inv.record.field.holder': '机器人 / 货架',
   'inv.record.field.note': '备注（如「坏了一个 3508、烧了」）',
   'inv.record.submit': '记一笔',
@@ -712,6 +725,9 @@ export type TranslationKey = keyof typeof zh;
 
 const en: Record<TranslationKey, string> = {
   'common.close': 'Close',
+  'common.confirmDiscard': 'You have unsaved content. Discard it?',
+  'common.fieldRequired': 'This field is required',
+  'common.error401': 'Action failed: unauthorized (401). Please enter a write token in Settings and retry.',
   'brand.subtitle.real': 'Live data · connected',
   'nav.overview': 'Overview',
   'nav.project': 'Project',
@@ -752,6 +768,7 @@ const en: Record<TranslationKey, string> = {
   'settings.apiBase.current': 'In effect: {value}',
   'settings.apiBase.apply': 'Apply & reload',
   'settings.apiBase.reset': 'Reset to default',
+  'settings.connection.reloadConfirm': 'The page will reload after applying. Continue?',
   'settings.section.writeToken': 'Write token',
   'settings.writeToken.desc':
     'When the backend binds a public address, writes (register / create) need a token. Paste the TEAMHUB_WRITE_TOKEN from the server startup log; the page reloads after applying.',
@@ -761,6 +778,8 @@ const en: Record<TranslationKey, string> = {
   'settings.writeToken.unset': 'Not set (only local loopback can write)',
   'settings.writeToken.apply': 'Apply & reload',
   'settings.writeToken.reset': 'Clear',
+  'settings.writeToken.show': 'Show token',
+  'settings.writeToken.hide': 'Hide token',
   'settings.about.service': 'Service',
   'settings.about.version': 'Version',
   'settings.about.mode': 'Server mode',
@@ -954,6 +973,8 @@ const en: Record<TranslationKey, string> = {
   'archive.form.error': 'Registration failed: {detail}',
   'archive.form.error401':
     'Registration failed: unauthorized (401). Set the write token under Settings → Write token, then retry.',
+  'archive.form.uploadPartialError':
+    'Record saved, but the file upload failed — you can retry the upload for this entry in the list below.',
   'overview.artifacts.toArchive': 'View artifact archive / register a new artifact →',
 
   'layout.sidebar.nav': 'Console navigation',
@@ -1045,12 +1066,14 @@ const en: Record<TranslationKey, string> = {
   'pm.create.tab.need': 'Raise a need',
   'pm.field.projectId': 'Project ID',
   'pm.field.groupId': 'Owning group ID',
+  'pm.field.groupId.placeholder': 'e.g. mech-drivetrain',
+  'pm.field.groupId.hint': 'Prefer an existing group from the dropdown; a typo\'d ID creates an orphan group',
   'pm.field.title': 'Task title',
   'pm.field.rawSummary': 'One-line description',
   'pm.field.robotTarget': 'Target robot',
   'pm.field.complexity': 'Task complexity',
   'pm.field.owner': 'Who is responsible (optional)',
-  'pm.field.collaborators': 'Collaborator IDs (optional, comma-separated)',
+  'pm.field.collaborators': 'Collaborators (optional, names, comma-separated)',
   'pm.field.fromTask': 'Upstream task (the blocker / depended-on)',
   'pm.field.toTask': 'Downstream task (the blocked one)',
   'pm.field.depType': 'Dependency type',
@@ -1179,7 +1202,8 @@ const en: Record<TranslationKey, string> = {
     'This day already has legs; copying the previous day will add another set. Continue?',
   'schedule.relay.carryEmpty': 'The previous day is empty too — nothing to copy.',
   'schedule.relay.carryDone': 'Copied {n} leg(s) from the previous day.',
-  'schedule.relay.carryError': "Couldn't copy: {detail}",
+  'schedule.relay.carryError':
+    "Couldn't copy — nothing was saved (all-or-nothing submit), so it's safe to just retry: {detail}",
   // Two actionable hints when a leg can't be added (§2, replaces addEmpty dead-end)
   'schedule.relay.addEmptyRobot': 'No robot available yet — add one above first.',
   'schedule.relay.addEmptyTask':
@@ -1248,7 +1272,12 @@ const en: Record<TranslationKey, string> = {
     'Pick a part and log one entry; the agent will later call the same endpoint automatically.',
   'inv.record.field.partType': 'Part',
   'inv.record.field.kind': 'Action',
-  'inv.record.field.quantity': 'Quantity',
+  'inv.record.field.quantity': 'Quantity this time',
+  'inv.record.field.quantity.placeholder': 'Amount changed this time',
+  'inv.record.field.quantity.stocktakeLabel': 'Current total on hand',
+  'inv.record.field.quantity.stocktakePlaceholder': 'Total count right now',
+  'inv.record.field.quantity.stocktakeHint':
+    'Enter the total you have right now, not the change from this action',
   'inv.record.field.holder': 'Robot / shelf',
   'inv.record.field.note': 'Note (e.g. "burned out one 3508")',
   'inv.record.submit': 'Log it',

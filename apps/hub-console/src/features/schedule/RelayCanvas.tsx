@@ -29,6 +29,7 @@ import { FormEmptyState } from '../../components/FormEmptyState';
 import { isoPrevDay } from './date-utils';
 import { buildCarryOverDraft } from './carry-over';
 import { buildLanes, type Lane } from './relay-lanes';
+import { candidateTasksForResource } from './today-plan';
 
 // 泳道板 v1（R1，D-029，取代旧 @xyflow 自由拖拽画布）：每台机器人一条横泳道，组级、不带人。
 // 泳道内是「工作卡」（每张 = 一条已确认 ResourceSession）：默认并行（并排摆、零连线）；
@@ -538,9 +539,11 @@ export function RelayCanvas({
     [stages, windowLabel, createSessionMutation, t],
   );
 
-  // 沿用上一天计划（Q3，SCHEDULE-DESIGN-LOCK §3）：读上一天该 windowLabel 的占用窗口，逐条结转到当前日期。
-  // 纯前端编排、复用既有端点（GET/POST /api/resource-sessions），零端点/契约改动。
-  // I0：结转一律经 buildCarryOverDraft——invitedMemberIds 恒 []、不带 eta/note（见 carry-over.ts）。
+  // 沿用上一天计划（Q3，SCHEDULE-DESIGN-LOCK §3）：读上一天该 windowLabel 的占用窗口，结转到当前日期。
+  // 改走 POST /api/resource-sessions/batch 原子端点（同 TodayPlanTable.handleConfirm 的落盘范例）：
+  // 一次性提交整批，要么全部落盘要么全部不落盘，避免逐条顺序 POST 中途失败后既不能增量重试、
+  // 整体重试又会把已成功的那些重复叠加一份。
+  // I0：结转一律经 buildCarryOverDraft 派生——invitedMemberIds 恒 []、不带 eta/note（见 carry-over.ts）。
   const handleCarryOver = useCallback(async () => {
     // 当天已有项 → 二次确认，避免重复叠加（C3 小作坊原生 confirm 够用）。
     if (
@@ -563,11 +566,15 @@ export function RelayCanvas({
         displayName: t('schedule.relay.actor'),
         source: 'console' as const,
       };
-      for (const s of prev) {
-        await client.createResourceSession(
-          buildCarryOverDraft(s, windowLabel, actor),
-        );
-      }
+      // batch 端点的单条元素形状 = ResourceSession 去掉 id/source/createdAt/confirmedBy；
+      // buildCarryOverDraft 产出的单条请求多带一个 confirmedBy（批量请求里 confirmedBy 只在整体一层给一次）。
+      const sessions = prev.map((s) => {
+        // eslint/TS 对「解构剩余元素前置字段未用」的 rest-sibling 场景不报 unused（同 eslint
+        // ignoreRestSiblings 口径），此处剥掉 confirmedBy 就是要它不进 batch 单条元素。
+        const { confirmedBy, ...rest } = buildCarryOverDraft(s, windowLabel, actor);
+        return rest;
+      });
+      await client.createResourceSessionsBatch({ windowLabel, sessions, confirmedBy: actor });
       setBanner({
         kind: 'ok',
         text: t('schedule.relay.carryDone', { n: prev.length }),
@@ -840,20 +847,34 @@ function AddLegForm({
 }) {
   const { t } = useI18n();
   const [resourceId, setResourceId] = useState(resources[0]?.id ?? '');
-  const [taskId, setTaskId] = useState(tasks[0]?.id ?? '');
+  const [taskId, setTaskId] = useState('');
 
-  // 冷启动：列表初次为空 → 重填后同步缺省（不覆盖用户已选）。
+  // 冷启动：机器人列表初次为空 → 重填后同步缺省（不覆盖用户已选）。
   useEffect(() => {
     if (!resourceId && resources[0]) setResourceId(resources[0].id);
   }, [resources, resourceId]);
-  useEffect(() => {
-    if (!taskId && tasks[0]) setTaskId(tasks[0].id);
-  }, [tasks, taskId]);
 
   const resource = resources.find((r) => r.id === resourceId);
-  const task = tasks.find((tk) => tk.id === taskId);
+  // 任务候选按当前所选机器人过滤（同 today-plan.ts candidateTasksForResource 的 robotTarget 对齐规则），
+  // 不然下拉能选到别的车专属任务。
+  const candidateTasks = useMemo(
+    () => (resource ? candidateTasksForResource(tasks, resource) : []),
+    [tasks, resource],
+  );
+
+  // resourceId（连带候选集合）变化时：已选 taskId 若不在新候选里 → 清空，不留一个不属于当前车的选中值；
+  // 未选且候选非空 → 补默认第一项（对齐原「冷启动补缺省」行为）。
+  useEffect(() => {
+    if (taskId && !candidateTasks.some((tk) => tk.id === taskId)) {
+      setTaskId('');
+    } else if (!taskId && candidateTasks[0]) {
+      setTaskId(candidateTasks[0].id);
+    }
+  }, [candidateTasks, taskId]);
+
+  const task = candidateTasks.find((tk) => tk.id === taskId);
   const valid = Boolean(resource) && Boolean(task);
-  const noOptions = resources.length === 0 || tasks.length === 0;
+  const noOptions = resources.length === 0 || candidateTasks.length === 0;
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -912,7 +933,7 @@ function AddLegForm({
             </Field>
             <Field label={t('schedule.relay.addTask')}>
               <select value={taskId} onChange={(e) => setTaskId(e.target.value)}>
-                {tasks.map((tk) => (
+                {candidateTasks.map((tk) => (
                   <option value={tk.id} key={tk.id}>
                     {tk.title}
                   </option>

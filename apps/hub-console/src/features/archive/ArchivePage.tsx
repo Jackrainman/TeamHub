@@ -12,7 +12,7 @@ import { nextArtifactVersionNo } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import type { CreateArtifactRequest } from '../../api/schemas/pm';
 import { useI18n, type TranslationKey } from '../../i18n';
-import { errorDetail, segClass } from '../../utils';
+import { errorDetail, humanizeFormError, segClass } from '../../utils';
 import { MetaRow } from '../../components/MetaRow';
 import { SeasonSelect, guessSeason } from '../../components/SeasonSelect';
 import { Combobox } from '../../components/Combobox';
@@ -187,16 +187,36 @@ export function ArchivePage({
     return `${mech} · v${vno}`;
   }, [query.data, ownerGroup, season, effectiveMechanism]);
 
-  // 登记 = 创建元数据；若选了文件则链式上传（两步，文件可缺）。任一步错都抛给 mutation.error 显示。
+  // 登记 = 创建元数据；若选了文件则链式上传（两步，文件可缺）。两步不再绑死一次判败：
+  // 元数据落盘后若仅上传失败，记住已建的 artifact（pendingArtifact），下次提交若元数据未变
+  // 则跳过 createArtifact 只重传文件——避免「点重试」重复建一条记录。
+  const [pendingArtifact, setPendingArtifact] = useState<{
+    req: CreateArtifactRequest;
+    artifact: ArtifactRef;
+  } | null>(null);
+
   const mutation = useMutation({
     mutationFn: async (vars: { req: CreateArtifactRequest; file: File | null }) => {
-      const res = await client.createArtifact(vars.req);
+      const reusable =
+        pendingArtifact && JSON.stringify(pendingArtifact.req) === JSON.stringify(vars.req);
+      const artifact = reusable
+        ? pendingArtifact.artifact
+        : (await client.createArtifact(vars.req)).artifact;
       if (vars.file) {
-        await client.uploadArtifactFile(res.artifact.id, vars.file);
+        try {
+          await client.uploadArtifactFile(artifact.id, vars.file);
+        } catch (err) {
+          // 元数据已落盘、仅文件失败：记住 artifactId+req，只清文件字段，其余表单值保留待重试。
+          setPendingArtifact({ req: vars.req, artifact });
+          setFile(null);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+          throw err;
+        }
       }
-      return res;
+      return { artifact };
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
+      setPendingArtifact(null);
       setMechanism('');
       setMechanismNew('');
       setIsNewMechanism(false);
@@ -260,18 +280,25 @@ export function ArchivePage({
           </Field>
 
           <label className="kb-field archive-field--season">
-            <span>{t('archive.form.season')}</span>
+            <span>
+              {t('archive.form.season')}
+              <span className="kb-field__req" aria-hidden="true"> *</span>
+            </span>
             <SeasonSelect now={now} value={season} onChange={setSeason} />
           </label>
 
           <label className="kb-field archive-field--robot">
-            <span>{t('archive.form.robot')}</span>
+            <span>
+              {t('archive.form.robot')}
+              <span className="kb-field__req" aria-hidden="true"> *</span>
+            </span>
             <Combobox
               value={robotCode}
               onChange={setRobotCode}
               options={robotOptions}
               placeholder={t('archive.form.robotHint')}
               ariaLabel={t('archive.form.robot')}
+              required
             />
           </label>
         </div>
@@ -297,19 +324,23 @@ export function ArchivePage({
         {/* 机构：新机构勾选框切文本 / 否则下拉。外层 div.kb-field → Field as="div"（FORM-UNIFY B3）：
             Field as="div" 吐 <div class="kb-field"><span>label</span>{children}</div>，与原 DOM/类逐字一致、像素零变；
             内层 archive-mechanism-row（含 checkbox 行）原样作子节点。 */}
-        <Field label={t('archive.form.mechanism')} as="div">
+        <Field label={t('archive.form.mechanism')} as="div" required>
           <div className="archive-mechanism-row">
-            <label className="archive-mechanism-checkbox">
-              <input
-                type="checkbox"
-                checked={isNewMechanism}
-                onChange={(e) => {
-                  setIsNewMechanism(e.target.checked);
-                  if (!e.target.checked) setMechanismNew('');
-                }}
-              />
-              {t('archive.form.newMechanism')}
-            </label>
+            {/* 该组合下无既有机构时已强制走文本框（usingTextInput 恒真），勾选框无实际作用只造成
+                「勾了才是新机构」的错觉——此时隐藏，见 mechanismOptions.length 判断。 */}
+            {mechanismOptions.length > 0 ? (
+              <label className="archive-mechanism-checkbox">
+                <input
+                  type="checkbox"
+                  checked={isNewMechanism}
+                  onChange={(e) => {
+                    setIsNewMechanism(e.target.checked);
+                    if (!e.target.checked) setMechanismNew('');
+                  }}
+                />
+                {t('archive.form.newMechanism')}
+              </label>
+            ) : null}
             {usingTextInput ? (
               <input
                 className="archive-mechanism-input"
@@ -345,7 +376,10 @@ export function ArchivePage({
         ) : null}
 
         <label className="kb-field">
-          <span>{t('archive.form.name')}</span>
+          <span>
+            {t('archive.form.name')}
+            <span className="kb-field__req" aria-hidden="true"> *</span>
+          </span>
           <input
             value={name}
             placeholder={t('archive.form.nameHint')}
@@ -411,10 +445,9 @@ export function ArchivePage({
           disabled={!valid}
           error={
             mutation.error
-              ? // 401/未授权派生为专用文案、其余带 detail；FormBanner 不另起类（§1.3.4）。
-                /401|unauthorized/i.test(errorDetail(mutation.error))
-                ? t('archive.form.error401')
-                : t('archive.form.error', { detail: errorDetail(mutation.error) })
+              ? pendingArtifact
+                ? t('archive.form.uploadPartialError')
+                : humanizeFormError(mutation.error, t, 'archive.form.error')
               : null
           }
           success={

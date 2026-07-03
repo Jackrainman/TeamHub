@@ -5,7 +5,7 @@ import type { IssueSeverity, ArchiveGeneratedBy } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import type { KbCloseoutRequest } from '../../api/schemas/kb';
 import { useI18n, type TranslationKey } from '../../i18n';
-import { parseList, errorDetail } from '../../utils';
+import { parseList, humanizeFormError } from '../../utils';
 import { Field } from '../../components/Field';
 import { FormActions } from '../../components/FormActions';
 import { FormGrid } from '../../components/FormGrid';
@@ -35,9 +35,12 @@ const GENERATED_BY_KEY: Record<ArchiveGeneratedBy, TranslationKey> = {
 export function KbCloseoutForm({
   client,
   source,
+  initialSymptom,
 }: {
   client: HubApiClient;
   source: string;
+  // 从检索页「去归档」带过来的症状文字（仅首挂载生效，之后表单自管）。
+  initialSymptom?: string;
 }) {
   const { t } = useI18n();
   // 实例级单调序号：useRef 避免跨卸载/重挂持续累加和 StrictMode 双增导致非确定的 iss-web-DATE-N ID。
@@ -45,7 +48,7 @@ export function KbCloseoutForm({
   const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
   const [projectId, setProjectId] = useState('');
-  const [symptom, setSymptom] = useState('');
+  const [symptom, setSymptom] = useState(initialSymptom ?? '');
   const [severity, setSeverity] = useState<IssueSeverity>('medium');
   const [tags, setTags] = useState('');
   const [category, setCategory] = useState('');
@@ -53,6 +56,14 @@ export function KbCloseoutForm({
   const [resolution, setResolution] = useState('');
   const [prevention, setPrevention] = useState('');
   const [generatedBy, setGeneratedBy] = useState<ArchiveGeneratedBy>('manual');
+
+  // 字段级必填错误：提交尝试过、或该字段已失焦过，才对空值报错（不打扰还没碰过的字段）。
+  const [attempted, setAttempted] = useState(false);
+  const [touched, setTouched] = useState<Partial<Record<'title' | 'projectId' | 'symptom' | 'rootCause' | 'resolution', true>>>({});
+  const markTouched = (field: keyof typeof touched) =>
+    setTouched((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
+  const fieldError = (field: keyof typeof touched, value: string) =>
+    (attempted || touched[field]) && !value.trim() ? t('common.fieldRequired') : null;
 
   const mutation = useMutation({
     mutationFn: (req: KbCloseoutRequest) => client.closeoutKb(req),
@@ -77,7 +88,10 @@ export function KbCloseoutForm({
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!valid) return;
+    if (!valid) {
+      setAttempted(true);
+      return;
+    }
     const now = new Date().toISOString();
     const trimmedSymptom = symptom.trim();
     seqRef.current += 1;
@@ -113,23 +127,44 @@ export function KbCloseoutForm({
     <form className="panel kb-closeout-form" onSubmit={submit}>
       <p className="kb-closeout__intro">{t('kb.closeout.intro')}</p>
       <FormGrid>
-        <Field label={t('kb.closeout.field.title')}>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Field
+          label={t('kb.closeout.field.title')}
+          required
+          error={fieldError('title', title)}
+        >
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={() => markTouched('title')}
+            aria-required
+          />
         </Field>
-        <Field label={t('kb.closeout.field.projectId')}>
+        <Field
+          label={t('kb.closeout.field.projectId')}
+          required
+          error={fieldError('projectId', projectId)}
+        >
           <input
             value={projectId}
             onChange={(e) => setProjectId(e.target.value)}
+            onBlur={() => markTouched('projectId')}
             placeholder={t('kb.closeout.field.projectId.placeholder')}
+            aria-required
           />
           <span className="kb-field__hint">{t('kb.closeout.field.projectId.hint')}</span>
         </Field>
       </FormGrid>
-      <Field label={t('kb.closeout.field.symptom')}>
+      <Field
+        label={t('kb.closeout.field.symptom')}
+        required
+        error={fieldError('symptom', symptom)}
+      >
         <textarea
           rows={2}
           value={symptom}
           onChange={(e) => setSymptom(e.target.value)}
+          onBlur={() => markTouched('symptom')}
+          aria-required
         />
       </Field>
       <FormGrid>
@@ -146,18 +181,30 @@ export function KbCloseoutForm({
         </Field>
       </FormGrid>
       <FormGrid>
-        <Field label={t('kb.closeout.field.rootCause')}>
+        <Field
+          label={t('kb.closeout.field.rootCause')}
+          required
+          error={fieldError('rootCause', rootCause)}
+        >
           <textarea
             rows={2}
             value={rootCause}
             onChange={(e) => setRootCause(e.target.value)}
+            onBlur={() => markTouched('rootCause')}
+            aria-required
           />
         </Field>
-        <Field label={t('kb.closeout.field.resolution')}>
+        <Field
+          label={t('kb.closeout.field.resolution')}
+          required
+          error={fieldError('resolution', resolution)}
+        >
           <textarea
             rows={2}
             value={resolution}
             onChange={(e) => setResolution(e.target.value)}
+            onBlur={() => markTouched('resolution')}
+            aria-required
           />
         </Field>
       </FormGrid>
@@ -190,7 +237,7 @@ export function KbCloseoutForm({
         icon={<Archive size={15} aria-hidden="true" />}
         error={
           mutation.error
-            ? t('kb.closeout.error', { detail: errorDetail(mutation.error) })
+            ? humanizeFormError(mutation.error, t, 'kb.closeout.error')
             : null
         }
       />

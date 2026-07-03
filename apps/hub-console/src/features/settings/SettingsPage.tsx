@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Eye, EyeOff } from 'lucide-react';
 import type { AgentBackend, BotChannel } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n, type TranslationKey } from '../../i18n';
@@ -250,6 +251,7 @@ function ConnectionSection() {
   function applyBase(event: FormEvent) {
     event.preventDefault();
     if (baseValue.trim() === storedBase.trim()) return;
+    if (!window.confirm(t('settings.connection.reloadConfirm'))) return;
     const next = baseValue.trim();
     if (next) window.localStorage.setItem(APIBASE_KEY, next);
     else window.localStorage.removeItem(APIBASE_KEY);
@@ -264,10 +266,12 @@ function ConnectionSection() {
   // --- 写入令牌状态 ---
   const storedToken = window.localStorage.getItem(WRITE_TOKEN_KEY) ?? '';
   const [tokenValue, setTokenValue] = useState(storedToken);
+  const [tokenVisible, setTokenVisible] = useState(false);
 
   function applyToken(event: FormEvent) {
     event.preventDefault();
     if (tokenValue.trim() === storedToken.trim()) return;
+    if (!window.confirm(t('settings.connection.reloadConfirm'))) return;
     const next = tokenValue.trim();
     if (next) window.localStorage.setItem(WRITE_TOKEN_KEY, next);
     else window.localStorage.removeItem(WRITE_TOKEN_KEY);
@@ -329,13 +333,32 @@ function ConnectionSection() {
           <p className="settings-desc settings-desc--spaced">{t('settings.writeToken.desc')}</p>
           <label className="kb-field">
             <span>{t('settings.writeToken.label')}</span>
-            <input
-              type="password"
-              value={tokenValue}
-              onChange={(event) => setTokenValue(event.target.value)}
-              placeholder={t('settings.writeToken.placeholder')}
-              autoComplete="off"
-            />
+            <span className="settings-token-row">
+              <input
+                type={tokenVisible ? 'text' : 'password'}
+                value={tokenValue}
+                onChange={(event) => setTokenValue(event.target.value)}
+                placeholder={t('settings.writeToken.placeholder')}
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                className="today-plan-table__rowBtn"
+                onClick={() => setTokenVisible((v) => !v)}
+                aria-label={
+                  tokenVisible ? t('settings.writeToken.hide') : t('settings.writeToken.show')
+                }
+                title={
+                  tokenVisible ? t('settings.writeToken.hide') : t('settings.writeToken.show')
+                }
+              >
+                {tokenVisible ? (
+                  <EyeOff size={14} aria-hidden="true" />
+                ) : (
+                  <Eye size={14} aria-hidden="true" />
+                )}
+              </button>
+            </span>
           </label>
           <p className="settings-current">
             {tokenValue.trim()

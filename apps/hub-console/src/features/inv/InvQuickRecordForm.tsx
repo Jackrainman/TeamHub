@@ -7,7 +7,7 @@ import type {
   PartType,
 } from '../../api/schemas/inv';
 import { useI18n, type TranslationKey } from '../../i18n';
-import { errorDetail } from '../../utils';
+import { humanizeFormError } from '../../utils';
 import { Field } from '../../components/Field';
 import { FormActions } from '../../components/FormActions';
 import { FormGrid } from '../../components/FormGrid';
@@ -98,6 +98,15 @@ export function InvQuickRecordForm({
   const qty = Number.parseInt(quantity, 10);
   const valid = Boolean(project) && Number.isInteger(qty) && qty >= 1;
 
+  // 数量字段语义随动作切换：盘点填「当前实际总数」，其余动作填「本次数量」（增减/装拆的这一笔）。
+  const isStocktake = kind === 'stocktake';
+  const quantityLabel = isStocktake
+    ? t('inv.record.field.quantity.stocktakeLabel')
+    : t('inv.record.field.quantity');
+  const quantityPlaceholder = isStocktake
+    ? t('inv.record.field.quantity.stocktakePlaceholder')
+    : t('inv.record.field.quantity.placeholder');
+
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!valid || !project) return;
@@ -134,7 +143,7 @@ export function InvQuickRecordForm({
       </header>
       <form className="pm-form" onSubmit={submit}>
         <FormGrid>
-          <Field label={t('inv.record.field.partType')}>
+          <Field label={t('inv.record.field.partType')} required>
             {/* 零件下拉文案是各零件 name，非枚举键映射 → renderOption 回查 name。 */}
             <Select
               value={partTypeId}
@@ -155,11 +164,16 @@ export function InvQuickRecordForm({
         {/* 密度：需要机器人时本行 = 数量 + 机器人、备注独占下一行；不需要时把备注并到本行
             第二格，避免数量行半空 + 备注空占整行。 */}
         <FormGrid>
-          <Field label={t('inv.record.field.quantity')}>
+          <Field
+            label={quantityLabel}
+            required
+            hint={isStocktake ? t('inv.record.field.quantity.stocktakeHint') : undefined}
+          >
             <input
               type="number"
               min={1}
               value={quantity}
+              placeholder={quantityPlaceholder}
               onChange={(e) => setQuantity(e.target.value)}
             />
           </Field>
@@ -192,7 +206,7 @@ export function InvQuickRecordForm({
           disabled={!valid}
           error={
             mutation.error
-              ? t('inv.record.error', { detail: errorDetail(mutation.error) })
+              ? humanizeFormError(mutation.error, t, 'inv.record.error')
               : null
           }
           success={mutation.isSuccess ? t('inv.record.success') : null}

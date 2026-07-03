@@ -8,7 +8,7 @@ import type {
   CreatePartTypeRequest,
 } from '../../api/schemas/inv';
 import { useI18n, type TranslationKey } from '../../i18n';
-import { errorDetail } from '../../utils';
+import { humanizeFormError } from '../../utils';
 import { Field } from '../../components/Field';
 import { FormActions } from '../../components/FormActions';
 import { FormGrid } from '../../components/FormGrid';
@@ -217,14 +217,14 @@ function CreatePartTypeForm({
       </header>
       <form className="pm-form" onSubmit={submit}>
         <FormGrid>
-          <Field label={t('inv.create.field.partNumber')}>
+          <Field label={t('inv.create.field.partNumber')} required>
             <input
               value={partNumber}
               placeholder={t('inv.create.field.partNumberPlaceholder')}
               onChange={(e) => setPartNumber(e.target.value)}
             />
           </Field>
-          <Field label={t('inv.create.field.name')}>
+          <Field label={t('inv.create.field.name')} required>
             <input
               value={name}
               placeholder={t('inv.create.field.namePlaceholder')}
@@ -241,7 +241,7 @@ function CreatePartTypeForm({
               renderOption={(c) => t(CATEGORY_OPTION_KEY[c])}
             />
           </Field>
-          <Field label={t('inv.create.field.unit')} className="kb-field--narrow">
+          <Field label={t('inv.create.field.unit')} className="kb-field--narrow" required>
             <input
               value={unit}
               placeholder={t('inv.create.field.unitPlaceholder')}
@@ -250,7 +250,7 @@ function CreatePartTypeForm({
           </Field>
         </FormGrid>
         <FormGrid>
-          <Field label={t('inv.create.field.totalQuantity')}>
+          <Field label={t('inv.create.field.totalQuantity')} required>
             <input
               type="number"
               min={0}
@@ -258,7 +258,7 @@ function CreatePartTypeForm({
               onChange={(e) => setTotalQuantity(e.target.value)}
             />
           </Field>
-          <Field label={t('inv.create.field.lowStockThreshold')}>
+          <Field label={t('inv.create.field.lowStockThreshold')} required>
             <input
               type="number"
               min={0}
@@ -292,7 +292,7 @@ function CreatePartTypeForm({
           disabled={!valid}
           error={
             mutation.error
-              ? t('inv.create.error', { detail: errorDetail(mutation.error) })
+              ? humanizeFormError(mutation.error, t, 'inv.create.error')
               : null
           }
           success={

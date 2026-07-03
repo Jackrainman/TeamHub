@@ -21,6 +21,8 @@ export function KbSearchPage({
 }) {
   const { t } = useI18n();
   const [tab, setTab] = useState<KbTab>('search');
+  // 「去归档」带过去的症状文字（仅供 KbCloseoutForm 首挂载取用一次）。
+  const [closeoutSymptom, setCloseoutSymptom] = useState<string | undefined>(undefined);
   return (
     <div className="kb-page">
       <div className="seg kb-tabs" role="tablist" aria-label={t('toolbar.title.kb')}>
@@ -54,7 +56,14 @@ export function KbSearchPage({
           aria-labelledby="kb-tab-search-btn"
           tabIndex={0}
         >
-          <KbSearchPanel client={client} source={source} onGoToCloseout={() => setTab('closeout')} />
+          <KbSearchPanel
+            client={client}
+            source={source}
+            onGoToCloseout={(symptom) => {
+              setCloseoutSymptom(symptom);
+              setTab('closeout');
+            }}
+          />
         </div>
       ) : (
         <div
@@ -63,7 +72,7 @@ export function KbSearchPage({
           aria-labelledby="kb-tab-closeout-btn"
           tabIndex={0}
         >
-          <KbCloseoutForm client={client} source={source} />
+          <KbCloseoutForm client={client} source={source} initialSymptom={closeoutSymptom} />
         </div>
       )}
     </div>
@@ -100,7 +109,8 @@ function KbSearchPanel({
 }: {
   client: HubApiClient;
   source: string;
-  onGoToCloseout: () => void;
+  // 「去归档」：把当前查询症状文字带过去，KbCloseoutForm 用它预填 symptom（省一次重复输入）。
+  onGoToCloseout: (symptom: string) => void;
 }) {
   const { t } = useI18n();
   const [symptomInput, setSymptomInput] = useState('');
@@ -180,7 +190,7 @@ function KbSearchPanel({
               <button
                 type="button"
                 className="kb-submit kb-noresults__action"
-                onClick={onGoToCloseout}
+                onClick={() => onGoToCloseout(submitted?.symptom ?? '')}
               >
                 <Archive size={14} aria-hidden="true" /> {t('kb.noResults.goArchive')}
               </button>

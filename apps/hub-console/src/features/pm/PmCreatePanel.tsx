@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import type { Task, RobotTarget, TaskComplexity } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import type { CreateTaskRequest } from '../../api/schemas/pm';
 import { useI18n, type TranslationKey } from '../../i18n';
-import { parseList, errorDetail } from '../../utils';
+import { parseList, humanizeFormError } from '../../utils';
 import { Field } from '../../components/Field';
 import { FormActions } from '../../components/FormActions';
 import { FormGrid } from '../../components/FormGrid';
@@ -37,10 +37,13 @@ export function PmCreatePanel({
   client,
   tasks,
   onCreated,
+  onDirtyChange,
 }: {
   client: HubApiClient;
   tasks: Task[];
   onCreated: () => void;
+  // 脏状态上抛（FORM-GUARD）：SideDrawer 关闭前用它判断要不要弹确认。可选，不传则不上抛。
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { t } = useI18n();
   const defaults = useMemo(
@@ -50,10 +53,18 @@ export function PmCreatePanel({
     }),
     [tasks],
   );
-  const groupOptions = useMemo(
-    () => Array.from(new Set(tasks.map((task) => task.groupId))),
-    [tasks],
-  );
+  // 组候选：GET /api/groups 全量组列表为主，任务反查的 groupId 兜底合并去重
+  // （万一某组还没同步进组表但已有任务引用它，候选里仍要能选中）。
+  const groupsQuery = useQuery({
+    queryKey: ['groups', 'pm-create'],
+    queryFn: () => client.getGroups(),
+  });
+  const groupOptions = useMemo(() => {
+    const ids = new Set<string>();
+    for (const g of groupsQuery.data?.groups ?? []) ids.add(g.id);
+    for (const task of tasks) ids.add(task.groupId);
+    return Array.from(ids);
+  }, [groupsQuery.data, tasks]);
   const [projectId, setProjectId] = useState(defaults.projectId);
   const [groupId, setGroupId] = useState(defaults.groupId);
 
@@ -70,6 +81,20 @@ export function PmCreatePanel({
   const [complexity, setComplexity] = useState<TaskComplexity>('normal');
   const [owner, setOwner] = useState('');
   const [collaborators, setCollaborators] = useState('');
+
+  // 脏状态：自由文本字段有内容，或 projectId/groupId 已被用户改得偏离自动回填的默认值——
+  // 避免冷启动回填本身（见上方 useEffect）被误判成"用户输入过"，害关闭确认无谓弹出。
+  const dirty = Boolean(
+    title.trim() ||
+      rawSummary.trim() ||
+      owner.trim() ||
+      collaborators.trim() ||
+      projectId.trim() !== defaults.projectId.trim() ||
+      groupId.trim() !== defaults.groupId.trim(),
+  );
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const mutation = useMutation({
     mutationFn: (req: CreateTaskRequest) => client.createTask(req),
@@ -110,12 +135,17 @@ export function PmCreatePanel({
             aria-required
           />
         </Field>
-        <Field label={t('pm.field.groupId')} required>
+        <Field
+          label={t('pm.field.groupId')}
+          required
+          hint={t('pm.field.groupId.hint')}
+        >
           {/* 候选可挑又需手填（groupId 会变）→ Combobox（input+datalist）。 */}
           <Combobox
             value={groupId}
             onChange={setGroupId}
             options={groupOptions}
+            placeholder={t('pm.field.groupId.placeholder')}
             ariaLabel={t('pm.field.groupId')}
             required
           />
@@ -169,7 +199,7 @@ export function PmCreatePanel({
         disabled={!valid}
         error={
           mutation.error
-            ? t('pm.create.error', { detail: errorDetail(mutation.error) })
+            ? humanizeFormError(mutation.error, t, 'pm.create.error')
             : null
         }
         success={

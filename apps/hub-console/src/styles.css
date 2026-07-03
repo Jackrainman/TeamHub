@@ -2394,6 +2394,16 @@ button,
   flex: 1;
   min-width: 0;
 }
+/* 写入令牌：input + 显示/隐藏切换按钮横排，同 .resources-version-row 布局节奏 */
+.settings-token-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.settings-token-row input {
+  flex: 1;
+  min-width: 0;
+}
 .resources-preview-inline {
   white-space: nowrap;
   flex-shrink: 0;

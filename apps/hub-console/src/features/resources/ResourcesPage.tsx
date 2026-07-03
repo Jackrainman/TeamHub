@@ -14,7 +14,7 @@ import {
 } from '../../api/schemas/resources';
 import type { Task } from '@teamhub/hub-contracts';
 import { useI18n, type TranslationKey } from '../../i18n';
-import { errorDetail } from '../../utils';
+import { humanizeFormError } from '../../utils';
 import { SeasonSelect, guessSeason } from '../../components/SeasonSelect';
 import { Field } from '../../components/Field';
 import { FormActions } from '../../components/FormActions';
@@ -252,7 +252,7 @@ function CreateResourceForm({
       <form className="pm-form" onSubmit={submit}>
         {/* 第一行：赛季 / 编号位 / 第几代（三格），版本右侧内联预览徽章 */}
         <FormGrid cols={3}>
-          <Field label={t('resources.field.season')}>
+          <Field label={t('resources.field.season')} required>
             <SeasonSelect
               now={now}
               value={season}
@@ -273,7 +273,7 @@ function CreateResourceForm({
               renderOption={(rt) => (rt === 'shared' ? t('resources.robot.shared') : rt)}
             />
           </Field>
-          <Field label={t('resources.field.version')}>
+          <Field label={t('resources.field.version')} required>
             {/* 版本右侧内联只读预览徽章（Field 内联预览槽）；机器人编号由 deriveDisplayCode 派生，禁手写。
                 input + 徽章是单格内的横排（flex），非表单栅格——故保留 resources-version-row 内联壳，
                 用 FormGrid（grid）会把徽章挤到次列、破坏内联布局。 */}
@@ -295,7 +295,7 @@ function CreateResourceForm({
         </FormGrid>
         {/* 第二行：名字 / 类型（两格） */}
         <FormGrid>
-          <Field label={t('resources.field.name')}>
+          <Field label={t('resources.field.name')} required>
             <input
               value={name}
               placeholder={t('resources.field.namePlaceholder')}
@@ -318,7 +318,7 @@ function CreateResourceForm({
           disabled={!valid}
           error={
             mutation.error
-              ? t('resources.create.error', { detail: errorDetail(mutation.error) })
+              ? humanizeFormError(mutation.error, t, 'resources.create.error')
               : null
           }
           success={
@@ -435,7 +435,7 @@ function ResourceRow({
               换成 banner 会视觉回退 → 按像素规则保留原内联渲染（结构上仍在 form 之后、不挪布局）。 */}
           {mutation.error ? (
             <p className="resources-row-error">
-              {t('resources.action.error', { detail: errorDetail(mutation.error) })}
+              {humanizeFormError(mutation.error, t, 'resources.action.error')}
             </p>
           ) : null}
         </td>
@@ -568,8 +568,12 @@ function DefaultPresetEditor({
     });
   }
   function handleClear() {
+    // 乐观清空：失败时把 rows 还原为清空前的值（错误提示已由下方 mutation.error 横幅承载）。
+    const previousRows = rows;
     setRows([]);
-    mutation.mutate(null);
+    mutation.mutate(null, {
+      onError: () => setRows(previousRows),
+    });
   }
 
   return (
@@ -653,7 +657,7 @@ function DefaultPresetEditor({
       </div>
       {mutation.error ? (
         <p className="resources-row-error">
-          {t('resources.preset.error', { detail: errorDetail(mutation.error) })}
+          {humanizeFormError(mutation.error, t, 'resources.preset.error')}
         </p>
       ) : null}
     </div>
