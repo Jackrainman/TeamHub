@@ -55,6 +55,45 @@ describe('ConfigSchema', () => {
     expect(parsed.success).toBe(true);
     if (parsed.success) expect(parsed.data.LARK_DOMAIN).toBe('lark');
   });
+
+  // L6（code-audit-2026-06-14）入站信任边界字段：全部可选，未配置时保持现行为。
+  test('L6 fields are optional and omitted → undefined (existing deployments unaffected)', () => {
+    const parsed = ConfigSchema.safeParse(REQUIRED_KEYS);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.LARK_ALLOWED_TENANT_KEY).toBeUndefined();
+      expect(parsed.data.LARK_ALLOWED_SENDER_IDS).toBeUndefined();
+      expect(parsed.data.LARK_RATE_LIMIT_PER_MINUTE).toBeUndefined();
+    }
+  });
+
+  test('coerces LARK_RATE_LIMIT_PER_MINUTE from env string to number', () => {
+    const parsed = ConfigSchema.safeParse({
+      ...REQUIRED_KEYS,
+      LARK_RATE_LIMIT_PER_MINUTE: '30',
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.LARK_RATE_LIMIT_PER_MINUTE).toBe(30);
+  });
+
+  test('rejects non-positive LARK_RATE_LIMIT_PER_MINUTE', () => {
+    const parsed = ConfigSchema.safeParse({
+      ...REQUIRED_KEYS,
+      LARK_RATE_LIMIT_PER_MINUTE: '0',
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  test('accepts LARK_ALLOWED_SENDER_IDS as a comma-separated string', () => {
+    const parsed = ConfigSchema.safeParse({
+      ...REQUIRED_KEYS,
+      LARK_ALLOWED_SENDER_IDS: 'ou_a,ou_b',
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.LARK_ALLOWED_SENDER_IDS).toBe('ou_a,ou_b');
+    }
+  });
 });
 
 describe('loadConfigFrom', () => {

@@ -4,6 +4,7 @@ import { Info, Search, Archive } from 'lucide-react';
 import type { SimilarIssueMatch } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n, type TranslationKey } from '../../i18n';
+import { segClass } from '../../utils';
 import { Field } from '../../components/Field';
 import { MetaRow } from '../../components/MetaRow';
 import { KbCloseoutForm } from './KbCloseoutForm';
@@ -29,7 +30,7 @@ export function KbSearchPage({
           id="kb-tab-search-btn"
           aria-selected={tab === 'search'}
           aria-controls="kb-tab-search"
-          className={tab === 'search' ? 'seg__btn seg__btn--active' : 'seg__btn'}
+          className={segClass(tab === 'search')}
           onClick={() => setTab('search')}
         >
           <Search size={14} aria-hidden="true" /> {t('kb.tab.search')}
@@ -40,7 +41,7 @@ export function KbSearchPage({
           id="kb-tab-closeout-btn"
           aria-selected={tab === 'closeout'}
           aria-controls="kb-tab-closeout"
-          className={tab === 'closeout' ? 'seg__btn seg__btn--active' : 'seg__btn'}
+          className={segClass(tab === 'closeout')}
           onClick={() => setTab('closeout')}
         >
           <Archive size={14} aria-hidden="true" /> {t('kb.tab.closeout')}

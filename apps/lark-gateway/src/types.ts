@@ -21,5 +21,7 @@ export interface LarkMessageEvent {
   };
   sender?: {
     sender_id?: { open_id?: string; user_id?: string; union_id?: string };
+    // L6：Feishu 把租户标识放在 sender.tenant_key（不是 message 顶层）。
+    tenant_key?: string;
   };
 }

@@ -1,5 +1,6 @@
 import { describe, test, expect, vi } from 'vitest';
 import { handleMessage, stripMention } from '../src/message-handler';
+import { createRateLimiter } from '../src/rate-limiter';
 import type { Config } from '../src/config';
 import type { LarkMessageEvent } from '../src/types';
 
@@ -15,6 +16,8 @@ interface MakeEventOpts {
   text?: string;
   type?: string;
   mentions?: Array<{ key: string; id: { open_id: string } }>;
+  senderId?: string;
+  tenantKey?: string;
 }
 
 function makeEvent(opts: MakeEventOpts): LarkMessageEvent {
@@ -27,7 +30,10 @@ function makeEvent(opts: MakeEventOpts): LarkMessageEvent {
       content: type === 'text' ? JSON.stringify({ text: opts.text ?? '' }) : '{}',
       mentions: opts.mentions,
     },
-    sender: { sender_id: { open_id: 'ou_user' } },
+    sender: {
+      sender_id: { open_id: opts.senderId ?? 'ou_user' },
+      tenant_key: opts.tenantKey,
+    },
   };
 }
 
@@ -133,6 +139,72 @@ describe('handleMessage', () => {
       type: 'message.received',
       correlationId: 'om_msg',
     });
+  });
+});
+
+describe('handleMessage — L6 入站信任边界（code-audit-2026-06-14）', () => {
+  const botMention = { key: '@_user_1', id: { open_id: 'ou_bot' } };
+
+  test('LARK_ALLOWED_TENANT_KEY 已配置且事件 tenant_key 不匹配 → 丢弃，不调度不回复', async () => {
+    const deps = makeDeps();
+    await handleMessage(
+      makeEvent({
+        text: '@_user_1 自动跑点又歪了',
+        mentions: [botMention],
+        tenantKey: 'tenant-evil',
+      }),
+      { ...cfg, LARK_ALLOWED_TENANT_KEY: 'tenant-good' },
+      deps,
+    );
+    expect(deps.toolkit.reply).not.toHaveBeenCalled();
+    expect(deps.skills.dispatch).not.toHaveBeenCalled();
+  });
+
+  test('LARK_ALLOWED_SENDER_IDS 已配置且发送者不在名单 → 丢弃，不调度不回复', async () => {
+    const deps = makeDeps();
+    await handleMessage(
+      makeEvent({
+        text: '@_user_1 自动跑点又歪了',
+        mentions: [botMention],
+        senderId: 'ou_stranger',
+      }),
+      { ...cfg, LARK_ALLOWED_SENDER_IDS: 'ou_user,ou_ally' },
+      deps,
+    );
+    expect(deps.toolkit.reply).not.toHaveBeenCalled();
+    expect(deps.skills.dispatch).not.toHaveBeenCalled();
+  });
+
+  test('单发送者超出每分钟限流 → 第二条丢弃，不调度不回复', async () => {
+    const deps = { ...makeDeps(), rateLimiter: createRateLimiter(1) };
+    const event = makeEvent({
+      text: '@_user_1 自动跑点又歪了',
+      mentions: [botMention],
+    });
+    await handleMessage(event, cfg, deps);
+    await handleMessage(event, cfg, deps);
+    expect(deps.skills.dispatch).toHaveBeenCalledOnce();
+    expect(deps.toolkit.reply).toHaveBeenCalledOnce();
+  });
+
+  test('租户+发送者白名单+限流均放行 → 正常调度回复（现有行为不受破坏）', async () => {
+    const deps = { ...makeDeps(), rateLimiter: createRateLimiter(5) };
+    await handleMessage(
+      makeEvent({
+        text: '@_user_1 自动跑点又歪了',
+        mentions: [botMention],
+        tenantKey: 'tenant-good',
+        senderId: 'ou_ally',
+      }),
+      {
+        ...cfg,
+        LARK_ALLOWED_TENANT_KEY: 'tenant-good',
+        LARK_ALLOWED_SENDER_IDS: 'ou_user,ou_ally',
+      },
+      deps,
+    );
+    expect(deps.skills.dispatch).toHaveBeenCalledOnce();
+    expect(deps.toolkit.reply).toHaveBeenCalledOnce();
   });
 });
 
