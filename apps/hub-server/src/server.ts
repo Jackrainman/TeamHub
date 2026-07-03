@@ -51,6 +51,7 @@ import {
   wouldCreateCycle,
   GroupGapsResponseSchema,
   deriveDirectionGaps,
+  GroupsResponseSchema,
   derivePresenceSchedule,
   PresenceScheduleResponseSchema,
   ResourceSessionsResponseSchema,
@@ -507,6 +508,14 @@ function registerArchiveRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void 
 // ============================================================================
 function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   const { store, clock } = ctx;
+
+  // 组只读列表（PHASE2-CONSOLE-ASSEMBLY）：console TodayPlanTable 原借 dep-graph 节点反查组名当临时
+  // 数据源（节点集合=任务派生视图，没有任务的组不出现在里面、下拉会漏项）；GroupsResponseSchema 早有
+  // 契约（pm-core.ts）却零消费方，这里补上语义正确的直读端点。
+  app.get('/api/groups', async () => {
+    const snapshot = await store.getSnapshot();
+    return GroupsResponseSchema.parse({ groups: snapshot.groups });
+  });
 
   // 依赖链 · 阻塞归因视图：治理快照经纯函数 toDepGraphView 实时派生（D-040 首任务收敛）。
   // 解 hub-console real 模式 GET /api/dep-graph 的 404；输出主键为 task/group/dependency，无 memberId 维度（C2）。

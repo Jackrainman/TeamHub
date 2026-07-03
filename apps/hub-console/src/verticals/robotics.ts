@@ -1,4 +1,5 @@
 import type { TranslationKey } from '../i18n';
+import type { VocabularyOverrides } from '../i18n/vocabulary-overrides';
 
 /**
  * robotics 垂直包（console 侧，HUB-MODULARIZATION 第 6 步：词汇注入收口）。
@@ -89,3 +90,17 @@ export const ARTIFACT_ACCEPT_EXT: readonly string[] = [
   '.bin',
   '.hex',
 ];
+
+// ---------------------------------------------------------------------------
+// i18n 词汇覆盖表（PHASE2-CONSOLE-ASSEMBLY：接线 vocabulary-overrides.ts 的 setVocabularyOverrides，
+// 装配点见 App.tsx）
+// ---------------------------------------------------------------------------
+
+/**
+ * robotics 租户的词汇覆盖表——**恒为空**：巨表 `translations.ts` 本身就是按机器人战队词汇写的
+ * （见文件头注释「今天 = 机器人战队租户」），故 robotics 垂直包无需覆盖任何词条。接线
+ * `setVocabularyOverrides(ROBOTICS_VOCAB_OVERRIDES)` 后 robotics 租户渲染文案零变化，只是把
+ * "谁在调用这条机制"从空白填成显式（游戏工作室等其它垂直包应在自己的 verticals/*.ts 里放一份
+ * 非空覆盖表，如把 `pm.field.robotTarget` 换成"目标平台"）。
+ */
+export const ROBOTICS_VOCAB_OVERRIDES: VocabularyOverrides = {};

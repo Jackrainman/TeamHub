@@ -9,6 +9,8 @@ import {
   LayoutGrid,
   Settings,
 } from 'lucide-react';
+import type { ModuleId, TenantConfig } from '@teamhub/hub-contracts';
+import { isModuleEnabled } from '@teamhub/hub-contracts';
 import type { HubApiClient } from './api/client';
 import type { OverviewSnapshot } from './api/schemas/system';
 import type { TranslationKey } from './i18n';
@@ -32,9 +34,12 @@ import { SettingsPage } from './features/settings/SettingsPage';
  * assembly.ts，只接口不实现）的具体化——contracts 层的 `pages`/`lazyComponent` 留了型参占位给宿主收紧，
  * 这里收紧成 console 实际用到的 React 组件引用 + 渲染上下文类型。
  *
- * **本步范围**：当前仍是六页全量静态注册（未接 TenantConfig.enabledModules 做运行期过滤/懒加载），
- * 是"页面注册表"这一半（消灭 4 处同改）；"按模块动态开关 nav + HubApiClient 切片"留在 risks，
- * 原因见 commit 说明——client 全量按域切片改动面大、本机无法编译验证，属于本步该留的安全边界。
+ * **本步接线（PHASE2-CONSOLE-ASSEMBLY，D-081 已知延后项①收口）**：`CONSOLE_PAGES` 仍是全量静态
+ * 注册表（8 页，值不变）；新增 `moduleId` 字段 + `filterConsolePages()` 纯函数按 `TenantConfig.enabledModules`
+ * 过滤——未启用模块的页面结构上不出现在导航/直达渲染里（§3.4-A"未启用即不渲染"，非灰置禁用）。
+ * 具体 TenantConfig 由哪个常量注入是 App.tsx 的装配点（见该文件顶部 `TENANT_CONFIG`），本文件只提供
+ * 过滤机制、不持有租户配置本身。"HubApiClient 切片"仍留在 risks——client 全量按域切片改动面大，
+ * 属于本步该留的安全边界。
  *
  * 原 ConsoleLayout 的「无 page 时该项灰禁用 + tooltipKey」占位机制（曾用于库存/BOM"开发中"）当前
  * 零处使用（六页均已实现），本次收口时一并去掉——按设计文档自己的方向（§3.4-A"未启用即不渲染"），
@@ -69,6 +74,9 @@ export interface ConsolePageDescriptor {
   titleKey: TranslationKey;
   icon: typeof Home;
   render: (ctx: PageRenderCtx) => ReactElement | null;
+  // 页面归属模块（§3.3 模块清单表逐字对照）：过滤/降级判定的唯一依据，非重复真相——
+  // 加一页时这一个字段就决定它在哪些租户下出现，不须另开一张映射表。
+  moduleId: ModuleId;
 }
 
 // 顺序即导航顺序（IA D-077 定案，不变）：总览 → 项目 → 知识库 → 图纸档案 → 库存 → 机器人队 → 缺人方向 → 设置。
@@ -78,6 +86,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     labelKey: 'nav.overview',
     titleKey: 'toolbar.title.overview',
     icon: Home,
+    moduleId: 'system',
     render: (ctx) => (
       <OverviewPage
         isLoading={ctx.overview.isLoading}
@@ -92,6 +101,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     labelKey: 'nav.project',
     titleKey: 'toolbar.title.project',
     icon: LayoutGrid,
+    moduleId: 'pm-core',
     render: (ctx) => <ProjectPage client={ctx.apiClient} source={ctx.source} />,
   },
   {
@@ -99,6 +109,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     labelKey: 'nav.knowledge',
     titleKey: 'toolbar.title.knowledge',
     icon: BookOpen,
+    moduleId: 'knowledge-base',
     render: (ctx) => <KbSearchPage client={ctx.apiClient} source={ctx.source} />,
   },
   {
@@ -106,6 +117,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     labelKey: 'nav.archive',
     titleKey: 'toolbar.title.archive',
     icon: FileStack,
+    moduleId: 'archive',
     render: (ctx) => <ArchivePage client={ctx.apiClient} source={ctx.source} />,
   },
   {
@@ -113,6 +125,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     labelKey: 'nav.inv',
     titleKey: 'toolbar.title.inv',
     icon: Boxes,
+    moduleId: 'ledger',
     render: (ctx) => <InvPage client={ctx.apiClient} source={ctx.source} />,
   },
   {
@@ -120,6 +133,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     labelKey: 'nav.fleet',
     titleKey: 'toolbar.title.fleet',
     icon: Bot,
+    moduleId: 'presence-schedule',
     render: (ctx) => <FleetPage client={ctx.apiClient} source={ctx.source} />,
   },
   {
@@ -127,6 +141,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     labelKey: 'nav.gaps',
     titleKey: 'toolbar.title.gaps',
     icon: Compass,
+    moduleId: 'pm-core',
     render: (ctx) => <GapsPage client={ctx.apiClient} source={ctx.source} />,
   },
   {
@@ -134,6 +149,18 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     labelKey: 'nav.settings',
     titleKey: 'toolbar.title.settings',
     icon: Settings,
+    moduleId: 'system',
     render: (ctx) => <SettingsPage client={ctx.apiClient} source={ctx.source} />,
   },
 ];
+
+/**
+ * 按租户 `enabledModules` 过滤页面注册表（纯函数，无副作用）——导航渲染与「路由直达降级」共用
+ * 同一份判定，不在两处各写一套开关逻辑。装配点（哪个 TenantConfig）在 App.tsx，本函数只做过滤。
+ */
+export function filterConsolePages(
+  pages: ConsolePageDescriptor[],
+  tenantConfig: TenantConfig,
+): ConsolePageDescriptor[] {
+  return pages.filter((page) => isModuleEnabled(tenantConfig, page.moduleId));
+}

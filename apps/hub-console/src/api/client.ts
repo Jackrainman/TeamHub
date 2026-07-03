@@ -8,6 +8,7 @@ import {
   DepGraphSchema,
   GitReposResponseSchema,
   GroupGapsResponseSchema,
+  GroupsResponseSchema,
   HubEventsResponseSchema,
   PresenceScheduleResponseSchema,
   ResourceSessionsResponseSchema,
@@ -15,6 +16,7 @@ import {
   TasksResponseSchema,
   type ArtifactsResponse,
   type DepGraph,
+  type Group,
   type GroupGapsResponse,
   type PresenceScheduleResponse,
   type ResourceSessionsResponse,
@@ -126,6 +128,9 @@ export interface HubApiClient {
   ): Promise<UpdateResourceResponse>;
   getKbSimilar(params: KbSimilarParams): Promise<KbSimilarResponse>;
   getTasks(): Promise<{ tasks: Task[] }>;
+  // 组只读列表（PHASE2-CONSOLE-ASSEMBLY）：TodayPlanTable「负责组」下拉的数据源，
+  // 替掉原先借 dep-graph 节点反查组名的临时办法（无任务的组不会漏进下拉）。
+  getGroups(): Promise<{ groups: Group[] }>;
   // 图纸提交日志/版本时间线（档案页）：与总览第 7 个 fetch 同源 /api/artifacts，读治理快照。
   getArtifacts(): Promise<ArtifactsResponse>;
   // 写侧（PM 录入簇 + KB 结案）。I0：confirmedBy 随依赖/需求请求传入但读视图永不回显；
@@ -317,6 +322,9 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
     },
     async getTasks() {
       return fetchJson(`${baseUrl}/api/tasks`, TasksResponseSchema, fetcher);
+    },
+    async getGroups() {
+      return fetchJson(`${baseUrl}/api/groups`, GroupsResponseSchema, fetcher);
     },
     async getArtifacts() {
       return fetchJson(

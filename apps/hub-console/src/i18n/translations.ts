@@ -702,6 +702,10 @@ const zh = {
 
   // 缺人方向卡片
   'gaps.card.needCount': '{n} 条待补需求',
+
+  // 模块未启用降级视图（PHASE2-CONSOLE-ASSEMBLY：路由直达一个当前租户未启用的模块）
+  'module.disabled.title': '模块未启用',
+  'module.disabled.message': '当前租户未启用该功能模块，页面内容已隐藏。',
 } as const;
 
 export type TranslationKey = keyof typeof zh;
@@ -1419,6 +1423,10 @@ const en: Record<TranslationKey, string> = {
 
   // Direction gaps card
   'gaps.card.needCount': '{n} open gap(s)',
+
+  // Module-disabled fallback view (PHASE2-CONSOLE-ASSEMBLY: direct navigation to a module the current tenant doesn't enable)
+  'module.disabled.title': 'Module not enabled',
+  'module.disabled.message': 'This feature module is not enabled for the current tenant.',
 };
 
 export const translations: Record<Lang, Record<TranslationKey, string>> = {

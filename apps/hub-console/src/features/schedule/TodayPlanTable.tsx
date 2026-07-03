@@ -47,14 +47,16 @@ export function TodayPlanTable({
     queryKey: ['resources', 'todayPlan'],
     queryFn: () => client.getResources(),
   });
-  // 任务候选 + 组名映射的数据源，各自独立查询、失败不阻塞表格本体（同 RelayCanvas 的加一棒表单）。
+  // 任务候选 + 组列表的数据源，各自独立查询、失败不阻塞表格本体（同 RelayCanvas 的加一棒表单）。
   const tasksQuery = useQuery({
     queryKey: ['tasks', 'todayPlan'],
     queryFn: () => client.getTasks(),
   });
-  const depGraphQuery = useQuery({
-    queryKey: ['dep-graph', 'todayPlan'],
-    queryFn: () => client.getDepGraph(),
+  // 组下拉数据源（PHASE2-CONSOLE-ASSEMBLY）：原借 GET /api/dep-graph 节点反查组名（节点集合=任务派生
+  // 视图，没任务的组不出现、下拉会漏项），改直读 GET /api/groups——server 补上该端点后不再需要这层绕。
+  const groupsQuery = useQuery({
+    queryKey: ['groups', 'todayPlan'],
+    queryFn: () => client.getGroups(),
   });
   // 与 SchedulePage 的空状态判定同一 queryKey（['resource-sessions']，无参数），react-query 天然去重。
   const sessionsQuery = useQuery({
@@ -67,18 +69,18 @@ export function TodayPlanTable({
   const resourcesById = useMemo(() => new Map(resources.map((r) => [r.id, r])), [resources]);
   const tasksById = useMemo(() => new Map(tasks.map((tk) => [tk.id, tk])), [tasks]);
 
-  // 「负责组」下拉候选：组 id -> 组名，来源=依赖图节点（任务自带 groupId/groupName）+ 各车预设 lineup
-  // 里出现过的组 + 表格当前已选中的组（兜底：万一某组既无任务也无预设，选中值仍要能显示，不留空白 option）。
+  // 「负责组」下拉候选：组 id -> 组名，来源=GET /api/groups 全量组列表 + 各车预设 lineup 里出现过的组
+  // （兜底：万一某组的 seed 漏了但预设引用了它，选中值仍要能显示，不留空白 option）。
   const groupOptions = useMemo(() => {
     const map = new Map<string, string>();
-    for (const n of depGraphQuery.data?.nodes ?? []) map.set(n.groupId, n.groupName);
+    for (const g of groupsQuery.data?.groups ?? []) map.set(g.id, g.name);
     for (const r of resources) {
       for (const entry of r.defaultPreset?.lineup ?? []) {
         if (!map.has(entry.groupId)) map.set(entry.groupId, entry.groupId);
       }
     }
     return map;
-  }, [depGraphQuery.data, resources]);
+  }, [groupsQuery.data, resources]);
 
   const [rows, setRows] = useState<DraftRow[]>([]);
   // 只在换日（或首次拿到资源列表）时铺一遍空基线，避免每次 refetch 打断正在编辑的表格。
