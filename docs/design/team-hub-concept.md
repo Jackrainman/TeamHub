@@ -5,6 +5,7 @@ owner: Teamhub
 scope: concept-design
 decision: D-026 (立"进度治理"魂) / D-037 (回中: CASE+交流中心+数据库, 去监视) / D-039 (第一轮: 演进留地基 + AI 退出治理 + 三支柱)
 supersedes: D-024 的"信息路由器 / 监控 broker"产品定位; team-hub-product-definition.md v0（2026-06-11 并入，D-030）; D-026 的"制度化进度治理系统"**定位词**（D-037 回中）
+superseded-by-note: "⚠ 2026-07-11 D-083 产品重定义：产品一句话定义/双主轴/宪法修正（G4 里程碑例外·I0 口径降级·AI 排人三红线）以 docs/design/product-redefine-2026-07.md 为准；本文四层架构/三支柱功能描述仍有效（三支柱全保留、重挂双主轴下）"
 ---
 
 # Teamhub 概念设计 — 协作中枢（CASE 工具 + 团队交流中心 + 战队数据库）

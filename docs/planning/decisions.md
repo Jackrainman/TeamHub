@@ -1012,10 +1012,10 @@
   5. **fixtures 拆 per-module builder**（`15d2ec1`）：原单块 fixtures.ts 多域 seed 拆成各模块独立 builder，便于阶段二垂直包只装配自己需要的种子数据。
   6. **verticals-robotics 词汇包成形**（`c84f4a9`）：机器人特有词汇（displayCode/robotTarget 等）收进独立词汇注入层，为阶段二游戏工作室/软件开发词汇包打样。
 - 验证：07-02 WSL 全绿——三包 `verify:all` 432 测、迁移脚本 `scripts/migrate-robottarget.mjs` 在真实 gov.json 副本上跑零丢失、Playwright health-check 8 页 0 错等价 master、真实未迁移的 gov.json 在新 schema 下加载成功（向后兼容实证）。07-03 FF 合并 master（`c84f4a9`）已 push origin。
-- 设计真相 = `docs/design/modularization-feasibility.md`（本轮实际执行的方案）；`docs/design/core-plugin-architecture.md` 是更宽的长期愿景，仍 **PROPOSAL**、与本轮实现尚未对齐，后续需要专门核对差异。
+- 设计真相 = `docs/design/modularization-feasibility.md`（本轮实际执行的方案）；`core-plugin-architecture.md` 是更宽的长期愿景，仍 **PROPOSAL**、与本轮实现尚未对齐（→ 2026-07-11 D-083 裁定搁置归档，现在 `docs/archive/`）。
 - **已知延后（阶段二前置，未在本轮做）**：① console 侧装配未接线——`console-pages.tsx` 仍是全量静态注册，未消费 `TenantConfig`；② `i18n/vocabulary-overrides.ts` 未接线，词汇包目前只在 contracts 层生效；③ `GovStore` god-interface 仅在独立部署（非 monorepo 内共享）场景才会成为真实阻塞，本轮不处理；④ i18n 巨表未拆分（未按模块拆分翻译键）；⑤ 测试从未跑过非默认 TenantConfig 的装配路径——现有 432 测全部走默认（机器人）装配。
 - 阶段二：从合并后 master 切 `game-studio`/`software-dev` 等垂直包 worktree；前置 = 上述①②延后项先补上（见 backlog `PHASE2-CONSOLE-ASSEMBLY`）。
-- 事实源：本 ADR；`docs/design/modularization-feasibility.md`；`docs/design/core-plugin-architecture.md`（PROPOSAL）；memory `teamhub-modularization`。
+- 事实源：本 ADR；`docs/design/modularization-feasibility.md`；`docs/archive/core-plugin-architecture.md`（PROPOSAL，D-083 搁置归档）；memory `teamhub-modularization`。
 
 ## D-082 — daily-plan-presets 实现拍板
 
@@ -1028,3 +1028,17 @@
   4. **§5 空状态路由 + fixtures 收口**：当日 `ResourceSession` 数为 0 时自动落到表格页（而非空白泳道图）；demo 车 fixtures 顺带种好 `defaultPreset`——这一并是「日期锚定空屏债」（换天首屏空屏，见 D-075 已修的舍弃预烤 seed 教训）的收口刀。既有锚点 seed（06-21/06-28 场景）**保留不拆**，仍服务差异化三态/总联调全组演示。
 - 守恒/红线（I0）：预设/表格/泳道图全程只到**组**级，绝不渲染/录入/派生 `memberId`/`invitedMemberIds`/出勤维度；`carryForwardPlan` 与新纯函数 `deriveTodayPlanFromPresets` 均恒清空 `invitedMemberIds`（继承 D-075 carry-over 红线）。
 - 事实源：本 ADR；设计稿 `docs/design/daily-plan-presets.md`（§4 数据模型 + §6 决议）；前序 D-075（SCHEDULE-DESIGN-LOCK，carry-over 纯函数先例）。
+
+## D-083 — 产品重定义 2026-07：开源 · 防爆肝双主轴 · 四把刀 · 宪法修正
+
+- 状态：**DECIDED（2026-07-11，用户多轮架构/产品讨论拍板；设计真相 = `docs/design/product-redefine-2026-07.md`）**。
+- 上下文：用户（Robocon 战队电控，明年大三接管战队、队内无项目管理岗）以真实痛点重定义产品：今年备馆才开始调参→太晚、电控近燃尽；期末 6 周真空期；寒暑假依赖链卡死（机械不在校只能画图）；赛场翻车=测试不完全赛前隐形。开源动机=先救明年的自己，其次帮小团队攒口碑。
+- 决策（要点，全文见设计稿）：
+  1. **产品一句话**：给没有项目经理的小团队一个代打项目经理的工具——把赛前爆肝摊平到整个赛季。双主轴=防爆肝（倒排基准线）+ 防"大号 AI MCP"（学习方向+AI 边界）。
+  2. **宪法修正**：G4 修正（里程碑有日期、Task 永不带个人 dueDate、快慢从里程碑派生、落后单位=模块非人名）；I0 口径降级（收回"结构上无法统计"绝对主义→"分析对准事不对准人、不做排行榜"；新增"登录后本人视图"合法例外）；AI 排人三红线（事实拼盘不排序、拍板留名归人、拼盘只在决策现场）。
+  3. **四把刀**：①倒排基准线（赛季→学期→阶段类型[研发/迭代/调参/真空]+里程碑链+验证门+投资类任务防砍示警+阶段×工种负载；独立 baselineStore 不塞 GovernanceSnapshot；前置=Season 接线）②轻身份登录**双模式**（匿名模式整体保留供选择；身份模式=匿名可读一切+登录才写/个人视图，选人+可选PIN；服务端注入身份替代客户端自报；ownerId 自由文本→选人）③我的视图（我负责∩未被卡）④store 拆分→SQLite（前置=拆 21 方法 god-interface）。
+  4. **收窄/砍/推迟**：课表排班砍（伪需求）；在场排班收窄到关键窗口；缺人方向→学习方向（跨工种地图×队缺口，只对本人只建议）；兴趣声明暂不建；游戏包+对外文档后置；MODULARIZATION-PHASE2 垂直包 worktree 随游戏包后置。
+  5. **责任立场**："备馆才调参"是一年积累、找不出责任人——**不追责，追债**：基准线让债在变小时可见，复盘对事（结构原因），经验回写模板（sim2real 假期双链即实例）。
+- 解耦审计（`wf_66e13d79-814`）：四刀阻力+坐实错位字段（GroupKind 闭集/convergenceScope 字面量判断/pm-requests 硬绑 robotics/main.ts 未接 tenantConfig），账单见设计稿 §9。
+- 归档：`docs/design/core-plugin-architecture.md`（PROPOSAL 完整注册中心愿景）搁置移 `docs/archive/`——路线 v4 未采纳，其安全建议（defineRoute/写守卫 fail-closed）登录改造时回读。
+- 事实源：本 ADR + `docs/design/product-redefine-2026-07.md`；前序 D-081（模块化阶段一）/D-039（AI 退治理，其"AI 不下判断"精神由本 ADR AI 三红线继承）。

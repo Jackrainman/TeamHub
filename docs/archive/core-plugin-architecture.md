@@ -1,4 +1,6 @@
-# 底座 + 插件化架构 — 可行性与设计提案（PROPOSAL · 待决策）
+# 底座 + 插件化架构 — 可行性与设计提案（PROPOSAL · **已搁置归档 2026-07-11**）
+
+> **归档说明（D-083）**：本 PROPOSAL 的完整注册中心/GitForgeProvider 愿景未被采纳——模块化阶段一实际按 `docs/design/modularization-feasibility.md` 执行（D-081），产品方向由 `docs/design/product-redefine-2026-07.md` 重定义（路线 v4）。保留全文的价值：§4.2 写守卫 fail-closed、defineRoute 必填 responseSchema 等安全建议，在轻身份登录改造（刀②）动写路由时值得回读。
 
 > 回答用户提问：**TeamHub 能否朝「一个底座 + 不同插件」演进**（git/GitHub 本地可选、依赖图可自行增减、排班表可删减）？**能否 → 单独出设计文档**。
 > 本文 = 研究结论 + 目标架构 + 分阶段路线 + 红线。**状态 = PROPOSAL，未 locked**：动代码前需用户拍板 §10 的待决策项（这是「需用户拍板的产品/架构方向」，AGENTS §5 安全边界）。
