@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import type { Task, RobotTarget, TaskComplexity } from '@teamhub/hub-contracts';
+import type {
+  Task,
+  RobotTarget,
+  TaskComplexity,
+  InvestmentHorizon,
+  InvestmentValue,
+  InvestmentTimeAccumulation,
+} from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import type { CreateTaskRequest } from '../../api/schemas/pm';
 import { useI18n, type TranslationKey } from '../../i18n';
@@ -26,6 +33,23 @@ const COMPLEXITY_KEY: Record<TaskComplexity, TranslationKey> = {
   trivial: 'pm.complexity.trivial',
   normal: 'pm.complexity.normal',
   hard: 'pm.complexity.hard',
+};
+
+// 投资类任务三维分类（baseline-design.md §1 细节4，optional，默认不填）。
+const INVESTMENT_HORIZONS: InvestmentHorizon[] = ['season', 'future'];
+const INVESTMENT_HORIZON_KEY: Record<InvestmentHorizon, TranslationKey> = {
+  season: 'pm.investment.horizon.season',
+  future: 'pm.investment.horizon.future',
+};
+const INVESTMENT_VALUES: InvestmentValue[] = ['high', 'low'];
+const INVESTMENT_VALUE_KEY: Record<InvestmentValue, TranslationKey> = {
+  high: 'pm.investment.value.high',
+  low: 'pm.investment.value.low',
+};
+const INVESTMENT_TIMEACCS: InvestmentTimeAccumulation[] = ['high', 'low'];
+const INVESTMENT_TIMEACC_KEY: Record<InvestmentTimeAccumulation, TranslationKey> = {
+  high: 'pm.investment.timeAcc.high',
+  low: 'pm.investment.timeAcc.low',
 };
 
 /**
@@ -81,6 +105,13 @@ export function PmCreatePanel({
   const [complexity, setComplexity] = useState<TaskComplexity>('normal');
   const [owner, setOwner] = useState('');
   const [collaborators, setCollaborators] = useState('');
+  // 投资标签（optional，默认不勾）：勾上才带 investment 三维；默认 = future×high×high（sim2real 型，
+  // 最容易被砍的重点保护对象——baseline-design.md §1 细节4）。
+  const [isInvestment, setIsInvestment] = useState(false);
+  const [invHorizon, setInvHorizon] = useState<InvestmentHorizon>('future');
+  const [invValue, setInvValue] = useState<InvestmentValue>('high');
+  const [invTimeAcc, setInvTimeAcc] =
+    useState<InvestmentTimeAccumulation>('high');
 
   // 脏状态：自由文本字段有内容，或 projectId/groupId 已被用户改得偏离自动回填的默认值——
   // 避免冷启动回填本身（见上方 useEffect）被误判成"用户输入过"，害关闭确认无谓弹出。
@@ -89,6 +120,7 @@ export function PmCreatePanel({
       rawSummary.trim() ||
       owner.trim() ||
       collaborators.trim() ||
+      isInvestment ||
       projectId.trim() !== defaults.projectId.trim() ||
       groupId.trim() !== defaults.groupId.trim(),
   );
@@ -103,6 +135,7 @@ export function PmCreatePanel({
       setRawSummary('');
       setOwner('');
       setCollaborators('');
+      setIsInvestment(false);
       onCreated();
     },
   });
@@ -122,6 +155,9 @@ export function PmCreatePanel({
       intrinsicComplexity: complexity,
       ownerId: owner.trim() || null,
       collaboratorIds: parseList(collaborators),
+      investment: isInvestment
+        ? { horizon: invHorizon, value: invValue, timeAccumulation: invTimeAcc }
+        : undefined,
     });
   }
 
@@ -191,6 +227,48 @@ export function PmCreatePanel({
           />
         </Field>
       </FormGrid>
+      <Field
+        as="div"
+        label={t('pm.field.investment')}
+        hint={t('pm.field.investment.hint')}
+      >
+        <label className="pm-check">
+          <input
+            type="checkbox"
+            checked={isInvestment}
+            onChange={(e) => setIsInvestment(e.target.checked)}
+          />
+          <span>{t('pm.investment.enable')}</span>
+        </label>
+      </Field>
+      {isInvestment ? (
+        <FormGrid>
+          <Field label={t('pm.investment.horizon')}>
+            <Select
+              value={invHorizon}
+              onChange={setInvHorizon}
+              options={INVESTMENT_HORIZONS}
+              renderOption={(v) => t(INVESTMENT_HORIZON_KEY[v])}
+            />
+          </Field>
+          <Field label={t('pm.investment.value')}>
+            <Select
+              value={invValue}
+              onChange={setInvValue}
+              options={INVESTMENT_VALUES}
+              renderOption={(v) => t(INVESTMENT_VALUE_KEY[v])}
+            />
+          </Field>
+          <Field label={t('pm.investment.timeAcc')}>
+            <Select
+              value={invTimeAcc}
+              onChange={setInvTimeAcc}
+              options={INVESTMENT_TIMEACCS}
+              renderOption={(v) => t(INVESTMENT_TIMEACC_KEY[v])}
+            />
+          </Field>
+        </FormGrid>
+      ) : null}
       <p className="form-hint">{t('pm.field.actorHint')}</p>
       <FormActions
         submitLabel={t('pm.create.submit.task')}

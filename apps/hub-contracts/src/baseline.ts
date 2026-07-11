@@ -369,3 +369,135 @@ export function deriveTimeAccumulationFlags(tasks: Task[]): TimeAccumulationFlag
     .filter((t) => t.investment?.timeAccumulation === 'high')
     .map((t) => ({ taskId: t.id, groupId: t.groupId, label: TIME_ACCUMULATION_LABEL }));
 }
+
+// ---------------------------------------------------------------------------
+// Robocon 三版车节奏模板 v1（baseline-design.md §2）：两锚点 → 相对周展开。
+// 纯函数、无 IO；产物直接喂 `PATCH /api/baseline`（返回体 = UpdateBaselineRequest 的四字段，
+// 不含 id/seasonId——那两个由 store 按 seasonId 派生/钉死）。
+// ---------------------------------------------------------------------------
+
+/** `generateRoboconBaselineTemplate` 的产物形状 = SeasonBaseline 去掉 id/seasonId 的四字段。 */
+export interface RoboconBaselineTemplate {
+  anchors: BaselineAnchors;
+  segments: BaselineSegment[];
+  phases: BaselinePhase[];
+  milestones: BaselineMilestone[];
+}
+
+function addWeeks(iso: string, w: number): string {
+  return new Date(new Date(iso).getTime() + w * MS_PER_WEEK).toISOString();
+}
+
+/** 模板内置教训注记（baseline-design.md §2 原文口径，供前端直接展示，不改写）。 */
+export const TEMPLATE_NOTE_G1 = '第一学期内必须完成：V1 上电控去找极限、视觉做技术实验，找齐所有问题才拍板 V2 设计。';
+export const TEMPLATE_NOTE_M1 = '假期双链：电控在仿真里先摔明白再上车；前置=需有人提前研究 sim2real（现状缺口，进「学习方向」）。';
+export const TEMPLATE_NOTE_M2 = '调参入场默认挂在 G4 整车试跑之后（堵「车没跑通就调参」）。上届备馆才开始调参，结论=过晚。';
+
+/**
+ * 生成 Robocon 三版车节奏基准线模板（baseline-design.md §2）。
+ *
+ * 布局口径（相对周占位，赛后回填真实时间线）：
+ * - **第一学期从「秋季开学日」正向展开**（研发→迭代→期末真空），G1 问题清单收敛门落在学期中后段；
+ * - **竞赛尾段从「赛日」倒推**（倒排：G3 出车 / G4 整车试跑 / M2 调参入场靠比赛日排布），
+ *   契合「从比赛日倒推」的产品心脏（§4.1）；
+ * - 中段寒假（假期双链，M1 sim2real 环境可用）在两锚点之间正向落位。
+ *
+ * **期末前 4 周 + 考试 = 6 周真空段**：`kind:'vacuum'` 段 + `type:'vacuum'` 阶段（计划恒为零），
+ * 研发/迭代/调参阶段一律绕开它（倒排排任务时此窗口不放事）。
+ *
+ * 版次裁剪（红线5）不在模板里做——模板恒生成三版；队长若只做两版，走 `PATCH` 把 V3 门的
+ * `robotVersion` 改挂 'V2' + 填 `mergedFromVersion:'V3'`，门本身不删。
+ *
+ * **锚点间隔假设**：模板正向段（G2 落在第二学期第 1–2 周 ≈ 开学 +25 周）与倒推段（G3 ≈ 赛日 −8 周）
+ * 需两锚点至少相隔约 34 周才不互相穿插；间隔过短时里程碑顺序可能错乱，属需队长手写覆盖修正的边界情形
+ * （v1 相对周占位的已知约束，记入实现 deviations）。
+ */
+export function generateRoboconBaselineTemplate(anchors: {
+  semesterStart: string;
+  competitionDate: string;
+}): RoboconBaselineTemplate {
+  const { semesterStart: s, competitionDate: c } = anchors;
+
+  // 第一学期正向锚点（开学 = 第 0 周）
+  const fallTeachEnd = addWeeks(s, 12); // 授课段结束（期末真空前）
+  const vacuumEnd = addWeeks(s, 18); // 期末真空结束 = 寒假开始（6 周真空）
+  const winterEnd = addWeeks(s, 24); // 寒假结束 = 第二学期开始
+
+  // 竞赛尾段倒推锚点（赛日 = 第 0 周往回数）
+  const tuningStart = addWeeks(c, -4); // G4 整车试跑 → 进入调参期
+
+  const segments: BaselineSegment[] = [
+    { kind: 'semester', startsAt: s, endsAt: fallTeachEnd, label: '第一学期' },
+    { kind: 'vacuum', startsAt: fallTeachEnd, endsAt: vacuumEnd, label: '期末前 4 周 + 考试（真空段·计划恒为零）' },
+    { kind: 'vacation', startsAt: vacuumEnd, endsAt: winterEnd, label: '寒假（假期双链）' },
+    { kind: 'semester', startsAt: winterEnd, endsAt: c, label: '第二学期' },
+  ];
+
+  const phases: BaselinePhase[] = [
+    { type: 'rd', startsAt: s, endsAt: addWeeks(s, 4) }, // V1 实验车研发
+    { type: 'iterate', startsAt: addWeeks(s, 4), endsAt: fallTeachEnd }, // V1 找极限 · 收敛问题清单
+    { type: 'vacuum', startsAt: fallTeachEnd, endsAt: vacuumEnd }, // 真空段：绕开，不放事
+    { type: 'iterate', startsAt: vacuumEnd, endsAt: winterEnd }, // 寒假 sim2real ∥ 画 V2 图
+    { type: 'iterate', startsAt: winterEnd, endsAt: tuningStart }, // V2 拼装 → V3 出车 → 联调
+    { type: 'tuning', startsAt: tuningStart, endsAt: c }, // 调参 → 赛
+  ];
+
+  const milestones: BaselineMilestone[] = [
+    {
+      id: 'm-g1',
+      title: '门 G1：问题清单收敛（V2 设计拍板）',
+      kind: 'gate',
+      plannedAt: addWeeks(s, 11),
+      robotVersion: 'V1',
+      status: 'pending',
+      note: TEMPLATE_NOTE_G1,
+    },
+    {
+      id: 'm-m1',
+      title: '里程碑 M1：sim2real 环境可用',
+      kind: 'milestone',
+      plannedAt: addWeeks(s, 21),
+      status: 'pending',
+      note: TEMPLATE_NOTE_M1,
+    },
+    {
+      id: 'm-g2',
+      title: '门 G2：V2 拼装完成',
+      kind: 'gate',
+      plannedAt: addWeeks(s, 25), // 第二学期第 1–2 周
+      robotVersion: 'V2',
+      status: 'pending',
+    },
+    {
+      id: 'm-g3',
+      title: '门 G3：V3 出车（冲奖、能完整闭环）',
+      kind: 'gate',
+      plannedAt: addWeeks(c, -8), // 期中前
+      robotVersion: 'V3',
+      status: 'pending',
+    },
+    {
+      id: 'm-g4',
+      title: '门 G4：整车试跑（含破坏性 / 极限工况）',
+      kind: 'gate',
+      plannedAt: tuningStart, // 赛日 −4 周
+      robotVersion: 'V3',
+      status: 'pending',
+    },
+    {
+      id: 'm-m2',
+      title: '里程碑 M2：调参入场',
+      kind: 'milestone',
+      plannedAt: addWeeks(c, -3), // 挂在 G4 之后
+      status: 'pending',
+      note: TEMPLATE_NOTE_M2,
+    },
+  ];
+
+  return {
+    anchors: { semesterStart: s, competitionDate: c },
+    segments,
+    phases,
+    milestones,
+  };
+}

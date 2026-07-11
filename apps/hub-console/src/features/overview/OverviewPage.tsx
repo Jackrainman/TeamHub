@@ -1,9 +1,11 @@
 import type { ArtifactRef, GitRepoRef, HubEvent } from '@teamhub/hub-contracts';
 import type { OverviewSnapshot } from '../../api/schemas/system';
 import type { ConsolePage } from '../../components/layout/ConsoleLayout';
+import type { HubApiClient } from '../../api/client';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { ARTIFACT_KIND_KEY } from '../../constants';
 import { MetricTile } from '../../components/MetricTile';
+import { BaselineOverview } from './BaselineOverview';
 
 // 后端枚举 → 文案键（类型安全：枚举变更会在此处编译报错）。仅翻译状态/类型等「界面语义」，
 // 用户数据（displayName / uri / branch / capabilities 等）保持后端原样。
@@ -25,6 +27,8 @@ const EVENT_TYPE_KEY: Record<HubEvent['type'], TranslationKey> = {
 };
 
 interface OverviewPageProps {
+  client: HubApiClient;
+  source: string;
   snapshot: OverviewSnapshot | undefined;
   isLoading: boolean;
   error: unknown;
@@ -32,6 +36,8 @@ interface OverviewPageProps {
 }
 
 export function OverviewPage({
+  client,
+  source,
   snapshot,
   isLoading,
   error,
@@ -39,13 +45,25 @@ export function OverviewPage({
 }: OverviewPageProps) {
   const { t } = useI18n();
 
+  // 首屏第一眼 = 倒排基准线「基准线 vs 实际」（BASELINE-CORE S6）：自带 season/baseline/tasks 查询与
+  // 加载/空态，独立于下方运维快照（snapshot）——即便快照未就绪，基准线仍先渲染，反之亦然。
+  const baselineHero = <BaselineOverview client={client} source={source} />;
+
   if (isLoading) {
-    return <div className="state-band" role="status" aria-live="polite">{t('overview.loading')}</div>;
+    return (
+      <div className="overview-grid">
+        {baselineHero}
+        <div className="state-band" role="status" aria-live="polite">{t('overview.loading')}</div>
+      </div>
+    );
   }
 
   if (error || !snapshot) {
     return (
-      <div className="state-band state-band-error" role="alert">{t('overview.unavailable')}</div>
+      <div className="overview-grid">
+        {baselineHero}
+        <div className="state-band state-band-error" role="alert">{t('overview.unavailable')}</div>
+      </div>
     );
   }
 
@@ -55,6 +73,7 @@ export function OverviewPage({
 
   return (
     <div className="overview-grid">
+      {baselineHero}
       <section className="summary-strip" aria-label={t('overview.section.summary')}>
         <MetricTile
           label={t('overview.metric.system')}

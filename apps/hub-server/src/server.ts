@@ -1258,8 +1258,9 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   // GET /api/inventory + POST /api/inventory/{part-types,actions} 消费。独立于 GovStore（InventorySnapshot
   // 不在 GovernanceSnapshot 内）；车列复用 GovStore.listResources 的资源（显示 displayCode ?? name）。
   const invStore: InvStore = options.invStore ?? new InMemoryInvStore();
-  // BASELINE-CORE（S3）：倒排基准线读写出入口（缺省 InMemoryBaselineStore seed 空）。
-  // 暂无消费方——路由属 S4，本刀只钉扩展点（照 invStore 落地初期同一节奏）。
+  // BASELINE-CORE：倒排基准线读写出入口（缺省 InMemoryBaselineStore seed baselineScenarioFixture，
+  // 同 InMemoryInvStore 先例——demo 首屏「基准线 vs 实际」非空）。由 GET/PATCH /api/baseline +
+  // POST /api/baseline/milestones/:id/pass 消费（S4）。
   const baselineStore: BaselineStore = options.baselineStore ?? new InMemoryBaselineStore();
   // 装配外壳（HUB-MODULARIZATION 第2步）：租户模块开关，缺省 = 机器人战队全 6 模块启用（与拆分前等价）。
   const tenantConfig: TenantConfig = options.tenantConfig ?? ROBOTICS_TENANT_CONFIG;

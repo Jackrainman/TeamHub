@@ -89,6 +89,8 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     moduleId: 'system',
     render: (ctx) => (
       <OverviewPage
+        client={ctx.apiClient}
+        source={ctx.source}
         isLoading={ctx.overview.isLoading}
         error={ctx.overview.error}
         snapshot={ctx.overview.data}

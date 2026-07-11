@@ -1,4 +1,5 @@
 import {
+  baselineScenarioFixture,
   governanceScenarioFixture,
   inventoryScenarioFixture,
   kbScenarioFixture,
@@ -109,11 +110,15 @@ async function main(): Promise<void> {
 
   // 设了 TEAMHUB_BASELINE_DATA_FILE → 倒排基准线落盘（重启不丢，队长手写覆盖 / 验证门过门留痕累积）；
   // 独立文件 baseline.json（红线3：不进 TEAMHUB_GOV_DATA_FILE/GovernanceSnapshot）。未设则维持
-  // InMemoryBaselineStore（mock-first 不变）。本步（S3）无内置演示 fixture 可 seed（S6 会补），
-  // 故不接 demoSeed 开关——新建落盘文件恒以空数组起头，队长首次 PATCH /api/baseline 生成模板。
+  // InMemoryBaselineStore（mock-first 不变）。新建落盘文件按 demoSeed 落三版车演示基准线（S6 接上，
+  // 同 gov/kb/inv 一套开关）：demoSeed → baselineScenarioFixture（首屏非空）；TEAMHUB_DEMO_SEED=false
+  // → 空数组（真实团队首次 PATCH /api/baseline 生成自己的模板）。已有文件按原样加载、不受此 flag 影响。
   const baselineDataFile = process.env.TEAMHUB_BASELINE_DATA_FILE;
   const baselineStore = baselineDataFile
-    ? await FileBaselineStore.create(baselineDataFile)
+    ? await FileBaselineStore.create(
+        baselineDataFile,
+        demoSeed ? baselineScenarioFixture : [],
+      )
     : undefined;
   if (!baselineStore) {
     console.warn(

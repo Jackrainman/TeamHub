@@ -70,6 +70,7 @@ export {
   gitRepoRefFixtures,
   hubEventFixtures,
   governanceScenarioFixture,
+  baselineScenarioFixture,
   inventoryScenarioFixture,
   kbScenarioFixture,
   memberKnowledgeFixtures,

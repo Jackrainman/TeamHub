@@ -15,6 +15,8 @@ import type {
   HubEvent,
 } from './schemas.js';
 import type { Dependency, Group, Member, Need, Season, Task } from './pm-core.js';
+import { generateRoboconBaselineTemplate } from './baseline.js';
+import type { SeasonBaseline } from './baseline.js';
 import type { KnowledgeNode, MemberKnowledge, TaskKnowledgeTag } from './growth.js';
 import type { KbSnapshot } from './kb.js';
 import type { InventorySnapshot, TrackedPart } from './inventory.js';
@@ -457,10 +459,13 @@ export function buildPmSeed(): PmSeedFixture {
   ],
   tasks: [
     { id: 't-r1-arm-mount', projectId: 'prj-robots', groupId: 'grp-mech', title: 'R1 机械臂装配', rawSummary: '装好机械臂结构件', status: 'done', statusSource: 'console', ownerId: 'm-mechC', collaboratorIds: [], robotTarget: 'R1', intrinsicComplexity: 'normal', lastProgressAt: '2026-06-09T12:00:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
-    { id: 't-r1-newboard', projectId: 'prj-robots', groupId: 'grp-circuit', title: 'R1 新版电路板验证', rawSummary: '换新版要和电控一起看有没有问题', status: 'inProgress', statusSource: 'console', ownerId: 'm-circuitD', collaboratorIds: ['m-ecB'], robotTarget: 'R1', intrinsicComplexity: 'normal', lastProgressAt: '2026-06-10T22:00:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
-    { id: 't-r1-chassis', projectId: 'prj-robots', groupId: 'grp-ec', title: 'R1 底盘调试', rawSummary: '底盘还没调完，新版电路要一起看，中断时序有问题', status: 'blocked', statusSource: 'derived', ownerId: 'm-ecB', collaboratorIds: ['m-circuitD'], robotTarget: 'R1', intrinsicComplexity: 'hard', lastProgressAt: '2026-06-08T20:00:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
+    // 挂 G4 门（S6 演示基准线）：新版电路板验证是 G4 整车试跑前的电路组任务。
+    { id: 't-r1-newboard', projectId: 'prj-robots', groupId: 'grp-circuit', title: 'R1 新版电路板验证', rawSummary: '换新版要和电控一起看有没有问题', status: 'inProgress', statusSource: 'console', ownerId: 'm-circuitD', collaboratorIds: ['m-ecB'], robotTarget: 'R1', intrinsicComplexity: 'normal', milestoneId: 'm-g4', lastProgressAt: '2026-06-10T22:00:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
+    // 挂 G3 门（V3 出车）：底盘调试未完成 → 演示里 G3 逾期 → 电控组显示落后（单位=组，非人名）。
+    { id: 't-r1-chassis', projectId: 'prj-robots', groupId: 'grp-ec', title: 'R1 底盘调试', rawSummary: '底盘还没调完，新版电路要一起看，中断时序有问题', status: 'blocked', statusSource: 'derived', ownerId: 'm-ecB', collaboratorIds: ['m-circuitD'], robotTarget: 'R1', intrinsicComplexity: 'hard', milestoneId: 'm-g3', lastProgressAt: '2026-06-08T20:00:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
     { id: 't-r1-dataset', projectId: 'prj-robots', groupId: 'grp-vision', title: 'R1 视觉数据集采集', rawSummary: '在 R1 上跑数据采集', status: 'inProgress', statusSource: 'git', ownerId: 'm-visionA', collaboratorIds: [], robotTarget: 'R1', intrinsicComplexity: 'normal', lastProgressAt: '2026-06-11T01:00:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
-    { id: 't-r1-vision-stream', projectId: 'prj-robots', groupId: 'grp-vision', title: 'R1 视觉→运动数据流', rawSummary: '本来很简单，就是把视觉结果接进运动', status: 'inProgress', statusSource: 'derived', ownerId: 'm-visionC', collaboratorIds: [], robotTarget: 'R1', intrinsicComplexity: 'trivial', lastProgressAt: '2026-06-08T18:00:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
+    // 挂 G3 门 + 投资标签（未来赛季×高价值：接进运动的数据流是后期少调参的地基）：已停滞两周 → 演示「正在砍未来」示警。
+    { id: 't-r1-vision-stream', projectId: 'prj-robots', groupId: 'grp-vision', title: 'R1 视觉→运动数据流', rawSummary: '本来很简单，就是把视觉结果接进运动', status: 'inProgress', statusSource: 'derived', ownerId: 'm-visionC', collaboratorIds: [], robotTarget: 'R1', intrinsicComplexity: 'trivial', milestoneId: 'm-g3', investment: { horizon: 'future', value: 'high', timeAccumulation: 'low' }, lastProgressAt: '2026-06-08T18:00:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
     { id: 't-r2-spare', projectId: 'prj-robots', groupId: 'grp-mech', title: 'R2 备件整理', rawSummary: '整理 R2 备件清单', status: 'inProgress', statusSource: 'console', ownerId: 'm-mechD', collaboratorIds: [], robotTarget: 'R2', intrinsicComplexity: 'trivial', lastProgressAt: '2026-06-10T09:00:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
     // 总联调 = 收敛任务（convergenceScope='allLeafGroups'）：挂哨兵组 grp-convergence、无单一负责组长
     // （ownerId=null、collaboratorIds=[]）；在场由派生给「全组各一人」。仍是最长链终点 → isCritical=true 不变。
@@ -468,7 +473,8 @@ export function buildPmSeed(): PmSeedFixture {
     { id: 't-r2-integration', projectId: 'prj-robots', groupId: 'grp-convergence', title: 'R2 总联调', rawSummary: 'R2 整机联调', status: 'inProgress', statusSource: 'git', ownerId: null, collaboratorIds: [], robotTarget: 'R2', intrinsicComplexity: 'hard', convergenceScope: 'allLeafGroups', lastProgressAt: '2026-06-10T23:00:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
     // 路线 C 新增常规 sink：今晚电控做「R1 系统调试」（非总联调）。owner m-progA(working) → 节点 working、
     // 不计 idle、不抢关键链（dep-004/005 仍指 integration，等长但 taskId 升序 integration 先到）。
-    { id: 't-r1-system-tune', projectId: 'prj-robots', groupId: 'grp-ec', title: 'R1 系统调试', rawSummary: 'R1 子系统联合调试（常规、非总联调）', status: 'inProgress', statusSource: 'git', ownerId: 'm-progA', collaboratorIds: [], robotTarget: 'R1', intrinsicComplexity: 'hard', lastProgressAt: '2026-06-10T23:30:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
+    // 投资标签（高时间积累：调参手感突击无效、只能早开始摊）→ 演示「早开始摊、突击无效」小标注。
+    { id: 't-r1-system-tune', projectId: 'prj-robots', groupId: 'grp-ec', title: 'R1 系统调试', rawSummary: 'R1 子系统联合调试（常规、非总联调）', status: 'inProgress', statusSource: 'git', ownerId: 'm-progA', collaboratorIds: [], robotTarget: 'R1', intrinsicComplexity: 'hard', investment: { horizon: 'season', value: 'high', timeAccumulation: 'high' }, lastProgressAt: '2026-06-10T23:30:00.000Z', createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
   ],
   dependencies: [
     { id: 'dep-001', projectId: 'prj-robots', fromTaskId: 't-r1-arm-mount', toTaskId: 't-r1-chassis', type: 'blocks', status: 'satisfied', source: 'human', confirmedBy: PROVIDER_PROGRAM_A, createdAt: GOVERNANCE_SCENARIO_TIME, updatedAt: GOVERNANCE_SCENARIO_NOW },
@@ -537,6 +543,42 @@ export function buildGovernanceSeed(): GovernanceSnapshot {
 }
 
 export const governanceScenarioFixture: GovernanceSnapshot = buildGovernanceSeed();
+
+// ---------------------------------------------------------------------------
+// 倒排基准线演示 seed（BASELINE-CORE S6）：一条 season-robocon-2026 的三版车节奏基准线，
+// 由 `generateRoboconBaselineTemplate` 按两锚点相对周展开（同 InMemoryInvStore 缺省 seed 先例
+// —— 保证 demo 首屏「基准线 vs 实际」非空）。
+//
+// 演示锚点（固定示范日期，非动态；与 SCENARIO_WINDOW_* 同一「静态锚点、换天演示改这里」纪律）：
+//   秋季开学 2025-09-08 → 赛日 2026-08-16。对 2026-07 前后打开演示：G1/M1/G2 已过门（绿）、
+//   G3（≈06-21，逾期未过门）红、G4（≈07-19，临近）黄、M2（≈07-26）绿 —— 一眼看出「V3 出车逾期」。
+//   早期三门 seed 成 passed（大三验收留名；读视图按 I0 剥 passedBy）。
+// 真实时间线赛后回填（baseline-design.md §6），届时锚点换真日期。
+// ---------------------------------------------------------------------------
+const BASELINE_DEMO_ANCHORS = {
+  semesterStart: '2025-09-08T00:00:00.000Z',
+  competitionDate: '2026-08-16T00:00:00.000Z',
+};
+const DEMO_GATE_REVIEWER = { id: 'm-senior-1', displayName: '大三验收', source: 'console' as const };
+const DEMO_PASSED_MILESTONE_IDS = new Set(['m-g1', 'm-m1', 'm-g2']);
+
+export const baselineScenarioFixture: SeasonBaseline[] = [
+  (() => {
+    const template = generateRoboconBaselineTemplate(BASELINE_DEMO_ANCHORS);
+    return {
+      id: 'baseline-season-robocon-2026',
+      seasonId: 'season-robocon-2026',
+      anchors: template.anchors,
+      segments: template.segments,
+      phases: template.phases,
+      milestones: template.milestones.map((m) =>
+        DEMO_PASSED_MILESTONE_IDS.has(m.id)
+          ? { ...m, status: 'passed' as const, passedBy: DEMO_GATE_REVIEWER }
+          : m,
+      ),
+    };
+  })(),
+];
 
 // 私有兴趣关系样例（D-027 护栏：visibility 默认 private，无 score/完成率）。
 export const memberKnowledgeFixtures: MemberKnowledge[] = [

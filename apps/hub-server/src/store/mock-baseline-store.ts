@@ -1,8 +1,9 @@
-import type {
-  BaselineMilestone,
-  PassMilestoneRequest,
-  SeasonBaseline,
-  UpdateBaselineRequest,
+import {
+  baselineScenarioFixture,
+  type BaselineMilestone,
+  type PassMilestoneRequest,
+  type SeasonBaseline,
+  type UpdateBaselineRequest,
 } from '@teamhub/hub-contracts';
 import { cloneArrayFields } from './clone-snapshot.js';
 import type { BaselineStore } from './baseline-store.js';
@@ -22,8 +23,9 @@ function cloneBaseline(baseline: SeasonBaseline): SeasonBaseline {
  * 倒排基准线内存参考实现（BASELINE-CORE）。键 = `seasonId`（baseline-design.md §1 细节1：
  * 基准线是战队级、赛季一条链，不按组各建一条）。
  *
- * 默认 seed 为空（`[]`）——赛季模板由队长通过 `PATCH /api/baseline` 生成，本步暂无内置假数据可 seed
- * （S6 会补 fixtures；任务口径「seed 本步可为空」）。进程重启丢失为预期；持久层见 `FileBaselineStore`。
+ * 默认 seed = `baselineScenarioFixture`（S6 接上，同 InMemoryInvStore 缺省 seed 先例）——一条
+ * season-robocon-2026 的三版车节奏演示基准线，保证 demo 首屏「基准线 vs 实际」非空。真实团队走
+ * `PATCH /api/baseline` 生成自己的模板覆盖之。进程重启丢失为预期；落盘持久层见 `FileBaselineStore`。
  *
  * 写方法（`upsertBaseline`/`passMilestone`）均**不原地 mutate** 已存条目——每次改动都产出新对象
  * 整体替换 Map 条目（同 InMemoryInvStore「先算后写、非法即抛不留副作用」的纪律，只是这里连合法写
@@ -32,7 +34,7 @@ function cloneBaseline(baseline: SeasonBaseline): SeasonBaseline {
 export class InMemoryBaselineStore implements BaselineStore {
   private readonly baselines: Map<string, SeasonBaseline>;
 
-  constructor(seed: SeasonBaseline[] = []) {
+  constructor(seed: SeasonBaseline[] = baselineScenarioFixture) {
     this.baselines = new Map(seed.map((b) => [b.seasonId, cloneBaseline(b)]));
   }
 

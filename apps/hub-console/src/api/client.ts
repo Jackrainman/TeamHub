@@ -12,17 +12,24 @@ import {
   HubEventsResponseSchema,
   PresenceScheduleResponseSchema,
   ResourceSessionsResponseSchema,
+  SeasonsResponseSchema,
   SharedResourcesResponseSchema,
   TasksResponseSchema,
+  BaselineResponseSchema,
+  UpdateBaselineResponseSchema,
   type ArtifactsResponse,
   type DepGraph,
   type Group,
   type GroupGapsResponse,
   type PresenceScheduleResponse,
   type ResourceSessionsResponse,
+  type Season,
   type SharedResourcesResponse,
   type Task,
   type TaskStatus,
+  type BaselineResponse,
+  type UpdateBaselineRequest,
+  type UpdateBaselineResponse,
 } from '@teamhub/hub-contracts';
 import {
   HealthResponseSchema,
@@ -128,6 +135,16 @@ export interface HubApiClient {
   ): Promise<UpdateResourceResponse>;
   getKbSimilar(params: KbSimilarParams): Promise<KbSimilarResponse>;
   getTasks(): Promise<{ tasks: Task[] }>;
+  // 赛季列表（S1）：总览「基准线 vs 实际」按 active 赛季查基准线。无人维度、只读元信息。
+  getSeasons(): Promise<{ seasons: Season[] }>;
+  // 倒排基准线（BASELINE-CORE，S4）。读：某赛季的「基准线 vs 实际」——未生成模板 → { baseline: null }
+  // （前端引导「填两锚点→生成模板」）。读视图已剥 passedBy（I0，红线2）。
+  getBaseline(seasonId: string): Promise<BaselineResponse>;
+  // 写：生成模板 / 队长手写覆盖（PATCH 整段覆盖式合并）。总览「空 baseline 态」按两锚点生成模板后调它落盘。
+  updateBaseline(
+    seasonId: string,
+    req: UpdateBaselineRequest,
+  ): Promise<UpdateBaselineResponse>;
   // 组只读列表（PHASE2-CONSOLE-ASSEMBLY）：TodayPlanTable「负责组」下拉的数据源，
   // 替掉原先借 dep-graph 节点反查组名的临时办法（无任务的组不会漏进下拉）。
   getGroups(): Promise<{ groups: Group[] }>;
@@ -322,6 +339,26 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
     },
     async getTasks() {
       return fetchJson(`${baseUrl}/api/tasks`, TasksResponseSchema, fetcher);
+    },
+    async getSeasons() {
+      return fetchJson(`${baseUrl}/api/seasons`, SeasonsResponseSchema, fetcher);
+    },
+    async getBaseline(seasonId: string) {
+      return fetchJson(
+        `${baseUrl}/api/baseline?seasonId=${encodeURIComponent(seasonId)}`,
+        BaselineResponseSchema,
+        fetcher,
+      );
+    },
+    async updateBaseline(seasonId: string, req: UpdateBaselineRequest) {
+      return sendJson(
+        'PATCH',
+        `${baseUrl}/api/baseline?seasonId=${encodeURIComponent(seasonId)}`,
+        req,
+        UpdateBaselineResponseSchema,
+        fetcher,
+        writeToken,
+      );
     },
     async getGroups() {
       return fetchJson(`${baseUrl}/api/groups`, GroupsResponseSchema, fetcher);
