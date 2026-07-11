@@ -72,4 +72,35 @@ Task.investment?: { horizon: 'season'|'future', value: 'high'|'low', timeAccumul
 
 - **真实时间线（用户，赛后）**：规则发布 / 方案冻结 / 开学 / 备馆 / 赛日 + 各里程碑实际达成时间 → 回填模板 v2，"模板从上届长出来"闭环第一次转起来。
 - sim2real「现状没人研究」→ 学习方向（LEARN-DIRECTION-REDESIGN）的第一条真实缺口种子。
-- 验证门证据的后缀白名单/体积上限、G4 破坏性测试子项清单：实现期定。
+- 验证门证据的后缀白名单/体积上限：**已在 BASELINE-CORE 实现轮定（见 §7.1）**；G4 破坏性测试子项清单：仍待实现期定（模板只放教训注记，未硬编码子项）。
+
+## 7. 实现落点注记（2026-07-11 BASELINE-CORE 实现轮）
+
+> BASELINE-CORE 六步（S1–S6，commit `d3db6fe`..`e3a76a9`，VERSION 0.10.3→0.11.5）已落地，本机三包 `verify:all` 全绿（contracts 197 / server 232 / console 96）+ e2e-pillars 3 绿 + Playwright 首屏走查达成。本节把实现期偏离设计稿字面处 + §3/§4/§6 留的「实现期定」具体取值如实回写；设计红线（§5）全部满足。
+
+### 7.1 「实现期定」项的实际取值
+
+- **验证门证据视频后缀白名单**（§3/§6）：`ARTIFACT_ALLOWED_EXT`（`hub-server/src/server.ts`）新增 `.mp4`→`video/mp4`、`.mov`→`video/quicktime`、`.webm`→`video/webm`；体积上限沿用 D-078 既有 multipart 50MB 上限不改。
+- **drift 常量 N/阈值**（§4）：`BASELINE_DRIFT_LOOKAHEAD_WEEKS=2`（黄档前瞻窗口）、`BASELINE_DRIFT_ATTACHED_DONE_THRESHOLD=0.5`（黄档挂接任务完成度阈值）、`INVESTMENT_STALL_WEEKS=2`（投资示警零进展周数），均为 `hub-contracts/src/baseline.ts` 顶部导出常量，无加权算法。补充口径：黄档要求「挂接任务数 > 0」——`attachedTotal===0`（里程碑无挂接任务）判绿不判黄（数据不足不示警，避免对空里程碑发假警报），设计稿 §4 未明说。
+- **投资示警「零进展」参照口径**（§4）：优先用 `Task.lastProgressAt`（commit/check-in 派生的最近推进信号），为 `null`（从未有推进信号）时退化用 `Task.createdAt`；`status==='done'` 排除（已完成非被砍），`status==='shelved'` 刻意**不**排除（已搁置正是「正在砍未来」的实锤，理应出现）。
+- **版次裁剪留痕字段形态**（§3/§5）：落 `BaselineMilestone.mergedFromVersion?`，三值枚举同 `robotVersion`（V1/V2/V3），语义 = 裁剪前的原始版次。裁剪 = 显式把 `robotVersion` 改挂目标版（如 V3→V2）+ 填 `mergedFromVersion:'V3'`，门本身不删、验证要求不降低。
+- **模板 v1 布局口径**（§2）：混合——第一学期从秋季开学日**正向**展开 + 竞赛尾段 G3/G4/M2 从赛日**倒推**（非纯正向也非纯倒推）；隐含「两锚点需相隔约 34 周」才不使里程碑穿插，间隔过短属需队长手写覆盖的边界情形。模板 v1 只建模**一个**（第一学期）真空段——第二学期期末真空（§2 条件项『若赛程在期末后』）因只有两锚点、无春季期末锚点可定位而未建模（Robocon 赛期通常在春季期末前）。以上均在 `baseline.ts:generateRoboconBaselineTemplate` 代码注释同步标注。
+
+### 7.2 结构 / 接线偏离
+
+- **Season 接线（S1）**：`GovernanceSnapshot` 新增 `seasons: Season[]`（`z.array(SeasonSchema).default([])` 兜底旧文件），**非替换**既有裸 `seasonId`——二者共存：`seasonId` 仍是 8 处消费点的当前项目锚点，`seasons` 是新接入的完整实体真相层，未做替换式迁移（风险最小化）。GET /api/seasons 照 GET /api/groups 先例直读快照、无新 GovStore 写方法。§9-① 的 Season 死脚手架审计账目留待后续收口轮统一勾销。
+- **baselineStore 物理位置（S3）**：接口落独立新文件 `hub-server/src/store/baseline-store.ts`（非共居 `gov-store.ts`）——避免往 product-redefine §4.4/§9-③ 已列为债的 GovStore god-interface（21 方法 / 6 域）再加一域；方法面风格仍照 kbStore/invStore。独立落盘 `baseline.json`（数组格式，`TEAMHUB_BASELINE_DATA_FILE`，`start-teamhub.sh` 已接 env），fail-closed 用 `SeasonBaselineSchema` 校验。
+- **baseline 路由归属 + 风格（S4）**：三条路由（`GET`/`PATCH` `/api/baseline?seasonId=`、`POST /api/baseline/milestones/:milestoneId/pass?seasonId=`）挂在 `registerPmCoreRoutes`（与 GET /api/seasons 同域；`ModuleId` 枚举无 'baseline' 项，pm-core 是与 Season 最贴合的既有挂点，不新建模块）；`seasonId` 走 querystring（与 GET /api/schedule?windowLabel= 同族），未用 path 形式。PATCH 走 v1 整段覆盖 anchors/segments/phases/milestones（非逐字段 diff）。
+- **I0 passedBy 剥离（S4，红线 2 兑现）**：新增 `SeasonBaselinePublicSchema`/`BaselineMilestonePublicSchema`（`.omit({passedBy:true})`），GET/PATCH/POST-pass 三条响应契约改用 Public 变体——照 `pm-requests.ts` 的 `DependencySchema.omit({confirmedBy:true})` 先例实现「passedBy 读视图沿 confirmedBy 的 I0 先例」。
+- **过门请求 status 字段（S2/S4）**：`PassMilestoneRequestSchema` 保留必填 `status:'passed'|'missed'`（支持验收未通过=missed 的真实场景），非仅 passedBy/evidenceRefs/note；`pending` 为初始态、不经此写口回退。
+
+### 7.3 派生输出形状（S5，设计稿未定处）
+
+- `deriveGroupsBehind`（「哪个组慢了」）输出 `{ groupId, level:'red'|'yellow'（同组多里程碑取最严重档）, attachedTaskCount }`——独立导出函数、无 memberId 字段（红线 2）。另附 `deriveTimeAccumulationFlags`（`TIME_ACCUMULATION_LABEL='早开始摊、突击无效'`）。
+- Task 反向不 import baseline：`baseline.ts` 用 `import type { Task }`（type-only，`verbatimModuleSyntax` 编译期擦除）规避与 `pm-core.ts` 的真循环；`Task.investment` 的 `TaskInvestmentSchema` 定义在 baseline.ts、由 pm-core.ts 单向 import。
+
+### 7.4 console 落点与 demo 说明（S6）
+
+- 总览页 `OverviewPage` 顶部挂 `BaselineOverview.tsx`（自带 season/baseline/tasks 查询 → 调 §4 的 `derive*` → 空态给「填两锚点生成模板」入口）；时间轴纯位置计算在 `overview-timeline.ts`。投资录入三维 optional 只落在创建表单 `PmCreatePanel`；**编辑既有任务的 investment 未接线**（console 无独立任务编辑表单，状态流转走看板）。
+- demo baseline 用真实 `new Date()` 算 drift（诚实活时间），静态锚点（2025-09-08→2026-08-16）只在 2026-07 前后呈现红黄绿混合；赛后回填真日期即恒对齐（同 fixtures `SCENARIO_WINDOW_*` 既定「换天演示需 bump 锚点」caveat）。demo 投资标签有轻微语义自由度（`t-r1-vision-stream` 打 future×high 点亮示警条、`t-r1-system-tune` 打 timeAccumulation:high），已在 fixtures 注释标注、不影响功能。
+- 时间轴容器 `min-width:560px`，窄列内横向滚动（`overflow-x:auto`）；「三秒知道快慢」由下方里程碑红黄绿清单承载、不依赖滚动。
