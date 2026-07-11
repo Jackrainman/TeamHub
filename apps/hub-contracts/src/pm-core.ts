@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { ActorRefSchema, isoDateTimeSchema } from './common.js';
+import { TaskInvestmentSchema } from './baseline.js';
 
 /**
  * 治理数据真相层（D-026 第①层）+ 阻塞归因派生输出 + DepGraph 前端视图契约。
@@ -162,6 +163,13 @@ export const TaskSchema = z.object({
   lastProgressAt: isoDateTimeSchema.nullable(), // 最近推进信号（commit/check-in 派生）
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
+  // BASELINE-CORE（D-083 §4.1，baseline-design.md §3/§5 红线1）：里程碑挂接，多对一（一个里程碑
+  // 挂多个 Task），"哪个组慢了"从挂接任务的组归属派生，不单独建模。**绝不加 dueDate**——快慢
+  // 只从 `milestoneId` 指向的 `BaselineMilestone.plannedAt` 派生，压力落在事上不落在人的日期上。
+  milestoneId: z.string().min(1).optional(),
+  // 投资类任务三维分类（baseline-design.md §1 细节4）：horizon×value×timeAccumulation。
+  // 纯增量 optional，形状定义见 baseline.ts:TaskInvestmentSchema（避免两处定义漂移）。
+  investment: TaskInvestmentSchema.optional(),
 });
 
 // ---------------------------------------------------------------------------

@@ -97,6 +97,9 @@ export type {
 // 共享基元（ActorRef / isoDateTime）+ 治理主轴域（D-028，拆 pm-core/schedule-infra 两文件）
 // + 成长轴 + 派生算法 + 在场排班（D-029）+ 知识库（KB-CORE）
 export * from './common.js';
+// 倒排基准线（BASELINE-CORE，D-083 §4.1）：独立域文件，先于 pm-core 导出——
+// pm-core.ts:TaskSchema.investment 复用本文件 TaskInvestmentSchema（红线3：不塞 pm-core 本体形状）。
+export * from './baseline.js';
 export * from './pm-core.js';
 export * from './schedule-infra.js';
 export * from './growth.js';
