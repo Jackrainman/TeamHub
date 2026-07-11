@@ -12,6 +12,7 @@ import { buildHubServer } from './server.js';
 import { FileGovStore } from './store/file-gov-store.js';
 import { FileKbStore } from './store/file-kb-store.js';
 import { FileInvStore } from './store/file-inv-store.js';
+import { FileBaselineStore } from './store/file-baseline-store.js';
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 4177;
@@ -106,6 +107,20 @@ async function main(): Promise<void> {
     );
   }
 
+  // 设了 TEAMHUB_BASELINE_DATA_FILE → 倒排基准线落盘（重启不丢，队长手写覆盖 / 验证门过门留痕累积）；
+  // 独立文件 baseline.json（红线3：不进 TEAMHUB_GOV_DATA_FILE/GovernanceSnapshot）。未设则维持
+  // InMemoryBaselineStore（mock-first 不变）。本步（S3）无内置演示 fixture 可 seed（S6 会补），
+  // 故不接 demoSeed 开关——新建落盘文件恒以空数组起头，队长首次 PATCH /api/baseline 生成模板。
+  const baselineDataFile = process.env.TEAMHUB_BASELINE_DATA_FILE;
+  const baselineStore = baselineDataFile
+    ? await FileBaselineStore.create(baselineDataFile)
+    : undefined;
+  if (!baselineStore) {
+    console.warn(
+      '[teamhub-hub-server] TEAMHUB_BASELINE_DATA_FILE 未设：倒排基准线走内存（InMemoryBaselineStore），重启丢失。设该环境变量落盘持久化。',
+    );
+  }
+
   const host = process.env.HUB_HOST ?? DEFAULT_HOST;
   const port = Number.parseInt(process.env.HUB_PORT ?? String(DEFAULT_PORT), 10);
 
@@ -133,6 +148,7 @@ async function main(): Promise<void> {
     store,
     kbStore,
     invStore,
+    baselineStore,
     writeToken,
     trustProxy,
   });

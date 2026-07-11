@@ -20,6 +20,10 @@
 #   TEAMHUB_INV_DATA_FILE 库存/BOM 落盘文件（默认 ~/teamhub-data/inventory.json，重启不丢；盘点/拆装/
 #                         一句话快记累积）。漏设则 main.ts 回落 InMemoryInvStore、每次重启清回演示 fixture。
 #                         本脚本默认接好，与 KB/Gov 落盘同纪律。
+#   TEAMHUB_BASELINE_DATA_FILE  倒排基准线落盘文件（默认 ~/teamhub-data/baseline.json，重启不丢；队长
+#                         手写覆盖/验证门过门留痕累积）。独立文件、不进 TEAMHUB_GOV_DATA_FILE（红线3：
+#                         基准线本体不塞 GovernanceSnapshot）。漏设则 main.ts 回落 InMemoryBaselineStore、
+#                         每次重启清空。本脚本默认接好，与 KB/Gov/Inv 落盘同纪律。
 #   TEAMHUB_WRITE_TOKEN   写端点鉴权密钥（AUDIT H3）。绑非 loopback（0.0.0.0）时必填，未填则本脚本自动生成并打印；
 #                         写端点 POST /api/* 须带 `Authorization: Bearer <token>`，读端点不受影响。
 #   TEAMHUB_SKIP_BUILD=1  跳过构建（只重启时用）
@@ -35,6 +39,7 @@ HUB_PORT="${HUB_PORT:-4177}"
 TEAMHUB_KB_DATA_FILE="${TEAMHUB_KB_DATA_FILE:-${HOME}/teamhub-data/kb.json}"
 TEAMHUB_GOV_DATA_FILE="${TEAMHUB_GOV_DATA_FILE:-${HOME}/teamhub-data/gov.json}"
 TEAMHUB_INV_DATA_FILE="${TEAMHUB_INV_DATA_FILE:-${HOME}/teamhub-data/inventory.json}"
+TEAMHUB_BASELINE_DATA_FILE="${TEAMHUB_BASELINE_DATA_FILE:-${HOME}/teamhub-data/baseline.json}"
 TEAMHUB_ARTIFACT_FILES_DIR="${TEAMHUB_ARTIFACT_FILES_DIR:-${HOME}/teamhub-data/artifacts}"
 TEAMHUB_WRITE_TOKEN="${TEAMHUB_WRITE_TOKEN:-}"
 # 活体戳：注入 git short SHA 进 /health.buildId，重启后一行 curl 即知在服哪个构建（feiyue ?v= 校验等价）。
@@ -70,8 +75,9 @@ for dir in "${CONSOLE_DIR}" "${SERVER_DIR}"; do
   fi
 done
 
-# 语料 / 治理 / 库存 / 归档物落盘目录就位（server 启动即读：KB 召回 + PM 录入 + 库存盘点 + 图纸文件上传下载，重启不丢）
-mkdir -p "$(dirname "${TEAMHUB_KB_DATA_FILE}")" "$(dirname "${TEAMHUB_GOV_DATA_FILE}")" "$(dirname "${TEAMHUB_INV_DATA_FILE}")" "${TEAMHUB_ARTIFACT_FILES_DIR}"
+# 语料 / 治理 / 库存 / 基准线 / 归档物落盘目录就位（server 启动即读：KB 召回 + PM 录入 + 库存盘点 +
+# 倒排基准线 + 图纸文件上传下载，重启不丢）
+mkdir -p "$(dirname "${TEAMHUB_KB_DATA_FILE}")" "$(dirname "${TEAMHUB_GOV_DATA_FILE}")" "$(dirname "${TEAMHUB_INV_DATA_FILE}")" "$(dirname "${TEAMHUB_BASELINE_DATA_FILE}")" "${TEAMHUB_ARTIFACT_FILES_DIR}"
 
 if [[ "${SKIP_BUILD}" != "1" ]]; then
   echo "[1/2] 构建 console（产出静态站 dist/）…"
@@ -82,13 +88,14 @@ fi
 
 # console 静态产物交给 server 单端口托管
 export TEAMHUB_CONSOLE_DIST_DIR="${CONSOLE_DIR}/dist"
-export TEAMHUB_KB_DATA_FILE TEAMHUB_GOV_DATA_FILE TEAMHUB_INV_DATA_FILE TEAMHUB_ARTIFACT_FILES_DIR HUB_HOST HUB_PORT TEAMHUB_WRITE_TOKEN TEAMHUB_BUILD_ID
+export TEAMHUB_KB_DATA_FILE TEAMHUB_GOV_DATA_FILE TEAMHUB_INV_DATA_FILE TEAMHUB_BASELINE_DATA_FILE TEAMHUB_ARTIFACT_FILES_DIR HUB_HOST HUB_PORT TEAMHUB_WRITE_TOKEN TEAMHUB_BUILD_ID
 
 echo "──────────────────────────────────────────────"
 echo " Team Hub v${TEAMHUB_VERSION} 启动 → http://${HUB_HOST}:${HUB_PORT}  (console + API 同端口)"
 echo " 语料文件：${TEAMHUB_KB_DATA_FILE}"
 echo " 治理文件：${TEAMHUB_GOV_DATA_FILE}（PM/图纸/结案重启不丢）"
 echo " 库存文件：${TEAMHUB_INV_DATA_FILE}（盘点/拆装/快记重启不丢）"
+echo " 基准线文件：${TEAMHUB_BASELINE_DATA_FILE}（队长手写覆盖/验证门过门重启不丢）"
 echo " 归档物目录：${TEAMHUB_ARTIFACT_FILES_DIR}（图纸文件上传下载，重启不丢）"
 echo " 版本：v${TEAMHUB_VERSION}（/api/system/status.version 同源）　构建戳：${TEAMHUB_BUILD_ID}（/health.buildId）"
 if [[ "${HUB_HOST}" != "127.0.0.1" && "${HUB_HOST}" != "localhost" && "${HUB_HOST}" != "::1" ]]; then

@@ -93,7 +93,9 @@ import type { Clock } from './clock.js';
 import { InMemoryGovStore } from './store/mock-gov-store.js';
 import { InMemoryKbStore } from './store/mock-kb-store.js';
 import { InMemoryInvStore } from './store/mock-inv-store.js';
+import { InMemoryBaselineStore } from './store/mock-baseline-store.js';
 import type { GovStore, InvStore, KbStore } from './store/gov-store.js';
+import type { BaselineStore } from './store/baseline-store.js';
 import {
   listMockAgentBackends,
   listMockBotChannels,
@@ -134,6 +136,13 @@ export interface BuildHubServerOptions {
    * 缺省 undefined，INV 支柱落地时注入实现 InvStore 的实例（对话记账 / 盘点 / 缺口汇报）。
    */
   invStore?: InvStore;
+  /**
+   * 倒排基准线读写出入口（BASELINE-CORE，S3）。独立于 `GovStore`（`SeasonBaseline` 不进
+   * `GovernanceSnapshot`，baseline-design.md §5 红线3），故走独立 `BaselineStore` 而非扩 GovStore。
+   * 缺省 `InMemoryBaselineStore`（seed 空，S6 会补 fixtures）。本刀只钉扩展点、不挂路由——
+   * 照 invStore 先例「扩展点先行、路由后置」，路由属 S4。
+   */
+  baselineStore?: BaselineStore;
   /**
    * H3（AUDIT-FIXES 部署前必修）：写端点共享密钥。配了则所有 `POST /api/*` 须带 `Authorization: Bearer <token>`；
    * 未配则放行（loopback dev 默认）。非 loopback 暴露**必须**配（main.ts 拒绝裸暴露）。
@@ -213,6 +222,8 @@ interface ModuleRouteCtx {
   clock: Clock;
   kbStore: KbStore;
   invStore: InvStore;
+  // S3：钉扩展点，暂无消费方（S4 挂基准线路由后消费）。
+  baselineStore: BaselineStore;
   artifactMaxBytes: number;
 }
 
@@ -1156,6 +1167,9 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   // GET /api/inventory + POST /api/inventory/{part-types,actions} 消费。独立于 GovStore（InventorySnapshot
   // 不在 GovernanceSnapshot 内）；车列复用 GovStore.listResources 的资源（显示 displayCode ?? name）。
   const invStore: InvStore = options.invStore ?? new InMemoryInvStore();
+  // BASELINE-CORE（S3）：倒排基准线读写出入口（缺省 InMemoryBaselineStore seed 空）。
+  // 暂无消费方——路由属 S4，本刀只钉扩展点（照 invStore 落地初期同一节奏）。
+  const baselineStore: BaselineStore = options.baselineStore ?? new InMemoryBaselineStore();
   // 装配外壳（HUB-MODULARIZATION 第2步）：租户模块开关，缺省 = 机器人战队全 6 模块启用（与拆分前等价）。
   const tenantConfig: TenantConfig = options.tenantConfig ?? ROBOTICS_TENANT_CONFIG;
 
@@ -1201,6 +1215,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     clock,
     kbStore,
     invStore,
+    baselineStore,
     artifactMaxBytes: options.artifactMaxBytes ?? ARTIFACT_MAX_BYTES,
   };
   const moduleEnabled = (id: ModuleId): boolean => isModuleEnabled(tenantConfig, id);
