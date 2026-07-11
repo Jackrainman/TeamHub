@@ -106,30 +106,48 @@ export const SeasonBaselineSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// 读视图（I0）：passedBy 剥离变体（S4 路由层引入）
+// ---------------------------------------------------------------------------
+
+/**
+ * 读视图用里程碑：剥 `passedBy`（红线2 / baseline-design.md §5："passedBy 读视图处理沿既有
+ * confirmedBy 的 I0 处理先例"）——照 `pm-requests.ts` 的 `DependencySchema.omit({ confirmedBy: true })`
+ * 范式：`passedBy` 只是写侧收集的验收留名，任何读视图（含刚过门那次响应）永不回传。
+ */
+export const BaselineMilestonePublicSchema = BaselineMilestoneSchema.omit({ passedBy: true });
+
+/** 读视图用赛季基准线：milestones 换成剥 passedBy 的变体，其余字段透传。 */
+export const SeasonBaselinePublicSchema = SeasonBaselineSchema.extend({
+  milestones: z.array(BaselineMilestonePublicSchema),
+});
+
+// ---------------------------------------------------------------------------
 // API 读 / 写契约（跨端单一源，server + console 共用；照 inventory.ts 范式）
 // ---------------------------------------------------------------------------
 
 /** GET /api/baseline?seasonId=xxx → 该赛季基准线；尚未生成模板时为 null（前端引导"生成模板"）。 */
 export const BaselineResponseSchema = z.object({
-  baseline: SeasonBaselineSchema.nullable(),
+  baseline: SeasonBaselinePublicSchema.nullable(),
 });
 
 /**
  * PATCH /api/baseline：队长手写覆盖（baseline-design.md §1 细节2："模板生成后队长可逐条改
  * 日期/增删里程碑"）。v1 整段替换 anchors/segments/phases/milestones（小团队不做逐字段 diff
- * patch，覆盖即最小实现，C3）；id/seasonId 不可经此改。
+ * patch，覆盖即最小实现，C3）；id/seasonId 不可经此改。请求体仍走完整 `SeasonBaselineSchema`
+ * （队长手写覆盖可能顺带带上 passedBy，写侧收集不设限——红线2「写侧收集」）；响应剥 passedBy。
  */
 export const UpdateBaselineRequestSchema = SeasonBaselineSchema.omit({
   id: true,
   seasonId: true,
 }).partial();
-export const UpdateBaselineResponseSchema = z.object({ baseline: SeasonBaselineSchema });
+export const UpdateBaselineResponseSchema = z.object({ baseline: SeasonBaselinePublicSchema });
 
 /**
  * POST /api/baseline/milestones/:milestoneId/pass：验证门过门写口
  * （baseline-design.md §1 细节3："大二提交证据→大三验收留名过门"）。status 只允许
  * passed/missed（pending 是初始态，不经此写口回退）；passedBy 由验收人（大三）填，
- * evidenceRefs 是大二已上传证据的 artifactId 引用（D-025，红线4）。
+ * evidenceRefs 是大二已上传证据的 artifactId 引用（D-025，红线4；路由层校验引用的 artifactId
+ * 确实存在，避孤儿引用）。响应剥 passedBy（同上，读视图不回，即便是刚过门那次响应）。
  */
 export const PassMilestoneRequestSchema = z.object({
   status: z.enum(['passed', 'missed']),
@@ -137,7 +155,7 @@ export const PassMilestoneRequestSchema = z.object({
   evidenceRefs: z.array(z.string().min(1)).optional(),
   note: z.string().min(1).optional(),
 });
-export const PassMilestoneResponseSchema = z.object({ baseline: SeasonBaselineSchema });
+export const PassMilestoneResponseSchema = z.object({ baseline: SeasonBaselinePublicSchema });
 
 // ---------------------------------------------------------------------------
 // 类型导出
@@ -157,6 +175,8 @@ export type BaselineSegment = z.infer<typeof BaselineSegmentSchema>;
 export type BaselinePhase = z.infer<typeof BaselinePhaseSchema>;
 export type BaselineMilestone = z.infer<typeof BaselineMilestoneSchema>;
 export type SeasonBaseline = z.infer<typeof SeasonBaselineSchema>;
+export type BaselineMilestonePublic = z.infer<typeof BaselineMilestonePublicSchema>;
+export type SeasonBaselinePublic = z.infer<typeof SeasonBaselinePublicSchema>;
 export type BaselineResponse = z.infer<typeof BaselineResponseSchema>;
 export type UpdateBaselineRequest = z.infer<typeof UpdateBaselineRequestSchema>;
 export type UpdateBaselineResponse = z.infer<typeof UpdateBaselineResponseSchema>;

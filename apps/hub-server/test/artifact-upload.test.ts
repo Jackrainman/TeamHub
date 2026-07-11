@@ -91,6 +91,18 @@ describe('POST /api/artifacts/:id/upload', () => {
     expect(res.statusCode).toBe(415);
   });
 
+  test('视频后缀 .mp4 → 200（BASELINE-CORE 验证门证据白名单）', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/artifacts/${ART_ID}/upload`,
+      ...multipart('run.mp4', 'fake-mp4-bytes'),
+    });
+    expect(res.statusCode).toBe(200);
+    const { artifact } = res.json();
+    expect(artifact.storedFile.ext).toBe('.mp4');
+    expect(artifact.storedFile.contentType).toBe('video/mp4');
+  });
+
   test('归档物不存在 → 404 且不留孤儿文件', async () => {
     const res = await app.inject({
       method: 'POST',

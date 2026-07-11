@@ -96,6 +96,12 @@ export {
   CreatePartTypeResponseSchema,
   CreatePartActionRequestSchema,
   CreatePartActionResponseSchema,
+  // 倒排基准线（BASELINE-CORE，S4 路由）：读/写契约 + I0 剥 passedBy 的读视图变体。
+  BaselineResponseSchema,
+  UpdateBaselineRequestSchema,
+  UpdateBaselineResponseSchema,
+  PassMilestoneRequestSchema,
+  PassMilestoneResponseSchema,
 } from '@teamhub/hub-contracts';
 export type {
   AgentBackend,
@@ -171,6 +177,13 @@ export type {
   CreatePartTypeResponse,
   CreatePartActionRequest,
   CreatePartActionResponse,
+  // 倒排基准线（BASELINE-CORE，S4 路由）类型。
+  SeasonBaseline,
+  BaselineResponse,
+  UpdateBaselineRequest,
+  UpdateBaselineResponse,
+  PassMilestoneRequest,
+  PassMilestoneResponse,
 } from '@teamhub/hub-contracts';
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -212,4 +225,14 @@ export const KbSimilarQuerySchema = z.object({
  */
 export const ScheduleQuerySchema = z.object({
   windowLabel: z.string().min(1),
+});
+
+/**
+ * 倒排基准线路由的 querystring 契约（server 专用，镜像 ScheduleQuerySchema 范式）：`seasonId`
+ * 必填非空。GET/PATCH/POST-pass 三条路由统一从 query 取赛季（S3 `BaselineStore` 方法签名把
+ * seasonId 当独立入参、非嵌进 path——`/api/baseline?seasonId=xxx` 与既有 `GET /api/schedule?windowLabel=`
+ * 同一风格，见 baseline.ts 契约注释）。非跨端、纯 server 路由入参，无需下沉 hub-contracts。
+ */
+export const BaselineQuerySchema = z.object({
+  seasonId: z.string().min(1),
 });

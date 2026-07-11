@@ -84,6 +84,13 @@ import {
   CreatePartActionResponseSchema,
   ScheduleQuerySchema,
   apiContractFixtures,
+  // 倒排基准线（BASELINE-CORE，S4 路由）：读/写契约 + querystring 契约。
+  BaselineResponseSchema,
+  UpdateBaselineRequestSchema,
+  UpdateBaselineResponseSchema,
+  PassMilestoneRequestSchema,
+  PassMilestoneResponseSchema,
+  BaselineQuerySchema,
 } from './contracts.js';
 import type { IssueCard, ScheduleSnapshot, ModuleId, TenantConfig } from '@teamhub/hub-contracts';
 import { ROBOTICS_TENANT_CONFIG, isModuleEnabled } from '@teamhub/hub-contracts';
@@ -137,10 +144,10 @@ export interface BuildHubServerOptions {
    */
   invStore?: InvStore;
   /**
-   * 倒排基准线读写出入口（BASELINE-CORE，S3）。独立于 `GovStore`（`SeasonBaseline` 不进
-   * `GovernanceSnapshot`，baseline-design.md §5 红线3），故走独立 `BaselineStore` 而非扩 GovStore。
-   * 缺省 `InMemoryBaselineStore`（seed 空，S6 会补 fixtures）。本刀只钉扩展点、不挂路由——
-   * 照 invStore 先例「扩展点先行、路由后置」，路由属 S4。
+   * 倒排基准线读写出入口（BASELINE-CORE，S3 落地/S4 挂路由）。独立于 `GovStore`（`SeasonBaseline`
+   * 不进 `GovernanceSnapshot`，baseline-design.md §5 红线3），故走独立 `BaselineStore` 而非扩 GovStore。
+   * 缺省 `InMemoryBaselineStore`（seed 空，S6 会补 fixtures）。由 `GET/PATCH /api/baseline` +
+   * `POST /api/baseline/milestones/:milestoneId/pass` 消费（registerPmCoreRoutes，与 seasonId 同域）。
    */
   baselineStore?: BaselineStore;
   /**
@@ -171,7 +178,8 @@ export interface BuildHubServerOptions {
 const ARTIFACT_MAX_BYTES = 50 * 1024 * 1024;
 
 // 上传后缀白名单 → 规范 contentType。**以后缀为准**（CAD 的浏览器 MIME 多为 octet-stream，不可信）。
-// 战队格式：CAD（机械）/ 文档（图纸说明、电路 PDF）/ 图（截图）/ 包（多文件打包）/ 固件（电控/驱动）。
+// 战队格式：CAD（机械）/ 文档（图纸说明、电路 PDF）/ 图（截图）/ 包（多文件打包）/ 固件（电控/驱动）/
+// 视频（BASELINE-CORE 验证门证据：大二提交的整车试跑/破坏性测试视频，走本既有上传链路，不建新链路）。
 const ARTIFACT_ALLOWED_EXT = new Map<string, string>([
   ['.step', 'application/step'],
   ['.stp', 'application/step'],
@@ -191,6 +199,9 @@ const ARTIFACT_ALLOWED_EXT = new Map<string, string>([
   ['.zip', 'application/zip'],
   ['.bin', 'application/octet-stream'],
   ['.hex', 'application/octet-stream'],
+  ['.mp4', 'video/mp4'],
+  ['.mov', 'video/quicktime'],
+  ['.webm', 'video/webm'],
 ]);
 
 // 写路由 safeParse 失败 → 取首条 Zod issue message 作 400 detail（缺省回 fallback）。
@@ -222,7 +233,7 @@ interface ModuleRouteCtx {
   clock: Clock;
   kbStore: KbStore;
   invStore: InvStore;
-  // S3：钉扩展点，暂无消费方（S4 挂基准线路由后消费）。
+  // BASELINE-CORE：S4 起由 registerPmCoreRoutes 的 GET/PATCH /api/baseline + 过门路由消费。
   baselineStore: BaselineStore;
   artifactMaxBytes: number;
 }
@@ -519,7 +530,7 @@ function registerArchiveRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void 
 // pm-core 模块（核心必装）：DAG 归因读视图 + 方向缺口 + 任务/依赖/前置需求写侧。
 // ============================================================================
 function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
-  const { store, clock } = ctx;
+  const { store, clock, baselineStore } = ctx;
 
   // 组只读列表（PHASE2-CONSOLE-ASSEMBLY）：console TodayPlanTable 原借 dep-graph 节点反查组名当临时
   // 数据源（节点集合=任务派生视图，没有任务的组不出现在里面、下拉会漏项）；GroupsResponseSchema 早有
@@ -537,6 +548,86 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     const snapshot = await store.getSnapshot();
     return SeasonsResponseSchema.parse({ seasons: snapshot.seasons });
   });
+
+  // ── 倒排基准线（BASELINE-CORE，S4 路由；docs/design/baseline-design.md §3/§5）─────────────────
+  // 同域挂在 pm-core（与 GET /api/seasons 相邻——SeasonBaseline.seasonId 引用 Season 实体）。
+  // 三条路由统一走独立 baselineStore（红线3：不碰 GovStore/GovernanceSnapshot），seasonId 走
+  // querystring（照 GET /api/schedule?windowLabel= 风格，非嵌进 path——与已落地的 BaselineStore
+  // 方法签名 `(seasonId, ...)` 对齐；本步的最小化路由风格决策，记入 deviations）。写路由（PATCH/POST）
+  // 继承宿主级 H3 onRequest 钩子（Bearer 鉴权 + 限流），不另写鉴权。
+
+  // GET /api/baseline?seasonId=xxx：读某赛季基准线；未生成模板 → `{ baseline: null }`（非 404——
+  // GET 语义上"还没有"是合法状态，见 BaselineStore.getBaseline 注释）。读视图剥 passedBy（红线2/I0）。
+  app.get('/api/baseline', async (request, reply) => {
+    const parsed = BaselineQuerySchema.safeParse(request.query ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error, 'seasonId required') });
+      return;
+    }
+    const baseline = await baselineStore.getBaseline(parsed.data.seasonId);
+    return BaselineResponseSchema.parse({ baseline });
+  });
+
+  // PATCH /api/baseline?seasonId=xxx：生成模板 / 队长手写覆盖（baseline-design.md §1 细节2）。
+  // 该赛季无基准线时以 patch 字段为初始值创建，已存在时整段覆盖式合并（v1 不做逐字段 diff，C3）。
+  // 版次裁剪（红线5：V3 并入 V2）走这条路——patch 里改某里程碑的 robotVersion/mergedFromVersion，
+  // 门本身（milestone 记录）不删、验证要求不降低，store 层不提供删除里程碑的方法。
+  app.patch('/api/baseline', async (request, reply) => {
+    const queryParsed = BaselineQuerySchema.safeParse(request.query ?? {});
+    if (!queryParsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(queryParsed.error, 'seasonId required') });
+      return;
+    }
+    const bodyParsed = UpdateBaselineRequestSchema.safeParse(request.body ?? {});
+    if (!bodyParsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(bodyParsed.error) });
+      return;
+    }
+    const baseline = await baselineStore.upsertBaseline(queryParsed.data.seasonId, bodyParsed.data);
+    return UpdateBaselineResponseSchema.parse({ baseline });
+  });
+
+  // POST /api/baseline/milestones/:milestoneId/pass?seasonId=xxx：验证门过门（baseline-design.md
+  // §1 细节3："大二提交证据（视频/图片）→ 大三验收留名过门"）。**先验 evidenceRefs 引用的 artifactId
+  // 确实存在**（照 POST /api/artifacts/:id/upload 的"先验归档物存在再写"先例，避孤儿引用）——证据字节
+  // 走既有上传链路（本路由不接收二进制，D-025 红线4）。milestoneId 未命中 / 该赛季无基准线 → 404。
+  app.post<{ Params: { milestoneId: string } }>(
+    '/api/baseline/milestones/:milestoneId/pass',
+    async (request, reply) => {
+      const queryParsed = BaselineQuerySchema.safeParse(request.query ?? {});
+      if (!queryParsed.success) {
+        void reply.code(400).send({ detail: firstZodMsg(queryParsed.error, 'seasonId required') });
+        return;
+      }
+      const bodyParsed = PassMilestoneRequestSchema.safeParse(request.body ?? {});
+      if (!bodyParsed.success) {
+        void reply.code(400).send({ detail: firstZodMsg(bodyParsed.error) });
+        return;
+      }
+      const { evidenceRefs } = bodyParsed.data;
+      if (evidenceRefs && evidenceRefs.length > 0) {
+        const snapshot = await store.getSnapshot();
+        const knownArtifactIds = new Set(snapshot.artifacts.map((a) => a.id));
+        const orphan = evidenceRefs.find((id) => !knownArtifactIds.has(id));
+        if (orphan) {
+          void reply.code(400).send({ detail: `证据引用的归档物不存在：${orphan}` });
+          return;
+        }
+      }
+      const { milestoneId } = request.params;
+      const baseline = await baselineStore.passMilestone(
+        queryParsed.data.seasonId,
+        milestoneId,
+        bodyParsed.data,
+      );
+      if (!baseline) {
+        void reply.code(404).send({ detail: '基准线或里程碑不存在' });
+        return;
+      }
+      return PassMilestoneResponseSchema.parse({ baseline });
+    },
+  );
+  // ── 倒排基准线路由结束 ─────────────────────────────────────────────────────────────────────
 
   // 依赖链 · 阻塞归因视图：治理快照经纯函数 toDepGraphView 实时派生（D-040 首任务收敛）。
   // 解 hub-console real 模式 GET /api/dep-graph 的 404；输出主键为 task/group/dependency，无 memberId 维度（C2）。
