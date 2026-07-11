@@ -133,8 +133,8 @@
 
 | 任务 | 状态 | type | 内容 |
 |------|------|------|------|
-| BASELINE-DESIGN | pending（v4 第 1 刀·设计先行） | design | 倒排基准线 schema 细化：赛季→学期/假期分段→阶段类型（研发/迭代/调参/真空）+里程碑链+**验证门**（整车试跑/破坏性测试=里程碑门，调参期默认挂门后）+**投资类任务标签**（防砍示警）+阶段×工种负载视图；期末 6 周真空=计划恒为零硬约束；**Task 永不加 dueDate**（快慢从里程碑派生，G4 修正口径）。前置=Season 接线（现死脚手架：快照仅裸 seasonId、无 /api/seasons）。落点=独立 baselineStore+独立落盘（照 kbStore/invStore 先例，不塞 GovernanceSnapshot）。**输入依赖：用户提供 2026 赛季真实时间线**（Robocon 模板 v1 数据）。待敲定细节清单=设计稿 §10 |
-| BASELINE-CORE | pending（依赖 BASELINE-DESIGN） | code | 基准线实现：contracts schema+纯派生（基准 vs 实际偏差）+baselineStore 三实现+路由+总览页改造（首屏一张"基准线 vs 实际"）+赛季复盘回写机制（实际时间线→模板修订） |
+| BASELINE-DESIGN | **done (2026-07-11，`docs/design/baseline-design.md` DESIGN-LOCKED v1)** | design | 用户拍板五细节全落：战队级一条链+Task.milestoneId? 多对一；周粒度红黄绿（内置默认+手写覆盖）；验证门=大二提交证据(视频/图片，**字节走 artifact 本地卷、store 只存引用**)+大三验收留名；投资三维 horizon×value×timeAccumulation（调参=高时间积累；sim2real=未来×高价值重点保护）；**三版车节奏模板 v1**（V1 实验积累→G1 问题清单收敛拍板 V2→寒假 sim2real→G2 第二学期 1-2 周 V2 拼装→G3 期中前 V3 出车→G4 整车试跑→调参入场；版次可裁剪、门不消失）。⏳真实时间线用户赛后回填模板 v2 |
+| BASELINE-CORE | pending（**下一 workflow**，口径=baseline-design.md） | code | 基准线实现：Season 接线（现死脚手架）+ baseline schema 落 zod（独立域，Task 永不加 dueDate）+ 独立 baselineStore（InMemory/File+落盘 baseline.json）+ 路由（含过门 POST 带验收人、证据引用 artifact）+ deriveBaselineDrift 周粒度纯函数+单测 + 总览页首屏"基准线 vs 实际" + Robocon 模板 v1 seed（相对周占位）；投资标签本轮只落 schema+录入+最简示警 |
 | IDENTITY-LITE | pending（v4 第 2 刀） | code | 轻身份登录**双模式**：匿名模式整体保留供选择（=今日形态）；身份模式=匿名可读一切+登录才写/个人视图（选人+可选 PIN，无邮箱注册）。改动面（审计实measured）：confirmedBy/ownerId 从客户端自报改**服务端按 session 注入**（≥6 写路由+5 Draft 类型）+前端身份挂载点（PageRenderCtx 加 identity 槽）+queryKey 身份维度+**PmCreatePanel ownerId 自由文本→选人**+Member 加 optional pinHash（不存明文）。main.ts loopback 判定盲区（反代部署）一并修 |
 | MY-VIEW | pending（依赖 IDENTITY-LITE） | code | 我的视图：我负责的任务∩未被依赖卡住的（blockedBy 派生已有）；GET /api/tasks 加按 session ownerId 过滤或新开 /api/my/tasks；不碰课表（D-083 判伪需求） |
 | STORE-SPLIT-SQLITE | pending（v4 第 4 刀） | code | 先按 pm-core/schedule 边界把 GovStore god-interface（21 方法/6 域）拆 PmStore+ScheduleStore（KbStore/InvStore 是先例），id/clamp 抽独立纯函数三实现共享；resourceSessions/relayHandoffs 8 方法先补落盘设计；再装依赖分模块增量迁 SQLite（SqliteGovStore 现纯 throw 零依赖） |
