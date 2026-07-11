@@ -18,6 +18,7 @@ import {
   GitReposResponseSchema,
   HealthResponseSchema,
   HubEventsResponseSchema,
+  SeasonsResponseSchema,
   SystemStatusResponseSchema,
 } from '../src/contracts.js';
 
@@ -248,6 +249,43 @@ describe('hub-server routes', () => {
       expect(probe?.mechanism).toBe('PROBE-MECH');
       // 注入快照只放了一条 → 响应也只有这一条（进一步排除掺入默认种子的可能）。
       expect(body.artifacts).toHaveLength(1);
+    } finally {
+      await app2.close();
+    }
+  });
+
+  // S1 接线（product-redefine-2026-07 §4.1/§9-①）：GET /api/seasons 照 GET /api/artifacts 先例，
+  // 直读快照 seasons 数组。SeasonSchema 此前是死脚手架，本测证它已真正接线（非空、形状合法）。
+  test('GET /api/seasons returns the snapshot season list', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/seasons',
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = SeasonsResponseSchema.parse(response.json());
+    expect(body.seasons.length).toBeGreaterThan(0);
+    expect(body.seasons[0]!.status).toBe('active');
+  });
+
+  // 硬化：证明响应确由 store 快照派生（非硬编码 fixture），镜像上方 GET /api/artifacts 硬化测试。
+  test('GET /api/seasons is derived from the injected store snapshot', async () => {
+    const custom: GovernanceSnapshot = {
+      ...governanceScenarioFixture,
+      seasons: [
+        { id: 'season-probe', name: '探针赛季', startsAt: '2026-01-01T00:00:00.000Z', endsAt: null, status: 'active' },
+      ],
+    };
+    const app2 = buildHubServer({ store: new InMemoryGovStore(custom) });
+    try {
+      const response = await app2.inject({
+        method: 'GET',
+        url: '/api/seasons',
+      });
+      expect(response.statusCode).toBe(200);
+      const body = SeasonsResponseSchema.parse(response.json());
+      expect(body.seasons).toHaveLength(1);
+      expect(body.seasons[0]!.id).toBe('season-probe');
     } finally {
       await app2.close();
     }

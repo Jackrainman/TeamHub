@@ -14,7 +14,7 @@ import type {
   GitRepoRef,
   HubEvent,
 } from './schemas.js';
-import type { Dependency, Group, Member, Need, Task } from './pm-core.js';
+import type { Dependency, Group, Member, Need, Season, Task } from './pm-core.js';
 import type { KnowledgeNode, MemberKnowledge, TaskKnowledgeTag } from './growth.js';
 import type { KbSnapshot } from './kb.js';
 import type { InventorySnapshot, TrackedPart } from './inventory.js';
@@ -412,6 +412,7 @@ const PROVIDER_EC_B = {
  */
 export interface PmSeedFixture {
   seasonId: string;
+  seasons: Season[];
   projectId: string;
   stage: string;
   groups: Group[];
@@ -424,6 +425,12 @@ export interface PmSeedFixture {
 export function buildPmSeed(): PmSeedFixture {
   return {
   seasonId: 'season-robocon-2026',
+  // S1 接线（product-redefine-2026-07 §4.1/§9-①）：种一条 active season，id 与上方 seasonId 字面量对齐
+  // （两者共存，见 attribution.ts GovernanceSnapshot 注释）。startsAt 用赛季场景锚点时间占位，
+  // 真实赛季起止日待 BASELINE-DESIGN 回填（docs/design/baseline-design.md §6）。
+  seasons: [
+    { id: 'season-robocon-2026', name: '2026 赛季', startsAt: GOVERNANCE_SCENARIO_TIME, endsAt: null, status: 'active' },
+  ],
   projectId: 'prj-robots',
   stage: '备赛-整机调试',
   groups: [

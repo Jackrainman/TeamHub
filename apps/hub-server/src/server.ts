@@ -52,6 +52,7 @@ import {
   GroupGapsResponseSchema,
   deriveDirectionGaps,
   GroupsResponseSchema,
+  SeasonsResponseSchema,
   derivePresenceSchedule,
   PresenceScheduleResponseSchema,
   ResourceSessionsResponseSchema,
@@ -515,6 +516,15 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   app.get('/api/groups', async () => {
     const snapshot = await store.getSnapshot();
     return GroupsResponseSchema.parse({ groups: snapshot.groups });
+  });
+
+  // 赛季只读列表（S1 接线，product-redefine-2026-07 §4.1/§9-①）：SeasonSchema/SeasonsResponseSchema
+  // 此前是死脚手架（从未接线、无端点）；照 GET /api/groups 先例直读快照，不加 GovStore 写方法
+  // （赛季录入待身份/裁剪功能落地时再开写口）。倒排基准线（BASELINE-DESIGN）的 SeasonBaseline.seasonId
+  // 未来引用 GET /api/seasons 返回的实体，而非仅裸字符串。
+  app.get('/api/seasons', async () => {
+    const snapshot = await store.getSnapshot();
+    return SeasonsResponseSchema.parse({ seasons: snapshot.seasons });
   });
 
   // 依赖链 · 阻塞归因视图：治理快照经纯函数 toDepGraphView 实时派生（D-040 首任务收敛）。

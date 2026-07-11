@@ -225,6 +225,7 @@ describe('computeCriticalSet 含环图确定性：criticalCount 不随 tasks 顺
   });
   const baseSnapshot = {
     seasonId: 'season-cy',
+    seasons: [],
     projectId: 'prj-cy',
     stage: 'build',
     groups: [

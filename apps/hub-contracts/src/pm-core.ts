@@ -38,6 +38,12 @@ export const RobotTargetSchema = z.enum(['R1', 'R2', 'shared']);
 // Season / Project（按赛季分项目）
 // ---------------------------------------------------------------------------
 
+/**
+ * S1 接线（product-redefine-2026-07 §4.1/§9-①）：曾是死脚手架（`SeasonsResponseSchema` 从未消费、
+ * fixtures 里 seasonId 只是字面量）；现已接入真相层——`GovernanceSnapshot.seasons: Season[]`
+ * （attribution.ts）+ `GET /api/seasons`（server.ts）+ fixtures 种一条 active season。
+ * 是倒排基准线（BASELINE-DESIGN）`SeasonBaseline.seasonId` 未来引用的实体真相源。
+ */
 export const SeasonSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),

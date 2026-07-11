@@ -4,6 +4,7 @@ import {
   GroupSchema,
   MemberSchema,
   NeedSchema,
+  SeasonSchema,
   TaskSchema,
 } from './pm-core.js';
 import type {
@@ -19,6 +20,7 @@ import type {
   Group,
   Member,
   Need,
+  Season,
   Task,
   TaskComplexity,
 } from './pm-core.js';
@@ -45,6 +47,11 @@ import type { ArtifactRef } from './schemas.js';
  */
 export interface GovernanceSnapshot {
   seasonId: string;
+  // Season 真相接线（BASELINE-CORE 前置，product-redefine-2026-07 §4.1/§9-①）：SeasonSchema 此前是
+  // 死脚手架（零消费点），本字段是它接进系统真相的唯一入口。`seasonId`（裸字符串）继续保留、不做
+  // 迁移替换——两者共存：`seasonId` 是既有 8 处消费点的当前项目锚点，`seasons` 是完整实体真相层
+  // （赛季史/状态），后续倒排基准线的 `SeasonBaseline.seasonId` 会引用 `seasons[].id`。
+  seasons: Season[];
   projectId: string;
   stage: string;
   groups: Group[];
@@ -69,6 +76,10 @@ export interface GovernanceSnapshot {
 export const GovernanceSnapshotSchema = z
   .object({
     seasonId: z.string().min(1),
+    // .default([])：旧 gov.json（S1 之前落盘、无 seasons 字段）向后兼容硬要求（D-080 部署地雷教训）——
+    // 缺字段时兜底空数组而非抛，FileGovStore fail-closed 加载旧落盘文件不炸（见
+    // apps/hub-server/test/gov-store-persist.test.ts「旧 gov.json（无 seasons）仍可加载」）。
+    seasons: z.array(SeasonSchema).default([]),
     projectId: z.string().min(1),
     stage: z.string().min(1),
     groups: z.array(GroupSchema),
@@ -88,6 +99,7 @@ export const GovernanceSnapshotSchema = z
  * （M7/M13）。**红线**：interface 新增数组字段时必须同步加进本表，否则该数组漏隔离。
  */
 export const GOVERNANCE_SNAPSHOT_ARRAY_KEYS: ReadonlyArray<keyof GovernanceSnapshot> = [
+  'seasons',
   'groups',
   'members',
   'tasks',

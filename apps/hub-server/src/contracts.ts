@@ -34,6 +34,9 @@ export {
   TasksResponseSchema,
   // 组只读端点（PHASE2-CONSOLE-ASSEMBLY）：GroupsResponseSchema 早有契约（pm-core.ts），此前零消费方。
   GroupsResponseSchema,
+  // 赛季只读端点（S1 接线，product-redefine-2026-07 §4.1/§9-①）：SeasonsResponseSchema 早有契约
+  // （pm-core.ts），此前零消费方；随 GET /api/seasons 一并接线。
+  SeasonsResponseSchema,
   // D-052 重复真相收口：以下契约下沉 hub-contracts 单一源，此处仅 re-export 维持既有 import 路径
   // （server.ts / index.ts / 测试 仍 from './contracts.js'），不再本地重声明 → 不会与 console 漂移。
   isoDateTimeSchema,

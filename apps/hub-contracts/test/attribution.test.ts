@@ -90,6 +90,7 @@ describe('classifyReason — sharesResource 边驱动 sharedResourceBusy 分支'
   // sharesResource 互斥边被卡，其 owner idle → 产出归因，reason 应为 sharedResourceBusy。
   const snapshot: GovernanceSnapshot = {
     seasonId: 'season-res',
+    seasons: [],
     projectId: 'prj-res',
     stage: 'build',
     groups: [group],

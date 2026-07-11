@@ -167,6 +167,22 @@ describe('FileGovStore 落盘', () => {
     await expect(FileGovStore.create(file)).rejects.toThrow();
   });
 
+  // S1 接线（product-redefine-2026-07 §4.1/§9-①）：旧 gov.json 向后兼容硬要求（D-080 部署地雷教训）
+  // ——本条构造一份「本步之前」落盘格式（无 seasons 字段）的快照，断言 fail-closed 加载不炸，
+  // 且 GovernanceSnapshotSchema 的 `.default([])` 兜底把缺失字段补成空数组（而非静默丢弃/抛错）。
+  test('旧 gov.json（无 seasons 字段）仍可加载（向后兼容，seasons 兜底空数组）', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'gov-legacy-noseasons-'));
+    const file = join(dir, 'gov.json');
+    const { seasons: _drop, ...legacySnapshot } = governanceScenarioFixture;
+    await writeFile(file, JSON.stringify(legacySnapshot));
+
+    const store = await FileGovStore.create(file);
+    const snap = await store.getSnapshot();
+    expect(snap.seasons).toEqual([]);
+    // 旧文件其余字段仍完整加载（不是整体 fail-closed 拒收，只是新增字段兜底）。
+    expect(snap.tasks.length).toBe(governanceScenarioFixture.tasks.length);
+  });
+
   // 修复 #3：persist 失败 → 回滚刚追加的内存元素（避免「内存已变更 + 客户端 500 重试」产生重复）。
   // 制造确定性写失败：把承载目录换成文件 → persist 的 mkdir 抛 EEXIST。createTask 内存先 push 再 persist，
   // 失败后那条新任务必须从内存撤回（否则后续读 / 重试会看到这条幽灵记录）。

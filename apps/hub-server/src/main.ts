@@ -22,6 +22,8 @@ const DEFAULT_PORT = 4177;
 function emptyGovSnapshot(): GovernanceSnapshot {
   return {
     seasonId: governanceScenarioFixture.seasonId,
+    // S1 接线：seasons 是赛季元信息（同 seasonId/projectId/stage），空板冷启动仍保留，不算「假数据」。
+    seasons: governanceScenarioFixture.seasons,
     projectId: governanceScenarioFixture.projectId,
     stage: governanceScenarioFixture.stage,
     groups: [],
