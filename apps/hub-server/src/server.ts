@@ -92,8 +92,27 @@ import {
   PassMilestoneResponseSchema,
   BaselineQuerySchema,
 } from './contracts.js';
-import type { IssueCard, ScheduleSnapshot, ModuleId, TenantConfig } from '@teamhub/hub-contracts';
-import { ROBOTICS_TENANT_CONFIG, isModuleEnabled } from '@teamhub/hub-contracts';
+import type {
+  IssueCard,
+  ScheduleSnapshot,
+  ModuleId,
+  TenantConfig,
+  ActorRef,
+  IdentityMode,
+  SessionIdentity,
+} from '@teamhub/hub-contracts';
+import {
+  ROBOTICS_TENANT_CONFIG,
+  isModuleEnabled,
+  MembersResponseSchema,
+  MemberPublicSchema,
+  SessionRequestSchema,
+  SessionResponseSchema,
+  SetPinRequestSchema,
+  SetPinResponseSchema,
+} from '@teamhub/hub-contracts';
+import { hashPin, verifyPin } from './identity/pin.js';
+import { SessionManager } from './identity/session-store.js';
 import { deriveErrorCode } from './kb/error-code.js';
 import { FixedClock } from './clock.js';
 import type { Clock } from './clock.js';
@@ -172,6 +191,12 @@ export interface BuildHubServerOptions {
    * 未启用的模块，其路由整段不挂（见下方 `registerXxxRoutes` 调用点），不是"挂了但拒绝"。
    */
   tenantConfig?: TenantConfig;
+  /**
+   * 轻身份登录模式（IDENTITY-LITE，D-083 §4.2）。缺省 `'anonymous'` = 今天的形态（**现状零变化**）：
+   * 身份模块不启用、session 端点禁用（POST/DELETE → 404）、写路由信客户端自报 actor、写门只认 TEAMHUB_WRITE_TOKEN。
+   * `'identity'` = 匿名可读一切 + 登录才能写：session 端点启用、写路由须携有效会话（否则 401）+ actor 服务端注入。
+   */
+  identityMode?: IdentityMode;
 }
 
 // 归档物文件上传上限（50MB）：覆盖机械 CAD（step/stp/sldprt）+ 电路 PDF + 固件，又约束资源耗尽面。
@@ -210,6 +235,50 @@ function firstZodMsg(err: import('zod').ZodError, fallback = 'invalid body'): st
   return err.issues[0]?.message ?? fallback;
 }
 
+// ── 轻身份登录（IDENTITY-LITE，D-083 §4.2）宿主级横切基元 ─────────────────────────────────────
+// FastifyRequest.identity：由身份模式下的 onRequest 钩子从 cookie 解析注入（匿名模式恒 null）。
+// 写路由据此把客户端自报的 confirmedBy/passedBy 覆盖为 session 身份（服务端注入 actor，替代零校验自报）。
+declare module 'fastify' {
+  interface FastifyRequest {
+    identity: SessionIdentity | null;
+  }
+}
+
+const SESSION_COOKIE = 'teamhub_session';
+// 会话 TTL（天级，家庭影院级）：重启 = 全员重登（内存态，见 SessionManager）。
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const SESSION_TTL_SECONDS = Math.floor(SESSION_TTL_MS / 1000);
+
+/** 从 Cookie 头解析 session token（无则 null）。手解析，不引 @fastify/cookie 依赖（单 cookie 足够）。 */
+function readSessionCookie(request: { headers: { cookie?: string } }): string | null {
+  const raw = request.headers.cookie;
+  if (!raw) return null;
+  for (const part of raw.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq === -1) continue;
+    const key = part.slice(0, eq).trim();
+    if (key === SESSION_COOKIE) {
+      const val = part.slice(eq + 1).trim();
+      return val.length > 0 ? val : null;
+    }
+  }
+  return null;
+}
+
+/** 签发 cookie：httpOnly + SameSite=Lax + Path=/（http 内网/家庭影院级，不假定 TLS 故不加 Secure）。 */
+function buildSessionCookie(token: string): string {
+  return `${SESSION_COOKIE}=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${SESSION_TTL_SECONDS}`;
+}
+/** 清 cookie（登出）：Max-Age=0 立即过期。 */
+function clearSessionCookie(): string {
+  return `${SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0`;
+}
+
+/** session 身份 → ActorRef（写路由 actor 注入用）：留名归当前登录人，source=console。 */
+function sessionActor(identity: SessionIdentity): ActorRef {
+  return { id: identity.memberId, displayName: identity.displayName, source: 'console' };
+}
+
 // 把治理快照 + 共享资源 + 占用窗口 + 接力交接线拼成 ScheduleSnapshot（GET /api/schedule、/api/relay 共用装配）。
 // relayHandoffs 是 ScheduleSnapshot 必填字段（R1 接力画布并入）；在场建议派生不读它，仍带上以满足类型。
 // 四次读独立、无依赖 → Promise.all 并发取。
@@ -236,6 +305,9 @@ interface ModuleRouteCtx {
   // BASELINE-CORE：S4 起由 registerPmCoreRoutes 的 GET/PATCH /api/baseline + 过门路由消费。
   baselineStore: BaselineStore;
   artifactMaxBytes: number;
+  // IDENTITY-LITE：部署身份模式。pm-core 的 PUT /api/members/:id/pin 据此在匿名模式 404、身份模式行使
+  // 「本人会话 / 首次设置」授权。写路由的 actor 注入不看它、只看 request.identity（匿名模式恒 null）。
+  identityMode: IdentityMode;
 }
 
 // ============================================================================
@@ -530,7 +602,51 @@ function registerArchiveRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void 
 // pm-core 模块（核心必装）：DAG 归因读视图 + 方向缺口 + 任务/依赖/前置需求写侧。
 // ============================================================================
 function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
-  const { store, clock, baselineStore } = ctx;
+  const { store, clock, baselineStore, identityMode } = ctx;
+
+  // 成员名册只读（IDENTITY-LITE：登录「选人」+ 未来我的视图数据源）。**密钥纪律**：走 MembersResponseSchema
+  // （MemberPublicSchema 数组，剥 pinHash）——凭证散列永不过读边界，即便落盘 gov.json 里存在。两模式均挂
+  // （匿名模式也可读名册，读侧全开）。
+  app.get('/api/members', async () => {
+    const snapshot = await store.getSnapshot();
+    return MembersResponseSchema.parse({ members: snapshot.members });
+  });
+
+  // 设 / 改成员 PIN（PUT /api/members/:id/pin，IDENTITY-LITE 设 PIN 写口）。匿名模式禁用 → 404。
+  // 身份模式：写门钩子已确保有有效会话（无则 401）；这里再行使**本人会话或该 member 尚无 pinHash 首次设置**
+  // 授权（家庭影院级：首次谁登进来谁能给尚无 PIN 的成员设 PIN——威胁模型可接受，记 deviation）。
+  // pin 明文经 hashPin scrypt 散列后落库、绝不回存；响应走 SetPinResponseSchema（MemberPublicSchema 剥 pinHash）。
+  app.put<{ Params: { id: string } }>('/api/members/:id/pin', async (request, reply) => {
+    if (identityMode !== 'identity') {
+      void reply.code(404).send({ detail: '身份模式未启用' });
+      return;
+    }
+    const { id } = request.params;
+    const parsed = SetPinRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const snapshot = await store.getSnapshot();
+    const target = snapshot.members.find((m) => m.id === id);
+    if (!target) {
+      void reply.code(404).send({ detail: 'member not found' });
+      return;
+    }
+    const isSelf = request.identity?.memberId === id;
+    const firstSetup = !target.pinHash;
+    if (!isSelf && !firstSetup) {
+      void reply.code(403).send({ detail: '只能设置本人 PIN' });
+      return;
+    }
+    const updated = await store.setMemberPin(id, hashPin(parsed.data.pin));
+    if (!updated) {
+      void reply.code(404).send({ detail: 'member not found' });
+      return;
+    }
+    // MemberPublicSchema.parse 剥 pinHash（密钥纪律）——回带公开视图。
+    return SetPinResponseSchema.parse({ member: MemberPublicSchema.parse(updated) });
+  });
 
   // 组只读列表（PHASE2-CONSOLE-ASSEMBLY）：console TodayPlanTable 原借 dep-graph 节点反查组名当临时
   // 数据源（节点集合=任务派生视图，没有任务的组不出现在里面、下拉会漏项）；GroupsResponseSchema 早有
@@ -615,10 +731,15 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
         }
       }
       const { milestoneId } = request.params;
+      // IDENTITY-LITE actor 注入：身份模式下验收留名 passedBy 由 session 身份覆盖（大三验收人=登录人，
+      // 不信客户端自报）；匿名模式沿用请求体 passedBy。读视图仍剥 passedBy（红线2 不变）。
+      const passData = request.identity
+        ? { ...bodyParsed.data, passedBy: sessionActor(request.identity) }
+        : bodyParsed.data;
       const baseline = await baselineStore.passMilestone(
         queryParsed.data.seasonId,
         milestoneId,
-        bodyParsed.data,
+        passData,
       );
       if (!baseline) {
         void reply.code(404).send({ detail: '基准线或里程碑不存在' });
@@ -714,7 +835,12 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       });
       return;
     }
-    const dependency = await store.createDependency(parsed.data);
+    // IDENTITY-LITE actor 注入：身份模式下 confirmedBy 由 session 身份覆盖（不信客户端自报）；
+    // 匿名模式 request.identity 恒 null → 沿用请求体 confirmedBy（现状）。
+    const draft = request.identity
+      ? { ...parsed.data, confirmedBy: sessionActor(request.identity) }
+      : parsed.data;
+    const dependency = await store.createDependency(draft);
     void reply.code(201);
     return CreateDependencyResponseSchema.parse({ dependency });
   });
@@ -739,7 +865,11 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
       return;
     }
-    const need = await store.createNeed(parsed.data);
+    // IDENTITY-LITE actor 注入：身份模式覆盖 confirmedBy 为 session 身份；匿名模式沿用请求体。
+    const draft = request.identity
+      ? { ...parsed.data, confirmedBy: sessionActor(request.identity) }
+      : parsed.data;
+    const need = await store.createNeed(draft);
     void reply.code(201);
     return CreateNeedResponseSchema.parse({ need });
   });
@@ -1047,7 +1177,11 @@ function registerPresenceScheduleRoutes(app: FastifyInstance, ctx: ModuleRouteCt
       void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
       return;
     }
-    const session = await store.createResourceSession(parsed.data);
+    // IDENTITY-LITE actor 注入：身份模式覆盖 confirmedBy 为 session 身份；匿名模式沿用请求体。
+    const draft = request.identity
+      ? { ...parsed.data, confirmedBy: sessionActor(request.identity) }
+      : parsed.data;
+    const session = await store.createResourceSession(draft);
     void reply.code(201);
     return CreateResourceSessionResponseSchema.parse({ session });
   });
@@ -1063,7 +1197,12 @@ function registerPresenceScheduleRoutes(app: FastifyInstance, ctx: ModuleRouteCt
       void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
       return;
     }
-    const { windowLabel, sessions, confirmedBy } = parsed.data;
+    const { windowLabel, sessions } = parsed.data;
+    // IDENTITY-LITE actor 注入：身份模式下整批 confirmedBy 由 session 身份覆盖（不信请求体自报）；
+    // 匿名模式沿用请求体 confirmedBy。
+    const confirmedBy = request.identity
+      ? sessionActor(request.identity)
+      : parsed.data.confirmedBy;
 
     const [snapshot, resources, existingSessions] = await Promise.all([
       store.getSnapshot(),
@@ -1220,7 +1359,11 @@ function registerPresenceScheduleRoutes(app: FastifyInstance, ctx: ModuleRouteCt
       return;
     }
     // windowLabel 由 schema .min(1) 校验、经上方 cross-window 检查后随 parsed.data 整体落 createRelayHandoff。
-    const handoff = await store.createRelayHandoff(parsed.data);
+    // IDENTITY-LITE actor 注入：身份模式覆盖 confirmedBy 为 session 身份；匿名模式沿用请求体。
+    const handoffDraft = request.identity
+      ? { ...parsed.data, confirmedBy: sessionActor(request.identity) }
+      : parsed.data;
+    const handoff = await store.createRelayHandoff(handoffDraft);
     void reply.code(201);
     return RelayHandoffResponseSchema.parse({ handoff });
   });
@@ -1265,6 +1408,21 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   // 装配外壳（HUB-MODULARIZATION 第2步）：租户模块开关，缺省 = 机器人战队全 6 模块启用（与拆分前等价）。
   const tenantConfig: TenantConfig = options.tenantConfig ?? ROBOTICS_TENANT_CONFIG;
 
+  // ── 轻身份登录（IDENTITY-LITE，D-083 §4.2）─────────────────────────────────────────────────
+  // 缺省 anonymous = 现状零变化。identity 模式才建内存会话表 + 挂身份解析钩子 + 写门加会话要求。
+  const identityMode: IdentityMode = options.identityMode ?? 'anonymous';
+  const sessions =
+    identityMode === 'identity' ? new SessionManager(SESSION_TTL_MS) : null;
+  // 全请求默认 identity=null（decorate 一次）；身份模式钩子据 cookie 解析覆盖，匿名模式恒 null。
+  app.decorateRequest('identity', null);
+  if (identityMode === 'identity' && sessions) {
+    // 身份解析钩子（**注册在写门钩子之前**，onRequest 按注册序执行，故写门钩子读到已解析的 request.identity）。
+    app.addHook('onRequest', async (request) => {
+      const token = readSessionCookie(request);
+      request.identity = token ? sessions.resolve(token) : null;
+    });
+  }
+
   // H3（AUDIT-FIXES 部署前必修）：写端点信任边界 = 共享密钥鉴权 + 每 IP 限流。
   // 作用于全部**写方法** /api/*（POST/PATCH/PUT/DELETE；读路由 GET/HEAD / 静态站 / health 不受影响）。
   // R1 接力画布引入 PATCH /api/resource-sessions/:id 与 DELETE /api/relay-handoffs/:id——若仍只认 POST，
@@ -1281,6 +1439,18 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     if (writeToken && request.headers.authorization !== `Bearer ${writeToken}`) {
       void reply.code(401).send({ detail: 'unauthorized' });
       return reply;
+    }
+    // IDENTITY-LITE：身份模式下，写方法一律须携有效会话（否则 401）——**例外 = session 认证端点本身**
+    // （POST/DELETE /api/session 是登录/登出入口，不能要求先有会话，否则永远登不进来）。匿名模式此段整段跳过。
+    if (identityMode === 'identity') {
+      const path = request.url.split('?')[0];
+      const isSessionAuthEndpoint =
+        path === '/api/session' &&
+        (request.method === 'POST' || request.method === 'DELETE');
+      if (!isSessionAuthEndpoint && !request.identity) {
+        void reply.code(401).send({ detail: 'login required' });
+        return reply;
+      }
     }
     // 限流（真实墙钟 Date.now，与派生用的 clock 解耦；每实例独立、重启即重置）。
     // 分桶键 = request.ip：直连=源 IP；反代后须开 trustProxy（见上）才是真实客户端 IP，否则塌成全局单桶。
@@ -1309,8 +1479,68 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     invStore,
     baselineStore,
     artifactMaxBytes: options.artifactMaxBytes ?? ARTIFACT_MAX_BYTES,
+    identityMode,
   };
   const moduleEnabled = (id: ModuleId): boolean => isModuleEnabled(tenantConfig, id);
+
+  // ── 会话端点（IDENTITY-LITE）：宿主级横切（非模块域），两模式均挂——GET 报模式+身份，
+  // POST/DELETE 在匿名模式 404（明确禁用态）、身份模式行使登录/登出。────────────────────────────
+  // GET /api/session：报当前部署模式 + 当前身份（未登录 / 匿名模式 → session:null）。读端点、不过写门。
+  app.get('/api/session', async (request) => {
+    return SessionResponseSchema.parse({
+      mode: identityMode,
+      session: request.identity ?? null,
+    });
+  });
+
+  // POST /api/session（登录）：选人 + 可选 PIN。有 pinHash 须验 PIN（常量时间）；无 pinHash 免 PIN。
+  // **防枚举**：人不存在 / PIN 错 / 该给 PIN 没给 → 统一 401「登录失败」，不区分原因。登录尝试受写门
+  // 限流（POST /api/* 已过限流桶）。成功 → 签发 httpOnly cookie + 回带身份。匿名模式 → 404。
+  app.post('/api/session', async (request, reply) => {
+    if (identityMode !== 'identity' || !sessions) {
+      void reply.code(404).send({ detail: '身份模式未启用' });
+      return;
+    }
+    const parsed = SessionRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const { memberId, pin } = parsed.data;
+    const snapshot = await store.getSnapshot();
+    const member = snapshot.members.find((m) => m.id === memberId);
+    // 认证判定：无此人 → 失败；有 pinHash → 须给 pin 且 verifyPin 通过；无 pinHash → 免 PIN 直过。
+    const authOk = member
+      ? member.pinHash
+        ? pin !== undefined && verifyPin(pin, member.pinHash)
+        : true
+      : false;
+    if (!authOk || !member) {
+      void reply.code(401).send({ detail: '登录失败' });
+      return;
+    }
+    const identity: SessionIdentity = {
+      memberId: member.id,
+      displayName: member.displayName,
+      groupId: member.groupId,
+      role: member.role,
+    };
+    const token = sessions.create(identity);
+    void reply.header('set-cookie', buildSessionCookie(token));
+    return SessionResponseSchema.parse({ mode: 'identity', session: identity });
+  });
+
+  // DELETE /api/session（登出）：销毁会话 + 清 cookie（幂等，会话已过期也 200）。匿名模式 → 404。
+  app.delete('/api/session', async (request, reply) => {
+    if (identityMode !== 'identity' || !sessions) {
+      void reply.code(404).send({ detail: '身份模式未启用' });
+      return;
+    }
+    const token = readSessionCookie(request);
+    if (token) sessions.destroy(token);
+    void reply.header('set-cookie', clearSessionCookie());
+    return SessionResponseSchema.parse({ mode: 'identity', session: null });
+  });
 
   // 装配外壳核心：遍历 enabledModules → 挂载各域路由。未启用模块的函数根本不被调用，端点整段不挂
   // （§3.4-A；游戏工作室等租户可省 presence-schedule，此步无需拆 ScheduleStore——GovStore 的 schedule

@@ -26,6 +26,11 @@
 #                         每次重启清空。本脚本默认接好，与 KB/Gov/Inv 落盘同纪律。
 #   TEAMHUB_WRITE_TOKEN   写端点鉴权密钥（AUDIT H3）。绑非 loopback（0.0.0.0）时必填，未填则本脚本自动生成并打印；
 #                         写端点 POST /api/* 须带 `Authorization: Bearer <token>`，读端点不受影响。
+#   TEAMHUB_IDENTITY_MODE 轻身份登录模式（IDENTITY-LITE，D-083 §4.2）。缺省 anonymous = 现状零变化
+#                         （身份模块不启用、共享写口令）。设 identity → 匿名可读一切 + 登录才能写：session
+#                         端点启用（POST /api/session 选人+可选 PIN），写路由须携有效会话（httpOnly cookie）、
+#                         actor 服务端注入。会话存内存、重启全员重登（家庭影院级）。身份模式下非 loopback
+#                         暴露即便无 TEAMHUB_WRITE_TOKEN 也放行（写由会话把关）。
 #   TEAMHUB_SKIP_BUILD=1  跳过构建（只重启时用）
 #
 set -euo pipefail
@@ -42,6 +47,8 @@ TEAMHUB_INV_DATA_FILE="${TEAMHUB_INV_DATA_FILE:-${HOME}/teamhub-data/inventory.j
 TEAMHUB_BASELINE_DATA_FILE="${TEAMHUB_BASELINE_DATA_FILE:-${HOME}/teamhub-data/baseline.json}"
 TEAMHUB_ARTIFACT_FILES_DIR="${TEAMHUB_ARTIFACT_FILES_DIR:-${HOME}/teamhub-data/artifacts}"
 TEAMHUB_WRITE_TOKEN="${TEAMHUB_WRITE_TOKEN:-}"
+# IDENTITY-LITE（D-083 §4.2）：缺省 anonymous = 现状零变化；设 identity 启用轻身份登录（见文件头注释）。
+TEAMHUB_IDENTITY_MODE="${TEAMHUB_IDENTITY_MODE:-anonymous}"
 # 活体戳：注入 git short SHA 进 /health.buildId，重启后一行 curl 即知在服哪个构建（feiyue ?v= 校验等价）。
 TEAMHUB_BUILD_ID="${TEAMHUB_BUILD_ID:-$(git -C "${ROOT_DIR}" rev-parse --short HEAD 2>/dev/null || echo nogit)}"
 # 产品版本号（D-074 单一真相 = 根 VERSION，bump-version.sh 同步进三包 package.json）。
@@ -88,7 +95,7 @@ fi
 
 # console 静态产物交给 server 单端口托管
 export TEAMHUB_CONSOLE_DIST_DIR="${CONSOLE_DIR}/dist"
-export TEAMHUB_KB_DATA_FILE TEAMHUB_GOV_DATA_FILE TEAMHUB_INV_DATA_FILE TEAMHUB_BASELINE_DATA_FILE TEAMHUB_ARTIFACT_FILES_DIR HUB_HOST HUB_PORT TEAMHUB_WRITE_TOKEN TEAMHUB_BUILD_ID
+export TEAMHUB_KB_DATA_FILE TEAMHUB_GOV_DATA_FILE TEAMHUB_INV_DATA_FILE TEAMHUB_BASELINE_DATA_FILE TEAMHUB_ARTIFACT_FILES_DIR HUB_HOST HUB_PORT TEAMHUB_WRITE_TOKEN TEAMHUB_BUILD_ID TEAMHUB_IDENTITY_MODE
 
 echo "──────────────────────────────────────────────"
 echo " Team Hub v${TEAMHUB_VERSION} 启动 → http://${HUB_HOST}:${HUB_PORT}  (console + API 同端口)"
@@ -98,6 +105,7 @@ echo " 库存文件：${TEAMHUB_INV_DATA_FILE}（盘点/拆装/快记重启不�
 echo " 基准线文件：${TEAMHUB_BASELINE_DATA_FILE}（队长手写覆盖/验证门过门重启不丢）"
 echo " 归档物目录：${TEAMHUB_ARTIFACT_FILES_DIR}（图纸文件上传下载，重启不丢）"
 echo " 版本：v${TEAMHUB_VERSION}（/api/system/status.version 同源）　构建戳：${TEAMHUB_BUILD_ID}（/health.buildId）"
+echo " 身份模式：${TEAMHUB_IDENTITY_MODE}（anonymous=现状零变化；identity=匿名可读+登录才写，GET /api/session 探测）"
 if [[ "${HUB_HOST}" != "127.0.0.1" && "${HUB_HOST}" != "localhost" && "${HUB_HOST}" != "::1" ]]; then
   echo " 已绑 ${HUB_HOST}：写端点 POST /api/* 须带 Authorization: Bearer <token>（读端点不限）。"
   if [[ "${AUTO_TOKEN:-0}" == "1" ]]; then

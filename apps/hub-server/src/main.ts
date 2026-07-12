@@ -133,13 +133,20 @@ async function main(): Promise<void> {
     throw new Error('invalid HUB_PORT');
   }
 
+  // IDENTITY-LITE（D-083 §4.2）：轻身份登录双模式。缺省（未设 / 非 'identity'）= 匿名模式，**现状零变化**
+  // （身份模块不启用、session 端点禁用、写路由信客户端自报 actor、写门只认 TEAMHUB_WRITE_TOKEN）。
+  // 设 TEAMHUB_IDENTITY_MODE=identity → 身份模式：匿名可读一切 + 登录才能写（写路由须携有效会话，actor 服务端注入）。
+  const identityMode =
+    process.env.TEAMHUB_IDENTITY_MODE === 'identity' ? 'identity' : 'anonymous';
+
   // H3（AUDIT-FIXES 部署前必修）：非 loopback 暴露写端点必须配 TEAMHUB_WRITE_TOKEN，否则拒绝启动——
   // 避免裸暴露未鉴权的 POST /api/*（任意可达者污染治理数据 / 撑爆 KB / 回环 actor 身份）。
-  // 默认 127.0.0.1 / ::1 / localhost 放行（本机 dev）。
+  // 默认 127.0.0.1 / ::1 / localhost 放行（本机 dev）。**身份模式例外**：写路由已由会话（登录）把关，
+  // 故非 loopback + identity 模式即便无 TEAMHUB_WRITE_TOKEN 也放行（大一大二 LAN 打开即看的预期形态）。
   const writeToken = process.env.TEAMHUB_WRITE_TOKEN;
   const isLoopback =
     host === '127.0.0.1' || host === '::1' || host === 'localhost';
-  if (!isLoopback && !writeToken) {
+  if (!isLoopback && !writeToken && identityMode !== 'identity') {
     throw new Error(
       `refusing to bind non-loopback host ${host} without TEAMHUB_WRITE_TOKEN (write endpoints would be unauthenticated)`,
     );
@@ -156,6 +163,7 @@ async function main(): Promise<void> {
     baselineStore,
     writeToken,
     trustProxy,
+    identityMode,
   });
 
   await app.listen({ host, port });
