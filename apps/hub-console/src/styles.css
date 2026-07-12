@@ -238,6 +238,28 @@
     0 0 14px rgba(34, 211, 238, 0.4);
 }
 
+/* @xyflow 内置控件（依赖图缩放按钮 + 「React Flow」归属徽标）默认浅色（#fefefe 白底 / rgba(255,255,255,.5)
+   徽标底），落在遥测台深底上是刺眼白块 —— 第三方组件不吃 CSS var（批次H 暗色同坑）。xyflow 暴露一组
+   --xy-* 变量作为主题接缝，按主题 remap 即随动（控件 SVG 图标 fill=currentColor，跟随 button color）。
+   QA 实测：project 依赖图左下缩放条 + 右下徽标原为白块。仅圈 [data-theme='tech']；dark/light/warm 不动（约束2，
+   dark 下同为白块属既有债、不在本轮 tech 视觉轮范围）。 */
+:root[data-theme='tech'] .react-flow {
+  --xy-controls-button-background-color: var(--surface-raised);
+  --xy-controls-button-background-color-hover: #22314c;
+  --xy-controls-button-color: var(--text);
+  --xy-controls-button-color-hover: var(--blue);
+  --xy-controls-button-border-color: var(--border);
+  --xy-attribution-background-color: transparent;
+}
+:root[data-theme='tech'] .react-flow__controls {
+  box-shadow: var(--shadow-sm);
+}
+/* 徽标背景透明后「React Flow」链接文字（xyflow 硬编码 #999 中性灰）改走主题次级色，与遥测台蓝灰调一致
+   （不改功能、纯观感；徽标仍在，只是不再是白块 + 文字融入配色）。 */
+:root[data-theme='tech'] .react-flow__attribution a {
+  color: var(--muted);
+}
+
 * {
   box-sizing: border-box;
 }
