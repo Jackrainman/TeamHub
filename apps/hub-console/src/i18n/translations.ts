@@ -418,6 +418,7 @@ const zh = {
   'pm.field.robotTarget': '目标机器人',
   'pm.field.complexity': '任务难度',
   'pm.field.owner': '谁负责（可选）',
+  'pm.field.owner.unassigned': '暂不指派',
   'pm.field.collaborators': '协作者（可选，填姓名即可，逗号分隔）',
   'pm.field.fromTask': '上游任务（卡住源头 / 被依赖）',
   'pm.field.toTask': '下游任务（被卡的）',
@@ -766,8 +767,8 @@ const zh = {
   'pm.robot.R1': 'R1 机器人（比赛主机）',
   'pm.robot.R2': 'R2 机器人（备用机）',
 
-  // PM 表单字段补充
-  'pm.field.actorHint': '填姓名即可，系统自动转 ID',
+  // PM 表单字段补充（IDENTITY-LITE 后：负责人已改选人下拉，本提示只讲协作者）
+  'pm.field.actorHint': '协作者填姓名即可，系统自动转 ID',
   'pm.depType.hint.blocks': '前者完成前，后者无法开始',  'pm.depType.hint.sharesResource': '两者共用同一台机器人，同时占用会冲突',
 
   // PM 状态简称
@@ -1206,6 +1207,7 @@ const en: Record<TranslationKey, string> = {
   'pm.field.robotTarget': 'Target robot',
   'pm.field.complexity': 'Task complexity',
   'pm.field.owner': 'Who is responsible (optional)',
+  'pm.field.owner.unassigned': 'Unassigned',
   'pm.field.collaborators': 'Collaborators (optional, names, comma-separated)',
   'pm.field.fromTask': 'Upstream task (the blocker / depended-on)',
   'pm.field.toTask': 'Downstream task (the blocked one)',
@@ -1576,8 +1578,8 @@ const en: Record<TranslationKey, string> = {
   'pm.robot.R1': 'R1 robot (main competition)',
   'pm.robot.R2': 'R2 robot (backup)',
 
-  // PM form field supplements
-  'pm.field.actorHint': 'Just write a name — the system resolves it to an ID',
+  // PM form field supplements (post IDENTITY-LITE: owner is now a picker, hint only covers collaborators)
+  'pm.field.actorHint': 'For collaborators, just write a name — the system resolves it to an ID',
   'pm.depType.hint.blocks': 'Downstream cannot start until upstream is done',  'pm.depType.hint.sharesResource': 'Both tasks share the same robot — concurrent use conflicts',
 
   // PM status short labels

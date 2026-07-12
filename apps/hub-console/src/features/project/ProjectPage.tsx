@@ -2,6 +2,7 @@ import { lazy, Suspense, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LayoutGrid, Network } from 'lucide-react';
 import type { HubApiClient } from '../../api/client';
+import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
 import { segClass } from '../../utils';
 import { SideDrawer } from '../../components/SideDrawer';
@@ -36,9 +37,12 @@ type ProjectView = 'board' | 'graph';
 export function ProjectPage({
   client,
   source,
+  identity,
 }: {
   client: HubApiClient;
   source: string;
+  // 轻身份（IDENTITY-LITE，I2）：透传给 PmCreatePanel 做 ownerId 默认值 + 写门禁用（登录后可写）。
+  identity: PageIdentityCtx;
 }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
@@ -146,6 +150,7 @@ export function ProjectPage({
         <PmCreatePanel
           client={client}
           tasks={tasksQuery.data?.tasks ?? []}
+          identity={identity}
           onCreated={onCreated}
           onDirtyChange={setCreateFormDirty}
         />

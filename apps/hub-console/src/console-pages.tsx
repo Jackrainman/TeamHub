@@ -119,7 +119,9 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     titleKey: 'toolbar.title.project',
     icon: LayoutGrid,
     moduleId: 'pm-core',
-    render: (ctx) => <ProjectPage client={ctx.apiClient} source={ctx.source} />,
+    render: (ctx) => (
+      <ProjectPage client={ctx.apiClient} source={ctx.source} identity={ctx.identity} />
+    ),
   },
   {
     key: 'knowledge',

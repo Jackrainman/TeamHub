@@ -10,6 +10,7 @@ import type {
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import type { CreateTaskRequest } from '../../api/schemas/pm';
+import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { parseList, humanizeFormError } from '../../utils';
 import { Field } from '../../components/Field';
@@ -17,6 +18,7 @@ import { FormActions } from '../../components/FormActions';
 import { FormGrid } from '../../components/FormGrid';
 import { Select } from '../../components/Select';
 import { Combobox } from '../../components/Combobox';
+import { defaultOwnerId, memberOptionLabel } from '../identity/identity-utils';
 
 // HUB-MODULARIZATION 第4步：Task.robotTarget 已在 hub-contracts 改 optional + 新增泛化槽
 // targetLabel（无机器人租户可填自由标签）。本表单暂留硬编码 R1/R2/shared 下拉作 fallback——
@@ -60,11 +62,14 @@ const INVESTMENT_TIMEACC_KEY: Record<InvestmentTimeAccumulation, TranslationKey>
 export function PmCreatePanel({
   client,
   tasks,
+  identity,
   onCreated,
   onDirtyChange,
 }: {
   client: HubApiClient;
   tasks: Task[];
+  // 轻身份（IDENTITY-LITE，I2）：ownerId 默认值 + 写门（未登录禁止提交）依据。
+  identity: PageIdentityCtx;
   onCreated: () => void;
   // 脏状态上抛（FORM-GUARD）：SideDrawer 关闭前用它判断要不要弹确认。可选，不传则不上抛。
   onDirtyChange?: (dirty: boolean) => void;
@@ -74,8 +79,10 @@ export function PmCreatePanel({
     () => ({
       projectId: tasks[0]?.projectId ?? '',
       groupId: tasks[0]?.groupId ?? '',
+      // identity 模式已登录 → 默认负责人 = 当前登录人（D-083 §4.2）；否则空（匿名模式 / 未登录）。
+      ownerId: defaultOwnerId(identity.mode, identity.session),
     }),
-    [tasks],
+    [tasks, identity.mode, identity.session],
   );
   // 组候选：GET /api/groups 全量组列表为主，任务反查的 groupId 兜底合并去重
   // （万一某组还没同步进组表但已有任务引用它，候选里仍要能选中）。
@@ -89,6 +96,14 @@ export function PmCreatePanel({
     for (const task of tasks) ids.add(task.groupId);
     return Array.from(ids);
   }, [groupsQuery.data, tasks]);
+  // 成员候选：ownerId 选人下拉的数据源（ownerId 自由文本→选人，D-083 §4.2 审计项，两模式都改）。
+  // 名册读侧两模式均开（同 GET /api/groups 先例），匿名模式也走选人只是服务端不校验（§10 拍板）。
+  const membersQuery = useQuery({
+    queryKey: ['members', 'pm-create'],
+    queryFn: () => client.getMembers(),
+  });
+  const members = membersQuery.data?.members ?? [];
+  const ownerOptions = useMemo(() => members.map((m) => m.id), [members]);
   const [projectId, setProjectId] = useState(defaults.projectId);
   const [groupId, setGroupId] = useState(defaults.groupId);
 
@@ -105,6 +120,11 @@ export function PmCreatePanel({
   const [complexity, setComplexity] = useState<TaskComplexity>('normal');
   const [owner, setOwner] = useState('');
   const [collaborators, setCollaborators] = useState('');
+  // ownerId 冷启动同一套逻辑：identity.session 是异步查询，首帧未必已到位，到位后经此效果补填
+  // （仅在字段仍为空时同步，不覆盖用户已手动改过的选择）。
+  useEffect(() => {
+    if (!owner && defaults.ownerId) setOwner(defaults.ownerId);
+  }, [defaults.ownerId]); // eslint-disable-line react-hooks/exhaustive-deps
   // 投资标签（optional，默认不勾）：勾上才带 investment 三维；默认 = future×high×high（sim2real 型，
   // 最容易被砍的重点保护对象——baseline-design.md §1 细节4）。
   const [isInvestment, setIsInvestment] = useState(false);
@@ -113,12 +133,12 @@ export function PmCreatePanel({
   const [invTimeAcc, setInvTimeAcc] =
     useState<InvestmentTimeAccumulation>('high');
 
-  // 脏状态：自由文本字段有内容，或 projectId/groupId 已被用户改得偏离自动回填的默认值——
+  // 脏状态：自由文本字段有内容，或 projectId/groupId/owner 已被用户改得偏离自动回填的默认值——
   // 避免冷启动回填本身（见上方 useEffect）被误判成"用户输入过"，害关闭确认无谓弹出。
   const dirty = Boolean(
     title.trim() ||
       rawSummary.trim() ||
-      owner.trim() ||
+      owner.trim() !== defaults.ownerId.trim() ||
       collaborators.trim() ||
       isInvestment ||
       projectId.trim() !== defaults.projectId.trim() ||
@@ -133,19 +153,24 @@ export function PmCreatePanel({
     onSuccess: () => {
       setTitle('');
       setRawSummary('');
-      setOwner('');
+      // owner 不清空（同 projectId/groupId 的"粘住"策略）：identity 模式下默认=当前登录人，
+      // 连续录入几条自己的任务时不必每条都重选；改选过别人也照样粘住到下一条。
       setCollaborators('');
       setIsInvestment(false);
       onCreated();
     },
   });
 
+  // 写门（IDENTITY-LITE，I2）：身份模式未登录 → 不可写，禁用提交 + 给「登录后可写」提示；
+  // 匿名模式 / 身份模式已登录 → 不受影响（红线3：匿名模式行为零变化）。
+  const writeLocked = !identity.canWrite;
   const valid =
     projectId.trim() && groupId.trim() && title.trim() && rawSummary.trim();
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!valid) return;
+    // writeLocked 二次拦截（Enter 键隐式提交会绕过 disabled 的提交按钮）。
+    if (!valid || writeLocked) return;
     mutation.mutate({
       projectId: projectId.trim(),
       groupId: groupId.trim(),
@@ -218,7 +243,16 @@ export function PmCreatePanel({
       </FormGrid>
       <FormGrid>
         <Field label={t('pm.field.owner')}>
-          <input value={owner} onChange={(e) => setOwner(e.target.value)} />
+          {/* ownerId 自由文本→选人（D-083 §4.2 审计项，两模式都改）：匿名模式也走选人，
+              只是服务端不校验候选是否真实存在（§10 拍板，数据兼容升级零迁移）。 */}
+          <Select
+            value={owner}
+            onChange={setOwner}
+            options={ownerOptions}
+            renderOption={(id) => memberOptionLabel(members, id)}
+            placeholder={t('pm.field.owner.unassigned')}
+            ariaLabel={t('pm.field.owner')}
+          />
         </Field>
         <Field label={t('pm.field.collaborators')}>
           <input
@@ -274,7 +308,8 @@ export function PmCreatePanel({
         submitLabel={t('pm.create.submit.task')}
         submittingLabel={t('pm.create.submitting')}
         submitting={mutation.isPending}
-        disabled={!valid}
+        disabled={!valid || writeLocked}
+        lockedHint={writeLocked ? t('identity.writeHint') : null}
         error={
           mutation.error
             ? humanizeFormError(mutation.error, t, 'pm.create.error')
