@@ -1,0 +1,116 @@
+import type {
+  Dependency,
+  GovernanceSnapshot,
+  KnowledgeNode,
+  Member,
+  Need,
+  Task,
+  TaskStatus,
+} from '@teamhub/hub-contracts';
+
+/**
+ * pm-core 域写入口（STORE-SPLIT-SQLITE，product-redefine-2026-07 §4.4 / §9-③）：项目计划表
+ * 录入 + 受限状态机迁移 + 身份写路径——从原 god-interface `GovStore`（gov-store.ts:184 一带，
+ * 21 方法混 6 域）按语义拆出的第一个域接口，与 `ArtifactStore`/`ScheduleStore` 一起经交叉类型
+ * 复合回 `GovStore`（见 gov-store.ts），三实现/消费点零行为变化。
+ *
+ * 读：`getSnapshot()`（D-040 首刀，已实现）——**留在本域**：GovernanceSnapshot 11 字段
+ * （tasks/dependencies/needs/knowledgeNodes/artifacts/members/groups/projects/…）的核心真相载体，
+ * 本质是 pm-core 的读出口（resources/resourceSessions 不在其内，见 ScheduleStore 独立读口注释）。
+ */
+
+/**
+ * createTask 入参：title/projectId/groupId/rawSummary/robotTarget/intrinsicComplexity/ownerId/collaboratorIds 等人本字段。
+ * status/statusSource 可省略 → 实现默认 `pending` / `'console'`（C5：真实进度优先 git/lark 派生信号，console 录入是兜底）。
+ * lastProgressAt 不由调用方给（由 commit/check-in 派生信号回填），故从 draft 剔除。
+ */
+export type TaskDraft = Omit<
+  Task,
+  'id' | 'status' | 'statusSource' | 'lastProgressAt' | 'createdAt' | 'updatedAt'
+> &
+  Partial<Pick<Task, 'status' | 'statusSource'>>;
+
+/**
+ * createDependency 入参：人手建的有向边——「卡住 = 在等哪个上游任务」是结构键（G2：blockedBy 由
+ * Dependency 边经 toDepGraphView 派生、永不在 Task 上另存）。aiSuggested 边 confirmedBy=null 时只进建议视图。
+ * **status 不由调用方给**（D-042 clamp 初始态）：新边 Store 钉 `active`（上游未满足=被卡），satisfied/waived 由
+ * 后续派生/人工 waive 转。**confirmedBy（用户拍板 Q1=ActorRef 作内部凭证）**：人建边记 {id:memberId, source}，
+ * 仅作内部归因凭证——**永不经读视图对第三方暴露、永不用于排名**（toDepGraphView 不输出 confirmedBy；I0/A4）。
+ */
+export type DependencyDraft = Omit<
+  Dependency,
+  'id' | 'status' | 'createdAt' | 'updatedAt'
+>;
+
+/**
+ * createNeed 入参：前置需求一等公民（G3）。缺口归组 providerGroupId、不归人（A1）；
+ * claimedByMemberId 仅本人主动认领才填，非派单（C4 / A2）。
+ * **status/openedAt/escalatedAt/claimedByMemberId 不由调用方给**（D-042 clamp 初始态 + A2 反派单）：新 Need
+ * Store 钉 `open`、openedAt=now、escalatedAt=null、**claimedByMemberId=null**——新缺口必为「未认领」，
+ * 认领是本人后续主动动作（非创建时由队长直接指派=派单，违 A2/C4）；escalated 仅「事持续无人认领」升级
+ * （A4：升级的是事不是人）。confirmedBy 同 Dependency=内部凭证。
+ */
+export type NeedDraft = Omit<
+  Need,
+  'id' | 'status' | 'openedAt' | 'escalatedAt' | 'claimedByMemberId'
+>;
+
+/**
+ * closeoutKbNode 入参：KB-CORE 结案派生的知识节点（IssueCard→…→Archive 闭环的源 payload 类型
+ * 随 KB-CORE 移植 schema 后补全；本刀先钉派生出口=KnowledgeNode，复用同一 GovernanceSnapshot）。
+ */
+export type KnowledgeNodeDraft = Omit<KnowledgeNode, 'id' | 'createdAt'>;
+
+/**
+ * 战队项目计划表核心读写出入口（pm-core 域；D-040/D-042/D-041）。
+ *
+ * 写（白名单，实现见 InMemoryGovStore / FileGovStore / SqliteGovStore）：
+ *   - `createTask` / `createDependency` / `createNeed`：PM 项目计划表 C1 兜底录入（任务、依赖图人手建边、缺口暴露）。
+ *   - `closeoutKbNode`：KB-CORE 结案派生 `KnowledgeNode`（POST /api/kb/closeout 消费）。**D-042 决策 1**：
+ *     结案派生 + `knowledgeNodes/taskKnowledgeTags` 读路径复用同一 `GovernanceSnapshot`（不必扩本 interface）——
+ *     相似 bug 检索的 IssueCard 语料**不在本快照内**，已收窄到独立 `KbStore`（见 gov-store.ts）。
+ *   - `updateTaskStatus` / `waiveDependency`：受限状态机迁移（非 CRUD，只在既有枚举内推进生命周期态）。
+ *   - `setMemberPin`：登录身份写路径（IDENTITY-LITE，D-083 §4.2）——members 是 GovernanceSnapshot 字段，
+ *     故留本域而非独立域。
+ *
+ * 宪法护栏（写入实现时必须延续，见 AGENTS §5）：
+ *   - **C2 反排名**：白名单永不暴露 memberId 完成量横比维度；Task.ownerId 只表「谁负责」分工（D-041 ② 安全堆）。
+ *   - **G2 不双写**：系统库是唯一真相，写入只落本 Store、不回写飞书 Bitable；blockedBy 由 Dependency 边派生、不另存。
+ *   - **I0 / confirmedBy**：确认语义记「何时 / 经哪条渠道」（timestamp / ActorRef.source），不退化成可 `groupBy`
+ *     的裸 memberId 历史（不能事后算「谁确认最多」）。
+ *   - **C1 派生优先**：写入是兜底录入口，不取代 git/lark 派生信号，不得被上层当主录入口退化成新死表。
+ *   - **C3 小作坊**：白名单止于三支柱当下所需，不预铺完整 CRUD / RBAC。四条 append（create* + closeoutKbNode
+ *     经 append 语义写 KnowledgeNode）皆只追加、不开 update/delete/list；另两条受限状态机迁移
+ *     （updateTaskStatus / waiveDependency）只在既有枚举上推进文档化的生命周期态。
+ *   - **密钥纪律**：pinHash 只落盘、绝不经读视图外露（路由层回带走 MemberPublicSchema 剥离）。
+ */
+export interface PmCoreStore {
+  getSnapshot(): Promise<GovernanceSnapshot>;
+
+  createTask(draft: TaskDraft): Promise<Task>;
+  createDependency(draft: DependencyDraft): Promise<Dependency>;
+  createNeed(draft: NeedDraft): Promise<Need>;
+  closeoutKbNode(draft: KnowledgeNodeDraft): Promise<KnowledgeNode>;
+
+  /**
+   * 任务状态流转（POST /api/tasks/:id/status）。在既有 TaskStatus 枚举内迁移（含 done=标真实完成）。
+   * **statusSource 由 Store 钉 `console`**（C5：人工流转是最低优先源，git/lark/derived 派生信号可覆盖）。
+   * bump updatedAt；lastProgressAt 不动（仅派生信号回填）。id 不存在 → 返回 null（路由层转 404）。
+   */
+  updateTaskStatus(taskId: string, status: TaskStatus): Promise<Task | null>;
+  /**
+   * 软删除依赖边（POST /api/dependencies/:id/waive）。转 status=`waived`（人工判定作废），bump updatedAt，
+   * **保留** confirmedBy/createdAt（G2 单一真相可审计）。waived 边经 toDepGraphView 从图隐藏，但仍留库
+   * （区别于物理 delete）。id 不存在 → 返回 null（路由层转 404）。
+   */
+  waiveDependency(depId: string): Promise<Dependency | null>;
+
+  /**
+   * 设 / 改成员登录 PIN 散列（PUT /api/members/:id/pin，IDENTITY-LITE，D-083 §4.2）。就地改 members[idx]
+   * 的 `pinHash`（scrypt 格式串，**由路由层散列后传入、绝不含明文**）+ bump updatedAt、钉 updatedBy=`console`。
+   * id 不存在 → 返回 null（路由层转 404）。**密钥纪律**：pinHash 只落盘、绝不经读视图外露（路由层回带
+   * 走 MemberPublicSchema 剥离）。FileGovStore 落 governance.json（members 是 GovernanceSnapshot 字段，
+   * persist 失败按 idx 原地还原，镜像 updateTaskStatus）。
+   */
+  setMemberPin(memberId: string, pinHash: string): Promise<Member | null>;
+}
