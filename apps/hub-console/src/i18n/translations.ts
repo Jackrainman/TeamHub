@@ -219,10 +219,11 @@ const zh = {
   'depgraph.connect.success': '已建立依赖。卡住它的任务现在会显示在图上。',
   'depgraph.connect.error': '没能建立连线：{detail}',
   'depgraph.connect.actor': '画布连线',
-  // 录入浮层（DEPGRAPH-ENTRY-OVERLAY）+ I0 负责人说明
-  'depgraph.entry.open': '录入',
+  // 新建浮层（DEPGRAPH-ENTRY-OVERLAY）+ I0 负责人说明。动词口径见 design-language.md §7：
+  // 任务=系统实体从无到有 → 「新建」。
+  'depgraph.entry.open': '新建任务',
   'depgraph.entry.note': '图上只显任务、组和卡点，不排个人。',
-  'depgraph.entry.title': '录入到项目计划表',
+  'depgraph.entry.title': '新建任务 · 记进项目计划表',
   'depgraph.entry.close': '关闭',
   'depgraph.detail.ownerNote': '负责人只表明分工，不代表进度快慢。',
 
@@ -251,7 +252,7 @@ const zh = {
   // 图纸档案（A8）：独立顶级页（D-077 与知识库拆开）。toolbar.title.kb 仍由 KbSearchPage 内层 Tab 用。
   'nav.archive': '图纸档案',
   'toolbar.title.kb': '相似 Bug 检索 · 跨赛季召回',
-  'toolbar.title.archive': '图纸提交日志 · 版本时间线',
+  'toolbar.title.archive': '图纸档案 · 版本时间线',
 
   // 学习方向（LEARN-DIRECTION-REDESIGN，product-redefine §5）：原「缺人方向」组级页改造——
   // 跨工种学习地图（静态）× 队内缺口（组级派生，永不指向人，A1/I0）；identity 模式下按本人所在
@@ -463,7 +464,7 @@ const zh = {
   'pm.card.openInDepGraph': '在依赖图查看',
 
   // PM 录入（写侧表单）
-  'pm.create.title': '录入 · 全员都看得到',
+  'pm.create.title': '新建任务 · 全员都看得到',
   'pm.create.subtitle': '记任务、依赖、缺口，不比快慢。',
   'pm.create.open': '新建任务',
   'pm.create.tab.task': '布置任务',
@@ -594,8 +595,9 @@ const zh = {
   'schedule.relay.addSubtitle': '选机器人和对应任务，自动加到这台机器人的最后一棒。',
   'schedule.relay.addRobot': '选机器人',
   'schedule.relay.addTask': '选任务',
-  'schedule.relay.addSubmit': '添加',
-  'schedule.relay.addSubmitting': '正在添加…',
+  // 「登记」＝把现实已存在的用机时间录进系统（design-language.md §7；与 relay.empty 的"队长登记好用机时间"同词）。
+  'schedule.relay.addSubmit': '登记',
+  'schedule.relay.addSubmitting': '正在登记…',
   'schedule.relay.addCancel': '取消',
   'schedule.relay.addEmpty': '还没有机器人或任务，先去机器人管理 / 项目看板建一条。',
   'schedule.relay.addError': '没加上：{detail}',
@@ -624,29 +626,29 @@ const zh = {
   // 今日计划表格（D-082 §5/§6.D1，TodayPlanTable）
   'schedule.table.loading': '正在准备今日计划表格…',
   'schedule.table.unavailable': '今日计划表格打不开（后端没连上？检查后端地址或服务是否在线）',
-  'schedule.table.hint': '车是固定的，选好负责组和今日任务，改完点【确认】。留空的车今天不排。',
-  'schedule.table.noResources': '还没有车，先去机器人队页新建一台。',
+  'schedule.table.hint': '机器人是固定的，选好负责组和今日任务，改完点【确认】。留空的机器人今天不排。',
+  'schedule.table.noResources': '还没有机器人，先去机器人队页新建一台。',
   'schedule.table.usePreset': '使用预设',
-  'schedule.table.presetEmpty': '还没有车设置默认阵型，先去机器人队页给车配一个，或者直接在表格里手填。',
+  'schedule.table.presetEmpty': '还没有机器人设置默认阵型，先去机器人队页配一个，或者直接在表格里手填。',
   'schedule.table.carryOver': '继续昨天',
   'schedule.table.carryDisabledHint': '昨天也没排，没东西可继续。',
   'schedule.table.carryError': '没能读到昨天的安排：{detail}',
-  'schedule.table.colResource': '车',
+  'schedule.table.colResource': '机器人',
   'schedule.table.colGroup': '负责组',
   'schedule.table.colTask': '今日任务',
   'schedule.table.colNote': '备注',
   'schedule.table.groupPlaceholder': '选负责组',
   'schedule.table.taskPlaceholder': '选或填任务名',
   'schedule.table.notePlaceholder': '可留空',
-  'schedule.table.confirmNewTask': '建新任务：{title}',
-  'schedule.table.addRow': '这台车再加一组',
+  'schedule.table.confirmNewTask': '新建任务：{title}',
+  'schedule.table.addRow': '这台机器人再加一组',
   'schedule.table.removeRow': '删掉这一行',
   'schedule.table.confirm': '确认',
   'schedule.table.confirming': '正在确认…',
   'schedule.table.actor': '队长（今日计划表格）',
   'schedule.table.errGroupRequired': '{code} 这行填了内容但没选负责组，补上或清空这行。',
   'schedule.table.errConfirmNeeded': '「{title}」在候选里找不到，是要建一条新任务吗？勾选后再点确认。',
-  'schedule.table.errNothing': '表格是空的，至少排一辆车再确认。',
+  'schedule.table.errNothing': '表格是空的，至少排一台机器人再确认。',
   'schedule.table.confirmError': '没能落盘：{detail}',
 
   // 库存 / BOM 第三支柱（INV-BOM-CORE）
@@ -705,7 +707,7 @@ const zh = {
   'resources.loading': '正在加载机器人队…',
   'resources.error': '机器人队打不开（后端没连上？检查后端地址或服务在不在线）',
   'resources.intro':
-    '管整台机器人：建新机器人、改状态（在修 / 退役 / 拆了）。编号按赛季和编号位自动生成，不用手填。退役只改状态，机器人不删——历史排班还指着它呢。',
+    '管整台机器人：新建机器人、改状态（空着 / 在用 / 在修 / 退役 / 拆了）。编号按赛季和编号位自动生成，不用手填。退役只改状态，机器人不删——历史排班还指着它呢。',
   'resources.summary.total': '机器人总数',
   'resources.summary.active': '还能上场的',
   'resources.empty': '还没有机器人。下面建一台试试。',
@@ -750,7 +752,7 @@ const zh = {
   'depgraph.toolbar.newTask': '新建任务',
 
   // 库存新增零件表单（INV-CREATE）
-  'inv.create.title': '新增零件',
+  'inv.create.title': '新建零件',
   'inv.create.subtitle': '先把零件建进库存，再去盘点 / 装机记账。',
   'inv.create.field.partNumber': '零件编号',
   'inv.create.field.partNumberPlaceholder': '如 GM6020 / C620 / main-controller',
@@ -764,10 +766,10 @@ const zh = {
   'inv.create.field.track': '追踪方式',
   'inv.create.track.bulk': '按数量',
   'inv.create.track.individual': '逐个体',
-  'inv.create.submit': '新增零件',
+  'inv.create.submit': '新建零件',
   'inv.create.submitting': '提交中…',
-  'inv.create.success': '已新增「{name}」。',
-  'inv.create.error': '新增失败：{detail}',
+  'inv.create.success': '已新建「{name}」。',
+  'inv.create.error': '新建失败：{detail}',
 
   // 库存类目选项
   'inv.catopt.motor': '电机（如 6020 / 3508）',
@@ -1066,9 +1068,9 @@ const en: Record<TranslationKey, string> = {
   'depgraph.connect.success': 'Dependency created — the blocker now shows on the graph.',
   'depgraph.connect.error': 'Could not create the link: {detail}',
   'depgraph.connect.actor': 'Canvas link',
-  'depgraph.entry.open': 'Add entry',
+  'depgraph.entry.open': 'New task',
   'depgraph.entry.note': 'The graph shows tasks, groups and blockers, not a ranking of people.',
-  'depgraph.entry.title': 'Add to the project plan',
+  'depgraph.entry.title': 'New task · goes on the project plan',
   'depgraph.entry.close': 'Close',
   'depgraph.detail.ownerNote': 'Owner shows who is on it, not who is fast or slow.',
 
@@ -1099,7 +1101,7 @@ const en: Record<TranslationKey, string> = {
 
   'nav.archive': 'Drawing Archive',
   'toolbar.title.kb': 'Similar-bug Search · Cross-season Recall',
-  'toolbar.title.archive': 'Artifact Submission Log · Version Timeline',
+  'toolbar.title.archive': 'Drawing Archive · Version Timeline',
 
   // Learning direction (LEARN-DIRECTION-REDESIGN, product-redefine §5): reframes the old
   // group-level "direction gaps" page — a static cross-discipline learning map × live,
@@ -1315,7 +1317,7 @@ const en: Record<TranslationKey, string> = {
   'pm.card.openInDepGraph': 'View in dependency graph',
 
   // PM entry (write-side forms)
-  'pm.create.title': 'Add an entry · everyone can see it',
+  'pm.create.title': 'New task · everyone can see it',
   'pm.create.subtitle':
     'Just tasks, dependencies and gaps. Never who is faster or slower.',
   'pm.create.open': 'New task',
@@ -1453,8 +1455,8 @@ const en: Record<TranslationKey, string> = {
     "Pick a robot and the task it's running; it lands as that robot's last leg.",
   'schedule.relay.addRobot': 'Robot',
   'schedule.relay.addTask': 'Task',
-  'schedule.relay.addSubmit': 'Add',
-  'schedule.relay.addSubmitting': 'Adding…',
+  'schedule.relay.addSubmit': 'Log it',
+  'schedule.relay.addSubmitting': 'Logging…',
   'schedule.relay.addCancel': 'Cancel',
   'schedule.relay.addEmpty':
     'No available robots or tasks yet — create one in Robots / Project board first.',
@@ -1579,7 +1581,7 @@ const en: Record<TranslationKey, string> = {
   'resources.error':
     "Can't open the fleet (backend offline? check the address or whether the service is up)",
   'resources.intro':
-    "This is where you manage whole robots: spin up a new one, change its status (in repair / retired / taken apart). The code is auto-generated from the season and slot — no typing it by hand. Retiring doesn't delete a robot; the whole thing stays, since old schedules still point at it.",
+    "This is where you manage whole robots: create a new one, change its status (free / in use / in repair / retired / taken apart). The code is auto-generated from the season and slot — no typing it by hand. Retiring doesn't delete a robot; the whole thing stays, since old schedules still point at it.",
   'resources.summary.total': 'Robots total',
   'resources.summary.active': 'Still raceable',
   'resources.empty': 'No robots yet. Spin one up below.',
@@ -1625,7 +1627,7 @@ const en: Record<TranslationKey, string> = {
   'depgraph.toolbar.newTask': 'New task',
 
   // Inventory — add new part form (INV-CREATE)
-  'inv.create.title': 'Add a part',
+  'inv.create.title': 'New part',
   'inv.create.subtitle': 'Add the part to inventory first, then stocktake or log mounts against it.',
   'inv.create.field.partNumber': 'Part number',
   'inv.create.field.partNumberPlaceholder': 'e.g. GM6020 / C620 / main-controller',
@@ -1639,10 +1641,10 @@ const en: Record<TranslationKey, string> = {
   'inv.create.field.track': 'Tracking',
   'inv.create.track.bulk': 'By count',
   'inv.create.track.individual': 'Per item',
-  'inv.create.submit': 'Add part',
+  'inv.create.submit': 'Create part',
   'inv.create.submitting': 'Saving…',
-  'inv.create.success': 'Added "{name}".',
-  'inv.create.error': 'Add failed: {detail}',
+  'inv.create.success': 'Created "{name}".',
+  'inv.create.error': 'Create failed: {detail}',
 
   // Inventory category options
   'inv.catopt.motor': 'Motor (e.g. 6020 / 3508)',
