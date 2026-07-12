@@ -76,14 +76,20 @@ AI 已能看 ROS2 时间戳调导航参——只守着专业一亩三分地的�
   - **身份模式**：**匿名可读一切**（大一大二打开即看，零门槛）；**登录才能写 + 才有个人视图**。登录 = 选人 + 可选 PIN（家庭影院级重量，无邮箱注册）。
 - 实现真账单（审计，§9-②）：现在"谁在写"全靠客户端自报（`confirmedBy`/`ownerId` 服务端零校验）→ 改**服务端按 session 注入**，触达 ≥6 条写路由 + 5 个 Draft 类型；前端补身份挂载点 + queryKey 身份维度；**`ownerId` 从自由文本改成选人**（否则"我的任务"永远对不齐）；Member 加 optional `pinHash`（不存明文）或独立凭证子表。
 
+**实现落点注记（2026-07-11~12，I1/I2，`4a2acd9`..`8978308`，v0.12.0→0.12.2）**：契约 `hub-contracts/src/identity.ts`（session/setpin 请求响应）+ `pm-core.ts`（`MemberSchema.pinHash?` + `MemberPublicSchema`）；散列 `hub-server/src/identity/pin.ts`（scrypt+盐+`timingSafeEqual`）+ `session-store.ts`（`SessionManager` 纯内存、随机 32B token、7 天 TTL，重启=全员重登，不引 Redis/不落盘 token）；cookie 手解析签发（httpOnly+SameSite=Lax，**未加 Secure**——http 内网、家庭影院级威胁模型，不假定 TLS）；actor 注入落 6 条写路由（dependencies/needs/resource-sessions/batch/relay-handoffs 的 confirmedBy + baseline pass 的 passedBy）；**`Task.ownerId` 有意排除服务端注入**——ownerId 是任务分配（可指派他人）非 authorship，用 session 覆盖会破坏"指派给别人"，MY-VIEW 之后校验/选人交给前端。设 PIN 授权 = 本人会话或目标 member 尚无 pinHash（首次设置）。env `TEAMHUB_IDENTITY_MODE`（缺省 anonymous=现状零变化）。console 侧：`IdentityBar` 挂 `.console-toolbar__actions`（无独立 header 组件，工具条即等价挂载点）；`queryKey` 身份维度目前只在 App.tsx 顶层 `hub-overview` 查询示范落地，未逐页扫全部 feature 页，靠登录/登出成功时 `queryClient.invalidateQueries()` 全局兜底；写门 UI 只覆盖 `PmCreatePanel`（任务提交），其余约 8 处写表单服务端已 401 拒但前端未提前禁用按钮，留作已知后续项；PmCreatePanel「谁负责」自由文本→`Select`（两模式都改，identity 模式默认=当前登录人）。红线核对：pinHash 全程未出现在 API 响应/日志/console 状态/commit。
+
 ### 4.3 我的视图（瘦身版）
 - = **我负责的任务 ∩ 未被依赖卡住的**。不碰课表（课表判伪需求，§7）。
 - 业务逻辑基本白捡（`blockedBy` 已有派生），真正前置 = 4.2 的身份。
+
+**实现落点注记（2026-07-12，M1，`6be2545`..`bb3f70d`，v0.12.2→0.13.1）**：给 `DepNodeSchema` 新增 `ownerId?`（nullable，向后兼容）机读键，未新建服务端专属端点——console 直接消费既有 `GET /api/dep-graph` 客户端过滤（遵"别重造派生"），也不算新隐私泄漏（该人已由既有 `ownerLabel` 显名暴露）。落点 `hub-console/src/features/myview/{MyViewPage.tsx,myview-utils.ts}`（纯函数 `splitMyTasks`），新页插在总览之后，挂 `moduleId: 'pm-core'`。「被卡住」分组把 `blockedIdle`（有上游卡）与 `gap`（挂未满足 Need）都归为被卡组，`working`/`freeIdle` 归可动手（设计稿未逐 status 定映射，实现期定）。按 `session.memberId` 精确过滤、无选择他人入口；匿名模式下该页导航仍可见（随 pm-core 模块）但内容显示"需身份模式"说明，不炸不白屏。
 
 ### 4.4 store 拆分 + SQLite
 - 前置链（审计，§9-③）：GovStore 21 方法混 6 域 god-interface → **先按 pm-core/schedule 边界拆 store**（KbStore/InvStore 是先例）→ 分模块增量迁 SQLite；
 - 8 个排班方法（占用窗口/接力线）连 JSON 落盘先例都没有，迁移前先补落盘设计；
 - id 生成/clamp 默认值抽独立纯函数，三实现共享（compose 内存实现的老路对 SQLite 不成立）。
+
+**实现落点注记（2026-07-12，SS1-SS3，`47c2f65`..`1616c4f`，v0.13.2→0.14.1）**：SS1 按方法语义三分 `PmCoreStore`（8 方法，含 `setMemberPin`）/`ArtifactStore`（2 方法）/`ScheduleStore`（12 方法），落 `hub-server/src/store/{pm-core-store.ts,artifact-store.ts,schedule-store.ts}`，`GovStore` 改交叉类型组合；id/clamp 抽 `id-sequence.ts`（`IdSequence` 纯工厂）+ `clamp-defaults.ts`（12 个初始态/来源常量）。KbStore/InvStore 本刀未随三域搬家（本就是独立接口，超出"GovStore god-interface"字面范围，留后续各自域触及时顺手做）。SS2 排班域补落盘：`resourceSessions`+`relayHandoffs` 合入一份 `schedule-sessions.json`（非分两份），理由=级联删除（`deleteResourceSession`)需单写链消除"session 已删、handoff 仍悬空引用"的崩溃窗口。SS3 `SqliteGovStore` 真实现（`node:sqlite`，**文档式行存**——每域一表 `id TEXT PRIMARY KEY + data TEXT` 整实体 JSON blob，非铺平列，保向后兼容/零漂移）+ `SQLITE_GOV_SCHEMA_VERSION=1` + `scripts/migrate-gov-to-sqlite.mjs`（只读源+读回零丢失比对，含 sibling resources.json/schedule-sessions.json）；env opt-in `TEAMHUB_GOV_BACKEND=sqlite`（默认不设=JSON 现状零变化）。**增量边界（如实标注）**：本刀只迁移 gov 域（pm-core/artifact/schedule 三域可选 SQLite）；**kb.json/inv.json/baseline.json 三个 store 仍纯 JSON、未迁移**，留后续各自触及时再做——不是遗漏，是有意的增量范围。
 
 ## 5. 学习方向（"缺人方向"页改造）
 - 改名**学习方向**，从组级缺口改为**对个人的建议**；只对本人可见、只建议不指派（契合战队"不算最严也不算松"的管理气质：路标摆到面前，学不学是自己的事）。
@@ -96,6 +102,8 @@ AI 已能看 ROS2 时间戳调导航参——只守着专业一亩三分地的�
 - **机械**（相对朴素但要深）：对物理空间有更深理解，知道机械结构的极限；与电路对接时哪些地方留孔、同时不影响结构强度。
 - **视觉**：知道电控的极限、以及模拟和现实的区别，防止变成大号 MCP。
 - **AI 边界横切列（各工种通用）**：AI 在本领域能替什么 / 我必须懂到能给 AI 验货的程度（例：AI 写测试用例大幅提效，但验收它需要的正是专业知识）。
+
+**实现落点注记（2026-07-12，L1，`f98c9d3`..`7841a9c`，v0.14.1→0.15.1）**：契约 `hub-contracts/src/verticals/robotics.ts` 新增 `RoboticsDiscipline`/`ROBOTICS_LEARNING_MAP`/`AI_BOUNDARY_CROSSCUT`/`ROBOTICS_LEARNING_SEED_GAPS`；console `features/direction/{DirectionPage.tsx,learning-direction-utils.ts}`（原 `features/gaps/GapsPage.tsx` 删除、ConsolePage key `'gaps'`→`'direction'`，i18n `gaps.*`→`direction.*` 全量改名）+ `deriveGroupDiscipline`（Group.name 精确匹配四工种，identity 模式下按登录人所在组个性化排序缺口）。偏离：①"AI 边界横切列"只落一条通用资源（`AI_BOUNDARY_CROSSCUT`），未按四工种逐一编造"AI 能替什么"细节——避免脑补超出用户口述原文，如需细化需用户后续补充口述；②跨组种子缺口承接位（`discipline:null`）v1 未实现挂载展示（当前唯一种子 sim2real 归了 'ec'，null 分支只留 schema 层面口子）；③`deriveGroupDiscipline` 用精确组名匹配非模糊匹配，团队改组名后该组缺口会落入 `unmatchedGaps`（安全沉默，非误归类）。兴趣声明仍未建（原案维持）。
 
 ## 6. Robocon 垂直包资产（超越换皮的部分）
 1. **赛季节奏模板**：规则发布→方案论证→机构冻结→迭代→（真空期）→联调→调参→备馆→赛日；含 6 周期末真空硬约束、假期段语义、验证门位、调参期挂门；**上届实际时间线回写**（第一版需用户提供 2026 赛季真实节点）。
@@ -124,21 +132,22 @@ AI 已能看 ROS2 时间戳调导航参——只守着专业一亩三分地的�
 
 ## 9. 解耦审计账单（wf_66e13d79-814，2026-07-11，3×sonnet 逐文件核实）
 好消息：console 页面注册表真落地干净（TITLE_KEY 零残留）；SQLite 对前端零影响；我的视图逻辑白捡。四刀阻力：
-1. **基准线（最弱地基）**：Season 死脚手架——快照只有裸 `seasonId:string`，`SeasonSchema` 从未接线、无 `/api/seasons`，fixtures 里是字面量（attribution.ts:47）；G4 冲突（§3.1 已修正）；GovernanceSnapshot 三处手写同步 landmine（attribution.ts:46/69/90）→ 裁定独立 baselineStore。
-2. **登录（改动面=身份非鉴权）**：写身份客户端自报零校验（server.ts:1158 一带）；ownerId 自由文本（PmCreatePanel.tsx:184）；PageRenderCtx 无身份槽、queryKey 无身份维度、Member 无凭证字段；main.ts loopback 判定对反代部署有盲区（main.ts:118）。
-3. **SQLite（有前置链）**：GovStore 21 方法混 6 域（gov-store.ts:184）；SqliteGovStore 纯 throw 零依赖（sqlite-gov-store.ts:41）；resourceSessions/relayHandoffs 8 方法无落盘先例（file-gov-store.ts:236）；id/clamp 逻辑内联在 InMemory 具体类（mock-gov-store.ts:160）。
-4. **坐实的错位字段/债**（用户"数据结构需要梳理"直觉的实锤）：`GroupKindSchema` 机器人闭集焊在核心（pm-core.ts:68）；`convergenceScope` 被字面量判断（pm-core.ts:155 + schedule.ts:332/attribution.ts:423）；**pm-requests.ts 自称租户中立却硬 import robotics 词汇收紧 ownerGroup**（pm-requests.ts:22/139）；装配契约 server 侧"形接神未接"——main.ts 从未传 tenantConfig，真实运行恒全模块开（main.ts:132）；工具条刷新按钮硬编码特例（App.tsx:97）；词汇覆盖层只能覆盖不能新增 key（vocabulary-overrides.ts:21）。
+1. **✅ 已解（2026-07-11，BASELINE-CORE，`e3a76a9` 前）基准线（最弱地基）**：Season 死脚手架——快照只有裸 `seasonId:string`，`SeasonSchema` 从未接线、无 `/api/seasons`，fixtures 里是字面量（attribution.ts:47）；G4 冲突（§3.1 已修正）；GovernanceSnapshot 三处手写同步 landmine（attribution.ts:46/69/90）→ 裁定独立 baselineStore。落点：`GET /api/seasons` 已接线（`seasons: Season[]` 与既有裸 `seasonId` 共存，非替换）+ 独立 `baseline-store.ts`，详 `baseline-design.md` §7.2。
+2. **✅ 已解（2026-07-11~12，I1/I2，`4a2acd9`..`8978308`）登录（改动面=身份非鉴权）**：写身份客户端自报零校验（server.ts:1158 一带）；ownerId 自由文本（PmCreatePanel.tsx:184）；PageRenderCtx 无身份槽、queryKey 无身份维度、Member 无凭证字段；main.ts loopback 判定对反代部署有盲区（main.ts:118）。落点：服务端 session 注入 6 写路由 + `MemberSchema.pinHash?` + `PageIdentityCtx` 身份槽 + `PmCreatePanel` ownerId 选人，详本文 §4.2 实现落点注记。
+3. **✅ 已解（2026-07-12，SS1-SS3，`47c2f65`..`1616c4f`）SQLite（有前置链）**：GovStore 21 方法混 6 域（gov-store.ts:184）；SqliteGovStore 纯 throw 零依赖（sqlite-gov-store.ts:41）；resourceSessions/relayHandoffs 8 方法无落盘先例（file-gov-store.ts:236）；id/clamp 逻辑内联在 InMemory 具体类（mock-gov-store.ts:160）。落点：三域拆分 + `schedule-sessions.json` 落盘 + `SqliteGovStore` 真实现（opt-in），详本文 §4.4 实现落点注记；kb/inv/baseline 三 store 仍 JSON 属有意的增量边界，非本条残留债。
+4. **✅ 已解（2026-07-12，AUDIT-DEBT-2026-07，`538ea9a`..`d1a8aed`）坐实的错位字段/债**（用户"数据结构需要梳理"直觉的实锤）：`GroupKindSchema` 机器人闭集焊在核心（pm-core.ts:68）——已放宽为开放非空串（`KNOWN_GROUP_KINDS` 常量降级为参考非校验）；`convergenceScope` 被字面量判断（pm-core.ts:155 + schedule.ts:332/attribution.ts:423）——已收口为 `CONVERGENCE_SCOPE_ALL_LEAF_GROUPS` 常量；**pm-requests.ts 自称租户中立却硬 import robotics 词汇收紧 ownerGroup**（pm-requests.ts:22/139）——已改工厂函数 `buildCreateArtifactRequestSchema`，robotics 具体化挪进 `verticals/robotics.ts` 装配点；装配契约 server 侧"形接神未接"——main.ts 从未传 tenantConfig，真实运行恒全模块开（main.ts:132）——已接线 `TEAMHUB_TENANT_MODULES` env 通道（`tenant-config-env.ts`）；工具条刷新按钮硬编码特例（App.tsx:97）——已归一为 `ConsolePageDescriptor.onRefresh` 可选字段；词汇覆盖层只能覆盖不能新增 key（vocabulary-overrides.ts:21）——`VocabularyKey` 改开放字符串套字面量联合，支持新增 key。
 
 ## 10. 路线 v4 与待敲定细节
 ```
-1. 倒排基准线（独立 store + JSON 落盘，不等 SQLite；含 Season 接线 + 总览改造）
-2. 轻身份登录（双模式；顺手 ownerId 自由文本→选人）
-3. 我的视图（登录到位即白捡）
-4. store 拆分 + SQLite
-5. 学习方向改造（地图×缺口）
-6. 审计债清理（GroupKind 放宽/convergenceScope 收口/pm-requests 解绑/main.ts tenantConfig 接线）——可与 1-5 穿插
+1. ✅ 倒排基准线（独立 store + JSON 落盘，不等 SQLite；含 Season 接线 + 总览改造）——BASELINE-CORE，2026-07-11
+2. ✅ 轻身份登录（双模式；顺手 ownerId 自由文本→选人）——IDENTITY-LITE，2026-07-11~12
+3. ✅ 我的视图（登录到位即白捡）——MY-VIEW，2026-07-12
+4. ✅ store 拆分 + SQLite——STORE-SPLIT-SQLITE，2026-07-12（gov 三域已可选 SQLite；kb/inv/baseline 仍 JSON，增量边界见 §4.4 注记）
+5. ✅ 学习方向改造（地图×缺口）——LEARN-DIRECTION-REDESIGN，2026-07-12
+6. ✅ 审计债清理（GroupKind 放宽/convergenceScope 收口/pm-requests 解绑/main.ts tenantConfig 接线）——AUDIT-DEBT-2026-07，2026-07-12
 后置：游戏包 / 对外文档 / 兴趣声明 / MODULARIZATION-PHASE2 垂直包 worktree
 ```
+路线 v4 六项已于 2026-07-12 全部落地，详见本文 §4.2/§4.3/§4.4/§5 实现落点注记 + `docs/planning/now.md` frontier/最近完成。
 **待敲定细节 → 已于 2026-07-11 续轮全部拍板，定稿见 `docs/design/baseline-design.md`**：
 - ✅ 里程碑挂接 = 战队级一条链，Task.milestoneId? 多对一，组维度派生；
 - ✅ "慢了" = 周粒度红黄绿，内置模板默认 + 手写覆盖；
