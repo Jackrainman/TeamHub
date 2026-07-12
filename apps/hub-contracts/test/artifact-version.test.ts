@@ -4,6 +4,7 @@ import {
   nextArtifactVersionNo,
   ArtifactRefSchema,
   CreateArtifactRequestSchema,
+  buildCreateArtifactRequestSchema,
   type ArtifactRef,
   type ArtifactVersionKey,
 } from '../src/index.js';
@@ -178,5 +179,74 @@ describe('CreateArtifactRequestSchema — robotCode 放宽手填 + storedFile �
       },
     });
     expect('storedFile' in parsed).toBe(false);
+  });
+});
+
+describe('buildCreateArtifactRequestSchema — 租户中立工厂函数（AUDIT-DEBT-2026-07 §9-④ 解绑）', () => {
+  test('非 robotics 闭集值也能正确注入并校验（证明本包不再硬编码 robotics 词汇）', () => {
+    const gameStudioSchema = buildCreateArtifactRequestSchema(['art', 'engine', 'audio']);
+    const ok = gameStudioSchema.safeParse({
+      ownerGroup: 'engine',
+      season: 'S1',
+      robotCode: 'build-42',
+      mechanism: '渲染管线',
+      name: '渲染管线设计稿',
+    });
+    expect(ok.success).toBe(true);
+    // robotics 闭集值在这个租户不合法——证明闭集是参数注入的，非全局硬编码。
+    const rejected = gameStudioSchema.safeParse({
+      ownerGroup: 'mechanical',
+      season: 'S1',
+      robotCode: 'build-42',
+      mechanism: '渲染管线',
+      name: 'x',
+    });
+    expect(rejected.success).toBe(false);
+  });
+
+  test('未传 subTypeRule：任何组既不强制也不禁止 subType（租户无此细分需求时的中立默认）', () => {
+    const neutralSchema = buildCreateArtifactRequestSchema(['art', 'engine']);
+    expect(
+      neutralSchema.safeParse({
+        ownerGroup: 'engine',
+        season: 'S1',
+        robotCode: 'build-42',
+        mechanism: '渲染管线',
+        name: 'x',
+      }).success,
+    ).toBe(true);
+    expect(
+      neutralSchema.safeParse({
+        ownerGroup: 'engine',
+        season: 'S1',
+        robotCode: 'build-42',
+        mechanism: '渲染管线',
+        name: 'x',
+        subType: 'driver',
+      }).success,
+    ).toBe(true);
+  });
+
+  test('robotics 具体化导出（CreateArtifactRequestSchema）仍保留"电路组必须带 subType"业务规则', () => {
+    expect(
+      CreateArtifactRequestSchema.safeParse({
+        ownerGroup: 'electrical',
+        season: '26',
+        robotCode: 'R1',
+        mechanism: '主板',
+        name: '驱动板图纸',
+        // 缺 subType
+      }).success,
+    ).toBe(false);
+    expect(
+      CreateArtifactRequestSchema.safeParse({
+        ownerGroup: 'mechanical',
+        season: '26',
+        robotCode: 'R1',
+        mechanism: '底盘',
+        name: '总成图',
+        subType: 'drawing',
+      }).success,
+    ).toBe(false); // 机械组不得带 subType
   });
 });

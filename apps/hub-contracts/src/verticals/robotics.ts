@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { ArtifactRef } from '../schemas.js';
+import { buildCreateArtifactRequestSchema } from '../pm-requests.js';
 
 /**
  * robotics 垂直包（HUB-MODULARIZATION 第 6 步：词汇注入收口）。
@@ -21,9 +22,9 @@ import type { ArtifactRef } from '../schemas.js';
 
 /**
  * 图纸档案组别闭集（机械/电路/电控/视觉）。`schemas.ts:ArtifactRefSchema.ownerGroup` 读侧已放宽为
- * 开放 string（向后兼容 + 可注入），但写侧 `pm-requests.ts:CreateArtifactRequestSchema` 仍保留
- * `z.enum(ROBOTICS_OWNER_GROUP_VALUES)` 收紧（闭集校验下沉到"路由层 VocabularyRegistry 校验器"
- * 尚未实现，先复用这份值避免两处硬编码漂移，见 pm-core.ts 同类先例注释）。
+ * 开放 string（向后兼容 + 可注入）；写侧闭集收紧同样只在这里（装配点）发生——
+ * `pm-requests.ts:buildCreateArtifactRequestSchema` 是租户中立的工厂函数，本文件把这份值
+ * **注入**给它，核心不再硬编码任何 robotics 字面量（AUDIT-DEBT-2026-07 §9-④ 解绑）。
  */
 export const ROBOTICS_OWNER_GROUP_VALUES = [
   'mechanical',
@@ -31,6 +32,20 @@ export const ROBOTICS_OWNER_GROUP_VALUES = [
   'ec',
   'vision',
 ] as const;
+
+/**
+ * POST /api/artifacts 写侧请求契约的 robotics 具体化（AUDIT-DEBT-2026-07 §9-④ 解绑）：把闭集词汇
+ * `ROBOTICS_OWNER_GROUP_VALUES` + "电路组必须带 subType" 这条 robotics 专属业务规则，注入
+ * `pm-requests.ts` 的租户中立工厂函数。导出名与此前 `pm-requests.ts` 的静态导出同名——server.ts /
+ * hub-console 的 `import { CreateArtifactRequestSchema } from '@teamhub/hub-contracts'` 走包入口
+ * `export *`（index.ts 同时 `export * from './pm-requests.js'` 与 `export * from
+ * './verticals/robotics.js'`），消费点零改动。
+ */
+export const CreateArtifactRequestSchema = buildCreateArtifactRequestSchema(
+  ROBOTICS_OWNER_GROUP_VALUES,
+  { requiredForGroup: 'electrical', groupLabel: '电路' },
+);
+export type CreateArtifactRequest = z.infer<typeof CreateArtifactRequestSchema>;
 
 /**
  * `ArtifactRef.kind` 全量闭集（含机器人专属 firmware/rosbag）。核心 `schemas.ts` 已放宽为开放
