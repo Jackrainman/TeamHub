@@ -16,6 +16,7 @@ import { FileKbStore } from './store/file-kb-store.js';
 import { FileInvStore } from './store/file-inv-store.js';
 import { FileBaselineStore } from './store/file-baseline-store.js';
 import type { GovStore } from './store/gov-store.js';
+import { parseTenantConfigEnv } from './tenant-config-env.js';
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 4177;
@@ -172,6 +173,12 @@ async function main(): Promise<void> {
   // 反代信任：单端口 4177 反代 / 隧道部署后面须设 TEAMHUB_TRUST_PROXY=true，否则写限流塌成全队单桶（见 server.ts）。
   const trustProxy = process.env.TEAMHUB_TRUST_PROXY === 'true';
 
+  // 装配层接线（AUDIT-DEBT-2026-07 §9-④ 审计债④）：TenantConfig 通道此前从未接到真实启动路径，
+  // `buildHubServer` 恒吃内部缺省 ROBOTICS_TENANT_CONFIG（全 6 模块开）。`TEAMHUB_TENANT_MODULES`
+  // 未设 → parseTenantConfigEnv 返回 undefined → 行为与今天逐字一致；设了才真正收窄模块
+  // （见 tenant-config-env.ts 头部注释 + tenant-config-route.test.ts 验证过的"关模块"真实行为）。
+  const tenantConfig = parseTenantConfigEnv(process.env.TEAMHUB_TENANT_MODULES);
+
   const app = buildHubServer({
     consoleDistDir: process.env.TEAMHUB_CONSOLE_DIST_DIR,
     store,
@@ -181,6 +188,7 @@ async function main(): Promise<void> {
     writeToken,
     trustProxy,
     identityMode,
+    tenantConfig,
   });
 
   await app.listen({ host, port });
