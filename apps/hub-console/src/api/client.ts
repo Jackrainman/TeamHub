@@ -14,6 +14,7 @@ import {
   PresenceScheduleResponseSchema,
   ResourceSessionsResponseSchema,
   SeasonsResponseSchema,
+  CreateSeasonResponseSchema,
   SessionResponseSchema,
   SharedResourcesResponseSchema,
   TasksResponseSchema,
@@ -25,6 +26,7 @@ import {
   type GroupGapsResponse,
   type MemberPublic,
   type PresenceScheduleResponse,
+  type CreateSeasonRequest,
   type ResourceSessionsResponse,
   type Season,
   type SessionRequest,
@@ -142,6 +144,9 @@ export interface HubApiClient {
   getTasks(): Promise<{ tasks: Task[] }>;
   // 赛季列表（S1）：总览「基准线 vs 实际」按 active 赛季查基准线。无人维度、只读元信息。
   getSeasons(): Promise<{ seasons: Season[] }>;
+  // 赛季创建（SEASON-CREATE 补链路）：设置页「赛季」分区消费——新建=宣告新的当前赛季
+  // （status 服务端钉 active、旧 active 同笔归档），总览空态"先在设置里建一个赛季"自此不再悬空。
+  createSeason(req: CreateSeasonRequest): Promise<{ season: Season }>;
   // 倒排基准线（BASELINE-CORE，S4）。读：某赛季的「基准线 vs 实际」——未生成模板 → { baseline: null }
   // （前端引导「填两锚点→生成模板」）。读视图已剥 passedBy（I0，红线2）。
   getBaseline(seasonId: string): Promise<BaselineResponse>;
@@ -356,6 +361,15 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
     },
     async getSeasons() {
       return fetchJson(`${baseUrl}/api/seasons`, SeasonsResponseSchema, fetcher);
+    },
+    async createSeason(req: CreateSeasonRequest) {
+      return postJson(
+        `${baseUrl}/api/seasons`,
+        req,
+        CreateSeasonResponseSchema,
+        fetcher,
+        writeToken,
+      );
     },
     async getBaseline(seasonId: string) {
       return fetchJson(

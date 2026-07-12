@@ -4,6 +4,7 @@ import type {
   KnowledgeNode,
   Member,
   Need,
+  Season,
   Task,
   TaskStatus,
 } from '@teamhub/hub-contracts';
@@ -62,6 +63,12 @@ export type NeedDraft = Omit<
 export type KnowledgeNodeDraft = Omit<KnowledgeNode, 'id' | 'createdAt'>;
 
 /**
+ * createSeason 入参：id 由 store 生成；status 也剔除——新建赛季恒 `active`（语义=宣告新的
+ * 当前赛季），由实现钉死，调用方不可传 archived 造"生而废弃"的赛季。
+ */
+export type SeasonDraft = Omit<Season, 'id' | 'status'>;
+
+/**
  * 战队项目计划表核心读写出入口（pm-core 域；D-040/D-042/D-041）。
  *
  * 写（白名单，实现见 InMemoryGovStore / FileGovStore / SqliteGovStore）：
@@ -113,4 +120,13 @@ export interface PmCoreStore {
    * persist 失败按 idx 原地还原，镜像 updateTaskStatus）。
    */
   setMemberPin(memberId: string, pinHash: string): Promise<Member | null>;
+
+  /**
+   * 新建赛季（POST /api/seasons，SEASON-CREATE 补链路——总览页空态文案"先在设置里建一个赛季"
+   * 此前指向不存在的入口，本方法补上写口）。**语义 = 宣告新的当前赛季**：新赛季恒 status=`active`，
+   * 同笔把既有 active 赛季转 `archived`（一届一个当前赛季；明年开季新建时老赛季自然归档，
+   * 不需要独立 archive 端点）。id 由 store 生成（`season-new-N`）。同名/时间校验在路由层。
+   * C3：不开 update/delete——归档只作为新建的伴随迁移存在，不提供任意改档口。
+   */
+  createSeason(draft: SeasonDraft): Promise<Season>;
 }

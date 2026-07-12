@@ -18,6 +18,7 @@ import type {
   Need,
   RelayHandoff,
   ResourceSession,
+  Season,
   SharedResource,
   Task,
   TaskStatus,
@@ -37,6 +38,7 @@ import type {
   ResourceSessionDraft,
   ResourceSessionPatch,
   ResourceStatusPatch,
+  SeasonDraft,
   TaskDraft,
 } from './gov-store.js';
 
@@ -504,6 +506,19 @@ export class FileGovStore implements GovStore {
       });
     }
     return member;
+  }
+
+  // 新建赛季（SEASON-CREATE）：append 新 active + 旧 active 同笔转 archived（两类变更一笔写），
+  // 故回滚不是单条 removeById——写前存整组元素，persist 失败时原地整组还原（保持数组引用稳定）。
+  async createSeason(draft: SeasonDraft): Promise<Season> {
+    const seasons = this.inner.snapshotForRollback().seasons;
+    const prior = [...seasons];
+    const season = await this.inner.createSeason(draft);
+    await this.persistOrRollback(() => {
+      seasons.length = 0;
+      seasons.push(...prior);
+    });
+    return season;
   }
 
   /** 回滚句柄：从 live 快照按 id 移除一条 append 元素（仅持久层 rollback 用）。 */

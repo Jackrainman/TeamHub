@@ -430,6 +430,17 @@ export const DepGraphSchema = z.object({
 export const SeasonsResponseSchema = z.object({
   seasons: z.array(SeasonSchema),
 });
+/**
+ * 赛季创建（POST /api/seasons，SEASON-CREATE 补链路）：id 服务端生成、status 恒由服务端钉
+ * `active`（新建赛季=宣告"这是当前赛季"，旧 active 赛季由 store 同笔转 archived——一届一个
+ * 当前赛季，明年新建时老赛季自然归档）。endsAt 可缺省（赛季结束日常在开季时未知）。
+ */
+export const CreateSeasonRequestSchema = z.object({
+  name: z.string().min(1),
+  startsAt: isoDateTimeSchema,
+  endsAt: isoDateTimeSchema.nullable().optional(),
+});
+export const CreateSeasonResponseSchema = z.object({ season: SeasonSchema });
 export const ProjectsResponseSchema = z.object({
   projects: z.array(ProjectSchema),
 });
@@ -455,6 +466,7 @@ export const BlockAttributionsResponseSchema = z.object({
 export type GovActorSource = z.infer<typeof GovActorSourceSchema>;
 export type RobotTarget = z.infer<typeof RobotTargetSchema>;
 export type Season = z.infer<typeof SeasonSchema>;
+export type CreateSeasonRequest = z.infer<typeof CreateSeasonRequestSchema>;
 export type Project = z.infer<typeof ProjectSchema>;
 export type GroupKind = z.infer<typeof GroupKindSchema>;
 export type Group = z.infer<typeof GroupSchema>;

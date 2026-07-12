@@ -53,6 +53,7 @@ import type {
   ResourceSessionDraft,
   ResourceSessionPatch,
   ResourceStatusPatch,
+  SeasonDraft,
   TaskDraft,
 } from './gov-store.js';
 
@@ -200,6 +201,7 @@ export class SqliteGovStore implements GovStore {
   private needSeq!: IdSequence;
   private knowledgeNodeSeq!: IdSequence;
   private artifactSeq!: IdSequence;
+  private seasonSeq!: IdSequence;
   private resourceSeq!: IdSequence;
   private resourceSessionSeq!: IdSequence;
   private relayHandoffSeq!: IdSequence;
@@ -331,6 +333,7 @@ export class SqliteGovStore implements GovStore {
     this.needSeq = createIdSequence(this.maxSuffix('needs', 'need-new'));
     this.knowledgeNodeSeq = createIdSequence(this.maxSuffix('knowledge_nodes', 'kn-cl'));
     this.artifactSeq = createIdSequence(this.maxSuffix('artifacts', 'artifact-new'));
+    this.seasonSeq = createIdSequence(this.maxSuffix('seasons', 'season-new'));
     this.resourceSeq = createIdSequence(this.maxSuffix('resources', 'res-new'));
     this.resourceSessionSeq = createIdSequence(
       this.maxSuffix('resource_sessions', 'sess-new'),
@@ -466,6 +469,27 @@ export class SqliteGovStore implements GovStore {
       };
       this.updateRow('members', memberId, updated);
       return updated;
+    });
+  }
+
+  /**
+   * 新建赛季（SEASON-CREATE，镜像 InMemoryGovStore.createSeason）：归档旧 active + 插入新 active
+   * 一个事务（半程崩溃不会留下"双 active"或"全 archived 无当前赛季"的中间态）。
+   */
+  async createSeason(draft: SeasonDraft): Promise<Season> {
+    return this.tx(() => {
+      for (const prev of this.allRows<Season>('seasons')) {
+        if (prev.status === 'active') {
+          this.updateRow('seasons', prev.id, { ...prev, status: 'archived' });
+        }
+      }
+      const season: Season = {
+        ...draft,
+        id: nextSequentialId('season-new', this.seasonSeq),
+        status: 'active',
+      };
+      this.insertRow('seasons', season.id, season);
+      return season;
     });
   }
 

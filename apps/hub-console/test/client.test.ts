@@ -432,6 +432,34 @@ describe('hub console API client', () => {
     });
   });
 
+  test('SEASON-CREATE：createSeason POST /api/seasons，body 原样、响应过 zod', async () => {
+    const season = {
+      id: 'season-new-2',
+      name: 'Robocon 2027',
+      startsAt: '2026-09-01T00:00:00.000Z',
+      endsAt: null,
+      status: 'active' as const,
+    };
+    const fetcher = vi.fn(async () => {
+      return {
+        ok: true,
+        status: 201,
+        json: async () => ({ season }),
+      } as Response;
+    });
+    const client = createHubApiClient({
+      baseUrl: 'http://127.0.0.1:4177',
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+    const req = { name: 'Robocon 2027', startsAt: '2026-09-01T00:00:00.000Z', endsAt: null };
+    const res = await client.createSeason(req);
+    expect(res.season).toEqual(season);
+    const call = fetcher.mock.calls[0] as unknown as [string, RequestInit];
+    expect(String(call[0])).toContain('/api/seasons');
+    expect(call[1]?.method).toBe('POST');
+    expect(JSON.parse(String(call[1]?.body))).toEqual(req);
+  });
+
   test('writeToken 正向：createTask + uploadArtifactFile 均带 Bearer 头', async () => {
     const capturedInits: RequestInit[] = [];
     const fetcher = vi.fn(async (url: string, init?: RequestInit) => {

@@ -1,13 +1,17 @@
 import { useState, type FormEvent } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Eye, EyeOff } from 'lucide-react';
-import type { AgentBackend, BotChannel } from '@teamhub/hub-contracts';
+import type { AgentBackend, BotChannel, Season } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { useTheme } from '../../theme';
+import { Field } from '../../components/Field';
+import { FormActions } from '../../components/FormActions';
+import { FormGrid } from '../../components/FormGrid';
 import { MetaRow } from '../../components/MetaRow';
 import { SegToggle } from '../../components/SegToggle';
 import { APIBASE_KEY, WRITE_TOKEN_KEY } from '../../constants';
+import { humanizeFormError } from '../../utils';
 
 // 设置页：收纳此前散落各处的运行时设置——语言 / 集成 / 后端地址 / 关于。
 // 语言复用 i18n 的同一份状态（无本地副本，故无同步问题）。单一真实后端，无数据源切换。
@@ -115,10 +119,151 @@ export function SettingsPage({
         </div>
       </section>
 
+      <SeasonsSection client={client} source={source} />
       <IntegrationsSection client={client} source={source} />
       <ConnectionSection />
       <AboutSection client={client} source={source} />
     </div>
+  );
+}
+
+// 赛季（SEASON-CREATE 补链路）：总览页空态文案"先在设置里建一个赛季"此前指向不存在的入口，
+// 本分区兑现它——列现有赛季 + 新建表单。新建 = 宣告新的当前赛季（status 服务端钉 active、
+// 旧 active 同笔归档，一届一个当前赛季）；queryKey 与总览 BaselineOverview 共享（['seasons', source]），
+// 新建成功后 invalidate，总览首屏立即切到新赛季。
+function SeasonsSection({
+  client,
+  source,
+}: {
+  client: HubApiClient;
+  source: string;
+}) {
+  const { t } = useI18n();
+  const queryClient = useQueryClient();
+  const seasonsQuery = useQuery({
+    queryKey: ['seasons', source],
+    queryFn: () => client.getSeasons(),
+  });
+
+  const [name, setName] = useState('');
+  const [startsAt, setStartsAt] = useState('');
+  const [endsAt, setEndsAt] = useState('');
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      client.createSeason({
+        name: name.trim(),
+        startsAt: `${startsAt}T00:00:00.000Z`,
+        endsAt: endsAt ? `${endsAt}T00:00:00.000Z` : null,
+      }),
+    onSuccess: () => {
+      setName('');
+      setStartsAt('');
+      setEndsAt('');
+      void queryClient.invalidateQueries({ queryKey: ['seasons', source] });
+    },
+  });
+
+  // 结束日期可留空（开季时常未知）；填了则须晚于开始日期（与 server 同判据，前端先挡一层）。
+  const orderOk = !startsAt || !endsAt || endsAt > startsAt;
+  const valid = Boolean(name.trim() && startsAt && orderOk);
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!valid) return;
+    mutation.mutate();
+  }
+
+  const seasons = seasonsQuery.data?.seasons ?? [];
+
+  return (
+    <section className="panel settings-panel">
+      <div className="panel-header">
+        <h2>{t('settings.section.seasons')}</h2>
+      </div>
+      <div className="settings-section">
+        <p className="settings-desc">{t('settings.seasons.desc')}</p>
+        {seasonsQuery.isLoading ? (
+          <p className="settings-desc" role="status" aria-live="polite">…</p>
+        ) : seasons.length === 0 ? (
+          <p className="settings-desc">{t('settings.seasons.empty')}</p>
+        ) : (
+          <div className="adapter-grid">
+            {seasons.map((season) => (
+              <SeasonRow key={season.id} season={season} />
+            ))}
+          </div>
+        )}
+        <form className="pm-form" onSubmit={submit}>
+          <FormGrid cols={3}>
+            <Field label={t('settings.seasons.field.name')} required>
+              <input
+                value={name}
+                placeholder={t('settings.seasons.field.namePlaceholder')}
+                onChange={(e) => setName(e.target.value)}
+                aria-required
+              />
+            </Field>
+            <Field label={t('settings.seasons.field.startsAt')} required>
+              <input
+                type="date"
+                value={startsAt}
+                onChange={(e) => setStartsAt(e.target.value)}
+                aria-required
+              />
+            </Field>
+            <Field
+              label={t('settings.seasons.field.endsAt')}
+              error={!orderOk ? t('settings.seasons.dateOrder') : undefined}
+            >
+              <input
+                type="date"
+                value={endsAt}
+                onChange={(e) => setEndsAt(e.target.value)}
+              />
+            </Field>
+          </FormGrid>
+          <FormActions
+            submitLabel={t('settings.seasons.submit')}
+            submittingLabel={t('settings.seasons.submitting')}
+            submitting={mutation.isPending}
+            disabled={!valid}
+            error={
+              mutation.error
+                ? humanizeFormError(mutation.error, t, 'settings.seasons.error')
+                : null
+            }
+            success={
+              mutation.isSuccess
+                ? t('settings.seasons.success', { name: mutation.data.season.name })
+                : null
+            }
+          />
+        </form>
+      </div>
+    </section>
+  );
+}
+
+function SeasonRow({ season }: { season: Season }) {
+  const { t } = useI18n();
+  const range = `${season.startsAt.slice(0, 10)} → ${season.endsAt ? season.endsAt.slice(0, 10) : '…'}`;
+  return (
+    <article className="adapter-row">
+      <div>
+        <strong>{season.name}</strong>
+        <span>{range}</span>
+      </div>
+      <span
+        className={`status-pill ${season.status === 'active' ? 'status-enabled' : 'status-disabled'}`}
+      >
+        {t(
+          season.status === 'active'
+            ? 'settings.seasons.status.active'
+            : 'settings.seasons.status.archived',
+        )}
+      </span>
+    </article>
   );
 }
 

@@ -53,6 +53,8 @@ import {
   deriveDirectionGaps,
   GroupsResponseSchema,
   SeasonsResponseSchema,
+  CreateSeasonRequestSchema,
+  CreateSeasonResponseSchema,
   derivePresenceSchedule,
   PresenceScheduleResponseSchema,
   ResourceSessionsResponseSchema,
@@ -657,12 +659,37 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   });
 
   // 赛季只读列表（S1 接线，product-redefine-2026-07 §4.1/§9-①）：SeasonSchema/SeasonsResponseSchema
-  // 此前是死脚手架（从未接线、无端点）；照 GET /api/groups 先例直读快照，不加 GovStore 写方法
-  // （赛季录入待身份/裁剪功能落地时再开写口）。倒排基准线（BASELINE-DESIGN）的 SeasonBaseline.seasonId
-  // 未来引用 GET /api/seasons 返回的实体，而非仅裸字符串。
+  // 此前是死脚手架（从未接线、无端点）；照 GET /api/groups 先例直读快照。倒排基准线
+  // （BASELINE-DESIGN）的 SeasonBaseline.seasonId 引用本端点返回的实体，而非仅裸字符串。
   app.get('/api/seasons', async () => {
     const snapshot = await store.getSnapshot();
     return SeasonsResponseSchema.parse({ seasons: snapshot.seasons });
+  });
+
+  // 赛季创建（SEASON-CREATE 补链路）：S1 接线时写口曾注记"待身份功能落地再开"——IDENTITY-LITE
+  // 已落地（写门禁 onRequest 钩子覆盖所有 POST /api/*，本路由天然被罩），此处兑现。总览页空态
+  // 文案"先在设置里建一个赛季"此前指向不存在的入口（悬空承诺），设置页「赛季」分区随本端点补齐。
+  // 语义=宣告新的当前赛季：status 恒由服务端钉 active，旧 active 由 store 同笔转 archived
+  // （一届一个当前赛季）。同名拒绝（400）；endsAt 早于 startsAt 拒绝（400）。
+  app.post('/api/seasons', async (request, reply) => {
+    const parsed = CreateSeasonRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const { name, startsAt, endsAt } = parsed.data;
+    if (endsAt && Date.parse(endsAt) <= Date.parse(startsAt)) {
+      void reply.code(400).send({ detail: 'endsAt must be after startsAt' });
+      return;
+    }
+    const snapshot = await store.getSnapshot();
+    if (snapshot.seasons.some((s) => s.name === name)) {
+      void reply.code(400).send({ detail: `season name already exists: ${name}` });
+      return;
+    }
+    const season = await store.createSeason({ name, startsAt, endsAt: endsAt ?? null });
+    void reply.code(201);
+    return CreateSeasonResponseSchema.parse({ season });
   });
 
   // ── 倒排基准线（BASELINE-CORE，S4 路由；docs/design/baseline-design.md §3/§5）─────────────────

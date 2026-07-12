@@ -14,6 +14,7 @@ import type {
   Need,
   RelayHandoff,
   ResourceSession,
+  Season,
   SharedResource,
   Task,
   TaskStatus,
@@ -47,6 +48,7 @@ import type {
   ResourceSessionDraft,
   ResourceSessionPatch,
   ResourceStatusPatch,
+  SeasonDraft,
   TaskDraft,
 } from './gov-store.js';
 import { createIdSequence, nextSequentialId } from './id-sequence.js';
@@ -88,6 +90,7 @@ export class InMemoryGovStore implements GovStore {
   private readonly needSeq: IdSequence;
   private readonly knowledgeNodeSeq: IdSequence;
   private readonly artifactSeq: IdSequence;
+  private readonly seasonSeq: IdSequence;
   // 非 readonly：resyncResourceSeq() / resyncScheduleSeqs() 载入磁盘文件后需换成新起点的序列（见该方法）。
   private resourceSeq: IdSequence;
   private resourceSessionSeq: IdSequence;
@@ -121,6 +124,7 @@ export class InMemoryGovStore implements GovStore {
     this.needSeq = createIdSequence(this.snapshot.needs.length);
     this.knowledgeNodeSeq = createIdSequence(this.snapshot.knowledgeNodes.length);
     this.artifactSeq = createIdSequence(this.snapshot.artifacts.length);
+    this.seasonSeq = createIdSequence(this.snapshot.seasons.length);
     this.resourceSeq = createIdSequence(this.resources.length);
     this.resourceSessionSeq = createIdSequence(this.resourceSessions.length);
     this.relayHandoffSeq = createIdSequence(this.relayHandoffs.length);
@@ -597,5 +601,25 @@ export class InMemoryGovStore implements GovStore {
     };
     this.snapshot.members[idx] = updated;
     return updated;
+  }
+
+  /**
+   * 新建赛季（POST /api/seasons，SEASON-CREATE）：新赛季钉 status=`active`，同笔把既有 active
+   * 赛季原地转 `archived`（一届一个当前赛季，见 PmCoreStore.createSeason 注释）。原地替换保持
+   * seasons 数组引用稳定（FileGovStore 回滚按引用整体还原）。
+   */
+  async createSeason(draft: SeasonDraft): Promise<Season> {
+    for (let i = 0; i < this.snapshot.seasons.length; i++) {
+      if (this.snapshot.seasons[i].status === 'active') {
+        this.snapshot.seasons[i] = { ...this.snapshot.seasons[i], status: 'archived' };
+      }
+    }
+    const season: Season = {
+      ...draft,
+      id: nextSequentialId('season-new', this.seasonSeq),
+      status: 'active',
+    };
+    this.snapshot.seasons.push(season);
+    return season;
   }
 }
