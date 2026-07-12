@@ -3987,3 +3987,100 @@ button,
   width: auto;
   margin: 0;
 }
+
+/* ===== tech 观感打磨（2026-07-12 批次 B，全部圈 [data-theme='tech']，旧主题零污染）=====
+   依据 tech-restyle 截图逐页评审出的真实弱点，逐条对应：① 侧栏 active 无存在感 ② 工具条与内容
+   粘连 ③ panel 标题层次弱 ④ 行 hover 不可感知 ⑤ seg 选中态弱 ⑥ 系统亮色滚动条刺眼
+   ⑦ 「未配置」误用主色青（tech 里青=活跃信号，闲置态应中性）⑧ 空态观感干瘪。
+   克制铁律不破：不新增辉光（全站仍只有状态节点/主按钮 hover/扫描线三处）。 */
+
+/* ① 侧栏 active：信号青左轨 + 青染渐变底，替换默认白色水洗；hover 提亮一档。 */
+:root[data-theme='tech'] .nav-item {
+  position: relative;
+}
+:root[data-theme='tech'] .nav-item-active {
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.14), rgba(34, 211, 238, 0.04));
+  color: var(--blue);
+}
+:root[data-theme='tech'] .nav-item-active::before {
+  content: '';
+  position: absolute;
+  top: 22%;
+  bottom: 22%;
+  left: 0;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--blue);
+}
+:root[data-theme='tech'] .nav-item:hover:not(.nav-item-active):not(:disabled) {
+  background: rgba(143, 163, 191, 0.1);
+  color: var(--sidebar-text);
+}
+
+/* ② 工具条（页头行）与内容之间加渐隐分隔线，拉开呼吸。 */
+:root[data-theme='tech'] .console-toolbar {
+  padding-bottom: 14px;
+  border-bottom: 1px solid;
+  border-image: linear-gradient(90deg, var(--border-strong), rgba(30, 42, 68, 0)) 1;
+}
+
+/* ③ panel 标题行：轻微字距 + 顶部渐变水洗，与内容区拉开层次。 */
+:root[data-theme='tech'] .panel-header {
+  letter-spacing: 0.03em;
+  background: linear-gradient(180deg, rgba(23, 34, 54, 0.5), rgba(23, 34, 54, 0));
+}
+
+/* ④ 列表行 hover 青染 4%（全局 hover 底子已有，tech 下补可感知的色相）。 */
+:root[data-theme='tech'] .data-row:hover,
+:root[data-theme='tech'] .adapter-row:hover {
+  background: rgba(34, 211, 238, 0.05);
+}
+
+/* ⑤ seg 选中态强化：青 soft 底 + 青字 + 1px 内描边（原 surface 底在深色下几乎不可辨）。 */
+:root[data-theme='tech'] .seg__btn--active,
+:root[data-theme='tech'] .schedule-date-seg__btn.is-active {
+  background: var(--blue-soft);
+  color: var(--blue);
+  box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.35);
+}
+
+/* ⑥ 滚动条：scrollbar-color/width 是继承属性，root 一处覆盖全站；webkit 另配。 */
+:root[data-theme='tech'] {
+  scrollbar-color: #2c3d5f #0a0f1a;
+  scrollbar-width: thin;
+}
+:root[data-theme='tech'] ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+:root[data-theme='tech'] ::-webkit-scrollbar-thumb {
+  border: 2px solid #0a0f1a;
+  border-radius: 5px;
+  background: #2c3d5f;
+}
+:root[data-theme='tech'] ::-webkit-scrollbar-thumb:hover {
+  background: #3a4f7a;
+}
+:root[data-theme='tech'] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ⑦ 「未配置」改中性灰蓝：青在 tech 语义=活跃/主操作，闲置态不该抢它。 */
+:root[data-theme='tech'] .status-unconfigured {
+  background: rgba(143, 163, 191, 0.12);
+  color: var(--muted);
+}
+
+/* ⑧ 空态统一「虚线留位框」观感：空不是错误，是邀请（看板空列/详情空态/流水空态）。 */
+:root[data-theme='tech'] .pm-column__empty,
+:root[data-theme='tech'] .detail-empty,
+:root[data-theme='tech'] .inv-history-empty,
+:root[data-theme='tech'] .resources-empty {
+  border: 1px dashed rgba(44, 61, 95, 0.8);
+  border-radius: var(--radius-md);
+  background: rgba(13, 20, 33, 0.4);
+  color: var(--muted);
+}
+:root[data-theme='tech'] .pm-column__empty {
+  padding: 14px 8px;
+}
