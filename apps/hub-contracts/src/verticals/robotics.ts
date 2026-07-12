@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { ArtifactRef } from '../schemas.js';
 
 /**
@@ -108,3 +109,107 @@ export function deriveDisplayCode(
   const base = `${season}${position}`;
   return version > 1 ? `${base}-v${version}` : base;
 }
+
+// ---------------------------------------------------------------------------
+// 跨工种学习地图（LEARN-DIRECTION-REDESIGN，product-redefine §5 + §6.3；静态数据文件 + schema）。
+// 「学习方向」页（原「缺人方向」组级页改造）的静态半边：地图本身不读快照、不含人维度，
+// 与队内缺口（`direction-gaps.ts` 的 `deriveDirectionGaps`）在 console 侧按 discipline 合成展示。
+// 本节内容逐条对应用户 2026-07-11 口述原文（product-redefine-2026-07.md §5），不额外发挥。
+// ---------------------------------------------------------------------------
+
+/**
+ * 四个任务分组 discipline 别名，与 `ROBOTICS_OWNER_GROUP_VALUES`（图纸档案组别闭集）同一份值——
+ * D-072 分配任务单元本就是这四个：机械 / 电路 / 电控 / 视觉。两处概念不同（一个管图纸归属、
+ * 一个管学习地图）但值域相同，复用类型定义避免两份字面量数组漂移。
+ */
+export type RoboticsDiscipline = (typeof ROBOTICS_OWNER_GROUP_VALUES)[number];
+export const RoboticsDisciplineSchema = z.enum(ROBOTICS_OWNER_GROUP_VALUES);
+
+/**
+ * 跨工种学习地图条目：一个工种「该学别的工种什么」。
+ * `note` = 原文括注定位（如"学得最多""相对朴素但要深"），非跨工种学习项本身，可选。
+ * `crossSkillItems` = 原文口述逐条整理，**不发挥**（口述原句只做拆句/标点整理，不新增内容）。
+ */
+export const LearningDirectionEntrySchema = z.object({
+  discipline: RoboticsDisciplineSchema,
+  note: z.string().min(1).optional(),
+  crossSkillItems: z.array(z.string().min(1)).min(1),
+});
+export type LearningDirectionEntry = z.infer<typeof LearningDirectionEntrySchema>;
+
+/**
+ * 跨工种学习地图 v1（product-redefine §5 用户口述原文整理）。顺序即原文出现顺序：
+ * 电控 → 电路 → 机械 → 视觉。**静态资产，不随治理快照变化**——console 侧按 discipline
+ * 把队内实时缺口（`DirectionGap`）挂到对应条目上，地图本身恒定。
+ */
+export const ROBOTICS_LEARNING_MAP: readonly LearningDirectionEntry[] = [
+  {
+    discipline: 'ec',
+    note: '学得最多',
+    crossSkillItems: [
+      '学机械结构——判断机构对电控好不好搞',
+      '拿 demo 图提前敲代码，而不是看到实物再慢慢试',
+      '可额外多学，防止边界收窄',
+    ],
+  },
+  {
+    discipline: 'electrical',
+    crossSkillItems: [
+      '知道机械怎么做以及怎么走线——哪些线可以走在铝管里、哪些外露、哪些地方防短路',
+      '额外学一些电控，防止变成接线员',
+    ],
+  },
+  {
+    discipline: 'mechanical',
+    note: '相对朴素但要深',
+    crossSkillItems: [
+      '对物理空间有更深理解，知道机械结构的极限',
+      '与电路对接时哪些地方留孔，同时不影响结构强度',
+    ],
+  },
+  {
+    discipline: 'vision',
+    crossSkillItems: ['知道电控的极限', '知道模拟和现实的区别，防止变成大号 MCP'],
+  },
+] as const;
+
+/**
+ * AI 边界横切列（product-redefine §5：「各工种通用」，非某一工种专属细则）——用户只给了一条
+ * 通用原则 + 一个例子，**不逐工种编造具体内容**：每个工种各自问自己「AI 在本领域能替什么 /
+ * 我必须懂到能给 AI 验货的程度」，例子（写测试用例）是通用说明，非电控专属。
+ */
+export const AiBoundaryCrosscutSchema = z.object({
+  summary: z.string().min(1),
+  example: z.string().min(1),
+});
+export type AiBoundaryCrosscut = z.infer<typeof AiBoundaryCrosscutSchema>;
+
+export const AI_BOUNDARY_CROSSCUT: AiBoundaryCrosscut = {
+  summary: 'AI 在本领域能替什么、我必须懂到能给 AI 验货的程度——各工种通用，不分方向。',
+  example: '例：AI 写测试用例大幅提效，但验收它需要的正是专业知识。',
+};
+
+/**
+ * 学习方向的静态种子缺口：不经 `deriveDirectionGaps`（无对应 open Need）派生，而是
+ * baseline 模板里程碑（`baseline.ts:TEMPLATE_NOTE_M1` / `id:'m-m1'`）本就写明的已知缺口——
+ * 「sim2real 现状没人研究」（baseline-design.md §2 寒假段 + §6 待办明文，本步落地为第一条
+ * 真实缺口种子）。`discipline:null` 表示无法归到单一工种（sim2real 是电控主导但非独占）；
+ * 本步先归 `'ec'`（仿真调试的直接责任方），后续若产生真实 Need 应改走派生路径、本条件退场。
+ */
+export const LearningSeedGapSchema = z.object({
+  id: z.string().min(1),
+  discipline: RoboticsDisciplineSchema.nullable(),
+  statement: z.string().min(1),
+  milestoneRef: z.string().min(1),
+});
+export type LearningSeedGap = z.infer<typeof LearningSeedGapSchema>;
+
+export const ROBOTICS_LEARNING_SEED_GAPS: readonly LearningSeedGap[] = [
+  {
+    id: 'seed-sim2real',
+    discipline: 'ec',
+    statement:
+      'sim2real（仿真环境）现状没人研究——寒假里程碑「M1：sim2real 环境可用」的前置缺口，暂无人认领。',
+    milestoneRef: 'm-m1',
+  },
+] as const;
