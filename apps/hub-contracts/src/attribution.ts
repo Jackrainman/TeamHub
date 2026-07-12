@@ -426,6 +426,8 @@ export function toDepGraphView(
       ownerLabel: task.ownerId
         ? (membersById.get(task.ownerId)?.displayName ?? null)
         : null,
+      // MY-VIEW：机读键，与 ownerLabel 同一份数据（DepNodeSchema 注释）。
+      ownerId: task.ownerId ?? null,
       status,
       blockedByTaskId: status === 'blockedIdle' && root ? root.id : null,
       blockedByLabel: status === 'blockedIdle' && root ? root.title : null,

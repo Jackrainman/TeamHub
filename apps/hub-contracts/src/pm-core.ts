@@ -357,6 +357,11 @@ export const DepNodeSchema = z.object({
   // toDepGraphView 投影读 task.targetLabel ?? task.robotTarget，无机器人租户两者皆缺时填 null。
   robotTarget: z.string().min(1).nullable(),
   ownerLabel: z.string().min(1).nullable(), // 仅显示名，无效率/完成量
+  // MY-VIEW（product-redefine §4.3）：机读键，供本人视图按 session memberId 精确匹配
+  // "我负责的任务"（displayName 可能重名、不可靠）。非新增泄漏——ownerId 所指向的人本就已由
+  // ownerLabel 显名暴露给第三方读视图，这里只是把同一公开事实换成机器可比对的键；不新增任何
+  // 完成量/效率维度（I0）。
+  ownerId: z.string().min(1).nullable(),
   status: DepNodeStatusSchema,
   blockedByTaskId: z.string().min(1).nullable(),
   blockedByLabel: z.string().min(1).nullable(), // "R1 底盘调试"（任务名，非人名）

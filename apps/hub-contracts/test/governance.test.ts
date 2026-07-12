@@ -95,6 +95,18 @@ describe('toDepGraphView — 两种空闲结构可分', () => {
     expect(titles).toContain('去年底盘中断笔记');
   });
 
+  // MY-VIEW（product-redefine §4.3）：ownerId 机读键随 toDepGraphView 正确投影，
+  // 与既有 ownerLabel 同源（fixture 里 ownerId='m-visionC' → ownerLabel='视觉C'）。
+  test('DepNode.ownerId 与 Task.ownerId 一致，供本人视图精确匹配（非人名字符串比对）', () => {
+    const n = byId.get('t-r1-vision-stream')!;
+    expect(n.ownerId).toBe('m-visionC');
+    expect(n.ownerLabel).toBe('视觉C');
+    // 无主任务（总联调，ownerId: null）→ 投影仍为 null，不误配进任何人的视图
+    const unowned = byId.get('t-r1-integration')!;
+    expect(unowned.ownerId).toBeNull();
+    expect(unowned.ownerLabel).toBeNull();
+  });
+
   test('机械D = freeIdle（自由空闲，与被卡区分开）', () => {
     expect(byId.get('t-r2-spare')!.status).toBe('freeIdle');
   });
