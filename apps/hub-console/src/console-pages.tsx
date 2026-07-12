@@ -9,7 +9,7 @@ import {
   LayoutGrid,
   Settings,
 } from 'lucide-react';
-import type { ModuleId, TenantConfig } from '@teamhub/hub-contracts';
+import type { IdentityMode, ModuleId, SessionIdentity, TenantConfig } from '@teamhub/hub-contracts';
 import { isModuleEnabled } from '@teamhub/hub-contracts';
 import type { HubApiClient } from './api/client';
 import type { OverviewSnapshot } from './api/schemas/system';
@@ -56,6 +56,20 @@ export type ConsolePage =
   | 'gaps'
   | 'settings';
 
+/**
+ * 身份槽（IDENTITY-LITE，I2 console 接线，product-redefine §4.2 / 审计 §9-②）：由 App.tsx 据
+ * `GET /api/session` 组装。`mode==='anonymous'` 时 `session` 恒 null（今天的形态，各页不必对此
+ * 分支）；`mode==='identity'` 时 `session` 为当前登录人（未登录 = null）。`canWrite` 是写门预计算：
+ * 匿名模式恒 true（现状不变）、身份模式仅登录后 true——各写表单据此禁用提交 + 给「登录后可写」
+ * 提示，不改读侧（读一切照常，红线 I0 例外之外不新增按人过滤的读口）。
+ */
+export interface PageIdentityCtx {
+  mode: IdentityMode;
+  session: SessionIdentity | null;
+  isLoading: boolean;
+  canWrite: boolean;
+}
+
 /** 页面渲染所需的共享上下文，由 App.tsx 按当前 apiClient/路由态组装。 */
 export interface PageRenderCtx {
   apiClient: HubApiClient;
@@ -66,6 +80,7 @@ export interface PageRenderCtx {
     error: unknown;
     data: OverviewSnapshot | undefined;
   };
+  identity: PageIdentityCtx;
 }
 
 export interface ConsolePageDescriptor {

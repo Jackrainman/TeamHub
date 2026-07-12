@@ -8,11 +8,14 @@ import {
   CONSOLE_PAGES,
   filterConsolePages,
   type ConsolePage,
+  type PageIdentityCtx,
   type PageRenderCtx,
 } from './console-pages';
 import { setVocabularyOverrides, useI18n } from './i18n';
 import { ROBOTICS_VOCAB_OVERRIDES } from './verticals/robotics';
 import { APIBASE_KEY, WRITE_TOKEN_KEY } from './constants';
+import { IdentityBar } from './features/identity/IdentityBar';
+import { canWriteIdentity, identityCacheKey } from './features/identity/identity-utils';
 // 单一真实后端：queryKey 维度保留稳定常量（曾区分 mock/real，现恒为 real），
 // 避免改动各页 queryKey 形状。
 const SOURCE = 'real';
@@ -59,8 +62,26 @@ export function App() {
     [],
   );
 
+  // 轻身份（IDENTITY-LITE，I2 console 接线）：两模式均可读，缺省 anonymous（GET /api/session
+  // 报当前部署模式 + 当前身份），前端据此判断要不要渲染登录 UI / 收紧写门——不是另开一个开关。
+  const sessionQuery = useQuery({
+    queryKey: ['session'],
+    queryFn: () => apiClient.getSession(),
+  });
+  const identityMode = sessionQuery.data?.mode ?? 'anonymous';
+  const identitySession = sessionQuery.data?.session ?? null;
+  const identity: PageIdentityCtx = {
+    mode: identityMode,
+    session: identitySession,
+    isLoading: sessionQuery.isLoading,
+    canWrite: canWriteIdentity(identityMode, identitySession),
+  };
+
+  // queryKey 身份维度（product-redefine §9-②）：拼进当前登录人 memberId（未登录/匿名模式归一
+  // 'anon'）——身份切换后天然落进不同缓存桶，不会读到切换前那个人缓存下的数据。IdentityBar 登录/
+  // 登出成功后另 invalidateQueries() 兜底刷新其它未按此维度分桶的查询（见该组件注释）。
   const overviewQuery = useQuery({
-    queryKey: ['hub-overview', SOURCE],
+    queryKey: ['hub-overview', SOURCE, identityCacheKey(identitySession)],
     queryFn: () => apiClient.getOverview(),
   });
 
@@ -79,6 +100,7 @@ export function App() {
       error: overviewQuery.error,
       data: overviewQuery.data,
     },
+    identity,
   };
 
   return (
@@ -94,17 +116,21 @@ export function App() {
                 : null}
           </h1>
         </div>
-        {page === 'overview' ? (
-          <button
-            className="icon-button"
-            type="button"
-            onClick={() => void overviewQuery.refetch()}
-            aria-label={t('toolbar.refresh')}
-            title={t('toolbar.refresh')}
-          >
-            <RefreshCw aria-hidden="true" size={18} />
-          </button>
-        ) : null}
+        <div className="console-toolbar__actions">
+          {/* 匿名模式（缺省）下本组件零 UI（return null），界面与今天逐字一致。 */}
+          <IdentityBar client={apiClient} mode={identity.mode} session={identity.session} />
+          {page === 'overview' ? (
+            <button
+              className="icon-button"
+              type="button"
+              onClick={() => void overviewQuery.refetch()}
+              aria-label={t('toolbar.refresh')}
+              title={t('toolbar.refresh')}
+            >
+              <RefreshCw aria-hidden="true" size={18} />
+            </button>
+          ) : null}
+        </div>
       </div>
       {activePage ? (
         activePage.render(renderCtx)

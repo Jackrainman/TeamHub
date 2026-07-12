@@ -1,0 +1,151 @@
+import { useState, type FormEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { LogIn, LogOut } from 'lucide-react';
+import type { IdentityMode, SessionIdentity } from '@teamhub/hub-contracts';
+import type { HubApiClient } from '../../api/client';
+import { useI18n } from '../../i18n';
+import { Select } from '../../components/Select';
+import { FormBanner } from '../../components/FormBanner';
+import { memberOptionLabel } from './identity-utils';
+
+/**
+ * 顶部工具条身份挂载点（IDENTITY-LITE，I2 console 接线，product-redefine §4.2）。
+ *
+ * **匿名模式（`mode!=='identity'`）零 UI**——本组件直接 `return null`，与「匿名模式 UI 零变化」
+ * 红线对齐，不额外加任何 hook 副作用（下方几个 hook 在匿名模式仍会跑，但 `enabled` 全关，
+ * 零网络请求，符合 Rules of Hooks 的同时不产生可观察副作用）。
+ *
+ * 身份模式：未登录 → 一个「登录」按钮，点开变成「选人 + 可选 PIN」内联小表单；已登录 → 显示
+ * 当前登录人 displayName + 登出按钮。登录/登出成功后：① 用响应直接写回 `['session']` 缓存（不留
+ * 登录成功但界面还没刷新的空档）② `invalidateQueries()` 使全站缓存跟着重新拉取——身份切换后
+ * 不会吃到切换前那个人缓存下的数据（product-redefine §9-②）。
+ */
+export function IdentityBar({
+  client,
+  mode,
+  session,
+}: {
+  client: HubApiClient;
+  mode: IdentityMode;
+  session: SessionIdentity | null;
+}) {
+  const { t } = useI18n();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [memberId, setMemberId] = useState('');
+  const [pin, setPin] = useState('');
+
+  // 成员候选只在「登录表单已展开」时才拉，未开就不发请求（登出态/已登录态都不需要）。
+  const membersQuery = useQuery({
+    queryKey: ['members', 'identity-bar'],
+    queryFn: () => client.getMembers(),
+    enabled: mode === 'identity' && open,
+  });
+
+  function onIdentityChanged(next: { mode: IdentityMode; session: SessionIdentity | null }) {
+    queryClient.setQueryData(['session'], next);
+    // 身份切换：全站缓存作废重拉，杜绝「登录后仍显示上一个人视角数据」的残留态。
+    void queryClient.invalidateQueries();
+  }
+
+  const loginMutation = useMutation({
+    mutationFn: () => client.login({ memberId, pin: pin.trim() || undefined }),
+    onSuccess: (data) => {
+      onIdentityChanged(data);
+      setOpen(false);
+      setMemberId('');
+      setPin('');
+    },
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: () => client.logout(),
+    onSuccess: (data) => onIdentityChanged(data),
+  });
+
+  // 匿名模式：整个身份模块不启用，挂载点结构上不渲染任何东西（非灰置禁用）。
+  if (mode !== 'identity') return null;
+
+  if (session) {
+    return (
+      <div className="identity-bar" aria-label={t('identity.bar.aria')}>
+        <span className="identity-bar__name">{session.displayName}</span>
+        <button
+          type="button"
+          className="icon-button"
+          onClick={() => logoutMutation.mutate()}
+          disabled={logoutMutation.isPending}
+          aria-label={t('identity.logout')}
+          title={t('identity.logout')}
+        >
+          <LogOut aria-hidden="true" size={16} />
+        </button>
+      </div>
+    );
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="identity-bar__login-trigger"
+        onClick={() => setOpen(true)}
+      >
+        <LogIn aria-hidden="true" size={15} /> {t('identity.login.open')}
+      </button>
+    );
+  }
+
+  const members = membersQuery.data?.members ?? [];
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!memberId || loginMutation.isPending) return;
+    loginMutation.mutate();
+  }
+
+  return (
+    <form className="identity-bar identity-bar--form" onSubmit={submit}>
+      <Select
+        value={memberId}
+        onChange={setMemberId}
+        options={members.map((m) => m.id)}
+        renderOption={(id) => memberOptionLabel(members, id)}
+        placeholder={t('identity.login.selectMember')}
+        ariaLabel={t('identity.login.selectMember')}
+      />
+      <input
+        type="password"
+        className="identity-bar__pin"
+        value={pin}
+        onChange={(e) => setPin(e.target.value)}
+        placeholder={t('identity.login.pinPlaceholder')}
+        aria-label={t('identity.login.pinPlaceholder')}
+        autoComplete="off"
+      />
+      <button
+        type="submit"
+        className="identity-bar__submit"
+        disabled={!memberId || loginMutation.isPending}
+      >
+        {loginMutation.isPending
+          ? t('identity.login.submitting')
+          : t('identity.login.submit')}
+      </button>
+      <button
+        type="button"
+        className="identity-bar__cancel"
+        onClick={() => {
+          setOpen(false);
+          setMemberId('');
+          setPin('');
+        }}
+      >
+        {t('identity.login.cancel')}
+      </button>
+      {loginMutation.isError ? (
+        <FormBanner kind="err" message={t('identity.login.error')} className="identity-bar__error" />
+      ) : null}
+    </form>
+  );
+}

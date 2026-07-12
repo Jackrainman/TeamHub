@@ -354,6 +354,67 @@ button,
   cursor: pointer;
 }
 
+/* 工具条右侧动作组（IDENTITY-LITE，I2）：身份挂载点 + 刷新按钮共用一个 flex 容器，
+   匿名模式下 IdentityBar 不渲染任何东西，本容器可能为空——空 flex 容器零尺寸，视觉零变化。 */
+.console-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 身份挂载点（IDENTITY-LITE，I2）：仅 identity 模式渲染，匿名模式零 UI（组件层 return null）。 */
+.identity-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.identity-bar__name {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}
+
+.identity-bar__login-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-base);
+  cursor: pointer;
+}
+
+.identity-bar--form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.identity-bar__pin {
+  width: 120px;
+}
+
+.identity-bar__submit,
+.identity-bar__cancel {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.identity-bar__error {
+  flex-basis: 100%;
+}
+
 .overview-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);

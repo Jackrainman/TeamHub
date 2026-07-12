@@ -37,6 +37,18 @@ const zh = {
   // 赛季下拉「其它/手填」兜底（SeasonSelect，表单一致 D-077）
   'season.otherHint': '输入赛季后两位，如 22',
 
+  // 轻身份登录（IDENTITY-LITE，I2 console 接线）：仅 identity 模式渲染，匿名模式（缺省）零 UI。
+  'identity.bar.aria': '当前登录身份',
+  'identity.login.open': '登录',
+  'identity.logout': '登出',
+  'identity.login.selectMember': '选择成员',
+  'identity.login.pinPlaceholder': 'PIN（可留空）',
+  'identity.login.submit': '登录',
+  'identity.login.submitting': '登录中…',
+  'identity.login.cancel': '取消',
+  'identity.login.error': '登录失败，请检查所选人员与 PIN。',
+  'identity.writeHint': '登录后才能提交，先在右上角登录。',
+
   // 设置页
   'toolbar.title.settings': '设置',
   'settings.section.language': '界面语言',
@@ -808,6 +820,18 @@ const en: Record<TranslationKey, string> = {
   'project.view.graph': 'Dependencies',
   // Season dropdown "other / type-in" fallback (SeasonSelect, form consistency D-077)
   'season.otherHint': 'Last two digits, e.g. 22',
+
+  // Lightweight login (IDENTITY-LITE, I2 console wiring): identity mode only; anonymous mode (default) has zero UI.
+  'identity.bar.aria': 'Current logged-in identity',
+  'identity.login.open': 'Log in',
+  'identity.logout': 'Log out',
+  'identity.login.selectMember': 'Select member',
+  'identity.login.pinPlaceholder': 'PIN (optional)',
+  'identity.login.submit': 'Log in',
+  'identity.login.submitting': 'Logging in…',
+  'identity.login.cancel': 'Cancel',
+  'identity.login.error': 'Login failed. Check the selected member and PIN.',
+  'identity.writeHint': 'Log in before submitting — use the login button top-right.',
 
   'toolbar.title.settings': 'Settings',
   'settings.section.language': 'Language',

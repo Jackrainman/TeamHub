@@ -10,9 +10,11 @@ import {
   GroupGapsResponseSchema,
   GroupsResponseSchema,
   HubEventsResponseSchema,
+  MembersResponseSchema,
   PresenceScheduleResponseSchema,
   ResourceSessionsResponseSchema,
   SeasonsResponseSchema,
+  SessionResponseSchema,
   SharedResourcesResponseSchema,
   TasksResponseSchema,
   BaselineResponseSchema,
@@ -21,9 +23,12 @@ import {
   type DepGraph,
   type Group,
   type GroupGapsResponse,
+  type MemberPublic,
   type PresenceScheduleResponse,
   type ResourceSessionsResponse,
   type Season,
+  type SessionRequest,
+  type SessionResponse,
   type SharedResourcesResponse,
   type Task,
   type TaskStatus,
@@ -148,6 +153,15 @@ export interface HubApiClient {
   // 组只读列表（PHASE2-CONSOLE-ASSEMBLY）：TodayPlanTable「负责组」下拉的数据源，
   // 替掉原先借 dep-graph 节点反查组名的临时办法（无任务的组不会漏进下拉）。
   getGroups(): Promise<{ groups: Group[] }>;
+  // 轻身份（IDENTITY-LITE，I2 console 接线）：GET 两模式均可读（报当前部署模式 + 当前身份，未登录/
+  // 匿名模式 session 恒 null）；POST 登录（选人 + 可选 PIN）；DELETE 登出。匿名模式下 POST/DELETE
+  // 服务端 404（前端只在 mode==='identity' 才渲染登录入口，不主动调用）。
+  getSession(): Promise<SessionResponse>;
+  login(req: SessionRequest): Promise<SessionResponse>;
+  logout(): Promise<SessionResponse>;
+  // 成员名册只读（登录选人 + 任务 ownerId 选人共同数据源）。剥 pinHash（MemberPublicSchema，密钥纪律）；
+  // 两模式均可读（名册非隐私，读侧全开，同 I0 先例）。
+  getMembers(): Promise<{ members: MemberPublic[] }>;
   // 图纸提交日志/版本时间线（档案页）：与总览第 7 个 fetch 同源 /api/artifacts，读治理快照。
   getArtifacts(): Promise<ArtifactsResponse>;
   // 写侧（PM 录入簇 + KB 结案）。I0：confirmedBy 随依赖/需求请求传入但读视图永不回显；
@@ -362,6 +376,31 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
     },
     async getGroups() {
       return fetchJson(`${baseUrl}/api/groups`, GroupsResponseSchema, fetcher);
+    },
+    async getSession() {
+      return fetchJson(`${baseUrl}/api/session`, SessionResponseSchema, fetcher);
+    },
+    async login(req: SessionRequest) {
+      return postJson(
+        `${baseUrl}/api/session`,
+        req,
+        SessionResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async logout() {
+      return sendJson(
+        'DELETE',
+        `${baseUrl}/api/session`,
+        undefined,
+        SessionResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async getMembers() {
+      return fetchJson(`${baseUrl}/api/members`, MembersResponseSchema, fetcher);
     },
     async getArtifacts() {
       return fetchJson(
