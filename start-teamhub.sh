@@ -15,6 +15,11 @@
 #   TEAMHUB_GOV_DATA_FILE 治理快照落盘文件（默认 ~/teamhub-data/gov.json，重启不丢；PM 任务/依赖/图纸提交日志/
 #                         结案知识节点）。**漏设则 main.ts 回落 InMemoryGovStore、每次重启清回演示 fixture**——
 #                         D-061 治理落盘在真实启动路径上失效。本脚本默认接好，与 KB 落盘同纪律。
+#   TEAMHUB_GOV_BACKEND   治理后端（SS3 SQLite 增量迁移）。**默认空 = JSON（现状零变化，走 TEAMHUB_GOV_DATA_FILE）**；
+#                         设 sqlite → 走 SqliteGovStore（node24 内置 node:sqlite，零原生依赖），须同时设
+#                         TEAMHUB_GOV_SQLITE_FILE。迁移既有 gov.json：scripts/migrate-gov-to-sqlite.mjs。
+#   TEAMHUB_GOV_SQLITE_FILE  SQLite 库文件（仅 TEAMHUB_GOV_BACKEND=sqlite 时生效，默认 ~/teamhub-data/gov.sqlite）。
+#                         库不存在按 demoSeed 落种子；已迁移/既有库原样打开（schema 版本过高即 fail-closed 拒开）。
 #   TEAMHUB_ARTIFACT_FILES_DIR  归档物（图纸）文件落盘目录（默认 ~/teamhub-data/artifacts，重启不丢）。
 #                         漏设则上传/下载端点恒 404「未配置归档物文件目录」。字节不进 git（D-025）、只在此卷。
 #   TEAMHUB_INV_DATA_FILE 库存/BOM 落盘文件（默认 ~/teamhub-data/inventory.json，重启不丢；盘点/拆装/
@@ -43,6 +48,9 @@ HUB_HOST="${HUB_HOST:-127.0.0.1}"
 HUB_PORT="${HUB_PORT:-4177}"
 TEAMHUB_KB_DATA_FILE="${TEAMHUB_KB_DATA_FILE:-${HOME}/teamhub-data/kb.json}"
 TEAMHUB_GOV_DATA_FILE="${TEAMHUB_GOV_DATA_FILE:-${HOME}/teamhub-data/gov.json}"
+# SS3 SQLite（增量迁移）：默认空 = JSON 现状零变化；设 sqlite 才切 SqliteGovStore（须配 TEAMHUB_GOV_SQLITE_FILE）。
+TEAMHUB_GOV_BACKEND="${TEAMHUB_GOV_BACKEND:-}"
+TEAMHUB_GOV_SQLITE_FILE="${TEAMHUB_GOV_SQLITE_FILE:-${HOME}/teamhub-data/gov.sqlite}"
 TEAMHUB_INV_DATA_FILE="${TEAMHUB_INV_DATA_FILE:-${HOME}/teamhub-data/inventory.json}"
 TEAMHUB_BASELINE_DATA_FILE="${TEAMHUB_BASELINE_DATA_FILE:-${HOME}/teamhub-data/baseline.json}"
 TEAMHUB_ARTIFACT_FILES_DIR="${TEAMHUB_ARTIFACT_FILES_DIR:-${HOME}/teamhub-data/artifacts}"
@@ -84,7 +92,7 @@ done
 
 # 语料 / 治理 / 库存 / 基准线 / 归档物落盘目录就位（server 启动即读：KB 召回 + PM 录入 + 库存盘点 +
 # 倒排基准线 + 图纸文件上传下载，重启不丢）
-mkdir -p "$(dirname "${TEAMHUB_KB_DATA_FILE}")" "$(dirname "${TEAMHUB_GOV_DATA_FILE}")" "$(dirname "${TEAMHUB_INV_DATA_FILE}")" "$(dirname "${TEAMHUB_BASELINE_DATA_FILE}")" "${TEAMHUB_ARTIFACT_FILES_DIR}"
+mkdir -p "$(dirname "${TEAMHUB_KB_DATA_FILE}")" "$(dirname "${TEAMHUB_GOV_DATA_FILE}")" "$(dirname "${TEAMHUB_GOV_SQLITE_FILE}")" "$(dirname "${TEAMHUB_INV_DATA_FILE}")" "$(dirname "${TEAMHUB_BASELINE_DATA_FILE}")" "${TEAMHUB_ARTIFACT_FILES_DIR}"
 
 if [[ "${SKIP_BUILD}" != "1" ]]; then
   echo "[1/2] 构建 console（产出静态站 dist/）…"
@@ -95,12 +103,16 @@ fi
 
 # console 静态产物交给 server 单端口托管
 export TEAMHUB_CONSOLE_DIST_DIR="${CONSOLE_DIR}/dist"
-export TEAMHUB_KB_DATA_FILE TEAMHUB_GOV_DATA_FILE TEAMHUB_INV_DATA_FILE TEAMHUB_BASELINE_DATA_FILE TEAMHUB_ARTIFACT_FILES_DIR HUB_HOST HUB_PORT TEAMHUB_WRITE_TOKEN TEAMHUB_BUILD_ID TEAMHUB_IDENTITY_MODE
+export TEAMHUB_KB_DATA_FILE TEAMHUB_GOV_DATA_FILE TEAMHUB_INV_DATA_FILE TEAMHUB_BASELINE_DATA_FILE TEAMHUB_ARTIFACT_FILES_DIR HUB_HOST HUB_PORT TEAMHUB_WRITE_TOKEN TEAMHUB_BUILD_ID TEAMHUB_IDENTITY_MODE TEAMHUB_GOV_BACKEND TEAMHUB_GOV_SQLITE_FILE
 
 echo "──────────────────────────────────────────────"
 echo " Team Hub v${TEAMHUB_VERSION} 启动 → http://${HUB_HOST}:${HUB_PORT}  (console + API 同端口)"
 echo " 语料文件：${TEAMHUB_KB_DATA_FILE}"
-echo " 治理文件：${TEAMHUB_GOV_DATA_FILE}（PM/图纸/结案重启不丢）"
+if [[ "${TEAMHUB_GOV_BACKEND}" == "sqlite" ]]; then
+  echo " 治理后端：SQLite → ${TEAMHUB_GOV_SQLITE_FILE}（node:sqlite，PM/图纸/结案重启不丢）"
+else
+  echo " 治理文件：${TEAMHUB_GOV_DATA_FILE}（PM/图纸/结案重启不丢；JSON 后端，默认）"
+fi
 echo " 库存文件：${TEAMHUB_INV_DATA_FILE}（盘点/拆装/快记重启不丢）"
 echo " 基准线文件：${TEAMHUB_BASELINE_DATA_FILE}（队长手写覆盖/验证门过门重启不丢）"
 echo " 归档物目录：${TEAMHUB_ARTIFACT_FILES_DIR}（图纸文件上传下载，重启不丢）"
