@@ -20,6 +20,20 @@ import type {
 } from '@teamhub/hub-contracts';
 import { FixedClock } from '../clock.js';
 import type { Clock } from '../clock.js';
+import {
+  ARTIFACT_SUBMITTED_VIA,
+  DEPENDENCY_INITIAL_STATUS,
+  DEPENDENCY_WAIVED_STATUS,
+  MANUAL_TASK_STATUS_SOURCE,
+  MEMBER_PIN_UPDATED_BY,
+  NEED_INITIAL_STATUS,
+  RELAY_HANDOFF_SOURCE,
+  RESOURCE_DEFAULT_STATUS,
+  RESOURCE_SESSION_SOURCE,
+  RESOURCE_STATUS_SOURCE,
+  TASK_DEFAULT_STATUS,
+  TASK_DEFAULT_STATUS_SOURCE,
+} from './clamp-defaults.js';
 import { cloneArrayFields } from './clone-snapshot.js';
 import type {
   ArtifactDraft,
@@ -35,6 +49,8 @@ import type {
   ResourceStatusPatch,
   TaskDraft,
 } from './gov-store.js';
+import { createIdSequence, nextSequentialId } from './id-sequence.js';
+import type { IdSequence } from './id-sequence.js';
 
 /**
  * 治理快照全数组字段键（写方法可能 push/splice 的集合）——构造期克隆隔离 + getSnapshot 浅拷贝共用。
@@ -63,17 +79,19 @@ export class InMemoryGovStore implements GovStore {
   private readonly resourceSessions: ResourceSession[];
   // 接力交接线（R1）：与 resourceSessions 同走内存、不落盘（D-029）。seed=空（队长在画布拉线产生）。
   private readonly relayHandoffs: RelayHandoff[];
-  // L1：单调自增计数器（构造期初始化为对应 seed 数组 length）。createX 用 `++this.xSeq` 生成 id，
+  // L1：单调自增计数器（构造期初始化为对应 seed 数组 length），实现抽到 id-sequence.ts（STORE-SPLIT-SQLITE，
+  // 纯函数模块，mock/file/sqlite 三实现共享同一份策略）。createX 用 `nextSequentialId(prefix, seq)` 生成 id，
   // 替代 `数组.length + 1`——后者在未来加 delete 后会复用已删 id、静默撞 FK；单调计数器永不回退、杜绝此脆弱性。
   // 当前无 delete 故纯防御性；纯内部 id 派生，响应 / 落盘格式不变。
-  private taskSeq: number;
-  private dependencySeq: number;
-  private needSeq: number;
-  private knowledgeNodeSeq: number;
-  private artifactSeq: number;
-  private resourceSeq: number;
-  private resourceSessionSeq: number;
-  private relayHandoffSeq: number;
+  private readonly taskSeq: IdSequence;
+  private readonly dependencySeq: IdSequence;
+  private readonly needSeq: IdSequence;
+  private readonly knowledgeNodeSeq: IdSequence;
+  private readonly artifactSeq: IdSequence;
+  // 非 readonly：resyncResourceSeq() 载入磁盘 resources.json 后需换成新起点的序列（见该方法）。
+  private resourceSeq: IdSequence;
+  private readonly resourceSessionSeq: IdSequence;
+  private readonly relayHandoffSeq: IdSequence;
 
   constructor(
     seed: GovernanceSnapshot = governanceScenarioFixture,
@@ -98,14 +116,14 @@ export class InMemoryGovStore implements GovStore {
     }));
     // L1：计数器从 seed 数组 length 起步——首条 create 得 `…-new-${length+1}`，与原 length+1 派生
     // 在零删除时逐字等价（无 id 格式回归），但此后只增不减。
-    this.taskSeq = this.snapshot.tasks.length;
-    this.dependencySeq = this.snapshot.dependencies.length;
-    this.needSeq = this.snapshot.needs.length;
-    this.knowledgeNodeSeq = this.snapshot.knowledgeNodes.length;
-    this.artifactSeq = this.snapshot.artifacts.length;
-    this.resourceSeq = this.resources.length;
-    this.resourceSessionSeq = this.resourceSessions.length;
-    this.relayHandoffSeq = this.relayHandoffs.length;
+    this.taskSeq = createIdSequence(this.snapshot.tasks.length);
+    this.dependencySeq = createIdSequence(this.snapshot.dependencies.length);
+    this.needSeq = createIdSequence(this.snapshot.needs.length);
+    this.knowledgeNodeSeq = createIdSequence(this.snapshot.knowledgeNodes.length);
+    this.artifactSeq = createIdSequence(this.snapshot.artifacts.length);
+    this.resourceSeq = createIdSequence(this.resources.length);
+    this.resourceSessionSeq = createIdSequence(this.resourceSessions.length);
+    this.relayHandoffSeq = createIdSequence(this.relayHandoffs.length);
   }
 
   async getSnapshot(): Promise<GovernanceSnapshot> {
@@ -149,7 +167,9 @@ export class InMemoryGovStore implements GovStore {
         if (n > max) max = n;
       }
     }
-    this.resourceSeq = max;
+    // createIdSequence 是纯工厂函数（见 id-sequence.ts）：换新起点即换一个新的序列对象，
+    // 而非在旧对象上 mutate 内部计数器（IdSequence 本身不开 reset 口子，只增不减的纪律保持不变）。
+    this.resourceSeq = createIdSequence(max);
   }
 
   /**
@@ -162,9 +182,9 @@ export class InMemoryGovStore implements GovStore {
     const now = this.clock.now().toISOString();
     const task: Task = {
       ...draft,
-      id: `task-new-${++this.taskSeq}`,
-      status: draft.status ?? 'pending',
-      statusSource: draft.statusSource ?? 'console',
+      id: nextSequentialId('task-new', this.taskSeq),
+      status: draft.status ?? TASK_DEFAULT_STATUS,
+      statusSource: draft.statusSource ?? TASK_DEFAULT_STATUS_SOURCE,
       lastProgressAt: null,
       createdAt: now,
       updatedAt: now,
@@ -183,8 +203,8 @@ export class InMemoryGovStore implements GovStore {
     const now = this.clock.now().toISOString();
     const dependency: Dependency = {
       ...draft,
-      id: `dep-new-${++this.dependencySeq}`,
-      status: 'active',
+      id: nextSequentialId('dep-new', this.dependencySeq),
+      status: DEPENDENCY_INITIAL_STATUS,
       createdAt: now,
       updatedAt: now,
     };
@@ -201,8 +221,8 @@ export class InMemoryGovStore implements GovStore {
     const now = this.clock.now().toISOString();
     const need: Need = {
       ...draft,
-      id: `need-new-${++this.needSeq}`,
-      status: 'open',
+      id: nextSequentialId('need-new', this.needSeq),
+      status: NEED_INITIAL_STATUS,
       claimedByMemberId: null,
       openedAt: now,
       escalatedAt: null,
@@ -230,7 +250,7 @@ export class InMemoryGovStore implements GovStore {
     }
     const node: KnowledgeNode = {
       ...draft,
-      id: `kn-cl-${++this.knowledgeNodeSeq}`,
+      id: nextSequentialId('kn-cl', this.knowledgeNodeSeq),
       createdAt: now,
     };
     this.snapshot.knowledgeNodes.push(node);
@@ -247,8 +267,8 @@ export class InMemoryGovStore implements GovStore {
     const now = this.clock.now().toISOString();
     const artifact: ArtifactRef = {
       ...draft,
-      id: `artifact-new-${++this.artifactSeq}`,
-      submittedVia: 'console',
+      id: nextSequentialId('artifact-new', this.artifactSeq),
+      submittedVia: ARTIFACT_SUBMITTED_VIA,
       createdAt: now,
     };
     this.snapshot.artifacts.push(artifact);
@@ -293,10 +313,10 @@ export class InMemoryGovStore implements GovStore {
         : undefined;
     const resource: SharedResource = {
       ...draft,
-      id: `res-new-${++this.resourceSeq}`,
-      status: 'available',
+      id: nextSequentialId('res-new', this.resourceSeq),
+      status: RESOURCE_DEFAULT_STATUS,
       statusReason: null,
-      statusSource: 'console',
+      statusSource: RESOURCE_STATUS_SOURCE,
       displayCode,
       updatedAt: now,
     };
@@ -323,7 +343,7 @@ export class InMemoryGovStore implements GovStore {
       status: patch.status,
       // statusReason 可空：显式 null 清空、给值改写、未传（undefined）保留旧值。
       statusReason: patch.statusReason !== undefined ? patch.statusReason : prev.statusReason,
-      statusSource: 'console',
+      statusSource: RESOURCE_STATUS_SOURCE,
       updatedAt: now,
     };
     this.resources[idx] = updated;
@@ -375,8 +395,8 @@ export class InMemoryGovStore implements GovStore {
     const now = this.clock.now().toISOString();
     const session: ResourceSession = {
       ...draft,
-      id: `sess-new-${++this.resourceSessionSeq}`,
-      source: 'human',
+      id: nextSequentialId('sess-new', this.resourceSessionSeq),
+      source: RESOURCE_SESSION_SOURCE,
       createdAt: now,
     };
     this.resourceSessions.push(session);
@@ -395,8 +415,8 @@ export class InMemoryGovStore implements GovStore {
     const now = this.clock.now().toISOString();
     const sessions: ResourceSession[] = drafts.map((draft) => ({
       ...draft,
-      id: `sess-new-${++this.resourceSessionSeq}`,
-      source: 'human',
+      id: nextSequentialId('sess-new', this.resourceSessionSeq),
+      source: RESOURCE_SESSION_SOURCE,
       invitedMemberIds: [],
       createdAt: now,
     }));
@@ -461,8 +481,8 @@ export class InMemoryGovStore implements GovStore {
     const now = this.clock.now().toISOString();
     const handoff: RelayHandoff = {
       ...draft,
-      id: `handoff-new-${++this.relayHandoffSeq}`,
-      source: 'console',
+      id: nextSequentialId('handoff-new', this.relayHandoffSeq),
+      source: RELAY_HANDOFF_SOURCE,
       createdAt: now,
     };
     this.relayHandoffs.push(handoff);
@@ -489,7 +509,7 @@ export class InMemoryGovStore implements GovStore {
     const updated: Task = {
       ...this.snapshot.tasks[idx],
       status,
-      statusSource: 'console',
+      statusSource: MANUAL_TASK_STATUS_SOURCE,
       updatedAt: now,
     };
     this.snapshot.tasks[idx] = updated;
@@ -507,7 +527,7 @@ export class InMemoryGovStore implements GovStore {
     const now = this.clock.now().toISOString();
     const updated: Dependency = {
       ...this.snapshot.dependencies[idx],
-      status: 'waived',
+      status: DEPENDENCY_WAIVED_STATUS,
       updatedAt: now,
     };
     this.snapshot.dependencies[idx] = updated;
@@ -526,7 +546,7 @@ export class InMemoryGovStore implements GovStore {
     const updated: Member = {
       ...this.snapshot.members[idx],
       pinHash,
-      updatedBy: 'console',
+      updatedBy: MEMBER_PIN_UPDATED_BY,
       updatedAt: now,
     };
     this.snapshot.members[idx] = updated;
