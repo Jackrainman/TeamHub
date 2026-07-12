@@ -18,6 +18,7 @@ const zh = {
   // 品牌 / 导航
   'brand.subtitle.real': '真实数据 · 连服务器',
   'nav.overview': '总览',
+  'nav.myview': '我的视图',
   'nav.project': '项目',
   'nav.knowledge': '知识库',
   'nav.settings': '设置',
@@ -27,6 +28,7 @@ const zh = {
   // 顶部工具条
   'toolbar.eyebrow': 'Team Hub',
   'toolbar.title.overview': '运维总览',
+  'toolbar.title.myview': '我的视图 · 我负责且未被卡住的任务',
   'toolbar.title.project': '项目 · 看板与依赖图',
   'toolbar.title.knowledge': '战队知识库 · 相似检索 · 跨赛季召回',
   'toolbar.refresh': '刷新总览',
@@ -265,6 +267,21 @@ const zh = {
   'gaps.severity.pressing': '紧要',
   'gaps.card.skills': '缺的方向',
   'gaps.card.needCountLabel': '个待补缺口',
+
+  // 我的视图（MY-VIEW，product-redefine §4.3）：我负责的任务 ∩ 未被依赖卡住的；
+  // 红线5：只按当前登录人过滤，不提供选择他人的入口。
+  'myview.needIdentityMode': '我的视图需要身份模式：当前部署是匿名模式，没有"登录=某个人"的概念，无法按人过滤任务。若需要这个功能，请部署方开启身份模式后再来看。',
+  'myview.needLogin': '登录后才能看"我的视图"——点右上角"登录"选你自己。',
+  'myview.loading': '正在加载我的任务…',
+  'myview.error': '我的视图不可用（后端没连上？检查后端地址或服务是否在线）',
+  'myview.intro': '{name}，以下是你负责的任务，按"能不能现在动手"分成两组。',
+  'myview.empty.title': '你名下暂无未完成任务',
+  'myview.empty.body': '目前没有指派给你的进行中任务。',
+  'myview.section.doable': '可动手（{n}）',
+  'myview.section.blocked': '被卡住（{n}）',
+  'myview.doable.empty': '暂无可动手的任务。',
+  'myview.blocked.empty': '暂无被卡住的任务。',
+  'myview.card.unmetNeed': '还缺：{labels}',
 
   // 图纸档案页（A8）：按机构分组的提交日志/版本时间线。
   'archive.loading': '正在载入图纸档案…',
@@ -804,6 +821,7 @@ const en: Record<TranslationKey, string> = {
   'common.error401': 'Action failed: unauthorized (401). Please enter a write token in Settings and retry.',
   'brand.subtitle.real': 'Live data · connected',
   'nav.overview': 'Overview',
+  'nav.myview': 'My View',
   'nav.project': 'Project',
   'nav.knowledge': 'Knowledge',
   'nav.settings': 'Settings',
@@ -812,6 +830,7 @@ const en: Record<TranslationKey, string> = {
 
   'toolbar.eyebrow': 'Team Hub',
   'toolbar.title.overview': 'Operations Console',
+  'toolbar.title.myview': 'My View · Tasks I own that are not blocked',
   'toolbar.title.project': 'Project · Board & Dependencies',
   'toolbar.title.knowledge': 'Team Knowledge · Similar-bug Search',
   'toolbar.refresh': 'Refresh overview',
@@ -1057,6 +1076,22 @@ const en: Record<TranslationKey, string> = {
   'gaps.severity.pressing': 'Pressing',
   'gaps.card.skills': 'Needed',
   'gaps.card.needCountLabel': 'open gap(s)',
+
+  // My View (MY-VIEW, product-redefine §4.3): tasks I own that are not blocked by a dependency;
+  // guardrail 5: filters only by the current logged-in person, no way to pick someone else.
+  'myview.needIdentityMode':
+    "My View needs identity mode: this deployment is anonymous mode, which has no concept of \"logged in as someone\" — there's no way to filter tasks by person. Ask the deployment operator to switch on identity mode.",
+  'myview.needLogin': 'Log in to see My View — click "Log in" top-right and pick yourself.',
+  'myview.loading': 'Loading your tasks…',
+  'myview.error': "Can't load My View (backend offline? check the address or whether the service is up)",
+  'myview.intro': '{name}, here are the tasks you own, split by whether you can pick them up right now.',
+  'myview.empty.title': 'No open tasks assigned to you',
+  'myview.empty.body': "You don't currently have any in-progress task assigned to you.",
+  'myview.section.doable': 'Doable ({n})',
+  'myview.section.blocked': 'Blocked ({n})',
+  'myview.doable.empty': 'No doable tasks right now.',
+  'myview.blocked.empty': 'No blocked tasks right now.',
+  'myview.card.unmetNeed': 'Still missing: {labels}',
 
   'archive.loading': 'Loading artifact archive…',
   'archive.error': 'Archive unavailable — check the backend address or service status.',

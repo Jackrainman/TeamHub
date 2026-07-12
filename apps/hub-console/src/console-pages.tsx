@@ -7,6 +7,7 @@ import {
   FileStack,
   Home,
   LayoutGrid,
+  ListChecks,
   Settings,
 } from 'lucide-react';
 import type { IdentityMode, ModuleId, SessionIdentity, TenantConfig } from '@teamhub/hub-contracts';
@@ -21,6 +22,7 @@ import { ArchivePage } from './features/archive/ArchivePage';
 import { InvPage } from './features/inv/InvPage';
 import { FleetPage } from './features/fleet/FleetPage';
 import { GapsPage } from './features/gaps/GapsPage';
+import { MyViewPage } from './features/myview/MyViewPage';
 import { SettingsPage } from './features/settings/SettingsPage';
 
 /**
@@ -48,6 +50,7 @@ import { SettingsPage } from './features/settings/SettingsPage';
 
 export type ConsolePage =
   | 'overview'
+  | 'myview'
   | 'project'
   | 'knowledge'
   | 'archive'
@@ -94,7 +97,8 @@ export interface ConsolePageDescriptor {
   moduleId: ModuleId;
 }
 
-// 顺序即导航顺序（IA D-077 定案，不变）：总览 → 项目 → 知识库 → 图纸档案 → 库存 → 机器人队 → 缺人方向 → 设置。
+// 顺序即导航顺序（IA D-077 定案，8 页顺序不变；MY-VIEW 新增插在总览之后）：
+// 总览 → 我的视图 → 项目 → 知识库 → 图纸档案 → 库存 → 机器人队 → 缺人方向 → 设置。
 export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
   {
     key: 'overview',
@@ -111,6 +115,17 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
         snapshot={ctx.overview.data}
         onNavigate={ctx.onNavigate}
       />
+    ),
+  },
+  {
+    key: 'myview',
+    labelKey: 'nav.myview',
+    titleKey: 'toolbar.title.myview',
+    icon: ListChecks,
+    // pm-core：我的视图是任务(Task)的个人化投影，随 pm-core 模块一起开关，与 project/gaps 同口径。
+    moduleId: 'pm-core',
+    render: (ctx) => (
+      <MyViewPage client={ctx.apiClient} source={ctx.source} identity={ctx.identity} />
     ),
   },
   {

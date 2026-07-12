@@ -11,9 +11,20 @@ import { CONSOLE_PAGES, filterConsolePages } from '../src/console-pages';
 describe('console-pages: filterConsolePages', () => {
   const ALL_ENABLED: TenantConfig = { enabledModules: [...ALL_MODULE_IDS] };
 
-  test('全模块启用：8 页全在、顺序不变（与拆分前 master 行为等价）', () => {
+  test('全模块启用：9 页全在（含 MY-VIEW）、顺序不变', () => {
     const pages = filterConsolePages(CONSOLE_PAGES, ALL_ENABLED);
     expect(pages.map((p) => p.key)).toEqual(CONSOLE_PAGES.map((p) => p.key));
+    expect(pages.map((p) => p.key)).toEqual([
+      'overview',
+      'myview',
+      'project',
+      'knowledge',
+      'archive',
+      'inv',
+      'fleet',
+      'gaps',
+      'settings',
+    ]);
   });
 
   test('关掉 presence-schedule：fleet 页消失，其余 7 页仍在', () => {
@@ -25,13 +36,14 @@ describe('console-pages: filterConsolePages', () => {
     expect(keys).toEqual(CONSOLE_PAGES.map((p) => p.key).filter((k) => k !== 'fleet'));
   });
 
-  test('关掉 pm-core：project / gaps 两页一起消失（§3.3 模块表两页共属一个模块）', () => {
+  test('关掉 pm-core：project / gaps / myview 三页一起消失（MY-VIEW 是任务的个人化投影，同挂 pm-core）', () => {
     const tenant: TenantConfig = {
       enabledModules: ALL_MODULE_IDS.filter((id) => id !== 'pm-core'),
     };
     const keys = filterConsolePages(CONSOLE_PAGES, tenant).map((p) => p.key);
     expect(keys).not.toContain('project');
     expect(keys).not.toContain('gaps');
+    expect(keys).not.toContain('myview');
     // 其余非 pm-core 页不受影响
     expect(keys).toContain('overview');
     expect(keys).toContain('fleet');
