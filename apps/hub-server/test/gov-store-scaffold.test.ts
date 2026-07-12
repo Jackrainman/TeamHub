@@ -19,6 +19,12 @@ import type { GovStore, InvStore } from '../src/store/gov-store.js';
 // 能插进同一底座而无需重建。
 
 describe('base 收口刀: GovStore 写白名单 + 扩展点 + 持久化切换合约', () => {
+  let sqliteDir = '';
+  afterEach(async () => {
+    if (sqliteDir) await rm(sqliteDir, { recursive: true, force: true });
+    sqliteDir = '';
+  });
+
   test('InMemoryGovStore: 读路径已实现，写白名单签名齐且实现后置=throw', async () => {
     const store = new InMemoryGovStore();
 
@@ -92,14 +98,35 @@ describe('base 收口刀: GovStore 写白名单 + 扩展点 + 持久化切换合
     expect((await b.getSnapshot()).knowledgeNodes.length).toBe(baseLen);
   });
 
-  test('SqliteGovStore: 同一 GovStore interface 可落持久层（切换合约 stub，全 throw not implemented）', async () => {
-    const persisted: GovStore = new SqliteGovStore();
+  test('SqliteGovStore: 同一 GovStore interface 真落 SQLite（SS3，读路径活 + 写路径持久）', async () => {
+    // SS3 拍板：本地 SQLite 文件写入不属「真实服务器写入」，已真实现（此前是全 throw not-implemented stub）。
+    sqliteDir = await mkdtemp(join(tmpdir(), 'gov-sqlite-scaffold-'));
+    const persisted: GovStore = await SqliteGovStore.create(
+      join(sqliteDir, 'gov.sqlite'),
+    );
 
-    await expect(persisted.getSnapshot()).rejects.toThrow(/not implemented/);
-    await expect(persisted.createTask({} as never)).rejects.toThrow(/not implemented/);
-    await expect(persisted.createDependency({} as never)).rejects.toThrow(/not implemented/);
-    await expect(persisted.createNeed({} as never)).rejects.toThrow(/not implemented/);
-    await expect(persisted.closeoutKbNode({} as never)).rejects.toThrow(/not implemented/);
+    // 读路径活（种子场景可读）
+    const snapshot = await persisted.getSnapshot();
+    expect(snapshot.tasks.length).toBeGreaterThan(0);
+
+    // 写路径真落库（clamp 与 InMemory 同：status=pending / statusSource=console）
+    const task = await persisted.createTask({
+      projectId: 'prj-robots',
+      groupId: 'grp-mech',
+      title: 'SQLite 落库任务',
+      rawSummary: '随手建一条',
+      ownerId: null,
+      collaboratorIds: [],
+      robotTarget: 'R1',
+      intrinsicComplexity: 'normal',
+    });
+    expect(task.id).toMatch(/^task-new-/);
+    expect(task.status).toBe('pending');
+    expect(task.statusSource).toBe('console');
+    expect(
+      (await persisted.getSnapshot()).tasks.some((t) => t.id === task.id),
+    ).toBe(true);
+    (persisted as SqliteGovStore).close();
   });
 
   test('kb / inv / sqlite 三方扩展同一底座、不重建：buildHubServer 接受各扩展点并仍服务', async () => {
@@ -138,12 +165,20 @@ describe('base 收口刀: GovStore 写白名单 + 扩展点 + 持久化切换合
     }
   });
 
-  test('持久层可经 store 扩展点切换：SqliteGovStore 可作为 buildHubServer 的 store 注入（类型相容）', () => {
-    const persisted: GovStore = new SqliteGovStore();
-    // 类型层证明 SqliteGovStore 满足 BuildHubServerOptions.store?: GovStore（无需重建底座）
+  test('持久层可经 store 扩展点切换：SqliteGovStore 可作为 buildHubServer 的 store 注入（同底座不重建）', async () => {
+    sqliteDir = await mkdtemp(join(tmpdir(), 'gov-sqlite-inject-'));
+    const persisted: SqliteGovStore = await SqliteGovStore.create(
+      join(sqliteDir, 'gov.sqlite'),
+    );
+    // SqliteGovStore 满足 BuildHubServerOptions.store?: GovStore（无需重建底座），且读路径真派生。
     const app = buildHubServer({ store: persisted });
-    expect(app).toBeDefined();
-    void app.close();
+    try {
+      const dep = await app.inject({ method: 'GET', url: '/api/dep-graph' });
+      expect(dep.statusCode).toBe(200);
+    } finally {
+      await app.close();
+      persisted.close();
+    }
   });
 });
 
