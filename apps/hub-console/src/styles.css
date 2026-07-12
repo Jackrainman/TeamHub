@@ -403,6 +403,7 @@ button,
 
 .nav-item {
   display: flex;
+  position: relative; /* U1：左轨 ::before 的定位锚（原只 tech 有，现四主题通用） */
   align-items: center;
   gap: 10px;
   min-height: 38px;
@@ -414,9 +415,23 @@ button,
   text-decoration: none;
 }
 
+/* U1 修复（UX 扫描：classic/warm/dark "看不出在哪页"）：下方 `.console-nav .nav-item`
+   的 background: transparent（0,2,0）一直压过本规则（0,1,0）——tech 靠 :root[data-theme]
+   （0,3,0）侥幸存活，其余三主题 active 全灭。抬到同级 + 补全主题通用左轨。 */
+.console-nav .nav-item-active,
 .nav-item-active {
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
+}
+.nav-item-active::before {
+  content: '';
+  position: absolute;
+  top: 22%;
+  bottom: 22%;
+  left: 0;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--blue);
 }
 
 .console-main {
@@ -1998,8 +2013,10 @@ form .btn--primary {
   cursor: pointer;
 }
 
+/* U1 同族（UX 扫描：经典绿的 seg 选中态"仅比底色深一丢丢"）：选中态语言与 tech 对齐——
+   blue-soft 填充 + 主题色文字，四主题同等可辨；tech 自有覆盖（0,3,0）不受影响。 */
 .seg__btn--active {
-  background: var(--surface);
+  background: var(--blue-soft);
   color: var(--blue);
   box-shadow: var(--shadow-xs);
 }
