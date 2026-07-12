@@ -123,9 +123,10 @@ export function IdentityBar({
         aria-label={t('identity.login.pinPlaceholder')}
         autoComplete="off"
       />
+      {/* B3：登录=表单提交 → primary（原双灰无主次，属 U2 顺带修复）；38px 齐高留在 feature 类。 */}
       <button
         type="submit"
-        className="identity-bar__submit"
+        className="btn btn--primary btn--sm identity-bar__submit"
         disabled={!memberId || loginMutation.isPending}
       >
         {loginMutation.isPending
@@ -134,7 +135,7 @@ export function IdentityBar({
       </button>
       <button
         type="button"
-        className="identity-bar__cancel"
+        className="btn btn--secondary btn--sm identity-bar__cancel"
         onClick={() => {
           setOpen(false);
           setMemberId('');

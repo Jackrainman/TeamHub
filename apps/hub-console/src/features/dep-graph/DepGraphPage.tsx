@@ -389,7 +389,7 @@ export function DepGraphPage({
       <div className="dep-graph-topbar">
         <span className="dep-graph-topbar__note">{t('depgraph.entry.note')}</span>
         {onNewTask ? (
-          <button type="button" className="kb-submit" onClick={onNewTask}>
+          <button type="button" className="btn btn--primary" onClick={onNewTask}>
             <Plus size={14} aria-hidden="true" /> {t('depgraph.toolbar.newTask')}
           </button>
         ) : null}
@@ -414,7 +414,7 @@ export function DepGraphPage({
               <div className="dep-graph-edge-action__btns">
                 <button
                   type="button"
-                  className="detail-action-btn detail-action-btn--danger"
+                  className="btn btn--sm btn--danger"
                   disabled={waiveMutation.isPending}
                   onClick={() => waiveMutation.mutate(selectedEdgeId)}
                 >
@@ -422,7 +422,7 @@ export function DepGraphPage({
                 </button>
                 <button
                   type="button"
-                  className="detail-action-btn detail-action-btn--ghost"
+                  className="btn btn--sm btn--ghost"
                   onClick={() => setSelectedEdgeId(null)}
                 >
                   {t('depgraph.edge.deleteCancel')}
@@ -601,7 +601,7 @@ function DetailPanel({
             <div className="detail-confirm__btns">
               <button
                 type="button"
-                className="detail-action-btn detail-action-btn--danger"
+                className="btn btn--sm btn--danger"
                 disabled={statusPending}
                 onClick={() => {
                   setPendingShelve(false);
@@ -612,7 +612,7 @@ function DetailPanel({
               </button>
               <button
                 type="button"
-                className="detail-action-btn detail-action-btn--ghost"
+                className="btn btn--sm btn--ghost"
                 onClick={() => setPendingShelve(false)}
               >
                 {t('depgraph.status.shelveCancel')}

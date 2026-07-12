@@ -443,7 +443,7 @@ function ResourceRow({
             />
             <button
               type="submit"
-              className="kb-submit resources-apply"
+              className="btn btn--primary resources-apply"
               disabled={!dirty || mutation.isPending}
             >
               {mutation.isPending
@@ -659,7 +659,7 @@ function DefaultPresetEditor({
         </button>
         <button
           type="button"
-          className="kb-submit resources-apply"
+          className="btn btn--primary resources-apply"
           disabled={mutation.isPending || (rows.length > 0 && !allGroupsFilled)}
           onClick={handleSave}
         >

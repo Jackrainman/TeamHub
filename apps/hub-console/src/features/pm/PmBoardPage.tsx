@@ -68,7 +68,7 @@ export function PmBoardPage({
   return (
     <div className="pm-page">
       <div className="pm-toolbar">
-        <button type="button" className="kb-submit" onClick={onNewTask}>
+        <button type="button" className="btn btn--primary" onClick={onNewTask}>
           <Plus size={14} aria-hidden="true" /> {t('pm.create.open')}
         </button>
       </div>
@@ -89,7 +89,7 @@ export function PmBoardPage({
         <div className="pm-coldstart">
           <h3>{t('pm.coldstart.title')}</h3>
           <p>{t('pm.coldstart.body')}</p>
-          <button type="button" className="kb-submit" onClick={onNewTask}>
+          <button type="button" className="btn btn--primary" onClick={onNewTask}>
             {t('pm.coldstart.goCreate')}
           </button>
         </div>

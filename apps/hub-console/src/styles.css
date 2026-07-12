@@ -133,10 +133,9 @@
   --blue: #66a8df;
   --blue-soft: #16293a;
 }
-/* 亮 accent 实底按钮在暗色下把白字反成近黑（亮底白字对比不足）。kb-submit 禁用态另有 surface-muted/faint，故排除。 */
+/* 亮 accent 实底按钮在暗色下把白字反成近黑（亮底白字对比不足）。primary 禁用态另有 surface-muted/faint，故排除。 */
 :root[data-theme='dark'] .brand-mark,
-:root[data-theme='dark'] .kb-submit:not(:disabled),
-:root[data-theme='dark'] .relay-canvas__add,
+:root[data-theme='dark'] .btn--primary:not(:disabled),
 :root[data-theme='dark'] .badge--alert {
   color: #10140f;
 }
@@ -223,16 +222,14 @@
 /* 亮 accent 实底按钮/徽章在 tech 下把字反成深墨青（亮 cyan/green/red 底 + 白字对比不足）。
    同 dark 先例的四选择器；深字 #05242C 对 cyan≈9.0:1 / green≈8.4:1 / red≈5.9:1 均达标。 */
 :root[data-theme='tech'] .brand-mark,
-:root[data-theme='tech'] .kb-submit:not(:disabled),
-:root[data-theme='tech'] .relay-canvas__add,
+:root[data-theme='tech'] .btn--primary:not(:disabled),
 :root[data-theme='tech'] .badge--alert {
   color: #05242c;
 }
 
 /* 克制铁律之「主按钮 hover 辉光」（全页仅三处辉光之一：状态节点 / 主按钮 hover / 扫描线）。
-   信号青实底主按钮悬停时微弱 cyan 光晕；relay 既有 brightness(0.94) 保留、叠加光晕。 */
-:root[data-theme='tech'] .kb-submit:not(:disabled):hover,
-:root[data-theme='tech'] .relay-canvas__add:hover {
+   信号青实底主按钮悬停时微弱 cyan 光晕，叠加基类 brightness(0.94)。 */
+:root[data-theme='tech'] .btn--primary:not(:disabled):hover {
   box-shadow:
     0 0 0 1px rgba(34, 211, 238, 0.5),
     0 0 14px rgba(34, 211, 238, 0.4);
@@ -291,9 +288,8 @@ button,
 .adapter-row,
 .kb-field input,
 .kb-field textarea,
-.kb-field select,
-.detail-action-btn,
-.settings-btn {
+.kb-field select {
+  /* （B3）按钮的过渡已随 .btn 基类自带，此列表只剩行/输入件。 */
   transition:
     background-color var(--transition),
     border-color var(--transition),
@@ -519,15 +515,12 @@ button,
   width: 120px;
 }
 
-.identity-bar__submit,
-.identity-bar__cancel {
+/* （B3）皮肤走 .btn--primary/.btn--secondary；此处只留布局差异（38px 与相邻输入框齐高）。
+   复合选择器抬一级特异度：本规则在源序上先于 .btn--sm，padding 需要赢它。 */
+.btn.identity-bar__submit,
+.btn.identity-bar__cancel {
   height: 38px;
   padding: 0 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
 }
 
 .identity-bar__error {
@@ -743,6 +736,84 @@ button,
   color: #fff;
   font-size: var(--text-2xs);
   font-weight: var(--weight-bold);
+}
+
+/* ===== 按钮体系 .btn（DESIGN-LANG B3，design-language.md §2）=====
+   全站唯一按钮写法 = base + 4 变体 × 2 尺寸。归并：kb-submit（primary 蓝实底，含
+   relay-canvas__add 逐字复制品）、settings-btn（secondary 描边）、detail-action-btn
+   （sm 档 + danger/ghost）、archive-upload-btn（dashed 上传语义）、identity-bar 提交/取消
+   （皮肤归并、38px 高度留在 feature 布局类）。声明自现值搬运；唯一刻意统一=primary hover
+   一律 brightness(0.94)（原 kb-submit 无 hover、relay-canvas__add 有——取有反馈的那版）。
+   不并入（§2）：seg__btn（SegToggle 内部件）、icon-button/link-button（既有全站原语）、
+   today-plan-table__rowBtn（26px 方形图标钮，并入会改形状）、relay-card__then-btn/__delete
+   （接力画布内迷你钮，画布专用类豁免）。 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+  transition:
+    background-color var(--transition),
+    border-color var(--transition),
+    color var(--transition),
+    box-shadow var(--transition);
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.btn--primary {
+  gap: 7px;
+  border: none;
+  background: var(--blue);
+  color: #ffffff;
+}
+.btn--primary:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+/* primary 禁用态沿 kb-submit 原样（surface-muted/faint 而非透明度——空表单常驻可见）。 */
+.btn--primary:disabled {
+  opacity: 1;
+  background: var(--surface-muted);
+  color: var(--faint);
+}
+.btn--secondary {
+  border-color: var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+}
+.btn--ghost {
+  border-color: var(--border-strong);
+  background: var(--surface);
+  color: var(--faint);
+}
+.btn--danger {
+  border-color: var(--red);
+  background: var(--red-soft);
+  color: var(--red);
+}
+.btn--sm {
+  padding: 7px 12px;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+/* --dashed：上传/占位语义（原 archive-upload-btn 现值，自带尺寸不与 --sm 叠用）。 */
+.btn--dashed {
+  padding: 5px 12px;
+  border: 1px dashed var(--border-strong);
+  background: transparent;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.btn--dashed:hover:not(:disabled) {
+  border-color: var(--text);
+  color: var(--text);
 }
 
 .state-band-error {
@@ -977,36 +1048,7 @@ button,
   border-top: 1px solid var(--border);
 }
 
-.detail-action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 7px 12px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--text);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  cursor: pointer;
-}
-
-.detail-action-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.detail-action-btn--danger {
-  border-color: var(--red);
-  background: var(--red-soft);
-  color: var(--red);
-}
-
-.detail-action-btn--ghost {
-  background: var(--surface);
-  color: var(--faint);
-}
+/* （B3 归并）原 .detail-action-btn(+--danger/--ghost) → .btn.btn--sm.btn--secondary|--danger|--ghost。 */
 
 .detail-status-select {
   display: flex;
@@ -1249,24 +1291,7 @@ button,
   gap: 10px;
 }
 
-.settings-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 16px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--text);
-  font-size: var(--text-base);
-  font-weight: var(--weight-bold);
-  cursor: pointer;
-}
-
-.settings-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+/* （B3 归并）原 .settings-btn → .btn.btn--secondary（禁用透明度 0.5→0.55 统一，容差内）。 */
 
 /* ===== 总览补色：绿色 metric（PM 已完成） ===== */
 .metric-tile--green strong {
@@ -1330,25 +1355,10 @@ button,
   outline-offset: 1px;
 }
 
-.kb-submit {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
+/* （B3 归并）原 .kb-submit → .btn.btn--primary（flex 列表单里的自收缩沿 align-self 留给
+   下面这条布局规则——primary 不该在 flex 列里被拉满宽）。 */
+form .btn--primary {
   align-self: flex-start;
-  padding: 9px 16px;
-  border: none;
-  border-radius: var(--radius-md);
-  background: var(--blue);
-  color: #ffffff;
-  font-size: var(--text-base);
-  font-weight: var(--weight-bold);
-  cursor: pointer;
-}
-
-.kb-submit:disabled {
-  background: var(--surface-muted);
-  color: var(--faint);
-  cursor: not-allowed;
 }
 
 /* 零结果下「去归档」CTA：与上方提示拉开半行间距（取代旧内联 style）。 */
@@ -1624,27 +1634,7 @@ button,
   font-size: var(--text-sm);
 }
 
-.archive-upload-btn {
-  padding: 5px 12px;
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--muted);
-  font-size: var(--text-base);
-  font-weight: var(--weight-bold);
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.archive-upload-btn:hover:not(:disabled) {
-  color: var(--text);
-  border-color: var(--text);
-}
-
-.archive-upload-btn:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
+/* （B3 归并）原 .archive-upload-btn → .btn.btn--dashed（禁用透明度 0.6→0.55 统一，容差内）。 */
 
 .archive-upload-err {
   color: var(--red);
@@ -3384,37 +3374,11 @@ button,
   align-items: center;
   gap: 10px;
 }
-/* 主操作按钮：与全站 .kb-submit 同一蓝实心语言（2026-06-23 收口 #2，原绿-soft 自成一套已弃）。 */
-.relay-canvas__add {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 16px;
-  border: none;
-  border-radius: var(--radius-md);
-  background: var(--blue);
-  color: #ffffff;
-  font-size: var(--text-base);
-  font-weight: var(--weight-bold);
-  cursor: pointer;
-}
-.relay-canvas__add:hover {
-  filter: brightness(0.94);
-}
-/* 「沿用上一天计划」次按钮 + 空态引导卡的 CTA 行（SCHEDULE-DESIGN-LOCK）。 */
-/* 次级按钮：与 .settings-btn 同一观感（surface 底 / border-strong / text）——次级动作全站一套（审计 #3）。 */
+/* （B3 归并）原 .relay-canvas__add（kb-submit 的逐字复制品）→ .btn.btn--primary。 */
+/* 「沿用上一天计划」次按钮（B3：皮肤走 .btn--secondary，此处留 8px 14px 紧凑 padding
+   与绿 hover 的画布特有反馈）。 */
 .relay-canvas__carry {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
   padding: 8px 14px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--text);
-  font-size: var(--text-base);
-  font-weight: var(--weight-bold);
-  cursor: pointer;
 }
 .relay-canvas__carry:hover:not(:disabled) {
   border-color: var(--green);

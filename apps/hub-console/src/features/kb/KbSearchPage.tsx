@@ -163,7 +163,7 @@ function KbSearchPanel({
           />
         </Field>
         <button
-          className="kb-submit"
+          className="btn btn--primary"
           type="submit"
           disabled={symptomInput.trim().length === 0}
         >
@@ -189,7 +189,7 @@ function KbSearchPanel({
               <span>{t('kb.noResults')}</span>
               <button
                 type="button"
-                className="kb-submit kb-noresults__action"
+                className="btn btn--primary kb-noresults__action"
                 onClick={() => onGoToCloseout(submitted?.symptom ?? '')}
               >
                 <Archive size={14} aria-hidden="true" /> {t('kb.noResults.goArchive')}

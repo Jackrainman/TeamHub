@@ -684,7 +684,7 @@ function ArtifactLogRow({
         ) : null}
         <button
           type="button"
-          className="archive-upload-btn"
+          className="btn btn--dashed"
           onClick={() => fileInputRef.current?.click()}
           disabled={upload.isPending}
         >

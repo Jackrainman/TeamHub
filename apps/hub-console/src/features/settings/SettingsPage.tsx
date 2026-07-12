@@ -467,14 +467,14 @@ function ConnectionSection() {
           <div className="settings-actions">
             <button
               type="submit"
-              className="kb-submit"
+              className="btn btn--primary"
               disabled={baseValue.trim() === storedBase.trim()}
             >
               {t('settings.apiBase.apply')}
             </button>
             <button
               type="button"
-              className="settings-btn"
+              className="btn btn--secondary"
               onClick={resetBase}
               disabled={storedBase.trim() === ''}
             >
@@ -524,14 +524,14 @@ function ConnectionSection() {
           <div className="settings-actions">
             <button
               type="submit"
-              className="kb-submit"
+              className="btn btn--primary"
               disabled={tokenValue.trim() === storedToken.trim()}
             >
               {t('settings.writeToken.apply')}
             </button>
             <button
               type="button"
-              className="settings-btn"
+              className="btn btn--secondary"
               onClick={resetToken}
               disabled={storedToken.trim() === ''}
             >

@@ -675,7 +675,7 @@ export function RelayCanvas({
     <div className="relay-canvas__toolbar">
       <button
         type="button"
-        className="relay-canvas__add"
+        className="btn btn--primary"
         onClick={() => setShowAddForm((v) => !v)}
         aria-expanded={showAddForm}
       >
@@ -684,7 +684,7 @@ export function RelayCanvas({
       </button>
       <button
         type="button"
-        className="relay-canvas__carry"
+        className="btn btn--secondary relay-canvas__carry"
         onClick={() => {
           void handleCarryOver();
         }}
@@ -741,7 +741,7 @@ export function RelayCanvas({
           <div className="relay-coldstart__cta">
             <button
               type="button"
-              className="relay-canvas__add"
+              className="btn btn--primary"
               onClick={() => setShowAddForm(true)}
             >
               <Plus size={14} aria-hidden="true" />
@@ -749,7 +749,7 @@ export function RelayCanvas({
             </button>
             <button
               type="button"
-              className="relay-canvas__carry"
+              className="btn btn--secondary relay-canvas__carry"
               onClick={() => {
                 void handleCarryOver();
               }}
@@ -943,7 +943,7 @@ function AddLegForm({
           </FormGrid>
           <div className="pm-form__footer">
             <button
-              className="kb-submit"
+              className="btn btn--primary"
               type="submit"
               disabled={!valid || pending}
             >
