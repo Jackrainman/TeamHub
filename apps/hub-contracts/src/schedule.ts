@@ -4,6 +4,7 @@ import {
   type GovernanceSnapshot,
 } from './attribution.js';
 import { canBoardResource } from './schedule-infra.js';
+import { CONVERGENCE_SCOPE_ALL_LEAF_GROUPS } from './pm-core.js';
 import type {
   Dependency,
   DepNodeKnowledge,
@@ -329,7 +330,7 @@ export function derivePresenceSchedule(
     // 持有组 → present。收敛任务（总联调，convergenceScope='allLeafGroups'）分流：
     //   真 → 所有叶子组各 present（全组各一人）；哨兵组 grp-convergence 本身不 upgrade（仅总联调日走这里）。
     //   假 → 仅持有组 present（原逻辑不变；平日今晚走这里）。
-    if (holderTask?.convergenceScope === 'allLeafGroups') {
+    if (holderTask?.convergenceScope === CONVERGENCE_SCOPE_ALL_LEAF_GROUPS) {
       for (const gid of deriveLeafGroups(snapshot.groups)) {
         upgrade(gid, {
           mode: 'present',

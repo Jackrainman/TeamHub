@@ -72,12 +72,21 @@ export const ProjectSchema = z.object({
 // Group（可配置组织树，自引用）
 // ---------------------------------------------------------------------------
 
-export const GroupKindSchema = z.enum([
+/**
+ * 已知组 kind（历史 fixtures 值 + 现存四组用到的字面量），仅供 UI 下拉 / 文档提示参考，
+ * **非闭集校验依据**（AUDIT-DEBT-2026-07 §9-④）。`GroupKindSchema` 曾是焊死的四值 `z.enum`，
+ * D-072「设置页可增减组」要求能新建闭集外的自定义组（如"宣传组"），故放宽为开放非空串——
+ * 校验收紧下沉到未来"路由层 VocabularyRegistry 校验器"（同文件头部 RobotTarget 放宽先例的同一过渡态）。
+ * 旧 gov.json 已落盘的四个字面量值仍是合法非空串，加载零改动（向后兼容）。
+ */
+export const KNOWN_GROUP_KINDS = [
   'mechanical',
   'electrical',
   'program',
   'custom',
-]);
+] as const;
+
+export const GroupKindSchema = z.string().min(1);
 
 export const GroupSchema = z.object({
   id: z.string().min(1),
@@ -154,6 +163,14 @@ export const TaskStatusSchema = z.enum([
 /** 任务自身难度（非工期估算、不进 CPM）；让"本来简单却被卡"可见。 */
 export const TaskComplexitySchema = z.enum(['trivial', 'normal', 'hard']);
 
+/**
+ * 收敛任务范围字面量单源（AUDIT-DEBT-2026-07 §9-④）：此前 `'allLeafGroups'` 在
+ * `pm-core.ts`（schema 定义）/`schedule.ts:332`/`attribution.ts:437` 三处各写一遍字符串字面量做
+ * `===` 判断，三处一旦要扩展新的收敛范围值就要同改三处、极易漂移。改为从本常量单源派生
+ * `TaskSchema.convergenceScope` 的 zod 枚举 + 消费端的判等，值不变（向后兼容）。
+ */
+export const CONVERGENCE_SCOPE_ALL_LEAF_GROUPS = 'allLeafGroups' as const;
+
 export const TaskSchema = z.object({
   id: z.string().min(1),
   projectId: z.string().min(1),
@@ -174,7 +191,7 @@ export const TaskSchema = z.object({
   // 收敛任务标记（optional，仅总联调类型）：'allLeafGroups' = 所有叶子组各到至少一人在场
   // （全组各一人，D-072 决定 L）。未填 = 普通任务（普通 groupId 持有语义，行为完全不变）。
   // 纯增量 optional：既有 fixture / 落盘 JSON 不填 → parse 为 undefined，向后兼容。
-  convergenceScope: z.enum(['allLeafGroups']).optional(),
+  convergenceScope: z.enum([CONVERGENCE_SCOPE_ALL_LEAF_GROUPS]).optional(),
   lastProgressAt: isoDateTimeSchema.nullable(), // 最近推进信号（commit/check-in 派生）
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,

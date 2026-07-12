@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   BlockAttributionSchema,
+  CONVERGENCE_SCOPE_ALL_LEAF_GROUPS,
   DependencySchema,
   DepGraphSchema,
   GroupSchema,
@@ -31,6 +32,36 @@ describe('治理场景 fixtures 满足 schema', () => {
     for (const k of F.knowledgeNodes) expect(KnowledgeNodeSchema.safeParse(k).success).toBe(true);
     for (const tag of F.taskKnowledgeTags) expect(TaskKnowledgeTagSchema.safeParse(tag).success).toBe(true);
     for (const mk of memberKnowledgeFixtures) expect(MemberKnowledgeSchema.safeParse(mk).success).toBe(true);
+  });
+});
+
+describe('Group.kind 开放闭集（AUDIT-DEBT-2026-07 §9-④，D-072 设置页可增减组地基）', () => {
+  test('闭集外的自定义组 kind（如"宣传组"）可正常 parse——不再被四值 z.enum 焊死', () => {
+    const custom = { ...F.groups[0], id: 'grp-outreach', kind: 'outreach' };
+    expect(GroupSchema.safeParse(custom).success).toBe(true);
+  });
+
+  test('历史四个字面量值（向后兼容既有 gov.json）仍全部合法', () => {
+    for (const kind of ['mechanical', 'electrical', 'program', 'custom']) {
+      expect(GroupSchema.safeParse({ ...F.groups[0], kind }).success).toBe(true);
+    }
+  });
+
+  test('空串仍拒绝（放宽不等于失守最小校验）', () => {
+    expect(GroupSchema.safeParse({ ...F.groups[0], kind: '' }).success).toBe(false);
+  });
+});
+
+describe('CONVERGENCE_SCOPE_ALL_LEAF_GROUPS 单源常量（AUDIT-DEBT-2026-07 §9-④）', () => {
+  test('常量值与既有 fixtures 字面量一致，schema 仍按此值校验', () => {
+    expect(CONVERGENCE_SCOPE_ALL_LEAF_GROUPS).toBe('allLeafGroups');
+    const convergenceTask = F.tasks.find((t) => t.convergenceScope != null);
+    expect(convergenceTask?.convergenceScope).toBe(CONVERGENCE_SCOPE_ALL_LEAF_GROUPS);
+  });
+
+  test('非法 convergenceScope 值仍被拒（常量单源不等于失守闭集校验）', () => {
+    const bad = { ...F.tasks[0], convergenceScope: 'someOtherScope' };
+    expect(TaskSchema.safeParse(bad).success).toBe(false);
   });
 });
 

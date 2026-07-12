@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  CONVERGENCE_SCOPE_ALL_LEAF_GROUPS,
   DependencySchema,
   GroupSchema,
   MemberSchema,
@@ -434,7 +435,7 @@ export function toDepGraphView(
       isCritical: criticalSet.has(task.id),
       // 收敛任务（总联调）标记：前端 DAG 渲染「全组」徽章。哨兵组 grp-convergence 仍只是
       // 该任务的归属组键、不进派生在场输出（schedule.ts render 跳过）；此处仅是节点视图属性。
-      isConvergenceTask: task.convergenceScope === 'allLeafGroups',
+      isConvergenceTask: task.convergenceScope === CONVERGENCE_SCOPE_ALL_LEAF_GROUPS,
       intrinsicComplexity: task.intrinsicComplexity,
       unmetNeedLabels: unmet.map((n) => n.description),
       relatedKnowledge: relatedKnowledgeFor(
