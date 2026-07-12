@@ -277,12 +277,23 @@ const zh = {
   // 星图（LEARN-DIRECTION 双 UI 之二，实验性 3D 视图）：同一份数据的增强呈现，完整信息恒在指南视图。
   'direction.view.guide': '指南',
   'direction.view.starmap': '星图',
-  'direction.starmap.hint': '拖动旋转 · 悬停看条目 · 滚轮缩放 · 节点可拖开',
+  'direction.starmap.hint': '拖动旋转 · 点击节点看详情 · 滚轮缩放 · 节点可拖开',
   'direction.starmap.aria': '跨工种知识星图：四色圆点代表四个组的知识领域，混色点是跨工种知识，红边点是缺口',
   'direction.starmap.legend.cross': '混色 = 跨工种',
   'direction.starmap.legend.gap': '缺口',
   'direction.starmap.legend.ai': 'AI 边界（各工种通用）',
   'direction.starmap.mine': '你的组',
+  // 星图点击详情面板（2026-07-12 交互轮）
+  'direction.starmap.panel.kind.hub': '组',
+  'direction.starmap.panel.kind.skill': '知识点',
+  'direction.starmap.panel.kind.gap': '缺口',
+  'direction.starmap.panel.kind.crosscut': 'AI 边界',
+  'direction.starmap.panel.close': '关闭详情',
+  'direction.starmap.panel.disciplines': '相关工种',
+  'direction.starmap.panel.links': '连接到',
+  'direction.starmap.panel.linkOwn': '本组',
+  'direction.starmap.panel.linkCross': '跨组',
+  'direction.starmap.panel.stats': '{skills} 个知识点 · {gaps} 个缺口',
 
   // 我的视图（MY-VIEW，product-redefine §4.3）：我负责的任务 ∩ 未被依赖卡住的；
   // 红线5：只按当前登录人过滤，不提供选择他人的入口。
@@ -1104,13 +1115,24 @@ const en: Record<TranslationKey, string> = {
   // Star map (second LEARN-DIRECTION UI, experimental 3D view): the guide view stays canonical.
   'direction.view.guide': 'Guide',
   'direction.view.starmap': 'Star map',
-  'direction.starmap.hint': 'Drag to rotate · hover for details · scroll to zoom · nodes are draggable',
+  'direction.starmap.hint': 'Drag to rotate · click a node for details · scroll to zoom · nodes are draggable',
   'direction.starmap.aria':
     'Cross-discipline knowledge star map: four colors mark the four groups, blended dots are cross-discipline knowledge, red-edged dots are gaps',
   'direction.starmap.legend.cross': 'Blended = cross-discipline',
   'direction.starmap.legend.gap': 'Gap',
   'direction.starmap.legend.ai': 'AI boundary (shared)',
   'direction.starmap.mine': 'your group',
+  // Star map click-to-detail panel (2026-07-12 interaction round)
+  'direction.starmap.panel.kind.hub': 'Group',
+  'direction.starmap.panel.kind.skill': 'Knowledge item',
+  'direction.starmap.panel.kind.gap': 'Gap',
+  'direction.starmap.panel.kind.crosscut': 'AI boundary',
+  'direction.starmap.panel.close': 'Close details',
+  'direction.starmap.panel.disciplines': 'Disciplines',
+  'direction.starmap.panel.links': 'Connected to',
+  'direction.starmap.panel.linkOwn': 'home group',
+  'direction.starmap.panel.linkCross': 'cross-group',
+  'direction.starmap.panel.stats': '{skills} knowledge items · {gaps} gaps',
 
   // My View (MY-VIEW, product-redefine §4.3): tasks I own that are not blocked by a dependency;
   // guardrail 5: filters only by the current logged-in person, no way to pick someone else.

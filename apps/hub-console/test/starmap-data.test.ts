@@ -86,6 +86,9 @@ describe('buildStarmap', () => {
     const gapLinks = map.links.filter((l) => l.kind === 'gap');
     expect(gapLinks).toHaveLength(2);
     expect(gapLinks.every((l) => l.target === 'hub-ec' && l.color === GAP_COLOR)).toBe(true);
+    // 实时缺口保留 neededSkills 原始数组（详情面板出 chips）；种子缺口无此字段。
+    expect(map.nodes.find((n) => n.id === 'gap-live-g1')?.skills).toEqual(['CAN']);
+    expect(map.nodes.find((n) => n.id === 'gap-seed-seed-sim2real')?.skills).toBeUndefined();
     expect(map.nodes.find((n) => n.id === 'hub-ec')?.isMine).toBe(true);
     expect(map.nodes.find((n) => n.id === 'hub-vision')?.isMine).toBe(false);
   });

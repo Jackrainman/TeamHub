@@ -70,6 +70,8 @@ export interface StarmapNode {
   base: readonly [number, number, number];
   size: number;
   severity?: 'emerging' | 'pressing';
+  /** gap：缺的方向原始数组（详情面板出 chips；tooltip 仍用 detail 拼串）。 */
+  skills?: readonly string[];
   isMine?: boolean;
 }
 
@@ -224,6 +226,7 @@ export function buildStarmap(
         base: gapPos(d, id),
         size: 7,
         severity: gap.severity,
+        skills: gap.neededSkills.length > 0 ? [...gap.neededSkills] : undefined,
       });
       links.push({ source: id, target: `hub-${d}`, color: GAP_COLOR, kind: 'gap' });
     }
