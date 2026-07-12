@@ -4,6 +4,8 @@ import { z } from 'zod';
 import {
   GOVERNANCE_SNAPSHOT_ARRAY_KEYS,
   GovernanceSnapshotSchema,
+  RelayHandoffSchema,
+  ResourceSessionSchema,
   SharedResourceSchema,
   governanceScenarioFixture,
 } from '@teamhub/hub-contracts';
@@ -55,6 +57,10 @@ import type {
  * GovernanceSnapshot 仍是手写 interface（无 z.infer，D-051），其 fail-closed 加载 schema
  * `GovernanceSnapshotSchema` 现**单源于 contracts**（apps/hub-contracts/src/attribution.ts，带 .passthrough()
  * 防 load-time 丢字段 + drift-canary 守 key 集），本文件 import 之、不再各实体 schema 手拼（SSOT-B1 收口）。
+ *
+ * 三份独立落盘文件（均与 governance.json 同目录、同一套原子写 + 串行写链 + fail-closed 纪律，仅内容/schema
+ * 不同）：governance.json（本文件主体）/ resources.json（R3 车管理）/ schedule-sessions.json
+ * （SCHEDULE-PERSIST，resourceSessions + relayHandoffs 合一，product-redefine-2026-07 §4.4/§9-③）。
  */
 
 /**
@@ -71,6 +77,28 @@ function deriveResourcesFilePath(govFilePath: string): string {
   return join(dirname(govFilePath), 'resources.json');
 }
 
+/**
+ * SCHEDULE-PERSIST（product-redefine-2026-07 §4.4/§9-③ 补落盘设计）独立落盘格式（schedule-sessions.json）：
+ * resourceSessions + relayHandoffs 一份文件。**为何两块合一、而非各自独立文件（不同于 resources.json 单开一份
+ * 的先例）**：`deleteResourceSession` 会在 inner 内一次调用里**级联删除**引用它的 relayHandoffs（fromSessionId/
+ * toSessionId 命中的边）——若分两条独立写链落两份文件，两次落盘之间存在窗口，一次崩溃/磁盘抖动可能让
+ * 「session 已从磁盘消失、但 handoff 仍悬空引用它」的分叉持久化下来；合一文件 + 单一写链使这次级联删除
+ * 落盘时是一次原子写，消除该窗口。
+ * 加载 fail-closed：解析失败抛、绝不静默用 seed 覆盖团队已录的占用窗口/接力交接线。
+ */
+const ScheduleSessionsFileSchema = z.object({
+  resourceSessions: z.array(ResourceSessionSchema),
+  relayHandoffs: z.array(RelayHandoffSchema),
+});
+
+/**
+ * schedule-sessions.json 路径：与 govFilePath 同目录、basename 钉 `schedule-sessions.json`
+ * （gov.json → schedule-sessions.json，与 resources.json 同一套派生纪律）。
+ */
+function deriveScheduleSessionsFilePath(govFilePath: string): string {
+  return join(dirname(govFilePath), 'schedule-sessions.json');
+}
+
 function cloneSnapshot(seed: GovernanceSnapshot): GovernanceSnapshot {
   // 数组键表已**单源于 contracts**（GOVERNANCE_SNAPSHOT_ARRAY_KEYS，见 attribution.ts）——不再本地手抄。
   return cloneArrayFields(seed, [...GOVERNANCE_SNAPSHOT_ARRAY_KEYS]);
@@ -82,10 +110,14 @@ export class FileGovStore implements GovStore {
   // R3：车独立落盘文件（resources.json，与 gov.json 同目录）。resources 不在 GovernanceSnapshot 内，
   // 故与 governance.json 各写各的——createResource / updateResourceStatus 改 inner 后原子写本文件。
   private readonly resourcesFilePath: string;
-  // 串行化落盘：并发写不互相覆盖（H2 失败隔离）。governance.json 与 resources.json 各持一条独立写链
-  // （两文件内容不同、互不阻塞，且各自 H2 失败隔离）。
+  // SCHEDULE-PERSIST：占用窗口 + 接力交接线独立落盘文件（schedule-sessions.json，与 gov.json 同目录，
+  // 两块合一见 ScheduleSessionsFileSchema 注释）。
+  private readonly scheduleSessionsFilePath: string;
+  // 串行化落盘：并发写不互相覆盖（H2 失败隔离）。governance.json / resources.json / schedule-sessions.json
+  // 各持一条独立写链（三文件内容不同、互不阻塞，且各自 H2 失败隔离）。
   private writeChain: Promise<void> = Promise.resolve();
   private resourcesWriteChain: Promise<void> = Promise.resolve();
+  private scheduleSessionsWriteChain: Promise<void> = Promise.resolve();
 
   private constructor(
     filePath: string,
@@ -94,6 +126,7 @@ export class FileGovStore implements GovStore {
   ) {
     this.filePath = filePath;
     this.resourcesFilePath = deriveResourcesFilePath(filePath);
+    this.scheduleSessionsFilePath = deriveScheduleSessionsFilePath(filePath);
     // 组合内存实现复用写白名单的 id/时间戳/clamp 逻辑（零漂移）；它持有传入快照的可变副本。
     // 不传 clock 时沿用 InMemoryGovStore 默认（FixedClock(GOVERNANCE_SCENARIO_NOW)），与 real 路由同口径。
     this.inner = clock
@@ -135,6 +168,7 @@ export class FileGovStore implements GovStore {
     }
 
     await store.loadOrSeedResources();
+    await store.loadOrSeedScheduleSessions();
     return store;
   }
 
@@ -164,6 +198,36 @@ export class FileGovStore implements GovStore {
     live.splice(0, live.length, ...loaded);
     // 载入后重算建车计数器，避免重启后新建车复用磁盘上已有的 `res-new-N` id（碰撞回归）。
     this.inner.resyncResourceSeq();
+  }
+
+  /**
+   * SCHEDULE-PERSIST 加载（product-redefine-2026-07 §4.4/§9-③ 补落盘设计）：schedule-sessions.json
+   * 存在则 fail-closed 解析后覆盖 inner 的 live resourceSessions/relayHandoffs（重启后团队录的占用窗口/
+   * 接力交接线仍在）；不存在则用 inner 的 seed（scheduleScenarioFixture 锚点窗口，relayHandoffs 默认空）
+   * 落一份（逐条镜像 loadOrSeedResources）。
+   */
+  private async loadOrSeedScheduleSessions(): Promise<void> {
+    let raw: string | null = null;
+    try {
+      raw = await readFile(this.scheduleSessionsFilePath, 'utf8');
+    } catch (err) {
+      if ((err as { code?: string }).code !== 'ENOENT') throw err;
+    }
+
+    if (raw === null) {
+      // schedule-sessions.json 不存在 → 用 inner seed 落一份（首启动持久化锚点窗口）。
+      await this.persistScheduleSessions();
+      return;
+    }
+
+    // 存在 → fail-closed 解析后覆盖 inner 的 live 数组内容（原地替换、保持引用）。
+    const loaded = ScheduleSessionsFileSchema.parse(JSON.parse(raw));
+    const liveSessions = this.inner.sessionsForRollback();
+    liveSessions.splice(0, liveSessions.length, ...loaded.resourceSessions);
+    const liveHandoffs = this.inner.handoffsForRollback();
+    liveHandoffs.splice(0, liveHandoffs.length, ...loaded.relayHandoffs);
+    // 载入后重算两个计数器，避免重启后新录入复用磁盘上已有的 id（碰撞回归，镜像 resyncResourceSeq）。
+    this.inner.resyncScheduleSeqs();
   }
 
   async getSnapshot(): Promise<GovernanceSnapshot> {
@@ -235,9 +299,11 @@ export class FileGovStore implements GovStore {
   }
 
   // 差异化在场排班（D-029，SCHED-WIRE-EXISTING）：resources/resourceSessions **不在 GovernanceSnapshot 内**，
-  // 故**不落盘**（落盘会牵动 GovernanceSnapshotSchema + GOVERNANCE_ARRAY_FIELDS + 已部署 ~/teamhub-data JSON 兼容，
-  // 属本刀 DoD 外的落盘格式变更）。读直接委托 inner；写仅落 inner 内存（进程重启回 seed scheduleScenarioFixture）。
-  // 语义相容：占用窗口粗粒度临时（今晚/明天，C1 低录入），不像图纸日志需永久。委托 inner 不调 persist()。
+  // 故不落 governance.json（落盘会牵动 GovernanceSnapshotSchema + GOVERNANCE_ARRAY_FIELDS + 已部署
+  // ~/teamhub-data JSON 兼容，属另一份文件的持久化面）——resources 落独立 resources.json（R3，见下）；
+  // resourceSessions/relayHandoffs 落独立 schedule-sessions.json（SCHEDULE-PERSIST，product-redefine-2026-07
+  // §4.4/§9-③ 补落盘设计，见文件顶部 ScheduleSessionsFileSchema 注释；此前 8 个排班方法连 JSON 落盘先例都
+  // 没有，只走内存）。listResources 读直接委托 inner（resources 只读列表，无写副作用可回滚）。
   async listResources(): Promise<SharedResource[]> {
     return this.inner.listResources();
   }
@@ -287,50 +353,114 @@ export class FileGovStore implements GovStore {
     return resource;
   }
 
+  /** 占用窗口只读（GET /api/resource-sessions 组 ScheduleSnapshot 用）。委托 inner，无写副作用可回滚。 */
   async listResourceSessions(): Promise<ResourceSession[]> {
     return this.inner.listResourceSessions();
   }
 
+  /**
+   * 占用窗口录入（POST /api/resource-sessions，D-029）：SCHEDULE-PERSIST——inner 补 id/createdAt/clamp 后
+   * append 类回滚（镜像 createTask/createResource：persist 失败按 id 移除刚 push 的那条）。
+   */
   async createResourceSession(
     draft: ResourceSessionDraft,
   ): Promise<ResourceSession> {
-    // 不落盘（见上）：直接委托 inner，重启回 seed。无 persistOrRollback 包裹（无磁盘副作用可回滚）。
-    return this.inner.createResourceSession(draft);
+    const session = await this.inner.createResourceSession(draft);
+    await this.persistScheduleSessionsOrRollback(() =>
+      this.removeSessionById(session.id),
+    );
+    return session;
   }
 
-  // 批量原子创建（POST /api/resource-sessions/batch，D-082 §5）：与单条 createResourceSession 同段
-  // 不落盘（resourceSessions 不在 GovernanceSnapshot 内、亦不入 resources.json）——委托 inner，
-  // 原子语义（全部构造完毕才一次性 push）由 inner 内实现，重启回 seed。
+  /**
+   * 批量原子创建（POST /api/resource-sessions/batch，D-082 §5）：inner 内一次性 push 全部构造好的条目
+   * （原子语义），落盘失败则把本批全部新增 id 逐一移除（不留半批幽灵记录）。
+   */
   async createResourceSessionsBatch(
     drafts: ResourceSessionDraft[],
   ): Promise<ResourceSession[]> {
-    return this.inner.createResourceSessionsBatch(drafts);
+    const sessions = await this.inner.createResourceSessionsBatch(drafts);
+    const ids = sessions.map((s) => s.id);
+    await this.persistScheduleSessionsOrRollback(() => {
+      for (const id of ids) this.removeSessionById(id);
+    });
+    return sessions;
   }
 
-  // 接力画布编辑 / 交接线（R1）：与 resource/session 同段不落盘（D-029，见上方注释）——eta/orderInWindow
-  // 改动与 relayHandoffs 增删均**只落 inner 内存**，进程重启回 seed。委托 inner、不调 persist()。
+  /**
+   * 占用窗口受限编辑（PATCH /api/resource-sessions/:id，R1 接力画布）：idx 类回滚（写前存整条，
+   * 失败时按 id 原地还原，镜像 updateResourceStatus）。id 不存在（null）不触发无谓写。
+   */
   async updateResourceSession(
     id: string,
     patch: ResourceSessionPatch,
   ): Promise<ResourceSession | null> {
-    return this.inner.updateResourceSession(id, patch);
+    const live = this.inner.sessionsForRollback();
+    const idx = live.findIndex((s) => s.id === id);
+    const prior = idx >= 0 ? live[idx] : undefined;
+    const session = await this.inner.updateResourceSession(id, patch);
+    if (session) {
+      await this.persistScheduleSessionsOrRollback(() => {
+        if (prior) live[idx] = prior;
+      });
+    }
+    return session;
   }
 
-  // 删一棒（A2）：session + 级联接力交接线均不落盘（同上段 D-029）——委托 inner（级联在 inner 内做）、不调 persist()。
+  /**
+   * 删一棒（DELETE /api/resource-sessions/:id，A2）：inner 内一次调用**级联删除**引用它的接力交接线
+   * （同一原子落盘，见 ScheduleSessionsFileSchema 注释）。写前留痕本条 session + 会被级联删除的交接线
+   * （persist 失败时原样插回——顺序不保证与写前一致，但内容完整，镜像 append 类回滚的「撤回即可、无需
+   * 精确复位」纪律）。未命中（false）不触发无谓写。
+   */
   async deleteResourceSession(id: string): Promise<boolean> {
-    return this.inner.deleteResourceSession(id);
+    const liveSessions = this.inner.sessionsForRollback();
+    const liveHandoffs = this.inner.handoffsForRollback();
+    const priorSession = liveSessions.find((s) => s.id === id);
+    const priorHandoffs = liveHandoffs.filter(
+      (h) => h.fromSessionId === id || h.toSessionId === id,
+    );
+    const deleted = await this.inner.deleteResourceSession(id);
+    if (deleted) {
+      await this.persistScheduleSessionsOrRollback(() => {
+        if (priorSession) liveSessions.push(priorSession);
+        liveHandoffs.push(...priorHandoffs);
+      });
+    }
+    return deleted;
   }
 
+  /** 接力交接线只读（GET /api/relay 组 ScheduleSnapshot 用）。委托 inner，无写副作用可回滚。 */
   async listRelayHandoffs(): Promise<RelayHandoff[]> {
     return this.inner.listRelayHandoffs();
   }
 
+  /**
+   * 接力交接线录入（POST /api/relay-handoffs，R1 画布拉线）：append 类回滚（persist 失败按 id 移除刚
+   * push 的那条，镜像 createResourceSession）。
+   */
   async createRelayHandoff(draft: RelayHandoffDraft): Promise<RelayHandoff> {
-    return this.inner.createRelayHandoff(draft);
+    const handoff = await this.inner.createRelayHandoff(draft);
+    await this.persistScheduleSessionsOrRollback(() =>
+      this.removeHandoffById(handoff.id),
+    );
+    return handoff;
   }
 
+  /**
+   * 删一条接力交接线（DELETE /api/relay-handoffs/:id）：写前存整条（persist 失败时插回，
+   * 与 deleteResourceSession 同纪律）。未命中（false）不触发无谓写。
+   */
   async deleteRelayHandoff(id: string): Promise<boolean> {
-    return this.inner.deleteRelayHandoff(id);
+    const liveHandoffs = this.inner.handoffsForRollback();
+    const prior = liveHandoffs.find((h) => h.id === id);
+    const deleted = await this.inner.deleteRelayHandoff(id);
+    if (deleted) {
+      await this.persistScheduleSessionsOrRollback(() => {
+        if (prior) liveHandoffs.push(prior);
+      });
+    }
+    return deleted;
   }
 
   async updateTaskStatus(taskId: string, status: TaskStatus): Promise<Task | null> {
@@ -457,6 +587,64 @@ export class FileGovStore implements GovStore {
     try {
       await writeFile(tmp, JSON.stringify(resources, null, 2), 'utf8');
       await rename(tmp, this.resourcesFilePath);
+    } catch (err) {
+      // L2：写失败 / rename 后失败都清残留 .tmp，避免孤儿临时文件堆积。
+      await unlink(tmp).catch(() => {});
+      throw err;
+    }
+  }
+
+  // --- SCHEDULE-PERSIST：占用窗口 + 接力交接线合一落盘（schedule-sessions.json）——与 governance.json/
+  // resources.json persist 逐条镜像，仅写不同文件 + 独立写链（两块合一见 ScheduleSessionsFileSchema 注释）。
+
+  /** 回滚句柄：从 live resourceSessions 数组按 id 移除一条 append 的窗口（仅 create* persist 失败时用）。 */
+  private removeSessionById(id: string): void {
+    const arr = this.inner.sessionsForRollback();
+    const idx = arr.findIndex((s) => s.id === id);
+    if (idx >= 0) arr.splice(idx, 1);
+  }
+
+  /** 回滚句柄：从 live relayHandoffs 数组按 id 移除一条 append 的交接线（仅 createRelayHandoff persist 失败时用）。 */
+  private removeHandoffById(id: string): void {
+    const arr = this.inner.handoffsForRollback();
+    const idx = arr.findIndex((h) => h.id === id);
+    if (idx >= 0) arr.splice(idx, 1);
+  }
+
+  /** 写 schedule-sessions.json；失败则回滚刚做的内存改动再把原错误抛给调用方。 */
+  private async persistScheduleSessionsOrRollback(
+    rollback: () => void,
+  ): Promise<void> {
+    try {
+      await this.persistScheduleSessions();
+    } catch (err) {
+      rollback();
+      throw err;
+    }
+  }
+
+  /** 原子写 schedule-sessions.json，独立写链串行化避免并发覆盖（H2 失败隔离，与 governance.json 同纪律）。 */
+  private async persistScheduleSessions(): Promise<void> {
+    const op = this.scheduleSessionsWriteChain.then(() =>
+      this.writeScheduleSessionsOnce(),
+    );
+    // H2：推进写链时吞掉本次错误（reset 为 resolved），否则一次瞬时磁盘抖动会让
+    // scheduleSessionsWriteChain 永久 rejected → 之后每次 persistScheduleSessions 的 .then 回调被静默
+    // 跳过、内存与磁盘分叉。调用方仍拿到本次真实错误。
+    this.scheduleSessionsWriteChain = op.catch(() => undefined);
+    return op;
+  }
+
+  private async writeScheduleSessionsOnce(): Promise<void> {
+    await mkdir(dirname(this.scheduleSessionsFilePath), { recursive: true });
+    const tmp = `${this.scheduleSessionsFilePath}.tmp`;
+    const payload = {
+      resourceSessions: await this.inner.listResourceSessions(),
+      relayHandoffs: await this.inner.listRelayHandoffs(),
+    };
+    try {
+      await writeFile(tmp, JSON.stringify(payload, null, 2), 'utf8');
+      await rename(tmp, this.scheduleSessionsFilePath);
     } catch (err) {
       // L2：写失败 / rename 后失败都清残留 .tmp，避免孤儿临时文件堆积。
       await unlink(tmp).catch(() => {});

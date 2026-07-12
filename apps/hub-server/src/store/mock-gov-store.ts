@@ -88,10 +88,10 @@ export class InMemoryGovStore implements GovStore {
   private readonly needSeq: IdSequence;
   private readonly knowledgeNodeSeq: IdSequence;
   private readonly artifactSeq: IdSequence;
-  // 非 readonly：resyncResourceSeq() 载入磁盘 resources.json 后需换成新起点的序列（见该方法）。
+  // 非 readonly：resyncResourceSeq() / resyncScheduleSeqs() 载入磁盘文件后需换成新起点的序列（见该方法）。
   private resourceSeq: IdSequence;
-  private readonly resourceSessionSeq: IdSequence;
-  private readonly relayHandoffSeq: IdSequence;
+  private resourceSessionSeq: IdSequence;
+  private relayHandoffSeq: IdSequence;
 
   constructor(
     seed: GovernanceSnapshot = governanceScenarioFixture,
@@ -170,6 +170,52 @@ export class InMemoryGovStore implements GovStore {
     // createIdSequence 是纯工厂函数（见 id-sequence.ts）：换新起点即换一个新的序列对象，
     // 而非在旧对象上 mutate 内部计数器（IdSequence 本身不开 reset 口子，只增不减的纪律保持不变）。
     this.resourceSeq = createIdSequence(max);
+  }
+
+  /**
+   * @internal 持久层回滚专用（SCHEDULE-PERSIST，product-redefine-2026-07 §4.4/§9-③）：返回**可变的**
+   * live resourceSessions 数组引用（createResourceSession/Batch push、updateResourceSession 原地改 idx、
+   * deleteResourceSession splice 的同一对象），让 FileGovStore 在 schedule-sessions.json 写失败时撤回
+   * 刚做的内存改动（与 resourcesForRollback 同纪律，不对外公开）。
+   */
+  sessionsForRollback(): ResourceSession[] {
+    return this.resourceSessions;
+  }
+
+  /**
+   * @internal 持久层回滚专用（SCHEDULE-PERSIST）：返回**可变的** live relayHandoffs 数组引用
+   * （createRelayHandoff push、deleteRelayHandoff/deleteResourceSession 级联 splice 的同一对象）。
+   */
+  handoffsForRollback(): RelayHandoff[] {
+    return this.relayHandoffs;
+  }
+
+  /**
+   * @internal SCHEDULE-PERSIST 持久化载入后重算 resourceSessionSeq/relayHandoffSeq：取现有数组里
+   * `sess-new-N` / `handoff-new-N` 后缀的最大值（逐字镜像 resyncResourceSeq）。FileGovStore 在构造后
+   * 才把磁盘上的 sessions/handoffs splice 进 live，若不重算、计数器仍停在构造期 seed 长度，重启后再
+   * 录入会复用同一 id（覆盖既有窗口/交接线、React key 冲突）。loadOrSeedScheduleSessions 载入分支调用。
+   */
+  resyncScheduleSeqs(): void {
+    let maxSession = 0;
+    for (const s of this.resourceSessions) {
+      const m = /^sess-new-(\d+)$/.exec(s.id);
+      if (m) {
+        const n = Number(m[1]);
+        if (n > maxSession) maxSession = n;
+      }
+    }
+    this.resourceSessionSeq = createIdSequence(maxSession);
+
+    let maxHandoff = 0;
+    for (const h of this.relayHandoffs) {
+      const m = /^handoff-new-(\d+)$/.exec(h.id);
+      if (m) {
+        const n = Number(m[1]);
+        if (n > maxHandoff) maxHandoff = n;
+      }
+    }
+    this.relayHandoffSeq = createIdSequence(maxHandoff);
   }
 
   /**
