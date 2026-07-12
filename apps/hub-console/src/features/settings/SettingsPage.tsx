@@ -41,6 +41,7 @@ const LANG_OPTIONS = [
 
 // 主题选项——扩展时须同步 i18n 键（settings.theme.<value>）与 Theme 类型。
 const THEME_OPTIONS = [
+  { value: 'tech' as const, labelKey: 'settings.theme.tech' as const },
   { value: 'classic' as const, labelKey: 'settings.theme.classic' as const },
   { value: 'warm' as const, labelKey: 'settings.theme.warm' as const },
   { value: 'dark' as const, labelKey: 'settings.theme.dark' as const },

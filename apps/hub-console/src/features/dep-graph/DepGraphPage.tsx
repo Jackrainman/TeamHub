@@ -201,7 +201,14 @@ export function DepGraphPage({
   const { t } = useI18n();
   // ReactFlow <Background> 的点阵色经 SVG fill 属性传入、不吃 CSS var，故按主题取具体值（批次H 暗色暗坑）。
   const { theme } = useTheme();
-  const bgDotColor = theme === 'dark' ? '#33413a' : theme === 'warm' ? '#e6ddca' : '#d8e0d6';
+  const bgDotColor =
+    theme === 'dark'
+      ? '#33413a'
+      : theme === 'tech'
+        ? '#243b4d' // 遥测台：暗蓝底上的低调点阵（= --border-strong 邻近色），SVG fill 不吃 var 故 JS 取值
+        : theme === 'warm'
+          ? '#e6ddca'
+          : '#d8e0d6';
   const query = useQuery({
     queryKey: ['dep-graph', source],
     queryFn: () => client.getDepGraph(),

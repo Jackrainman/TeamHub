@@ -141,6 +141,103 @@
   color: #10140f;
 }
 
+/* ===== 科技「遥测台」（tech，D1）——第 4 套主题 · 深色旗舰 · 默认 =====
+   取材=Robocon 战队真实世界：示波器屏 / EDA 深色工作台 / 图纸蓝图 / 遥测 HUD。
+   架构同 warm/dark（纯 CSS-variable + data-theme，全站 var 消费故零组件改动）；
+   token 块走 :root[data-theme='tech']（特异度 0,2,0 可靠覆盖 :root）。
+   关键配色对比度（自算，正文均 ≥4.5:1）：text #E6EDF7 / bg #0A0F1A ≈16.3:1；muted #8FA3BF / panel #101828 ≈6.9:1；
+   cyan #22D3EE / panel ≈9.8:1；amber #F5A623 / panel ≈8.8:1；green #34D399 ≈9.2:1；red #F87171 ≈6.4:1；
+   按钮深字 #05242C / cyan ≈9.0:1。各语义 accent 打在同名 -soft 深底上 ≥6:1。 */
+:root[data-theme='tech'] {
+  --page-bg: #0a0f1a; /* 深蓝黑示波器屏，不许纯黑 */
+  --surface: #101828; /* 面板 */
+  --surface-muted: #0d1421; /* 内凹（介于底与面板之间）*/
+  --surface-raised: #172236; /* 浮起面板 */
+  --text: #e6edf7;
+  --muted: #8fa3bf;
+  --faint: #9db0cb; /* 最小字号（10-11px）用，比 muted 提亮一档保余量（对 raised 面板仍 ≥6:1）*/
+  --border: #1e2a44;
+  --border-strong: #2c3d5f;
+  /* 状态语义色（基准线 drift · 沿用产品红黄绿，取亮值当暗底上的文字/边框/徽章）。
+     琥珀 #F5A623 一并承担「次级强调/警告」，与状态黄合一（色相同族、明度差 <10%）。 */
+  --green: #34d399;
+  --green-soft: #0e2a20;
+  --amber: #f5a623;
+  --amber-soft: #2a2110;
+  --red: #f87171;
+  --red-soft: #2a1416;
+  /* 主色=信号青（示波器走线）：--blue 槽全站承载主按钮/链接/焦点环/选中态，remap 为 cyan 即全面接管。 */
+  --blue: #22d3ee;
+  --blue-soft: #06232d;
+  --sidebar-bg: #070b14; /* 比 page-bg 再深一档，锚住左栏 */
+  --sidebar-text: #e6edf7;
+  --font-title: inherit;
+  --shadow: 0 14px 32px rgba(0, 0, 0, 0.55);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 14px 32px rgba(0, 0, 0, 0.55);
+  /* 圆角全局收紧一档（工程/仪表观感）：pill 保持（徽章仍是胶囊），sm/md/lg 各降。 */
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 8px;
+  /* 等宽栈（约束1 mono 族，含 CJK 'Sarasa Mono SC'）——只在 tech 下用于「数据位」。 */
+  --font-mono: ui-monospace, 'JetBrains Mono', 'Cascadia Mono', 'SFMono-Regular',
+    'Sarasa Mono SC', Menlo, monospace;
+}
+
+/* 页面蓝图底纹（超低调 1px 双向网格，40px 格）——只叠在 body/page 层，卡片/面板/侧栏各有实底不受影响。
+   .console-main 与 .console-shell 皆透明，故网格只从面板间隙透出（符合「卡片内不叠」）。 */
+:root[data-theme='tech'] body {
+  background-color: var(--page-bg);
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-attachment: fixed;
+}
+
+/* 标题：加重字距（不引新字体，仅微调 tracking）。 */
+:root[data-theme='tech'] h1,
+:root[data-theme='tech'] h2,
+:root[data-theme='tech'] h3 {
+  letter-spacing: 0.02em;
+}
+
+/* 数据位换等宽栈（数字/编号/版本/日期/周数/计数徽标/表格数值列）——统一在既有数值类上加 font-family，
+   不逐处内联（约束：一个 .u-mono 或对既有数值类统一加）。tabular-nums 让数字等宽对齐。 */
+:root[data-theme='tech'] .metric-tile strong,
+:root[data-theme='tech'] .pm-column__count,
+:root[data-theme='tech'] .kb-result-count,
+:root[data-theme='tech'] .archive-version-preview,
+:root[data-theme='tech'] .baseline-seg__label,
+:root[data-theme='tech'] .baseline-now span,
+:root[data-theme='tech'] .baseline-ms__meta,
+:root[data-theme='tech'] .baseline-chip,
+:root[data-theme='tech'] .inv-idle-value,
+:root[data-theme='tech'] .inv-idle-total,
+:root[data-theme='tech'] .inv-history__qty {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 亮 accent 实底按钮/徽章在 tech 下把字反成深墨青（亮 cyan/green/red 底 + 白字对比不足）。
+   同 dark 先例的四选择器；深字 #05242C 对 cyan≈9.0:1 / green≈8.4:1 / red≈5.9:1 均达标。 */
+:root[data-theme='tech'] .brand-mark,
+:root[data-theme='tech'] .kb-submit:not(:disabled),
+:root[data-theme='tech'] .relay-canvas__add,
+:root[data-theme='tech'] .inv-short-badge {
+  color: #05242c;
+}
+
+/* 克制铁律之「主按钮 hover 辉光」（全页仅三处辉光之一：状态节点 / 主按钮 hover / 扫描线）。
+   信号青实底主按钮悬停时微弱 cyan 光晕；relay 既有 brightness(0.94) 保留、叠加光晕。 */
+:root[data-theme='tech'] .kb-submit:not(:disabled):hover,
+:root[data-theme='tech'] .relay-canvas__add:hover {
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.5),
+    0 0 14px rgba(34, 211, 238, 0.4);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -3798,6 +3895,62 @@ button,
   border-radius: var(--radius-sm);
   background: var(--amber-soft);
   color: var(--amber);
+}
+
+/* ===== 遥测轨道（tech 签名件，D1）——全页唯一高光集中处 =====
+   把「基准线 vs 实际」时间轴改造成遥测 HUD：轨道底垫低透明度蓝图网格 + 发光状态点 + 「今天」信号青扫描线。
+   仅在 [data-theme='tech'] 生效，light/warm/dark 三套此处渲染逐像素不变。 */
+/* 轨道底垫：更细的蓝图网格（20px 格）+ 收紧边框，一眼示波器/图纸质感。 */
+:root[data-theme='tech'] .baseline-track {
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+/* 里程碑/门节点=发光状态点（红黄绿 halo，约 25% 透明辉光；全页三处辉光之一）。 */
+:root[data-theme='tech'] .baseline-dot--red {
+  box-shadow:
+    0 0 0 3px rgba(248, 113, 113, 0.18),
+    0 0 12px 2px rgba(248, 113, 113, 0.42);
+}
+:root[data-theme='tech'] .baseline-dot--yellow {
+  box-shadow:
+    0 0 0 3px rgba(245, 166, 35, 0.18),
+    0 0 12px 2px rgba(245, 166, 35, 0.42);
+}
+:root[data-theme='tech'] .baseline-dot--green {
+  box-shadow:
+    0 0 0 3px rgba(52, 211, 153, 0.18),
+    0 0 12px 2px rgba(52, 211, 153, 0.42);
+}
+/* 「今天」=1px 信号青竖向扫描线（原 2px --text 深线 → 1px cyan 发光）+ 顶部小三角 + 3s 呼吸脉冲光晕。
+   脉冲在 @media (prefers-reduced-motion: reduce) 下由全局 * 规则冻结（既有先例，不另写停用规则）。 */
+:root[data-theme='tech'] .baseline-now {
+  width: 1px;
+  background: var(--blue);
+  animation: tech-scan-glow 3s ease-in-out infinite;
+}
+:root[data-theme='tech'] .baseline-now::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--blue);
+  filter: drop-shadow(0 0 3px rgba(34, 211, 238, 0.8));
+}
+@keyframes tech-scan-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 4px rgba(34, 211, 238, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 10px rgba(34, 211, 238, 0.85);
+  }
 }
 
 /* 投资标签勾选行（PmCreatePanel） */
