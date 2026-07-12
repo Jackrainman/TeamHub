@@ -102,6 +102,8 @@ export * from './common.js';
 // pm-core.ts:TaskSchema.investment 复用本文件 TaskInvestmentSchema（红线3：不塞 pm-core 本体形状）。
 export * from './baseline.js';
 export * from './pm-core.js';
+// 轻身份登录契约（IDENTITY-LITE，D-083 §4.2）：session / setPin，依赖 pm-core 的 MemberPublicSchema，故其后导出。
+export * from './identity.js';
 export * from './schedule-infra.js';
 export * from './growth.js';
 export * from './attribution.js';

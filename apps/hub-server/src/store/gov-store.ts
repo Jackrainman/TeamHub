@@ -9,6 +9,7 @@ import type {
   IssueCard,
   KbSnapshot,
   KnowledgeNode,
+  Member,
   Need,
   PartAction,
   PartActionSource,
@@ -300,6 +301,15 @@ export interface GovStore {
    * （区别于物理 delete）。id 不存在 → 返回 null（路由层转 404）。
    */
   waiveDependency(depId: string): Promise<Dependency | null>;
+
+  /**
+   * 设 / 改成员登录 PIN 散列（PUT /api/members/:id/pin，IDENTITY-LITE，D-083 §4.2）。就地改 members[idx]
+   * 的 `pinHash`（scrypt 格式串，**由路由层散列后传入、绝不含明文**）+ bump updatedAt、钉 updatedBy=`console`。
+   * id 不存在 → 返回 null（路由层转 404）。**密钥纪律**：pinHash 只落盘、绝不经读视图外露（路由层回带
+   * 走 MemberPublicSchema 剥离）。FileGovStore 落 governance.json（members 是 GovernanceSnapshot 字段，
+   * persist 失败按 idx 原地还原，镜像 updateTaskStatus）。
+   */
+  setMemberPin(memberId: string, pinHash: string): Promise<Member | null>;
 }
 
 /**

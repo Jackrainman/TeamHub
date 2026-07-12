@@ -12,6 +12,7 @@ import type {
   Dependency,
   GovernanceSnapshot,
   KnowledgeNode,
+  Member,
   Need,
   RelayHandoff,
   ResourceSession,
@@ -357,6 +358,22 @@ export class FileGovStore implements GovStore {
       });
     }
     return dependency;
+  }
+
+  // 设 / 改成员 PIN 散列（IDENTITY-LITE）：members 是 GovernanceSnapshot 字段 → 落 governance.json。
+  // idx 类回滚（写前存整条，persist 失败按 id 原地还原，镜像 updateTaskStatus）。**密钥纪律**：pinHash
+  // 随 members 一并落盘（预期，落盘文件里可以有），但绝不经读视图外露（路由层剥）。
+  async setMemberPin(memberId: string, pinHash: string): Promise<Member | null> {
+    const snap = this.inner.snapshotForRollback();
+    const idx = snap.members.findIndex((m) => m.id === memberId);
+    const prior = idx >= 0 ? snap.members[idx] : undefined;
+    const member = await this.inner.setMemberPin(memberId, pinHash);
+    if (member) {
+      await this.persistOrRollback(() => {
+        if (prior) snap.members[idx] = prior;
+      });
+    }
+    return member;
   }
 
   /** 回滚句柄：从 live 快照按 id 移除一条 append 元素（仅持久层 rollback 用）。 */

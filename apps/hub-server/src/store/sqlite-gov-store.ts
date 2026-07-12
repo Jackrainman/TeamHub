@@ -3,6 +3,7 @@ import type {
   Dependency,
   GovernanceSnapshot,
   KnowledgeNode,
+  Member,
   Need,
   RelayHandoff,
   ResourceSession,
@@ -139,6 +140,13 @@ export class SqliteGovStore implements GovStore {
   }
 
   async waiveDependency(_depId: string): Promise<Dependency | null> {
+    throw new Error(SQLITE_NOT_IMPLEMENTED);
+  }
+
+  async setMemberPin(
+    _memberId: string,
+    _pinHash: string,
+  ): Promise<Member | null> {
     throw new Error(SQLITE_NOT_IMPLEMENTED);
   }
 }

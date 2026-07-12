@@ -122,7 +122,22 @@ export const MemberSchema = z.object({
   // 故意不放 blockedOn：被谁卡是 Task/Dependency 的结构事实，不是人的属性（反排名核心）。
   updatedBy: GovActorSourceSchema,
   updatedAt: isoDateTimeSchema,
+  // ── 轻身份登录凭证（IDENTITY-LITE，D-083 §4.2）─────────────────────────────────────────────
+  // **optional**：匿名模式（默认）永不填；身份模式下成员可自设 PIN（无 pinHash = 免 PIN 登录）。
+  // **格式 = `scrypt:<saltHex>:<hashHex>`**（node:crypto scrypt + 随机盐，绝不存明文，见 hub-server/identity/pin.ts）。
+  // **密钥纪律**：pinHash 只在落盘 gov.json 里存在，**任何返回 Member 的读视图/快照响应必须剥离**——
+  // 用下方 `MemberPublicSchema`（.omit pinHash）过读边界，照 confirmedBy/passedBy 的 I0 剥离先例。
+  // 旧 gov.json（无此字段）optional 兜底、照常加载（D-080 向后兼容）。
+  pinHash: z.string().min(1).optional(),
 });
+
+/**
+ * 读视图用成员（IDENTITY-LITE）：剥 `pinHash`（密钥纪律——凭证散列永不过读边界，即便是散列也不外露）。
+ * 照 `pm-requests.ts` 的 `DependencySchema.omit({ confirmedBy: true })` 范式：所有返回 Member 的端点
+ *（`GET /api/members` 名册、`PUT /api/members/:id/pin` 回带、未来我的视图）一律经本 schema 过——
+ * zod `.parse` 默认剥未知键，故经本 schema parse 的对象绝不含 pinHash。
+ */
+export const MemberPublicSchema = MemberSchema.omit({ pinHash: true });
 
 // ---------------------------------------------------------------------------
 // Task（一等公民）
@@ -398,7 +413,9 @@ export const ProjectsResponseSchema = z.object({
 });
 export const GroupsResponseSchema = z.object({ groups: z.array(GroupSchema) });
 export const MembersResponseSchema = z.object({
-  members: z.array(MemberSchema),
+  // IDENTITY-LITE：名册读视图用 MemberPublicSchema（剥 pinHash）——GET /api/members 走此契约，
+  // 凭证散列永不过读边界（密钥纪律）。
+  members: z.array(MemberPublicSchema),
 });
 export const TasksResponseSchema = z.object({ tasks: z.array(TaskSchema) });
 export const DependenciesResponseSchema = z.object({
@@ -423,6 +440,7 @@ export type MemberRole = z.infer<typeof MemberRoleSchema>;
 export type MemberGrade = z.infer<typeof MemberGradeSchema>;
 export type MemberStatus = z.infer<typeof MemberStatusSchema>;
 export type Member = z.infer<typeof MemberSchema>;
+export type MemberPublic = z.infer<typeof MemberPublicSchema>;
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 export type TaskComplexity = z.infer<typeof TaskComplexitySchema>;
 export type Task = z.infer<typeof TaskSchema>;

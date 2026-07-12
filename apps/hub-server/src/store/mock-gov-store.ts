@@ -10,6 +10,7 @@ import type {
   Dependency,
   GovernanceSnapshot,
   KnowledgeNode,
+  Member,
   Need,
   RelayHandoff,
   ResourceSession,
@@ -510,6 +511,25 @@ export class InMemoryGovStore implements GovStore {
       updatedAt: now,
     };
     this.snapshot.dependencies[idx] = updated;
+    return updated;
+  }
+
+  /**
+   * 设 / 改成员登录 PIN 散列（PUT /api/members/:id/pin，IDENTITY-LITE）。就地改 members[idx].pinHash
+   * （scrypt 串，路由层散列后传入）+ bump updatedAt、钉 updatedBy=`console`。id 不存在 → null（路由转 404）。
+   * **密钥纪律**：pinHash 只落内存 / 落盘，读视图剥离（路由回带走 MemberPublicSchema）。
+   */
+  async setMemberPin(memberId: string, pinHash: string): Promise<Member | null> {
+    const idx = this.snapshot.members.findIndex((m) => m.id === memberId);
+    if (idx === -1) return null;
+    const now = this.clock.now().toISOString();
+    const updated: Member = {
+      ...this.snapshot.members[idx],
+      pinHash,
+      updatedBy: 'console',
+      updatedAt: now,
+    };
+    this.snapshot.members[idx] = updated;
     return updated;
   }
 }
