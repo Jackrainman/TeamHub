@@ -236,9 +236,11 @@ const zh = {
   'toolbar.title.kb': '相似 Bug 检索 · 跨赛季召回',
   'toolbar.title.archive': '图纸提交日志 · 版本时间线',
 
-  // 缺人方向（S2，D-069）：组级派生缺口，永不指向人（A1/I0）
-  'nav.gaps': '缺人方向',
-  'toolbar.title.gaps': '缺人方向 · 组级',
+  // 学习方向（LEARN-DIRECTION-REDESIGN，product-redefine §5）：原「缺人方向」组级页改造——
+  // 跨工种学习地图（静态）× 队内缺口（组级派生，永不指向人，A1/I0）；identity 模式下按本人所在
+  // 组排序/高亮，只建议不指派（红线6）。
+  'nav.direction': '学习方向',
+  'toolbar.title.direction': '学习方向 · 跨工种学习地图',
 
   // 差异化在场排班（D-029）：按组×窗口派生，I0 无人维度
   'schedule.loading': '正在算这天谁在场…',
@@ -257,16 +259,20 @@ const zh = {
   'schedule.date.dayAfter': '后天',
   'schedule.date.findSpecific': '查找特定日期计划',
   'schedule.date.segLabel': '选择日期',
-  'gaps.loading': '正在加载方向缺口…',
-  'gaps.error': '方向缺口不可用（后端没连上？检查后端地址或服务是否在线）',
-  'gaps.intro': '按组列出现在 open / escalated 的方向缺口，组长一眼看清哪里缺人手。',
-  'gaps.note': '缺口只到组、不到人：是「哪个组缺什么方向」，不是「谁该来」，没有具体人。',
-  'gaps.empty.title': '暂无方向缺口',
-  'gaps.empty.body': '当前没有待补的 open / escalated 缺口。',
-  'gaps.severity.emerging': '苗头',
-  'gaps.severity.pressing': '紧要',
-  'gaps.card.skills': '缺的方向',
-  'gaps.card.needCountLabel': '个待补缺口',
+  'direction.loading': '正在加载学习方向…',
+  'direction.error': '学习方向不可用（后端没连上？检查后端地址或服务是否在线）',
+  'direction.intro.generic': '跨工种学习地图 × 队内缺口：路标摆在这里，学不学是自己的事。',
+  'direction.intro.personalized': '你在【{group}】组，以下把你的组排到了最前——仅供参考，学不学、学多少还是你自己定。',
+  'direction.note': '缺口只到组、不到人：是"哪个组缺什么方向"，不是"谁该来"，没有具体人；地图本身是静态资产，不随缺口变化。',
+  'direction.aiBoundary.label': 'AI 边界（各工种通用）',
+  'direction.column.mine': '你的组',
+  'direction.column.gaps.title': '队内实时缺口',
+  'direction.column.gaps.empty': '当前无实时缺口。',
+  'direction.column.seed.badge': '已知缺口 · 非实时统计',
+  'direction.unmatched.title': '其它缺口（未归到具体工种）',
+  'direction.severity.emerging': '苗头',
+  'direction.severity.pressing': '紧要',
+  'direction.card.skills': '缺的方向',
 
   // 我的视图（MY-VIEW，product-redefine §4.3）：我负责的任务 ∩ 未被依赖卡住的；
   // 红线5：只按当前登录人过滤，不提供选择他人的入口。
@@ -804,8 +810,8 @@ const zh = {
   'settings.about.mode.real': '真实后端',
   'settings.about.mode.hybrid': '混合',
 
-  // 缺人方向卡片
-  'gaps.card.needCount': '{n} 条待补需求',
+  // 学习方向卡片
+  'direction.card.needCount': '{n} 条待补需求',
 
   // 模块未启用降级视图（PHASE2-CONSOLE-ASSEMBLY：路由直达一个当前租户未启用的模块）
   'module.disabled.title': '模块未启用',
@@ -1041,9 +1047,12 @@ const en: Record<TranslationKey, string> = {
   'toolbar.title.kb': 'Similar-bug Search · Cross-season Recall',
   'toolbar.title.archive': 'Artifact Submission Log · Version Timeline',
 
-  // Direction gaps (S2, D-069): group-level derived gaps, never tied to a person (A1/I0)
-  'nav.gaps': 'Direction Gaps',
-  'toolbar.title.gaps': 'Direction Gaps · By Group',
+  // Learning direction (LEARN-DIRECTION-REDESIGN, product-redefine §5): reframes the old
+  // group-level "direction gaps" page — a static cross-discipline learning map × live,
+  // group-derived gaps (never tied to a person, A1/I0); in identity mode, sorted/highlighted
+  // by the viewer's own group — suggestion only, never an assignment (guardrail 6).
+  'nav.direction': 'Learning Direction',
+  'toolbar.title.direction': 'Learning Direction · Cross-discipline Map',
 
   // Differentiated presence schedule (D-029): per group×window, I0 no person dimension
   'schedule.loading': 'Working out who is in…',
@@ -1063,19 +1072,24 @@ const en: Record<TranslationKey, string> = {
   'schedule.date.findSpecific': 'Find a specific date',
   'schedule.date.segLabel': 'Select date',
 
-  'gaps.loading': 'Loading direction gaps…',
-  'gaps.error':
-    'Direction gaps unavailable — check the backend address or service status.',
-  'gaps.intro':
-    'Open / escalated skill gaps, grouped — so a lead can see at a glance which group needs what direction.',
-  'gaps.note':
-    'Gaps are grouped, never tied to a person — it shows which group needs what, not who should come. No drill-down to individuals.',
-  'gaps.empty.title': 'No direction gaps',
-  'gaps.empty.body': 'No open or escalated gaps right now.',
-  'gaps.severity.emerging': 'Emerging',
-  'gaps.severity.pressing': 'Pressing',
-  'gaps.card.skills': 'Needed',
-  'gaps.card.needCountLabel': 'open gap(s)',
+  'direction.loading': 'Loading learning direction…',
+  'direction.error':
+    'Learning direction unavailable — check the backend address or service status.',
+  'direction.intro.generic':
+    'Cross-discipline learning map × team gaps: the signpost is here, whether to follow it is up to you.',
+  'direction.intro.personalized':
+    'You are in the {group} group — it is pinned first below, for reference only. How much you follow it is still your call.',
+  'direction.note':
+    'Gaps are grouped, never tied to a person — it shows which group needs what, not who should come, no individuals named; the map itself is a static asset and does not change with the gaps.',
+  'direction.aiBoundary.label': 'AI boundary (same question for every discipline)',
+  'direction.column.mine': 'Your group',
+  'direction.column.gaps.title': 'Live team gaps',
+  'direction.column.gaps.empty': 'No live gaps right now.',
+  'direction.column.seed.badge': 'Known gap · not a live count',
+  'direction.unmatched.title': 'Other gaps (not mapped to one discipline)',
+  'direction.severity.emerging': 'Emerging',
+  'direction.severity.pressing': 'Pressing',
+  'direction.card.skills': 'Needed',
 
   // My View (MY-VIEW, product-redefine §4.3): tasks I own that are not blocked by a dependency;
   // guardrail 5: filters only by the current logged-in person, no way to pick someone else.
@@ -1634,7 +1648,7 @@ const en: Record<TranslationKey, string> = {
   'settings.about.mode.hybrid': 'Hybrid',
 
   // Direction gaps card
-  'gaps.card.needCount': '{n} open gap(s)',
+  'direction.card.needCount': '{n} open need(s)',
 
   // Module-disabled fallback view (PHASE2-CONSOLE-ASSEMBLY: direct navigation to a module the current tenant doesn't enable)
   'module.disabled.title': 'Module not enabled',

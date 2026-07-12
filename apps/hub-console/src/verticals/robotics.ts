@@ -104,3 +104,23 @@ export const ARTIFACT_ACCEPT_EXT: readonly string[] = [
  * 非空覆盖表，如把 `pm.field.robotTarget` 换成"目标平台"）。
  */
 export const ROBOTICS_VOCAB_OVERRIDES: VocabularyOverrides = {};
+
+// ---------------------------------------------------------------------------
+// 学习方向页 discipline 归组（LEARN-DIRECTION-REDESIGN）：把实际治理数据里的 `Group.name`
+// 对上跨工种学习地图（`@teamhub/hub-contracts` 的 `ROBOTICS_LEARNING_MAP`，四值同 `OwnerGroup`）。
+// ---------------------------------------------------------------------------
+
+/** `Group.name` → discipline 的已知映射（D-072 四个任务分组的标准命名，见 fixtures.ts 种子）。
+ *  未命中（程序汇报组 / 总联调哨兵组 / 队伍自定义组）→ `null`，调用方按"跨组、不挂地图列"处理，
+ *  不强行归组、不猜测。 */
+const GROUP_NAME_TO_DISCIPLINE: Readonly<Record<string, OwnerGroup>> = {
+  机械: 'mechanical',
+  电路: 'electrical',
+  电控: 'ec',
+  视觉: 'vision',
+};
+
+/** 按组名把实际 `Group` 归到学习地图的四个 discipline 之一；不认识的组名 → `null`（沉默，不炸）。 */
+export function deriveGroupDiscipline(groupName: string): OwnerGroup | null {
+  return GROUP_NAME_TO_DISCIPLINE[groupName] ?? null;
+}

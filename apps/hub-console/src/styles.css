@@ -2083,7 +2083,8 @@ button,
   font-size: var(--text-base);
 }
 
-/* 缺人方向（S2，D-069）：组级缺口卡片。无人维度、纯结构展示。 */
+/* 学习方向页（LEARN-DIRECTION-REDESIGN）+ 我的视图 + 差异化排班共用一档：组级/结构化卡片，
+   无人维度、纯结构展示（原「缺人方向」S2/D-069 命名保留，class 名未随页面改名而改，降低改动面）。 */
 .gaps-page {
   display: flex;
   flex-direction: column;
@@ -2189,6 +2190,101 @@ button,
   color: var(--text);
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   学习方向页（LEARN-DIRECTION-REDESIGN，product-redefine §5）：跨工种学习地图（静态）×
+   队内缺口（派生）。地图列 + AI 边界横条是本页真正新增的视觉元素；说明文字/卡片/badge/chip
+   说明文字/卡片/badge/chip 复用上面 .gaps-* 与 .gap-* 两档（MY-VIEW 同一先例）。
+   ───────────────────────────────────────────────────────────────────────── */
+.direction-crosscut {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 13px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-muted);
+}
+.direction-crosscut__label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.direction-crosscut__summary {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--text);
+  line-height: 1.5;
+}
+.direction-map {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  margin-top: 4px;
+}
+.direction-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+/* 个性化高亮（identity 模式已登录、本人所在组）：只加一圈强调边框，不改变列内容/顺序含义之外的信息。 */
+.direction-column--mine {
+  border-color: var(--green);
+  background: color-mix(in srgb, var(--green) 5%, var(--surface));
+}
+.direction-column__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.direction-column__title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+}
+.direction-column__skills {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--text-base);
+  color: var(--text);
+  line-height: 1.45;
+}
+.direction-column__seeds {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.direction-seed {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--amber-soft);
+}
+.direction-column__gaps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.direction-gap-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────

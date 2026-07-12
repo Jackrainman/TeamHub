@@ -22,7 +22,7 @@ describe('console-pages: filterConsolePages', () => {
       'archive',
       'inv',
       'fleet',
-      'gaps',
+      'direction',
       'settings',
     ]);
   });
@@ -36,13 +36,13 @@ describe('console-pages: filterConsolePages', () => {
     expect(keys).toEqual(CONSOLE_PAGES.map((p) => p.key).filter((k) => k !== 'fleet'));
   });
 
-  test('关掉 pm-core：project / gaps / myview 三页一起消失（MY-VIEW 是任务的个人化投影，同挂 pm-core）', () => {
+  test('关掉 pm-core：project / direction / myview 三页一起消失（MY-VIEW 是任务的个人化投影，同挂 pm-core）', () => {
     const tenant: TenantConfig = {
       enabledModules: ALL_MODULE_IDS.filter((id) => id !== 'pm-core'),
     };
     const keys = filterConsolePages(CONSOLE_PAGES, tenant).map((p) => p.key);
     expect(keys).not.toContain('project');
-    expect(keys).not.toContain('gaps');
+    expect(keys).not.toContain('direction');
     expect(keys).not.toContain('myview');
     // 其余非 pm-core 页不受影响
     expect(keys).toContain('overview');

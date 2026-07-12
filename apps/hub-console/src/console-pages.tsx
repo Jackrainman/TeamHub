@@ -21,7 +21,7 @@ import { KbSearchPage } from './features/kb/KbSearchPage';
 import { ArchivePage } from './features/archive/ArchivePage';
 import { InvPage } from './features/inv/InvPage';
 import { FleetPage } from './features/fleet/FleetPage';
-import { GapsPage } from './features/gaps/GapsPage';
+import { DirectionPage } from './features/direction/DirectionPage';
 import { MyViewPage } from './features/myview/MyViewPage';
 import { SettingsPage } from './features/settings/SettingsPage';
 
@@ -56,7 +56,7 @@ export type ConsolePage =
   | 'archive'
   | 'inv'
   | 'fleet'
-  | 'gaps'
+  | 'direction'
   | 'settings';
 
 /**
@@ -97,8 +97,8 @@ export interface ConsolePageDescriptor {
   moduleId: ModuleId;
 }
 
-// 顺序即导航顺序（IA D-077 定案，8 页顺序不变；MY-VIEW 新增插在总览之后）：
-// 总览 → 我的视图 → 项目 → 知识库 → 图纸档案 → 库存 → 机器人队 → 缺人方向 → 设置。
+// 顺序即导航顺序（IA D-077 定案，9 页顺序不变；MY-VIEW 新增插在总览之后）：
+// 总览 → 我的视图 → 项目 → 知识库 → 图纸档案 → 库存 → 机器人队 → 学习方向 → 设置。
 export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
   {
     key: 'overview',
@@ -122,7 +122,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     labelKey: 'nav.myview',
     titleKey: 'toolbar.title.myview',
     icon: ListChecks,
-    // pm-core：我的视图是任务(Task)的个人化投影，随 pm-core 模块一起开关，与 project/gaps 同口径。
+    // pm-core：我的视图是任务(Task)的个人化投影，随 pm-core 模块一起开关，与 project/direction 同口径。
     moduleId: 'pm-core',
     render: (ctx) => (
       <MyViewPage client={ctx.apiClient} source={ctx.source} identity={ctx.identity} />
@@ -171,12 +171,14 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     render: (ctx) => <FleetPage client={ctx.apiClient} source={ctx.source} />,
   },
   {
-    key: 'gaps',
-    labelKey: 'nav.gaps',
-    titleKey: 'toolbar.title.gaps',
+    key: 'direction',
+    labelKey: 'nav.direction',
+    titleKey: 'toolbar.title.direction',
     icon: Compass,
     moduleId: 'pm-core',
-    render: (ctx) => <GapsPage client={ctx.apiClient} source={ctx.source} />,
+    render: (ctx) => (
+      <DirectionPage client={ctx.apiClient} source={ctx.source} identity={ctx.identity} />
+    ),
   },
   {
     key: 'settings',
