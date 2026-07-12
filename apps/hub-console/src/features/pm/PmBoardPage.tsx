@@ -143,8 +143,8 @@ function PmTaskCard({
       <h3 className="pm-card__title">{task.title}</h3>
       <p className="pm-card__summary">{task.rawSummary}</p>
       <div className="pm-card__badges">
-        {robot ? <span className="pm-badge pm-badge--robot">{robot}</span> : null}
-        <span className="pm-badge">
+        {robot ? <span className="badge badge--blue badge--strong">{robot}</span> : null}
+        <span className="badge">
           {t('pm.card.complexity')} ·{' '}
           {t(PM_COMPLEXITY_KEY[task.intrinsicComplexity])}
         </span>

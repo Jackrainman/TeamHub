@@ -51,11 +51,12 @@ const STATUS_META: Record<
   DepNode['status'],
   { labelKey: TranslationKey; pill: string; modifier: string; Icon: typeof Activity }
 > = {
-  working: { labelKey: 'depgraph.status.working', pill: 'status-working', modifier: 'dag-node--working', Icon: Activity },
-  blockedIdle: { labelKey: 'depgraph.status.blockedIdle', pill: 'status-blocked-idle', modifier: 'dag-node--blocked-idle', Icon: Lock },
-  freeIdle: { labelKey: 'depgraph.status.freeIdle', pill: 'status-free-idle', modifier: 'dag-node--free-idle', Icon: CircleDashed },
-  done: { labelKey: 'depgraph.status.done', pill: 'status-done', modifier: 'dag-node--done', Icon: CheckCircle2 },
-  gap: { labelKey: 'depgraph.status.gap', pill: 'status-gap', modifier: 'dag-node--gap', Icon: AlertCircle },
+  // pill = .badge tone 类（B2 归并：原 status-working 等专属色类 → 语义轴）。
+  working: { labelKey: 'depgraph.status.working', pill: 'badge--green', modifier: 'dag-node--working', Icon: Activity },
+  blockedIdle: { labelKey: 'depgraph.status.blockedIdle', pill: 'badge--red', modifier: 'dag-node--blocked-idle', Icon: Lock },
+  freeIdle: { labelKey: 'depgraph.status.freeIdle', pill: 'badge--amber', modifier: 'dag-node--free-idle', Icon: CircleDashed },
+  done: { labelKey: 'depgraph.status.done', pill: 'badge--neutral', modifier: 'dag-node--done', Icon: CheckCircle2 },
+  gap: { labelKey: 'depgraph.status.gap', pill: 'badge--red', modifier: 'dag-node--gap', Icon: AlertCircle },
 };
 
 // 连线色走 CSS 变量随主题（DEP-GRAPH-EDGE-COLOR-THEME）：normal=--border-strong 在 warm 主题被覆盖
@@ -539,7 +540,7 @@ function DetailPanel({
     <aside className="panel dep-graph-detail">
       <div className="panel-header">
         <h2>{node.label}</h2>
-        <span className={`status-pill ${meta.pill}`}>{t(meta.labelKey)}</span>
+        <span className={`badge badge--wide ${meta.pill}`}>{t(meta.labelKey)}</span>
       </div>
       <div className="detail-list">
         <DetailRow

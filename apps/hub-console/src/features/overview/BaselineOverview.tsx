@@ -40,6 +40,13 @@ const SEGMENT_KEY: Record<BaselineSegmentKind, TranslationKey> = {
   vacuum: 'enum.segment.vacuum',
 };
 
+// drift 红黄绿 → .badge tone（B2 归并）：yellow 落 amber 语义轴，红黄绿语义不变。
+const LEVEL_TONE: Record<'red' | 'yellow' | 'green', string> = {
+  red: 'badge--red',
+  yellow: 'badge--amber',
+  green: 'badge--green',
+};
+
 /** 里程碑 drift 档位 → 人话「快慢」文案（结合里程碑自身 status，红线2：只谈里程碑/门、不点人）。 */
 function statusKey(
   milestone: BaselineMilestonePublic,
@@ -274,7 +281,7 @@ function BaselineTimeline({
           const level = driftById.get(m.id)?.level ?? 'green';
           return (
             <li key={m.id} className="baseline-ms">
-              <span className={`baseline-ms__badge baseline-ms__badge--${level}`}>
+              <span className={`badge badge--xs ${LEVEL_TONE[level]}`}>
                 {t(statusKey(m, level))}
               </span>
               <div className="baseline-ms__body">
@@ -301,7 +308,7 @@ function BaselineTimeline({
           <ul>
             {groupsBehind.map((g) => (
               <li key={g.groupId} className="baseline-group-row">
-                <span className={`baseline-ms__badge baseline-ms__badge--${g.level}`}>
+                <span className={`badge badge--xs ${LEVEL_TONE[g.level]}`}>
                   {t(g.level === 'red' ? 'overview.baseline.behind' : 'overview.baseline.tight')}
                 </span>
                 <strong>{groupName(g.groupId)}</strong>

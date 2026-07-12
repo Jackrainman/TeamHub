@@ -137,7 +137,7 @@
 :root[data-theme='dark'] .brand-mark,
 :root[data-theme='dark'] .kb-submit:not(:disabled),
 :root[data-theme='dark'] .relay-canvas__add,
-:root[data-theme='dark'] .inv-short-badge {
+:root[data-theme='dark'] .badge--alert {
   color: #10140f;
 }
 
@@ -225,7 +225,7 @@
 :root[data-theme='tech'] .brand-mark,
 :root[data-theme='tech'] .kb-submit:not(:disabled),
 :root[data-theme='tech'] .relay-canvas__add,
-:root[data-theme='tech'] .inv-short-badge {
+:root[data-theme='tech'] .badge--alert {
   color: #05242c;
 }
 
@@ -670,33 +670,81 @@ button,
   background: var(--border);
 }
 
-.status-pill {
+/* ===== 徽章体系 .badge（DESIGN-LANG B2，design-language.md §3）=====
+   全站唯一徽章写法 = base + tone 语义轴 + 强调/尺寸修饰。8 个 feature 家族
+   （status-pill/status-*、gap-badge、pm-badge、archive-badge、inv-kind-badge、
+   inv-short-badge、resources-status-badge、baseline-ms__badge）归并至此，声明自现值
+   搬运（像素等值）；领域语义→tone 的映射留在各 feature 内 toneFor 小函数，不进 CSS。
+   刻意改动仅两处（UX 扫描 U3）：「未配置」全主题改中性（原 classic/warm/dark 用蓝=活跃
+   信号语义拧，tech 已先行修过，这里全局化并删 tech 特例）；「空着」改蓝、与「在用」绿分开。 */
+.badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+/* tone 语义轴（soft 底 + 实色字）；--neutral 显式=基色，供动态类名场景。 */
+.badge--green {
+  background: var(--green-soft);
+  color: var(--green);
+}
+.badge--amber {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+.badge--red {
+  background: var(--red-soft);
+  color: var(--red);
+}
+.badge--blue {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+.badge--neutral {
+  background: var(--surface-muted);
+  color: var(--muted);
+}
+.badge--faint {
+  color: var(--faint);
+}
+/* --tint：弱强调（gap-badge 先例：灰底、只染字色）——声明序在 tone 之后故底色胜出。 */
+.badge--tint {
+  background: var(--surface-muted);
+}
+.badge--strong {
+  font-weight: var(--weight-heavy);
+}
+.badge--dense {
+  padding: 1px 8px;
+}
+.badge--xs {
+  flex: none;
+  padding: 2px 8px;
+  font-size: var(--text-2xs);
+  white-space: nowrap;
+}
+/* --wide：定宽 pill（原 .status-pill 形状——设置页集成行 / 详情面板状态）。 */
+.badge--wide {
   flex: 0 0 auto;
   min-width: 92px;
   padding: 5px 8px;
-  border-radius: var(--radius-pill);
-  font-size: var(--text-xs);
   font-weight: var(--weight-heavy);
   line-height: 1;
   text-align: center;
 }
-
-.status-enabled {
-  background: var(--green-soft);
-  color: var(--green);
+/* --alert：计数警报（原 .inv-short-badge：红实底白字）。 */
+.badge--alert {
+  margin-left: 6px;
+  padding: 1px 6px;
+  background: var(--red);
+  color: #fff;
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
 }
 
-.status-degraded {
-  background: var(--amber-soft);
-  color: var(--amber);
-}
-
-.status-unconfigured {
-  background: var(--blue-soft);
-  color: var(--blue);
-}
-
-.status-disabled,
 .state-band-error {
   background: var(--red-soft);
   color: var(--red);
@@ -1130,29 +1178,11 @@ button,
   color: var(--green);
 }
 
-/* 新增状态色（节点徽章 + 侧栏 status-pill 复用） */
-.status-working {
-  background: var(--green-soft);
-  color: var(--green);
-}
+/* （B2 归并）原 .status-working/-blocked-idle/-gap/-free-idle/-done 状态色 →
+   .badge--green/--red/--amber/--neutral tone 类（依赖图节点徽章 + 详情面板复用）。 */
 
-.status-blocked-idle,
-.status-gap {
-  background: var(--red-soft);
-  color: var(--red);
-}
-
-.status-free-idle {
-  background: var(--amber-soft);
-  color: var(--amber);
-}
-
-.status-done {
-  background: var(--surface-muted);
-  color: var(--muted);
-}
-
-/* 「即将上线」徽章（DepGraphPage 用，原全站零样式呈纯文本，2026-06-23 批次B 补齐）。 */
+/* 「即将上线」徽章（DepGraphPage 用，原全站零样式呈纯文本，2026-06-23 批次B 补齐）。
+   B2 例外保留：单点使用且尺寸独特（2xs + margin），归并收益 < churn，见 design-language.md §3。 */
 .soon-badge {
   display: inline-block;
   margin-left: 4px;
@@ -1392,10 +1422,8 @@ button,
   gap: 7px;
 }
 
-.kb-card .status-pill {
-  /* 只收窄（KB 卡不要 92px min），颜色交给 .kb-status--* 语义类（2026-06-23 批次B：原一律灰丢状态语义）。 */
-  min-width: 0;
-}
+/* （B2 归并）原 .kb-card .status-pill 收窄规则删除：KB 卡改用 .badge（无 92px min），
+   颜色仍交给下方 .kb-status--* 语义类。 */
 .kb-status--open {
   background: var(--blue-soft);
   color: var(--blue);
@@ -1665,21 +1693,12 @@ button,
   text-overflow: clip;
 }
 
-.archive-badge {
-  padding: 2px 8px;
-  border-radius: var(--radius-pill);
-  background: var(--blue-soft);
-  color: var(--blue);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-heavy);
-  line-height: 1.4;
-}
-
-/* 适配机器人徽章：弱化的次级标记（描边/中性色），与蓝色版本徽章区分。 */
-.archive-badge--robot {
+/* （B2 归并）原 .archive-badge → .badge--blue.badge--strong；--robot 描边弱化版 →
+   .badge--outline（描边/中性，与蓝色版本徽章区分——语义保留于此修饰类）。 */
+.badge--outline {
   background: transparent;
-  color: var(--muted);
   border: 1px solid var(--border-strong);
+  color: var(--muted);
   font-weight: var(--weight-bold);
 }
 
@@ -1906,20 +1925,7 @@ button,
   line-height: 1.5;
 }
 
-.pm-badge {
-  padding: 3px 8px;
-  border-radius: var(--radius-pill); /* 2026-06-23 视觉打磨：badge 家族圆角归一到 pill（原 sm 在一堆 pill 里方角突兀）。 */
-  background: var(--surface-muted);
-  color: var(--muted);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-}
-
-.pm-badge--robot {
-  background: var(--blue-soft);
-  color: var(--blue);
-  font-weight: var(--weight-heavy);
-}
+/* （B2 归并）原 .pm-badge → .badge（逐字同值）；--robot → .badge--blue.badge--strong。 */
 
 @media (max-width: 980px) {
   .pm-board {
@@ -2266,23 +2272,8 @@ button,
   align-items: center;
   justify-content: space-between;
 }
-.gap-badge {
-  padding: 3px 8px;
-  border-radius: var(--radius-pill); /* 同 pm-badge：badge 圆角归一 pill。 */
-  background: var(--surface-muted);
-  color: var(--muted);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-}
-.gap-badge--pressing {
-  color: var(--red);
-}
-.gap-badge--present {
-  color: var(--green);
-}
-.gap-badge--onCall {
-  color: var(--amber);
-}
+/* （B2 归并）原 .gap-badge → .badge；严重度弱强调（灰底染字）→ .badge--tint + tone：
+   pressing→--red · present→--green · onCall→--amber · emerging→无 tone（沿现状不上色）。 */
 .gap-card__count {
   font-size: var(--text-sm);
   color: var(--muted);
@@ -2510,16 +2501,7 @@ button,
 .inv-row--short .inv-idle-value {
   color: var(--red);
 }
-.inv-short-badge {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 6px;
-  border-radius: var(--radius-pill);
-  background: var(--red);
-  color: #fff;
-  font-size: var(--text-2xs);
-  font-weight: var(--weight-bold);
-}
+/* （B2 归并）原 .inv-short-badge → .badge--alert（红实底白字计数警报）。 */
 /* 记账历史 */
 .inv-history {
   list-style: none;
@@ -2559,42 +2541,9 @@ button,
   color: var(--faint);
   font-size: var(--text-xs);
 }
-.inv-kind-badge {
-  display: inline-block;
-  padding: 1px 8px;
-  border-radius: var(--radius-pill);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  background: var(--surface-muted);
-  color: var(--muted);
-}
-.inv-kind-badge--damage {
-  background: var(--red-soft);
-  color: var(--red);
-}
-.inv-kind-badge--mount {
-  background: var(--green-soft);
-  color: var(--green);
-}
-.inv-kind-badge--reserve {
-  background: var(--amber-soft);
-  color: var(--amber);
-}
-.inv-kind-badge--stocktake,
-.inv-kind-badge--restock {
-  background: var(--blue-soft);
-  color: var(--blue);
-}
-/* 拆卸=同 mount 绿轴（部件回流），领取=同 reserve 琥珀轴（占用）——色编类别、文字编方向。
-   原 dismount/release 无 modifier 呈默认灰（2026-06-23 批次B）。 */
-.inv-kind-badge--dismount {
-  background: var(--green-soft);
-  color: var(--green);
-}
-.inv-kind-badge--release {
-  background: var(--amber-soft);
-  color: var(--amber);
-}
+/* （B2 归并）原 .inv-kind-badge 家族 → .badge--dense + tone（映射在 InvPage toneFor：
+   damage→red · mount/dismount→green（部件回流同轴）· reserve/release→amber（占用同轴）·
+   stocktake/restock→blue · 其余→无 tone 灰。色编类别、文字编方向的口径不变）。 */
 /* 单件追踪标记（abbr，原无样式靠浏览器默认虚线下划线）。 */
 .inv-track-mark {
   text-decoration: underline dotted var(--blue);
@@ -2701,34 +2650,9 @@ button,
   flex-shrink: 0;
 }
 /* 状态徽章：按状态分色（空着/在用=可上场绿系，在修/坏=红/琥珀，退役/拆解=灰）。 */
-.resources-status-badge {
-  display: inline-block;
-  padding: 1px 8px;
-  border-radius: var(--radius-pill);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  background: var(--surface-muted);
-  color: var(--muted);
-}
-.resources-status-badge--available,
-.resources-status-badge--inUse {
-  background: var(--green-soft);
-  color: var(--green);
-}
-.resources-status-badge--repair,
-.resources-status-badge--upgrading {
-  background: var(--amber-soft);
-  color: var(--amber);
-}
-.resources-status-badge--down {
-  background: var(--red-soft);
-  color: var(--red);
-}
-.resources-status-badge--retired,
-.resources-status-badge--disassembling {
-  background: var(--surface-muted);
-  color: var(--faint);
-}
+/* （B2 归并）原 .resources-status-badge 家族 → .badge--dense + tone（映射在 ResourcesPage
+   toneFor：inUse→green · available→blue（U3 修复：原与在用同绿易看混，空着=可用信息态）·
+   repair/upgrading→amber · down→red · retired/disassembling→--faint 灰）。 */
 /* 中性事实注释（"撞坏底盘"）：徽章下方小灰字，非归咎于人。 */
 .resources-reason {
   display: block;
@@ -3841,26 +3765,8 @@ button,
   font-size: var(--text-xs);
   color: var(--faint);
 }
-.baseline-ms__badge {
-  flex: none;
-  font-size: var(--text-2xs);
-  font-weight: var(--weight-medium);
-  padding: 2px 8px;
-  border-radius: var(--radius-pill);
-  white-space: nowrap;
-}
-.baseline-ms__badge--red {
-  background: var(--red-soft);
-  color: var(--red);
-}
-.baseline-ms__badge--yellow {
-  background: var(--amber-soft);
-  color: var(--amber);
-}
-.baseline-ms__badge--green {
-  background: var(--green-soft);
-  color: var(--green);
-}
+/* （B2 归并）原 .baseline-ms__badge 家族 → .badge--xs + tone（red→--red · yellow→--amber ·
+   green→--green，drift 红黄绿语义不变）。 */
 .baseline-chip {
   font-size: var(--text-2xs);
   padding: 1px 6px;
@@ -4065,11 +3971,8 @@ button,
   background: transparent;
 }
 
-/* ⑦ 「未配置」改中性灰蓝：青在 tech 语义=活跃/主操作，闲置态不该抢它。 */
-:root[data-theme='tech'] .status-unconfigured {
-  background: rgba(143, 163, 191, 0.12);
-  color: var(--muted);
-}
+/* ⑦（B2 全局化后撤销特例）「未配置=中性」原是 tech 专属修正；徽章归并把 unconfigured
+   直接映射到 .badge 中性基色（全主题生效），本特例不再需要。 */
 
 /* ⑧ 空态统一「虚线留位框」观感：空不是错误，是邀请（看板空列/详情空态/流水空态）。 */
 :root[data-theme='tech'] .pm-column__empty,

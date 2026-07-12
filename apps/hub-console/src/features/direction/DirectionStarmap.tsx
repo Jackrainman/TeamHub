@@ -444,7 +444,9 @@ export default function DirectionStarmap({
           }}
         >
           {hovered.node.kind === 'gap' ? (
-            <span className={`gap-badge gap-badge--${hovered.node.severity ?? 'pressing'}`}>
+            <span
+              className={`badge badge--tint${hovered.node.severity === 'emerging' ? '' : ' badge--red'}`}
+            >
               {t(
                 hovered.node.severity === 'emerging'
                   ? 'direction.severity.emerging'
@@ -477,7 +479,9 @@ export default function DirectionStarmap({
           <header className="direction-starmap__panel-head">
             <span className="direction-starmap__panel-kind">{t(KIND_KEY[selectedNode.kind])}</span>
             {selectedNode.kind === 'gap' ? (
-              <span className={`gap-badge gap-badge--${selectedNode.severity ?? 'pressing'}`}>
+              <span
+                className={`badge badge--tint${selectedNode.severity === 'emerging' ? '' : ' badge--red'}`}
+              >
                 {t(
                   selectedNode.severity === 'emerging'
                     ? 'direction.severity.emerging'

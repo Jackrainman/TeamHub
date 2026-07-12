@@ -55,6 +55,27 @@ const STATUS_KEY: Record<ResourceStatus, TranslationKey> = {
   disassembling: 'resources.status.disassembling',
 };
 
+/** 状态 → .badge tone（design-language.md §3）。U3 修复：available 原与 inUse 同绿易看混，
+    改蓝=「可用的信息态」；绿只留给「在用」。retired/disassembling=--faint 弱灰。 */
+function statusTone(status: ResourceStatus): string {
+  switch (status) {
+    case 'inUse':
+      return 'badge--green';
+    case 'available':
+      return 'badge--blue';
+    case 'repair':
+    case 'upgrading':
+      return 'badge--amber';
+    case 'down':
+      return 'badge--red';
+    case 'retired':
+    case 'disassembling':
+      return 'badge--faint';
+    default:
+      return '';
+  }
+}
+
 // 状态下拉选项文案：down/upgrading 是 legacy 态，语义上也「不可上场」，但与正式「在修(repair)」重叠易混。
 // 下拉里给 legacy 态加「（旧，≈在修）」后缀澄清；表格行里沿用原 STATUS_KEY 保持简洁。
 // NOTE: down.legacy / upgrading.legacy 是新键，待 translations.ts 补全后 TypeScript 完全收口。
@@ -389,7 +410,7 @@ function ResourceRow({
         <td className="resources-cell--name">{resource.name}</td>
         <td>{t(KIND_KEY[resource.kind])}</td>
         <td>
-          <span className={`resources-status-badge resources-status-badge--${resource.status}`}>
+          <span className={`badge badge--dense ${statusTone(resource.status)}`.trim()}>
             {t(STATUS_KEY[resource.status])}
           </span>
           {resource.statusReason ? (

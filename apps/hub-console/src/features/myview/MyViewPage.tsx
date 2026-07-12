@@ -150,7 +150,7 @@ function MyViewCard({ node, kind }: { node: DepNode; kind: 'doable' | 'blocked' 
       className={`gap-card ${kind === 'blocked' ? 'gap-card--pressing' : 'gap-card--present'}`}
     >
       <header className="gap-card__head">
-        <span className="gap-badge">{node.groupName}</span>
+        <span className="badge">{node.groupName}</span>
         {node.robotTarget ? <span className="gap-card__count">{node.robotTarget}</span> : null}
       </header>
       <p className="gap-card__fact">{node.label}</p>

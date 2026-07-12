@@ -35,6 +35,26 @@ const KIND_KEY: Record<PartActionKind, TranslationKey> = {
   damage: 'inv.kind.damage',
 };
 
+/** 动作类别 → .badge tone（design-language.md §3）：色编类别、文字编方向——
+    mount/dismount 同绿轴（部件回流）、reserve/release 同琥珀轴（占用）。 */
+function kindTone(kind: PartActionKind): string {
+  switch (kind) {
+    case 'damage':
+      return 'badge--red';
+    case 'mount':
+    case 'dismount':
+      return 'badge--green';
+    case 'reserve':
+    case 'release':
+      return 'badge--amber';
+    case 'stocktake':
+    case 'restock':
+      return 'badge--blue';
+    default:
+      return '';
+  }
+}
+
 const CATEGORIES: PartCategory[] = [
   'motor',
   'esc',
@@ -333,7 +353,7 @@ function ActionHistory({
         <ul className="inv-history">
           {desc.map((a) => (
             <li key={a.id} className="inv-history__item">
-              <span className={`inv-kind-badge inv-kind-badge--${a.kind}`}>
+              <span className={`badge badge--dense ${kindTone(a.kind)}`.trim()}>
                 {t(kindKey[a.kind])}
               </span>
               <span className="inv-history__part">{partTypeName(a.partTypeId)}</span>

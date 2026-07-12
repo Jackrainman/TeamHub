@@ -24,17 +24,26 @@ const LIFECYCLE_STATUS_KEY: Record<AgentBackend['status'], TranslationKey> = {
   unconfigured: 'enum.adapter.unconfigured',
 };
 
-// BOT 渠道用连接型状态枚举（独立文案）。pill 颜色复用既有 status-* 样式，无需改 CSS。
+// BOT 渠道用连接型状态枚举（独立文案）。
 const BOT_CHANNEL_STATUS_KEY: Record<BotChannel['status'], TranslationKey> = {
   connected: 'enum.botChannel.connected',
   disconnected: 'enum.botChannel.disconnected',
   unconfigured: 'enum.botChannel.unconfigured',
 };
 
+// tone 映射（design-language.md §3）：未配置=中性基色（非活跃信号），空串即 .badge 默认灰。
 const BOT_CHANNEL_PILL_CLASS: Record<BotChannel['status'], string> = {
-  connected: 'status-enabled',
-  disconnected: 'status-disabled',
-  unconfigured: 'status-unconfigured',
+  connected: 'badge--green',
+  disconnected: 'badge--red',
+  unconfigured: '',
+};
+
+// Agent 后端 / 数据源生命周期状态 → tone（原 `status-${status}` 字符串拼接类）。
+const LIFECYCLE_PILL_CLASS: Record<AgentBackend['status'], string> = {
+  enabled: 'badge--green',
+  degraded: 'badge--amber',
+  disabled: 'badge--red',
+  unconfigured: '',
 };
 
 // 语言选项——扩展时须同步 i18n 键（settings.language.<value>）与 Lang 类型。
@@ -254,8 +263,9 @@ function SeasonRow({ season }: { season: Season }) {
         <strong>{season.name}</strong>
         <span>{range}</span>
       </div>
+      {/* 已归档=中性灰（U3：非错误态不用红）；进行中=绿。 */}
       <span
-        className={`status-pill ${season.status === 'active' ? 'status-enabled' : 'status-disabled'}`}
+        className={`badge badge--wide${season.status === 'active' ? ' badge--green' : ''}`}
       >
         {t(
           season.status === 'active'
@@ -318,7 +328,7 @@ function IntegrationsSection({
                   name: backend.displayName,
                   meta: `${backend.mode} · ${backend.capabilities.join(', ')}`,
                   statusLabel: t(LIFECYCLE_STATUS_KEY[backend.status]),
-                  pillClass: `status-${backend.status}`,
+                  pillClass: LIFECYCLE_PILL_CLASS[backend.status],
                 }),
               )}
             />
@@ -330,7 +340,7 @@ function IntegrationsSection({
                   name: ds.displayName,
                   meta: `${ds.kind} · ${ds.sourceRef}`,
                   statusLabel: t(LIFECYCLE_STATUS_KEY[ds.status]),
-                  pillClass: `status-${ds.status}`,
+                  pillClass: LIFECYCLE_PILL_CLASS[ds.status],
                 }),
               )}
             />
@@ -370,7 +380,7 @@ function IntegrationGroup({
                 <strong>{row.name}</strong>
                 <span>{row.meta}</span>
               </div>
-              <span className={`status-pill ${row.pillClass}`}>
+              <span className={`badge badge--wide ${row.pillClass}`.trim()}>
                 {row.statusLabel}
               </span>
             </article>

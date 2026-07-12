@@ -175,9 +175,9 @@ function DirectionColumnCard({ column }: { column: DirectionColumn }) {
     <article className={`direction-column${column.isMine ? ' direction-column--mine' : ''}`}>
       <header className="direction-column__head">
         <h3 className="direction-column__title">{t(GROUP_LABEL_KEY[column.discipline])}</h3>
-        {column.note ? <span className="gap-badge">{column.note}</span> : null}
+        {column.note ? <span className="badge">{column.note}</span> : null}
         {column.isMine ? (
-          <span className="gap-badge gap-badge--present">{t('direction.column.mine')}</span>
+          <span className="badge badge--tint badge--green">{t('direction.column.mine')}</span>
         ) : null}
       </header>
       <ul className="direction-column__skills">
@@ -190,7 +190,7 @@ function DirectionColumnCard({ column }: { column: DirectionColumn }) {
         <div className="direction-column__seeds">
           {column.seedGaps.map((seed) => (
             <div className="direction-seed" key={seed.id}>
-              <span className="gap-badge">{t('direction.column.seed.badge')}</span>
+              <span className="badge">{t('direction.column.seed.badge')}</span>
               <p className="gap-card__fact">{seed.statement}</p>
             </div>
           ))}
@@ -213,7 +213,10 @@ function DirectionGapRow({ gap }: { gap: DirectionColumnGap }) {
   const { t } = useI18n();
   return (
     <div className={`direction-gap-row direction-gap-row--${gap.severity}`}>
-      <span className={`gap-badge gap-badge--${gap.severity}`}>{t(SEVERITY_KEY[gap.severity])}</span>
+      {/* 严重度=弱强调徽章（B2）：pressing 染红、emerging 沿现状不上色。 */}
+      <span className={`badge badge--tint${gap.severity === 'pressing' ? ' badge--red' : ''}`}>
+        {t(SEVERITY_KEY[gap.severity])}
+      </span>
       <p className="gap-card__fact">{gap.factStatement}</p>
       {gap.neededSkills.length > 0 ? (
         <div className="gap-card__skills">
@@ -234,7 +237,9 @@ function UnmatchedGapCard({ gap }: { gap: DirectionColumnGap }) {
   return (
     <article className={`gap-card gap-card--${gap.severity}`}>
       <header className="gap-card__head">
-        <span className={`gap-badge gap-badge--${gap.severity}`}>{t(SEVERITY_KEY[gap.severity])}</span>
+        <span className={`badge badge--tint${gap.severity === 'pressing' ? ' badge--red' : ''}`}>
+          {t(SEVERITY_KEY[gap.severity])}
+        </span>
         <span className="gap-card__count">{t('direction.card.needCount', { n: gap.needCount })}</span>
       </header>
       <p className="gap-card__fact">{gap.factStatement}</p>

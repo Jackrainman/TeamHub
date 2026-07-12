@@ -220,7 +220,7 @@ function KbResultCard({ item }: { item: SimilarIssueMatch }) {
       <div className="kb-card__head">
         <h3>{item.title}</h3>
         <div className="kb-card__badges">
-          <span className={`status-pill ${KB_STATUS_PILL_CLASS[item.status]}`}>
+          <span className={`badge badge--strong ${KB_STATUS_PILL_CLASS[item.status]}`}>
             {t(KB_STATUS_KEY[item.status])}
           </span>
           <span className="kb-score">{t('kb.result.score', { n: item.score })}</span>

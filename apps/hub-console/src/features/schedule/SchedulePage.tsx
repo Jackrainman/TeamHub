@@ -155,7 +155,10 @@ function RecommendationCard({ rec }: { rec: PresenceRecommendation }) {
   return (
     <article className={`gap-card gap-card--${rec.mode}`}>
       <header className="gap-card__head">
-        <span className={`gap-badge gap-badge--${rec.mode}`}>
+        {/* B2：present=绿（人要到场）· onCall=琥珀（待命），弱强调灰底染字。 */}
+        <span
+          className={`badge badge--tint ${rec.mode === 'present' ? 'badge--green' : 'badge--amber'}`}
+        >
           {t(MODE_KEY[rec.mode])}
         </span>
         {rec.orderInWindow != null ? (

@@ -72,7 +72,7 @@ export function InvLedgerTable({
                   <span className="inv-idle-value">{row.idle}</span>
                   <span className="inv-idle-total"> / {row.partType.totalQuantity}</span>
                   {short ? (
-                    <span className="inv-short-badge">{t('inv.shortfall.badge')}</span>
+                    <span className="badge badge--alert">{t('inv.shortfall.badge')}</span>
                   ) : null}
                 </td>
                 {row.perResource.map((c) => (

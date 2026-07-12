@@ -623,10 +623,10 @@ function ArtifactLogRow({
           <strong>{artifact.name}</strong>
           <span className="archive-row__meta">
             {versionLabel ? (
-              <span className="archive-badge">{versionLabel}</span>
+              <span className="badge badge--blue badge--strong">{versionLabel}</span>
             ) : null}
             {robotLabel ? (
-              <span className="archive-badge archive-badge--robot">
+              <span className="badge badge--outline">
                 {robotLabel}
               </span>
             ) : null}
