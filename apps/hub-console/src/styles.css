@@ -4084,3 +4084,91 @@ button,
 :root[data-theme='tech'] .pm-column__empty {
   padding: 14px 8px;
 }
+
+/* ===== 学习方向星图（LEARN-DIRECTION 双 UI 之二，2026-07-12 实验性 3D 视图）=====
+   星图按性质恒定深色（夜空即语义），不随主题走——固定色而非 var，在 light/warm 下呈现为
+   一块自成一体的深色地图组件（刻意为之，同地图类 widget 惯例）。 */
+.direction-viewbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.direction-starmap__hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.direction-starmap {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #1e2a44;
+  border-radius: var(--radius-lg);
+  background: radial-gradient(ellipse 70% 55% at 50% 40%, #0d1526 0%, #0a0f1a 75%);
+}
+.direction-starmap svg {
+  display: block;
+  width: 100%;
+  height: 560px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.direction-starmap svg.is-dragging {
+  cursor: grabbing;
+}
+.direction-starmap__tooltip {
+  position: absolute;
+  z-index: 2;
+  max-width: 300px;
+  padding: 10px 12px;
+  border: 1px solid #2c3d5f;
+  border-radius: 6px;
+  background: rgba(13, 20, 33, 0.95);
+  color: #e6edf7;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  transform: translate(-50%, calc(-100% - 14px));
+  pointer-events: none;
+}
+.direction-starmap__tooltip-text {
+  margin: 4px 0 0;
+}
+.direction-starmap__tooltip-detail {
+  margin: 4px 0 0;
+  color: #8fa3bf;
+}
+.direction-starmap__tooltip-chips {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  font-size: var(--text-xs);
+}
+.direction-starmap__legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 10px 14px;
+  border-top: 1px solid rgba(30, 42, 68, 0.8);
+  color: #8fa3bf;
+  font-size: var(--text-xs);
+}
+.direction-starmap__swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 5px;
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+.direction-starmap__swatch--ring {
+  background: transparent;
+  border: 2px solid;
+}
+@media (max-width: 980px) {
+  .direction-starmap svg {
+    height: 420px;
+  }
+}

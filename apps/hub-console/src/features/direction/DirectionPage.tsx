@@ -1,3 +1,4 @@
+import { lazy, Suspense, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   AI_BOUNDARY_CROSSCUT,
@@ -13,6 +14,9 @@ import {
   type DirectionColumn,
   type DirectionColumnGap,
 } from './learning-direction-utils';
+
+// 星图 = 双 UI 之二（实验性 3D 视图），懒加载单开 chunk：不进入口包，不看星图不下载。
+const DirectionStarmap = lazy(() => import('./DirectionStarmap'));
 
 /**
  * 学习方向页（LEARN-DIRECTION-REDESIGN，product-redefine §5，原「缺人方向」组级页改造）。
@@ -38,6 +42,8 @@ export function DirectionPage({
   identity: PageIdentityCtx;
 }) {
   const { t } = useI18n();
+  // 双 UI（用户 2026-07-12 拍板）：指南=信息权威（列表语义、可访问性完整），星图=增强呈现。
+  const [viewMode, setViewMode] = useState<'guide' | 'starmap'>('guide');
   const groupsQuery = useQuery({
     queryKey: ['groups', source],
     queryFn: () => client.getGroups(),
@@ -79,6 +85,50 @@ export function DirectionPage({
     // .gaps-page 复用（MY-VIEW 先例：本页与 GapsPage 原本共享的 gaps-intro/gaps-note/gaps-list/
     // gap-card 一档一并沿用，新增 .direction-* 只覆盖真正新的视觉元素——学习地图列 + AI 边界横条）。
     <div className="gaps-page">
+      <div className="direction-viewbar">
+        <div className="seg" role="tablist">
+          <button
+            className={`seg__btn${viewMode === 'guide' ? ' seg__btn--active' : ''}`}
+            onClick={() => setViewMode('guide')}
+            role="tab"
+            aria-selected={viewMode === 'guide'}
+            type="button"
+          >
+            {t('direction.view.guide')}
+          </button>
+          <button
+            className={`seg__btn${viewMode === 'starmap' ? ' seg__btn--active' : ''}`}
+            onClick={() => setViewMode('starmap')}
+            role="tab"
+            aria-selected={viewMode === 'starmap'}
+            type="button"
+          >
+            {t('direction.view.starmap')}
+          </button>
+        </div>
+        {viewMode === 'starmap' ? (
+          <p className="direction-starmap__hint">{t('direction.starmap.hint')}</p>
+        ) : null}
+      </div>
+
+      {viewMode === 'starmap' ? (
+        <Suspense
+          fallback={
+            <div className="state-band" role="status" aria-live="polite">
+              {t('direction.loading')}
+            </div>
+          }
+        >
+          <DirectionStarmap
+            columns={view.columns}
+            crosscutSummary={AI_BOUNDARY_CROSSCUT.summary}
+            mineDiscipline={myColumn?.discipline ?? null}
+          />
+        </Suspense>
+      ) : null}
+
+      {viewMode === 'starmap' ? null : (
+        <>
       <p className="gaps-intro">
         {myColumn
           ? t('direction.intro.personalized', { group: t(GROUP_LABEL_KEY[myColumn.discipline]) })
@@ -108,6 +158,8 @@ export function DirectionPage({
           </div>
         </section>
       ) : null}
+        </>
+      )}
     </div>
   );
 }
