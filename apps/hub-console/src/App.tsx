@@ -99,6 +99,7 @@ export function App() {
       isLoading: overviewQuery.isLoading,
       error: overviewQuery.error,
       data: overviewQuery.data,
+      refetch: () => void overviewQuery.refetch(),
     },
     identity,
   };
@@ -119,11 +120,14 @@ export function App() {
         <div className="console-toolbar__actions">
           {/* 匿名模式（缺省）下本组件零 UI（return null），界面与今天逐字一致。 */}
           <IdentityBar client={apiClient} mode={identity.mode} session={identity.session} />
-          {page === 'overview' ? (
+          {/* 刷新按钮归一进正常注册机制（AUDIT-DEBT-2026-07 §9-④ 审计债⑤）：不再按 page key
+              字面量特判，改问 activePage 自己是否声明了 onRefresh——今天仍只有总览页声明，
+              渲染结果与改动前逐字一致，差别是判断权归了页面注册表。 */}
+          {activePage?.onRefresh ? (
             <button
               className="icon-button"
               type="button"
-              onClick={() => void overviewQuery.refetch()}
+              onClick={() => activePage.onRefresh?.(renderCtx)}
               aria-label={t('toolbar.refresh')}
               title={t('toolbar.refresh')}
             >

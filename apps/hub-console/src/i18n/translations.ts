@@ -4,7 +4,7 @@
 
 // 租户词汇覆盖层（HUB-MODULARIZATION 第6步）：本文件与 vocabulary-overrides.ts 互相只做类型级
 // 引用（该文件仅 import type 本文件的 Lang/TranslationKey），无运行期循环依赖。
-import { resolveVocabularyOverride } from './vocabulary-overrides';
+import { resolveVocabularyOverride, type VocabularyKey } from './vocabulary-overrides';
 
 export type Lang = 'zh' | 'en';
 
@@ -1660,17 +1660,21 @@ export const translations: Record<Lang, Record<TranslationKey, string>> = {
   en,
 };
 
+// AUDIT-DEBT-2026-07 §9-④ 审计债⑥：key 类型从闭集 TranslationKey 放宽为 VocabularyKey
+// （TranslationKey | 任意新字符串）——巨表里没有的全新 key 也能传进来，走"无巨表值 → 若有覆盖
+// 用覆盖、否则原样返回 key 本身"的既有兜底路径（下方 `?? key`，行为早已存在，只是此前类型不让
+// 调用方合法传入巨表外的 key）。已知 TranslationKey 调用点行为逐字不变。
 export function translate(
   lang: Lang,
-  key: TranslationKey,
+  key: VocabularyKey,
   params?: Record<string, string | number>,
 ): string {
   // 租户词汇覆盖层（HUB-MODULARIZATION 第6步 i18n 通道）优先于巨表——见 vocabulary-overrides.ts。
   // 覆盖表默认空，本行为与改动前逐字一致。
   const template =
     resolveVocabularyOverride(lang, key) ??
-    translations[lang][key] ??
-    translations.zh[key] ??
+    translations[lang][key as TranslationKey] ??
+    translations.zh[key as TranslationKey] ??
     key;
   if (!params) return template;
   return template.replace(/\{(\w+)\}/g, (match, name: string) =>

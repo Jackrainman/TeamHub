@@ -82,6 +82,10 @@ export interface PageRenderCtx {
     isLoading: boolean;
     error: unknown;
     data: OverviewSnapshot | undefined;
+    // AUDIT-DEBT-2026-07 §9-④ 审计债⑤：工具条刷新按钮此前硬编码 `page === 'overview'`
+    // 特例——只有总览页能刷新是判断藏在 App.tsx 里，不是页面自己声明的能力。
+    // 补 refetch 到 ctx，供 ConsolePageDescriptor.onRefresh 通用消费。
+    refetch: () => void;
   };
   identity: PageIdentityCtx;
 }
@@ -95,6 +99,11 @@ export interface ConsolePageDescriptor {
   // 页面归属模块（§3.3 模块清单表逐字对照）：过滤/降级判定的唯一依据，非重复真相——
   // 加一页时这一个字段就决定它在哪些租户下出现，不须另开一张映射表。
   moduleId: ModuleId;
+  // 工具条刷新按钮（AUDIT-DEBT-2026-07 §9-④ 审计债⑤，归一进正常注册机制）：某页若需要一个
+  // 手动刷新入口，在自己的 descriptor 里声明 onRefresh；App.tsx 只认这个字段渲不渲染按钮，
+  // 不再写 `page === 'overview'` 这种按页 key 字面量判断的特例。未声明 = 该页无刷新按钮
+  // （与改动前 8/9 页零按钮的行为一致）。
+  onRefresh?: (ctx: PageRenderCtx) => void;
 }
 
 // 顺序即导航顺序（IA D-077 定案，9 页顺序不变；MY-VIEW 新增插在总览之后）：
@@ -106,6 +115,9 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     titleKey: 'toolbar.title.overview',
     icon: Home,
     moduleId: 'system',
+    // 唯一声明了 onRefresh 的页（改动前"只有总览有刷新按钮"的行为不变，
+    // 差别是现在由本页自己声明，不是 App.tsx 按 key 字面量特判）。
+    onRefresh: (ctx) => ctx.overview.refetch(),
     render: (ctx) => (
       <OverviewPage
         client={ctx.apiClient}

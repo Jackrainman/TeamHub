@@ -7,15 +7,19 @@ import {
   useState,
 } from 'react';
 import type { PropsWithChildren } from 'react';
-import { translate, type Lang, type TranslationKey } from './translations';
+import { translate, type Lang } from './translations';
+import type { VocabularyKey } from './vocabulary-overrides';
 
 export type { Lang, TranslationKey } from './translations';
 // 租户词汇覆盖层（HUB-MODULARIZATION 第6步）：装配层/垂直包据此在不改巨表的前提下覆盖个别文案。
+// AUDIT-DEBT-2026-07 §9-④ 审计债⑥：VocabularyKey 一并导出——垂直包新增巨表没有的 key 时，
+// 覆盖表与下面 `t()` 的 key 参数用同一个开放类型，两处不漂移。
 export {
   setVocabularyOverrides,
   resetVocabularyOverrides,
   type VocabularyOverrides,
   type VocabularyOverrideEntry,
+  type VocabularyKey,
 } from './vocabulary-overrides';
 
 const STORAGE_KEY = 'teamhub.lang';
@@ -25,7 +29,9 @@ interface I18nContextValue {
   lang: Lang;
   setLang: (lang: Lang) => void;
   toggleLang: () => void;
-  t: (key: TranslationKey, params?: Record<string, string | number>) => string;
+  // 放宽为 VocabularyKey（TranslationKey | 任意新字符串）：已知 key 调用点行为不变，
+  // 垂直包新增的巨表外 key 现在也能合法传给 t()（见 vocabulary-overrides.ts 头部注释）。
+  t: (key: VocabularyKey, params?: Record<string, string | number>) => string;
 }
 
 const I18nContext = createContext<I18nContextValue | null>(null);
@@ -50,7 +56,7 @@ export function LanguageProvider({ children }: PropsWithChildren) {
     [],
   );
   const t = useCallback(
-    (key: TranslationKey, params?: Record<string, string | number>) =>
+    (key: VocabularyKey, params?: Record<string, string | number>) =>
       translate(lang, key, params),
     [lang],
   );

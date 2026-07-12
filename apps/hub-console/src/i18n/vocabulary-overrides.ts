@@ -12,13 +12,23 @@ import type { Lang, TranslationKey } from './translations';
  * 装配层（`assembly.ts` 的 `ModuleDescriptor`/`TenantConfig`）尚未接线"谁在什么时机调用
  * `setVocabularyOverrides`"——本步只做机制先行（供 `translate()` 消费的读取点），运行期真正
  * 按租户切换词汇是延后项（需要真正的租户装配/启动时机才能验证，避免无法编译验证的连锁改动）。
+ *
+ * **AUDIT-DEBT-2026-07 §9-④ 审计债⑥**：此前覆盖表的 key 类型钉死 `TranslationKey`（核心巨表
+ * 已有的 key 闭集），结构上只能覆盖巨表已存在的词条、不能新增巨表里没有的 key——垂直包若要挂一个
+ * 核心完全没有的全新词汇槽（如某租户专属字段的文案），无路可走。`VocabularyKey` 用
+ * `TranslationKey | (string & {})` 开放字符串套字面量联合的写法：IDE 对已知 key 仍有自动补全，
+ * 同时允许任意新字符串 key——覆盖表与 `translate()`/`t()` 的 key 参数同步放宽，新 key 与已知 key
+ * 走同一条解析路径（无覆盖时回退巨表找不到该 key → 兜底返回 key 本身，见 `translate()`）。
  */
+
+/** 覆盖表 / `t()` 的 key 类型：已知 `TranslationKey` 之外也接受任意新字符串（供垂直包新增词汇槽）。 */
+export type VocabularyKey = TranslationKey | (string & {});
 
 /** 单条覆盖：按语言给替换文案，缺的语言回退原巨表值（不要求两语言都填）。 */
 export type VocabularyOverrideEntry = Partial<Record<Lang, string>>;
 
-/** 覆盖表：只需覆盖的 key 才出现，其余 key 走巨表原值——不是巨表的替代品。 */
-export type VocabularyOverrides = Partial<Record<TranslationKey, VocabularyOverrideEntry>>;
+/** 覆盖表：只需覆盖的 key 才出现，其余 key 走巨表原值——不是巨表的替代品。key 不限于巨表已有值。 */
+export type VocabularyOverrides = Partial<Record<VocabularyKey, VocabularyOverrideEntry>>;
 
 let activeOverrides: VocabularyOverrides = {};
 
@@ -38,7 +48,7 @@ export function resetVocabularyOverrides(): void {
 /** 供 `translate()` 消费：某 key 在当前语言下若有租户覆盖，返回覆盖文案；否则 undefined（回退巨表）。 */
 export function resolveVocabularyOverride(
   lang: Lang,
-  key: TranslationKey,
+  key: VocabularyKey,
 ): string | undefined {
   return activeOverrides[key]?.[lang];
 }

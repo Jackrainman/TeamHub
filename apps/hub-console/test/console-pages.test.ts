@@ -62,3 +62,38 @@ describe('console-pages: filterConsolePages', () => {
     expect(filterConsolePages(CONSOLE_PAGES, tenant)).toEqual([]);
   });
 });
+
+/**
+ * 工具条刷新按钮归一进正常注册机制（AUDIT-DEBT-2026-07 §9-④ 审计债⑤）：此前 App.tsx 硬编码
+ * `page === 'overview'` 才渲染刷新按钮；改为页面自己在 ConsolePageDescriptor 声明 onRefresh，
+ * App.tsx 只问 activePage.onRefresh 存不存在。本测试锁定"哪些页声明了它"+"声明的行为可调用"，
+ * 防止未来加页时又滑回按 key 字面量特判。
+ */
+describe('console-pages: 工具条 onRefresh 注册', () => {
+  test('仅 overview 页声明 onRefresh（与改动前"只有总览有刷新按钮"的可见行为一致）', () => {
+    const withRefresh = CONSOLE_PAGES.filter((p) => typeof p.onRefresh === 'function').map(
+      (p) => p.key,
+    );
+    expect(withRefresh).toEqual(['overview']);
+  });
+
+  test('overview.onRefresh 调用会转发到 ctx.overview.refetch', () => {
+    const overviewPage = CONSOLE_PAGES.find((p) => p.key === 'overview');
+    let refetchCalled = false;
+    overviewPage?.onRefresh?.({
+      apiClient: {} as never,
+      source: 'real',
+      onNavigate: () => {},
+      overview: {
+        isLoading: false,
+        error: undefined,
+        data: undefined,
+        refetch: () => {
+          refetchCalled = true;
+        },
+      },
+      identity: { mode: 'anonymous', session: null, isLoading: false, canWrite: true },
+    });
+    expect(refetchCalled).toBe(true);
+  });
+});
