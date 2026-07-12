@@ -672,20 +672,10 @@
 - 验证：`hub-contracts` 47 测 / `hub-server` 85 测 / `hub-console` 7 测 + build 三包 `verify:all` 全绿；`git diff --check` 干净；AUDIT-H1-CYCLE-GUARD / AUDIT-H3-WRITE-AUTH 完成度谓词硬化为「接缝锚 grep + hub-server verify:all」，从 repo 根重跑 exit 0 才翻 done。
 - 事实源：本 ADR；`code-audit-2026-06-14.md`（7 条必修清单）；`apps/hub-contracts/src/{attribution,error-code,pm-requests}.ts` / `apps/hub-server/src/{server,main,contracts,store/file-kb-store}.ts` / `compose.yaml` / `deploy/teamhub.env.example` / 4 测试文件；`D-049`（落档）/ `D-055`（谓词硬化同法）；workflow `wf_99ea69cb`。
 
-## D-060 — console 换 Aurash 风格 UI 评估：PILOT-FIRST，当前低优先级延后（业务逻辑先行）
+## D-060 — console 换 Aurash 风格 UI 评估：PILOT-FIRST，当前低优先级延后（业务逻辑先行）【SUPERSEDED-BY D-084·全文归档】
 
-- 状态：**DECIDED / DEFERRED**（2026-06-15）——结论已定、暂不动手；优先级靠后，先理业务逻辑。
-- 日期：2026-06-15
-- 上下文：用户问「换 Aurash 风格 UI 是否可行/合适」。Aurash 前端（`/home/winbeau/wenbiao_zhao/Aurash/frontend`，= AGENTS §2 警告的 `xju-feiyue` 参考项目，业务模型禁搬入）栈 = Tailwind 3.4 + shadcn/ui(new-york/stone) + 19 Radix primitive + tokens.css 单色源 HSL 桥 + next-themes + sonner；console 现状 = 单一手写 `styles.css`(1392 行) + CSS-var 主题、无 Tailwind/Radix/router/暗色/toast、`App.tsx` useState 切页、@xyflow 画依赖图、zh/en 双语、I0 反排名读视图。先出结论给用户拍板、不直接重写。
-- 调研：6-agent workflow `wf_0d35c8af-968`（2 sonnet 侦察 + 3 opus 对立视角[拥护/质疑/务实] + 1 opus 综合）；结论关键事实经 orchestrator 对代码核实（OverviewPage 零共享 primitive / @xyflow style import + EDGE_COLORS JS 常量 / 3 条 I0 串行号 / styles.css 1392 行 / 五库全无）。
-- 决策（结论）：**PILOT-FIRST**。
-  1. **Phase 0（换 ~15 个 `:root` token + 2 字体，<1 天，0 .tsx/0 依赖/0 框架风险）拿 ~80% 暖纸风视觉收益**——只想要"好看"到此为止。
-  2. 全套 Tailwind+Radix+shadcn = **7–14 人天**，唯一真工程收益 a11y（录入浮层无焦点陷阱/Esc/焦点恢复）只在浮层/表单 + 设置页 select **两处**有意义 → 对一个在跑/双语/~10–20 人用的 5 页内部工具**默认不做**；先用 **OverviewPage** 试点（~1–1.5 天）+ 决策门（verify:all 绿 + 团队主观签字 + bundle 增量可接受 + 其余四页无回归）验证再决定整站。
-  3. 全套 19-Radix Option C（2–4 人周，+60–100KB gzip JS）= 过度工程，不做。
-  4. **共存关键开关 `corePlugins:{preflight:false}`**（否则砸烂 @xyflow + styles.css 盒模型）。
-- 护栏（重写时不可破）：① I0 反排名 3 条承重串（`depgraph.entry.note`/`depgraph.detail.ownerNote`/`pm.create.subtitle`）+ ownerLabel 不上节点脸 + 看板无人均列 + `claimedByMemberId` 强制 null（AGENTS §5 / D-056）；② zh/en 编译期 parity（`Record<TranslationKey>`）；③ @xyflow 契约（preflight:false + `.dag-node--blocked-idle` 斜纹手写 CSS + EDGE_COLORS/NODE_W/H 手改）；④ **绝不搬 xju-feiyue 业务模型**（`cat-*`/`tag-*`/`ai-*` token、credits/conferences/schools/admin 组件、飞跃品牌文案——AGENTS §2）。
-- 老实定位：本条是**"优化"类，排名靠后**；用户明示先把业务逻辑理清（"业务也有点问题"）。UI 评估只落档不驱动，动手前须过决策门。
-- 事实源：本 ADR；`docs/research/aurash-restyle-assessment.md`（status: deferred，完整 ①②③④ + 分歧）；workflow `wf_0d35c8af-968`；`AGENTS §2`（xju-feiyue 禁搬入）/ `D-056`（I0 读视图）。
+- 状态：**SUPERSEDED-BY D-084**（2026-07-12）。结论：用户拍板改走**科技风**方向而非 Aurash 暖纸风，落地为第 4 套主题 `tech` 并设默认；Aurash 换肤提案就此关闭，不再是候选方向。
+- 全文（调研 workflow / PILOT-FIRST 结论 / 护栏）→ `docs/archive/decisions-archive.md` D-060 段。后继 D-084。
 
 ## D-061 — v1 能跑产品：治理快照落盘 + 图纸提交日志 + 删 mock 单后端（workflow 连续构建）
 
@@ -1042,3 +1032,13 @@
 - 解耦审计（`wf_66e13d79-814`）：四刀阻力+坐实错位字段（GroupKind 闭集/convergenceScope 字面量判断/pm-requests 硬绑 robotics/main.ts 未接 tenantConfig），账单见设计稿 §9。
 - 归档：`docs/design/core-plugin-architecture.md`（PROPOSAL 完整注册中心愿景）搁置移 `docs/archive/`——路线 v4 未采纳，其安全建议（defineRoute/写守卫 fail-closed）登录改造时回读。
 - 事实源：本 ADR + `docs/design/product-redefine-2026-07.md`；前序 D-081（模块化阶段一）/D-039（AI 退治理，其"AI 不下判断"精神由本 ADR AI 三红线继承）。
+
+## D-084 — console 换肤定局：新增第 4 主题「tech」并设默认，Aurash 暖纸风提案关闭【SUPERSEDES D-060】
+
+- 状态：**DECIDED / IMPLEMENTED**（2026-07-12）。console 新增第 4 套主题 `[data-theme='tech']`（深色科技旗舰：蓝图网格底纹+发光基准线轨道+等宽数字），设为**默认主题**（`localStorage` 已存偏好的老用户不被覆盖）；classic/warm/dark 三套渲染结果零污染（全部结构性改动圈在 `[data-theme='tech']` 选择器下）。零外部资产（系统字体栈 + CJK 回退，无 CDN/webfont）。落地 commit `332c354`(feat, v0.16.0) + `c6eaa4d`(fix QA, v0.16.1) + `04654b3`(docs 截图)。三包 `verify:all` 全绿 + `health-check` 9 页 0 错复核（2026-07-12 收口轮）。截图 `docs/screenshots/tech-restyle/`。
+- 上下文：`UI-RESTYLE-AURASH`（D-060，2026-06-15 DEFERRED，低优先级延后）长期挂在 `now.md.open_for_decision` 未推进。用户 2026-07-12 直接拍板选**科技风**方向（非 Aurash 暖纸风），落地为运行时可切换的第 4 套主题（沿用 2026-06-16 已建的 `data-theme` 多主题切换器机制，见 warm 主题先例），而非 D-060 评估过的 Tailwind+Radix+shadcn 换框架路线。
+- 决策：
+  1. **D-060 的 Aurash 暖纸风提案就此关闭**（不再是候选方向）——`SUPERSEDED-BY D-084`，全文移 `docs/archive/decisions-archive.md` D-060 段，`now.md.open_for_decision` 移除 `UI-RESTYLE-AURASH` 条目。
+  2. **D-060 护栏在 tech 主题实现中延续遵守**：不引 Tailwind/Radix（纯 CSS-variable，零新依赖）；不碰 I0 反排名 3 承重串；zh/en 编译期对称零改动；未搬 xju-feiyue/Aurash 任何 tokens（tech 配色独立设计，蓝图网格+发光态是原创方向，非 Aurash 暖纸风任何变体）。
+  3. **纯视觉轮，业务逻辑零改动**（依 D-060「先理业务逻辑」老实定位——本轮不动路由/契约/API，只动 `styles.css` + `theme/index.tsx` 默认值 + 1 处 @xyflow 第三方控件 tech 分支 CSS）。
+- 事实源：本 ADR；`docs/planning/now.md`「最近完成 2026-07-12」；D-060（被 supersede 段，全文见 archive）；2026-06-16 主题切换器机制先例（`data-theme='warm'` 首套运行时主题）。
