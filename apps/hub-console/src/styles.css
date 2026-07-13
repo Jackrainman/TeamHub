@@ -469,7 +469,9 @@ button,
 }
 
 .console-toolbar h1 {
-  font-size: var(--text-xl);
+  /* VISUAL-VITALITY V2 §4.1：xl→3xl，页题与面板内 h2（text-md）拉开两档——
+     「字号层级压扁」病灶的最小修复；面板标题刻意不动。 */
+  font-size: var(--text-3xl);
   line-height: 1.15;
 }
 
@@ -640,6 +642,19 @@ button,
 
 .panel-wide {
   grid-column: 1 / -1;
+}
+
+/* 面板主次分档（VISUAL-VITALITY V2 §4.2）：hero 面板 = 页内唯一主角（每页 ≤1，当前仅
+   总览基准线 + 知识库检索区），边框/投影升一档；普通 .panel 保持安静。 */
+.panel--hero {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+/* tech 越界层：hero 面板顶缘 1px 信号青 hairline（低透明，非辉光，不占辉光预算）。 */
+:root[data-theme='tech'] .panel--hero {
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--blue) 45%, transparent),
+    var(--shadow-md);
 }
 
 .panel-header {
@@ -913,6 +928,31 @@ button,
   background: var(--surface);
   color: var(--muted);
   box-shadow: var(--shadow-sm);
+}
+
+/* 页级空态（VISUAL-VITALITY V2 §4.3）：整页只有一句话时（我的视图匿名/未登录），
+   从「横幅浮在虚空」升级为居中构图 + 几何示意记号（纯 CSS 虚线圆环+圆点，零图片依赖）。
+   仅页级用；面板内 loading/error 带保持原样。散装列表空态收编属 DESIGN-LANG B4（硬边界
+   待用户放行），此处不越界。 */
+.state-band--page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 560px;
+  margin: 9vh auto 0;
+  padding: 36px 32px;
+  text-align: center;
+  line-height: 1.6;
+}
+.state-band--page::before {
+  content: '';
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--muted) 4px, transparent 5px);
 }
 
 @media (max-width: 980px) {
@@ -4424,4 +4464,14 @@ form .btn--primary {
 /* tech 越界层：状态灯辉光（辉光预算「状态节点」类，与 baseline-dot 同族同强度）。 */
 :root[data-theme='tech'] .viz-dot {
   box-shadow: 0 0 8px 1px color-mix(in srgb, currentColor 45%, transparent);
+}
+
+/* ===== VISUAL-VITALITY V2 §4.4：依赖图节点（tech 越界层）=====
+   深底上 surface 节点偏暗、与画布融在一起 → 提亮一档；被卡节点吃 vv-pulse-alert
+   红脉动（该页唯一常驻动效，把「谁被卡」从要找变成会跳）。 */
+:root[data-theme='tech'] .dag-node {
+  background-color: var(--surface-raised);
+}
+:root[data-theme='tech'] .dag-node--blocked-idle {
+  animation: vv-pulse-alert var(--motion-breathe);
 }

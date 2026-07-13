@@ -145,7 +145,7 @@ function KbSearchPanel({
 
   return (
     <div className="kb-search-panel">
-      <form className="panel kb-search-form" onSubmit={handleSubmit}>
+      <form className="panel panel--hero kb-search-form" onSubmit={handleSubmit}>
         <Field label={t('kb.search.symptomLabel')}>
           <textarea
             value={symptomInput}

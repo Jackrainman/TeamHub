@@ -47,7 +47,8 @@ export function MyViewPage({
   if (identity.mode !== 'identity') {
     return (
       <div className="myview-page">
-        <div className="state-band" role="status">
+        {/* 页级空态（VISUAL-VITALITY V2 §4.3）：整页只有一句话时给居中构图，不再横幅浮虚空。 */}
+        <div className="state-band state-band--page" role="status">
           {t('myview.needIdentityMode')}
         </div>
       </div>
@@ -65,7 +66,7 @@ export function MyViewPage({
   if (!session) {
     return (
       <div className="myview-page">
-        <div className="state-band" role="status">
+        <div className="state-band state-band--page" role="status">
           {t('myview.needLogin')}
         </div>
       </div>

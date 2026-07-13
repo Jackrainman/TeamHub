@@ -123,7 +123,7 @@ export function BaselineOverview({
 
   if (seasonsQuery.isLoading || (seasonId && baselineQuery.isLoading)) {
     return (
-      <section className="panel baseline-hero">
+      <section className="panel panel--hero baseline-hero">
         <div className="baseline-hero__body">
           <div className="state-band" role="status" aria-live="polite">
             {t('overview.baseline.loading')}
@@ -134,7 +134,7 @@ export function BaselineOverview({
   }
   if (seasonsQuery.error || baselineQuery.error) {
     return (
-      <section className="panel baseline-hero">
+      <section className="panel panel--hero baseline-hero">
         <div className="baseline-hero__body">
           <div className="state-band state-band-error" role="alert">
             {t('overview.baseline.error')}
@@ -145,7 +145,7 @@ export function BaselineOverview({
   }
   if (!seasonId) {
     return (
-      <section className="panel baseline-hero">
+      <section className="panel panel--hero baseline-hero">
         <div className="baseline-hero__body">
           <div className="state-band" role="status">{t('overview.baseline.noSeason')}</div>
         </div>
@@ -222,7 +222,7 @@ function BaselineTimeline({
     )?.id;
 
   return (
-    <section className="panel baseline-hero" aria-label={t('overview.baseline.title')}>
+    <section className="panel panel--hero baseline-hero" aria-label={t('overview.baseline.title')}>
       <header className="baseline-hero__head">
         <div className="baseline-hero__title">
           <h2>{t('overview.baseline.title')}</h2>
@@ -415,7 +415,7 @@ function BaselineEmptyState({
   }
 
   return (
-    <section className="panel baseline-hero">
+    <section className="panel panel--hero baseline-hero">
       <div className="panel-header">
         <h2>{t('overview.baseline.empty.title')}</h2>
       </div>
