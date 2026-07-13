@@ -213,6 +213,9 @@
 /* 数据位换等宽栈（数字/编号/版本/日期/周数/计数徽标/表格数值列）——统一在既有数值类上加 font-family，
    不逐处内联（约束：一个 .u-mono 或对既有数值类统一加）。tabular-nums 让数字等宽对齐。 */
 :root[data-theme='tech'] .metric-tile strong,
+:root[data-theme='tech'] .baseline-countdown__num,
+:root[data-theme='tech'] .baseline-countdown__meta,
+:root[data-theme='tech'] .data-row__time,
 :root[data-theme='tech'] .pm-column__count,
 :root[data-theme='tech'] .kb-result-count,
 :root[data-theme='tech'] .archive-version-preview,
@@ -572,11 +575,43 @@ button,
 }
 
 .metric-tile {
+  position: relative; /* V1 §3.3：顶部 2px tone 条锚点 */
   display: flex;
   flex-direction: column;
   gap: 6px;
   min-height: 76px;
   padding: 14px;
+  overflow: hidden; /* tone 条随圆角裁切 */
+}
+/* 顶部 tone 条：默认中性、有 accent 时染语义色——五瓦片同质汤的最小破局。 */
+.metric-tile::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--border-strong);
+}
+.metric-tile--red::before {
+  background: var(--red);
+}
+.metric-tile--amber::before {
+  background: var(--amber);
+}
+.metric-tile--green::before {
+  background: var(--green);
+}
+.metric-tile--blue::before {
+  background: var(--blue);
+}
+/* 数字 + 微仪表同排（viz 槽空缺时 row 退化为纯数字行，布局不变）。 */
+.metric-tile__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
 }
 
 .metric-tile span,
@@ -684,6 +719,33 @@ button,
   flex-direction: column;
   gap: 1px;
   background: var(--border);
+}
+
+/* 事件行时间线化（VISUAL-VITALITY V1 §3.4）：语义 tone 圆点 + 主体 + mono 时间戳。
+   偏离注记：设计稿的竖向连线在 1px 缝隙列表里视觉断裂，砍掉只留圆点（visual-vitality.md §6）。 */
+.data-row--event {
+  justify-content: flex-start;
+}
+.data-row--event .viz-dot {
+  width: 8px;
+  height: 8px;
+}
+.data-row__main {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.data-row__main strong {
+  margin-bottom: 0;
+}
+.data-row__time {
+  flex: none;
+  color: var(--faint);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ===== 徽章体系 .badge（DESIGN-LANG B2，design-language.md §3）=====
@@ -3534,11 +3596,71 @@ form .btn--primary {
   padding: 16px;
 }
 
-/* ── 倒排基准线「基准线 vs 实际」（BASELINE-CORE S6）─────────────────────────── */
+/* ── 倒排基准线「基准线 vs 实际」（BASELINE-CORE S6；VISUAL-VITALITY V1 战情屏化）──────
+   结构 = __head（标题 + T−N 倒计时双栏，替代通用 panel-header）+ __body（原内容，补回内边距
+   ——旧结构子元素全贴板边，是「没填完」观感的病灶之一）。 */
 .baseline-hero {
   display: flex;
   flex-direction: column;
+  gap: 0;
+}
+.baseline-hero__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+.baseline-hero__title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.baseline-hero__title h2 {
+  margin: 0;
+  font-size: var(--text-md);
+}
+.baseline-hero__phase {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+/* 倒计时（signature，§3.1）：display 档大数字（每屏 display ≤2 处预算，本页仅此一处），
+   吃 --blue 语义槽（tech 自动 remap 信号青）；数字滚动由 CountUpNumber 承担。 */
+.baseline-countdown {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex: none;
+}
+.baseline-countdown__num {
+  color: var(--blue);
+  font-size: var(--text-display);
+  font-weight: var(--weight-heavy);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+.baseline-countdown__t {
+  margin-right: 2px;
+  color: var(--muted);
+  font-size: 0.45em;
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.02em;
+}
+.baseline-countdown__meta {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+.baseline-hero__body {
+  display: flex;
+  flex-direction: column;
   gap: 14px;
+  padding: 16px 18px;
 }
 .baseline-muted {
   color: var(--muted);
@@ -3573,8 +3695,10 @@ form .btn--primary {
 }
 .baseline-track {
   position: relative;
-  min-width: 560px;
-  height: 44px;
+  /* V1：560→480——__body 补 18px 内边距后，560 在总览左栏（~524 可用）必横滚、右缘看似被
+     裁断；480 桌面端完整呈现，窄屏仍兜底可滚。 */
+  min-width: 480px;
+  height: 64px; /* V1 §3.2：44→64，时间轴是战情屏主视觉，给节点与段标签呼吸空间 */
 }
 .baseline-seg {
   position: absolute;
@@ -3647,19 +3771,26 @@ form .btn--primary {
 .baseline-dot {
   position: absolute;
   top: 50%;
-  width: 14px;
-  height: 14px;
+  width: 16px; /* V1 §3.2：14→16，配 64px 高轨道 */
+  height: 16px;
   transform: translate(-50%, -50%);
   border: 2px solid var(--surface);
   box-shadow: var(--shadow-xs);
   z-index: 2;
+  transition: transform var(--transition);
 }
 .baseline-dot--milestone {
   border-radius: var(--radius-pill);
 }
+.baseline-dot--milestone:hover {
+  transform: translate(-50%, -50%) scale(1.25);
+}
 .baseline-dot--gate {
   border-radius: 2px;
   transform: translate(-50%, -50%) rotate(45deg);
+}
+.baseline-dot--gate:hover {
+  transform: translate(-50%, -50%) rotate(45deg) scale(1.25);
 }
 .baseline-dot--red {
   background: var(--red);
@@ -3726,10 +3857,19 @@ form .btn--primary {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 8px 10px;
+  padding: 7px 10px; /* V1 §3.5：普通行收紧一档、退回 surface，把量感让给「下一站」 */
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
+  background: var(--surface);
+}
+/* 下一个待过的里程碑/门（pending 中 plannedAt 最早者）：左侧主色竖条 + 浮起底。 */
+.baseline-ms--next {
+  padding: 9px 10px;
+  border-left: 3px solid var(--blue);
   background: var(--surface-raised);
+}
+.baseline-ms--next .baseline-ms__body strong {
+  font-weight: var(--weight-bold);
 }
 .baseline-ms__body {
   display: flex;

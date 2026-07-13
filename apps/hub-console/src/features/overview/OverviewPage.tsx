@@ -5,6 +5,9 @@ import type { HubApiClient } from '../../api/client';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { ARTIFACT_KIND_KEY } from '../../constants';
 import { MetricTile } from '../../components/MetricTile';
+import { CountUpNumber } from '../../components/viz/CountUpNumber';
+import { ProgressRing } from '../../components/viz/ProgressRing';
+import { StatusDot, type VizTone } from '../../components/viz/StatusDot';
 import { BaselineOverview } from './BaselineOverview';
 
 // 后端枚举 → 文案键（类型安全：枚举变更会在此处编译报错）。仅翻译状态/类型等「界面语义」，
@@ -25,6 +28,30 @@ const EVENT_TYPE_KEY: Record<HubEvent['type'], TranslationKey> = {
   'adapter.health.changed': 'enum.event.adapter.health.changed',
   'system.health.checked': 'enum.event.system.health.checked',
 };
+
+// 事件类型 → 时间线圆点 tone（VISUAL-VITALITY V1 §3.4；领域→tone 映射留在 feature 内，
+// design-language §3 先例）：消息/技能=绿（人来的信号）、git/发布/归档=蓝（产出信号）、
+// 健康/桥状态变化=琥珀（状态迁移，值得一瞥）、系统自检=中性。
+const EVENT_TONE: Record<HubEvent['type'], VizTone> = {
+  'message.received': 'green',
+  'command.received': 'green',
+  'skill.requested': 'green',
+  'skill.completed': 'green',
+  'bridge.status.updated': 'amber',
+  'git.push': 'blue',
+  'release.created': 'blue',
+  'artifact.uploaded': 'blue',
+  'adapter.health.changed': 'amber',
+  'system.health.checked': 'neutral',
+};
+
+/** 事件时间戳 → 本地「MM-DD HH:mm」（mono 数据位，tech 下走等宽栈）。 */
+function fmtEventTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 interface OverviewPageProps {
   client: HubApiClient;
@@ -74,27 +101,44 @@ export function OverviewPage({
   return (
     <div className="overview-grid">
       {baselineHero}
+      {/* 指标瓦片仪表化（VISUAL-VITALITY V1 §3.3）：呼吸灯/进度环/滚动数字全画真数据；
+          呼吸（常驻动效）只给系统灯一处，协作桥灯静态（红=警示不闪、绿=安静）。 */}
       <section className="summary-strip" aria-label={t('overview.section.summary')}>
         <MetricTile
           label={t('overview.metric.system')}
           value={t(HEALTH_KEY[snapshot.health.status])}
+          accent="green"
+          viz={<StatusDot tone="green" live />}
         />
         <MetricTile
           label={t('overview.metric.adapters')}
           value={`${snapshot.system.adapters.enabled}/${snapshot.system.adapters.total}`}
+          accent="blue"
+          viz={
+            <ProgressRing
+              value={snapshot.system.adapters.enabled}
+              max={snapshot.system.adapters.total}
+              tone="blue"
+              size={40}
+              label={`${t('overview.metric.adapters')} ${snapshot.system.adapters.enabled}/${snapshot.system.adapters.total}`}
+            />
+          }
         />
         <MetricTile
           label={t('overview.metric.bridge')}
           value={t('overview.blocked', { n: blocked })}
-          accent={blocked > 0 ? 'red' : undefined}
+          accent={blocked > 0 ? 'red' : 'green'}
+          viz={<StatusDot tone={blocked > 0 ? 'red' : 'green'} />}
         />
         <MetricTile
           label={t('overview.metric.repos')}
-          value={`${snapshot.gitRepos.repos.length}`}
+          value={<CountUpNumber value={snapshot.gitRepos.repos.length} />}
+          accent="neutral"
         />
         <MetricTile
           label={t('overview.metric.artifacts')}
-          value={`${snapshot.artifacts.artifacts.length}`}
+          value={<CountUpNumber value={snapshot.artifacts.artifacts.length} />}
+          accent="neutral"
         />
       </section>
 
@@ -183,10 +227,19 @@ function PanelHeader({ title, meta }: { title: string; meta: string }) {
 
 function EventRow({ event }: { event: HubEvent }) {
   const { t } = useI18n();
+  const time = fmtEventTime(event.createdAt);
   return (
-    <article className="data-row">
-      <strong>{t(EVENT_TYPE_KEY[event.type])}</strong>
-      <span>{event.source}</span>
+    <article className="data-row data-row--event">
+      <StatusDot tone={EVENT_TONE[event.type]} />
+      <div className="data-row__main">
+        <strong>{t(EVENT_TYPE_KEY[event.type])}</strong>
+        <span>{event.source}</span>
+      </div>
+      {time ? (
+        <time className="data-row__time" dateTime={event.createdAt}>
+          {time}
+        </time>
+      ) : null}
     </article>
   );
 }

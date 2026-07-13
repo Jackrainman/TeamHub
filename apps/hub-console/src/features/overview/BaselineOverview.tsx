@@ -19,6 +19,7 @@ import { humanizeFormError } from '../../utils';
 import { Field } from '../../components/Field';
 import { FormGrid } from '../../components/FormGrid';
 import { FormActions } from '../../components/FormActions';
+import { CountUpNumber } from '../../components/viz/CountUpNumber';
 import {
   bandOf,
   currentPhase,
@@ -123,8 +124,10 @@ export function BaselineOverview({
   if (seasonsQuery.isLoading || (seasonId && baselineQuery.isLoading)) {
     return (
       <section className="panel baseline-hero">
-        <div className="state-band" role="status" aria-live="polite">
-          {t('overview.baseline.loading')}
+        <div className="baseline-hero__body">
+          <div className="state-band" role="status" aria-live="polite">
+            {t('overview.baseline.loading')}
+          </div>
         </div>
       </section>
     );
@@ -132,8 +135,10 @@ export function BaselineOverview({
   if (seasonsQuery.error || baselineQuery.error) {
     return (
       <section className="panel baseline-hero">
-        <div className="state-band state-band-error" role="alert">
-          {t('overview.baseline.error')}
+        <div className="baseline-hero__body">
+          <div className="state-band state-band-error" role="alert">
+            {t('overview.baseline.error')}
+          </div>
         </div>
       </section>
     );
@@ -141,7 +146,9 @@ export function BaselineOverview({
   if (!seasonId) {
     return (
       <section className="panel baseline-hero">
-        <div className="state-band" role="status">{t('overview.baseline.noSeason')}</div>
+        <div className="baseline-hero__body">
+          <div className="state-band" role="status">{t('overview.baseline.noSeason')}</div>
+        </div>
       </section>
     );
   }
@@ -162,23 +169,26 @@ export function BaselineOverview({
       now={now}
       groupName={groupName}
       taskTitle={taskTitle}
+      seasonName={activeSeason?.name}
     />
   );
 }
 
-/** 已生成基准线：时间轴 + 里程碑节点 + 组落后 + 投资示警。 */
+/** 已生成基准线：倒计时 hero 头 + 时间轴 + 里程碑节点 + 组落后 + 投资示警。 */
 function BaselineTimeline({
   baseline,
   tasks,
   now,
   groupName,
   taskTitle,
+  seasonName,
 }: {
   baseline: SeasonBaselinePublic;
   tasks: Task[];
   now: Date;
   groupName: (id: string) => string;
   taskTitle: (id: string) => string;
+  seasonName?: string;
 }) {
   const { t } = useI18n();
   const nowMs = now.getTime();
@@ -195,22 +205,51 @@ function BaselineTimeline({
   const nowInRange = span != null && nowMs >= span.startMs && nowMs <= span.endMs;
   const competitionDate = baseline.anchors.competitionDate;
 
+  // 倒计时 hero（VISUAL-VITALITY V1 §3.1，全站唯一 signature）：距赛日周数升为 display 级
+  // 大数字，阶段文案降为副行；赛日已过（weeks=0）整块不渲染、不摆 0。
+  const weeks = competitionDate ? weeksUntil(competitionDate, nowMs) : 0;
+  const showCountdown = Boolean(competitionDate) && weeks > 0;
   const phaseMeta = curPhase
-    ? competitionDate
-      ? t('overview.baseline.currentPhase', {
-          phase: t(PHASE_KEY[curPhase.type]),
-          weeks: weeksUntil(competitionDate, nowMs),
-        })
-      : t('overview.baseline.currentPhase.noComp', { phase: t(PHASE_KEY[curPhase.type]) })
+    ? t('overview.baseline.currentPhase.noComp', { phase: t(PHASE_KEY[curPhase.type]) })
     : '';
+
+  // 下一个待过的里程碑/门（§3.5）：pending 中 plannedAt 最早者，列表里高亮为「下一站」。
+  const nextMilestoneId = baseline.milestones
+    .filter((m) => m.status === 'pending')
+    .reduce<BaselineMilestonePublic | null>(
+      (acc, m) => (acc == null || m.plannedAt < acc.plannedAt ? m : acc),
+      null,
+    )?.id;
 
   return (
     <section className="panel baseline-hero" aria-label={t('overview.baseline.title')}>
-      <div className="panel-header">
-        <h2>{t('overview.baseline.title')}</h2>
-        <span>{phaseMeta}</span>
-      </div>
+      <header className="baseline-hero__head">
+        <div className="baseline-hero__title">
+          <h2>{t('overview.baseline.title')}</h2>
+          <span className="baseline-hero__phase">
+            {[seasonName, phaseMeta].filter(Boolean).join(' · ')}
+          </span>
+        </div>
+        {showCountdown ? (
+          <div
+            className="baseline-countdown"
+            role="group"
+            aria-label={t('overview.baseline.countdown.aria', { weeks })}
+          >
+            <span className="baseline-countdown__num" aria-hidden="true">
+              <span className="baseline-countdown__t">T−</span>
+              <CountUpNumber value={weeks} />
+            </span>
+            <span className="baseline-countdown__meta" aria-hidden="true">
+              {t('overview.baseline.countdown.meta', {
+                date: dateOf(competitionDate as string),
+              })}
+            </span>
+          </div>
+        ) : null}
+      </header>
 
+      <div className="baseline-hero__body">
       {investmentWarnings.length > 0 ? (
         <div className="baseline-warn baseline-warn--future" role="note">
           <strong>{t('overview.baseline.invest.title')}</strong>
@@ -279,8 +318,9 @@ function BaselineTimeline({
       <ol className="baseline-milestones">
         {baseline.milestones.map((m) => {
           const level = driftById.get(m.id)?.level ?? 'green';
+          const isNext = m.id === nextMilestoneId;
           return (
-            <li key={m.id} className="baseline-ms">
+            <li key={m.id} className={`baseline-ms${isNext ? ' baseline-ms--next' : ''}`}>
               <span className={`badge badge--xs ${LEVEL_TONE[level]}`}>
                 {t(statusKey(m, level))}
               </span>
@@ -334,6 +374,7 @@ function BaselineTimeline({
           ))}
         </div>
       ) : null}
+      </div>
     </section>
   );
 }
@@ -378,6 +419,7 @@ function BaselineEmptyState({
       <div className="panel-header">
         <h2>{t('overview.baseline.empty.title')}</h2>
       </div>
+      <div className="baseline-hero__body">
       <p className="baseline-muted">{t('overview.baseline.empty.desc')}</p>
       <form className="pm-form" onSubmit={submit}>
         <FormGrid>
@@ -415,6 +457,7 @@ function BaselineEmptyState({
           success={mutation.isSuccess ? t('overview.baseline.empty.success') : null}
         />
       </form>
+      </div>
     </section>
   );
 }
