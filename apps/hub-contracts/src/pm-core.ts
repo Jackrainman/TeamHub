@@ -155,10 +155,11 @@ export const MemberSchema = z.object({
 export const MemberPublicSchema = MemberSchema.omit({ pinHash: true });
 
 /**
- * PATCH /api/members/:id/gate-reviewer（验收人名单维护，GATE-CHECKLIST-IOU / D-087 拍板②）：
+ * PUT /api/members/:id/gate-reviewer（验收人名单维护，GATE-CHECKLIST-IOU / D-087 拍板②）：
  * 设 / 撤该成员的门验收人资格（`Member.gateReviewer` 布尔位）。**每年换届更新**（换届交接门的一项，
- * gate-checklist-iou.md §3）。授权语义（路由层）：身份模式下须现任验收人 / 管理员操作，照
- * `server.ts` PIN 路由的"布尔条件 + 403"内嵌先例（与豁免鉴权 `isGateReviewer` helper 共用）。
+ * gate-checklist-iou.md §3）。授权语义（路由层）v1 = 宿主级写门即可（身份模式须登录、不再细分
+ * "须现任验收人/管理员"——家庭影院级取舍，同 PIN 首次设置先例；见 gate-checklist-iou.md §7 偏离注记）。
+ * 豁免鉴权本身走 `authz.ts` 的 `isGateReviewer` helper（403），与本写口权限相互独立。
  * 响应回带该成员**公开视图**（`MemberPublicSchema` 剥 pinHash，密钥纪律）。放本文件、照 identity.ts
  * 的 `SetPinRequestSchema`/`SetPinResponseSchema` 邻位范式（gateReviewer 字段与 MemberPublicSchema 皆在此）。
  */
