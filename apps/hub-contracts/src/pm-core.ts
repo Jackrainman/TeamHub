@@ -138,6 +138,12 @@ export const MemberSchema = z.object({
   // 用下方 `MemberPublicSchema`（.omit pinHash）过读边界，照 confirmedBy/passedBy 的 I0 剥离先例。
   // 旧 gov.json（无此字段）optional 兜底、照常加载（D-080 向后兼容）。
   pinHash: z.string().min(1).optional(),
+  // ── 门验收人名单（GATE-CHECKLIST-IOU，D-087 拍板②/体检报告 ②-2）──────────────────────────
+  // **optional 布尔位**：`true` = 该成员在「验收人名单」上（有权豁免欠条 waived + 门验收兜底）。
+  // 落点选 Member 布尔位而非新实体 / 新 MemberRole 档（additive、非 refactor-first——体检 ②-2 裁定）。
+  // **语义=每年换届更新**：验收人=大三，换届交接门的一项（gate-checklist-iou.md §3）。旧 gov.json
+  // 无此字段 optional 兜底、照常加载（D-080 向后兼容）。**I0**：资格布尔而已，绝不做按人聚合/排行。
+  gateReviewer: z.boolean().optional(),
 });
 
 /**
@@ -147,6 +153,21 @@ export const MemberSchema = z.object({
  * zod `.parse` 默认剥未知键，故经本 schema parse 的对象绝不含 pinHash。
  */
 export const MemberPublicSchema = MemberSchema.omit({ pinHash: true });
+
+/**
+ * PATCH /api/members/:id/gate-reviewer（验收人名单维护，GATE-CHECKLIST-IOU / D-087 拍板②）：
+ * 设 / 撤该成员的门验收人资格（`Member.gateReviewer` 布尔位）。**每年换届更新**（换届交接门的一项，
+ * gate-checklist-iou.md §3）。授权语义（路由层）：身份模式下须现任验收人 / 管理员操作，照
+ * `server.ts` PIN 路由的"布尔条件 + 403"内嵌先例（与豁免鉴权 `isGateReviewer` helper 共用）。
+ * 响应回带该成员**公开视图**（`MemberPublicSchema` 剥 pinHash，密钥纪律）。放本文件、照 identity.ts
+ * 的 `SetPinRequestSchema`/`SetPinResponseSchema` 邻位范式（gateReviewer 字段与 MemberPublicSchema 皆在此）。
+ */
+export const SetGateReviewerRequestSchema = z.object({
+  gateReviewer: z.boolean(),
+});
+export const SetGateReviewerResponseSchema = z.object({
+  member: MemberPublicSchema,
+});
 
 // ---------------------------------------------------------------------------
 // Task（一等公民）
@@ -475,6 +496,8 @@ export type MemberGrade = z.infer<typeof MemberGradeSchema>;
 export type MemberStatus = z.infer<typeof MemberStatusSchema>;
 export type Member = z.infer<typeof MemberSchema>;
 export type MemberPublic = z.infer<typeof MemberPublicSchema>;
+export type SetGateReviewerRequest = z.infer<typeof SetGateReviewerRequestSchema>;
+export type SetGateReviewerResponse = z.infer<typeof SetGateReviewerResponseSchema>;
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 export type TaskComplexity = z.infer<typeof TaskComplexitySchema>;
 export type Task = z.infer<typeof TaskSchema>;
