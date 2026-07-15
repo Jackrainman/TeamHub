@@ -2,6 +2,7 @@
 
 > **status: DESIGN-LOCKED v1**（2026-07-15 深夜多轮拍板收口；**实现待排期**；用户明示"先试试、边做边改"——本文所有判定阈值均为可调常量，非教条）。
 > 上游 = D-085 名字三层（认领/指派理由/验收全留名于事实卡）+ D-083（Task 永不加个人 dueDate / IDENTITY-LITE session.memberId / Need 反派单先例 A2）+ `gate-checklist-iou.md`（共用同一把"结构尺"）。
+> **已实现（2026-07-15 实现轮，commit `5a60344`..`bfa5d25`，VERSION 0.23.0→0.23.2）**：T1 契约 / T2 存储+路由 / T3 界面三刀全部落地，偏离回写见 §9。
 
 ## 1. 一句话定位
 
@@ -51,3 +52,49 @@
 ## 8. 实现期账单（待排期）
 
 Task 三个 optional 字段（claimedAt / assignReason / 本组搭档位，命名实现期定）+ 认领/指派/转派路由（actor 注入沿 IDENTITY-LITE）+ 大任务判定纯函数（依赖边+门挂接查询，常量可调）+ console：挂单池视图、一键认领、搭档黄标、我的视图空态文案、打回状态 + "看谁做过"关键词搜索（事实卡列表）。
+
+## 9. 实现落点注记（2026-07-15 实现轮）
+
+> TASK-POST-CLAIM 三刀（T1 契约 / T2 存储+路由 / T3 界面，commit `5a60344`..`bfa5d25`，VERSION 0.23.0→0.23.2）已落地，三包 `verify:all` 全绿（contracts 263 / server 344 / console 163）+ health-check 10 页 0 错 0 白屏（挂单池 tab 已补进覆盖清单，见 §9.4）+ 活体驱动认领（挂单池 2→1 张、写→刷新闭环）。本节把实现期偏离设计稿字面处如实回写，按 T1/T2/T3 三刀分组（照 `baseline-design.md` §7 / `gate-checklist-iou.md` §7 回写格式先例）。
+
+### 9.1 契约层偏离（T1，`hub-contracts/src/pm-core.ts` + `pm-requests.ts`）
+
+- **字段簇八个而非字面"三个"**：设计 §8 字面写"Task 三个 optional 字段（claimedAt / assignReason / 本组搭档位）"；实现按架构裁定扩为**八个**留名字段簇——`claimedAt` / `assignReason` / `assignedBy` / `partnerMemberId` / `crossClaimConfirmedBy` / `completedBy` / `reviewedBy` / `reviewNote`。依据 = 体检 `arch-checkup-2026-07-15.md` D1 债路径②（认领/指派/搭档/跨组确认/完成/验收六个动作各自需要"谁+何时"落一笔事实，若只留三格会把 `assignedBy`/`completedBy`/`reviewedBy`/`reviewNote` 挤压进已有字段或另建实体）；八字段**全为 Task 本体 optional 标量**（照 `milestoneId?`/`investment?` 先例），**零新实体**（不复活体检 D2/③-4 点名的 `TaskProgressSignal` 死脚手架）、**零新增 dueDate**（D-083 G4 红线未碰）。
+- **验收态派生不动枚举**：`deriveTaskAcceptance(task)` 纯函数输出 `notDone | selfDone | awaitingReview | accepted` 四态，`TaskStatus` 五态枚举（`pending/inProgress/blocked/done/shelved`）原样未动——大活 `done` 后仍派生为 `awaitingReview`（前端渲染"待验收"徽章），`reviewedBy` 留名后才 `accepted`。体检已核五态够用，此建模是"大活必须学长验收才算完"（§5）的落地方式，不是加状态。
+- **打回必写理由留在 UX 层**：`ReviewTaskRequestSchema` 的 `note` 未在 schema 层硬绑 `outcome==='reject' ⇒ note` 必填（仅 `z.string().min(1).optional()`）——避免 schema 层强校验卡死学长"抽查快速打回"的操作节奏；UX 层（`TaskDetailDrawer`）引导必写，留名+打回理由仍都落事实卡（`reviewedBy`/`reviewNote`）。
+- **读/写契约分文件**：`TasksQuerySchema`（"看谁做过" `q?` 子串搜）放 `pm-core.ts`（紧邻 `TasksResponseSchema` 读契约）；六个动作写请求（Claim/Assign/SetTaskPartner/ConfirmCrossClaim/Complete/Review）放 `pm-requests.ts`——读契约与写请求按既有文件分工各归其位，非新增文件。
+- **isBig 下沉后端**：体检 D5 债顺带兑现——`TaskWithMetaSchema = TaskSchema.extend({ isBig })`，`TasksResponseSchema` 改用之；server `GET /api/tasks` 逐任务用 `isBigTask(task, dependencies)` 算好吐前端（大任务判定不再各视图重复挂一份 dep-graph 查询）；`hub-server/src/contracts.ts` 桶新增 `isBigTask` re-export。这是 `TasksResponse` 形状变更的必要波及，非越层新增功能；console 既有 `Task[]` 消费点（`PmCreatePanel`/`DepGraph`）协变兼容、零改动。
+- **`GET /api/tasks?q=` 空串规则**：`?q=` 空串走 `min(1)` 校验失败 → 400（照 baseline/checklist querystring 400 先例）；无 `q` 参数或未知参数 → 返回全部任务（向后兼容既有消费点）。
+
+### 9.2 存储层偏离（T2，`hub-server/src/store/*`）
+
+- **窄写方法签名带显式时间戳参数**：六个新增窄写方法（`claimTask`/`assignTask`/`setTaskPartner`/`confirmCrossClaim`/`completeTask`/`reviewTask`）均带显式 `at`/`claimedAt` 时间戳参数（由路由 `ctx.clock` 算好传入），非沿用既有 `updateTaskStatus` 风格的方法内部取 `this.clock`——遵设计给定的动作契约签名；`claimedAt` 与 `updatedAt` 取同一值。三实现（mock/file/sqlite）对称落地，照 `updateTaskStatus` 受限迁移先例。
+- **`statusSource` 统一裁定钉 console**：`claim`（pending→inProgress）/`complete`（→done）/`reject`（→inProgress）三处状态变都把 `statusSource` 钉为 `console`（C5，镜像既有 `updateTaskStatus` 做法）；`accept`（review 通过）不改 `TaskStatus` 故不动 `statusSource`。设计稿未明列 `statusSource` 归属，此为诚实的 C5 落地，非字面偏离。
+- **清字段用解构剔除**：`assignTask`（重新指派）/`completeTask`（重开）等路径对旧留名字段用解构剔除（非置 `undefined`），落盘后该键从 JSON 消失，而非序列化为 `null`。
+
+### 9.3 路由/鉴权层偏离（T2，`hub-server/src/server.ts` `registerPmCoreRoutes` + `authz.ts`）
+
+- **`confirm-cross-claim` 路径全称**：路由用 `/confirm-cross-claim`（对齐 `ConfirmCrossClaimRequestSchema` 命名及契约注释里的落点建议），非 §3 行文里缩写的 `/confirm-claim`。
+- **assign 不校验新 owner 名册**：`assign`/转派路由信任组长已过 `isGroupLeadOf` 403 授权门，**不**再校验新 `ownerId` 是否命中成员名册（仅 `claim` 有防孤儿 400，spec §3 也只对 claim 明列此校验）——组长指派真实成员是默认信任前提；`partnerMemberId` 校验（须本组成员，外组 400）仍在。
+- **assign 不做状态提升**：`claim` 会把 `pending` 挂单提升为 `inProgress`；`assign` 指派后 `TaskStatus` 保持不变（`pending` 任务被指派后仍 `pending`，只是有了 owner）。语义上可解释为"已指派但未开工"，但与 claim 的提升行为不对称，属实现期未拍板细节、非设计明文要求；`isPostedTask` 仍会因 `ownerId!==null` 把它移出挂单池，无功能性 bug。
+- **partner 路由不设发起人鉴权**：本组搭档补位任一成员可自行认领/组长可自任（"本组自愿补位"），无发起人身份校验——task-post-claim.md §4 明示"组长默认可自任"，spec 亦要求记 deviations，此为按 spec 落地非越权。
+- **review 鉴权复用 `isGateReviewer`**：`Member.gateReviewer` 布尔位（`gate-checklist-iou.md` 落地的验收人名单）与 review 鉴权同一张名册——D-087 拍板②"验收人名单与豁免名单同语义"在此再次兑现；**验收人名单与豁免名单是同一张大三名单，非两套并行名单**。`review` 路由对任意 `TaskStatus`（含未 `done`、非大活）都可被具备 `gateReviewer` 的 actor stamp 验收/打回——console 已挡（两档验收 UI 只在 `done` 且 `isBig` 时出现验收/打回按钮），但直连 API 可达；影响良性（人工操作、非公开攻击面），归为设计缺省而非违规，此前实现自报未列，本次复审补记。
+- **complete 无操作人=owner 强校验**：`complete` 路由无鉴权（"本人标完成，写门即可"，server 注释已披露）——任何带自己名字的操作人可标任意非终态任务完成，`completedBy` 记录的是操作人本人而非强制校验其为 `ownerId`。符合"事实层留名"模型（记录谁点的，不代它验证是否本人），但设计 §5 字面"本人标完成"未被服务端强制校验，此前实现自报已列，记录在案确认属实。
+
+### 9.4 界面层偏离（T3，`hub-console/src/features/{pool,pm,project}/*`）
+
+- **新增「标记完成」动作**：`TaskDetailDrawer` 加 `POST /complete` 按钮——设计 §2 只列两档验收显示+验收/打回按钮，未显列独立"标记完成"动作；但要经留名路径把任务推到 `done→awaitingReview/accepted` 派生态、留下 `completedBy`，此按钮是必要的净增，属 §5"本人标完成+留名"对齐落地，非越权新增。
+- **匿名模式操作人 picker 共用一格**：`complete`/`confirm-cross-claim`/`review` 三动作在匿名模式下都需要 `ActorRef`（server 无 actorRef 会 400），照 `GateChecklistCard` waive-picker 先例在 `TaskDetailDrawer` 顶部加单一「操作人」选人（三动作共用同一个 `actorId` state）；身份模式服务端自动注入、不显该 picker。`claim`/`assign` 另有各自内嵌选人（照 spec §3 各自流程）。
+- **MyView 跳挂单池落点**：跨页导航原本只有 `onNavigate(page)`、无法直接指定项目页内子视图 → 新增极轻模块 `src/features/project/project-nav.ts`（`ProjectView` 类型从 `ProjectPage` 移出 + 一次性意图 `requestProjectView`/`consumeProjectView`）；`MyViewPage` 新增 `onNavigate` prop（经 `console-pages` 透传）。空态文案 N = `DepNode.ownerId===null` 计数，零新增请求。
+- **`client.getTasks` 返回类型变化**：`Task[]` → `TaskWithMeta[]`（协变兼容既有消费点 `PmCreatePanel`/`DepGraph`，零破坏）；新增 `getTasks(q?)` 与六个窄写方法，均走 `schemas/pm.ts` re-export。
+- **纯函数抽层**：滞留分档/搭档黄标/跨组确认徽章/空态 N 的计算抽成 `src/features/pool/pool-utils.ts`（15 单测），`PoolPage.tsx` 只做渲染消费；`POOL_STALE_DAYS=14` 为可调常量（滞留 ≥14 天转 red）。
+- **fixture 无 groupAdmin，测试内构造**：demo fixtures 无任何 `groupAdmin` 成员；组长 200 用例在测试内把 `m-ecB` 升为 `grp-ec` 的 `groupAdmin`（不改 fixtures 本体，只在测试构造自定义 snapshot）。
+- **health-check 页清单机制盲区已补**：`health-check.cjs` 逐 `.nav-item` 点击的主循环覆盖不到挂单池——它是 `ProjectPage` 内的 tab、非独立 `nav-item`。已加后置块：点到含 `#project-view-pool-btn` 的项目页再点开 pool tab，同款截图+白屏/报错哨兵（现报 10 页含"挂单池"）。
+
+### 9.5 复审补记（自报未列，独立复审补记一处）
+
+- **review 路由缺 done/大任务前置判**：见 §9.3——自报仅提"review 鉴权复用 `isGateReviewer`"，未提可对任意状态、任意大小任务 stamp 验收/打回。UI 已挡、仅直连 API 可达、影响良性，归为设计缺省而非违规，但属未披露的行为面，此处补记。
+
+### 9.6 红线复核结论（§5 对应 baseline/checklist 同款红线）
+
+全部守住：`TaskStatus` 五态枚举零改动（验收态是外挂派生、非新增状态值）；无任何按人聚合/排行/技能画像端点（"看谁做过"仅返回事实卡列表，不聚合）；空闲提醒仍只私推本人（我的视图空态文案）；Task 零新增 `dueDate`；跨组"本组搭档"仍是显式黄标不硬阻塞（A1 先例）；验收人名单（`gateReviewer`）与豁免名单同一张、鉴权基元复用 `authz.ts` 的 `isGateReviewer`/`isGroupLeadOf`（体检 D6 phase2 兑现）。
