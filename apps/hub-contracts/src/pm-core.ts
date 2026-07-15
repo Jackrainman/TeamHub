@@ -224,7 +224,115 @@ export const TaskSchema = z.object({
   // 投资类任务三维分类（baseline-design.md §1 细节4）：horizon×value×timeAccumulation。
   // 纯增量 optional，形状定义见 baseline.ts:TaskInvestmentSchema（避免两处定义漂移）。
   investment: TaskInvestmentSchema.optional(),
+  // ── 挂单认领制留名字段簇（TASK-POST-CLAIM，D-088 / D-085 名字三层）───────────────────────────
+  // 全为**事实卡留名位**（认领/指派/搭档/确认/完成/验收），无一新实体、**无一 dueDate**（红线：
+  // Task 永不加个人截止日期，D-083 G4）。名字只在**单条任务卡（事实层）**可见——聚合层永不做
+  // （不按人排行/频次/按人筛选，唯一例外=既有「我的视图」本人过滤）。逐字段照上方 milestoneId?/
+  // investment? 纯增量 optional 先例——旧 fixture / 落盘 JSON 不填 → parse 为 undefined，向后兼容（D-080）。
+  // **架构裁定**（arch-checkup-2026-07-15 D1 债路径②）：task-post-claim.md §8 字面"三个字段"扩为
+  // 本字段簇（§3 认领时刻 + §3 指派理由/指派人 + §4 搭档位 + §4 组长确认留名 + §5 两档完成/验收留名），
+  // 全落 Task 本体 optional 标量，**不复活 TaskProgressSignal 死脚手架**（体检 D2 / ③-4 避坑）。
+  //
+  // §3 认领时刻：认领即生效免确认（挂单唯一硬闸在门上）。认领人 = `ownerId` 本身（登录本人一键领），
+  // 故事实卡 = `ownerId` + `claimedAt` 两字段合读，不另存"认领人"（避免与 ownerId 冗余漂移）。
+  claimedAt: isoDateTimeSchema.optional(),
+  // §3 指派 / 转派强制理由（"分配 = 显式培养投资"——挂单零摩擦、指派多一格，摩擦力就是制度）。
+  // schema 层只声明 optional（既有任务无此字段）；"指派/转派时理由必填"由写路由的
+  // `AssignTaskRequestSchema.reason.min(1)` 在 schema 层强制（见 pm-requests.ts），Task 本体不强制。
+  assignReason: z.string().min(1).optional(),
+  // §3 指派人留名（谁把这活派给 `ownerId`）。ActorRef 事实卡留名，**非启动闸**。
+  assignedBy: ActorRefSchema.optional(),
+  // §4 本组搭档位：外组认领后本组补位的成员 id（师傅/对接人，组长默认可自任）——"跨组是学习通道
+  // 不是甩锅通道"。显式缺口 = 黄标（"待本组搭档"），**不硬阻塞干活**（A1 先例：暴露缺口不拦人）。
+  // 落地 = 一个 optional 字段，不建新域（task-post-claim.md §4 明示）。
+  partnerMemberId: z.string().min(1).optional(),
+  // §4 跨组认领"大任务"的组长事后确认留名——**不是启动闸**（认领已即生效；A1 先例：暴露缺口
+  // 不拦人、全系统唯一硬闸在门上；照 gate-checklist-iou.md 的"确认 = 事后留名/黄标暴露"先例）。
+  // 缺信号靠组长转派权兜底（事前结构信号、事后转派两层）。照 Dependency.confirmedBy / baseline
+  // passedBy 的 ActorRef 留名先例。
+  crossClaimConfirmedBy: ActorRefSchema.optional(),
+  // §5 标完成留名（简单活 = 本人标完成 + 留名；学长有抽查打回权，不强制每单看）。ActorRef 事实卡。
+  completedBy: ActorRefSchema.optional(),
+  // §5 学长验收 / 抽查留名（大活 = 必须学长验收留名才算完）。**验收态是派生的**（deriveTaskAcceptance），
+  // 不动 TaskStatus 枚举——done 后大活仍显"待验收"徽章，reviewedBy 留名后才 accepted。
+  reviewedBy: ActorRefSchema.optional(),
+  // §5 验收备注 / 打回理由（reject 时写打回理由；accept 时可空或写抽查备注）。事实卡留名同处。
+  reviewNote: z.string().min(1).optional(),
 });
+
+// ---------------------------------------------------------------------------
+// 挂单认领制结构尺与验收态派生（TASK-POST-CLAIM，D-088）：纯函数、无 IO，
+// 照 baseline.ts:deriveInvestmentWarnings 姊妹范式（阈值/规则做成可调导出常量，人人能心算）。
+// **判定 = 纯函数、最小 schema、不建新实体**（D-088 防屎山基准）。
+// ---------------------------------------------------------------------------
+
+/**
+ * "大任务"结构尺的调节旋钮（**TODO 位，暂不实现**——task-post-claim.md §4 已知边界）：
+ * 赛季后期几乎全图都在关键路径上 → "大任务"变密、审核/验收变多。若真压垮学长带宽，调节旋钮
+ * 现成 = 收紧"大"的定义（如只计 N 周内到期的门的挂接）——那时把本常量设为周数，在 `isBigTask`
+ * 里加"门 plannedAt 距今 ≤N 周"过滤即可。现阶段 `null` = 不设窗口（有门挂接即算大），v1 判定最简。
+ */
+export const BIG_TASK_GATE_LOOKAHEAD_WEEKS: number | null = null;
+
+/**
+ * "大任务"判定（task-post-claim.md §4："不看大小看结构"，机器可判、**无新增字段**）：
+ * - 挂门/里程碑（`task.milestoneId != null`，有门等）**或**
+ * - 有下游依赖边（`dependencies` 里存在 `fromTaskId === task.id` 且 `status !== 'waived'`，有人等）。
+ *
+ * 只看结构信号（门 + 下游），不引入"基础性/重要度"字段（§4 明确拒绝，防屎山）。**waived 边不算
+ * "有人等"**——已判定作废的依赖不构成下游压力（与 toDepGraphView 跳过 waived 边一致）。
+ * 大任务 = 跨组认领需组长事后确认 + 完成须学长验收（见 `deriveTaskAcceptance`）。
+ * 调节旋钮见 `BIG_TASK_GATE_LOOKAHEAD_WEEKS`（暂未实现）。
+ */
+export function isBigTask(
+  task: Pick<Task, 'id' | 'milestoneId'>,
+  dependencies: Pick<Dependency, 'fromTaskId' | 'status'>[],
+): boolean {
+  if (task.milestoneId != null) return true;
+  return dependencies.some(
+    (d) => d.fromTaskId === task.id && d.status !== 'waived',
+  );
+}
+
+/** 任务验收态（派生态，**非 TaskStatus 枚举值**——见 deriveTaskAcceptance 头注）。 */
+export type TaskAcceptanceState =
+  | 'notDone'
+  | 'selfDone'
+  | 'awaitingReview'
+  | 'accepted';
+
+/**
+ * 验收态派生（task-post-claim.md §5 两档制，D-088）——**派生态，不动 TaskStatus 枚举**（体检已核
+ * 五态够用）："大活必须学长验收才算完" = done 后仍显"待验收"徽章，reviewedBy 留名后才 accepted：
+ * - `notDone`：`status !== 'done'`（还没标完成，无所谓验收）。
+ * - `selfDone`：done + 简单活（`!isBig`）——本人标完成即算完，学长仅抽查打回权。
+ * - `awaitingReview`：done + 大活（`isBig`）+ 未验收（`!reviewedBy`）——done 了但仍"待验收"。
+ * - `accepted`：done + 大活 + 已 `reviewedBy` 留名——学长验收过，真正算完。
+ *
+ * `isBig` 由调用方先算（`isBigTask`）传入，避免本函数重复查依赖边（照 deriveGroupsBehind 传 drift 先例）。
+ */
+export function deriveTaskAcceptance(
+  task: Pick<Task, 'status' | 'reviewedBy'>,
+  isBig: boolean,
+): TaskAcceptanceState {
+  if (task.status !== 'done') return 'notDone';
+  if (!isBig) return 'selfDone';
+  return task.reviewedBy ? 'accepted' : 'awaitingReview';
+}
+
+/**
+ * 挂单态派生（task-post-claim.md §3："挂单 = ownerId 为空的活的显式状态"，**零新增字段**）：
+ * `ownerId === null` 且 `status` 非 `done`/`shelved` —— 无主、仍待做的活即挂单（posted）。
+ * done/shelved 的无主任务不算挂单（已完成/已搁置，池子里不再需要有人领）。
+ * 纯派生、不落库：posted 不是 TaskStatus 枚举值（体检①已核 `ownerId` 已 nullable，零 schema 改动）。
+ */
+export function isPostedTask(task: Pick<Task, 'ownerId' | 'status'>): boolean {
+  return (
+    task.ownerId === null &&
+    task.status !== 'done' &&
+    task.status !== 'shelved'
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Dependency（有向边，DAG）
@@ -472,7 +580,33 @@ export const MembersResponseSchema = z.object({
   // 凭证散列永不过读边界（密钥纪律）。
   members: z.array(MemberPublicSchema),
 });
-export const TasksResponseSchema = z.object({ tasks: z.array(TaskSchema) });
+/**
+ * GET /api/tasks 逐任务读视图元信息（TASK-POST-CLAIM，体检 D5 债）：base `Task` + `isBig`——
+ * 大任务判定**下沉后端**（board 视图不查依赖图边，边只在 dep-graph 查询可见，故判定后端用
+ * `isBigTask(task, dependencies)` 算好吐前端，前端直接用，不再各视图重复挂一份 dep-graph 查询；
+ * 照 DepNode.isConvergenceTask 后端投影先例）。**`isBig` 是派生元信息、非落盘字段**：只在读响应
+ * 出现，不进 `TaskSchema` 本体（TaskSchema 仍是落盘真相，`isBig` 每次读时现算）。
+ */
+export const TaskWithMetaSchema = TaskSchema.extend({ isBig: z.boolean() });
+
+/**
+ * GET /api/tasks 响应：逐任务带 `isBig` 元信息（TaskWithMetaSchema）。server 路由用
+ * `isBigTask` 逐条算（体检 D5：判定下沉后端）。**形状变化波及消费端**：server GET /api/tasks
+ * 须 map 出 isBig 后 parse；console 读契约由本 schema 单源推导（TaskWithMeta ⊇ Task，既有
+ * `Task[]` 消费点协变兼容，零破坏）。
+ */
+export const TasksResponseSchema = z.object({
+  tasks: z.array(TaskWithMetaSchema),
+});
+/**
+ * GET /api/tasks?q= querystring（task-post-claim.md §3 "看谁做过这个问题"）：`q` 子串搜历史任务的
+ * `title` / `rawSummary`（大小写不敏感），搜到后自己去联系做过的人。**红线**：只做子串过滤返回
+ * 任务列表，搜索结果**永不聚合成"技能画像/花名册"页**（D-085 聚合层永不做）；也不按人筛选
+ * （唯一例外 = 我的视图）。`q` optional——缺省 = 返回全部（现有行为不变，向后兼容）。
+ */
+export const TasksQuerySchema = z.object({
+  q: z.string().min(1).optional(),
+});
 export const DependenciesResponseSchema = z.object({
   dependencies: z.array(DependencySchema),
 });
@@ -503,6 +637,8 @@ export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 export type TaskComplexity = z.infer<typeof TaskComplexitySchema>;
 export type Task = z.infer<typeof TaskSchema>;
 export type TaskConvergenceScope = NonNullable<Task['convergenceScope']>;
+export type TaskWithMeta = z.infer<typeof TaskWithMetaSchema>;
+export type TasksQuery = z.infer<typeof TasksQuerySchema>;
 export type DependencyType = z.infer<typeof DependencyTypeSchema>;
 export type DependencyStatus = z.infer<typeof DependencyStatusSchema>;
 export type DependencySource = z.infer<typeof DependencySourceSchema>;

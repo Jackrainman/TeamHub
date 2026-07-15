@@ -32,6 +32,8 @@ export {
   KbCloseoutRequestSchema,
   KbCloseoutResponseSchema,
   TasksResponseSchema,
+  // 大任务结构尺（TASK-POST-CLAIM，体检 D5）：GET /api/tasks 逐任务算 isBig 下沉后端。
+  isBigTask,
   // 组只读端点（PHASE2-CONSOLE-ASSEMBLY）：GroupsResponseSchema 早有契约（pm-core.ts），此前零消费方。
   GroupsResponseSchema,
   // 赛季只读端点（S1 接线，product-redefine-2026-07 §4.1/§9-①）：SeasonsResponseSchema 早有契约

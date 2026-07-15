@@ -44,6 +44,7 @@ import {
   nextArtifactVersionNo,
   deriveArtifactKind,
   TasksResponseSchema,
+  isBigTask,
   SystemStatusResponseSchema,
   buildCloseoutFromIssue,
   rankSimilarIssues,
@@ -858,7 +859,13 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   // 无完成量维度（C2/I0 安全）；依赖/缺口的结构视图走 GET /api/dep-graph（blockedByLabel 上游任务名，不暴露人）。
   app.get('/api/tasks', async () => {
     const snapshot = await store.getSnapshot();
-    return TasksResponseSchema.parse({ tasks: snapshot.tasks });
+    // 大任务判定下沉后端（体检 D5，TASK-POST-CLAIM）：逐任务带 isBig——board 视图不查依赖图边
+    // （边只在 dep-graph 查询可见），故判定后端用 isBigTask(task, dependencies) 算好吐前端。
+    const tasks = snapshot.tasks.map((task) => ({
+      ...task,
+      isBig: isBigTask(task, snapshot.dependencies),
+    }));
+    return TasksResponseSchema.parse({ tasks });
   });
 
   // PM 任务状态流转（人工标进度，含 inProgress→done 标真实完成）。POST 子资源动作 → 继承 H3 鉴权+限流
