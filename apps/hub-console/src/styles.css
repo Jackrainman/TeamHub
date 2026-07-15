@@ -3948,6 +3948,97 @@ form .btn--primary {
   color: var(--blue);
 }
 
+/* 门检查单 / 欠条卡（GATE-CHECKLIST-IOU，D-087）：门=检查项容器，挂在里程碑清单每道门行下。 */
+.checklist-card {
+  margin-top: var(--space-2);
+}
+.checklist-card__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.checklist-card__muted {
+  font-size: var(--text-xs);
+  color: var(--faint);
+}
+.checklist-card__body {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.checklist-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.checklist-item {
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.checklist-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.checklist-item__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.checklist-item__title {
+  font-size: var(--text-sm);
+}
+.checklist-item__note,
+.checklist-item__actor {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--faint);
+}
+.checklist-item__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-1);
+}
+.checklist-panel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+}
+.checklist-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.checklist-add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.checklist-quickrecord__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
 /* 哪个组慢了 */
 .baseline-groups h3 {
   font-size: var(--text-sm);

@@ -15,6 +15,7 @@ import { setVocabularyOverrides, useI18n } from './i18n';
 import { ROBOTICS_VOCAB_OVERRIDES } from './verticals/robotics';
 import { APIBASE_KEY, WRITE_TOKEN_KEY } from './constants';
 import { IdentityBar } from './features/identity/IdentityBar';
+import { ChecklistQuickRecord } from './features/checklist/ChecklistQuickRecord';
 import { canWriteIdentity, identityCacheKey } from './features/identity/identity-utils';
 // 单一真实后端：queryKey 维度保留稳定常量（曾区分 mock/real，现恒为 real），
 // 避免改动各页 queryKey 形状。
@@ -118,6 +119,9 @@ export function App() {
           </h1>
         </div>
         <div className="console-toolbar__actions">
+          {/* 全局「快记欠条」入口（GATE-CHECKLIST-IOU 设计 §3，D-087）：任何人一句话贴条，默认挂下一道
+              整车级门。无基准线时组件自身 return null（IdentityBar 同位先例）。 */}
+          <ChecklistQuickRecord client={apiClient} source={SOURCE} identity={identity} />
           {/* 匿名模式（缺省）下本组件零 UI（return null），界面与今天逐字一致。 */}
           <IdentityBar client={apiClient} mode={identity.mode} session={identity.session} />
           {/* 刷新按钮归一进正常注册机制（AUDIT-DEBT-2026-07 §9-④ 审计债⑤）：不再按 page key

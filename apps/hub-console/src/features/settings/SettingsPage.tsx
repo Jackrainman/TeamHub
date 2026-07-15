@@ -1,7 +1,12 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Eye, EyeOff } from 'lucide-react';
-import type { AgentBackend, BotChannel, Season } from '@teamhub/hub-contracts';
+import type {
+  AgentBackend,
+  BotChannel,
+  MemberGrade,
+  Season,
+} from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { useTheme } from '../../theme';
@@ -44,6 +49,15 @@ const LIFECYCLE_PILL_CLASS: Record<AgentBackend['status'], string> = {
   degraded: 'badge--amber',
   disabled: 'badge--red',
   unconfigured: '',
+};
+
+// 成员年级枚举 → 文案键（枚举变更会在此处编译报错）。验收人名单说明「豁免权属大三」，年级作辅助元信息。
+const GRADE_KEY: Record<MemberGrade, TranslationKey> = {
+  freshman: 'settings.reviewers.grade.freshman',
+  sophomore: 'settings.reviewers.grade.sophomore',
+  junior: 'settings.reviewers.grade.junior',
+  senior: 'settings.reviewers.grade.senior',
+  graduate: 'settings.reviewers.grade.graduate',
 };
 
 // 语言选项——扩展时须同步 i18n 键（settings.language.<value>）与 Lang 类型。
@@ -129,6 +143,7 @@ export function SettingsPage({
       </section>
 
       <SeasonsSection client={client} source={source} />
+      <GateReviewersSection client={client} source={source} />
       <IntegrationsSection client={client} source={source} />
       <ConnectionSection />
       <AboutSection client={client} source={source} />
@@ -274,6 +289,80 @@ function SeasonRow({ season }: { season: Season }) {
         )}
       </span>
     </article>
+  );
+}
+
+// 验收人名单（GATE-CHECKLIST-IOU，D-087 拍板②）：门检查单欠条的**豁免权属名单内成员（大三）**，每年
+// 换届更新。就是一张名单开关表——每个成员一个 gateReviewer 开关（PUT /api/members/:id/gate-reviewer）。
+// **绝不做任何按人统计**（红线：本域无按人聚合/排行）；名单只决定「谁能签字豁免欠条」，非考勤非画像。
+function GateReviewersSection({
+  client,
+  source,
+}: {
+  client: HubApiClient;
+  source: string;
+}) {
+  const { t } = useI18n();
+  const queryClient = useQueryClient();
+  const membersQuery = useQuery({
+    queryKey: ['members', 'settings-reviewers', source],
+    queryFn: () => client.getMembers(),
+  });
+
+  const mutation = useMutation({
+    mutationFn: (vars: { id: string; gateReviewer: boolean }) =>
+      client.setMemberGateReviewer(vars.id, { gateReviewer: vars.gateReviewer }),
+    onSuccess: () => {
+      // 前缀失效所有成员查询（本表 + 门检查单卡的匿名选人候选 + 其它页），名单改动处处同步。
+      void queryClient.invalidateQueries({ queryKey: ['members'] });
+    },
+  });
+
+  const members = membersQuery.data?.members ?? [];
+
+  return (
+    <section className="panel settings-panel">
+      <div className="panel-header">
+        <h2>{t('settings.section.reviewers')}</h2>
+      </div>
+      <div className="settings-section">
+        <p className="settings-desc">{t('settings.reviewers.desc')}</p>
+        {membersQuery.isLoading ? (
+          <p className="settings-desc" role="status" aria-live="polite">…</p>
+        ) : members.length === 0 ? (
+          <p className="settings-desc">{t('settings.reviewers.empty')}</p>
+        ) : (
+          <div className="adapter-grid">
+            {members.map((member) => (
+              <article className="adapter-row" key={member.id}>
+                <div>
+                  <strong>{member.displayName}</strong>
+                  <span>{t(GRADE_KEY[member.grade])}</span>
+                </div>
+                <label className="pm-check">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(member.gateReviewer)}
+                    disabled={
+                      mutation.isPending && mutation.variables?.id === member.id
+                    }
+                    onChange={(e) =>
+                      mutation.mutate({ id: member.id, gateReviewer: e.target.checked })
+                    }
+                  />
+                  <span>{t('settings.reviewers.toggle')}</span>
+                </label>
+              </article>
+            ))}
+          </div>
+        )}
+        {mutation.error ? (
+          <p className="form-hint form-hint--warn">
+            {humanizeFormError(mutation.error, t, 'settings.reviewers.error')}
+          </p>
+        ) : null}
+      </div>
+    </section>
   );
 }
 

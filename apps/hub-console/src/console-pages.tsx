@@ -126,6 +126,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
         error={ctx.overview.error}
         snapshot={ctx.overview.data}
         onNavigate={ctx.onNavigate}
+        identity={ctx.identity}
       />
     ),
   },

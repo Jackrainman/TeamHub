@@ -2,6 +2,7 @@ import type { ArtifactRef, GitRepoRef, HubEvent } from '@teamhub/hub-contracts';
 import type { OverviewSnapshot } from '../../api/schemas/system';
 import type { ConsolePage } from '../../components/layout/ConsoleLayout';
 import type { HubApiClient } from '../../api/client';
+import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { ARTIFACT_KIND_KEY } from '../../constants';
 import { MetricTile } from '../../components/MetricTile';
@@ -60,6 +61,8 @@ interface OverviewPageProps {
   isLoading: boolean;
   error: unknown;
   onNavigate?: (page: ConsolePage) => void;
+  // 轻身份（IDENTITY-LITE，I2）：透传给基准线里的门检查单卡——清偿本人一键 / 匿名选人 / 写门禁用。
+  identity: PageIdentityCtx;
 }
 
 export function OverviewPage({
@@ -69,12 +72,13 @@ export function OverviewPage({
   isLoading,
   error,
   onNavigate,
+  identity,
 }: OverviewPageProps) {
   const { t } = useI18n();
 
   // 首屏第一眼 = 倒排基准线「基准线 vs 实际」（BASELINE-CORE S6）：自带 season/baseline/tasks 查询与
   // 加载/空态，独立于下方运维快照（snapshot）——即便快照未就绪，基准线仍先渲染，反之亦然。
-  const baselineHero = <BaselineOverview client={client} source={source} />;
+  const baselineHero = <BaselineOverview client={client} source={source} identity={identity} />;
 
   if (isLoading) {
     return (

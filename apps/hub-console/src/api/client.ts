@@ -20,6 +20,20 @@ import {
   TasksResponseSchema,
   BaselineResponseSchema,
   UpdateBaselineResponseSchema,
+  ChecklistItemsResponseSchema,
+  CreateChecklistItemResponseSchema,
+  ClearChecklistItemResponseSchema,
+  WaiveChecklistItemResponseSchema,
+  SetGateReviewerResponseSchema,
+  type ChecklistItemsResponse,
+  type CreateChecklistItemRequest,
+  type CreateChecklistItemResponse,
+  type ClearChecklistItemRequest,
+  type ClearChecklistItemResponse,
+  type WaiveChecklistItemRequest,
+  type WaiveChecklistItemResponse,
+  type SetGateReviewerRequest,
+  type SetGateReviewerResponse,
   type ArtifactsResponse,
   type DepGraph,
   type Group,
@@ -221,6 +235,30 @@ export interface HubApiClient {
   createResourceSessionsBatch(
     req: CreateResourceSessionsBatchRequest,
   ): Promise<CreateResourceSessionsBatchResponse>;
+  // 门检查单 / 欠条（GATE-CHECKLIST-IOU，D-087）。读：该赛季基准线下所有检查项 / 欠条——**带名不剥**
+  // （clearedBy/waivedBy = D-085 事实层，读契约直回完整 item）。写：现场快记欠条（任何人）/ 标清偿（任何
+  // 人，身份模式本人一键、匿名模式 body 供名）/ 书面豁免（仅验收人名单，强制写理由，403 拒非名单人）。
+  // seasonId 走 querystring（照 GET/PATCH /api/baseline 同族风格）。红线：本域绝无按人聚合/排行/按人筛选端点。
+  getChecklist(seasonId: string): Promise<ChecklistItemsResponse>;
+  createChecklistItem(
+    seasonId: string,
+    req: CreateChecklistItemRequest,
+  ): Promise<CreateChecklistItemResponse>;
+  clearChecklistItem(
+    id: string,
+    seasonId: string,
+    req: ClearChecklistItemRequest,
+  ): Promise<ClearChecklistItemResponse>;
+  waiveChecklistItem(
+    id: string,
+    seasonId: string,
+    req: WaiveChecklistItemRequest,
+  ): Promise<WaiveChecklistItemResponse>;
+  // 验收人名单维护（D-087 拍板②）：设 / 撤该成员的门验收人资格（每年换届更新）。响应剥 pinHash。
+  setMemberGateReviewer(
+    id: string,
+    req: SetGateReviewerRequest,
+  ): Promise<SetGateReviewerResponse>;
 }
 
 export function createHubApiClient(options: HubApiClientOptions = {}): HubApiClient {
@@ -600,6 +638,58 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         writeToken,
       );
     },
+    async getChecklist(seasonId: string) {
+      return fetchJson(
+        `${baseUrl}/api/checklist?seasonId=${encodeURIComponent(seasonId)}`,
+        ChecklistItemsResponseSchema,
+        fetcher,
+      );
+    },
+    async createChecklistItem(seasonId: string, req: CreateChecklistItemRequest) {
+      return postJson(
+        `${baseUrl}/api/checklist?seasonId=${encodeURIComponent(seasonId)}`,
+        req,
+        CreateChecklistItemResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async clearChecklistItem(
+      id: string,
+      seasonId: string,
+      req: ClearChecklistItemRequest,
+    ) {
+      return postJson(
+        `${baseUrl}/api/checklist/${encodeURIComponent(id)}/clear?seasonId=${encodeURIComponent(seasonId)}`,
+        req,
+        ClearChecklistItemResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async waiveChecklistItem(
+      id: string,
+      seasonId: string,
+      req: WaiveChecklistItemRequest,
+    ) {
+      return postJson(
+        `${baseUrl}/api/checklist/${encodeURIComponent(id)}/waive?seasonId=${encodeURIComponent(seasonId)}`,
+        req,
+        WaiveChecklistItemResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async setMemberGateReviewer(id: string, req: SetGateReviewerRequest) {
+      return sendJson(
+        'PUT',
+        `${baseUrl}/api/members/${encodeURIComponent(id)}/gate-reviewer`,
+        req,
+        SetGateReviewerResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
   };
 }
 
@@ -644,7 +734,7 @@ function postJson<T>(
 // 写侧通用发送（POST/PATCH/DELETE 共用）。R1 引入 PATCH 占用窗口 / DELETE 接力线，与 POST
 // 同走 Bearer 写鉴权 + { detail } 错误透出。body=undefined 时不发请求体（DELETE 无体）。
 async function sendJson<T>(
-  method: 'POST' | 'PATCH' | 'DELETE',
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   url: string,
   body: unknown,
   schema: { parse(value: unknown): T },

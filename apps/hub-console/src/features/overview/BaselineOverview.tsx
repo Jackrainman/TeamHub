@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   deriveBaselineDrift,
+  deriveChecklistDrift,
   deriveGroupsBehind,
   deriveInvestmentWarnings,
   deriveTimeAccumulationFlags,
@@ -9,17 +10,22 @@ import {
   type BaselineMilestonePublic,
   type BaselinePhaseType,
   type BaselineSegmentKind,
+  type GateChecklistItem,
+  type MemberPublic,
   type MilestoneDriftLevel,
   type SeasonBaselinePublic,
   type Task,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
+import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { humanizeFormError } from '../../utils';
 import { Field } from '../../components/Field';
 import { FormGrid } from '../../components/FormGrid';
 import { FormActions } from '../../components/FormActions';
 import { CountUpNumber } from '../../components/viz/CountUpNumber';
+import { GateChecklistCard } from '../checklist/GateChecklistCard';
+import { overdueDays } from '../checklist/checklist-utils';
 import {
   bandOf,
   currentPhase,
@@ -75,9 +81,12 @@ const dateOf = (iso: string): string => iso.slice(0, 10);
 export function BaselineOverview({
   client,
   source,
+  identity,
 }: {
   client: HubApiClient;
   source: string;
+  // 轻身份（IDENTITY-LITE，I2）：门检查单卡清偿本人一键 / 匿名选人 / 写门禁用依据。
+  identity: PageIdentityCtx;
 }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
@@ -107,9 +116,23 @@ export function BaselineOverview({
     queryKey: ['groups', 'overview', source],
     queryFn: () => client.getGroups(),
   });
+  // 门检查单 / 欠条（GATE-CHECKLIST-IOU，D-087）：与全局「快记欠条」共享同一 queryKey，任一处提交后
+  // 都失效此键 → 门详情卡 + 告警区即时刷新。checklist / members 为次级数据，未就绪不阻塞基准线渲染。
+  const checklistQuery = useQuery({
+    queryKey: ['checklist', source, seasonId],
+    queryFn: () => client.getChecklist(seasonId as string),
+    enabled: Boolean(seasonId),
+  });
+  // 匿名模式清偿 / 豁免选人的候选（身份模式本人一键不用它）；名册读侧两模式均开（同 GET /api/groups 先例）。
+  const membersQuery = useQuery({
+    queryKey: ['members', 'checklist', source],
+    queryFn: () => client.getMembers(),
+  });
 
   const baseline = baselineQuery.data?.baseline ?? null;
   const tasks = tasksQuery.data?.tasks ?? [];
+  const checklistItems = checklistQuery.data?.items ?? [];
+  const members = membersQuery.data?.members ?? [];
   const groupName = useMemo(() => {
     const map = new Map<string, string>();
     for (const g of groupsQuery.data?.groups ?? []) map.set(g.id, g.name);
@@ -170,11 +193,19 @@ export function BaselineOverview({
       groupName={groupName}
       taskTitle={taskTitle}
       seasonName={activeSeason?.name}
+      client={client}
+      seasonId={seasonId}
+      identity={identity}
+      checklistItems={checklistItems}
+      members={members}
+      onChecklistChanged={() =>
+        queryClient.invalidateQueries({ queryKey: ['checklist', source, seasonId] })
+      }
     />
   );
 }
 
-/** 已生成基准线：倒计时 hero 头 + 时间轴 + 里程碑节点 + 组落后 + 投资示警。 */
+/** 已生成基准线：倒计时 hero 头 + 时间轴 + 里程碑节点 + 组落后 + 投资示警 + 门检查单 / 欠条告警。 */
 function BaselineTimeline({
   baseline,
   tasks,
@@ -182,6 +213,12 @@ function BaselineTimeline({
   groupName,
   taskTitle,
   seasonName,
+  client,
+  seasonId,
+  identity,
+  checklistItems,
+  members,
+  onChecklistChanged,
 }: {
   baseline: SeasonBaselinePublic;
   tasks: Task[];
@@ -189,6 +226,12 @@ function BaselineTimeline({
   groupName: (id: string) => string;
   taskTitle: (id: string) => string;
   seasonName?: string;
+  client: HubApiClient;
+  seasonId: string;
+  identity: PageIdentityCtx;
+  checklistItems: GateChecklistItem[];
+  members: MemberPublic[];
+  onChecklistChanged: () => void;
 }) {
   const { t } = useI18n();
   const nowMs = now.getTime();
@@ -198,6 +241,27 @@ function BaselineTimeline({
   const groupsBehind = deriveGroupsBehind(drift, tasks);
   const investmentWarnings = deriveInvestmentWarnings(tasks, now);
   const timeAccFlags = deriveTimeAccumulationFlags(tasks);
+
+  // 门检查单 / 欠条派生（GATE-CHECKLIST-IOU，D-087）：
+  // - 挂门检查项按 anchorMilestoneId 分桶，供每道门的检查单卡消费（含全状态，事实回看）。
+  // - 自选到期日欠条走 deriveChecklistDrift 的周粒度红黄绿：红档（已过期）进告警区。
+  // - 全部未清（pending）计数：告警区提示「还有 N 项欠条未清」。
+  const itemsByMilestone = useMemo(() => {
+    const map = new Map<string, GateChecklistItem[]>();
+    for (const item of checklistItems) {
+      if (item.anchorMilestoneId === undefined) continue;
+      const arr = map.get(item.anchorMilestoneId) ?? [];
+      arr.push(item);
+      map.set(item.anchorMilestoneId, arr);
+    }
+    return map;
+  }, [checklistItems]);
+  const checklistById = useMemo(
+    () => new Map(checklistItems.map((it) => [it.id, it])),
+    [checklistItems],
+  );
+  const overdueIous = deriveChecklistDrift(checklistItems, now).filter((d) => d.level === 'red');
+  const pendingIouCount = checklistItems.filter((it) => it.status === 'pending').length;
 
   const span = timelineSpan(baseline);
   const curSeg = currentSegment(baseline.segments, nowMs);
@@ -264,6 +328,34 @@ function BaselineTimeline({
               </li>
             ))}
           </ul>
+        </div>
+      ) : null}
+
+      {/* 门检查单 / 欠条告警区（GATE-CHECKLIST-IOU 设计 §6，D-087）：照 investmentWarnings 块先例并列。
+          红档欠条（自选到期日已过）逐条列出 + 过期时长；末行提示全部未清（pending）欠条计数。
+          仅有未清欠条时才渲染整块（0 未清=无债可提，不占位）。 */}
+      {pendingIouCount > 0 ? (
+        <div className="baseline-warn baseline-warn--future" role="note">
+          <strong>{t('overview.checklist.warn.title')}</strong>
+          {overdueIous.length > 0 ? (
+            <ul>
+              {overdueIous.map((d) => {
+                const item = checklistById.get(d.itemId);
+                if (!item || item.anchorDueAt === undefined) return null;
+                return (
+                  <li key={d.itemId}>
+                    {t('overview.checklist.warn.overdue', {
+                      title: item.title,
+                      days: overdueDays(item.anchorDueAt, now),
+                    })}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+          <p className="baseline-muted">
+            {t('overview.checklist.warn.pendingCount', { count: pendingIouCount })}
+          </p>
         </div>
       ) : null}
 
@@ -334,6 +426,18 @@ function BaselineTimeline({
                   <span>{t('overview.baseline.plannedAt', { date: dateOf(m.plannedAt) })}</span>
                 </span>
                 {m.note ? <p className="baseline-ms__note">{m.note}</p> : null}
+                {/* 门检查单卡（GATE-CHECKLIST-IOU §6）：门=检查项容器，逐门挂一张卡。非门里程碑不挂。 */}
+                {m.kind === 'gate' ? (
+                  <GateChecklistCard
+                    client={client}
+                    seasonId={seasonId}
+                    milestone={m}
+                    items={itemsByMilestone.get(m.id) ?? []}
+                    identity={identity}
+                    members={members}
+                    onChanged={onChecklistChanged}
+                  />
+                ) : null}
               </div>
             </li>
           );
