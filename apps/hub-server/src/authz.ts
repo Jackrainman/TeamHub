@@ -7,7 +7,7 @@ import type { Member } from '@teamhub/hub-contracts';
  * 豁免权（waived）与 TASK-POST-CLAIM 的组长确认都从零起步、且逻辑同形（「actor 在某名单里吗」→
  * 是则放行、否则 403），故按体检 D6 收进本文件共用，防同一逻辑两处各写走样。
  *
- * **phase 2 预留**：TASK-POST-CLAIM 落地时在此并列新增 `isGroupLeadOf(members, memberId, groupId)`
+ * **phase 2 已兑现（TASK-POST-CLAIM，D-088）**：下方并列新增 `isGroupLeadOf(members, memberId, groupId)`
  * （`role==='groupAdmin' && groupId===task.groupId`，体检 ①/②-1 裁定「不给 Group 加 leadMemberId」）——
  * 两刀共用一处鉴权基元、同一「布尔条件 + 403」范式（照 server.ts:638 PIN 路由内嵌先例）。
  */
@@ -22,4 +22,23 @@ import type { Member } from '@teamhub/hub-contracts';
  */
 export function isGateReviewer(members: readonly Member[], memberId: string): boolean {
   return members.find((m) => m.id === memberId)?.gateReviewer === true;
+}
+
+/**
+ * 该成员是否为某组的组长（TASK-POST-CLAIM 指派 / 跨组确认鉴权，D-088 / 体检 D6 phase 2 兑现）：
+ * `role==='groupAdmin' && groupId===该组`。体检 ①/②-1 裁定「不给 Group 加 leadMemberId」——组长身份由
+ * `MemberRole==='groupAdmin'` + `Member.groupId` 直接判出，无需新字段（`superAdmin` 不算某组组长，
+ * 只有本组 groupAdmin 才是）。与 `isGateReviewer` 同居本文件、同「布尔条件 + 403」范式。
+ *
+ * **I0**：只回一个布尔资格判定，绝不做任何按人聚合/排行/按人筛选（本 helper 只在写路由做「这一个人是不是
+ * 该组组长」的授权门，不派生名单视图）。`memberId` 不在名册 / 非 groupAdmin / 组不匹配 → false
+ * （fail-closed，无资格默认拒绝）。
+ */
+export function isGroupLeadOf(
+  members: readonly Member[],
+  memberId: string,
+  groupId: string,
+): boolean {
+  const member = members.find((m) => m.id === memberId);
+  return member?.role === 'groupAdmin' && member.groupId === groupId;
 }

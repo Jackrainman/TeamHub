@@ -1,4 +1,5 @@
 import type {
+  ActorRef,
   Dependency,
   GovernanceSnapshot,
   KnowledgeNode,
@@ -133,6 +134,65 @@ export interface PmCoreStore {
     memberId: string,
     gateReviewer: boolean,
   ): Promise<Member | null>;
+
+  // ── 挂单认领制窄写方法（TASK-POST-CLAIM，D-088 / docs/design/task-post-claim.md）─────────────────
+  // 全部照 updateTaskStatus/setMemberPin 受限迁移先例：就地改 tasks[idx] 的**自己那簇留名字段** + bump
+  // updatedAt，id 不存在 → null（路由层转 404）。**红线**：留名只落单条任务卡（事实层，D-085），本域绝不
+  // 派生任何按人聚合/排行/按人筛选。**无 dueDate**（D-083 G4）。「status 变则 statusSource 钉 console」
+  // （C5：人工流转是最低优先源，与 updateTaskStatus 同律）。
+
+  /**
+   * 认领挂单（POST /api/tasks/:id/claim，§3）：登录本人一键领无主活，**即生效免确认**。**仅当现
+   * ownerId===null 才写**——已有主返回 null（路由层据快照转 409；不覆盖他人的活）。写 ownerId +
+   * claimedAt；status `pending`→`inProgress`（有主即开工；非 pending 不动）。id 不存在 → null（→404）。
+   */
+  claimTask(taskId: string, ownerId: string, claimedAt: string): Promise<Task | null>;
+
+  /**
+   * 指派 / 转派（POST /api/tasks/:id/assign，§3；**同方法**——有主改主 = 转派）：写 ownerId + assignReason +
+   * assignedBy 留名；**清 claimedAt**（指派非认领）+ **清 partnerMemberId / crossClaimConfirmedBy**（换主后
+   * 旧搭档 / 旧跨组确认失效）。理由必填由路由 schema 层强制（AssignTaskRequestSchema.reason.min1）。
+   * id 不存在 → null（→404）。
+   */
+  assignTask(
+    taskId: string,
+    ownerId: string,
+    reason: string,
+    assignedBy: ActorRef,
+    at: string,
+  ): Promise<Task | null>;
+
+  /**
+   * 设本组搭档位（POST /api/tasks/:id/partner，§4）：外组认领后本组补位（师傅 / 对接人）。只写
+   * partnerMemberId（"本组"校验在路由层）。显式缺口黄标，**不硬阻塞**（A1 先例）。id 不存在 → null（→404）。
+   */
+  setTaskPartner(taskId: string, partnerMemberId: string, at: string): Promise<Task | null>;
+
+  /**
+   * 跨组大任务组长事后确认（POST /api/tasks/:id/confirm-cross-claim，§4）：**非启动闸**（认领已即生效），
+   * 只在事实卡留名 crossClaimConfirmedBy。组长鉴权在路由层（isGroupLeadOf）。id 不存在 → null（→404）。
+   */
+  confirmCrossClaim(taskId: string, confirmedBy: ActorRef, at: string): Promise<Task | null>;
+
+  /**
+   * 标完成（POST /api/tasks/:id/complete，§5）：status→`done` + completedBy 留名 + statusSource `console`
+   * （C5）；**清 reviewedBy / reviewNote**（新一轮完成清旧验收——重开后重新走验收）。id 不存在 → null（→404）。
+   */
+  completeTask(taskId: string, completedBy: ActorRef, at: string): Promise<Task | null>;
+
+  /**
+   * 验收 / 抽查（POST /api/tasks/:id/review，§5）：`accept` = 写 reviewedBy(+note)、status 保持 `done`
+   * （验收态 accepted 由 deriveTaskAcceptance 派生，不动 TaskStatus 枚举）；`reject`（打回）= status→`inProgress`
+   * + reviewedBy + reviewNote（打回理由）+ statusSource `console`。验收人名单鉴权在路由层（isGateReviewer）。
+   * id 不存在 → null（→404）。
+   */
+  reviewTask(
+    taskId: string,
+    reviewedBy: ActorRef,
+    outcome: 'accept' | 'reject',
+    note: string | undefined,
+    at: string,
+  ): Promise<Task | null>;
 
   /**
    * 新建赛季（POST /api/seasons，SEASON-CREATE 补链路——总览页空态文案"先在设置里建一个赛季"

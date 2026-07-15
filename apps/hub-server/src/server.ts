@@ -105,6 +105,21 @@ import {
   WaiveChecklistItemResponseSchema,
   ChecklistTemplatesResponseSchema,
   listBlockingChecklistItems,
+  // 挂单认领制窄写动作契约（TASK-POST-CLAIM，D-088）：认领/指派/搭档/跨组确认/完成/验收六条 POST
+  // 子资源读写契约 + q= 子串搜历史任务的 querystring 契约（大任务判定 isBigTask 已在上方 import）。
+  ClaimTaskRequestSchema,
+  ClaimTaskResponseSchema,
+  AssignTaskRequestSchema,
+  AssignTaskResponseSchema,
+  SetTaskPartnerRequestSchema,
+  SetTaskPartnerResponseSchema,
+  ConfirmCrossClaimRequestSchema,
+  ConfirmCrossClaimResponseSchema,
+  CompleteTaskRequestSchema,
+  CompleteTaskResponseSchema,
+  ReviewTaskRequestSchema,
+  ReviewTaskResponseSchema,
+  TasksQuerySchema,
 } from './contracts.js';
 import type {
   IssueCard,
@@ -129,7 +144,7 @@ import {
   SetGateReviewerResponseSchema,
 } from '@teamhub/hub-contracts';
 import { ZodError } from 'zod';
-import { isGateReviewer } from './authz.js';
+import { isGateReviewer, isGroupLeadOf } from './authz.js';
 import { hashPin, verifyPin } from './identity/pin.js';
 import { SessionManager } from './identity/session-store.js';
 import { deriveErrorCode } from './kb/error-code.js';
@@ -857,11 +872,28 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
 
   // PM 读视图：任务列表（看板列 / 列表双视图的读原语）。Task 无 confirmedBy、ownerId 只表「谁负责」(D-041 安全堆)，
   // 无完成量维度（C2/I0 安全）；依赖/缺口的结构视图走 GET /api/dep-graph（blockedByLabel 上游任务名，不暴露人）。
-  app.get('/api/tasks', async () => {
+  // **q= 子串搜历史任务**（TASK-POST-CLAIM §3 "看谁做过这个问题"）：大小写不敏感搜 title/rawSummary，搜到
+  // 后自己去联系做过的人（ownerLabel/ownerId 本就公开）。**红线**：只做子串过滤返回任务列表，**永不聚合
+  // 成"技能画像/花名册"、永不按人筛选**（唯一例外=我的视图，不在此）。缺省 q → 返回全部（向后兼容）。
+  app.get('/api/tasks', async (request, reply) => {
+    const parsed = TasksQuerySchema.safeParse(request.query ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error, 'invalid query') });
+      return;
+    }
     const snapshot = await store.getSnapshot();
+    const q = parsed.data.q?.toLowerCase();
+    const matched = q
+      ? snapshot.tasks.filter(
+          (t) =>
+            t.title.toLowerCase().includes(q) ||
+            t.rawSummary.toLowerCase().includes(q),
+        )
+      : snapshot.tasks;
     // 大任务判定下沉后端（体检 D5，TASK-POST-CLAIM）：逐任务带 isBig——board 视图不查依赖图边
     // （边只在 dep-graph 查询可见），故判定后端用 isBigTask(task, dependencies) 算好吐前端。
-    const tasks = snapshot.tasks.map((task) => ({
+    // isBig 用**全量** dependencies 算（q 过滤只作用于展示、不改结构判定）。
+    const tasks = matched.map((task) => ({
       ...task,
       isBig: isBigTask(task, snapshot.dependencies),
     }));
@@ -886,6 +918,227 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     // 流转非创建 → 默认 200。
     return TransitionTaskStatusResponseSchema.parse({ task });
   });
+
+  // ── 挂单认领制窄写路由（TASK-POST-CLAIM，D-088 / docs/design/task-post-claim.md）──────────────────
+  // 六条 POST 子资源动作（claim/assign/partner/confirm-cross-claim/complete/review）——POST 继承 H3 写门
+  // （Bearer 鉴权 + 限流；用 PATCH/DELETE 会绕过）。actor 注入照 sessionActor 6 处先例：身份模式
+  // request.identity → sessionActor（本人 / 组长 / 验收人 = 登录人，不信客户端自报），匿名模式取 body 留名
+  // 字段，二者皆缺 → 400「必须留名」。**红线（D-085）**：留名只落**单条任务卡**，本簇绝不派生任何按人
+  // 聚合/排行/按人筛选（唯一例外 = 我的视图本人过滤，不在此）。
+
+  // POST /api/tasks/:taskId/claim（§3 认领）：登录本人一键领挂单，**即生效零审批**（唯一硬闸在门上）。
+  // 认领人 = identity.memberId 或 body.memberId（缺 → 400）；须命中名册（防孤儿 → 400）；已有主 → 409
+  //（不覆盖他人的活）。store.claimTask 置 ownerId + claimedAt + pending→inProgress。
+  app.post('/api/tasks/:taskId/claim', async (request, reply) => {
+    const { taskId } = request.params as { taskId: string };
+    const parsed = ClaimTaskRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const memberId = request.identity?.memberId ?? parsed.data.memberId;
+    if (!memberId) {
+      void reply.code(400).send({ detail: '认领必须留名（memberId）' });
+      return;
+    }
+    const snapshot = await store.getSnapshot();
+    const task = snapshot.tasks.find((t) => t.id === taskId);
+    if (!task) {
+      void reply.code(404).send({ detail: 'task not found' });
+      return;
+    }
+    if (!snapshot.members.some((m) => m.id === memberId)) {
+      void reply.code(400).send({ detail: '认领人不在名册' });
+      return;
+    }
+    if (task.ownerId !== null) {
+      void reply.code(409).send({ detail: '任务已有负责人（挂单已被认领）' });
+      return;
+    }
+    const claimed = await store.claimTask(taskId, memberId, clock.now().toISOString());
+    if (!claimed) {
+      void reply.code(404).send({ detail: 'task not found' });
+      return;
+    }
+    return ClaimTaskResponseSchema.parse({ task: claimed });
+  });
+
+  // POST /api/tasks/:taskId/assign（§3 指派 / 转派，**同路由**）：组长选人 + 强制理由（schema min1）。鉴权 =
+  // actor 须为该任务 groupId 的组长（isGroupLeadOf，403）；两模式统一按名册核（同阶段1 waive 先例）。
+  // store.assignTask 置 ownerId + assignReason + assignedBy，清 claimedAt / 搭档 / 跨组确认（换主失效）。
+  app.post('/api/tasks/:taskId/assign', async (request, reply) => {
+    const { taskId } = request.params as { taskId: string };
+    const parsed = AssignTaskRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const actor: ActorRef | undefined = request.identity
+      ? sessionActor(request.identity)
+      : parsed.data.assignedBy;
+    if (!actor) {
+      void reply.code(400).send({ detail: '指派必须留名（assignedBy）' });
+      return;
+    }
+    const snapshot = await store.getSnapshot();
+    const task = snapshot.tasks.find((t) => t.id === taskId);
+    if (!task) {
+      void reply.code(404).send({ detail: 'task not found' });
+      return;
+    }
+    if (!isGroupLeadOf(snapshot.members, actor.id, task.groupId)) {
+      void reply.code(403).send({ detail: '指派权属该组组长' });
+      return;
+    }
+    const assigned = await store.assignTask(
+      taskId,
+      parsed.data.ownerId,
+      parsed.data.reason,
+      actor,
+      clock.now().toISOString(),
+    );
+    if (!assigned) {
+      void reply.code(404).send({ detail: 'task not found' });
+      return;
+    }
+    return AssignTaskResponseSchema.parse({ task: assigned });
+  });
+
+  // POST /api/tasks/:taskId/partner（§4 本组搭档位）：外组认领后本组补位（师傅 / 对接人）。partnerMemberId
+  // 须命中名册且与 task 同组（"本组"搭档，否则 400）。**不设发起人鉴权**（组长默认可自任 / 本组自愿补位，
+  // 写门即可——记 deviations）。显式缺口黄标，不硬阻塞（A1 先例）。
+  app.post('/api/tasks/:taskId/partner', async (request, reply) => {
+    const { taskId } = request.params as { taskId: string };
+    const parsed = SetTaskPartnerRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const snapshot = await store.getSnapshot();
+    const task = snapshot.tasks.find((t) => t.id === taskId);
+    if (!task) {
+      void reply.code(404).send({ detail: 'task not found' });
+      return;
+    }
+    const partner = snapshot.members.find((m) => m.id === parsed.data.partnerMemberId);
+    if (!partner) {
+      void reply.code(400).send({ detail: '搭档不在名册' });
+      return;
+    }
+    if (partner.groupId !== task.groupId) {
+      void reply.code(400).send({ detail: '搭档须为本组成员（跨组是学习通道，不是甩锅通道）' });
+      return;
+    }
+    const updated = await store.setTaskPartner(
+      taskId,
+      parsed.data.partnerMemberId,
+      clock.now().toISOString(),
+    );
+    if (!updated) {
+      void reply.code(404).send({ detail: 'task not found' });
+      return;
+    }
+    return SetTaskPartnerResponseSchema.parse({ task: updated });
+  });
+
+  // POST /api/tasks/:taskId/confirm-cross-claim（§4 跨组大任务组长事后确认）：**非启动闸**（认领已即生效），
+  // 仅事实卡留名 crossClaimConfirmedBy。鉴权 = actor 须为该任务 groupId 的组长（isGroupLeadOf，403）。
+  // actor 注入同 assign（身份模式 sessionActor / 匿名模式 body.confirmedBy）。
+  app.post('/api/tasks/:taskId/confirm-cross-claim', async (request, reply) => {
+    const { taskId } = request.params as { taskId: string };
+    const parsed = ConfirmCrossClaimRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const actor: ActorRef | undefined = request.identity
+      ? sessionActor(request.identity)
+      : parsed.data.confirmedBy;
+    if (!actor) {
+      void reply.code(400).send({ detail: '确认必须留名（confirmedBy）' });
+      return;
+    }
+    const snapshot = await store.getSnapshot();
+    const task = snapshot.tasks.find((t) => t.id === taskId);
+    if (!task) {
+      void reply.code(404).send({ detail: 'task not found' });
+      return;
+    }
+    if (!isGroupLeadOf(snapshot.members, actor.id, task.groupId)) {
+      void reply.code(403).send({ detail: '跨组确认权属该组组长' });
+      return;
+    }
+    const updated = await store.confirmCrossClaim(taskId, actor, clock.now().toISOString());
+    if (!updated) {
+      void reply.code(404).send({ detail: 'task not found' });
+      return;
+    }
+    return ConfirmCrossClaimResponseSchema.parse({ task: updated });
+  });
+
+  // POST /api/tasks/:taskId/complete（§5 标完成）：本人标完成 + 留名（简单活即算完；大活标完成后验收态仍
+  // 是 awaitingReview，须学长 review 才 accepted——deriveTaskAcceptance 派生）。**无鉴权**（本人标完成，
+  // 写门即可）。actor = completedBy。
+  app.post('/api/tasks/:taskId/complete', async (request, reply) => {
+    const { taskId } = request.params as { taskId: string };
+    const parsed = CompleteTaskRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const actor: ActorRef | undefined = request.identity
+      ? sessionActor(request.identity)
+      : parsed.data.completedBy;
+    if (!actor) {
+      void reply.code(400).send({ detail: '完成必须留名（completedBy）' });
+      return;
+    }
+    const updated = await store.completeTask(taskId, actor, clock.now().toISOString());
+    if (!updated) {
+      void reply.code(404).send({ detail: 'task not found' });
+      return;
+    }
+    return CompleteTaskResponseSchema.parse({ task: updated });
+  });
+
+  // POST /api/tasks/:taskId/review（§5 学长验收 / 抽查）：鉴权 = actor 须在**验收人名单**（isGateReviewer，
+  // 403——**验收人名单与欠条豁免名单同一张** `Member.gateReviewer`，D-087 拍板② 语义一致，记 deviations）。
+  // accept = 验收留名（status 保持 done，deriveTaskAcceptance→accepted）；reject（打回）= status→inProgress +
+  // reviewNote 打回理由。actor 注入同 assign（身份模式 sessionActor / 匿名模式 body.reviewedBy）。
+  app.post('/api/tasks/:taskId/review', async (request, reply) => {
+    const { taskId } = request.params as { taskId: string };
+    const parsed = ReviewTaskRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const actor: ActorRef | undefined = request.identity
+      ? sessionActor(request.identity)
+      : parsed.data.reviewedBy;
+    if (!actor) {
+      void reply.code(400).send({ detail: '验收必须留名（reviewedBy）' });
+      return;
+    }
+    // 验收鉴权（与欠条豁免同一张 gateReviewer 名册）：fail-closed，非验收人 → 403。
+    const snapshot = await store.getSnapshot();
+    if (!isGateReviewer(snapshot.members, actor.id)) {
+      void reply.code(403).send({ detail: '验收权属验收人名单（大三）' });
+      return;
+    }
+    const updated = await store.reviewTask(
+      taskId,
+      actor,
+      parsed.data.outcome,
+      parsed.data.note,
+      clock.now().toISOString(),
+    );
+    if (!updated) {
+      void reply.code(404).send({ detail: 'task not found' });
+      return;
+    }
+    return ReviewTaskResponseSchema.parse({ task: updated });
+  });
+  // ── 挂单认领制窄写路由结束 ───────────────────────────────────────────────────────────────────────
 
   // PM 依赖边录入（人手建有向边）。server clamp status=active（D-042 初始态）；confirmedBy 内部凭证不经读视图暴露。
   app.post('/api/dependencies', async (request, reply) => {

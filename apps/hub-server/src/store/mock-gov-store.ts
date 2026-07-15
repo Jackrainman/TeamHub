@@ -6,6 +6,7 @@ import {
   scheduleScenarioFixture,
 } from '@teamhub/hub-contracts';
 import type {
+  ActorRef,
   ArtifactRef,
   Dependency,
   GovernanceSnapshot,
@@ -623,6 +624,131 @@ export class InMemoryGovStore implements GovStore {
       updatedAt: now,
     };
     this.snapshot.members[idx] = updated;
+    return updated;
+  }
+
+  // ── 挂单认领制窄写（TASK-POST-CLAIM，D-088）：就地改 tasks[idx] 的自己那簇留名字段 + updatedAt。
+  // 「status 变则 statusSource 钉 console」（C5，与 updateTaskStatus 同律）。清字段用解构剔除（不再回写
+  // = 清空，照 setResourceDefaultPreset omit 先例）。**红线**：留名只落单卡（D-085），绝不聚合/按人筛。
+
+  /**
+   * 认领挂单（§3）。仅当现 ownerId===null 才写（已有主 → null，路由据快照转 409）；写 ownerId + claimedAt，
+   * pending→inProgress 提升（有主即开工，非 pending 不动）。id 不存在 → null（路由转 404）。
+   */
+  async claimTask(taskId: string, ownerId: string, claimedAt: string): Promise<Task | null> {
+    const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
+    if (idx === -1) return null;
+    const prev = this.snapshot.tasks[idx];
+    if (prev.ownerId !== null) return null; // 已有主：不覆盖（路由转 409）
+    const promoting = prev.status === 'pending';
+    const updated: Task = {
+      ...prev,
+      ownerId,
+      claimedAt,
+      status: promoting ? 'inProgress' : prev.status,
+      statusSource: promoting ? MANUAL_TASK_STATUS_SOURCE : prev.statusSource,
+      updatedAt: claimedAt,
+    };
+    this.snapshot.tasks[idx] = updated;
+    return updated;
+  }
+
+  /**
+   * 指派 / 转派（§3，同方法）。写 ownerId + assignReason + assignedBy；**清 claimedAt / partnerMemberId /
+   * crossClaimConfirmedBy**（指派非认领 + 换主后旧搭档 / 旧确认失效）。id 不存在 → null（路由转 404）。
+   */
+  async assignTask(
+    taskId: string,
+    ownerId: string,
+    reason: string,
+    assignedBy: ActorRef,
+    at: string,
+  ): Promise<Task | null> {
+    const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
+    if (idx === -1) return null;
+    // 换主：解构剔除 claimedAt/partnerMemberId/crossClaimConfirmedBy（不再回写 = 清空）。
+    const {
+      claimedAt: _claimedAt,
+      partnerMemberId: _partnerMemberId,
+      crossClaimConfirmedBy: _crossClaimConfirmedBy,
+      ...rest
+    } = this.snapshot.tasks[idx];
+    const updated: Task = {
+      ...rest,
+      ownerId,
+      assignReason: reason,
+      assignedBy,
+      updatedAt: at,
+    };
+    this.snapshot.tasks[idx] = updated;
+    return updated;
+  }
+
+  /** 设本组搭档位（§4）。只写 partnerMemberId + updatedAt。id 不存在 → null（路由转 404）。 */
+  async setTaskPartner(taskId: string, partnerMemberId: string, at: string): Promise<Task | null> {
+    const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
+    if (idx === -1) return null;
+    const updated: Task = { ...this.snapshot.tasks[idx], partnerMemberId, updatedAt: at };
+    this.snapshot.tasks[idx] = updated;
+    return updated;
+  }
+
+  /** 跨组大任务组长事后确认（§4）。只写 crossClaimConfirmedBy + updatedAt。id 不存在 → null（路由转 404）。 */
+  async confirmCrossClaim(taskId: string, confirmedBy: ActorRef, at: string): Promise<Task | null> {
+    const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
+    if (idx === -1) return null;
+    const updated: Task = {
+      ...this.snapshot.tasks[idx],
+      crossClaimConfirmedBy: confirmedBy,
+      updatedAt: at,
+    };
+    this.snapshot.tasks[idx] = updated;
+    return updated;
+  }
+
+  /**
+   * 标完成（§5）。status→done + completedBy + statusSource console（C5）；**清 reviewedBy / reviewNote**
+   * （新一轮完成清旧验收——重开后重新走验收）。id 不存在 → null（路由转 404）。
+   */
+  async completeTask(taskId: string, completedBy: ActorRef, at: string): Promise<Task | null> {
+    const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
+    if (idx === -1) return null;
+    const { reviewedBy: _reviewedBy, reviewNote: _reviewNote, ...rest } = this.snapshot.tasks[idx];
+    const updated: Task = {
+      ...rest,
+      status: 'done',
+      statusSource: MANUAL_TASK_STATUS_SOURCE,
+      completedBy,
+      updatedAt: at,
+    };
+    this.snapshot.tasks[idx] = updated;
+    return updated;
+  }
+
+  /**
+   * 验收 / 抽查（§5）。accept = 写 reviewedBy(+note)、status 保持 done；reject（打回）= status→inProgress +
+   * reviewedBy + reviewNote + statusSource console（C5）。id 不存在 → null（路由转 404）。
+   */
+  async reviewTask(
+    taskId: string,
+    reviewedBy: ActorRef,
+    outcome: 'accept' | 'reject',
+    note: string | undefined,
+    at: string,
+  ): Promise<Task | null> {
+    const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
+    if (idx === -1) return null;
+    const prev = this.snapshot.tasks[idx];
+    const rejecting = outcome === 'reject';
+    const updated: Task = {
+      ...prev,
+      status: rejecting ? 'inProgress' : prev.status,
+      statusSource: rejecting ? MANUAL_TASK_STATUS_SOURCE : prev.statusSource,
+      reviewedBy,
+      ...(note !== undefined ? { reviewNote: note } : {}),
+      updatedAt: at,
+    };
+    this.snapshot.tasks[idx] = updated;
     return updated;
   }
 

@@ -10,6 +10,7 @@ import {
   governanceScenarioFixture,
 } from '@teamhub/hub-contracts';
 import type {
+  ActorRef,
   ArtifactRef,
   Dependency,
   GovernanceSnapshot,
@@ -524,6 +525,100 @@ export class FileGovStore implements GovStore {
       });
     }
     return member;
+  }
+
+  // 挂单认领制窄写（TASK-POST-CLAIM，D-088）：tasks 是 GovernanceSnapshot 字段 → 落 governance.json。
+  // 六方法全 idx 类回滚（写前存整条，persist 失败按 id 原地还原，镜像 updateTaskStatus）：委托 inner
+  // 补留名 + clamp 逻辑（零漂移），仅命中（非 null）才落盘。claimTask 的"已有主"由 inner 返回 null，
+  // 与"id 不存在"同走 null 分支、不触发无谓写。
+  async claimTask(taskId: string, ownerId: string, claimedAt: string): Promise<Task | null> {
+    const snap = this.inner.snapshotForRollback();
+    const idx = snap.tasks.findIndex((t) => t.id === taskId);
+    const prior = idx >= 0 ? snap.tasks[idx] : undefined;
+    const task = await this.inner.claimTask(taskId, ownerId, claimedAt);
+    if (task) {
+      await this.persistOrRollback(() => {
+        if (prior) snap.tasks[idx] = prior;
+      });
+    }
+    return task;
+  }
+
+  async assignTask(
+    taskId: string,
+    ownerId: string,
+    reason: string,
+    assignedBy: ActorRef,
+    at: string,
+  ): Promise<Task | null> {
+    const snap = this.inner.snapshotForRollback();
+    const idx = snap.tasks.findIndex((t) => t.id === taskId);
+    const prior = idx >= 0 ? snap.tasks[idx] : undefined;
+    const task = await this.inner.assignTask(taskId, ownerId, reason, assignedBy, at);
+    if (task) {
+      await this.persistOrRollback(() => {
+        if (prior) snap.tasks[idx] = prior;
+      });
+    }
+    return task;
+  }
+
+  async setTaskPartner(taskId: string, partnerMemberId: string, at: string): Promise<Task | null> {
+    const snap = this.inner.snapshotForRollback();
+    const idx = snap.tasks.findIndex((t) => t.id === taskId);
+    const prior = idx >= 0 ? snap.tasks[idx] : undefined;
+    const task = await this.inner.setTaskPartner(taskId, partnerMemberId, at);
+    if (task) {
+      await this.persistOrRollback(() => {
+        if (prior) snap.tasks[idx] = prior;
+      });
+    }
+    return task;
+  }
+
+  async confirmCrossClaim(taskId: string, confirmedBy: ActorRef, at: string): Promise<Task | null> {
+    const snap = this.inner.snapshotForRollback();
+    const idx = snap.tasks.findIndex((t) => t.id === taskId);
+    const prior = idx >= 0 ? snap.tasks[idx] : undefined;
+    const task = await this.inner.confirmCrossClaim(taskId, confirmedBy, at);
+    if (task) {
+      await this.persistOrRollback(() => {
+        if (prior) snap.tasks[idx] = prior;
+      });
+    }
+    return task;
+  }
+
+  async completeTask(taskId: string, completedBy: ActorRef, at: string): Promise<Task | null> {
+    const snap = this.inner.snapshotForRollback();
+    const idx = snap.tasks.findIndex((t) => t.id === taskId);
+    const prior = idx >= 0 ? snap.tasks[idx] : undefined;
+    const task = await this.inner.completeTask(taskId, completedBy, at);
+    if (task) {
+      await this.persistOrRollback(() => {
+        if (prior) snap.tasks[idx] = prior;
+      });
+    }
+    return task;
+  }
+
+  async reviewTask(
+    taskId: string,
+    reviewedBy: ActorRef,
+    outcome: 'accept' | 'reject',
+    note: string | undefined,
+    at: string,
+  ): Promise<Task | null> {
+    const snap = this.inner.snapshotForRollback();
+    const idx = snap.tasks.findIndex((t) => t.id === taskId);
+    const prior = idx >= 0 ? snap.tasks[idx] : undefined;
+    const task = await this.inner.reviewTask(taskId, reviewedBy, outcome, note, at);
+    if (task) {
+      await this.persistOrRollback(() => {
+        if (prior) snap.tasks[idx] = prior;
+      });
+    }
+    return task;
   }
 
   // 新建赛季（SEASON-CREATE）：append 新 active + 旧 active 同笔转 archived（两类变更一笔写），

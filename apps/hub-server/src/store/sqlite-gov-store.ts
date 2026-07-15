@@ -8,6 +8,7 @@ import {
   scheduleScenarioFixture,
 } from '@teamhub/hub-contracts';
 import type {
+  ActorRef,
   ArtifactRef,
   Dependency,
   GovernanceSnapshot,
@@ -488,6 +489,118 @@ export class SqliteGovStore implements GovStore {
         updatedAt: this.clock.now().toISOString(),
       };
       this.updateRow('members', memberId, updated);
+      return updated;
+    });
+  }
+
+  // ── 挂单认领制窄写（TASK-POST-CLAIM，D-088）：整实体 JSON 就地重写（文档式行存），逐字镜像
+  // InMemoryGovStore 的字段簇 + clamp（「status 变则 statusSource 钉 console」C5）；一个事务读-判-写。
+
+  async claimTask(taskId: string, ownerId: string, claimedAt: string): Promise<Task | null> {
+    return this.tx(() => {
+      const prev = this.getRow<Task>('tasks', taskId);
+      if (!prev) return null;
+      if (prev.ownerId !== null) return null; // 已有主：不覆盖（路由转 409）
+      const promoting = prev.status === 'pending';
+      const updated: Task = {
+        ...prev,
+        ownerId,
+        claimedAt,
+        status: promoting ? 'inProgress' : prev.status,
+        statusSource: promoting ? MANUAL_TASK_STATUS_SOURCE : prev.statusSource,
+        updatedAt: claimedAt,
+      };
+      this.updateRow('tasks', taskId, updated);
+      return updated;
+    });
+  }
+
+  async assignTask(
+    taskId: string,
+    ownerId: string,
+    reason: string,
+    assignedBy: ActorRef,
+    at: string,
+  ): Promise<Task | null> {
+    return this.tx(() => {
+      const prev = this.getRow<Task>('tasks', taskId);
+      if (!prev) return null;
+      // 换主：解构剔除 claimedAt/partnerMemberId/crossClaimConfirmedBy（不再回写 = 清空）。
+      const {
+        claimedAt: _claimedAt,
+        partnerMemberId: _partnerMemberId,
+        crossClaimConfirmedBy: _crossClaimConfirmedBy,
+        ...rest
+      } = prev;
+      const updated: Task = {
+        ...rest,
+        ownerId,
+        assignReason: reason,
+        assignedBy,
+        updatedAt: at,
+      };
+      this.updateRow('tasks', taskId, updated);
+      return updated;
+    });
+  }
+
+  async setTaskPartner(taskId: string, partnerMemberId: string, at: string): Promise<Task | null> {
+    return this.tx(() => {
+      const prev = this.getRow<Task>('tasks', taskId);
+      if (!prev) return null;
+      const updated: Task = { ...prev, partnerMemberId, updatedAt: at };
+      this.updateRow('tasks', taskId, updated);
+      return updated;
+    });
+  }
+
+  async confirmCrossClaim(taskId: string, confirmedBy: ActorRef, at: string): Promise<Task | null> {
+    return this.tx(() => {
+      const prev = this.getRow<Task>('tasks', taskId);
+      if (!prev) return null;
+      const updated: Task = { ...prev, crossClaimConfirmedBy: confirmedBy, updatedAt: at };
+      this.updateRow('tasks', taskId, updated);
+      return updated;
+    });
+  }
+
+  async completeTask(taskId: string, completedBy: ActorRef, at: string): Promise<Task | null> {
+    return this.tx(() => {
+      const prev = this.getRow<Task>('tasks', taskId);
+      if (!prev) return null;
+      const { reviewedBy: _reviewedBy, reviewNote: _reviewNote, ...rest } = prev;
+      const updated: Task = {
+        ...rest,
+        status: 'done',
+        statusSource: MANUAL_TASK_STATUS_SOURCE,
+        completedBy,
+        updatedAt: at,
+      };
+      this.updateRow('tasks', taskId, updated);
+      return updated;
+    });
+  }
+
+  async reviewTask(
+    taskId: string,
+    reviewedBy: ActorRef,
+    outcome: 'accept' | 'reject',
+    note: string | undefined,
+    at: string,
+  ): Promise<Task | null> {
+    return this.tx(() => {
+      const prev = this.getRow<Task>('tasks', taskId);
+      if (!prev) return null;
+      const rejecting = outcome === 'reject';
+      const updated: Task = {
+        ...prev,
+        status: rejecting ? 'inProgress' : prev.status,
+        statusSource: rejecting ? MANUAL_TASK_STATUS_SOURCE : prev.statusSource,
+        reviewedBy,
+        ...(note !== undefined ? { reviewNote: note } : {}),
+        updatedAt: at,
+      };
+      this.updateRow('tasks', taskId, updated);
       return updated;
     });
   }

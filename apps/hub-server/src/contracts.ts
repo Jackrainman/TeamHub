@@ -120,6 +120,22 @@ export {
   WaiveChecklistItemResponseSchema,
   ChecklistTemplatesResponseSchema,
   listBlockingChecklistItems,
+  // 挂单认领制窄写动作契约（TASK-POST-CLAIM，D-088；docs/design/task-post-claim.md）：认领/指派/搭档/
+  // 跨组确认/完成/验收六条 POST 子资源的读写契约 + q= 子串搜历史任务的 querystring 契约。全部写 Task
+  // 本体留名字段簇（pm-core.ts），无新实体、无 dueDate（红线）。
+  ClaimTaskRequestSchema,
+  ClaimTaskResponseSchema,
+  AssignTaskRequestSchema,
+  AssignTaskResponseSchema,
+  SetTaskPartnerRequestSchema,
+  SetTaskPartnerResponseSchema,
+  ConfirmCrossClaimRequestSchema,
+  ConfirmCrossClaimResponseSchema,
+  CompleteTaskRequestSchema,
+  CompleteTaskResponseSchema,
+  ReviewTaskRequestSchema,
+  ReviewTaskResponseSchema,
+  TasksQuerySchema,
 } from '@teamhub/hub-contracts';
 export type {
   AgentBackend,
@@ -150,6 +166,20 @@ export type {
   CreateNeedResponse,
   TransitionTaskStatusRequest,
   TransitionTaskStatusResponse,
+  // 挂单认领制窄写动作契约类型（TASK-POST-CLAIM，D-088）。
+  ClaimTaskRequest,
+  ClaimTaskResponse,
+  AssignTaskRequest,
+  AssignTaskResponse,
+  SetTaskPartnerRequest,
+  SetTaskPartnerResponse,
+  ConfirmCrossClaimRequest,
+  ConfirmCrossClaimResponse,
+  CompleteTaskRequest,
+  CompleteTaskResponse,
+  ReviewTaskRequest,
+  ReviewTaskResponse,
+  TasksQuery,
   WaiveDependencyResponse,
   CreateArtifactRequest,
   CreateArtifactResponse,
