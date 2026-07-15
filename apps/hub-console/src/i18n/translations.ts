@@ -133,8 +133,11 @@ const zh = {
 
   // 倒排基准线「基准线 vs 实际」（BASELINE-CORE S6）
   'overview.baseline.title': '基准线 vs 实际',
-  'overview.baseline.currentPhase': '当前：{phase} · 距赛日 {weeks} 周',
   'overview.baseline.currentPhase.noComp': '当前：{phase}',
+  // 倒计时 hero（VISUAL-VITALITY V1）：距赛日周数升为 display 大数字；原「当前：{phase} ·
+  // 距赛日 {weeks} 周」拆两处（阶段留副行、周数进倒计时），旧 currentPhase 键随之退役。
+  'overview.baseline.countdown.aria': '距赛日 {weeks} 周',
+  'overview.baseline.countdown.meta': '周 · 赛日 {date}',
   'overview.baseline.loading': '正在加载基准线…',
   'overview.baseline.error': '基准线加载失败（后端没连上？）',
   'overview.baseline.noSeason': '还没有赛季，先在设置里建一个赛季，再生成基准线。',
@@ -981,8 +984,9 @@ const en: Record<TranslationKey, string> = {
 
   // Reverse-scheduled baseline — "baseline vs actual" (BASELINE-CORE S6)
   'overview.baseline.title': 'Baseline vs actual',
-  'overview.baseline.currentPhase': 'Now: {phase} · {weeks} weeks to race day',
   'overview.baseline.currentPhase.noComp': 'Now: {phase}',
+  'overview.baseline.countdown.aria': '{weeks} weeks to race day',
+  'overview.baseline.countdown.meta': 'weeks · race day {date}',
   'overview.baseline.loading': 'Loading baseline…',
   'overview.baseline.error': 'Failed to load baseline (backend offline?)',
   'overview.baseline.noSeason': 'No season yet — create one in Settings, then generate a baseline.',
