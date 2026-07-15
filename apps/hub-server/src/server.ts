@@ -93,6 +93,17 @@ import {
   PassMilestoneRequestSchema,
   PassMilestoneResponseSchema,
   BaselineQuerySchema,
+  // 门检查单 / 欠条（GATE-CHECKLIST-IOU，C3 路由）：读/写 + querystring 契约 + 过门硬闸判定核。
+  ChecklistQuerySchema,
+  ChecklistItemsResponseSchema,
+  CreateChecklistItemRequestSchema,
+  CreateChecklistItemResponseSchema,
+  ClearChecklistItemRequestSchema,
+  ClearChecklistItemResponseSchema,
+  WaiveChecklistItemRequestSchema,
+  WaiveChecklistItemResponseSchema,
+  ChecklistTemplatesResponseSchema,
+  listBlockingChecklistItems,
 } from './contracts.js';
 import type {
   IssueCard,
@@ -112,7 +123,12 @@ import {
   SessionResponseSchema,
   SetPinRequestSchema,
   SetPinResponseSchema,
+  // 门验收人名单维护（GATE-CHECKLIST-IOU，D-087 拍板②）：PUT /api/members/:id/gate-reviewer 读/写契约。
+  SetGateReviewerRequestSchema,
+  SetGateReviewerResponseSchema,
 } from '@teamhub/hub-contracts';
+import { ZodError } from 'zod';
+import { isGateReviewer } from './authz.js';
 import { hashPin, verifyPin } from './identity/pin.js';
 import { SessionManager } from './identity/session-store.js';
 import { deriveErrorCode } from './kb/error-code.js';
@@ -125,7 +141,7 @@ import { InMemoryBaselineStore } from './store/mock-baseline-store.js';
 import { InMemoryChecklistStore } from './store/mock-checklist-store.js';
 import type { GovStore, InvStore, KbStore } from './store/gov-store.js';
 import type { BaselineStore } from './store/baseline-store.js';
-import type { ChecklistStore } from './store/checklist-store.js';
+import type { ChecklistItemDraft, ChecklistStore } from './store/checklist-store.js';
 import {
   listMockAgentBackends,
   listMockBotChannels,
@@ -616,7 +632,7 @@ function registerArchiveRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void 
 // pm-core 模块（核心必装）：DAG 归因读视图 + 方向缺口 + 任务/依赖/前置需求写侧。
 // ============================================================================
 function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
-  const { store, clock, baselineStore, identityMode } = ctx;
+  const { store, clock, baselineStore, checklistStore, identityMode } = ctx;
 
   // 成员名册只读（IDENTITY-LITE：登录「选人」+ 未来我的视图数据源）。**密钥纪律**：走 MembersResponseSchema
   // （MemberPublicSchema 数组，剥 pinHash）——凭证散列永不过读边界，即便落盘 gov.json 里存在。两模式均挂
@@ -770,6 +786,24 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
         }
       }
       const { milestoneId } = request.params;
+      // ── 过门硬闸（GATE-CHECKLIST-IOU 设计 §2 唯一硬闸；D-087）─────────────────────────────────
+      // 门判定只有一条规则：挂该门的检查项 / 欠条全部非 pending，门才可过。落在 evidenceRefs 孤儿校验之后、
+      // passMilestone 调用之前，照 evidenceRefs「读另一 store、命中即 400」同形先例。**仅 status==='passed'
+      // 才拦**：status==='missed'（记录验收失败）不拦——门没过，欠条自然还挂着，硬闸只防「凑合的雷带着过门」
+      // 而非阻止如实记录失败（架构裁定，记入 deviations）。该赛季无基准线时 baseline 为 null，跳过硬闸交由
+      // passMilestone 返回 null → 404 处理。
+      if (bodyParsed.data.status === 'passed') {
+        const baseline = await baselineStore.getBaseline(queryParsed.data.seasonId);
+        if (baseline) {
+          const items = await checklistStore.listItems(baseline.id);
+          const blocking = listBlockingChecklistItems(items, milestoneId);
+          if (blocking.length > 0) {
+            const titles = blocking.map((it) => it.title).join('、');
+            void reply.code(400).send({ detail: `检查项未清：${titles}` });
+            return;
+          }
+        }
+      }
       // IDENTITY-LITE actor 注入：身份模式下验收留名 passedBy 由 session 身份覆盖（大三验收人=登录人，
       // 不信客户端自报）；匿名模式沿用请求体 passedBy。读视图仍剥 passedBy（红线2 不变）。
       const passData = request.identity
@@ -912,6 +946,197 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     void reply.code(201);
     return CreateNeedResponseSchema.parse({ need });
   });
+
+  // ── 门检查单 / 欠条（GATE-CHECKLIST-IOU，C3 路由；docs/design/gate-checklist-iou.md §2/§3，D-087）──────
+  // 同域挂在 pm-core（与 baseline 三路由相邻——检查项挂在 SeasonBaseline 的门/里程碑下）。seasonId 走
+  // querystring（照 GET/PATCH /api/baseline 同族风格）。写路由（POST/PUT）继承宿主级 H3 onRequest 写门钩子
+  // （Bearer 鉴权 + 限流 + 身份模式登录要求），不另写鉴权底座；豁免的「验收人名单」授权是本域业务门、另做。
+  // 红线：读契约带名不剥（clearedBy/waivedBy = D-085 事实层）；本域绝不建按人聚合/排行/按人筛选端点。
+
+  // clear/waive 返回 null 时的 404 / 409 判别（store 层 null 不区分「不存在」与「非 pending」——C2 交接）：
+  // 按赛季基准线 listItems 找该 id，存在 = 已非 pending（已清 / 已豁免）→ 409 Conflict；不存在 → 404。
+  // 409 是本域首次引入（库里此前无 409 先例）——语义正确的「资源状态冲突」，记入 deviations。
+  const replyClearWaiveNotApplied = async (
+    reply: import('fastify').FastifyReply,
+    itemId: string,
+    seasonId: string,
+    action: string,
+  ): Promise<void> => {
+    const baseline = await baselineStore.getBaseline(seasonId);
+    const exists = baseline
+      ? (await checklistStore.listItems(baseline.id)).some((it) => it.id === itemId)
+      : false;
+    if (exists) {
+      void reply.code(409).send({ detail: `检查项已非 pending（已清偿 / 已豁免），无法${action}` });
+    } else {
+      void reply.code(404).send({ detail: '检查项不存在' });
+    }
+  };
+
+  // GET /api/checklist?seasonId=xxx：读该赛季基准线下所有检查项 / 欠条。无基准线 → `{ items: [] }`
+  // （GET 语义上"还没有"合法，照 GET /api/baseline 的 `{ baseline: null }` 先例）。
+  // **响应带名不剥**：ChecklistItemsResponseSchema 直回完整 item（含 clearedBy/waivedBy）——D-085 第三版口径
+  // "事实层永远带名"，欠条清偿/豁免留名正是单条事实卡，与 baseline 读视图剥 passedBy **刻意不同**。
+  app.get('/api/checklist', async (request, reply) => {
+    const parsed = ChecklistQuerySchema.safeParse(request.query ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error, 'seasonId required') });
+      return;
+    }
+    const baseline = await baselineStore.getBaseline(parsed.data.seasonId);
+    if (!baseline) return ChecklistItemsResponseSchema.parse({ items: [] });
+    const items = await checklistStore.listItems(baseline.id);
+    return ChecklistItemsResponseSchema.parse({ items });
+  });
+
+  // POST /api/checklist?seasonId=xxx：现场快记欠条 / 模板实例化（30 秒动线，任何人可记——§3）。
+  // 该赛季须有基准线（欠条挂在其门/里程碑或自选到期日下）→ 无基准线 404。挂门欠条（anchorMilestoneId）
+  // 须命中该 baseline 的真实里程碑 id，否则 400（照 evidenceRefs 孤儿校验先例，防孤儿引用）。server 补
+  // id/createdAt、钉 status=pending（store 层管）、origin 由 CreateChecklistItemRequestSchema.default('iou') 带入。
+  app.post('/api/checklist', async (request, reply) => {
+    const queryParsed = ChecklistQuerySchema.safeParse(request.query ?? {});
+    if (!queryParsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(queryParsed.error, 'seasonId required') });
+      return;
+    }
+    const bodyParsed = CreateChecklistItemRequestSchema.safeParse(request.body ?? {});
+    if (!bodyParsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(bodyParsed.error) });
+      return;
+    }
+    const baseline = await baselineStore.getBaseline(queryParsed.data.seasonId);
+    if (!baseline) {
+      void reply.code(404).send({ detail: '该赛季无基准线，无法挂检查项 / 欠条' });
+      return;
+    }
+    // 孤儿校验：挂门欠条须命中该 baseline 的真实里程碑 id（避孤儿引用，照 evidenceRefs 同形先例）。
+    // 自选到期日欠条（anchorDueAt）不涉里程碑、跳过本校验。
+    const { anchorMilestoneId } = bodyParsed.data;
+    if (anchorMilestoneId !== undefined) {
+      const knownMilestoneIds = new Set(baseline.milestones.map((m) => m.id));
+      if (!knownMilestoneIds.has(anchorMilestoneId)) {
+        void reply.code(400).send({ detail: `挂接的门 / 里程碑不存在：${anchorMilestoneId}` });
+        return;
+      }
+    }
+    // draft：人填字段 + server 注入 seasonBaselineId（从 baseline.id）+ createdAt（clock）。store 补 id、钉 pending。
+    const draft: ChecklistItemDraft = {
+      seasonBaselineId: baseline.id,
+      title: bodyParsed.data.title,
+      anchorMilestoneId: bodyParsed.data.anchorMilestoneId,
+      anchorDueAt: bodyParsed.data.anchorDueAt,
+      origin: bodyParsed.data.origin,
+      note: bodyParsed.data.note,
+      createdAt: clock.now().toISOString(),
+    };
+    try {
+      const item = await checklistStore.createItem(draft);
+      void reply.code(201);
+      return CreateChecklistItemResponseSchema.parse({ item });
+    } catch (err) {
+      // createItem 内部 GateChecklistItemSchema.parse fail-closed（挂接二选一 superRefine 等）→ ZodError 映射 400。
+      if (err instanceof ZodError) {
+        void reply.code(400).send({ detail: firstZodMsg(err) });
+        return;
+      }
+      throw err;
+    }
+  });
+
+  // POST /api/checklist/:id/clear?seasonId=xxx：标清偿（pending→passed，任何人可标——§3）。
+  // actor 注入照 sessionActor 6 处既有范式（身份模式用会话身份、匿名模式用 body.clearedBy）；二者皆无 → 400
+  // "清偿必须留名"（D-085 事实层带名，清偿留名进事实卡）。仅 pending 可清：非 pending → 409、不存在 → 404
+  // （store 返回 null 不区分二者，路由用 listItems 找 id 判存在性——照 C2 交接）。
+  app.post<{ Params: { id: string } }>('/api/checklist/:id/clear', async (request, reply) => {
+    const queryParsed = ChecklistQuerySchema.safeParse(request.query ?? {});
+    if (!queryParsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(queryParsed.error, 'seasonId required') });
+      return;
+    }
+    const bodyParsed = ClearChecklistItemRequestSchema.safeParse(request.body ?? {});
+    if (!bodyParsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(bodyParsed.error) });
+      return;
+    }
+    const actor: ActorRef | undefined = request.identity
+      ? sessionActor(request.identity)
+      : bodyParsed.data.clearedBy;
+    if (!actor) {
+      void reply.code(400).send({ detail: '清偿必须留名（clearedBy）' });
+      return;
+    }
+    const { id } = request.params;
+    const result = await checklistStore.clearItem(id, actor);
+    if (result) {
+      // 带名不剥：ClearChecklistItemResponseSchema 直回完整 item（含 clearedBy）——事实层带名。
+      return ClearChecklistItemResponseSchema.parse({ item: result });
+    }
+    // null：区分 404（不存在）与 409（非 pending，已清 / 已豁免）——先按赛季基准线找该 id 判存在性。
+    await replyClearWaiveNotApplied(reply, id, queryParsed.data.seasonId, '清偿');
+  });
+
+  // POST /api/checklist/:id/waive?seasonId=xxx：书面豁免（pending→waived，仅**验收人名单**——§3）。
+  // waiveReason 强制非空（WaiveChecklistItemRequestSchema 已管）；actor 注入同 clear。**豁免鉴权（D3 债，
+  // 本刀接线）**：两模式统一走名册校验——身份模式校验会话身份 id、匿名模式校验 body.waivedBy.id，非验收人
+  // → 403（比"匿名放行"诚实，记入 deviations）。名单 = Member.gateReviewer（isGateReviewer helper，体检 D6）。
+  app.post<{ Params: { id: string } }>('/api/checklist/:id/waive', async (request, reply) => {
+    const queryParsed = ChecklistQuerySchema.safeParse(request.query ?? {});
+    if (!queryParsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(queryParsed.error, 'seasonId required') });
+      return;
+    }
+    const bodyParsed = WaiveChecklistItemRequestSchema.safeParse(request.body ?? {});
+    if (!bodyParsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(bodyParsed.error) });
+      return;
+    }
+    const actor: ActorRef | undefined = request.identity
+      ? sessionActor(request.identity)
+      : bodyParsed.data.waivedBy;
+    if (!actor) {
+      void reply.code(400).send({ detail: '豁免必须留名（waivedBy）' });
+      return;
+    }
+    // 豁免鉴权：actor 须在验收人名单（Member.gateReviewer=true）上。fail-closed（无资格默认拒绝）。
+    const snapshot = await store.getSnapshot();
+    if (!isGateReviewer(snapshot.members, actor.id)) {
+      void reply.code(403).send({ detail: '豁免权属验收人名单（大三）' });
+      return;
+    }
+    const { id } = request.params;
+    const result = await checklistStore.waiveItem(id, actor, bodyParsed.data.waiveReason);
+    if (result) {
+      // 带名不剥：直回完整 item（含 waivedBy/waiveReason）——事实层带名 + 书面豁免记录。
+      return WaiveChecklistItemResponseSchema.parse({ item: result });
+    }
+    await replyClearWaiveNotApplied(reply, id, queryParsed.data.seasonId, '豁免');
+  });
+
+  // GET /api/checklist/templates：跨赛季检查单模板清单（seed 留空、等复盘导入——§4）。与赛季解耦，无 querystring。
+  app.get('/api/checklist/templates', async () => {
+    const templates = await checklistStore.listTemplates();
+    return ChecklistTemplatesResponseSchema.parse({ templates });
+  });
+
+  // PUT /api/members/:id/gate-reviewer：验收人名单维护（GATE-CHECKLIST-IOU，D-087 拍板②）。设 / 撤该成员的
+  // 门验收人资格（每年换届更新，换届交接门的一项）。**权限 v1 = 写门即可**：身份模式须登录（写门钩子已保证），
+  // 不再细分"须现任验收人操作"——家庭影院级先例（同 PIN 首次设置的威胁模型取舍，记入 deviations）。响应经
+  // MemberPublicSchema 剥 pinHash（密钥纪律）。id 不存在 → 404。
+  app.put<{ Params: { id: string } }>('/api/members/:id/gate-reviewer', async (request, reply) => {
+    const { id } = request.params;
+    const parsed = SetGateReviewerRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const updated = await store.setMemberGateReviewer(id, parsed.data.gateReviewer);
+    if (!updated) {
+      void reply.code(404).send({ detail: 'member not found' });
+      return;
+    }
+    return SetGateReviewerResponseSchema.parse({ member: MemberPublicSchema.parse(updated) });
+  });
+  // ── 门检查单 / 欠条路由结束 ───────────────────────────────────────────────────────────────────
 }
 
 // ============================================================================

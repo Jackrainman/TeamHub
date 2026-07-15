@@ -105,6 +105,19 @@ export {
   UpdateBaselineResponseSchema,
   PassMilestoneRequestSchema,
   PassMilestoneResponseSchema,
+  // 门检查单 / 欠条（GATE-CHECKLIST-IOU，C3 路由；docs/design/gate-checklist-iou.md）：读/写契约 +
+  // querystring 契约 + 过门硬闸判定核。**读契约带名不剥**（clearedBy/waivedBy = D-085 事实层，与 baseline
+  // 剥 passedBy 刻意不同，见 checklist.ts 头部注释）。listBlockingChecklistItems 是过门拦截纯函数。
+  ChecklistQuerySchema,
+  ChecklistItemsResponseSchema,
+  CreateChecklistItemRequestSchema,
+  CreateChecklistItemResponseSchema,
+  ClearChecklistItemRequestSchema,
+  ClearChecklistItemResponseSchema,
+  WaiveChecklistItemRequestSchema,
+  WaiveChecklistItemResponseSchema,
+  ChecklistTemplatesResponseSchema,
+  listBlockingChecklistItems,
 } from '@teamhub/hub-contracts';
 export type {
   AgentBackend,
