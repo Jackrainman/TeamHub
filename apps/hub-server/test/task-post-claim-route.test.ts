@@ -220,6 +220,20 @@ describe('TASK-POST-CLAIM 路由：指派 / 转派（assign）', () => {
       await app.close();
     }
   });
+
+  test('孤儿 ownerId（指派对象不在名册）→ 400（与 claim/partner 名册校验对称）', async () => {
+    const app = buildHubServer({ store: new InMemoryGovStore(withGroupLead('m-ecB')) });
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/tasks/t-r1-chassis/assign',
+        payload: { ownerId: 'm-ghost', reason: '指给不存在的人', assignedBy: NON_REVIEWER },
+      });
+      expect(res.statusCode).toBe(400);
+    } finally {
+      await app.close();
+    }
+  });
 });
 
 describe('TASK-POST-CLAIM 路由：本组搭档（partner）', () => {
@@ -413,6 +427,21 @@ describe('TASK-POST-CLAIM 路由：验收 / 抽查（review）', () => {
         payload: { outcome: 'accept' },
       });
       expect(res.statusCode).toBe(400);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('非 done 任务 → 409（验收/打回只对已完成任务；防对从未 done 的任务盖章打回）', async () => {
+    const app = buildHubServer();
+    try {
+      // t-r1-chassis fixture 为 blocked（非 done）
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/tasks/t-r1-chassis/review',
+        payload: { outcome: 'reject', reviewedBy: REVIEWER, note: '还没完成就想打回' },
+      });
+      expect(res.statusCode).toBe(409);
     } finally {
       await app.close();
     }

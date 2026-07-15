@@ -183,7 +183,8 @@ export interface PmCoreStore {
   /**
    * 验收 / 抽查（POST /api/tasks/:id/review，§5）：`accept` = 写 reviewedBy(+note)、status 保持 `done`
    * （验收态 accepted 由 deriveTaskAcceptance 派生，不动 TaskStatus 枚举）；`reject`（打回）= status→`inProgress`
-   * + reviewedBy + reviewNote（打回理由）+ statusSource `console`。验收人名单鉴权在路由层（isGateReviewer）。
+   * + reviewedBy + reviewNote（打回理由）+ statusSource `console`。**reviewNote 一律以本轮为准**（note
+   * 未给则清上一轮残留）。验收人名单鉴权 + done 前置判（非 done → 409）都在路由层。
    * id 不存在 → null（→404）。
    */
   reviewTask(

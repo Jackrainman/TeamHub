@@ -728,6 +728,8 @@ export class InMemoryGovStore implements GovStore {
   /**
    * 验收 / 抽查（§5）。accept = 写 reviewedBy(+note)、status 保持 done；reject（打回）= status→inProgress +
    * reviewedBy + reviewNote + statusSource console（C5）。id 不存在 → null（路由转 404）。
+   * **reviewNote 一律以本轮为准**：note 未给则清掉上一轮残留（复审 nit 收口——否则 reject 后直接
+   * accept 会把旧打回理由留在已验收任务上）。
    */
   async reviewTask(
     taskId: string,
@@ -738,7 +740,7 @@ export class InMemoryGovStore implements GovStore {
   ): Promise<Task | null> {
     const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
     if (idx === -1) return null;
-    const prev = this.snapshot.tasks[idx];
+    const { reviewNote: _prevNote, ...prev } = this.snapshot.tasks[idx];
     const rejecting = outcome === 'reject';
     const updated: Task = {
       ...prev,

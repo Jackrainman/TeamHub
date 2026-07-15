@@ -990,6 +990,12 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       void reply.code(403).send({ detail: '指派权属该组组长' });
       return;
     }
+    // 防孤儿 ownerId（与 claim / partner 的名册校验对称）：组长虽已过 403 授权门，但指派对象
+    // 若不在名册会落一个永远无人认账的 ownerId（复审 nit 收口）。
+    if (!snapshot.members.some((m) => m.id === parsed.data.ownerId)) {
+      void reply.code(400).send({ detail: '指派对象不在名册' });
+      return;
+    }
     const assigned = await store.assignTask(
       taskId,
       parsed.data.ownerId,
@@ -1123,6 +1129,18 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     const snapshot = await store.getSnapshot();
     if (!isGateReviewer(snapshot.members, actor.id)) {
       void reply.code(403).send({ detail: '验收权属验收人名单（大三）' });
+      return;
+    }
+    // 前置判：验收/抽查只对已标完成（done）的任务有意义（§5 两档都发生在完成之后）。放开会让
+    // 验收人对从未 done 的任务盖章打回——TaskDetailDrawer 的「被打回」派生会呈现从未发生过的事实
+    //（复审 nit 收口）。非 done → 409（资源状态冲突，照 checklist clear/waive 先例）。
+    const target = snapshot.tasks.find((t) => t.id === taskId);
+    if (!target) {
+      void reply.code(404).send({ detail: 'task not found' });
+      return;
+    }
+    if (target.status !== 'done') {
+      void reply.code(409).send({ detail: '任务尚未标完成，无法验收/打回（先 complete）' });
       return;
     }
     const updated = await store.reviewTask(

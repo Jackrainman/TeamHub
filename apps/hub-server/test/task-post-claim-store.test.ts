@@ -76,6 +76,17 @@ describe('InMemoryGovStore: 挂单认领制窄写字段簇 + 清空语义', () =
     expect(accepted?.reviewedBy?.id).toBe('m-progA');
   });
 
+  test('reviewNote 一律以本轮为准：reject 带理由后再 accept（无 note）→ 旧打回理由被清', async () => {
+    const store = new InMemoryGovStore();
+    await store.completeTask('t-r1-newboard', OWNER, 't1');
+    const rejected = await store.reviewTask('t-r1-newboard', REVIEWER, 'reject', '虚焊，重焊', 't2');
+    expect(rejected?.reviewNote).toBe('虚焊，重焊');
+    // 边角路径（store 层语义兜底；路由层另有 done 前置判）：直接 accept 不带 note → 残留清空
+    const accepted = await store.reviewTask('t-r1-newboard', REVIEWER, 'accept', undefined, 't3');
+    expect(accepted?.reviewNote).toBeUndefined();
+    expect(accepted?.reviewedBy?.id).toBe('m-progA');
+  });
+
   test('未知 id → 六方法皆 null', async () => {
     const store = new InMemoryGovStore();
     expect(await store.claimTask('t-nope', 'm-x', 'x')).toBeNull();

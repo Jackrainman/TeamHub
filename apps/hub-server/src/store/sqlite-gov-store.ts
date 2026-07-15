@@ -589,8 +589,10 @@ export class SqliteGovStore implements GovStore {
     at: string,
   ): Promise<Task | null> {
     return this.tx(() => {
-      const prev = this.getRow<Task>('tasks', taskId);
-      if (!prev) return null;
+      const row = this.getRow<Task>('tasks', taskId);
+      if (!row) return null;
+      // reviewNote 一律以本轮为准（镜像 InMemoryGovStore.reviewTask，复审 nit 收口）。
+      const { reviewNote: _prevNote, ...prev } = row;
       const rejecting = outcome === 'reject';
       const updated: Task = {
         ...prev,
