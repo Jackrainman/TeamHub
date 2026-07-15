@@ -75,10 +75,11 @@ Task 三个 optional 字段（claimedAt / assignReason / 本组搭档位，命�
 ### 9.3 路由/鉴权层偏离（T2，`hub-server/src/server.ts` `registerPmCoreRoutes` + `authz.ts`）
 
 - **`confirm-cross-claim` 路径全称**：路由用 `/confirm-cross-claim`（对齐 `ConfirmCrossClaimRequestSchema` 命名及契约注释里的落点建议），非 §3 行文里缩写的 `/confirm-claim`。
-- **assign 不校验新 owner 名册**：`assign`/转派路由信任组长已过 `isGroupLeadOf` 403 授权门，**不**再校验新 `ownerId` 是否命中成员名册（仅 `claim` 有防孤儿 400，spec §3 也只对 claim 明列此校验）——组长指派真实成员是默认信任前提；`partnerMemberId` 校验（须本组成员，外组 400）仍在。
+- **assign 名册校验（复审 nit → 已补齐，`0926fc1` v0.23.3）**：实现轮初版信任组长已过 `isGroupLeadOf` 403 授权门、不校验新 `ownerId`；复审判定会落孤儿 ownerId，收口轮补上与 `claim`/`partner` 对称的名册校验（孤儿 `ownerId` → 400「指派对象不在名册」）。
 - **assign 不做状态提升**：`claim` 会把 `pending` 挂单提升为 `inProgress`；`assign` 指派后 `TaskStatus` 保持不变（`pending` 任务被指派后仍 `pending`，只是有了 owner）。语义上可解释为"已指派但未开工"，但与 claim 的提升行为不对称，属实现期未拍板细节、非设计明文要求；`isPostedTask` 仍会因 `ownerId!==null` 把它移出挂单池，无功能性 bug。
 - **partner 路由不设发起人鉴权**：本组搭档补位任一成员可自行认领/组长可自任（"本组自愿补位"），无发起人身份校验——task-post-claim.md §4 明示"组长默认可自任"，spec 亦要求记 deviations，此为按 spec 落地非越权。
-- **review 鉴权复用 `isGateReviewer`**：`Member.gateReviewer` 布尔位（`gate-checklist-iou.md` 落地的验收人名单）与 review 鉴权同一张名册——D-087 拍板②"验收人名单与豁免名单同语义"在此再次兑现；**验收人名单与豁免名单是同一张大三名单，非两套并行名单**。`review` 路由对任意 `TaskStatus`（含未 `done`、非大活）都可被具备 `gateReviewer` 的 actor stamp 验收/打回——console 已挡（两档验收 UI 只在 `done` 且 `isBig` 时出现验收/打回按钮），但直连 API 可达；影响良性（人工操作、非公开攻击面），归为设计缺省而非违规，此前实现自报未列，本次复审补记。
+- **review 鉴权复用 `isGateReviewer`**：`Member.gateReviewer` 布尔位（`gate-checklist-iou.md` 落地的验收人名单）与 review 鉴权同一张名册——D-087 拍板②"验收人名单与豁免名单同语义"在此再次兑现；**验收人名单与豁免名单是同一张大三名单，非两套并行名单**。
+- **review done 前置判（复审 nit → 已补齐，`0926fc1` v0.23.3）**：实现轮初版对任意 `TaskStatus` 都可 stamp 验收/打回（console 已挡但直连 API 可达，会让「被打回」派生呈现从未发生的事实）；收口轮补上前置判——非 `done` 任务 review → 409「任务尚未标完成」（照 checklist clear/waive 的 409 先例）。**刻意不加"须大活"前置**：简单活 done 后的抽查打回（§5）正是合法路径。同笔把 store 层 `reviewTask` 的 `reviewNote` 语义收敛为**一律以本轮为准**（note 未给则清上一轮残留，防 reject→accept 边角留旧打回理由）。
 - **complete 无操作人=owner 强校验**：`complete` 路由无鉴权（"本人标完成，写门即可"，server 注释已披露）——任何带自己名字的操作人可标任意非终态任务完成，`completedBy` 记录的是操作人本人而非强制校验其为 `ownerId`。符合"事实层留名"模型（记录谁点的，不代它验证是否本人），但设计 §5 字面"本人标完成"未被服务端强制校验，此前实现自报已列，记录在案确认属实。
 
 ### 9.4 界面层偏离（T3，`hub-console/src/features/{pool,pm,project}/*`）
