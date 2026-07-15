@@ -17,6 +17,7 @@ import type {
 import type { Dependency, Group, Member, Need, Season, Task } from './pm-core.js';
 import { generateRoboconBaselineTemplate } from './baseline.js';
 import type { SeasonBaseline } from './baseline.js';
+import type { GateChecklistItem } from './checklist.js';
 import type { KnowledgeNode, MemberKnowledge, TaskKnowledgeTag } from './growth.js';
 import type { KbSnapshot } from './kb.js';
 import type { InventorySnapshot, TrackedPart } from './inventory.js';
@@ -449,12 +450,14 @@ export function buildPmSeed(): PmSeedFixture {
     { id: 'm-visionA', displayName: '视觉A', role: 'member', grade: 'junior', groupId: 'grp-vision', status: 'working', currentTaskId: 't-r1-dataset', updatedBy: 'git', updatedAt: GOVERNANCE_SCENARIO_NOW },
     { id: 'm-ecB', displayName: '电控B', role: 'member', grade: 'sophomore', groupId: 'grp-ec', status: 'blocked', currentTaskId: 't-r1-chassis', updatedBy: 'derived', updatedAt: GOVERNANCE_SCENARIO_NOW },
     { id: 'm-mechC', displayName: '机械C', role: 'member', grade: 'freshman', groupId: 'grp-mech', status: 'working', currentTaskId: 't-r1-arm-mount', updatedBy: 'lark', updatedAt: GOVERNANCE_SCENARIO_NOW },
-    { id: 'm-circuitD', displayName: '电路D', role: 'member', grade: 'junior', groupId: 'grp-circuit', status: 'working', currentTaskId: 't-r1-newboard', updatedBy: 'console', updatedAt: GOVERNANCE_SCENARIO_NOW },
+    // gateReviewer:true（GATE-CHECKLIST-IOU 验收人名单 demo，D-087 拍板②）：大三=有权豁免欠条 + 门验收兜底。
+    { id: 'm-circuitD', displayName: '电路D', role: 'member', grade: 'junior', groupId: 'grp-circuit', status: 'working', currentTaskId: 't-r1-newboard', updatedBy: 'console', updatedAt: GOVERNANCE_SCENARIO_NOW, gateReviewer: true },
     { id: 'm-visionC', displayName: '视觉C', role: 'member', grade: 'freshman', groupId: 'grp-vision', status: 'idle', currentTaskId: 't-r1-vision-stream', updatedBy: 'derived', updatedAt: GOVERNANCE_SCENARIO_NOW },
     { id: 'm-mechD', displayName: '机械D', role: 'member', grade: 'freshman', groupId: 'grp-mech', status: 'idle', currentTaskId: 't-r2-spare', updatedBy: 'derived', updatedAt: GOVERNANCE_SCENARIO_NOW },
     // PRESENCE-RECONCILE-LOCK：程序 AB 归口电控/视觉，程序组去领任务身份（仅留汇报视角）。
     // m-progA 降为 member（Q6 不突出组长）、改持新常规任务 t-r1-system-tune（电控做 R1 系统调试）。
-    { id: 'm-progA', displayName: '程序A', role: 'member', grade: 'senior', groupId: 'grp-ec', status: 'working', currentTaskId: 't-r1-system-tune', updatedBy: 'git', updatedAt: GOVERNANCE_SCENARIO_NOW },
+    // gateReviewer:true：大四/学长同在验收人名单（跨组各留一名验收人 demo）。
+    { id: 'm-progA', displayName: '程序A', role: 'member', grade: 'senior', groupId: 'grp-ec', status: 'working', currentTaskId: 't-r1-system-tune', updatedBy: 'git', updatedAt: GOVERNANCE_SCENARIO_NOW, gateReviewer: true },
     { id: 'm-progB', displayName: '程序B', role: 'member', grade: 'junior', groupId: 'grp-vision', status: 'working', currentTaskId: 't-r2-integration', updatedBy: 'git', updatedAt: GOVERNANCE_SCENARIO_NOW },
   ],
   tasks: [
@@ -578,6 +581,40 @@ export const baselineScenarioFixture: SeasonBaseline[] = [
       ),
     };
   })(),
+];
+
+// ---------------------------------------------------------------------------
+// 门检查单 / 欠条演示 seed（GATE-CHECKLIST-IOU S-store，D-087 / gate-checklist-iou.md §2）：
+// 挂 demo 基准线 baseline-season-robocon-2026 的两条示例欠条，保证 demo 首屏「门详情检查单卡」+
+// 「总览告警区欠条未清提示」非空（同 baselineScenarioFixture / InMemoryInvStore 缺省 seed 先例）。
+// 模板（ChecklistTemplate）seed 留空——等复盘导入（2026 一轮游检查单初稿为第一批，§4）。
+//
+//   ① 挂门欠条：24V→5V 模块无溯源（gate-checklist-iou.md §2 原句），挂「下一道整车级门」m-g4
+//      （整车试跑，pending）→ 过门硬闸 demo：该门未清欠条前不可过。
+//   ② 自选到期日欠条：anchorDueAt 已过 GOVERNANCE_SCENARIO_NOW（2026-06-11）→ deriveChecklistDrift
+//      判红，总览告警区 demo 见红（自选日期欠条走周粒度红黄绿，到期未清=红）。
+//      文案为演示新拟（设计 §2 仅给出挂门欠条一条原句、无自选日期示例，记入 deviations）。
+// ---------------------------------------------------------------------------
+export const checklistScenarioFixture: GateChecklistItem[] = [
+  {
+    id: 'chk-demo-1',
+    seasonBaselineId: 'baseline-season-robocon-2026',
+    title: '24V→5V 模块无溯源，先用着',
+    anchorMilestoneId: 'm-g4', // 下一道整车级门（整车试跑，pending）
+    origin: 'iou',
+    status: 'pending',
+    note: '实验车随手用完全合法，但整车试跑门前必须补验证记录或书面豁免。',
+    createdAt: GOVERNANCE_SCENARIO_NOW,
+  },
+  {
+    id: 'chk-demo-2',
+    seasonBaselineId: 'baseline-season-robocon-2026',
+    title: '备用电池组没做过流保护测试，先用着',
+    anchorDueAt: '2026-06-05T00:00:00.000Z', // 已过 NOW（2026-06-11）→ deriveChecklistDrift 判红
+    origin: 'iou',
+    status: 'pending',
+    createdAt: '2026-05-28T00:00:00.000Z',
+  },
 ];
 
 // 私有兴趣关系样例（D-027 护栏：visibility 默认 private，无 score/完成率）。

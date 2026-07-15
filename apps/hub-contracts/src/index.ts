@@ -71,6 +71,7 @@ export {
   hubEventFixtures,
   governanceScenarioFixture,
   baselineScenarioFixture,
+  checklistScenarioFixture,
   inventoryScenarioFixture,
   kbScenarioFixture,
   memberKnowledgeFixtures,

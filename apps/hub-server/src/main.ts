@@ -1,5 +1,6 @@
 import {
   baselineScenarioFixture,
+  checklistScenarioFixture,
   governanceScenarioFixture,
   inventoryScenarioFixture,
   kbScenarioFixture,
@@ -15,6 +16,7 @@ import { SqliteGovStore } from './store/sqlite-gov-store.js';
 import { FileKbStore } from './store/file-kb-store.js';
 import { FileInvStore } from './store/file-inv-store.js';
 import { FileBaselineStore } from './store/file-baseline-store.js';
+import { FileChecklistStore } from './store/file-checklist-store.js';
 import type { GovStore } from './store/gov-store.js';
 import { parseTenantConfigEnv } from './tenant-config-env.js';
 
@@ -144,6 +146,24 @@ async function main(): Promise<void> {
     );
   }
 
+  // 设了 TEAMHUB_CHECKLIST_DATA_FILE → 门检查单 / 欠条落盘（重启不丢，现场快记欠条 / 清偿 / 豁免留痕累积）；
+  // 独立文件 checklist.json（红线：轻量域不进 TEAMHUB_GOV_DATA_FILE/GovernanceSnapshot，照 baseline.json 先例）。
+  // 未设则维持 InMemoryChecklistStore（mock-first 不变）。新建落盘文件按 demoSeed 落两条演示欠条 + 空模板（同
+  // gov/kb/inv/baseline 一套开关）：demoSeed → checklistScenarioFixture（首屏门检查单卡 / 告警区非空）；
+  // TEAMHUB_DEMO_SEED=false → 空（真实团队现场快记自己的欠条）。已有文件按原样加载、不受此 flag 影响。
+  const checklistDataFile = process.env.TEAMHUB_CHECKLIST_DATA_FILE;
+  const checklistStore = checklistDataFile
+    ? await FileChecklistStore.create(
+        checklistDataFile,
+        demoSeed ? checklistScenarioFixture : [],
+      )
+    : undefined;
+  if (!checklistStore) {
+    console.warn(
+      '[teamhub-hub-server] TEAMHUB_CHECKLIST_DATA_FILE 未设：门检查单 / 欠条走内存（InMemoryChecklistStore），重启丢失。设该环境变量落盘持久化。',
+    );
+  }
+
   const host = process.env.HUB_HOST ?? DEFAULT_HOST;
   const port = Number.parseInt(process.env.HUB_PORT ?? String(DEFAULT_PORT), 10);
 
@@ -185,6 +205,7 @@ async function main(): Promise<void> {
     kbStore,
     invStore,
     baselineStore,
+    checklistStore,
     writeToken,
     trustProxy,
     identityMode,

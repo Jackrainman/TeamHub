@@ -508,6 +508,24 @@ export class FileGovStore implements GovStore {
     return member;
   }
 
+  // 设 / 撤成员门验收人资格（GATE-CHECKLIST-IOU）：members 是 GovernanceSnapshot 字段 → 落 governance.json。
+  // idx 类回滚（写前存整条，persist 失败按 id 原地还原，镜像 setMemberPin）。
+  async setMemberGateReviewer(
+    memberId: string,
+    gateReviewer: boolean,
+  ): Promise<Member | null> {
+    const snap = this.inner.snapshotForRollback();
+    const idx = snap.members.findIndex((m) => m.id === memberId);
+    const prior = idx >= 0 ? snap.members[idx] : undefined;
+    const member = await this.inner.setMemberGateReviewer(memberId, gateReviewer);
+    if (member) {
+      await this.persistOrRollback(() => {
+        if (prior) snap.members[idx] = prior;
+      });
+    }
+    return member;
+  }
+
   // 新建赛季（SEASON-CREATE）：append 新 active + 旧 active 同笔转 archived（两类变更一笔写），
   // 故回滚不是单条 removeById——写前存整组元素，persist 失败时原地整组还原（保持数组引用稳定）。
   async createSeason(draft: SeasonDraft): Promise<Season> {

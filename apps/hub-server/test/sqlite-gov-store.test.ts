@@ -216,6 +216,21 @@ describe('SqliteGovStore 行为参数化复跑（与 InMemory/File 同域语义�
     expect(await store.setMemberPin('m-nope', 'scrypt:aa:bb')).toBeNull();
     store.close();
   });
+
+  test('setMemberGateReviewer：gateReviewer 落库、updatedBy=console；未命中 → null', async () => {
+    const store = await freshStore();
+    const members = (await store.getSnapshot()).members;
+    expect(members.length).toBeGreaterThan(0);
+    const target = members[0];
+    const updated = await store.setMemberGateReviewer(target.id, true);
+    expect(updated?.gateReviewer).toBe(true);
+    expect(updated?.updatedBy).toBe('console');
+    // 重开库读回（落盘持久）
+    const snap = await store.getSnapshot();
+    expect(snap.members.find((m) => m.id === target.id)?.gateReviewer).toBe(true);
+    expect(await store.setMemberGateReviewer('m-nope', true)).toBeNull();
+    store.close();
+  });
 });
 
 describe('SqliteGovStore 重启不丢 + fail-closed', () => {

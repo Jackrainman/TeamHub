@@ -122,8 +122,10 @@ import { InMemoryGovStore } from './store/mock-gov-store.js';
 import { InMemoryKbStore } from './store/mock-kb-store.js';
 import { InMemoryInvStore } from './store/mock-inv-store.js';
 import { InMemoryBaselineStore } from './store/mock-baseline-store.js';
+import { InMemoryChecklistStore } from './store/mock-checklist-store.js';
 import type { GovStore, InvStore, KbStore } from './store/gov-store.js';
 import type { BaselineStore } from './store/baseline-store.js';
+import type { ChecklistStore } from './store/checklist-store.js';
 import {
   listMockAgentBackends,
   listMockBotChannels,
@@ -171,6 +173,14 @@ export interface BuildHubServerOptions {
    * `POST /api/baseline/milestones/:milestoneId/pass` 消费（registerPmCoreRoutes，与 seasonId 同域）。
    */
   baselineStore?: BaselineStore;
+  /**
+   * 门检查单 / 欠条读写出入口（GATE-CHECKLIST-IOU，D-087；本刀 C2 落地、C3 挂路由）。独立于 `GovStore`
+   * （`GateChecklistItem` 不进 `GovernanceSnapshot`，checklist.ts 头部红线），故走独立 `ChecklistStore`。
+   * 缺省 `InMemoryChecklistStore`（seed `checklistScenarioFixture`——demo 首屏门检查单卡 / 告警区非空，
+   * 同 InMemoryBaselineStore 先例）。本刀先钉 options 字段、无消费方；C3 由 `GET/POST /api/checklist` +
+   * `POST /api/checklist/:id/{clear,waive}` + `GET /api/checklist/templates` 消费。
+   */
+  checklistStore?: ChecklistStore;
   /**
    * H3（AUDIT-FIXES 部署前必修）：写端点共享密钥。配了则所有 `POST /api/*` 须带 `Authorization: Bearer <token>`；
    * 未配则放行（loopback dev 默认）。非 loopback 暴露**必须**配（main.ts 拒绝裸暴露）。
@@ -306,6 +316,8 @@ interface ModuleRouteCtx {
   invStore: InvStore;
   // BASELINE-CORE：S4 起由 registerPmCoreRoutes 的 GET/PATCH /api/baseline + 过门路由消费。
   baselineStore: BaselineStore;
+  // GATE-CHECKLIST-IOU：C3 起由 registerPmCoreRoutes 的 /api/checklist 系列 + 过门硬闸消费（本刀先钉字段）。
+  checklistStore: ChecklistStore;
   artifactMaxBytes: number;
   // IDENTITY-LITE：部署身份模式。pm-core 的 PUT /api/members/:id/pin 据此在匿名模式 404、身份模式行使
   // 「本人会话 / 首次设置」授权。写路由的 actor 注入不看它、只看 request.identity（匿名模式恒 null）。
@@ -1432,6 +1444,9 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   // 同 InMemoryInvStore 先例——demo 首屏「基准线 vs 实际」非空）。由 GET/PATCH /api/baseline +
   // POST /api/baseline/milestones/:id/pass 消费（S4）。
   const baselineStore: BaselineStore = options.baselineStore ?? new InMemoryBaselineStore();
+  // GATE-CHECKLIST-IOU：门检查单 / 欠条读写出入口（缺省 InMemoryChecklistStore seed checklistScenarioFixture，
+  // 同 InMemoryBaselineStore 先例——demo 首屏门检查单卡 / 告警区欠条非空）。本刀先钉字段、C3 挂路由消费。
+  const checklistStore: ChecklistStore = options.checklistStore ?? new InMemoryChecklistStore();
   // 装配外壳（HUB-MODULARIZATION 第2步）：租户模块开关，缺省 = 机器人战队全 6 模块启用（与拆分前等价）。
   const tenantConfig: TenantConfig = options.tenantConfig ?? ROBOTICS_TENANT_CONFIG;
 
@@ -1505,6 +1520,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     kbStore,
     invStore,
     baselineStore,
+    checklistStore,
     artifactMaxBytes: options.artifactMaxBytes ?? ARTIFACT_MAX_BYTES,
     identityMode,
   };

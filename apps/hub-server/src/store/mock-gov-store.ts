@@ -26,6 +26,7 @@ import {
   DEPENDENCY_INITIAL_STATUS,
   DEPENDENCY_WAIVED_STATUS,
   MANUAL_TASK_STATUS_SOURCE,
+  MEMBER_GATE_REVIEWER_UPDATED_BY,
   MEMBER_PIN_UPDATED_BY,
   NEED_INITIAL_STATUS,
   RELAY_HANDOFF_SOURCE,
@@ -597,6 +598,28 @@ export class InMemoryGovStore implements GovStore {
       ...this.snapshot.members[idx],
       pinHash,
       updatedBy: MEMBER_PIN_UPDATED_BY,
+      updatedAt: now,
+    };
+    this.snapshot.members[idx] = updated;
+    return updated;
+  }
+
+  /**
+   * 设 / 撤成员门验收人资格（PATCH /api/members/:id/gate-reviewer，GATE-CHECKLIST-IOU）。就地改
+   * members[idx].gateReviewer（布尔位）+ bump updatedAt、钉 updatedBy=`console`（镜像 setMemberPin）。
+   * id 不存在 → null（路由转 404）。**I0**：资格布尔而已，绝不做按人聚合/排行。
+   */
+  async setMemberGateReviewer(
+    memberId: string,
+    gateReviewer: boolean,
+  ): Promise<Member | null> {
+    const idx = this.snapshot.members.findIndex((m) => m.id === memberId);
+    if (idx === -1) return null;
+    const now = this.clock.now().toISOString();
+    const updated: Member = {
+      ...this.snapshot.members[idx],
+      gateReviewer,
+      updatedBy: MEMBER_GATE_REVIEWER_UPDATED_BY,
       updatedAt: now,
     };
     this.snapshot.members[idx] = updated;

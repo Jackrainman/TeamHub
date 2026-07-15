@@ -30,6 +30,7 @@ import {
   DEPENDENCY_INITIAL_STATUS,
   DEPENDENCY_WAIVED_STATUS,
   MANUAL_TASK_STATUS_SOURCE,
+  MEMBER_GATE_REVIEWER_UPDATED_BY,
   MEMBER_PIN_UPDATED_BY,
   NEED_INITIAL_STATUS,
   RELAY_HANDOFF_SOURCE,
@@ -465,6 +466,25 @@ export class SqliteGovStore implements GovStore {
         ...prev,
         pinHash,
         updatedBy: MEMBER_PIN_UPDATED_BY,
+        updatedAt: this.clock.now().toISOString(),
+      };
+      this.updateRow('members', memberId, updated);
+      return updated;
+    });
+  }
+
+  // 设 / 撤成员门验收人资格（GATE-CHECKLIST-IOU）：整实体 JSON 就地重写（文档式行存），镜像 setMemberPin。
+  async setMemberGateReviewer(
+    memberId: string,
+    gateReviewer: boolean,
+  ): Promise<Member | null> {
+    return this.tx(() => {
+      const prev = this.getRow<Member>('members', memberId);
+      if (!prev) return null;
+      const updated: Member = {
+        ...prev,
+        gateReviewer,
+        updatedBy: MEMBER_GATE_REVIEWER_UPDATED_BY,
         updatedAt: this.clock.now().toISOString(),
       };
       this.updateRow('members', memberId, updated);

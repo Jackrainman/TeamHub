@@ -122,6 +122,19 @@ export interface PmCoreStore {
   setMemberPin(memberId: string, pinHash: string): Promise<Member | null>;
 
   /**
+   * 设 / 撤成员门验收人资格（PATCH /api/members/:id/gate-reviewer，GATE-CHECKLIST-IOU，D-087 拍板②）。
+   * 就地改 members[idx] 的 `gateReviewer` 布尔位（照 setMemberPin 范式）+ bump updatedAt、钉 updatedBy=`console`。
+   * **每年换届更新**（验收人=大三，换届交接门的一项，gate-checklist-iou.md §3）。授权（须现任验收人 /
+   * 管理员）在路由层判。id 不存在 → 返回 null（路由层转 404）。**I0**：资格布尔而已，绝不做按人聚合/排行。
+   * FileGovStore 落 governance.json（members 是 GovernanceSnapshot 字段，persist 失败按 idx 原地还原，
+   * 镜像 setMemberPin）。响应回带走 MemberPublicSchema 剥 pinHash（路由层，密钥纪律）。
+   */
+  setMemberGateReviewer(
+    memberId: string,
+    gateReviewer: boolean,
+  ): Promise<Member | null>;
+
+  /**
    * 新建赛季（POST /api/seasons，SEASON-CREATE 补链路——总览页空态文案"先在设置里建一个赛季"
    * 此前指向不存在的入口，本方法补上写口）。**语义 = 宣告新的当前赛季**：新赛季恒 status=`active`，
    * 同笔把既有 active 赛季转 `archived`（一届一个当前赛季；明年开季新建时老赛季自然归档，
