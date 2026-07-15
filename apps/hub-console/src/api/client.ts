@@ -46,7 +46,7 @@ import {
   type SessionRequest,
   type SessionResponse,
   type SharedResourcesResponse,
-  type Task,
+  type TaskWithMeta,
   type TaskStatus,
   type BaselineResponse,
   type UpdateBaselineRequest,
@@ -75,6 +75,12 @@ import {
   WaiveDependencyResponseSchema,
   CreateArtifactResponseSchema,
   UploadArtifactResponseSchema,
+  ClaimTaskResponseSchema,
+  AssignTaskResponseSchema,
+  SetTaskPartnerResponseSchema,
+  ConfirmCrossClaimResponseSchema,
+  CompleteTaskResponseSchema,
+  ReviewTaskResponseSchema,
   type CreateTaskRequest,
   type CreateTaskResponse,
   type CreateDependencyRequest,
@@ -86,6 +92,18 @@ import {
   type CreateArtifactRequest,
   type CreateArtifactResponse,
   type UploadArtifactResponse,
+  type ClaimTaskRequest,
+  type ClaimTaskResponse,
+  type AssignTaskRequest,
+  type AssignTaskResponse,
+  type SetTaskPartnerRequest,
+  type SetTaskPartnerResponse,
+  type ConfirmCrossClaimRequest,
+  type ConfirmCrossClaimResponse,
+  type CompleteTaskRequest,
+  type CompleteTaskResponse,
+  type ReviewTaskRequest,
+  type ReviewTaskResponse,
 } from './schemas/pm';
 import {
   InventoryResponseSchema,
@@ -155,7 +173,10 @@ export interface HubApiClient {
     patch: UpdateResourceStatusRequest,
   ): Promise<UpdateResourceResponse>;
   getKbSimilar(params: KbSimilarParams): Promise<KbSimilarResponse>;
-  getTasks(): Promise<{ tasks: Task[] }>;
+  // GET /api/tasks（TASK-POST-CLAIM）：逐任务带 isBig 元信息（TaskWithMeta，大任务判定后端下沉，
+  // 体检 D5——前端直接用 task.isBig、不重算）。`query.q` = "看谁做过"子串搜 title/rawSummary（红线：
+  // 只回任务列表，永不聚合成技能画像/花名册，也不按人筛选）。缺省 = 全量（现有行为不变）。
+  getTasks(query?: { q?: string }): Promise<{ tasks: TaskWithMeta[] }>;
   // 赛季列表（S1）：总览「基准线 vs 实际」按 active 赛季查基准线。无人维度、只读元信息。
   getSeasons(): Promise<{ seasons: Season[] }>;
   // 赛季创建（SEASON-CREATE 补链路）：设置页「赛季」分区消费——新建=宣告新的当前赛季
@@ -259,6 +280,24 @@ export interface HubApiClient {
     id: string,
     req: SetGateReviewerRequest,
   ): Promise<SetGateReviewerResponse>;
+  // 挂单认领制窄写动作（TASK-POST-CLAIM，D-088）。全部 POST 子资源、继承 H3 写门；留名 actor 沿
+  // IDENTITY-LITE（身份模式服务端从 session 注入、匿名模式 body 供名）。红线：留名只落单条任务卡，
+  // 本簇绝无按人聚合/排行/按人筛选端点。响应统一 { task }（TaskSchema，不带 isBig 元）。
+  claimTask(taskId: string, req: ClaimTaskRequest): Promise<ClaimTaskResponse>; // §3 认领：即生效免确认
+  assignTask(taskId: string, req: AssignTaskRequest): Promise<AssignTaskResponse>; // §3 指派/转派：组长+强制理由
+  setTaskPartner(
+    taskId: string,
+    req: SetTaskPartnerRequest,
+  ): Promise<SetTaskPartnerResponse>; // §4 本组搭档补位
+  confirmCrossClaim(
+    taskId: string,
+    req: ConfirmCrossClaimRequest,
+  ): Promise<ConfirmCrossClaimResponse>; // §4 跨组大任务组长事后确认（非启动闸）
+  completeTask(
+    taskId: string,
+    req: CompleteTaskRequest,
+  ): Promise<CompleteTaskResponse>; // §5 标完成留名
+  reviewTask(taskId: string, req: ReviewTaskRequest): Promise<ReviewTaskResponse>; // §5 验收（accept）/ 打回（reject）
 }
 
 export function createHubApiClient(options: HubApiClientOptions = {}): HubApiClient {
@@ -394,8 +433,10 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         fetcher,
       );
     },
-    async getTasks() {
-      return fetchJson(`${baseUrl}/api/tasks`, TasksResponseSchema, fetcher);
+    async getTasks(query?: { q?: string }) {
+      const q = query?.q?.trim();
+      const qs = q ? `?q=${encodeURIComponent(q)}` : '';
+      return fetchJson(`${baseUrl}/api/tasks${qs}`, TasksResponseSchema, fetcher);
     },
     async getSeasons() {
       return fetchJson(`${baseUrl}/api/seasons`, SeasonsResponseSchema, fetcher);
@@ -686,6 +727,60 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         `${baseUrl}/api/members/${encodeURIComponent(id)}/gate-reviewer`,
         req,
         SetGateReviewerResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async claimTask(taskId: string, req: ClaimTaskRequest) {
+      return postJson(
+        `${baseUrl}/api/tasks/${encodeURIComponent(taskId)}/claim`,
+        req,
+        ClaimTaskResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async assignTask(taskId: string, req: AssignTaskRequest) {
+      return postJson(
+        `${baseUrl}/api/tasks/${encodeURIComponent(taskId)}/assign`,
+        req,
+        AssignTaskResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async setTaskPartner(taskId: string, req: SetTaskPartnerRequest) {
+      return postJson(
+        `${baseUrl}/api/tasks/${encodeURIComponent(taskId)}/partner`,
+        req,
+        SetTaskPartnerResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async confirmCrossClaim(taskId: string, req: ConfirmCrossClaimRequest) {
+      return postJson(
+        `${baseUrl}/api/tasks/${encodeURIComponent(taskId)}/confirm-cross-claim`,
+        req,
+        ConfirmCrossClaimResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async completeTask(taskId: string, req: CompleteTaskRequest) {
+      return postJson(
+        `${baseUrl}/api/tasks/${encodeURIComponent(taskId)}/complete`,
+        req,
+        CompleteTaskResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async reviewTask(taskId: string, req: ReviewTaskRequest) {
+      return postJson(
+        `${baseUrl}/api/tasks/${encodeURIComponent(taskId)}/review`,
+        req,
+        ReviewTaskResponseSchema,
         fetcher,
         writeToken,
       );

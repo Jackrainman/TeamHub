@@ -4566,3 +4566,201 @@ form .btn--primary {
 :root[data-theme='tech'] .dag-node--blocked-idle {
   animation: vv-pulse-alert var(--motion-breathe);
 }
+
+/* ===== 挂单池 + 任务详情抽屉（TASK-POST-CLAIM，D-088）=====
+   复用既有 .badge/.btn 语义类 + card token；本块只加布局骨架，不新造视觉语言。 */
+.pool-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 16px 20px;
+}
+.pool-search {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pool-search__box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--muted);
+}
+.pool-search__box input {
+  flex: 1;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-base);
+}
+.pool-search__box input:focus {
+  outline: none;
+}
+.pool-search__note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--faint);
+  line-height: 1.5;
+}
+.pool-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.pool-result {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.pool-result__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.pool-result__meta {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--faint);
+}
+.pool-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+  margin-top: 4px;
+}
+.pool-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 13px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.pool-card--stale {
+  border-left-color: var(--red);
+}
+.pool-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pool-card__title {
+  font-size: var(--text-base);
+  line-height: 1.35;
+}
+.pool-card__summary {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.pool-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pool-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+/* 看板卡：指派事实卡 + 详情/依赖图两入口一行。 */
+.pm-card__assigned {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--faint);
+  line-height: 1.5;
+}
+.pm-card__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* 任务详情抽屉正文（drawer__body 内）。 */
+.task-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.task-detail__summary {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+}
+.task-detail__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.task-detail__facts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+.task-detail__fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.task-detail__fact dt {
+  font-size: var(--text-xs);
+  color: var(--faint);
+}
+.task-detail__fact dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+.task-detail__fact--warn dd {
+  color: var(--red);
+}
+.task-detail__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.task-detail__hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--faint);
+  line-height: 1.5;
+}
+.task-detail__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+}
+.task-detail__panel-btns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}

@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import type { DepNode } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
-import type { PageIdentityCtx } from '../../console-pages';
+import type { ConsolePage, PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
 import { identityCacheKey } from '../identity/identity-utils';
+import { countPostedNodes } from '../pool/pool-utils';
+import { requestProjectView } from '../project/project-nav';
 import { myViewBlockReasonSource, splitMyTasks } from './myview-utils';
 
 /**
@@ -28,10 +30,13 @@ export function MyViewPage({
   client,
   source,
   identity,
+  onNavigate,
 }: {
   client: HubApiClient;
   source: string;
   identity: PageIdentityCtx;
+  // 空态"跳挂单池"导航（A2 红线：只在本人视图私显）。
+  onNavigate: (page: ConsolePage) => void;
 }) {
   const { t } = useI18n();
   const session = identity.session;
@@ -91,6 +96,8 @@ export function MyViewPage({
   // 本人视图按 session memberId 过滤（红线5，合法例外）；派生逻辑见 myview-utils.ts。
   const { doable, blocked } = splitMyTasks(query.data.nodes, session.memberId);
   const totalMine = doable.length + blocked.length;
+  // 挂单池活数（设计 §6，A2 红线）：DepNode ownerId===null 计数，零新请求（体检 D4 最干净挂点）。
+  const postedCount = countPostedNodes(query.data.nodes);
 
   return (
     <div className="myview-page">
@@ -98,7 +105,18 @@ export function MyViewPage({
       {totalMine === 0 ? (
         <div className="pm-coldstart">
           <h3>{t('myview.empty.title')}</h3>
-          <p>{t('myview.empty.body')}</p>
+          {/* 给新人不丢人的行动台阶：挂单池里有 N 个活 + "没把握就去问问学长"（私推本人，不上报学长）。 */}
+          <p>{t('myview.empty.pool', { n: postedCount })}</p>
+          <button
+            type="button"
+            className="btn btn--primary"
+            onClick={() => {
+              requestProjectView('pool');
+              onNavigate('project');
+            }}
+          >
+            {t('myview.empty.goPool')}
+          </button>
         </div>
       ) : (
         <>

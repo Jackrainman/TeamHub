@@ -138,7 +138,12 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     // pm-core：我的视图是任务(Task)的个人化投影，随 pm-core 模块一起开关，与 project/direction 同口径。
     moduleId: 'pm-core',
     render: (ctx) => (
-      <MyViewPage client={ctx.apiClient} source={ctx.source} identity={ctx.identity} />
+      <MyViewPage
+        client={ctx.apiClient}
+        source={ctx.source}
+        identity={ctx.identity}
+        onNavigate={ctx.onNavigate}
+      />
     ),
   },
   {

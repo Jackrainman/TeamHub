@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { LayoutGrid, Network } from 'lucide-react';
+import { Inbox, LayoutGrid, Network } from 'lucide-react';
 import type { HubApiClient } from '../../api/client';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
@@ -8,14 +8,14 @@ import { segClass } from '../../utils';
 import { SideDrawer } from '../../components/SideDrawer';
 import { PmBoardPage } from '../pm/PmBoardPage';
 import { PmCreatePanel } from '../pm/PmCreatePanel';
+import { PoolPage } from '../pool/PoolPage';
+import { consumeProjectView, type ProjectView } from './project-nav';
 
 // 依赖图重依赖（@xyflow/react + @dagrejs/dagre）按需加载：拆成独立 chunk，
 // 只在打开依赖图视图时拉取，总览/知识库/库存首屏不再背这坨（修 build chunk>500kB 警告）。
 const DepGraphPage = lazy(() =>
   import('../dep-graph/DepGraphPage').then((m) => ({ default: m.DepGraphPage })),
 );
-
-type ProjectView = 'board' | 'graph';
 
 /**
  * 项目页（IA 阶段 2 / D-075「组合不重写」）：看板(pm)+依赖图(dep-graph) 两视图顶部切换。
@@ -47,7 +47,8 @@ export function ProjectPage({
   const { t } = useI18n();
   const queryClient = useQueryClient();
   // 依赖图为项目页默认视图（用户拍板）：先看「卡在哪/谁空着」的结构图，看板退第二。
-  const [view, setView] = useState<ProjectView>('graph');
+  // 挂载时消费一次性视图意图（MyView 空态"跳挂单池"经 project-nav 传入）：有意图则以它为初始视图。
+  const [view, setView] = useState<ProjectView>(() => consumeProjectView() ?? 'graph');
   // 看板「在依赖图看此节点」目标 id：DepGraphPage 加载后选中并消费掉（页内、不跨页）。
   const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
   // 新建任务抽屉开关（看板 / 依赖图共享）。
@@ -96,8 +97,19 @@ export function ProjectPage({
         >
           <Network size={14} aria-hidden="true" /> {t('project.view.graph')}
         </button>
+        <button
+          type="button"
+          role="tab"
+          id="project-view-pool-btn"
+          aria-selected={view === 'pool'}
+          aria-controls="project-view-pool"
+          className={segClass(view === 'pool')}
+          onClick={() => setView('pool')}
+        >
+          <Inbox size={14} aria-hidden="true" /> {t('project.view.pool')}
+        </button>
       </div>
-      {/* 条件 mount：隐藏视图整体卸载，规避 ReactFlow 塌高；board↔graph 共享 tasks 缓存 */}
+      {/* 条件 mount：隐藏视图整体卸载，规避 ReactFlow 塌高；三视图共享 ['tasks',source] 缓存 */}
       {view === 'board' ? (
         <div
           role="tabpanel"
@@ -108,12 +120,22 @@ export function ProjectPage({
           <PmBoardPage
             client={client}
             source={source}
+            identity={identity}
             onNewTask={() => setCreateOpen(true)}
             onOpenInDepGraph={(id) => {
               setFocusTaskId(id);
               setView('graph');
             }}
           />
+        </div>
+      ) : view === 'pool' ? (
+        <div
+          role="tabpanel"
+          id="project-view-pool"
+          aria-labelledby="project-view-pool-btn"
+          tabIndex={0}
+        >
+          <PoolPage client={client} source={source} identity={identity} />
         </div>
       ) : (
         <div

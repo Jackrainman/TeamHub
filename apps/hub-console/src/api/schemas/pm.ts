@@ -16,6 +16,13 @@ export {
   UploadArtifactResponseSchema,
   CreateResourceSessionRequestSchema,
   CreateResourceSessionResponseSchema,
+  // 挂单认领制窄写动作契约（TASK-POST-CLAIM，D-088）：六条 POST 子资源动作的响应 schema（client 侧 parse）。
+  ClaimTaskResponseSchema,
+  AssignTaskResponseSchema,
+  SetTaskPartnerResponseSchema,
+  ConfirmCrossClaimResponseSchema,
+  CompleteTaskResponseSchema,
+  ReviewTaskResponseSchema,
 } from '@teamhub/hub-contracts';
 export type {
   CreateTaskRequest,
@@ -31,4 +38,17 @@ export type {
   UploadArtifactResponse,
   CreateResourceSessionRequest,
   CreateResourceSessionResponse,
+  // 挂单认领制写请求 / 响应类型（method 入参 + 返回值）。
+  ClaimTaskRequest,
+  ClaimTaskResponse,
+  AssignTaskRequest,
+  AssignTaskResponse,
+  SetTaskPartnerRequest,
+  SetTaskPartnerResponse,
+  ConfirmCrossClaimRequest,
+  ConfirmCrossClaimResponse,
+  CompleteTaskRequest,
+  CompleteTaskResponse,
+  ReviewTaskRequest,
+  ReviewTaskResponse,
 } from '@teamhub/hub-contracts';

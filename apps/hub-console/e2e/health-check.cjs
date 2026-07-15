@@ -54,6 +54,29 @@ const MIN_BODY = 80; // 正文短于此判为疑似白屏
     console.log(`  [${blank || newErrs.length ? 'FAIL' : ' ok '}] ${label}  bodyLen=${bodyLen}  errs=${newErrs.length}`);
   }
 
+  // 额外覆盖：项目页「挂单池」子视图（TASK-POST-CLAIM，D-088）——它是项目页内的 tab、非独立 .nav-item，
+  // 主循环点不到。逐个点 nav-item 直到挂单池 tab 出现，再点开它做同款截图 + 白屏/报错哨兵。
+  const poolBefore = errors.length;
+  for (let i = 0; i < navCount; i++) {
+    await page.locator('.nav-item').nth(i).click();
+    await page.waitForTimeout(300);
+    if (await page.locator('#project-view-pool-btn').count()) break;
+  }
+  if (await page.locator('#project-view-pool-btn').count()) {
+    await page.locator('#project-view-pool-btn').click();
+    await page.waitForTimeout(800);
+    const bodyLen = await page.evaluate(
+      () => document.querySelector('main, .console-main, #root')?.innerText.trim().length || 0,
+    );
+    await page.screenshot({ path: path.join(OUT, `${String(navCount).padStart(2, '0')}-挂单池.png`), fullPage: true });
+    const newErrs = errors.slice(poolBefore);
+    const blank = bodyLen < MIN_BODY;
+    rows.push({ label: '挂单池', bodyLen, blank, errs: newErrs.length });
+    console.log(`  [${blank || newErrs.length ? 'FAIL' : ' ok '}] 挂单池  bodyLen=${bodyLen}  errs=${newErrs.length}`);
+  } else {
+    console.log('[health] 未找到挂单池 tab（跳过额外覆盖）');
+  }
+
   await browser.close();
 
   const blanks = rows.filter((r) => r.blank);
