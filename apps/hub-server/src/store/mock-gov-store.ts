@@ -10,12 +10,14 @@ import type {
   ArtifactRef,
   Dependency,
   GovernanceSnapshot,
+  Group,
   KnowledgeNode,
   Member,
   MemberRole,
   Need,
   RelayHandoff,
   ResourceSession,
+  RosterImportRow,
   Season,
   SharedResource,
   Task,
@@ -31,11 +33,14 @@ import {
   MEMBER_GATE_REVIEWER_UPDATED_BY,
   MEMBER_PIN_UPDATED_BY,
   MEMBER_ROLE_UPDATED_BY,
+  MEMBER_ROSTER_UPDATED_BY,
   NEED_INITIAL_STATUS,
   RELAY_HANDOFF_SOURCE,
   RESOURCE_DEFAULT_STATUS,
   RESOURCE_SESSION_SOURCE,
   RESOURCE_STATUS_SOURCE,
+  ROSTER_IMPORT_GROUP_KIND,
+  ROSTER_IMPORT_MEMBER_STATUS,
   TASK_DEFAULT_STATUS,
   TASK_DEFAULT_STATUS_SOURCE,
 } from './clamp-defaults.js';
@@ -52,6 +57,7 @@ import type {
   ResourceSessionDraft,
   ResourceSessionPatch,
   ResourceStatusPatch,
+  RosterImportOutcome,
   SeasonDraft,
   TaskDraft,
 } from './gov-store.js';
@@ -95,6 +101,11 @@ export class InMemoryGovStore implements GovStore {
   private readonly knowledgeNodeSeq: IdSequence;
   private readonly artifactSeq: IdSequence;
   private readonly seasonSeq: IdSequence;
+  // 名册导入（ROSTER-IMPORT，K8）：members/groups 是 GovernanceSnapshot 字段、随 seed 传入构造，
+  // 故计数器从 seed 长度起步即已含已加载数据（无 delete、单调增），无需 FileGovStore 载入后 resync
+  // （resources/sessions 才需 resync——它们不在 GovernanceSnapshot、构造后才 splice 进 live）。
+  private readonly memberSeq: IdSequence;
+  private readonly groupSeq: IdSequence;
   // 非 readonly：resyncResourceSeq() / resyncScheduleSeqs() 载入磁盘文件后需换成新起点的序列（见该方法）。
   private resourceSeq: IdSequence;
   private resourceSessionSeq: IdSequence;
@@ -136,6 +147,8 @@ export class InMemoryGovStore implements GovStore {
     this.knowledgeNodeSeq = createIdSequence(this.snapshot.knowledgeNodes.length);
     this.artifactSeq = createIdSequence(this.snapshot.artifacts.length);
     this.seasonSeq = createIdSequence(this.snapshot.seasons.length);
+    this.memberSeq = createIdSequence(this.snapshot.members.length);
+    this.groupSeq = createIdSequence(this.snapshot.groups.length);
     this.resourceSeq = createIdSequence(this.resources.length);
     this.resourceSessionSeq = createIdSequence(this.resourceSessions.length);
     this.relayHandoffSeq = createIdSequence(this.relayHandoffs.length);
@@ -653,6 +666,82 @@ export class InMemoryGovStore implements GovStore {
     };
     this.snapshot.members[idx] = updated;
     return updated;
+  }
+
+  /**
+   * 名册批量导入（POST /api/roster/import，ROSTER-IMPORT，K8）。一次遍历已校验行，对 members + groups
+   * 就地应用：组按 name 匹配现有 / 本批已建、否则自动建（`grp-new-N` + kind 默认 + 当前赛季）；成员按
+   * displayName 幂等 upsert（新建 `member-new-N` / 命中更新 grade·groupId·role·gateReviewer）。
+   * **保护例外**：目标现为 superAdmin 时 role 不动；**pinHash 永不动**（update 走 `...prev` 保留、
+   * new 不含）。库里有但表里没有 → missingFromSheet（**绝不删**）。授权在路由层判、本方法无条件写。
+   * **I0**：只做名单事实变更，绝不派生任何按人聚合/排行/按人筛选。
+   */
+  async importRoster(rows: readonly RosterImportRow[]): Promise<RosterImportOutcome> {
+    const now = this.clock.now().toISOString();
+    const created: string[] = [];
+    const updated: string[] = [];
+    const createdGroups: string[] = [];
+    const autoReviewers: string[] = [];
+    // 建组用赛季：当前 active 赛季 ?? 顶层 seasonId（后者恒非空——GroupSchema.seasonId min1 满足；
+    // 空板真实态 emptyGovSnapshot 仍保留 seasons/seasonId 赛季元信息，故这里恒解析到合法值）。
+    const seasonId =
+      this.snapshot.seasons.find((s) => s.status === 'active')?.id ?? this.snapshot.seasonId;
+    // 组名 → id 解析（既有组 / 本批已建组）：同批同名组只建一次。
+    const resolveGroupId = (name: string): string => {
+      const existing = this.snapshot.groups.find((g) => g.name === name);
+      if (existing) return existing.id;
+      const group: Group = {
+        id: nextSequentialId('grp-new', this.groupSeq),
+        seasonId,
+        parentGroupId: null,
+        name,
+        kind: ROSTER_IMPORT_GROUP_KIND,
+      };
+      this.snapshot.groups.push(group);
+      createdGroups.push(name);
+      return group.id;
+    };
+    // 导入前名册（displayName 集）——用于 missingFromSheet（库里有但表里没有、绝不删）。
+    const priorNames = this.snapshot.members.map((m) => m.displayName);
+    const sheetNames = new Set(rows.map((r) => r.displayName));
+    for (const row of rows) {
+      const groupId = resolveGroupId(row.groupName);
+      const idx = this.snapshot.members.findIndex((m) => m.displayName === row.displayName);
+      if (idx === -1) {
+        const member: Member = {
+          id: nextSequentialId('member-new', this.memberSeq),
+          displayName: row.displayName,
+          role: row.role,
+          grade: row.grade,
+          groupId,
+          status: ROSTER_IMPORT_MEMBER_STATUS,
+          currentTaskId: null,
+          updatedBy: MEMBER_ROSTER_UPDATED_BY,
+          updatedAt: now,
+          gateReviewer: row.gateReviewer,
+        };
+        this.snapshot.members.push(member);
+        created.push(row.displayName);
+      } else {
+        const prev = this.snapshot.members[idx];
+        // 保护例外：目标现为 superAdmin 时 role 不动；pinHash 永不动（`...prev` 保留）。
+        const role = prev.role === 'superAdmin' ? prev.role : row.role;
+        const member: Member = {
+          ...prev,
+          role,
+          grade: row.grade,
+          groupId,
+          gateReviewer: row.gateReviewer,
+          updatedBy: MEMBER_ROSTER_UPDATED_BY,
+          updatedAt: now,
+        };
+        this.snapshot.members[idx] = member;
+        updated.push(row.displayName);
+      }
+      if (row.gateReviewerAuto) autoReviewers.push(row.displayName);
+    }
+    const missingFromSheet = priorNames.filter((n) => !sheetNames.has(n));
+    return { created, updated, missingFromSheet, createdGroups, autoReviewers };
   }
 
   // ── 挂单认领制窄写（TASK-POST-CLAIM，D-088）：就地改 tasks[idx] 的自己那簇留名字段 + updatedAt。

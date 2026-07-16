@@ -1455,6 +1455,80 @@ button,
   font-size: var(--text-base);
 }
 
+/* 名册导入块（ROSTER-IMPORT，K8）：说明 + 模板下载/上传按钮行 + 导入报告。复用 .btn / .form-hint 原语。 */
+.roster-import {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.roster-import__head strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text);
+  font-size: var(--text-base);
+}
+.roster-import__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+/* 模板下载是 <a>，套 .btn 皮肤时补去下划线 + 齐高（.btn 已给内边距/圆角/字重）。 */
+.roster-import__actions a.btn {
+  text-decoration: none;
+}
+
+/* 导入报告：六段名单事实。failed 段用告警底醒目，其余段行内标签 + 名单。 */
+.roster-report {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+.roster-report__title {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+}
+.roster-report__fail {
+  padding: 10px 12px;
+  border: 1px solid var(--amber);
+  border-radius: var(--radius-md);
+  background: var(--amber-soft);
+  color: var(--amber);
+  font-size: var(--text-sm);
+}
+.roster-report__fail strong {
+  display: block;
+  margin-bottom: 4px;
+}
+.roster-report__fail ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.roster-report__seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.roster-report__label {
+  flex-shrink: 0;
+  color: var(--faint);
+  font-weight: var(--weight-medium);
+}
+
 /* （B3 归并）原 .settings-btn → .btn.btn--secondary（禁用透明度 0.5→0.55 统一，容差内）。 */
 
 /* ===== 总览补色：绿色 metric（PM 已完成） ===== */

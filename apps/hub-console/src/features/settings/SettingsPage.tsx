@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Eye, EyeOff } from 'lucide-react';
 import type {
@@ -6,6 +6,7 @@ import type {
   BotChannel,
   MemberGrade,
   MemberRole,
+  RosterImportReport,
   Season,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
@@ -108,6 +109,26 @@ interface IntegrationRow {
   meta: string;
   statusLabel: string;
   pillClass: string;
+}
+
+// 分区写权限判定（K8 复审留档 nit 收口）：区分「未登录」与「身份模式已登录但非 superAdmin」两种锁态，
+// 各给对应说明（照 K2 前置资格判先例——写控件禁用 + 说明，不隐藏、保可发现性）。匿名模式恒不锁（现状不变）。
+function sectionPermission(
+  identity: PageIdentityCtx,
+  t: (key: TranslationKey) => string,
+): { writeLocked: boolean; adminLocked: boolean; lockHint: string | null } {
+  const loggedOutLocked = !identity.canWrite;
+  const adminLocked =
+    identity.mode === 'identity' &&
+    !!identity.session &&
+    identity.session.role !== 'superAdmin';
+  const writeLocked = loggedOutLocked || adminLocked;
+  const lockHint = loggedOutLocked
+    ? t('identity.writeHint')
+    : adminLocked
+      ? t('settings.permission.adminOnly')
+      : null;
+  return { writeLocked, adminLocked, lockHint };
 }
 
 export function SettingsPage({
@@ -241,8 +262,10 @@ function SeasonsSection({
   identity: PageIdentityCtx;
 }) {
   const { t } = useI18n();
-  // 身份模式未登录 = 写门锁（匿名模式 canWrite 恒 true，writeLocked 恒 false，现状不变）。照 PoolPage 先例。
-  const writeLocked = !identity.canWrite;
+  // 写门锁（照 PoolPage 先例）+ 管理员前置资格判（复审留档 nit 收口，照 K2 前置资格判先例）：
+  // 未登录 = loggedOutLocked；身份模式已登录但非 superAdmin = adminLocked（此前只判「是否登录」、漏了
+  // 「是否管理员」，导致非管理员点了才撞服务端 403）。两者任一 → 写控件禁用 + 说明。
+  const { writeLocked, lockHint } = sectionPermission(identity, t);
   const queryClient = useQueryClient();
   const seasonsQuery = useQuery({
     queryKey: ['seasons', source],
@@ -298,16 +321,15 @@ function SeasonsSection({
             ))}
           </div>
         )}
-        {writeLocked ? (
-          <p className="task-detail__hint">{t('identity.writeHint')}</p>
-        ) : null}
-        <form className="pm-form" onSubmit={submit}>
+        {lockHint ? <p className="task-detail__hint">{lockHint}</p> : null}
+        <form className="pm-form" onSubmit={submit} title={lockHint ?? undefined}>
           <FormGrid cols={3}>
             <Field label={t('settings.seasons.field.name')} required>
               <input
                 value={name}
                 placeholder={t('settings.seasons.field.namePlaceholder')}
                 onChange={(e) => setName(e.target.value)}
+                disabled={writeLocked}
                 aria-required
               />
             </Field>
@@ -316,6 +338,7 @@ function SeasonsSection({
                 type="date"
                 value={startsAt}
                 onChange={(e) => setStartsAt(e.target.value)}
+                disabled={writeLocked}
                 aria-required
               />
             </Field>
@@ -327,6 +350,7 @@ function SeasonsSection({
                 type="date"
                 value={endsAt}
                 onChange={(e) => setEndsAt(e.target.value)}
+                disabled={writeLocked}
               />
             </Field>
           </FormGrid>
@@ -390,8 +414,9 @@ function MembersPermissionsSection({
 }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
-  // 身份模式未登录 = 写门锁；匿名模式恒可写（现状不变）。照 PoolPage 先例（识别层 canWrite）。
-  const writeLocked = !identity.canWrite;
+  // 写门锁 + 管理员前置资格判（复审留档 nit 收口，照 K2 前置资格判先例）：未登录 或 身份模式已登录但非
+  // superAdmin → 写控件禁用 + 说明（此前只判「是否登录」、漏了「是否管理员」，非管理员点了才撞 403）。
+  const { writeLocked, lockHint } = sectionPermission(identity, t);
   const membersQuery = useQuery({
     queryKey: ['members', 'settings-members', source],
     queryFn: () => client.getMembers(),
@@ -404,6 +429,11 @@ function MembersPermissionsSection({
   const invalidateMembers = () =>
     // 前缀失效所有成员查询（本表 + 门检查单卡的匿名选人候选 + 其它页），名单改动处处同步。
     void queryClient.invalidateQueries({ queryKey: ['members'] });
+  // 名册导入还会自动建组，故连同 groups 一并失效（下拉/组名映射同步）。
+  const invalidateRoster = () => {
+    invalidateMembers();
+    void queryClient.invalidateQueries({ queryKey: ['groups'] });
+  };
 
   const roleMutation = useMutation({
     mutationFn: (vars: { id: string; role: MemberRole }) =>
@@ -420,6 +450,8 @@ function MembersPermissionsSection({
   const groups = groupsQuery.data?.groups ?? [];
   const groupName = (id: string) => groups.find((g) => g.id === id)?.name ?? id;
   const hasSuperAdmin = members.some((m) => m.role === 'superAdmin');
+  // 名册是否为空（确已加载才判——加载中不当空板，避免闪现「首次可直接上传」）。空板 = 导入引导豁免态。
+  const emptyRoster = !membersQuery.isLoading && members.length === 0;
   // 引导卡：仅身份模式 + 名册确已加载且无任何 superAdmin 时显示（匿名模式无身份概念、有管理员后自动消失）。
   const showSetup = identity.mode === 'identity' && !membersQuery.isLoading && !hasSuperAdmin;
 
@@ -430,9 +462,15 @@ function MembersPermissionsSection({
       </div>
       <div className="settings-section">
         <p className="settings-desc">{t('settings.members.desc')}</p>
-        {writeLocked ? (
-          <p className="task-detail__hint">{t('identity.writeHint')}</p>
-        ) : null}
+        {/* 名册导入块（K8）：模板下载 + 上传 CSV + 导入报告。空板豁免——名册为空时上传免锁。 */}
+        <RosterImportBlock
+          client={client}
+          emptyRoster={emptyRoster}
+          sectionWriteLocked={writeLocked}
+          lockHint={lockHint}
+          onImported={invalidateRoster}
+        />
+        {lockHint ? <p className="task-detail__hint">{lockHint}</p> : null}
         {showSetup ? (
           <SetupAdminCard client={client} writeLocked={writeLocked} onDone={invalidateMembers} />
         ) : null}
@@ -450,7 +488,10 @@ function MembersPermissionsSection({
                     {t(GRADE_KEY[member.grade])} · {groupName(member.groupId)}
                   </span>
                 </div>
-                <div className="settings-member__controls">
+                <div
+                  className="settings-member__controls"
+                  title={writeLocked ? (lockHint ?? undefined) : undefined}
+                >
                   <Select
                     value={member.role}
                     onChange={(role) => roleMutation.mutate({ id: member.id, role })}
@@ -559,6 +600,134 @@ function SetupAdminCard({
         success={mutation.isSuccess ? t('settings.members.setup.success') : null}
       />
     </form>
+  );
+}
+
+// 名册导入块（ROSTER-IMPORT，K8）：下载 CSV 模板（直链 GET）+ 上传 CSV（multipart）+ 导入后渲染六段报告。
+// **空板豁免**：名册为空时上传免锁（解开身份模式空板死锁——无人可选→无法登录→无法初始化管理员）；否则
+// 跟随分区权限（未登录 / 非管理员则禁用 + 说明）。模板下载按钮恒可用（读端点无鉴权）。
+function RosterImportBlock({
+  client,
+  emptyRoster,
+  sectionWriteLocked,
+  lockHint,
+  onImported,
+}: {
+  client: HubApiClient;
+  emptyRoster: boolean;
+  sectionWriteLocked: boolean;
+  lockHint: string | null;
+  onImported: () => void;
+}) {
+  const { t } = useI18n();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const mutation = useMutation({
+    mutationFn: (file: File) => client.importRoster(file),
+    onSuccess: () => onImported(),
+  });
+  // 空板豁免：名册为空时上传免锁；否则跟随分区写权限（未登录 / 非管理员锁）。
+  const uploadLocked = emptyRoster ? false : sectionWriteLocked;
+  const report = mutation.data;
+
+  return (
+    <div className="roster-import">
+      <div className="roster-import__head">
+        <strong>{t('settings.roster.title')}</strong>
+        <p className="settings-desc">{t('settings.roster.desc')}</p>
+      </div>
+      <div className="roster-import__actions">
+        {/* 模板下载 = 直链 GET（浏览器原生下载，不走 fetch）。 */}
+        <a className="btn btn--secondary btn--sm" href={client.rosterTemplateUrl()} download>
+          {t('settings.roster.downloadTemplate')}
+        </a>
+        <button
+          type="button"
+          className="btn btn--primary btn--sm"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploadLocked || mutation.isPending}
+          title={uploadLocked ? (lockHint ?? undefined) : undefined}
+        >
+          {mutation.isPending ? t('settings.roster.importing') : t('settings.roster.upload')}
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,text/csv"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) mutation.mutate(file);
+            e.target.value = ''; // 允许同名文件再次触发 change
+          }}
+        />
+      </div>
+      {emptyRoster ? (
+        <p className="settings-desc">{t('settings.roster.firstHint')}</p>
+      ) : null}
+      {mutation.error ? (
+        <p className="form-hint form-hint--warn">
+          {humanizeFormError(mutation.error, t, 'settings.roster.error')}
+        </p>
+      ) : null}
+      {report ? <RosterReportView report={report} /> : null}
+    </div>
+  );
+}
+
+// 导入报告渲染（K8）：六段名单事实——failed（坏行=行号+原因，醒目告警底）+ created/updated/自动建组/
+// 自动验收人/库里有但表里没有（绝不删）。全是回显给操作者本人的名单事实（I0 无聚合统计）。
+function RosterReportView({ report }: { report: RosterImportReport }) {
+  const { t } = useI18n();
+  const segs: Array<{ key: string; labelKey: TranslationKey; names: readonly string[] }> = [
+    { key: 'created', labelKey: 'settings.roster.report.created', names: report.created },
+    { key: 'updated', labelKey: 'settings.roster.report.updated', names: report.updated },
+    {
+      key: 'createdGroups',
+      labelKey: 'settings.roster.report.createdGroups',
+      names: report.createdGroups,
+    },
+    {
+      key: 'autoReviewers',
+      labelKey: 'settings.roster.report.autoReviewers',
+      names: report.autoReviewers,
+    },
+    {
+      key: 'missingFromSheet',
+      labelKey: 'settings.roster.report.missingFromSheet',
+      names: report.missingFromSheet,
+    },
+  ];
+  const anyContent = report.failed.length > 0 || segs.some((s) => s.names.length > 0);
+
+  return (
+    <div className="roster-report" role="status" aria-live="polite">
+      <p className="roster-report__title">{t('settings.roster.report.title')}</p>
+      {report.failed.length > 0 ? (
+        <div className="roster-report__fail">
+          <strong>
+            {t('settings.roster.report.failed', { count: report.failed.length })}
+          </strong>
+          <ul>
+            {report.failed.map((f, i) => (
+              <li key={i}>
+                {t('settings.roster.report.failedRow', { line: f.line, reason: f.reason })}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {segs.map((s) =>
+        s.names.length > 0 ? (
+          <p className="roster-report__seg" key={s.key}>
+            <span className="roster-report__label">{t(s.labelKey)}</span>
+            <span>{s.names.join('、')}</span>
+          </p>
+        ) : null,
+      )}
+      {!anyContent ? (
+        <p className="settings-desc">{t('settings.roster.report.empty')}</p>
+      ) : null}
+    </div>
   );
 }
 

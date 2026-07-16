@@ -19,6 +19,7 @@ import type {
   Need,
   RelayHandoff,
   ResourceSession,
+  RosterImportRow,
   Season,
   SharedResource,
   Task,
@@ -35,11 +36,14 @@ import {
   MEMBER_GATE_REVIEWER_UPDATED_BY,
   MEMBER_PIN_UPDATED_BY,
   MEMBER_ROLE_UPDATED_BY,
+  MEMBER_ROSTER_UPDATED_BY,
   NEED_INITIAL_STATUS,
   RELAY_HANDOFF_SOURCE,
   RESOURCE_DEFAULT_STATUS,
   RESOURCE_SESSION_SOURCE,
   RESOURCE_STATUS_SOURCE,
+  ROSTER_IMPORT_GROUP_KIND,
+  ROSTER_IMPORT_MEMBER_STATUS,
   TASK_DEFAULT_STATUS,
   TASK_DEFAULT_STATUS_SOURCE,
 } from './clamp-defaults.js';
@@ -57,6 +61,7 @@ import type {
   ResourceSessionDraft,
   ResourceSessionPatch,
   ResourceStatusPatch,
+  RosterImportOutcome,
   SeasonDraft,
   TaskDraft,
 } from './gov-store.js';
@@ -214,6 +219,9 @@ export class SqliteGovStore implements GovStore {
   private knowledgeNodeSeq!: IdSequence;
   private artifactSeq!: IdSequence;
   private seasonSeq!: IdSequence;
+  // 名册导入（ROSTER-IMPORT，K8）：从各表既有 `member-new-N` / `grp-new-N` 最大后缀重建（resyncSequences）。
+  private memberSeq!: IdSequence;
+  private groupSeq!: IdSequence;
   private resourceSeq!: IdSequence;
   private resourceSessionSeq!: IdSequence;
   private relayHandoffSeq!: IdSequence;
@@ -348,6 +356,8 @@ export class SqliteGovStore implements GovStore {
     this.knowledgeNodeSeq = createIdSequence(this.maxSuffix('knowledge_nodes', 'kn-cl'));
     this.artifactSeq = createIdSequence(this.maxSuffix('artifacts', 'artifact-new'));
     this.seasonSeq = createIdSequence(this.maxSuffix('seasons', 'season-new'));
+    this.memberSeq = createIdSequence(this.maxSuffix('members', 'member-new'));
+    this.groupSeq = createIdSequence(this.maxSuffix('groups', 'grp-new'));
     this.resourceSeq = createIdSequence(this.maxSuffix('resources', 'res-new'));
     this.resourceSessionSeq = createIdSequence(
       this.maxSuffix('resource_sessions', 'sess-new'),
@@ -518,6 +528,88 @@ export class SqliteGovStore implements GovStore {
       };
       this.updateRow('members', memberId, updated);
       return updated;
+    });
+  }
+
+  /**
+   * 名册批量导入（ROSTER-IMPORT，K8）：整批在一个事务里应用到 members + groups（半程崩溃回滚，
+   * 无「建了组没建人」中间态）。逐字镜像 InMemoryGovStore.importRoster——组按 name 匹配现有 / 本批
+   * 已建、否则自动建（`grp-new-N` + kind 默认 + 当前赛季）；成员按 displayName 幂等 upsert
+   * （新建 `member-new-N` / 命中更新 grade·groupId·role·gateReviewer，superAdmin role 保护、pinHash 永不动）。
+   * 本地 Map 缓存追踪同批已建组 / 已改成员，避免同批同名重复建。
+   */
+  async importRoster(rows: readonly RosterImportRow[]): Promise<RosterImportOutcome> {
+    return this.tx(() => {
+      const now = this.clock.now().toISOString();
+      const created: string[] = [];
+      const updated: string[] = [];
+      const createdGroups: string[] = [];
+      const autoReviewers: string[] = [];
+      const seasons = this.allRows<Season>('seasons');
+      const seasonId =
+        seasons.find((s) => s.status === 'active')?.id ?? this.getMeta('seasonId') ?? '';
+      // 组名 → id（既有 + 本批已建）。
+      const groupIdByName = new Map<string, string>();
+      for (const g of this.allRows<Group>('groups')) groupIdByName.set(g.name, g.id);
+      const resolveGroupId = (name: string): string => {
+        const hit = groupIdByName.get(name);
+        if (hit) return hit;
+        const group: Group = {
+          id: nextSequentialId('grp-new', this.groupSeq),
+          seasonId,
+          parentGroupId: null,
+          name,
+          kind: ROSTER_IMPORT_GROUP_KIND,
+        };
+        this.insertRow('groups', group.id, group);
+        groupIdByName.set(name, group.id);
+        createdGroups.push(name);
+        return group.id;
+      };
+      // displayName → 现成员（既有 + 本批已建）；priorNames 用于 missingFromSheet（绝不删）。
+      const memberByName = new Map<string, Member>();
+      const members = this.allRows<Member>('members');
+      for (const m of members) memberByName.set(m.displayName, m);
+      const priorNames = members.map((m) => m.displayName);
+      const sheetNames = new Set(rows.map((r) => r.displayName));
+      for (const row of rows) {
+        const groupId = resolveGroupId(row.groupName);
+        const prev = memberByName.get(row.displayName);
+        if (!prev) {
+          const member: Member = {
+            id: nextSequentialId('member-new', this.memberSeq),
+            displayName: row.displayName,
+            role: row.role,
+            grade: row.grade,
+            groupId,
+            status: ROSTER_IMPORT_MEMBER_STATUS,
+            currentTaskId: null,
+            updatedBy: MEMBER_ROSTER_UPDATED_BY,
+            updatedAt: now,
+            gateReviewer: row.gateReviewer,
+          };
+          this.insertRow('members', member.id, member);
+          memberByName.set(member.displayName, member);
+          created.push(row.displayName);
+        } else {
+          const role = prev.role === 'superAdmin' ? prev.role : row.role;
+          const member: Member = {
+            ...prev,
+            role,
+            grade: row.grade,
+            groupId,
+            gateReviewer: row.gateReviewer,
+            updatedBy: MEMBER_ROSTER_UPDATED_BY,
+            updatedAt: now,
+          };
+          this.updateRow('members', prev.id, member);
+          memberByName.set(member.displayName, member);
+          updated.push(row.displayName);
+        }
+        if (row.gateReviewerAuto) autoReviewers.push(row.displayName);
+      }
+      const missingFromSheet = priorNames.filter((n) => !sheetNames.has(n));
+      return { created, updated, missingFromSheet, createdGroups, autoReviewers };
     });
   }
 

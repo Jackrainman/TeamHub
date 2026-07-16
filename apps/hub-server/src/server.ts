@@ -148,6 +148,11 @@ import {
   SetMemberRoleResponseSchema,
   SetupSuperAdminRequestSchema,
   SetupSuperAdminResponseSchema,
+  // 名册导入（ROSTER-IMPORT，K8）：CSV 模板生成 + 编码探测 + 手写零依赖解析器 + 导入报告契约。
+  buildRosterTemplateCsv,
+  decodeRosterBytes,
+  parseRosterCsv,
+  RosterImportReportSchema,
 } from '@teamhub/hub-contracts';
 import { ZodError } from 'zod';
 import { isGateReviewer, isGroupLeadOf, isSuperAdmin } from './authz.js';
@@ -258,6 +263,10 @@ export interface BuildHubServerOptions {
 
 // 归档物文件上传上限（50MB）：覆盖机械 CAD（step/stp/sldprt）+ 电路 PDF + 固件，又约束资源耗尽面。
 const ARTIFACT_MAX_BYTES = 50 * 1024 * 1024;
+
+// 名册导入 CSV 上限（ROSTER-IMPORT，K8）：1MB——纯文本花名册（几十人）绰绰有余，又约束资源耗尽面。
+// 由 POST /api/roster/import 的 `request.file({ limits })` per-request 覆盖插件默认（插件默认 = 归档物上限）。
+const ROSTER_MAX_BYTES = 1024 * 1024;
 
 // 上传后缀白名单 → 规范 contentType。**以后缀为准**（CAD 的浏览器 MIME 多为 octet-stream，不可信）。
 // 战队格式：CAD（机械）/ 文档（图纸说明、电路 PDF）/ 图（截图）/ 包（多文件打包）/ 固件（电控/驱动）/
@@ -468,14 +477,12 @@ function registerSystemRoutes(
 // archive 模块（可选）：图纸/归档物提交日志 + 版本时间线 + 文件上传下载。
 // ============================================================================
 function registerArchiveRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
-  const { store, clock, artifactMaxBytes } = ctx;
+  const { store, clock } = ctx;
 
-  // 归档物（图纸）文件上传：multipart 流式，单文件。**全局 bodyLimit(256KB) 不约束 multipart**——
-  // 故须在此显式钉 fileSize 上限（50MB，覆盖 CAD/PDF 又约束资源耗尽面，与 H3 同源关切）。
-  // 注册在写鉴权钩子之后、路由之前；onRequest 钩子先于 body 解析跑，故上传仍受 Bearer + 限流 gate。
-  void app.register(multipart, {
-    limits: { fileSize: artifactMaxBytes, files: 1 },
-  });
+  // 归档物（图纸）文件上传：multipart 流式，单文件。**multipart 插件已在 buildHubServer 宿主级注册一次**
+  // （见下方注册点——archive 图纸上传 + pm-core 名册导入共用，避免重复注册报错）；插件级 fileSize 默认 =
+  // 归档物上限（artifactMaxBytes），本模块 `request.file()` 不传 per-request limits 即沿用该默认。
+  // 全局 bodyLimit(256KB) 不约束 multipart，故上限靠插件 limits 钉；onRequest 鉴权/限流钩子先于 body 解析跑。
 
   // 图纸提交日志 / 版本时间线（v1，A2）：从治理快照读 artifacts（持久化时由 FileGovStore 落盘累积），
   // 不再读 apiContractFixtures.artifacts。无人维度——记录主键是机构 + 版本 + 归档物（I0/A4）。
@@ -748,6 +755,87 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       return;
     }
     return SetupSuperAdminResponseSchema.parse({ member: MemberPublicSchema.parse(promoted) });
+  });
+
+  // ── 名册批量导入（ROSTER-IMPORT，K8 —— minor v0.25.0）────────────────────────────────────────
+  // 名册此前无任何增删通道（唯一来源 = demo seed 落盘）；身份模式 + 空板 = 登录死锁。本对端点解开它。
+
+  // GET /api/roster/template：下载 CSV 模板（读端点、不过写门）。UTF-8 带 BOM（Excel 直开不乱码）+
+  // Content-Disposition 附件下载。表头 = 姓名,年级,组,组长,验收人（仅表头行；列说明放前端文案、不进 CSV）。
+  app.get('/api/roster/template', async (_request, reply) => {
+    void reply.header(
+      'content-disposition',
+      `attachment; filename*=UTF-8''${encodeURIComponent('名册模板.csv')}`,
+    );
+    void reply.type('text/csv; charset=utf-8');
+    return buildRosterTemplateCsv();
+  });
+
+  // POST /api/roster/import：上传 CSV（multipart，单文件 1MB 上限，照 artifact upload 先例）。
+  // **鉴权（引导豁免，K8 拍板⑤）**：匿名模式 = 宿主级写门即可（onRequest 钩子已过 Bearer + 限流）；
+  // 身份模式 = 须 superAdmin（isSuperAdmin，403），**但名册完全为空时豁免登录要求**——bootstrap：
+  // members.length===0 时免 session 放行（解开空板死锁：无人可选 → 无法登录 → 无法初始化管理员），
+  // 一旦有人即恢复须 superAdmin。全局写门钩子已把本路由排除在「须有会话」硬门之外（isRosterBootstrap），
+  // 故此处自行做完整鉴权。**编码探测**：decodeRosterBytes（UTF-8 BOM / 无 BOM UTF-8 / 回退 gbk），都失败 → 400。
+  // **解析**：parseRosterCsv（手写零依赖，坏行进报告不中断整批）；**应用**：store.importRoster（displayName
+  // 幂等 upsert + 自动建组 + superAdmin/pinHash 保护 + missingFromSheet 绝不删）。响应 = 六段导入报告（I0：
+  // 全是名单事实回显给操作者本人，不落任何聚合统计）。
+  app.post('/api/roster/import', async (request, reply) => {
+    const snapshot = await store.getSnapshot();
+    const emptyRoster = snapshot.members.length === 0;
+    if (identityMode === 'identity' && !emptyRoster) {
+      // 名册非空：恢复须 superAdmin（fail-closed，另读实时名册；无会话 → 401，非管理员 → 403）。
+      if (!request.identity) {
+        void reply.code(401).send({ detail: 'login required' });
+        return;
+      }
+      if (!isSuperAdmin(snapshot.members, request.identity.memberId)) {
+        void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
+        return;
+      }
+    }
+    let data;
+    try {
+      // per-request limits 覆盖插件默认（宿主级 multipart 插件默认 = 归档物上限），钉名册 1MB。
+      data = await request.file({ limits: { fileSize: ROSTER_MAX_BYTES, files: 1 } });
+    } catch {
+      void reply.code(400).send({ detail: '请求体不是 multipart 表单' });
+      return;
+    }
+    if (!data) {
+      void reply.code(400).send({ detail: '未收到文件' });
+      return;
+    }
+    let buf: Buffer;
+    try {
+      buf = await data.toBuffer();
+    } catch (err) {
+      if ((err as { code?: string })?.code === 'FST_REQ_FILE_TOO_LARGE') {
+        void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
+        return;
+      }
+      void reply.code(400).send({ detail: '读取文件失败' });
+      return;
+    }
+    if (data.file.truncated) {
+      void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
+      return;
+    }
+    const text = decodeRosterBytes(buf);
+    if (text === null) {
+      void reply.code(400).send({ detail: '编码无法识别，请另存为 CSV UTF-8' });
+      return;
+    }
+    const { rows, errors } = parseRosterCsv(text);
+    const outcome = await store.importRoster(rows);
+    return RosterImportReportSchema.parse({
+      created: outcome.created,
+      updated: outcome.updated,
+      failed: errors,
+      missingFromSheet: outcome.missingFromSheet,
+      createdGroups: outcome.createdGroups,
+      autoReviewers: outcome.autoReviewers,
+    });
   });
 
   // 组只读列表（PHASE2-CONSOLE-ASSEMBLY）：console TodayPlanTable 原借 dep-graph 节点反查组名当临时
@@ -2114,7 +2202,13 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
       const isSessionAuthEndpoint =
         path === '/api/session' &&
         (request.method === 'POST' || request.method === 'DELETE');
-      if (!isSessionAuthEndpoint && !request.identity) {
+      // 名册导入引导豁免（ROSTER-IMPORT，K8）：身份模式 + 空板 = 登录死锁（无人可选 → 无法登录 →
+      // 无法初始化管理员）。故把 POST /api/roster/import 从「须有会话」硬门放行，由**路由内**自行做完整
+      // 鉴权——名册为空时放行、一旦有人即恢复须 superAdmin（依据 = 解开空板死锁，见路由处注释）。
+      // 名册非空且无会话 → 路由内自行 401，与本钩子同结果，故此处统一放过、鉴权收敛在路由一处判。
+      const isRosterBootstrap =
+        path === '/api/roster/import' && request.method === 'POST';
+      if (!isSessionAuthEndpoint && !isRosterBootstrap && !request.identity) {
         void reply.code(401).send({ detail: 'login required' });
         return reply;
       }
@@ -2150,6 +2244,15 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     identityMode,
   };
   const moduleEnabled = (id: ModuleId): boolean => isModuleEnabled(tenantConfig, id);
+
+  // 文件上传能力（multipart）：**宿主级注册一次**——archive 图纸上传 + pm-core 名册导入共用（K8）。
+  // fastify 插件不可重复注册（否则 content-type parser 冲突报错），故从 registerArchiveRoutes 上提到此处。
+  // 插件级 fileSize 默认 = 归档物上限（archive `request.file()` 无 per-request limits 时沿用）；名册导入按需
+  // per-request 覆盖为 1MB（`request.file({ limits })`）。**全局 bodyLimit(256KB) 不约束 multipart**；
+  // 鉴权/限流 onRequest 钩子先于 body 解析跑，故上传仍受 Bearer + 限流 gate。
+  void app.register(multipart, {
+    limits: { fileSize: ctx.artifactMaxBytes, files: 1 },
+  });
 
   // ── 会话端点（IDENTITY-LITE）：宿主级横切（非模块域），两模式均挂——GET 报模式+身份，
   // POST/DELETE 在匿名模式 404（明确禁用态）、身份模式行使登录/登出。────────────────────────────

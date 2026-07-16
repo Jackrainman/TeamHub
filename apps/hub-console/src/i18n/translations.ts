@@ -971,6 +971,26 @@ const zh = {
   'settings.reviewers.grade.junior': '大三',
   'settings.reviewers.grade.senior': '大四',
   'settings.reviewers.grade.graduate': '研究生',
+  // 写权限说明（K8 复审 nit 收口）：身份模式已登录但非管理员时的禁用说明。
+  'settings.permission.adminOnly': '此操作需要管理员（超级管理员）权限。',
+  // 设置页「名册导入」块（ROSTER-IMPORT，K8）
+  'settings.roster.title': '名册导入',
+  'settings.roster.desc':
+    '用 CSV 批量导入 / 更新成员。列：姓名、年级（大一/大二/大三/大四/研究生）、组（组名，不存在会自动新建）、组长（填 ✓ 或 是 表示组长）、验收人（填 是/否；留空则大三及以上自动为验收人）。以姓名为准：已有则更新、没有则新建；库里有但表里没有的成员只提示、绝不删除。',
+  'settings.roster.downloadTemplate': '下载模板',
+  'settings.roster.upload': '上传 CSV',
+  'settings.roster.importing': '正在导入…',
+  'settings.roster.firstHint': '名册还是空的——首次可直接上传，无需登录；导入后请尽快初始化管理员。',
+  'settings.roster.error': '导入失败：{detail}',
+  'settings.roster.report.title': '导入结果',
+  'settings.roster.report.failed': '{count} 行未导入（需修正）',
+  'settings.roster.report.failedRow': '第 {line} 行：{reason}',
+  'settings.roster.report.created': '新建',
+  'settings.roster.report.updated': '更新',
+  'settings.roster.report.createdGroups': '自动新建的组',
+  'settings.roster.report.autoReviewers': '自动设为验收人',
+  'settings.roster.report.missingFromSheet': '库里有但表里没有（未改动）',
+  'settings.roster.report.empty': '没有变化。',
 
   // 挂单认领制（TASK-POST-CLAIM，D-088）：过夜登记处——挂单认领 / 留名徽章 / 两档验收 / 看谁做过。
   // 项目页第三视图
@@ -2040,6 +2060,26 @@ const en: Record<TranslationKey, string> = {
   'settings.reviewers.grade.junior': 'Junior',
   'settings.reviewers.grade.senior': 'Senior',
   'settings.reviewers.grade.graduate': 'Graduate',
+  'settings.permission.adminOnly': 'This action requires admin (super admin) permission.',
+  // Settings "Roster import" block (ROSTER-IMPORT, K8)
+  'settings.roster.title': 'Roster import',
+  'settings.roster.desc':
+    'Bulk import / update members from CSV. Columns: name, grade (freshman/sophomore/junior/senior/graduate), group (group name; auto-created if missing), group lead (✓ or 是 marks a lead), reviewer (yes/no; blank auto-marks junior and above). Keyed by name: existing rows are updated, new ones created; members in the roster but not in the sheet are only reported, never deleted.',
+  'settings.roster.downloadTemplate': 'Download template',
+  'settings.roster.upload': 'Upload CSV',
+  'settings.roster.importing': 'Importing…',
+  'settings.roster.firstHint':
+    'The roster is empty — you can upload directly the first time, no login required. Initialize an admin right after importing.',
+  'settings.roster.error': 'Import failed: {detail}',
+  'settings.roster.report.title': 'Import result',
+  'settings.roster.report.failed': '{count} row(s) not imported (need fixing)',
+  'settings.roster.report.failedRow': 'Line {line}: {reason}',
+  'settings.roster.report.created': 'Created',
+  'settings.roster.report.updated': 'Updated',
+  'settings.roster.report.createdGroups': 'Auto-created groups',
+  'settings.roster.report.autoReviewers': 'Auto-set reviewers',
+  'settings.roster.report.missingFromSheet': 'In roster, not in sheet (unchanged)',
+  'settings.roster.report.empty': 'No changes.',
 
   // Post-and-claim (TASK-POST-CLAIM, D-088)
   'project.view.pool': 'Pool',

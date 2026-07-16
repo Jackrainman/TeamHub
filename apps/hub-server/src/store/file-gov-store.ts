@@ -20,6 +20,7 @@ import type {
   Need,
   RelayHandoff,
   ResourceSession,
+  RosterImportRow,
   Season,
   SharedResource,
   Task,
@@ -40,6 +41,7 @@ import type {
   ResourceSessionDraft,
   ResourceSessionPatch,
   ResourceStatusPatch,
+  RosterImportOutcome,
   SeasonDraft,
   TaskDraft,
 } from './gov-store.js';
@@ -545,6 +547,24 @@ export class FileGovStore implements GovStore {
       });
     }
     return member;
+  }
+
+  // 名册批量导入（ROSTER-IMPORT，K8）：members + groups 都是 GovernanceSnapshot 字段 → 落 governance.json。
+  // 一次调用批量改两数组（新建/更新成员 + 自动建组），故回滚不是单条 removeById——写前存**两组元素**，
+  // persist 失败时原地整组还原（保持数组引用稳定，镜像 createSeason 的整组还原纪律）。委托 inner 补 id /
+  // clamp / superAdmin 保护逻辑（零漂移），落盘失败即整体撤回。
+  async importRoster(rows: readonly RosterImportRow[]): Promise<RosterImportOutcome> {
+    const snap = this.inner.snapshotForRollback();
+    const priorMembers = [...snap.members];
+    const priorGroups = [...snap.groups];
+    const outcome = await this.inner.importRoster(rows);
+    await this.persistOrRollback(() => {
+      snap.members.length = 0;
+      snap.members.push(...priorMembers);
+      snap.groups.length = 0;
+      snap.groups.push(...priorGroups);
+    });
+    return outcome;
   }
 
   // 挂单认领制窄写（TASK-POST-CLAIM，D-088）：tasks 是 GovernanceSnapshot 字段 → 落 governance.json。

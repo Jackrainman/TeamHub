@@ -1,6 +1,7 @@
 import type {
   ArtifactRef,
   Dependency,
+  Group,
   Member,
   Need,
   RelayHandoff,
@@ -69,3 +70,12 @@ export const MEMBER_PIN_UPDATED_BY: Member['updatedBy'] = 'console';
 export const MEMBER_GATE_REVIEWER_UPDATED_BY: Member['updatedBy'] = 'console';
 /** 成员角色写入（PUT /api/members/:id/role + POST /api/setup/super-admin，K1 权限地基）钉的 updatedBy。 */
 export const MEMBER_ROLE_UPDATED_BY: Member['updatedBy'] = 'console';
+
+// --- 名册批量导入 clamp（ROSTER-IMPORT，K8）：新建成员 / 自动建组的初值 seam ---
+
+/** 名册导入新建 / 更新成员钉的 updatedBy（K8 拍板③：updatedBy='console'）。 */
+export const MEMBER_ROSTER_UPDATED_BY: Member['updatedBy'] = 'console';
+/** 名册导入新建成员的初始 status（合理初值：待分配任务 = idle）。 */
+export const ROSTER_IMPORT_MEMBER_STATUS: Member['status'] = 'idle';
+/** 名册导入自动建组的 kind 默认值（开放串，K8 拍板③：不存在则自动建组、kind 用开放串默认值）。 */
+export const ROSTER_IMPORT_GROUP_KIND: Group['kind'] = 'custom';

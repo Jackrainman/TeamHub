@@ -27,6 +27,7 @@ import {
   SetGateReviewerResponseSchema,
   SetMemberRoleResponseSchema,
   SetupSuperAdminResponseSchema,
+  RosterImportReportSchema,
   type ChecklistItemsResponse,
   type CreateChecklistItemRequest,
   type CreateChecklistItemResponse,
@@ -40,6 +41,7 @@ import {
   type SetMemberRoleResponse,
   type SetupSuperAdminRequest,
   type SetupSuperAdminResponse,
+  type RosterImportReport,
   type ArtifactsResponse,
   type DepGraph,
   type Group,
@@ -292,6 +294,10 @@ export interface HubApiClient {
   // 初始化首个管理员（K1）：身份模式 only（匿名 404）；名册无 superAdmin 时把登录本人升 superAdmin +
   // 同笔设 pinHash（否则 409）。响应剥 pinHash。
   setupSuperAdmin(req: SetupSuperAdminRequest): Promise<SetupSuperAdminResponse>;
+  // 名册导入（ROSTER-IMPORT，K8）。模板：GET 直链（下载按钮 href，不走 fetch）；导入：上传 CSV（multipart，
+  // 引导豁免——身份模式名册为空时免登录）。响应 = 六段导入报告（名单事实回显给操作者本人，I0 无聚合统计）。
+  rosterTemplateUrl(): string;
+  importRoster(file: File): Promise<RosterImportReport>;
   // 挂单认领制窄写动作（TASK-POST-CLAIM，D-088）。全部 POST 子资源、继承 H3 写门；留名 actor 沿
   // IDENTITY-LITE（身份模式服务端从 session 注入、匿名模式 body 供名）。红线：留名只落单条任务卡，
   // 本簇绝无按人聚合/排行/按人筛选端点。响应统一 { task }（TaskSchema，不带 isBig 元）。
@@ -758,6 +764,19 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         `${baseUrl}/api/setup/super-admin`,
         req,
         SetupSuperAdminResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    rosterTemplateUrl() {
+      // 模板下载 = 直链 GET（浏览器原生下载，不走 fetch/Bearer——读端点无鉴权）。
+      return `${baseUrl}/api/roster/template`;
+    },
+    async importRoster(file: File) {
+      return postFormData(
+        `${baseUrl}/api/roster/import`,
+        file,
+        RosterImportReportSchema,
         fetcher,
         writeToken,
       );

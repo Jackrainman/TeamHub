@@ -6,10 +6,24 @@ import type {
   Member,
   MemberRole,
   Need,
+  RosterImportRow,
   Season,
   Task,
   TaskStatus,
 } from '@teamhub/hub-contracts';
+
+/**
+ * `importRoster` 结果（ROSTER-IMPORT，K8）：报告里**非 failed 那五段**——failed（坏行）在纯解析层
+ * （parseRosterCsv）产出、由路由拼进最终 `RosterImportReport`；本 store 侧只回它做出的名单事实变更。
+ * 全是名单事实回显给操作者本人（I0：绝不含任何按人聚合/排名/按人筛选派生）。
+ */
+export interface RosterImportOutcome {
+  created: string[];
+  updated: string[];
+  missingFromSheet: string[];
+  createdGroups: string[];
+  autoReviewers: string[];
+}
 
 /**
  * pm-core 域写入口（STORE-SPLIT-SQLITE，product-redefine-2026-07 §4.4 / §9-③）：项目计划表
@@ -145,6 +159,24 @@ export interface PmCoreStore {
    * 镜像 setMemberGateReviewer）。响应回带走 MemberPublicSchema 剥 pinHash（路由层，密钥纪律）。
    */
   setMemberRole(memberId: string, role: MemberRole): Promise<Member | null>;
+
+  /**
+   * 名册批量导入（POST /api/roster/import，ROSTER-IMPORT，K8）：一次原子应用已校验行到
+   * members + groups（**members/groups 都是 GovernanceSnapshot 字段 → 落 governance.json**）。
+   *
+   * 语义（K8 拍板③/④）：
+   *  - **组解析**：`groupName` 匹配现有 `Group.name`，不存在则**自动建组**（id 生成照 nextSequentialId
+   *    先例=`grp-new-N`、kind 用开放串默认值 `custom`、seasonId 取当前 active 赛季 ?? 顶层 seasonId）；
+   *    同批同名组只建一次、计入 createdGroups。
+   *  - **幂等键 = displayName**：命中既有成员 → 更新 grade/groupId/role/gateReviewer（**保护例外**：
+   *    目标现为 `superAdmin` 时 role 不动；**pinHash 永不动**）；不命中 → 新建（id=`member-new-N`、
+   *    status=idle、currentTaskId=null、updatedBy='console'）。
+   *  - **missingFromSheet**：库里有但表里没有的成员 → 只回报告、**绝不删**。
+   *
+   * 授权（匿名=写门即可 / 身份=须 superAdmin，但空板豁免登录）在**路由层**判——store 只做无条件应用。
+   * **I0**：只做名单事实变更、绝不做任何按人聚合/排行/按人筛选。返回名单事实回显给操作者本人。
+   */
+  importRoster(rows: readonly RosterImportRow[]): Promise<RosterImportOutcome>;
 
   // ── 挂单认领制窄写方法（TASK-POST-CLAIM，D-088 / docs/design/task-post-claim.md）─────────────────
   // 全部照 updateTaskStatus/setMemberPin 受限迁移先例：就地改 tasks[idx] 的**自己那簇留名字段** + bump
