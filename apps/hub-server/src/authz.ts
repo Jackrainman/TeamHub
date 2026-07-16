@@ -42,3 +42,16 @@ export function isGroupLeadOf(
   const member = members.find((m) => m.id === memberId);
   return member?.role === 'groupAdmin' && member.groupId === groupId;
 }
+
+/**
+ * 该成员是否为超级管理员（K1 权限地基）：`role==='superAdmin'`。全库敏感写门（改角色 / 验收人名单维护 /
+ * 建赛季）的鉴权基元——**身份模式**下只有 superAdmin 能过这些门（否则 403），**匿名模式**各门跳过本判定
+ * （宿主级写门即可，演示态零门槛）。与 isGateReviewer/isGroupLeadOf 同居本文件、同「布尔条件 + 403」范式。
+ *
+ * **I0**：只回一个布尔资格判定，绝不做任何按人聚合/排行/按人筛选（本 helper 只在写路由做「这一个人是不是
+ * 超级管理员」的授权门，不派生名单视图）。`memberId` 不在名册 / 非 superAdmin → false（fail-closed，
+ * 无资格默认拒绝）。
+ */
+export function isSuperAdmin(members: readonly Member[], memberId: string): boolean {
+  return members.find((m) => m.id === memberId)?.role === 'superAdmin';
+}

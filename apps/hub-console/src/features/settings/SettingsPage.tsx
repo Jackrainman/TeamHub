@@ -5,9 +5,11 @@ import type {
   AgentBackend,
   BotChannel,
   MemberGrade,
+  MemberRole,
   Season,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
+import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { useTheme } from '../../theme';
 import { Field } from '../../components/Field';
@@ -15,6 +17,7 @@ import { FormActions } from '../../components/FormActions';
 import { FormGrid } from '../../components/FormGrid';
 import { MetaRow } from '../../components/MetaRow';
 import { SegToggle } from '../../components/SegToggle';
+import { Select } from '../../components/Select';
 import { APIBASE_KEY, WRITE_TOKEN_KEY } from '../../constants';
 import { humanizeFormError } from '../../utils';
 
@@ -60,6 +63,14 @@ const GRADE_KEY: Record<MemberGrade, TranslationKey> = {
   graduate: 'settings.reviewers.grade.graduate',
 };
 
+// 成员角色枚举 → 文案键（K1 权限地基；枚举变更会在此处编译报错）。三档下拉选项顺序钉高→低。
+const ROLE_KEY: Record<MemberRole, TranslationKey> = {
+  superAdmin: 'settings.members.role.superAdmin',
+  groupAdmin: 'settings.members.role.groupAdmin',
+  member: 'settings.members.role.member',
+};
+const MEMBER_ROLE_OPTIONS: readonly MemberRole[] = ['superAdmin', 'groupAdmin', 'member'];
+
 // 语言选项——扩展时须同步 i18n 键（settings.language.<value>）与 Lang 类型。
 const LANG_OPTIONS = [
   { value: 'zh' as const, labelKey: 'settings.language.zh' as const },
@@ -93,9 +104,11 @@ interface IntegrationRow {
 export function SettingsPage({
   client,
   source,
+  identity,
 }: {
   client: HubApiClient;
   source: string;
+  identity: PageIdentityCtx;
 }) {
   const { t, lang, setLang } = useI18n();
   const { theme, setTheme } = useTheme();
@@ -142,8 +155,8 @@ export function SettingsPage({
         </div>
       </section>
 
-      <SeasonsSection client={client} source={source} />
-      <GateReviewersSection client={client} source={source} />
+      <SeasonsSection client={client} source={source} identity={identity} />
+      <MembersPermissionsSection client={client} source={source} identity={identity} />
       <IntegrationsSection client={client} source={source} />
       <ConnectionSection />
       <AboutSection client={client} source={source} />
@@ -158,11 +171,15 @@ export function SettingsPage({
 function SeasonsSection({
   client,
   source,
+  identity,
 }: {
   client: HubApiClient;
   source: string;
+  identity: PageIdentityCtx;
 }) {
   const { t } = useI18n();
+  // 身份模式未登录 = 写门锁（匿名模式 canWrite 恒 true，writeLocked 恒 false，现状不变）。照 PoolPage 先例。
+  const writeLocked = !identity.canWrite;
   const queryClient = useQueryClient();
   const seasonsQuery = useQuery({
     queryKey: ['seasons', source],
@@ -190,7 +207,7 @@ function SeasonsSection({
 
   // 结束日期可留空（开季时常未知）；填了则须晚于开始日期（与 server 同判据，前端先挡一层）。
   const orderOk = !startsAt || !endsAt || endsAt > startsAt;
-  const valid = Boolean(name.trim() && startsAt && orderOk);
+  const valid = Boolean(name.trim() && startsAt && orderOk) && !writeLocked;
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -218,6 +235,9 @@ function SeasonsSection({
             ))}
           </div>
         )}
+        {writeLocked ? (
+          <p className="task-detail__hint">{t('identity.writeHint')}</p>
+        ) : null}
         <form className="pm-form" onSubmit={submit}>
           <FormGrid cols={3}>
             <Field label={t('settings.seasons.field.name')} required>
@@ -292,77 +312,190 @@ function SeasonRow({ season }: { season: Season }) {
   );
 }
 
-// 验收人名单（GATE-CHECKLIST-IOU，D-087 拍板②）：门检查单欠条的**豁免权属名单内成员（大三）**，每年
-// 换届更新。就是一张名单开关表——每个成员一个 gateReviewer 开关（PUT /api/members/:id/gate-reviewer）。
-// **绝不做任何按人统计**（红线：本域无按人聚合/排行）；名单只决定「谁能签字豁免欠条」，非考勤非画像。
-function GateReviewersSection({
+// 成员与权限（K1 权限地基 + GATE-CHECKLIST-IOU，D-087 拍板②）：一张名单表——每个成员一行，含角色三档
+// 下拉（PUT /api/members/:id/role）+ 验收人开关（PUT /api/members/:id/gate-reviewer，豁免权属名单内成员=大三，
+// 每年换届更新）。身份模式且名册无 superAdmin 时，顶部显示「初始化管理员」引导卡（调 setup 路由）。
+// **绝不做任何按人统计**（红线 I0：本域无按人聚合/排行）；名单只决定「谁是管理员 / 谁能签字豁免」，非考勤非画像。
+function MembersPermissionsSection({
   client,
   source,
+  identity,
 }: {
   client: HubApiClient;
   source: string;
+  identity: PageIdentityCtx;
 }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
+  // 身份模式未登录 = 写门锁；匿名模式恒可写（现状不变）。照 PoolPage 先例（识别层 canWrite）。
+  const writeLocked = !identity.canWrite;
   const membersQuery = useQuery({
-    queryKey: ['members', 'settings-reviewers', source],
+    queryKey: ['members', 'settings-members', source],
     queryFn: () => client.getMembers(),
   });
+  const groupsQuery = useQuery({
+    queryKey: ['groups', source],
+    queryFn: () => client.getGroups(),
+  });
 
-  const mutation = useMutation({
+  const invalidateMembers = () =>
+    // 前缀失效所有成员查询（本表 + 门检查单卡的匿名选人候选 + 其它页），名单改动处处同步。
+    void queryClient.invalidateQueries({ queryKey: ['members'] });
+
+  const roleMutation = useMutation({
+    mutationFn: (vars: { id: string; role: MemberRole }) =>
+      client.setMemberRole(vars.id, { role: vars.role }),
+    onSuccess: invalidateMembers,
+  });
+  const reviewerMutation = useMutation({
     mutationFn: (vars: { id: string; gateReviewer: boolean }) =>
       client.setMemberGateReviewer(vars.id, { gateReviewer: vars.gateReviewer }),
-    onSuccess: () => {
-      // 前缀失效所有成员查询（本表 + 门检查单卡的匿名选人候选 + 其它页），名单改动处处同步。
-      void queryClient.invalidateQueries({ queryKey: ['members'] });
-    },
+    onSuccess: invalidateMembers,
   });
 
   const members = membersQuery.data?.members ?? [];
+  const groups = groupsQuery.data?.groups ?? [];
+  const groupName = (id: string) => groups.find((g) => g.id === id)?.name ?? id;
+  const hasSuperAdmin = members.some((m) => m.role === 'superAdmin');
+  // 引导卡：仅身份模式 + 名册确已加载且无任何 superAdmin 时显示（匿名模式无身份概念、有管理员后自动消失）。
+  const showSetup = identity.mode === 'identity' && !membersQuery.isLoading && !hasSuperAdmin;
 
   return (
     <section className="panel settings-panel">
       <div className="panel-header">
-        <h2>{t('settings.section.reviewers')}</h2>
+        <h2>{t('settings.section.members')}</h2>
       </div>
       <div className="settings-section">
-        <p className="settings-desc">{t('settings.reviewers.desc')}</p>
+        <p className="settings-desc">{t('settings.members.desc')}</p>
+        {writeLocked ? (
+          <p className="task-detail__hint">{t('identity.writeHint')}</p>
+        ) : null}
+        {showSetup ? (
+          <SetupAdminCard client={client} writeLocked={writeLocked} onDone={invalidateMembers} />
+        ) : null}
         {membersQuery.isLoading ? (
           <p className="settings-desc" role="status" aria-live="polite">…</p>
         ) : members.length === 0 ? (
-          <p className="settings-desc">{t('settings.reviewers.empty')}</p>
+          <p className="settings-desc">{t('settings.members.empty')}</p>
         ) : (
           <div className="adapter-grid">
             {members.map((member) => (
               <article className="adapter-row" key={member.id}>
                 <div>
                   <strong>{member.displayName}</strong>
-                  <span>{t(GRADE_KEY[member.grade])}</span>
+                  <span>
+                    {t(GRADE_KEY[member.grade])} · {groupName(member.groupId)}
+                  </span>
                 </div>
-                <label className="pm-check">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(member.gateReviewer)}
+                <div className="settings-member__controls">
+                  <Select
+                    value={member.role}
+                    onChange={(role) => roleMutation.mutate({ id: member.id, role })}
+                    options={MEMBER_ROLE_OPTIONS}
+                    renderOption={(r) => t(ROLE_KEY[r])}
+                    ariaLabel={t('settings.members.role.label')}
                     disabled={
-                      mutation.isPending && mutation.variables?.id === member.id
-                    }
-                    onChange={(e) =>
-                      mutation.mutate({ id: member.id, gateReviewer: e.target.checked })
+                      writeLocked ||
+                      (roleMutation.isPending && roleMutation.variables?.id === member.id)
                     }
                   />
-                  <span>{t('settings.reviewers.toggle')}</span>
-                </label>
+                  <label className="pm-check">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(member.gateReviewer)}
+                      disabled={
+                        writeLocked ||
+                        (reviewerMutation.isPending &&
+                          reviewerMutation.variables?.id === member.id)
+                      }
+                      onChange={(e) =>
+                        reviewerMutation.mutate({
+                          id: member.id,
+                          gateReviewer: e.target.checked,
+                        })
+                      }
+                    />
+                    <span>{t('settings.reviewers.toggle')}</span>
+                  </label>
+                </div>
               </article>
             ))}
           </div>
         )}
-        {mutation.error ? (
+        {roleMutation.error ? (
           <p className="form-hint form-hint--warn">
-            {humanizeFormError(mutation.error, t, 'settings.reviewers.error')}
+            {humanizeFormError(roleMutation.error, t, 'settings.members.role.error')}
+          </p>
+        ) : null}
+        {reviewerMutation.error ? (
+          <p className="form-hint form-hint--warn">
+            {humanizeFormError(reviewerMutation.error, t, 'settings.reviewers.error')}
           </p>
         ) : null}
       </div>
     </section>
+  );
+}
+
+// 初始化首个管理员引导卡（K1 权限地基）：身份模式且名册无 superAdmin 时显示——填 PIN → POST /api/setup/super-admin
+// 把登录本人升 superAdmin + 同笔设 pinHash。须先登录（写门锁时禁用提交、复用 identity.writeHint 说明）。
+// 成功后 onDone 刷新名册（有管理员后本卡自动消失）。
+function SetupAdminCard({
+  client,
+  writeLocked,
+  onDone,
+}: {
+  client: HubApiClient;
+  writeLocked: boolean;
+  onDone: () => void;
+}) {
+  const { t } = useI18n();
+  const [pin, setPin] = useState('');
+  const mutation = useMutation({
+    mutationFn: () => client.setupSuperAdmin({ pin }),
+    onSuccess: () => {
+      setPin('');
+      onDone();
+    },
+  });
+  // PIN 家庭影院级最低 4 位（与 server SetupSuperAdminRequestSchema.min(4) 同判据，前端先挡一层）。
+  const valid = pin.trim().length >= 4 && !writeLocked;
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!valid) return;
+    mutation.mutate();
+  }
+
+  return (
+    <form className="setup-admin-card" onSubmit={submit}>
+      <div>
+        <strong>{t('settings.members.setup.title')}</strong>
+        <p className="settings-desc">{t('settings.members.setup.desc')}</p>
+      </div>
+      <Field label={t('settings.members.setup.pinLabel')} required>
+        <input
+          type="password"
+          value={pin}
+          placeholder={t('settings.members.setup.pinPlaceholder')}
+          onChange={(e) => setPin(e.target.value)}
+          autoComplete="new-password"
+          aria-required
+        />
+      </Field>
+      <FormActions
+        submitLabel={t('settings.members.setup.submit')}
+        submittingLabel={t('settings.members.setup.submitting')}
+        submitting={mutation.isPending}
+        disabled={!valid}
+        error={
+          mutation.error
+            ? humanizeFormError(mutation.error, t, 'settings.members.setup.error')
+            : null
+        }
+        success={mutation.isSuccess ? t('settings.members.setup.success') : null}
+      />
+    </form>
   );
 }
 

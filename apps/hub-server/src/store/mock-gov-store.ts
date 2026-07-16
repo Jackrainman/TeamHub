@@ -12,6 +12,7 @@ import type {
   GovernanceSnapshot,
   KnowledgeNode,
   Member,
+  MemberRole,
   Need,
   RelayHandoff,
   ResourceSession,
@@ -29,6 +30,7 @@ import {
   MANUAL_TASK_STATUS_SOURCE,
   MEMBER_GATE_REVIEWER_UPDATED_BY,
   MEMBER_PIN_UPDATED_BY,
+  MEMBER_ROLE_UPDATED_BY,
   NEED_INITIAL_STATUS,
   RELAY_HANDOFF_SOURCE,
   RESOURCE_DEFAULT_STATUS,
@@ -621,6 +623,25 @@ export class InMemoryGovStore implements GovStore {
       ...this.snapshot.members[idx],
       gateReviewer,
       updatedBy: MEMBER_GATE_REVIEWER_UPDATED_BY,
+      updatedAt: now,
+    };
+    this.snapshot.members[idx] = updated;
+    return updated;
+  }
+
+  /**
+   * 设成员角色（PUT /api/members/:id/role + POST /api/setup/super-admin，K1 权限地基）。就地改
+   * members[idx].role（枚举位）+ bump updatedAt、钉 updatedBy=`console`（镜像 setMemberGateReviewer）。
+   * 授权 + 降级保护在路由层判，本方法无条件写。id 不存在 → null（路由转 404）。**I0**：只改枚举位，绝不聚合。
+   */
+  async setMemberRole(memberId: string, role: MemberRole): Promise<Member | null> {
+    const idx = this.snapshot.members.findIndex((m) => m.id === memberId);
+    if (idx === -1) return null;
+    const now = this.clock.now().toISOString();
+    const updated: Member = {
+      ...this.snapshot.members[idx],
+      role,
+      updatedBy: MEMBER_ROLE_UPDATED_BY,
       updatedAt: now,
     };
     this.snapshot.members[idx] = updated;

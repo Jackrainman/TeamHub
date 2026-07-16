@@ -204,7 +204,9 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     titleKey: 'toolbar.title.settings',
     icon: Settings,
     moduleId: 'system',
-    render: (ctx) => <SettingsPage client={ctx.apiClient} source={ctx.source} />,
+    render: (ctx) => (
+      <SettingsPage client={ctx.apiClient} source={ctx.source} identity={ctx.identity} />
+    ),
   },
 ];
 

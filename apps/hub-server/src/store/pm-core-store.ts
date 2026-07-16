@@ -4,6 +4,7 @@ import type {
   GovernanceSnapshot,
   KnowledgeNode,
   Member,
+  MemberRole,
   Need,
   Season,
   Task,
@@ -134,6 +135,16 @@ export interface PmCoreStore {
     memberId: string,
     gateReviewer: boolean,
   ): Promise<Member | null>;
+
+  /**
+   * 设成员角色（PUT /api/members/:id/role + POST /api/setup/super-admin，K1 权限地基）。就地改
+   * members[idx] 的 `role`（照 setMemberGateReviewer 逐字形状）+ bump updatedAt、钉 updatedBy=`console`。
+   * 授权（匿名=写门即可 / 身份=须 superAdmin）+ 降级保护（不摘最后一个 superAdmin）在**路由层**判——store
+   * 只做无条件就地写。id 不存在 → 返回 null（路由层转 404）。**I0**：只改一个枚举位，绝不做按人聚合/排行。
+   * FileGovStore 落 governance.json（members 是 GovernanceSnapshot 字段，persist 失败按 idx 原地还原，
+   * 镜像 setMemberGateReviewer）。响应回带走 MemberPublicSchema 剥 pinHash（路由层，密钥纪律）。
+   */
+  setMemberRole(memberId: string, role: MemberRole): Promise<Member | null>;
 
   // ── 挂单认领制窄写方法（TASK-POST-CLAIM，D-088 / docs/design/task-post-claim.md）─────────────────
   // 全部照 updateTaskStatus/setMemberPin 受限迁移先例：就地改 tasks[idx] 的**自己那簇留名字段** + bump

@@ -67,3 +67,5 @@ export const RELAY_HANDOFF_SOURCE: RelayHandoff['source'] = 'console';
 export const MEMBER_PIN_UPDATED_BY: Member['updatedBy'] = 'console';
 /** 成员门验收人资格写入（PATCH /api/members/:id/gate-reviewer，GATE-CHECKLIST-IOU）钉的 updatedBy。 */
 export const MEMBER_GATE_REVIEWER_UPDATED_BY: Member['updatedBy'] = 'console';
+/** 成员角色写入（PUT /api/members/:id/role + POST /api/setup/super-admin，K1 权限地基）钉的 updatedBy。 */
+export const MEMBER_ROLE_UPDATED_BY: Member['updatedBy'] = 'console';

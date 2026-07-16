@@ -16,6 +16,7 @@ import type {
   GovernanceSnapshot,
   KnowledgeNode,
   Member,
+  MemberRole,
   Need,
   RelayHandoff,
   ResourceSession,
@@ -519,6 +520,21 @@ export class FileGovStore implements GovStore {
     const idx = snap.members.findIndex((m) => m.id === memberId);
     const prior = idx >= 0 ? snap.members[idx] : undefined;
     const member = await this.inner.setMemberGateReviewer(memberId, gateReviewer);
+    if (member) {
+      await this.persistOrRollback(() => {
+        if (prior) snap.members[idx] = prior;
+      });
+    }
+    return member;
+  }
+
+  // 设成员角色（K1 权限地基）：members 是 GovernanceSnapshot 字段 → 落 governance.json。
+  // idx 类回滚（写前存整条，persist 失败按 id 原地还原，镜像 setMemberGateReviewer）。
+  async setMemberRole(memberId: string, role: MemberRole): Promise<Member | null> {
+    const snap = this.inner.snapshotForRollback();
+    const idx = snap.members.findIndex((m) => m.id === memberId);
+    const prior = idx >= 0 ? snap.members[idx] : undefined;
+    const member = await this.inner.setMemberRole(memberId, role);
     if (member) {
       await this.persistOrRollback(() => {
         if (prior) snap.members[idx] = prior;

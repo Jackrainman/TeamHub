@@ -19,6 +19,7 @@ export function Select<T extends string>({
   placeholder,
   className,
   ariaLabel,
+  disabled,
 }: {
   value: T | '';
   onChange: (value: T) => void;
@@ -29,12 +30,15 @@ export function Select<T extends string>({
   placeholder?: string;
   className?: string;
   ariaLabel?: string;
+  // 可选禁用（如身份模式未登录的写门态）；不传 = 可用（现状不变）。
+  disabled?: boolean;
 }) {
   return (
     <select
       className={className}
       value={value}
       aria-label={ariaLabel}
+      disabled={disabled}
       onChange={(e) => onChange(e.target.value as T)}
     >
       {placeholder != null ? <option value="">{placeholder}</option> : null}

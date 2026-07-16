@@ -20,14 +20,21 @@ export type IdentityMode = z.infer<typeof IdentityModeSchema>;
 
 /**
  * 当前会话身份（服务端从 session 表解析、经 GET /api/session 与登录成功响应回带）。
- * 仅名册投影字段（memberId/displayName/groupId/role），**无 pinHash / 无 PIN**——够前端做
+ * 仅名册投影字段（memberId/displayName/groupId/role/gateReviewer），**无 pinHash / 无 PIN**——够前端做
  * 「我的视图」按 memberId 过滤（D-083 I0 例外：本人看本人）+ 角色态判断即可。
+ *
+ * **快照语义（K1 权限地基）**：`role`/`gateReviewer` 是**登录当刻的快照**。改角色（PUT /api/members/:id/role）
+ * 或改验收人名单（PUT gate-reviewer）后，**已存在的会话仍持旧值**——须重新登录才刷新前端所见。服务端的敏感
+ * 写门（isSuperAdmin/isGateReviewer）另读**实时名册**鉴权、不吃这份快照，故权限判定本身永远最新、不受陈旧快照
+ * 影响；快照只喂前端角色态展示。
  */
 export const SessionIdentitySchema = z.object({
   memberId: z.string().min(1),
   displayName: z.string().min(1),
   groupId: z.string().min(1),
   role: MemberRoleSchema,
+  // optional：旧会话 / 非验收人省略（视同 false）。登录时从名册 Member.gateReviewer 快照。
+  gateReviewer: z.boolean().optional(),
 });
 export type SessionIdentity = z.infer<typeof SessionIdentitySchema>;
 
@@ -67,3 +74,22 @@ export const SetPinResponseSchema = z.object({
   member: MemberPublicSchema,
 });
 export type SetPinResponse = z.infer<typeof SetPinResponseSchema>;
+
+/**
+ * POST /api/setup/super-admin（初始化首个管理员，K1 权限地基）请求：只收明文 pin（min4 max64，家庭影院级
+ * 最低强度，服务端 scrypt 散列后落库、不回存明文）。**身份模式 only**（匿名 → 404，照 PUT pin 先例）。
+ *
+ * 授权/前置（路由层）：① 须已登录（写门钩子天然保证）；② 名册尚无任何 `role==='superAdmin'` 成员——否则
+ * 409（一次性初始化门；已有管理员后改角色走 PUT /api/members/:id/role）。**效果**：把**登录本人** role→
+ * superAdmin **且同笔设 pinHash**——先设 pin 再升 role，防"无 PIN 管理员被免密登录冒用"（这就是"敏感设置
+ * 须密码"的落点：首个管理员诞生即带口令）。响应回带该成员公开视图（MemberPublicSchema 剥 pinHash，密钥纪律）。
+ */
+export const SetupSuperAdminRequestSchema = z.object({
+  pin: z.string().min(4).max(64),
+});
+export type SetupSuperAdminRequest = z.infer<typeof SetupSuperAdminRequestSchema>;
+
+export const SetupSuperAdminResponseSchema = z.object({
+  member: MemberPublicSchema,
+});
+export type SetupSuperAdminResponse = z.infer<typeof SetupSuperAdminResponseSchema>;

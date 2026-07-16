@@ -142,9 +142,14 @@ import {
   // 门验收人名单维护（GATE-CHECKLIST-IOU，D-087 拍板②）：PUT /api/members/:id/gate-reviewer 读/写契约。
   SetGateReviewerRequestSchema,
   SetGateReviewerResponseSchema,
+  // 成员角色维护 + 初始化首个管理员（K1 权限地基）：PUT /api/members/:id/role + POST /api/setup/super-admin。
+  SetMemberRoleRequestSchema,
+  SetMemberRoleResponseSchema,
+  SetupSuperAdminRequestSchema,
+  SetupSuperAdminResponseSchema,
 } from '@teamhub/hub-contracts';
 import { ZodError } from 'zod';
-import { isGateReviewer, isGroupLeadOf } from './authz.js';
+import { isGateReviewer, isGroupLeadOf, isSuperAdmin } from './authz.js';
 import { hashPin, verifyPin } from './identity/pin.js';
 import { SessionManager } from './identity/session-store.js';
 import { deriveErrorCode } from './kb/error-code.js';
@@ -694,6 +699,46 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     return SetPinResponseSchema.parse({ member: MemberPublicSchema.parse(updated) });
   });
 
+  // 初始化首个管理员（POST /api/setup/super-admin，K1 权限地基）。**身份模式 only**（匿名 → 404，照 PUT pin
+  // 先例）。前置=名册尚无任何 superAdmin（否则 409——一次性初始化门，已有管理员后改角色走 PUT role）。须已登录
+  // （写门钩子天然保证 request.identity）。效果=把 **session 本人** role→superAdmin **且同笔设 pinHash**——
+  // 先设 pin 再升 role（防升 role 后 pin 落库失败留下"无 PIN 的 superAdmin"被免密冒用；这就是"敏感设置须
+  // 密码"的落点）。响应经 MemberPublicSchema 剥 pinHash（密钥纪律）。
+  app.post('/api/setup/super-admin', async (request, reply) => {
+    if (identityMode !== 'identity') {
+      void reply.code(404).send({ detail: '身份模式未启用' });
+      return;
+    }
+    const parsed = SetupSuperAdminRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const snapshot = await store.getSnapshot();
+    if (snapshot.members.some((m) => m.role === 'superAdmin')) {
+      void reply.code(409).send({ detail: '已存在管理员（superAdmin）' });
+      return;
+    }
+    // 写门钩子已保证有会话；防御式兜底 401（identity 恒非空于身份模式过门后）。
+    const selfId = request.identity?.memberId;
+    if (!selfId) {
+      void reply.code(401).send({ detail: 'login required' });
+      return;
+    }
+    // 先设 pin（防升 role 后 pin 落库失败 → 无 PIN 管理员），再升 role。两步皆命中登录本人。
+    const pinned = await store.setMemberPin(selfId, hashPin(parsed.data.pin));
+    if (!pinned) {
+      void reply.code(404).send({ detail: 'member not found' });
+      return;
+    }
+    const promoted = await store.setMemberRole(selfId, 'superAdmin');
+    if (!promoted) {
+      void reply.code(404).send({ detail: 'member not found' });
+      return;
+    }
+    return SetupSuperAdminResponseSchema.parse({ member: MemberPublicSchema.parse(promoted) });
+  });
+
   // 组只读列表（PHASE2-CONSOLE-ASSEMBLY）：console TodayPlanTable 原借 dep-graph 节点反查组名当临时
   // 数据源（节点集合=任务派生视图，没有任务的组不出现在里面、下拉会漏项）；GroupsResponseSchema 早有
   // 契约（pm-core.ts）却零消费方，这里补上语义正确的直读端点。
@@ -721,12 +766,20 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
       return;
     }
+    const snapshot = await store.getSnapshot();
+    // 敏感门收口（K1）：身份模式下建赛季须 superAdmin（fail-closed，另读实时名册）；匿名模式跳过（写门即可）。
+    if (
+      identityMode === 'identity' &&
+      !isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')
+    ) {
+      void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
+      return;
+    }
     const { name, startsAt, endsAt } = parsed.data;
     if (endsAt && Date.parse(endsAt) <= Date.parse(startsAt)) {
       void reply.code(400).send({ detail: 'endsAt must be after startsAt' });
       return;
     }
-    const snapshot = await store.getSnapshot();
     if (snapshot.seasons.some((s) => s.name === name)) {
       void reply.code(400).send({ detail: `season name already exists: ${name}` });
       return;
@@ -1397,14 +1450,22 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   });
 
   // PUT /api/members/:id/gate-reviewer：验收人名单维护（GATE-CHECKLIST-IOU，D-087 拍板②）。设 / 撤该成员的
-  // 门验收人资格（每年换届更新，换届交接门的一项）。**权限 v1 = 写门即可**：身份模式须登录（写门钩子已保证），
-  // 不再细分"须现任验收人操作"——家庭影院级先例（同 PIN 首次设置的威胁模型取舍，记入 deviations）。响应经
-  // MemberPublicSchema 剥 pinHash（密钥纪律）。id 不存在 → 404。
+  // 门验收人资格（每年换届更新，换届交接门的一项）。**权限收口（K1）**：**匿名模式=写门即可**（现状不变，
+  // 演示态零门槛）；**身份模式=须 superAdmin**（isSuperAdmin，403——原 v1"写门即可"在 K1 收紧，敏感设置须
+  // 管理员）。响应经 MemberPublicSchema 剥 pinHash（密钥纪律）。id 不存在 → 404。
   app.put<{ Params: { id: string } }>('/api/members/:id/gate-reviewer', async (request, reply) => {
     const { id } = request.params;
     const parsed = SetGateReviewerRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
       void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const snapshot = await store.getSnapshot();
+    if (
+      identityMode === 'identity' &&
+      !isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')
+    ) {
+      void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
       return;
     }
     const updated = await store.setMemberGateReviewer(id, parsed.data.gateReviewer);
@@ -1413,6 +1474,48 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       return;
     }
     return SetGateReviewerResponseSchema.parse({ member: MemberPublicSchema.parse(updated) });
+  });
+
+  // PUT /api/members/:id/role：成员角色维护（K1 权限地基）。全库首个能改 role 的写口——挂单指派 isGroupLeadOf
+  // 恒 403、敏感设置无门都因它缺位。**匿名模式=写门即可**（v1，与 gate-reviewer 对称，演示态零门槛）；
+  // **身份模式=须 superAdmin**（isSuperAdmin，403）。**降级保护**（两模式统一）：目标是最后一个 superAdmin
+  // 且新 role 非 superAdmin → 409（防摘掉唯一管理员把全队锁死在无人可改角色态）。响应剥 pinHash。id 不存在 → 404。
+  app.put<{ Params: { id: string } }>('/api/members/:id/role', async (request, reply) => {
+    const { id } = request.params;
+    const parsed = SetMemberRoleRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const snapshot = await store.getSnapshot();
+    // 身份模式鉴权：仅 superAdmin 可改角色（fail-closed，另读实时名册）；匿名模式跳过（写门即可）。
+    if (
+      identityMode === 'identity' &&
+      !isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')
+    ) {
+      void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
+      return;
+    }
+    const target = snapshot.members.find((m) => m.id === id);
+    if (!target) {
+      void reply.code(404).send({ detail: 'member not found' });
+      return;
+    }
+    // 降级保护（两模式统一）：不许摘掉最后一个 superAdmin，否则无人再能改角色 = 永久锁死。
+    if (
+      target.role === 'superAdmin' &&
+      parsed.data.role !== 'superAdmin' &&
+      snapshot.members.filter((m) => m.role === 'superAdmin').length <= 1
+    ) {
+      void reply.code(409).send({ detail: '不能撤销最后一个管理员（superAdmin）' });
+      return;
+    }
+    const updated = await store.setMemberRole(id, parsed.data.role);
+    if (!updated) {
+      void reply.code(404).send({ detail: 'member not found' });
+      return;
+    }
+    return SetMemberRoleResponseSchema.parse({ member: MemberPublicSchema.parse(updated) });
   });
   // ── 门检查单 / 欠条路由结束 ───────────────────────────────────────────────────────────────────
 }
@@ -2065,11 +2168,13 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
       void reply.code(401).send({ detail: '登录失败' });
       return;
     }
+    // role/gateReviewer 快照（K1）：登录当刻定格，改角色/名单后须重登才刷新（服务端敏感门另读实时名册）。
     const identity: SessionIdentity = {
       memberId: member.id,
       displayName: member.displayName,
       groupId: member.groupId,
       role: member.role,
+      gateReviewer: member.gateReviewer,
     };
     const token = sessions.create(identity);
     void reply.header('set-cookie', buildSessionCookie(token));

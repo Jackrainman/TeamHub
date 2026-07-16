@@ -25,6 +25,8 @@ import {
   ClearChecklistItemResponseSchema,
   WaiveChecklistItemResponseSchema,
   SetGateReviewerResponseSchema,
+  SetMemberRoleResponseSchema,
+  SetupSuperAdminResponseSchema,
   type ChecklistItemsResponse,
   type CreateChecklistItemRequest,
   type CreateChecklistItemResponse,
@@ -34,6 +36,10 @@ import {
   type WaiveChecklistItemResponse,
   type SetGateReviewerRequest,
   type SetGateReviewerResponse,
+  type SetMemberRoleRequest,
+  type SetMemberRoleResponse,
+  type SetupSuperAdminRequest,
+  type SetupSuperAdminResponse,
   type ArtifactsResponse,
   type DepGraph,
   type Group,
@@ -280,6 +286,12 @@ export interface HubApiClient {
     id: string,
     req: SetGateReviewerRequest,
   ): Promise<SetGateReviewerResponse>;
+  // 成员角色维护（K1 权限地基）：设成员角色（superAdmin/groupAdmin/member）。匿名=写门即可 / 身份=须
+  // superAdmin（服务端 403）；降级保护=不摘最后一个 superAdmin（409）。响应剥 pinHash。
+  setMemberRole(id: string, req: SetMemberRoleRequest): Promise<SetMemberRoleResponse>;
+  // 初始化首个管理员（K1）：身份模式 only（匿名 404）；名册无 superAdmin 时把登录本人升 superAdmin +
+  // 同笔设 pinHash（否则 409）。响应剥 pinHash。
+  setupSuperAdmin(req: SetupSuperAdminRequest): Promise<SetupSuperAdminResponse>;
   // 挂单认领制窄写动作（TASK-POST-CLAIM，D-088）。全部 POST 子资源、继承 H3 写门；留名 actor 沿
   // IDENTITY-LITE（身份模式服务端从 session 注入、匿名模式 body 供名）。红线：留名只落单条任务卡，
   // 本簇绝无按人聚合/排行/按人筛选端点。响应统一 { task }（TaskSchema，不带 isBig 元）。
@@ -727,6 +739,25 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         `${baseUrl}/api/members/${encodeURIComponent(id)}/gate-reviewer`,
         req,
         SetGateReviewerResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async setMemberRole(id: string, req: SetMemberRoleRequest) {
+      return sendJson(
+        'PUT',
+        `${baseUrl}/api/members/${encodeURIComponent(id)}/role`,
+        req,
+        SetMemberRoleResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async setupSuperAdmin(req: SetupSuperAdminRequest) {
+      return postJson(
+        `${baseUrl}/api/setup/super-admin`,
+        req,
+        SetupSuperAdminResponseSchema,
         fetcher,
         writeToken,
       );

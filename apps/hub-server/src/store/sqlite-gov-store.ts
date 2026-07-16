@@ -15,6 +15,7 @@ import type {
   Group,
   KnowledgeNode,
   Member,
+  MemberRole,
   Need,
   RelayHandoff,
   ResourceSession,
@@ -33,6 +34,7 @@ import {
   MANUAL_TASK_STATUS_SOURCE,
   MEMBER_GATE_REVIEWER_UPDATED_BY,
   MEMBER_PIN_UPDATED_BY,
+  MEMBER_ROLE_UPDATED_BY,
   NEED_INITIAL_STATUS,
   RELAY_HANDOFF_SOURCE,
   RESOURCE_DEFAULT_STATUS,
@@ -486,6 +488,22 @@ export class SqliteGovStore implements GovStore {
         ...prev,
         gateReviewer,
         updatedBy: MEMBER_GATE_REVIEWER_UPDATED_BY,
+        updatedAt: this.clock.now().toISOString(),
+      };
+      this.updateRow('members', memberId, updated);
+      return updated;
+    });
+  }
+
+  // 设成员角色（K1 权限地基）：整实体 JSON 就地重写（文档式行存），镜像 setMemberGateReviewer。
+  async setMemberRole(memberId: string, role: MemberRole): Promise<Member | null> {
+    return this.tx(() => {
+      const prev = this.getRow<Member>('members', memberId);
+      if (!prev) return null;
+      const updated: Member = {
+        ...prev,
+        role,
+        updatedBy: MEMBER_ROLE_UPDATED_BY,
         updatedAt: this.clock.now().toISOString(),
       };
       this.updateRow('members', memberId, updated);

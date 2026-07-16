@@ -1081,3 +1081,11 @@
 - 判定尺：三问（过夜/有人等/要被记住）有一是才进；**单次灰活不记、成类灰活立户**（周粒度+无 Task 死线=噪声底论证；"老车维护"升格先例）；组长=本组唯一挂单员；漏录不追责、绝不考核录入率。
 - 防屎山立场：**"奠基简单活"不另建模**——画依赖边即自动升格为大任务；拒绝"基础性/重要度"字段（制度=数据、判定=纯函数、最小 schema）。
 - 事实源：本 ADR + `docs/design/task-post-claim.md`；上游 D-083/D-085/D-087。
+
+## D-089 — 权限地基（K1）：superAdmin 写口 + 敏感门收口 + 初始化管理员
+
+- 状态：**已落地（2026-07-16，K1 一刀，v0.24.0）**。背景=`MemberRole` 三档（superAdmin/groupAdmin/member）久已存在，但全库无任何路由能改 role——挂单指派 `isGroupLeadOf` 恒 403、敏感设置无权限门；用户明示"重要设置必须有密码"。
+- 核心拍板：①**双模式非对称**——所有新权限门**只在身份模式生效**（`TEAMHUB_IDENTITY_MODE=identity`）；匿名模式=演示态零门槛（写门即可，与 PUT gate-reviewer v1 先例对称）。②**superAdmin 诞生**=`POST /api/setup/super-admin`（身份模式 only，匿名 404）：前置=名册无任何 superAdmin（否则 409）、须已登录，效果=把登录本人 role→superAdmin **且同笔设 pinHash**（先设 pin 再升 role，防"无 PIN 管理员被免密登录冒用"——这就是"敏感设置须密码"的落点）。③**改角色**=`PUT /api/members/:id/role`（匿名=写门即可 / 身份=须 `isSuperAdmin` 403）+ **降级保护**（两模式统一：摘掉最后一个 superAdmin → 409，防锁死）。④**敏感门收口**=身份模式下 gate-reviewer/role/seasons 三条须 superAdmin（403）；匿名不变。⑤**鉴权读实时名册**：服务端敏感门另读 store 快照鉴权，不吃 SessionIdentity 的 role 快照（快照只喂前端角色态；改角色/名单后前端须重登才刷新）。
+- 落点：`authz.ts` 加 `isSuperAdmin`（照 `isGateReviewer` 形状，与两刀共用一处鉴权基元）；store 加 `setMemberRole`（三实现照 `setMemberGateReviewer` 逐字形状）；`SessionIdentity` 增 `gateReviewer` 快照；console 设置页「验收人名单」扩为「成员与权限」（角色三档下拉+验收人复选框+初始化管理员引导卡+接 identity 写门）。
+- 红线：`MemberRole` 枚举零改动（只是补上改它的写口）；无任何按人聚合/排行/按人筛选端点；无新增 dueDate；I0 守住。
+- 事实源：本 ADR；上游 D-083（轻身份双模式）/D-087（gateReviewer 名单）/D-088（isGroupLeadOf 依赖 role 可改）。

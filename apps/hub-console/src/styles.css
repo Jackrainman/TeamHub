@@ -1416,6 +1416,39 @@ button,
   gap: 10px;
 }
 
+/* 成员与权限行（K1）：角色下拉 + 验收人开关并排靠右（adapter-row 第二列，不参与名字块的收缩）。 */
+.settings-member__controls {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+}
+.settings-member__controls select {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+
+/* 初始化管理员引导卡（K1）：身份模式无 superAdmin 时的顶部说明 + PIN 输入 + 提交。 */
+.setup-admin-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.setup-admin-card > div strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text);
+  font-size: var(--text-base);
+}
+
 /* （B3 归并）原 .settings-btn → .btn.btn--secondary（禁用透明度 0.5→0.55 统一，容差内）。 */
 
 /* ===== 总览补色：绿色 metric（PM 已完成） ===== */

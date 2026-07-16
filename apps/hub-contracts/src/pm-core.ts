@@ -170,6 +170,21 @@ export const SetGateReviewerResponseSchema = z.object({
   member: MemberPublicSchema,
 });
 
+/**
+ * PUT /api/members/:id/role（成员角色维护，K1 权限地基）：设成员角色（superAdmin/groupAdmin/member）。
+ * MemberRole 三档久已存在，但此前**全库无任何路由能改 role**——导致挂单指派 `isGroupLeadOf` 恒 403、敏感设置
+ * 无权限门。本 schema 补上写口。授权语义（路由层）：**匿名模式=宿主级写门即可**（v1，与 SetGateReviewer 对称，
+ * 家庭影院级取舍）；**身份模式=须 isSuperAdmin**（authz.ts helper，否则 403）。**降级保护**（两模式统一，路由
+ * 层判）：目标是最后一个 superAdmin 且新 role 非 superAdmin → 409（防把全队锁死在无管理员态）。响应回带该成员
+ * 公开视图（MemberPublicSchema 剥 pinHash，密钥纪律）。放本文件、照上方 SetGateReviewer 邻位范式。
+ */
+export const SetMemberRoleRequestSchema = z.object({
+  role: MemberRoleSchema,
+});
+export const SetMemberRoleResponseSchema = z.object({
+  member: MemberPublicSchema,
+});
+
 // ---------------------------------------------------------------------------
 // Task（一等公民）
 // ---------------------------------------------------------------------------
@@ -633,6 +648,8 @@ export type Member = z.infer<typeof MemberSchema>;
 export type MemberPublic = z.infer<typeof MemberPublicSchema>;
 export type SetGateReviewerRequest = z.infer<typeof SetGateReviewerRequestSchema>;
 export type SetGateReviewerResponse = z.infer<typeof SetGateReviewerResponseSchema>;
+export type SetMemberRoleRequest = z.infer<typeof SetMemberRoleRequestSchema>;
+export type SetMemberRoleResponse = z.infer<typeof SetMemberRoleResponseSchema>;
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 export type TaskComplexity = z.infer<typeof TaskComplexitySchema>;
 export type Task = z.infer<typeof TaskSchema>;
