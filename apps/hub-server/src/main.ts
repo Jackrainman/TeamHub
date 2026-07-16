@@ -5,7 +5,9 @@ import {
   inventoryScenarioFixture,
   kbScenarioFixture,
 } from '@teamhub/hub-contracts';
+import { ROBOTICS_TENANT_CONFIG } from '@teamhub/hub-contracts';
 import type {
+  DeploymentInfo,
   GovernanceSnapshot,
   InventorySnapshot,
   KbSnapshot,
@@ -18,6 +20,8 @@ import { FileInvStore } from './store/file-inv-store.js';
 import { FileBaselineStore } from './store/file-baseline-store.js';
 import { FileChecklistStore } from './store/file-checklist-store.js';
 import type { GovStore } from './store/gov-store.js';
+import { getArtifactDir } from './artifact-storage.js';
+import { resolveBuildId } from './status.js';
 import { parseTenantConfigEnv } from './tenant-config-env.js';
 
 const DEFAULT_HOST = '127.0.0.1';
@@ -199,6 +203,40 @@ async function main(): Promise<void> {
   // （见 tenant-config-env.ts 头部注释 + tenant-config-route.test.ts 验证过的"关模块"真实行为）。
   const tenantConfig = parseTenantConfigEnv(process.env.TEAMHUB_TENANT_MODULES);
 
+  // ── 部署信息（K3 部署信息刀）─────────────────────────────────────────────────────────────────
+  // 把上面各域 store 装配时已知的「走哪种 backend + 落盘路径」收集成运维定位事实，经 options 透传，
+  // 由 GET /api/system/status 回显。**只报后端类型与路径**（与真实落盘同源读同一批 env，故不会漂移），
+  // **绝不含密钥**（writeToken 等一律不进 deployment）。每条 storage 直接读上面已创建的 store 变量派生：
+  // store 存在 = 该域落盘（file/sqlite），undefined = 内存。
+  const storage: DeploymentInfo['storage'] = [
+    govBackend === 'sqlite'
+      ? { domain: 'gov', backend: 'sqlite', path: process.env.TEAMHUB_GOV_SQLITE_FILE }
+      : store
+        ? { domain: 'gov', backend: 'file', path: process.env.TEAMHUB_GOV_DATA_FILE }
+        : { domain: 'gov', backend: 'memory' },
+    kbStore
+      ? { domain: 'kb', backend: 'file', path: process.env.TEAMHUB_KB_DATA_FILE }
+      : { domain: 'kb', backend: 'memory' },
+    invStore
+      ? { domain: 'inv', backend: 'file', path: process.env.TEAMHUB_INV_DATA_FILE }
+      : { domain: 'inv', backend: 'memory' },
+    baselineStore
+      ? { domain: 'baseline', backend: 'file', path: process.env.TEAMHUB_BASELINE_DATA_FILE }
+      : { domain: 'baseline', backend: 'memory' },
+    checklistStore
+      ? { domain: 'checklist', backend: 'file', path: process.env.TEAMHUB_CHECKLIST_DATA_FILE }
+      : { domain: 'checklist', backend: 'memory' },
+  ];
+  const deployment: DeploymentInfo = {
+    identityMode,
+    storage,
+    // 启用模块 = 有效租户配置（未设 TEAMHUB_TENANT_MODULES → 缺省全 6 模块，与 buildHubServer 同一缺省）。
+    enabledModules: (tenantConfig ?? ROBOTICS_TENANT_CONFIG).enabledModules,
+    // 未配 TEAMHUB_ARTIFACT_FILES_DIR → 图纸上传裸 400；console 据此禁用上传按钮。
+    artifactUploadEnabled: getArtifactDir() !== null,
+    buildId: resolveBuildId(),
+  };
+
   const app = buildHubServer({
     consoleDistDir: process.env.TEAMHUB_CONSOLE_DIST_DIR,
     store,
@@ -210,6 +248,7 @@ async function main(): Promise<void> {
     trustProxy,
     identityMode,
     tenantConfig,
+    deployment,
   });
 
   await app.listen({ host, port });

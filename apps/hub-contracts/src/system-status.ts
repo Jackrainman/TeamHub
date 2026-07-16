@@ -20,6 +20,30 @@ export const HealthResponseSchema = z.object({
   buildId: z.string().min(1),
 });
 
+/**
+ * 部署信息（K3 部署信息刀）：把 hub-server 启动时已知的**运维定位事实**回显到 `/api/system/status`，
+ * 让设置页「部署信息」分区据此判断真实落盘 / 内存态、启用模块、构建标识——公测时不再靠服务器 stdout
+ * 的 warn 猜，浏览器端一眼看清哪些域重启即丢。**敏感值绝不进来**（TEAMHUB_WRITE_TOKEN 等），只报后端
+ * 类型与路径这类无害的运维定位信息。
+ */
+export const DeploymentStorageEntrySchema = z.object({
+  // 数据域标识（'gov'|'kb'|'inv'|'baseline'|'checklist'）。console i18n 映射为人话标签，未知值原样显示。
+  domain: z.string().min(1),
+  // file/sqlite = 落盘（重启不丢）；memory = 内存（重启即丢，正式使用须配落盘）。
+  backend: z.enum(['file', 'sqlite', 'memory']),
+  // 落盘路径（file/sqlite 才有，memory 无）。运维定位用途，非密钥。
+  path: z.string().optional(),
+});
+
+export const DeploymentInfoSchema = z.object({
+  identityMode: z.enum(['anonymous', 'identity']),
+  storage: z.array(DeploymentStorageEntrySchema),
+  enabledModules: z.array(z.string()),
+  // 是否配了 TEAMHUB_ARTIFACT_FILES_DIR：未配时图纸上传裸 400，console 据此禁用上传按钮 + 说明。
+  artifactUploadEnabled: z.boolean(),
+  buildId: z.string().min(1),
+});
+
 export const SystemStatusResponseSchema = z.object({
   service: z.literal('teamhub-hub-server'),
   version: z.string().min(1),
@@ -32,7 +56,11 @@ export const SystemStatusResponseSchema = z.object({
     degraded: z.number().int().nonnegative(),
     unconfigured: z.number().int().nonnegative(),
   }),
+  // K3：部署信息（optional 增量）。旧 server 不回该字段 → 旧/新客户端均零影响（新 console 走「不可用」兜底）。
+  deployment: DeploymentInfoSchema.optional(),
 });
 
 export type HealthResponse = z.infer<typeof HealthResponseSchema>;
 export type SystemStatusResponse = z.infer<typeof SystemStatusResponseSchema>;
+export type DeploymentInfo = z.infer<typeof DeploymentInfoSchema>;
+export type DeploymentStorageEntry = z.infer<typeof DeploymentStorageEntrySchema>;

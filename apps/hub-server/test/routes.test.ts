@@ -52,6 +52,46 @@ describe('hub-server routes', () => {
     expect(body.mode).toBe('mock-first');
     expect(body.adapters.total).toBeGreaterThanOrEqual(3);
     expect(body.adapters.unconfigured).toBeGreaterThan(0);
+    // 缺省（无 deployment option）→ 不带 deployment 字段（旧客户端零影响）。
+    expect(body.deployment).toBeUndefined();
+  });
+
+  test('GET /api/system/status echoes deployment (file/memory 两形态)', async () => {
+    // K3 部署信息回显：落盘域带 path、内存域省 path；identityMode / 启用模块 / 图纸开关 / 构建标识齐备。
+    const deployApp = buildHubServer({
+      deployment: {
+        identityMode: 'identity',
+        storage: [
+          { domain: 'gov', backend: 'file', path: '/data/gov.json' },
+          { domain: 'kb', backend: 'memory' },
+        ],
+        enabledModules: ['system', 'pm-core'],
+        artifactUploadEnabled: false,
+        buildId: 'test-build-1',
+      },
+    });
+    try {
+      const response = await deployApp.inject({
+        method: 'GET',
+        url: '/api/system/status',
+      });
+      expect(response.statusCode).toBe(200);
+      const body = SystemStatusResponseSchema.parse(response.json());
+      expect(body.deployment).toBeDefined();
+      expect(body.deployment?.identityMode).toBe('identity');
+      // 落盘形态：带路径。
+      expect(body.deployment?.storage[0]).toEqual({
+        domain: 'gov',
+        backend: 'file',
+        path: '/data/gov.json',
+      });
+      // 内存形态：无 path 字段（JSON 里被丢）。
+      expect(body.deployment?.storage[1]).toEqual({ domain: 'kb', backend: 'memory' });
+      expect(body.deployment?.artifactUploadEnabled).toBe(false);
+      expect(body.deployment?.buildId).toBe('test-build-1');
+    } finally {
+      await deployApp.close();
+    }
   });
 
   test('GET /api/bot-channels returns mock bot channels', async () => {

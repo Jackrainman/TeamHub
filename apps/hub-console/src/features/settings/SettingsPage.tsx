@@ -85,12 +85,21 @@ const THEME_OPTIONS = [
   { value: 'dark' as const, labelKey: 'settings.theme.dark' as const },
 ];
 
-// 服务端运行模式枚举文案（mock-first / real / hybrid）。枚举原值不翻译，title 作注释。
-// 键名须在 translations.ts 中存在（settings.about.mode.mockFirst / .real / .hybrid）。
-const MODE_LABEL: Record<'mock-first' | 'real' | 'hybrid', TranslationKey> = {
-  'mock-first': 'settings.about.mode.mockFirst',
-  real: 'settings.about.mode.real',
-  hybrid: 'settings.about.mode.hybrid',
+// 数据域标识 → 人话标签键（K3 部署信息）。deployment.storage 的 domain 是稳定机器键
+// （gov/kb/inv/baseline/checklist），此处映射到 i18n；未知域回落显示原始 domain 串。
+const DEPLOY_DOMAIN_KEY: Record<string, TranslationKey> = {
+  gov: 'settings.deployment.domain.gov',
+  kb: 'settings.deployment.domain.kb',
+  inv: 'settings.deployment.domain.inv',
+  baseline: 'settings.deployment.domain.baseline',
+  checklist: 'settings.deployment.domain.checklist',
+};
+
+// 落盘后端 → 徽章文案键（K3）。file/sqlite = 落盘（绿）；memory = 内存（琥珀警示）。
+const DEPLOY_BACKEND_KEY: Record<'file' | 'sqlite' | 'memory', TranslationKey> = {
+  file: 'settings.deployment.backend.file',
+  sqlite: 'settings.deployment.backend.sqlite',
+  memory: 'settings.deployment.backend.memory',
 };
 
 interface IntegrationRow {
@@ -161,6 +170,7 @@ export function SettingsPage({
       <MembersPermissionsSection client={client} source={source} identity={identity} />
       <IntegrationsSection client={client} source={source} />
       <ConnectionSection />
+      <DeploymentSection client={client} source={source} />
       <AboutSection client={client} source={source} />
     </div>
   );
@@ -819,8 +829,121 @@ function ConnectionSection() {
   );
 }
 
-// 关于：service · version · 服务端模式取 /api/system/status。
-// mode 枚举原值（mock-first / real / hybrid）附带 title 说明，方便快速理解含义。
+// 部署信息（K3 部署信息刀）：只读展示这台服务器真实怎么跑的——五个数据域各走落盘 / 内存（内存态醒目
+// 警示「重启即丢」）、登录模式、启用模块、构建标识、运行时长（人话化）、图纸上传是否可用。数据取
+// /api/system/status 的 deployment 字段（与「关于」共享同一 query 缓存）；旧后端不回该字段 → 显示不可用兜底。
+// **改这些只能改服务器启动环境变量，界面不提供开关**（同身份分区纪律）。I0：本分区无任何按人维度。
+function DeploymentSection({
+  client,
+  source,
+}: {
+  client: HubApiClient;
+  source: string;
+}) {
+  const { t } = useI18n();
+  const statusQuery = useQuery({
+    queryKey: ['system-status', source],
+    queryFn: () => client.getSystemStatus(),
+  });
+  const deployment = statusQuery.data?.deployment;
+
+  return (
+    <section className="panel settings-panel">
+      <div className="panel-header">
+        <h2>{t('settings.section.deployment')}</h2>
+      </div>
+      <div className="settings-section">
+        <p className="settings-desc">{t('settings.deployment.desc')}</p>
+        {statusQuery.isLoading ? (
+          <p className="settings-desc" role="status" aria-live="polite">…</p>
+        ) : statusQuery.error || !statusQuery.data ? (
+          <p className="form-hint form-hint--warn">{t('settings.about.unavailable')}</p>
+        ) : !deployment ? (
+          <p className="form-hint form-hint--warn">{t('settings.deployment.unavailable')}</p>
+        ) : (
+          <>
+            {/* 五域落盘 / 内存逐行：内存态用琥珀警示徽章 + 「重启即丢」文案，落盘态显示路径（mono）。 */}
+            <h3 className="integration-group__title">
+              {t('settings.deployment.storage.title')}
+            </h3>
+            <div className="adapter-grid">
+              {deployment.storage.map((entry) => {
+                const domainKey = DEPLOY_DOMAIN_KEY[entry.domain];
+                const domainLabel = domainKey ? t(domainKey) : entry.domain;
+                const isMemory = entry.backend === 'memory';
+                return (
+                  <article className="adapter-row" key={entry.domain}>
+                    <div>
+                      <strong>{domainLabel}</strong>
+                      {isMemory ? (
+                        <span>{t('settings.deployment.memory.warn')}</span>
+                      ) : entry.path ? (
+                        <span className="kb-mono">{entry.path}</span>
+                      ) : null}
+                    </div>
+                    <span
+                      className={`badge badge--wide${isMemory ? ' badge--amber' : ' badge--green'}`}
+                    >
+                      {t(DEPLOY_BACKEND_KEY[entry.backend])}
+                    </span>
+                  </article>
+                );
+              })}
+            </div>
+            <dl className="kb-meta">
+              <MetaRow
+                label={t('settings.deployment.identityMode')}
+                value={t(
+                  deployment.identityMode === 'identity'
+                    ? 'settings.identity.mode.identity'
+                    : 'settings.identity.mode.anonymous',
+                )}
+              />
+              <MetaRow
+                label={t('settings.deployment.modules')}
+                value={deployment.enabledModules.join(' · ')}
+                mono
+              />
+              <MetaRow
+                label={t('settings.deployment.buildId')}
+                value={deployment.buildId}
+                mono
+              />
+              <MetaRow
+                label={t('settings.deployment.uptime')}
+                value={humanizeUptime(statusQuery.data.uptimeSeconds, t)}
+              />
+              <MetaRow
+                label={t('settings.deployment.artifactUpload')}
+                value={t(
+                  deployment.artifactUploadEnabled
+                    ? 'settings.deployment.artifactUpload.enabled'
+                    : 'settings.deployment.artifactUpload.disabled',
+                )}
+              />
+            </dl>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// 运行时长人话化（K3）：秒 → 「X 天 X 小时」/「X 小时 X 分」/「X 分钟」。单位随语言（i18n 键）。
+function humanizeUptime(
+  totalSeconds: number,
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string,
+): string {
+  const sec = Math.max(0, Math.floor(totalSeconds));
+  const days = Math.floor(sec / 86400);
+  const hours = Math.floor((sec % 86400) / 3600);
+  const mins = Math.floor((sec % 3600) / 60);
+  if (days > 0) return t('settings.deployment.uptime.days', { d: days, h: hours });
+  if (hours > 0) return t('settings.deployment.uptime.hours', { h: hours, m: mins });
+  return t('settings.deployment.uptime.mins', { m: mins });
+}
+
+// 关于：service · version 取 /api/system/status（部署运维事实已上移「部署信息」分区，此处只留身份标识）。
 function AboutSection({
   client,
   source,
@@ -833,14 +956,6 @@ function AboutSection({
     queryKey: ['system-status', source],
     queryFn: () => client.getSystemStatus(),
   });
-
-  // 安全地将 mode 映射到 i18n 键；未知值直接回显原值。
-  function modeLabel(mode: string): string {
-    if (mode === 'mock-first' || mode === 'real' || mode === 'hybrid') {
-      return `${mode} — ${t(MODE_LABEL[mode])}`;
-    }
-    return mode;
-  }
 
   return (
     <section className="panel settings-panel">
@@ -863,11 +978,6 @@ function AboutSection({
             <MetaRow
               label={t('settings.about.version')}
               value={statusQuery.data.version}
-              mono
-            />
-            <MetaRow
-              label={t('settings.about.mode')}
-              value={modeLabel(statusQuery.data.mode)}
               mono
             />
           </dl>

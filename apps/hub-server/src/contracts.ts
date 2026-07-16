@@ -158,6 +158,7 @@ export type {
   HubEventsResponse,
   HealthResponse,
   SystemStatusResponse,
+  DeploymentInfo,
   CreateTaskRequest,
   CreateTaskResponse,
   CreateDependencyRequest,

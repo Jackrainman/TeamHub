@@ -129,6 +129,7 @@ import type {
   ActorRef,
   IdentityMode,
   SessionIdentity,
+  DeploymentInfo,
 } from '@teamhub/hub-contracts';
 import {
   ROBOTICS_TENANT_CONFIG,
@@ -246,6 +247,13 @@ export interface BuildHubServerOptions {
    * `'identity'` = 匿名可读一切 + 登录才能写：session 端点启用、写路由须携有效会话（否则 401）+ actor 服务端注入。
    */
   identityMode?: IdentityMode;
+  /**
+   * 部署信息（K3 部署信息刀）。main.ts 启动时收集「每域走哪种 store + 路径 / 启用模块 / 图纸开关 /
+   * 构建标识 / 身份模式」这批运维定位事实，经此透传，由 `GET /api/system/status` 原样回显——设置页
+   * 「部署信息」分区据此判断真实落盘 vs 内存态。**敏感值绝不进来**（WRITE_TOKEN 等）。缺省 undefined
+   * （测试 / 内存 dev）→ status 不带 deployment 字段，旧客户端零影响。
+   */
+  deployment?: DeploymentInfo;
 }
 
 // 归档物文件上传上限（50MB）：覆盖机械 CAD（step/stp/sldprt）+ 电路 PDF + 固件，又约束资源耗尽面。
@@ -365,7 +373,10 @@ interface ModuleRouteCtx {
 // system 模块（核心常装）：健康检查 / 系统状态 / BotChannel·AgentBackend·DataSource / 事件 / 桥接成员 / git repos。
 // 完全通用（§3.3），无机器人词汇，任何租户都保留。
 // ============================================================================
-function registerSystemRoutes(app: FastifyInstance): void {
+function registerSystemRoutes(
+  app: FastifyInstance,
+  deployment?: DeploymentInfo,
+): void {
   app.get('/health', async () => {
     return HealthResponseSchema.parse(buildHealthResponse());
   });
@@ -373,7 +384,7 @@ function registerSystemRoutes(app: FastifyInstance): void {
   app.get('/api/system/status', async () => {
     const agentBackends = listMockAgentBackends();
     return SystemStatusResponseSchema.parse(
-      buildSystemStatusResponse(agentBackends),
+      buildSystemStatusResponse(agentBackends, deployment),
     );
   });
 
@@ -2198,7 +2209,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   // 方法对未启用租户单纯不被调用即可，是最便宜实现）。system/pm-core 虽标"核心常装/必装"，装配层仍统一走
   // enabledModules 判断、不写结构性例外——常装与否由 TenantConfig 的内容体现。
   if (moduleEnabled('system')) {
-    registerSystemRoutes(app);
+    registerSystemRoutes(app, options.deployment);
   }
   if (moduleEnabled('archive')) {
     registerArchiveRoutes(app, ctx);

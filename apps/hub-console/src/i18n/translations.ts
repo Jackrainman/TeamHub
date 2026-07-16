@@ -99,8 +99,34 @@ const zh = {
   'settings.writeToken.hide': '隐藏令牌',
   'settings.about.service': '服务',
   'settings.about.version': '版本',
-  'settings.about.mode': '运行模式',
   'settings.about.unavailable': '后端状态不可用（未连上？）',
+  // 部署信息分区（K3 部署信息刀）：只读展示这台服务器真实怎么跑的——哪些域落了盘、哪些走内存、
+  // 启用了哪些模块、构建标识、运行时长、图纸上传是否可用。数据吃 /api/system/status 的 deployment 字段；
+  // 改这些只能改服务器启动环境变量，界面不提供开关（同身份分区纪律）。
+  'settings.section.deployment': '部署信息',
+  'settings.deployment.desc':
+    '这台服务器当前实际怎么跑的：哪些数据落了盘、走了哪种存储、启用了哪些模块。要改得在启动服务器的环境里设置，界面里不提供开关。',
+  'settings.deployment.unavailable': '这台后端没提供部署信息（版本较旧？）。',
+  'settings.deployment.storage.title': '数据落盘',
+  'settings.deployment.domain.gov': '任务与进度',
+  'settings.deployment.domain.kb': '知识库',
+  'settings.deployment.domain.inv': '库存台账',
+  'settings.deployment.domain.baseline': '倒排基准线',
+  'settings.deployment.domain.checklist': '门检查单 / 欠条',
+  'settings.deployment.backend.file': '落盘',
+  'settings.deployment.backend.sqlite': '落盘（SQLite）',
+  'settings.deployment.backend.memory': '内存',
+  'settings.deployment.memory.warn': '重启即丢，正式使用请配置落盘',
+  'settings.deployment.identityMode': '登录模式',
+  'settings.deployment.modules': '启用模块',
+  'settings.deployment.buildId': '构建标识',
+  'settings.deployment.uptime': '已运行',
+  'settings.deployment.uptime.days': '{d} 天 {h} 小时',
+  'settings.deployment.uptime.hours': '{h} 小时 {m} 分',
+  'settings.deployment.uptime.mins': '{m} 分钟',
+  'settings.deployment.artifactUpload': '图纸上传',
+  'settings.deployment.artifactUpload.enabled': '已启用',
+  'settings.deployment.artifactUpload.disabled': '未配置（无法上传图纸文件）',
   // 集成（地基重建：按物种三分，归设置页只读子节）
   // 赛季分区（SEASON-CREATE 补链路）：总览空态"先在设置里建一个赛季"的落脚点。
   'settings.section.seasons': '赛季',
@@ -359,6 +385,8 @@ const zh = {
   'archive.uploadFile': '上传文件',
   'archive.replaceFile': '替换文件',
   'archive.uploading': '上传中…',
+  // K3：服务器未配 TEAMHUB_ARTIFACT_FILES_DIR 时上传裸报 400，故禁用按钮 + title 说明（去设置页部署信息看）。
+  'archive.uploadDisabled': '这台服务器没配置图纸文件目录，无法上传文件（详见设置页「部署信息」）。',
   'archive.uploadError': '上传失败：{detail}',
   // 图纸档案登记表单 v2（HUB-ARTIFACT-ARCHIVE-V2）。I0：无提交人字段。
   'archive.form.title': '登记图纸',
@@ -862,9 +890,6 @@ const zh = {
 
   // 设置页连接分区
   'settings.section.connection': '连接',
-  'settings.about.mode.mockFirst': '本地演示',
-  'settings.about.mode.real': '真实后端',
-  'settings.about.mode.hybrid': '混合',
 
   // 学习方向卡片
   'direction.card.needCount': '{n} 条待补需求',
@@ -1123,8 +1148,33 @@ const en: Record<TranslationKey, string> = {
   'settings.writeToken.hide': 'Hide token',
   'settings.about.service': 'Service',
   'settings.about.version': 'Version',
-  'settings.about.mode': 'Server mode',
   'settings.about.unavailable': 'Backend status unavailable (not connected?)',
+  // Deployment section (K3): read-only view of how this server actually runs — which domains are
+  // persisted vs in-memory, enabled modules, build id, uptime, whether artifact upload is available.
+  'settings.section.deployment': 'Deployment',
+  'settings.deployment.desc':
+    'How this server is actually running: which data is persisted, what storage each domain uses, which modules are enabled. Change these via the server startup environment — there is no toggle here.',
+  'settings.deployment.unavailable': 'This backend did not report deployment info (older version?).',
+  'settings.deployment.storage.title': 'Data persistence',
+  'settings.deployment.domain.gov': 'Tasks & progress',
+  'settings.deployment.domain.kb': 'Knowledge base',
+  'settings.deployment.domain.inv': 'Inventory ledger',
+  'settings.deployment.domain.baseline': 'Baseline',
+  'settings.deployment.domain.checklist': 'Gate checklist / IOUs',
+  'settings.deployment.backend.file': 'On disk',
+  'settings.deployment.backend.sqlite': 'On disk (SQLite)',
+  'settings.deployment.backend.memory': 'In memory',
+  'settings.deployment.memory.warn': 'Lost on restart — configure persistence before real use',
+  'settings.deployment.identityMode': 'Login mode',
+  'settings.deployment.modules': 'Enabled modules',
+  'settings.deployment.buildId': 'Build id',
+  'settings.deployment.uptime': 'Uptime',
+  'settings.deployment.uptime.days': '{d}d {h}h',
+  'settings.deployment.uptime.hours': '{h}h {m}m',
+  'settings.deployment.uptime.mins': '{m}m',
+  'settings.deployment.artifactUpload': 'Artifact upload',
+  'settings.deployment.artifactUpload.enabled': 'Enabled',
+  'settings.deployment.artifactUpload.disabled': 'Not configured (cannot upload files)',
   // Seasons section (SEASON-CREATE): where the overview empty-state "create one in Settings" lands.
   'settings.section.seasons': 'Seasons',
   'settings.seasons.desc':
@@ -1389,6 +1439,8 @@ const en: Record<TranslationKey, string> = {
   'archive.uploadFile': 'Upload file',
   'archive.replaceFile': 'Replace file',
   'archive.uploading': 'Uploading…',
+  'archive.uploadDisabled':
+    'This server has no artifact files directory configured, so files cannot be uploaded (see Settings → Deployment).',
   'archive.uploadError': 'Upload failed: {detail}',
   'archive.form.title': 'Register artifact',
   'archive.form.group': 'Group',
@@ -1911,9 +1963,6 @@ const en: Record<TranslationKey, string> = {
 
   // Settings — connection section
   'settings.section.connection': 'Connection',
-  'settings.about.mode.mockFirst': 'Local demo (mock-first)',
-  'settings.about.mode.real': 'Real backend',
-  'settings.about.mode.hybrid': 'Hybrid',
 
   // Direction gaps card
   'direction.card.needCount': '{n} open need(s)',
