@@ -165,11 +165,16 @@ function bulkInsert(
 
 /**
  * fresh DB 首次落种子（镜像 InMemoryGovStore 构造）：GovernanceSnapshot 标量落 meta、11 数组字段各落其表；
- * schedule 域（resources/resourceSessions/relayHandoffs）**始终从 scheduleScenarioFixture** seed（不随 seed
- * 快照传入——与 InMemoryGovStore 同源，见其构造注释），使 GET /api/schedule 首请求即有可派生场景。
+ * schedule 域（resources/resourceSessions/relayHandoffs）**受 demoSeed 管**（K6 时钟与空板刀，与
+ * InMemoryGovStore 同源、逐条镜像其构造）：demoSeed=true（默认）从 scheduleScenarioFixture seed，使
+ * GET /api/schedule 首请求即有可派生场景；demoSeed=false（真实态）不落、schedule 三表空（真空板）。
  * 整个种子过程一个事务（要么全落要么全不落）。
  */
-function seedFreshDatabase(db: DatabaseSync, seed: GovernanceSnapshot): void {
+function seedFreshDatabase(
+  db: DatabaseSync,
+  seed: GovernanceSnapshot,
+  demoSeed: boolean,
+): void {
   db.exec('BEGIN');
   try {
     setMeta(db, 'seasonId', seed.seasonId);
@@ -184,9 +189,12 @@ function seedFreshDatabase(db: DatabaseSync, seed: GovernanceSnapshot): void {
     bulkInsert(db, 'knowledge_nodes', seed.knowledgeNodes);
     bulkInsert(db, 'task_knowledge_tags', seed.taskKnowledgeTags);
     bulkInsert(db, 'artifacts', seed.artifacts);
-    bulkInsert(db, 'resources', scheduleScenarioFixture.resources);
-    bulkInsert(db, 'resource_sessions', scheduleScenarioFixture.resourceSessions);
-    bulkInsert(db, 'relay_handoffs', scheduleScenarioFixture.relayHandoffs);
+    // schedule 域受 demoSeed 管（K6）：真实态不 seed 演示车/排班，schedule 三表空。
+    if (demoSeed) {
+      bulkInsert(db, 'resources', scheduleScenarioFixture.resources);
+      bulkInsert(db, 'resource_sessions', scheduleScenarioFixture.resourceSessions);
+      bulkInsert(db, 'relay_handoffs', scheduleScenarioFixture.relayHandoffs);
+    }
     db.exec('COMMIT');
   } catch (err) {
     db.exec('ROLLBACK');
@@ -230,6 +238,7 @@ export class SqliteGovStore implements GovStore {
     filePath: string,
     seed: GovernanceSnapshot = governanceScenarioFixture,
     clock?: Clock,
+    demoSeed = true,
   ): Promise<SqliteGovStore> {
     const db = new DatabaseSyncCtor(filePath);
     const userVersion = readUserVersion(db);
@@ -242,8 +251,9 @@ export class SqliteGovStore implements GovStore {
     }
     if (userVersion === 0) {
       // fresh：先建表落种子，成功后才钉 user_version（种子失败则库仍是 0、可重试）。
+      // demoSeed 透传决定 schedule 域是否 seed 演示锚点（false=真空板，K6）；已迁移/既有库走 else 分支、不受影响。
       createSchema(db);
-      seedFreshDatabase(db, seed);
+      seedFreshDatabase(db, seed, demoSeed);
       setUserVersion(db, SQLITE_GOV_SCHEMA_VERSION);
     } else {
       createSchema(db);

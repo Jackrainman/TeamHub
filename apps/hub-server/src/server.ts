@@ -2047,16 +2047,24 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     // （见 BuildHubServerOptions.trustProxy；4177 反代部署须开，否则限流塌成全局单桶）。
     trustProxy: options.trustProxy ?? false,
   });
-  const store: GovStore = options.store ?? new InMemoryGovStore();
+  // 派生 / 时间戳求值时刻（先于默认 store 定义——默认内存 store 复用同一 clock，见下）。缺省钉在
+  // fixture 场景时间 GOVERNANCE_SCENARIO_NOW（演示态冻结钟，与 hub-console mock 同口径）。
   const clock: Clock =
     options.clock ?? new FixedClock(new Date(GOVERNANCE_SCENARIO_NOW));
+  // K6（时钟与空板刀）：未注入 store 走默认内存 store 时，**复用上面的 clock** 而非各自 new FixedClock——
+  // 否则 main.ts 在 TEAMHUB_DEMO_SEED=false 无落盘 env 时注入 RealClock 到 options.clock，路由层（claim/
+  // assign/baseline/artifact/schedule now）走真钟，但默认 InMemoryGovStore 的 createTask 仍回退假钟 6/11
+  // （"server options 有真钟、默认 store 仍假钟"缺口）。缺省态 clock=FixedClock(GOVERNANCE_SCENARIO_NOW)、
+  // 与原 `new InMemoryGovStore()` 逐字等价，演示 / 测试零变化。
+  const store: GovStore = options.store ?? new InMemoryGovStore(undefined, clock);
   // KB-CORE：知识库相似检索语料读出入口（缺省 InMemoryKbStore seed kbScenarioFixture），由 GET /api/kb/similar 消费。
   // invStore 仍只钉 options 字段、无消费方（INV 支柱落地时透传），符合 base 收口刀「扩展点先行、路由后置」节奏。
   const kbStore: KbStore = options.kbStore ?? new InMemoryKbStore();
   // INV-BOM-CORE：库存 / BOM 读写出入口（缺省 InMemoryInvStore seed inventoryScenarioFixture），由
   // GET /api/inventory + POST /api/inventory/{part-types,actions} 消费。独立于 GovStore（InventorySnapshot
   // 不在 GovernanceSnapshot 内）；车列复用 GovStore.listResources 的资源（显示 displayCode ?? name）。
-  const invStore: InvStore = options.invStore ?? new InMemoryInvStore();
+  // 默认内存 store 同样复用上面的 clock（K6，与 store 同理——真实态 createdAt 走真钟）。
+  const invStore: InvStore = options.invStore ?? new InMemoryInvStore(undefined, clock);
   // BASELINE-CORE：倒排基准线读写出入口（缺省 InMemoryBaselineStore seed baselineScenarioFixture，
   // 同 InMemoryInvStore 先例——demo 首屏「基准线 vs 实际」非空）。由 GET/PATCH /api/baseline +
   // POST /api/baseline/milestones/:id/pass 消费（S4）。

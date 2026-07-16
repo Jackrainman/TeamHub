@@ -127,15 +127,17 @@ export class FileGovStore implements GovStore {
     filePath: string,
     snapshot: GovernanceSnapshot,
     clock?: Clock,
+    demoSeed = true,
   ) {
     this.filePath = filePath;
     this.resourcesFilePath = deriveResourcesFilePath(filePath);
     this.scheduleSessionsFilePath = deriveScheduleSessionsFilePath(filePath);
     // 组合内存实现复用写白名单的 id/时间戳/clamp 逻辑（零漂移）；它持有传入快照的可变副本。
-    // 不传 clock 时沿用 InMemoryGovStore 默认（FixedClock(GOVERNANCE_SCENARIO_NOW)），与 real 路由同口径。
-    this.inner = clock
-      ? new InMemoryGovStore(snapshot, clock)
-      : new InMemoryGovStore(snapshot);
+    // 不传 clock（undefined）时沿用 InMemoryGovStore 默认（FixedClock(GOVERNANCE_SCENARIO_NOW)），与 real
+    // 路由同口径；demoSeed 透传决定 resources/resourceSessions/relayHandoffs 锚点是否 seed（false=真空板，K6）。
+    // 新建落盘文件首启动落盘走 inner 的这批 seed（loadOrSeedResources/loadOrSeedScheduleSessions 见下）——
+    // demoSeed=false 即落一份空 resources.json/schedule-sessions.json；已有文件按原样加载覆盖、不受此 flag 影响。
+    this.inner = new InMemoryGovStore(snapshot, clock, demoSeed);
   }
 
   /**
@@ -148,6 +150,7 @@ export class FileGovStore implements GovStore {
     filePath: string,
     seed: GovernanceSnapshot = governanceScenarioFixture,
     clock?: Clock,
+    demoSeed = true,
   ): Promise<FileGovStore> {
     let raw: string | null = null;
     try {
@@ -158,12 +161,13 @@ export class FileGovStore implements GovStore {
 
     const store =
       raw === null
-        ? new FileGovStore(filePath, cloneSnapshot(seed), clock)
+        ? new FileGovStore(filePath, cloneSnapshot(seed), clock, demoSeed)
         : // 文件存在 → 严格解析（损坏则抛，不静默覆盖团队数据）。
           new FileGovStore(
             filePath,
             GovernanceSnapshotSchema.parse(JSON.parse(raw)),
             clock,
+            demoSeed,
           );
 
     if (raw === null) {

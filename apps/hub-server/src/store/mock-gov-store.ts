@@ -103,6 +103,9 @@ export class InMemoryGovStore implements GovStore {
   constructor(
     seed: GovernanceSnapshot = governanceScenarioFixture,
     clock: Clock = new FixedClock(new Date(GOVERNANCE_SCENARIO_NOW)),
+    // K6（时钟与空板刀）：演示态 = 演示锚点、真实态 = 真空板。demoSeed=true（默认）从 scheduleScenarioFixture
+    // seed 资源/占用窗口/接力交接线；demoSeed=false（main.ts 在 TEAMHUB_DEMO_SEED=false 时透传）→ 空数组。
+    demoSeed = true,
   ) {
     // 浅克隆 + 克隆全部 8 个数组（M13）：写方法追加时不污染共享 fixture。复用 cloneArrayFields（与
     // FileGovStore.cloneSnapshot 同一份实现，零漂移）——groups/members/taskKnowledgeTags 当前无写方法触及，
@@ -110,17 +113,21 @@ export class InMemoryGovStore implements GovStore {
     // artifacts 同理（图纸版本日志当前只读）。
     this.snapshot = cloneArrayFields(seed, GOVERNANCE_ARRAY_FIELDS);
     this.clock = clock;
-    // 资源 / 占用窗口锚点数据：始终从 scheduleScenarioFixture seed（与 seed 治理快照解耦——治理 seed 可被注入
-    // 替换，但 resources/resourceSessions 锚点不在 GovernanceSnapshot 里、无从随 seed 传，故钉这块演示数据）。
-    // 元素浅拷贝即可（invitedMemberIds 数组当前无原地 mutate；createResourceSession 只 push 整条新对象）。
-    this.resources = scheduleScenarioFixture.resources.map((r) => ({ ...r }));
-    this.resourceSessions = scheduleScenarioFixture.resourceSessions.map((s) => ({
-      ...s,
-    }));
-    // 接力交接线 seed（R1）：fixture 默认空，重启回此空态（D-029 内存态）。元素浅拷贝隔离。
-    this.relayHandoffs = scheduleScenarioFixture.relayHandoffs.map((h) => ({
-      ...h,
-    }));
+    // 资源 / 占用窗口锚点数据：**受 demoSeed 管**（K6 时钟与空板刀）。与 seed 治理快照解耦——这两块锚点
+    // 不在 GovernanceSnapshot 里、无从随 seed 传，故此前恒钉演示数据；空板走查坐实：真实态（demoSeed=false）
+    // 若仍 seed 演示车，空板会见两台虚构车 + 演示排班（浏览器真钟 − 服务端假钟 → stalenessDays 秒破 14 天）。
+    // 故演示态（默认）seed scheduleScenarioFixture 锚点、真实态给空数组（真空板）。元素浅拷贝即可
+    // （invitedMemberIds 数组当前无原地 mutate；createResourceSession 只 push 整条新对象）。
+    this.resources = demoSeed
+      ? scheduleScenarioFixture.resources.map((r) => ({ ...r }))
+      : [];
+    this.resourceSessions = demoSeed
+      ? scheduleScenarioFixture.resourceSessions.map((s) => ({ ...s }))
+      : [];
+    // 接力交接线 seed（R1）：fixture 默认空，重启回此空态（D-029 内存态）；demoSeed=false 同样空。元素浅拷贝隔离。
+    this.relayHandoffs = demoSeed
+      ? scheduleScenarioFixture.relayHandoffs.map((h) => ({ ...h }))
+      : [];
     // L1：计数器从 seed 数组 length 起步——首条 create 得 `…-new-${length+1}`，与原 length+1 派生
     // 在零删除时逐字等价（无 id 格式回归），但此后只增不减。
     this.taskSeq = createIdSequence(this.snapshot.tasks.length);

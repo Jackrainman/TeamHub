@@ -13,6 +13,8 @@ import type {
   KbSnapshot,
 } from '@teamhub/hub-contracts';
 import { buildHubServer } from './server.js';
+import { RealClock } from './clock.js';
+import type { Clock } from './clock.js';
 import { FileGovStore } from './store/file-gov-store.js';
 import { SqliteGovStore } from './store/sqlite-gov-store.js';
 import { FileKbStore } from './store/file-kb-store.js';
@@ -27,9 +29,12 @@ import { parseTenantConfigEnv } from './tenant-config-env.js';
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 4177;
 
-// V1-FOLLOWUP-2：空板冷启动种子。默认（TEAMHUB_DEMO_SEED 未设 / 非 'false'）落演示场景（8 任务 + 图纸版本日志 +
-// 知识库语料），便于走查；真实团队设 TEAMHUB_DEMO_SEED=false → 落盘文件首启动 seed 为**空板**（仅保留赛季 /
-// 项目 / 阶段元信息），不再启动进假数据。仅影响**新建**落盘文件；已有数据文件按原样加载、不受此 flag 影响。
+// V1-FOLLOWUP-2 + K6（时钟与空板刀）：TEAMHUB_DEMO_SEED 一个开关派生「演示态 vs 真实态」两套地基——
+// **DEMO_SEED=false 同时启用真实时钟与真空板**。默认（未设 / 非 'false'）= 演示态：冻结时钟
+// FixedClock(GOVERNANCE_SCENARIO_NOW) + 演示锚点（8 任务 + 图纸版本日志 + 知识库语料 + 演示车/排班），便于走查；
+// 真实团队设 false → 真实态：RealClock（真实部署新建任务 createdAt 走真钟，不再恒 6/11、挂单池 stalenessDays
+// 不再第一秒 >14 天全标红）+ 落盘文件首启动 seed 为**空板**（仅保留赛季 / 项目 / 阶段元信息，schedule 三块空、
+// 不再见虚构车 + 演示排班）。仅影响**新建**落盘文件与内存态；已有数据文件按原样加载、不受此 flag 影响。
 function emptyGovSnapshot(): GovernanceSnapshot {
   return {
     seasonId: governanceScenarioFixture.seasonId,
@@ -72,6 +77,11 @@ async function main(): Promise<void> {
   // 单一真相在服务器，与 TEAMHUB_KB_DATA_FILE / FileKbStore 同一套落盘纪律。
   // 空板 flag：仅决定**新建**落盘文件的首次种子（演示场景 vs 空板）；已有文件按原样加载。
   const demoSeed = process.env.TEAMHUB_DEMO_SEED !== 'false';
+  // K6（时钟与空板刀）：真实态注入 RealClock 到所有吃 clock 的构造点（各 store 工厂 + buildHubServer options）；
+  // 演示态传 undefined → 各构造点回退 FixedClock(GOVERNANCE_SCENARIO_NOW)，演示 / health-check / 既有测试零变化。
+  // kb/baseline/checklist 三 store 本身不吃 clock（其 createdAt 由路由层 clock=buildHubServer options 注入），
+  // 故只 gov/inv store 工厂 + server options 三处显式透传；逐个 grep 确认无遗漏（clock.ts 全仓消费点）。
+  const clock: Clock | undefined = demoSeed ? undefined : new RealClock();
   // SS3 SQLite 增量迁移（product-redefine-2026-07 §4.4 / §9-③）：**默认仍 JSON、现状零变化**。
   // 仅当 TEAMHUB_GOV_BACKEND=sqlite 时切 SqliteGovStore（须同时设 TEAMHUB_GOV_SQLITE_FILE=库文件路径）——
   // 本地 SQLite 文件与 gov.json 同性质落盘（D-083 刀④拍板不属「真实服务器写入」）。库不存在则按 demoSeed
@@ -87,11 +97,11 @@ async function main(): Promise<void> {
         'TEAMHUB_GOV_BACKEND=sqlite 需同时设 TEAMHUB_GOV_SQLITE_FILE（SQLite 库文件路径）',
       );
     }
-    store = await SqliteGovStore.create(sqliteFile, govSeed);
+    store = await SqliteGovStore.create(sqliteFile, govSeed, clock, demoSeed);
   } else {
     const govDataFile = process.env.TEAMHUB_GOV_DATA_FILE;
     store = govDataFile
-      ? await FileGovStore.create(govDataFile, govSeed)
+      ? await FileGovStore.create(govDataFile, govSeed, clock, demoSeed)
       : undefined;
     if (!store) {
       // 内存模式无落盘：PM 录入 / 图纸提交日志 / 结案知识节点重启即丢。提示设 TEAMHUB_GOV_DATA_FILE 落盘。
@@ -124,6 +134,7 @@ async function main(): Promise<void> {
     ? await FileInvStore.create(
         invDataFile,
         demoSeed ? inventoryScenarioFixture : emptyInventorySnapshot(),
+        clock,
       )
     : undefined;
   if (!invStore) {
@@ -240,6 +251,9 @@ async function main(): Promise<void> {
   const app = buildHubServer({
     consoleDistDir: process.env.TEAMHUB_CONSOLE_DIST_DIR,
     store,
+    // K6：真实态注入 RealClock（覆盖路由层 claim/assign/baseline/artifact/schedule now + 无落盘 env 时的
+    // 默认内存 store 的 createTask）；演示态传 undefined → server.ts 回退 FixedClock，现状零变化。
+    clock,
     kbStore,
     invStore,
     baselineStore,
