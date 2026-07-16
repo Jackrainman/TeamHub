@@ -181,6 +181,16 @@ function PoolCard({
   const queryClient = useQueryClient();
   const isIdentity = identity.mode === 'identity' && identity.session != null;
   const writeLocked = !identity.canWrite;
+  // 指派权属该组组长（镜像服务端 isGroupLeadOf：role==='groupAdmin' && groupId===task.groupId；
+  // superAdmin 不算某组组长，故不放行——与 server.ts /assign 鉴权逐条对齐，避免"点了才 403"）。
+  const groupLeads = members.filter(
+    (m) => m.role === 'groupAdmin' && m.groupId === task.groupId,
+  );
+  // 身份模式前置资格：本人是否为本组组长（登录会话的角色/组快照）。匿名模式无身份可判 → 不前置判、只过滤选人器。
+  const sessionCanAssign =
+    isIdentity &&
+    identity.session?.role === 'groupAdmin' &&
+    identity.session?.groupId === task.groupId;
 
   const [claimOpen, setClaimOpen] = useState(false);
   const [claimId, setClaimId] = useState('');
@@ -333,16 +343,20 @@ function PoolCard({
                   />
                 </Field>
                 {!isIdentity ? (
-                  <Field label={t('pool.assign.lead')} hint={t('pool.assign.leadHint')}>
-                    <Select
-                      value={leadId}
-                      onChange={setLeadId}
-                      options={members.map((m) => m.id)}
-                      renderOption={(id) => memberOptionLabel(members, id)}
-                      placeholder={t('pool.picker.placeholder')}
-                      ariaLabel={t('pool.assign.lead')}
-                    />
-                  </Field>
+                  groupLeads.length === 0 ? (
+                    <p className="task-detail__hint">{t('pool.gate.noLead')}</p>
+                  ) : (
+                    <Field label={t('pool.assign.lead')} hint={t('pool.assign.leadHint')}>
+                      <Select
+                        value={leadId}
+                        onChange={setLeadId}
+                        options={groupLeads.map((m) => m.id)}
+                        renderOption={(id) => memberOptionLabel(members, id)}
+                        placeholder={t('pool.picker.placeholder')}
+                        ariaLabel={t('pool.assign.lead')}
+                      />
+                    </Field>
+                  )
                 ) : null}
                 <div className="task-detail__panel-btns">
                   <button
@@ -371,6 +385,11 @@ function PoolCard({
               <button
                 type="button"
                 className="btn btn--secondary btn--sm"
+                // 身份模式非本组组长 → 禁用 + title 说明（不隐藏，保可发现性）。匿名模式恒可开（选人器再过滤）。
+                disabled={isIdentity && !sessionCanAssign}
+                title={
+                  isIdentity && !sessionCanAssign ? t('pool.gate.assignNeedsLead') : undefined
+                }
                 onClick={() => setAssignOpen(true)}
               >
                 <UserPlus size={13} aria-hidden="true" /> {t('pool.assign.button')}

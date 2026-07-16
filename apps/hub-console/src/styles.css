@@ -555,6 +555,12 @@ button,
   flex-basis: 100%;
 }
 
+/* 匿名模式中性徽章（K2 身份体验刀）：被动标识，非可点控件——default 光标、随工具条行居中。 */
+.identity-bar__mode {
+  cursor: default;
+  align-self: center;
+}
+
 .overview-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);

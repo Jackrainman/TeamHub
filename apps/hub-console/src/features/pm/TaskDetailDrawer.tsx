@@ -73,7 +73,11 @@ export function TaskDetailDrawer({
   const isIdentity = identity.mode === 'identity' && identity.session != null;
   const writeLocked = !identity.canWrite;
 
-  const [actorId, setActorId] = useState(''); // 匿名模式操作人（组长确认 / 完成 / 验收共用）
+  // 匿名模式操作人分动作各持（K2 身份体验刀）：三动作鉴权不同——组长确认属本组组长、完成属任何人、
+  // 验收属验收人名单，候选各异，故不再共用一个选人器（旧共用会让人选到会 403 的操作人）。
+  const [confirmActorId, setConfirmActorId] = useState('');
+  const [completeActorId, setCompleteActorId] = useState('');
+  const [reviewActorId, setReviewActorId] = useState('');
   const [partnerOpen, setPartnerOpen] = useState(false);
   const [partnerId, setPartnerId] = useState('');
   const [rejectOpen, setRejectOpen] = useState(false);
@@ -88,6 +92,9 @@ export function TaskDetailDrawer({
     setPartnerId('');
     setRejectOpen(false);
     setRejectNote('');
+    setConfirmActorId('');
+    setCompleteActorId('');
+    setReviewActorId('');
     invalidate();
   };
 
@@ -123,10 +130,48 @@ export function TaskDetailDrawer({
     reviewMutation.error ??
     null;
 
-  // 匿名模式操作人未选 → 需 actor 的动作禁用（服务端也会 400 兜底）。
-  const actorMissing = !isIdentity && !actorId;
-  const actor = (): ActorRef | undefined =>
-    isIdentity ? undefined : toActor(members, actorId);
+  // 选人器候选过滤 = 镜像服务端鉴权（避免"点了才 403"）：跨组确认属本组组长（isGroupLeadOf：
+  // role==='groupAdmin' && 同组，superAdmin 不算某组组长故不入列）、验收属验收人名单（gateReviewer）。
+  const groupLeads = members.filter(
+    (m) => m.role === 'groupAdmin' && m.groupId === task.groupId,
+  );
+  const reviewers = members.filter((m) => m.gateReviewer);
+  // 身份模式前置资格（登录会话快照，镜像服务端）：确认需本组组长、验收需验收人。匿名模式无身份可判、不前置判。
+  const canConfirmLead =
+    identity.session?.role === 'groupAdmin' && identity.session?.groupId === task.groupId;
+  const canReview = identity.session?.gateReviewer === true;
+
+  // 匿名模式各动作操作人 → ActorRef；身份模式服务端从会话注入（undefined）。
+  const confirmActor = (): ActorRef | undefined =>
+    isIdentity ? undefined : toActor(members, confirmActorId);
+  const completeActor = (): ActorRef | undefined =>
+    isIdentity ? undefined : toActor(members, completeActorId);
+  const reviewActor = (): ActorRef | undefined =>
+    isIdentity ? undefined : toActor(members, reviewActorId);
+
+  // 分动作 scoped 选人器（匿名模式）：候选空 → 引导去设置任命、不给能选到会 403 的人。
+  const renderOperatorPicker = (
+    candidates: MemberPublic[],
+    value: string,
+    onChange: (v: string) => void,
+    label: string,
+    hint: string,
+    emptyHint: string,
+  ) =>
+    candidates.length === 0 ? (
+      <p className="task-detail__hint">{emptyHint}</p>
+    ) : (
+      <Field label={label} hint={hint}>
+        <Select
+          value={value}
+          onChange={onChange}
+          options={candidates.map((m) => m.id)}
+          renderOption={(id) => memberOptionLabel(members, id)}
+          placeholder={t('pool.picker.placeholder')}
+          ariaLabel={label}
+        />
+      </Field>
+    );
 
   const groupName = groups.find((g) => g.id === task.groupId)?.name ?? task.groupId;
   const ownerName = task.ownerId
@@ -234,19 +279,6 @@ export function TaskDetailDrawer({
           <p className="task-detail__hint">{t('identity.writeHint')}</p>
         ) : (
           <>
-            {!isIdentity ? (
-              <Field label={t('pool.action.operator')} hint={t('pool.action.operatorHint')}>
-                <Select
-                  value={actorId}
-                  onChange={setActorId}
-                  options={members.map((m) => m.id)}
-                  renderOption={(id) => memberOptionLabel(members, id)}
-                  placeholder={t('pool.picker.placeholder')}
-                  ariaLabel={t('pool.action.operator')}
-                />
-              </Field>
-            ) : null}
-
             {/* 本组搭档补位（师傅 / 对接人）：外组认领后本组须有人补位。 */}
             {partnerWanted || task.partnerMemberId ? (
               partnerOpen ? (
@@ -295,40 +327,92 @@ export function TaskDetailDrawer({
               )
             ) : null}
 
-            {/* 跨组大任务组长确认（事后留名，不拦操作）。 */}
+            {/* 跨组大任务组长确认（事后留名，不拦操作）：属本组组长——身份模式非组长禁用+title，匿名模式选人器只列组长。 */}
             {crossWanted ? (
-              <button
-                type="button"
-                className="btn btn--secondary btn--sm"
-                disabled={actorMissing || confirmMutation.isPending}
-                onClick={() => confirmMutation.mutate(actor())}
-              >
-                {t('pool.action.confirm')}
-              </button>
+              <div className="task-detail__panel">
+                {!isIdentity
+                  ? renderOperatorPicker(
+                      groupLeads,
+                      confirmActorId,
+                      setConfirmActorId,
+                      t('pool.action.confirmOperator'),
+                      t('pool.action.confirmOperatorHint'),
+                      t('pool.gate.noLead'),
+                    )
+                  : null}
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  disabled={
+                    confirmMutation.isPending ||
+                    (isIdentity ? !canConfirmLead : !confirmActorId)
+                  }
+                  title={
+                    isIdentity && !canConfirmLead
+                      ? t('pool.gate.confirmNeedsLead')
+                      : undefined
+                  }
+                  onClick={() => confirmMutation.mutate(confirmActor())}
+                >
+                  {t('pool.action.confirm')}
+                </button>
+              </div>
             ) : null}
 
-            {/* 标记完成（§5 本人标完成留名）：未完成 / 未搁置的任务可标完成。 */}
+            {/* 标记完成（§5 本人标完成留名）：无鉴权（任何人可标完成），匿名模式选人器列全员。 */}
             {task.status !== 'done' && task.status !== 'shelved' ? (
-              <button
-                type="button"
-                className="btn btn--secondary btn--sm"
-                disabled={actorMissing || completeMutation.isPending}
-                onClick={() => completeMutation.mutate(actor())}
-              >
-                {t('pool.action.complete')}
-              </button>
+              <div className="task-detail__panel">
+                {!isIdentity ? (
+                  <Field label={t('pool.action.operator')} hint={t('pool.action.operatorHint')}>
+                    <Select
+                      value={completeActorId}
+                      onChange={setCompleteActorId}
+                      options={members.map((m) => m.id)}
+                      renderOption={(id) => memberOptionLabel(members, id)}
+                      placeholder={t('pool.picker.placeholder')}
+                      ariaLabel={t('pool.action.operator')}
+                    />
+                  </Field>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  disabled={
+                    completeMutation.isPending || (!isIdentity && !completeActorId)
+                  }
+                  onClick={() => completeMutation.mutate(completeActor())}
+                >
+                  {t('pool.action.complete')}
+                </button>
+              </div>
             ) : null}
 
-            {/* 两档验收：大活 done → 待学长验收（验收 / 打回）；简单活 done → 已完成 + 抽查打回权。 */}
+            {/* 两档验收：大活 done → 待学长验收（验收 / 打回）；简单活 done → 已完成 + 抽查打回权。
+                属验收人名单——身份模式非验收人禁用+title，匿名模式选人器只列验收人。 */}
             {acceptance === 'awaitingReview' || acceptance === 'selfDone' ? (
               <div className="task-detail__panel">
+                {!isIdentity
+                  ? renderOperatorPicker(
+                      reviewers,
+                      reviewActorId,
+                      setReviewActorId,
+                      t('pool.action.reviewOperator'),
+                      t('pool.action.reviewOperatorHint'),
+                      t('pool.gate.noReviewer'),
+                    )
+                  : null}
                 {acceptance === 'awaitingReview' ? (
                   <button
                     type="button"
                     className="btn btn--primary btn--sm"
-                    disabled={actorMissing || reviewMutation.isPending}
+                    disabled={
+                      reviewMutation.isPending || (isIdentity ? !canReview : !reviewActorId)
+                    }
+                    title={
+                      isIdentity && !canReview ? t('pool.gate.reviewNeedsReviewer') : undefined
+                    }
                     onClick={() =>
-                      reviewMutation.mutate({ outcome: 'accept', actor: actor() })
+                      reviewMutation.mutate({ outcome: 'accept', actor: reviewActor() })
                     }
                   >
                     {t('pool.action.accept')}
@@ -349,13 +433,20 @@ export function TaskDetailDrawer({
                         type="button"
                         className="btn btn--danger btn--sm"
                         disabled={
-                          actorMissing || !rejectNote.trim() || reviewMutation.isPending
+                          !rejectNote.trim() ||
+                          reviewMutation.isPending ||
+                          (isIdentity ? !canReview : !reviewActorId)
+                        }
+                        title={
+                          isIdentity && !canReview
+                            ? t('pool.gate.reviewNeedsReviewer')
+                            : undefined
                         }
                         onClick={() =>
                           reviewMutation.mutate({
                             outcome: 'reject',
                             note: rejectNote.trim(),
-                            actor: actor(),
+                            actor: reviewActor(),
                           })
                         }
                       >
@@ -374,6 +465,10 @@ export function TaskDetailDrawer({
                   <button
                     type="button"
                     className="btn btn--secondary btn--sm"
+                    disabled={isIdentity && !canReview}
+                    title={
+                      isIdentity && !canReview ? t('pool.gate.reviewNeedsReviewer') : undefined
+                    }
                     onClick={() => setRejectOpen(true)}
                   >
                     {acceptance === 'selfDone'
@@ -381,9 +476,6 @@ export function TaskDetailDrawer({
                       : t('pool.action.reject')}
                   </button>
                 )}
-                {acceptance === 'awaitingReview' ? (
-                  <p className="task-detail__hint">{t('pool.action.reviewerOnly')}</p>
-                ) : null}
               </div>
             ) : null}
 

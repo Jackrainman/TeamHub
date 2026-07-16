@@ -11,9 +11,9 @@ import { memberOptionLabel } from './identity-utils';
 /**
  * 顶部工具条身份挂载点（IDENTITY-LITE，I2 console 接线，product-redefine §4.2）。
  *
- * **匿名模式（`mode!=='identity'`）零 UI**——本组件直接 `return null`，与「匿名模式 UI 零变化」
- * 红线对齐，不额外加任何 hook 副作用（下方几个 hook 在匿名模式仍会跑，但 `enabled` 全关，
- * 零网络请求，符合 Rules of Hooks 的同时不产生可观察副作用）。
+ * **匿名模式（`mode!=='identity'`）**：渲染一枚中性徽章「匿名模式」——无动作、不刺眼，只是让人一眼
+ * 知道「这台现在不用登录、大家都能读写」（K2 身份体验刀，此前直接 `return null` 导致界面零标识）。
+ * 匿名模式仍不启用任何登录动作：下方几个 hook 虽照跑，但 `enabled` 全关、零网络请求，副作用为零。
  *
  * 身份模式：未登录 → 一个「登录」按钮，点开变成「选人 + 可选 PIN」内联小表单；已登录 → 显示
  * 当前登录人 displayName + 登出按钮。登录/登出成功后：① 用响应直接写回 `['session']` 缓存（不留
@@ -63,8 +63,17 @@ export function IdentityBar({
     onSuccess: (data) => onIdentityChanged(data),
   });
 
-  // 匿名模式：整个身份模块不启用，挂载点结构上不渲染任何东西（非灰置禁用）。
-  if (mode !== 'identity') return null;
+  // 匿名模式：登录模块不启用，只挂一枚中性徽章标明当前形态（无动作，title 里给一句大白话说明）。
+  if (mode !== 'identity') {
+    return (
+      <span
+        className="badge badge--neutral identity-bar__mode"
+        title={t('identity.anon.hint')}
+      >
+        {t('identity.anon.badge')}
+      </span>
+    );
+  }
 
   if (session) {
     return (
