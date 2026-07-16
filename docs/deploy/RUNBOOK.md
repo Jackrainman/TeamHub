@@ -36,11 +36,27 @@
    否则写限流塌成**全队共用一个桶**（任一客户端可 DoS 全队写入）。**直连暴露时保持 false**
    （否则 `X-Forwarded-For` 可伪造）。
 
-4. **落盘 env 都接上**：`TEAMHUB_KB_DATA_FILE` + `TEAMHUB_GOV_DATA_FILE` + `TEAMHUB_INV_DATA_FILE` 都要设——
-   **漏哪个，对应支柱数据每次重启清回 fixture**（漏 gov→PM/图纸/结案丢；漏 inv→库存盘点/拆装/快记丢；A1 同源教训，见 [H5](../dev-debug-archive/2026-06-14-audit-h5-compose-phantom-postgres.md)）。
-   `start-teamhub.sh` / `compose.yaml` 已默认接好，自定义环境别漏。
+4. **落盘 env 都接上（五个）**：`TEAMHUB_KB_DATA_FILE` + `TEAMHUB_GOV_DATA_FILE` + `TEAMHUB_INV_DATA_FILE`
+   + `TEAMHUB_BASELINE_DATA_FILE` + `TEAMHUB_CHECKLIST_DATA_FILE` 都要设——
+   **漏哪个，对应域数据每次重启清回 fixture**（漏 gov→PM/图纸/结案丢；漏 inv→库存丢；漏 baseline→基准线
+   覆盖/过门记录丢；漏 checklist→检查单/欠条丢；A1 同源教训，见 [H5](../dev-debug-archive/2026-06-14-audit-h5-compose-phantom-postgres.md)）。
+   `start-teamhub.sh` / `compose.yaml` 已默认接好（compose 的 baseline/checklist 两卷 2026-07-16 K4 补挂，
+   更早的 compose 部署这两域曾静默清零），自定义环境别漏。设置页「部署信息」分区会把每域"落盘/内存"
+   如实标出，上线后打开自查一眼。
 
-5. **空板 vs 演示**：真实团队设 `TEAMHUB_DEMO_SEED=false`（新建落盘文件 seed 空板）；走查留默认（演示场景）。
+5. **空板 vs 演示**：真实团队设 `TEAMHUB_DEMO_SEED=false`；走查留默认（演示场景）。**该开关同时派生
+   时钟与排班种子**（2026-07-16 K6）：false = 真实时钟 + 真空板（车辆/排班窗口也空）；默认 = 冻结演示
+   时钟（2026-06-11 锚点）+ 演示车辆排班。真实部署忘设 false 的症状 = 新建任务时间戳恒为 6/11、挂单池
+   全员标红滞留。
+
+6. **身份模式首启动顺序（空板 + `TEAMHUB_IDENTITY_MODE=identity`）**：空板名册下无人可登录，靠名册导入
+   的引导豁免（名册为空时上传免登录）破局，照此顺序走：
+   ① 起服（建议此阶段**保持 loopback**，即先别绑 0.0.0.0）→ ② 打开设置页「成员与权限」→ 下载名册
+   CSV 模板 → 本地 Excel 填好（姓名/年级/组/组长/验收人，Excel 另存 CSV 即可，GBK/UTF-8 都认）→ 上传，
+   核对六段导入报告 → ③ 右上角登录本人（首次免 PIN）→ ④ 设置页「初始化管理员」设 PIN（同笔成为
+   superAdmin，之后敏感设置须此身份）→ ⑤ 再绑内网/告知队友地址。**豁免窗口警示**：名册为空且已暴露到
+   非 loopback 时，任何可达者都能抢先导名册+当管理员——所以第⑤步必须放最后，或引导期配好
+   `TEAMHUB_WRITE_TOKEN`。
 
 ---
 

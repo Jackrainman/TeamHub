@@ -1,10 +1,11 @@
-# 公测准备四刀落点注记（BETA-READINESS，2026-07-16）
+# 公测准备落点注记（BETA-READINESS，2026-07-16）
 
-> 四刀（K1 权限地基 `975ea45` / K2 身份体验 `ba48956` / K3 部署信息 `3e055f5` / K4 配置面还债 `638c46a`，
-> VERSION 0.23.3→0.24.2）已落地并 push（基线 `0c46d05`）。四刀均无独立设计稿在先——K1 真相 =
-> `docs/planning/decisions.md` D-089；K2/K3/K4 真相散在各自 commit message + 当轮 StructuredOutput。
-> 本文档补齐"架构裁决"这一层，按 `baseline-design.md` §7 / `gate-checklist-iou.md` §7 /
-> `task-post-claim.md` §9 同款回写格式先例，把四刀已经做出但未落文档的裁决与偏离收拢一处。
+> 一轮四刀（K1 权限地基 `975ea45` / K2 身份体验 `ba48956` / K3 部署信息 `3e055f5` / K4 配置面还债
+> `638c46a`，VERSION 0.23.3→0.24.2）+ 二轮两刀（K6 时钟与空板 `e698ffe` v0.24.3 / K8 名册导入
+> `94cdfdf` v0.25.0），基线 `0c46d05`。均无独立设计稿在先——K1 真相 = `docs/planning/decisions.md`
+> D-089；其余刀真相散在各自 commit message + 当轮 StructuredOutput。本文档补齐"架构裁决"这一层，按
+> `baseline-design.md` §7 / `gate-checklist-iou.md` §7 / `task-post-claim.md` §9 同款回写格式先例。
+> 一轮裁决见 §2，二轮裁决见 §5，两轮复审记录见 §4/§6。
 
 ## 1. 一句话定位
 
@@ -64,10 +65,14 @@ PIN）。裁决依据：反过来做会留一个时间窗口——若"升 role"�
   "成员与权限"（角色下拉 + 验收人复选框 + 初始化管理员卡三块拼一个 section），未按职责拆成独立组件——
   与既有 `SettingsPage.tsx` 里其它多职责 section（如 `SeasonsSection`）同款密度，非本刀新增的坏模式。
 
-## 4. 复审留档（本刀未修的 nit）
+## 4. 一轮复审留档（✅ 已由 K8 顺手收口）
 
-复审对四刀 diff 做了逐文件核实，发现一处真实但影响良性的"点了才 403"缺口，记录在案、本轮不修（docs
-收口者角色不做代码改动）：
+> **收口注记（2026-07-16 二轮）**：下述 nit 已在 K8（`94cdfdf`）内顺手修掉——`SettingsPage.tsx` 引入
+> `sectionPermission` 前置判，「成员与权限」/「赛季」分区在身份模式已登录但非 superAdmin 时写控件
+> 禁用+提示，二轮复审逐文件核实确认已闭合。原文照录留档：
+
+一轮 docs 收口者对四刀 diff 做了逐文件核实，发现一处真实但影响良性的"点了才 403"缺口，当轮记录在案
+未修（docs 收口者角色不做代码改动）：
 
 - **`SettingsPage.tsx` 的「成员与权限」区（角色下拉 + 验收人复选框）与「赛季」新建表单，前端未做
   `isSuperAdmin` 前置资格判**：K1 把这三处写路由在身份模式下收口为须 `isSuperAdmin`（见 §2.2），K2 随后
@@ -80,3 +85,61 @@ PIN）。裁决依据：反过来做会留一个时间窗口——若"升 role"�
   没达到 K2 同轮定的标准，不构成越权或数据风险。**建议后续刀**：给这两处补 `identity.session?.role ===
   'superAdmin'` 前置判（禁用 + title），复用 K2 已建立的 `pool.gate.*` / 前置判范式与既有
   `settings.members.role.error` / `settings.reviewers.error` 报错兜底，无需新增契约或路由改动。
+
+## 5. 二轮两刀架构裁决（K6 时钟与空板 / K8 名册导入）
+
+### 5.1 K6：`TEAMHUB_DEMO_SEED` 单开关派生"演示态/真实态"（`e698ffe`，v0.24.3）
+
+空板走查（二轮前置）坐实两个真 bug：①服务端时钟全局冻结——`RealClock` 写了但全仓零调用，`main.ts`
+建 store 与 `buildHubServer` 均不传 clock，恒回退 `FixedClock('2026-06-11T02:00:00.000Z')`，真实部署下
+新建任务 `createdAt` 恒为 6/11，挂单池滞留判定（浏览器真时钟 − 服务端假时钟）第一秒就全标红；②
+`TEAMHUB_DEMO_SEED=false` 关不干净——resources/resourceSessions/relayHandoffs 恒从
+`scheduleScenarioFixture` seed，空板仍见两台虚构车+演示排班。
+
+**裁决：演示态 = 冻结时钟 + 演示锚点，真实态 = 真实时钟 + 真空板，两者由 `TEAMHUB_DEMO_SEED` 一个
+开关派生，不新增 env。** 依据：冻结时钟的存在理由就是让演示场景（固定锚点日）与截图/测试稳定复现，
+它与演示种子是同一个"演示态"概念的两面，分成两个开关只会制造"真数据+假时钟"这类无意义组合。
+`demoSeed=false` 时 `main.ts` 注入 `RealClock` 到全部 store 工厂与 server options，schedule 三块种子
+清空；默认（演示态）行为零变化，既有测试与 health-check 不受影响。
+
+### 5.2 K8：名册导入（`94cdfdf`，v0.25.0 minor）
+
+用户拍板口径全落地：CSV 模板下载（`GET /api/roster/template`，UTF-8 带 BOM，五列=姓名/年级/组/组长/
+验收人）→ 本地 Excel 编辑 → 设置页上传（`POST /api/roster/import`，multipart 1MB）→ 六段导入报告。
+关键裁决：
+
+- **编码探测**：UTF-8 BOM→UTF-8；无 BOM 先按 UTF-8 解、出现 U+FFFD 再按 gbk 重解（Windows Excel 存
+  CSV 默认 GBK 的坑兜住）；都失败 400 提示"另存为 CSV UTF-8"。解析器手写零依赖，落 hub-contracts
+  `roster-import.ts`（纯函数可单测）。
+- **幂等键 = displayName**：重导=更新（grade/groupId/role/gateReviewer），"每年重导一次新表"即换届
+  动作。**保护例外**：目标现为 superAdmin 时 role 不动、pinHash 永不动（防导入把管理员降级/清密码）。
+  表外人员只进 missingFromSheet 报告绝不删（名下可能挂历史任务）。同名两人会合并为一条（见 §6 nit②，
+  已知限制）。
+- **规则默认**：验收人列留空 → 大三及以上（junior/senior/graduate）自动 true；组长列真值 → groupAdmin；
+  superAdmin 永不从表来。未知组名自动建组（grp-new-N）并进报告——错字导致的多余组在报告里一眼可见。
+- **引导豁免（bootstrap）解空板死锁**：身份模式下名册完全为空时，导入路由豁免登录要求（Bearer token
+  与限流仍在）；一旦有人即恢复须 superAdmin。由此首启动顺序成立：起服→下载模板→导名册（免登录）→
+  登录本人（首次免 PIN）→初始化管理员设 PIN。豁免窗口的暴露面取舍见 §6 nit①。
+
+## 6. 二轮复审留档（K1..K8 全 diff，0 blocker / 4 nit）
+
+二轮复审对 `0c46d05..94cdfdf` 六刀全 diff 逐文件核实 + 三包 verify:all 复跑全绿（contracts 284 /
+server 379 / console 163）。红线全数坐实：匿名模式敏感门全部 identity 前置、pinHash 无泄漏
+（MemberPublicSchema omit）、deployment 排除 writeToken、导入报告无按人聚合。**流程事故如实留档**：
+一轮复审 agent 交付占位垃圾输出（`summary:"test"`）被作废；二轮复审 agent 内容完备但 StructuredOutput
+反复格式失败超重试上限，结论从其 transcript 人工提取核对后采信——两次都说明"复审产出必须逐字检查"
+这条教训。四条 nit（均为已文档化取舍或低概率边界，留档不阻塞公测）：
+
+1. **引导豁免窗口的暴露组合**（`server.ts` roster import bootstrap）：身份模式 + 非 loopback + 未配
+   `TEAMHUB_WRITE_TOKEN`（identity 模式豁免了启动强制）+ 名册为空时，任意可达者可无鉴权导名册→免 PIN
+   登录→抢先 setup 当管理员。属可信 LAN 引导取舍，非代码缺陷；缓解=暴露到非 loopback 前先完成名册导入
+   +初始化管理员（RUNBOOK §1.6 已写入），或引导期保持 loopback/配 token。
+2. **同名合并**（幂等键=displayName）：两个真人同名时第二行覆写第一行、库里只存一条，且同时进
+   created 与 updated 报告，操作者可能误以为两人都导入成功。已知限制；若成真痛点，后续加可选学号列
+   作幂等键。
+3. **末位 superAdmin 降级保护 TOCTOU**（`PUT /role`）：先读快照判"至多 1 个管理员"再写，两个并发降级
+   请求可各自看到 2 个管理员、双双放行、终态归 0 全队锁死。小团队并发概率极低但代价是永久锁死；后续
+   刀可把判定收进 store 同一临界区（setMemberRole 带 guard）。
+4. **deployment.storage.path 回显宿主绝对路径**：`GET /api/system/status` 读端点可读，任意可达者可知
+   目录布局。§2.4 已裁"路径=运维元信息可接受"，与该裁决一致、知情记录；要收紧可只回 basename 或仅
+   superAdmin 会话返回全路径。
