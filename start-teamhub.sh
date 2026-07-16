@@ -40,6 +40,13 @@
 #                         端点启用（POST /api/session 选人+可选 PIN），写路由须携有效会话（httpOnly cookie）、
 #                         actor 服务端注入。会话存内存、重启全员重登（家庭影院级）。身份模式下非 loopback
 #                         暴露即便无 TEAMHUB_WRITE_TOKEN 也放行（写由会话把关）。
+#   TEAMHUB_TRUST_PROXY   反代信任（默认 false）。反代 / SSH 隧道部署后面**必须**设 true，否则写端点
+#                         限流塌成全队共用一个桶（任一客户端可耗尽、DoS 全队写入，见 server.ts）；
+#                         直连暴露（无反代）保持 false（否则 X-Forwarded-For 可伪造）。本脚本原样
+#                         透传给 node 进程（不额外处理），设置方式同其余变量：前缀赋值后跑本脚本。
+#   TEAMHUB_DEMO_SEED     空板冷启动开关（默认未设 = 落演示场景：8 任务 + 图纸版本日志 + 知识库语料，
+#                         便于走查）。真实团队设 false → 落盘文件首次创建时 seed 为空板（仅赛季 / 项目 /
+#                         阶段元信息）。仅影响**新建**落盘文件，已有数据文件按原样加载、不受此 flag 影响。
 #   TEAMHUB_SKIP_BUILD=1  跳过构建（只重启时用）
 #
 set -euo pipefail

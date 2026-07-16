@@ -18,6 +18,11 @@ services:
       TEAMHUB_GOV_DATA_FILE: /var/lib/teamhub/gov/gov-data.json
       # 库存/BOM 落盘到挂卷（同 KB/Gov 持久化纪律）——否则重启丢盘点 / 拆装登记 / 一句话快记。
       TEAMHUB_INV_DATA_FILE: /var/lib/teamhub/inv/inv-data.json
+      # K4（配置面还债刀）：倒排基准线落盘到挂卷——否则重启丢队长手写覆盖 / 验证门过门留痕（此前
+      # compose 漏配此变量，容器每次重启会静默清零该域数据，此前只有 kb/gov/inv 三条落盘）。
+      TEAMHUB_BASELINE_DATA_FILE: /var/lib/teamhub/baseline/baseline-data.json
+      # K4：门检查单/欠条落盘到挂卷（同上，GATE-CHECKLIST-IOU）——否则重启丢现场快记欠条 / 清偿 / 豁免。
+      TEAMHUB_CHECKLIST_DATA_FILE: /var/lib/teamhub/checklist/checklist-data.json
       # 归档物（图纸）字节落挂卷（HUB-ARTIFACT-STORE-MECH 本地卷版，D-025：不进 git）——server 读的是
       # TEAMHUB_ARTIFACT_FILES_DIR（旧 ARTIFACT_ROOT 名字错、server 从不读，导致上传/下载在部署里恒 404）。
       TEAMHUB_ARTIFACT_FILES_DIR: /var/lib/teamhub/artifacts
@@ -28,6 +33,8 @@ services:
       - hub_kb:/var/lib/teamhub/kb
       - hub_gov:/var/lib/teamhub/gov
       - hub_inv:/var/lib/teamhub/inv
+      - hub_baseline:/var/lib/teamhub/baseline
+      - hub_checklist:/var/lib/teamhub/checklist
     # H5（AUDIT-FIXES 部署前必修）：删幻影 Postgres——hub-server 无 PG 客户端、从不读 DATABASE_URL，
     # 唯三 store 是 InMemoryGovStore / FileKbStore / 抛错的 SqliteGovStore stub。原 depends_on+DATABASE_URL
     # 只是白等 ~60s 健康重试 + 一个没用的容器，并误导运维以为治理数据进了 PG。SQLite 真上时再挂卷。
@@ -46,3 +53,5 @@ volumes:
   hub_kb:
   hub_gov:
   hub_inv:
+  hub_baseline:
+  hub_checklist:

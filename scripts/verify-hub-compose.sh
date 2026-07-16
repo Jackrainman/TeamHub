@@ -40,7 +40,7 @@ docker compose version >/dev/null
 
 trap cleanup EXIT
 
-docker compose --project-name "${PROJECT_NAME}" -f "${ROOT_DIR}/compose.yaml" up -d --build hub postgres
+docker compose --project-name "${PROJECT_NAME}" -f "${ROOT_DIR}/compose.yaml" up -d --build hub
 
 for _ in $(seq 1 60); do
   if curl -fsS "http://127.0.0.1:${HOST_PORT}/health" | grep -q '"status":"ok"'; then
@@ -53,5 +53,5 @@ for _ in $(seq 1 60); do
 done
 
 docker compose --project-name "${PROJECT_NAME}" -f "${ROOT_DIR}/compose.yaml" ps >&2
-docker compose --project-name "${PROJECT_NAME}" -f "${ROOT_DIR}/compose.yaml" logs --no-color hub postgres >&2
+docker compose --project-name "${PROJECT_NAME}" -f "${ROOT_DIR}/compose.yaml" logs --no-color hub >&2
 exit 1
