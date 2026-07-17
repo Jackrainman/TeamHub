@@ -1,6 +1,7 @@
-# SETUP-WIZARD：首启动向导 + 配置落盘层 + 设置页部署配置区（设计稿，待批）
+# SETUP-WIZARD：首启动向导 + 配置落盘层 + 设置页部署配置区（设计稿 v2，待批）
 
-> 状态：**设计稿，未拍板开工**（2026-07-16 用户裁决：先出设计稿过目，批了再动代码）。
+> 状态：**设计稿 v2，未拍板开工**（2026-07-16 用户裁决：先出设计稿过目，批了再动代码；
+> v2 修订：用户追问"env 还有必要保留吗"→ 模式类 env 退役，config.json 成唯一真相，见 §0 末行）。
 > 缘起：用户对公测部署故事的三点反馈——①正式部署应该"直接点开就问是要测试还是直接安装"，
 > 而不是改 env；②`TEAMHUB_IDENTITY_MODE` 应在初始化时选择；③"两个模式切换起来太麻烦了"。
 
@@ -11,6 +12,7 @@
 | 匿名模式命运 | A. 砍掉单轴化（分叉编目：全仓 28 处 mode 分叉、24 处可塌；正式部署中匿名无独特价值，演示零门槛可由自动登录替代）B. 保留双模式 | **B. 保留双模式**——D-083「匿名模式整体保留供选择」维持不变；向导让人选，不替人砍 |
 | 向导防抢注 | A. 一次性安装码（Jupyter 式，顺带收豁免窗口 nit）B. 沿用 loopback 纪律 | **B. 沿用 loopback 纪律**——不加码；豁免窗口 nit 继续留档（beta-readiness §6） |
 | 节奏 | A. 直接开工 B. 先设计稿 | **B. 先设计稿**（本文档），批了再开刀 |
+| 模式类 env 去留（v2 追问） | A. 保留为无头通道（config>env 优先级）B. 退役，config.json 唯一真相 | **B. 退役**（用户追问"env 还有必要保留吗"后 v2 修订）：`TEAMHUB_DEMO_SEED`/`TEAMHUB_IDENTITY_MODE` 两个 env 删除；无头/自动化场景改走"预置 config.json 或 curl init"。运维类 env（端口/路径/密钥/反代/存储后端）保留——它们是环境属性且含密钥，config.json 的位置本身就由它们决定 |
 
 分叉编目底稿：workflow `anon-mode-blast-radius`（wf_5ff03910）,28 处分叉清单可在需要时回放。
 
@@ -20,7 +22,8 @@
 
 1. 第一次打开 TeamHub，页面直接问"先试试（演示数据）还是直接安装（正式使用）"，正式路径顺手选登录方式（匿名 / 登录制）——**人类路径零 env**。
 2. 模式（演示/正式、匿名/身份）从"部署期 env"降为"产品内配置"：落盘 `config.json`，**设置页可改**，改完自动重启生效。"切换麻烦"的解法 = 把重启自动化，而不是砍模式。
-3. env 变量全部保留为**无头通道**（Docker/脚本部署仍然好用），语义变为"config 不存在时的初值"。
+3. **模式类 env 退役**（v2）：`TEAMHUB_DEMO_SEED` / `TEAMHUB_IDENTITY_MODE` 删除，config.json 是唯一真相；
+   运维类 env（端口/监听/落盘路径/WRITE_TOKEN/TRUST_PROXY/GOV_BACKEND）保留不动。
 
 **非目标**
 
@@ -43,19 +46,18 @@
 ```
 
 - zod schema 放 hub-contracts（`deploy-config.ts`），server 启动严格解析，坏文件 fail-closed 拒启动（同 gov.json 纪律）。
-- **优先级：`config.json` > env > 内置默认**。config 存在时 env 里的 `TEAMHUB_DEMO_SEED` / `TEAMHUB_IDENTITY_MODE` 被忽略（启动 banner 打印一行提示，避免"改了 env 为什么不生效"的困惑）。
-- 其余 env（端口、落盘路径、WRITE_TOKEN、TRUST_PROXY 等运维项）**不进 config**——它们是环境属性不是产品选择，向导也不问。
+- **config.json 是模式的唯一真相**（v2）：`TEAMHUB_DEMO_SEED` / `TEAMHUB_IDENTITY_MODE` 两个 env 同刀删除
+  （main.ts 不再读取；start-teamhub.sh / compose / env.example 同步清理），不存在"优先级"问题。
+- 运维类 env（端口、落盘路径、WRITE_TOKEN、TRUST_PROXY、GOV_BACKEND 等）**不进 config、保留为 env**——
+  它们是环境属性不是产品选择（config.json 自己的位置就由它们决定），其中密钥不能进数据目录明文配置，向导也不问。
 
 ## 3. 未初始化状态机
 
-server 启动时序改为三态：
+server 启动时序改为两态（v2 简化，原"env 显式设值固化跳过"分支随模式 env 一起删除）：
 
 ```
-config.json 存在 ──────────────→ 正常启动（按 config 建店、注册全部路由）
-config.json 不存在
-  ├─ env 显式设置了 DEMO_SEED 或 IDENTITY_MODE（无头部署信号）
-  │        → 按 env 取值固化写出 config.json，随后正常启动（Docker/脚本零交互，向导永不挡道）
-  └─ env 也没设 → **setup 模式**
+config.json 存在 ──→ 正常启动（按 config 建店、注册全部路由）
+config.json 不存在 ─→ **setup 模式**
 ```
 
 **setup 模式**下只注册：静态站托管、`GET /health`（带 `setupPending: true`）、
@@ -64,6 +66,15 @@ config.json 不存在
 
 `POST /api/setup/init`：body = `{dataMode, identityMode}`（zod 校验）→ 写 config.json →
 回 `{restarting: true}` → 延迟 ~500ms `process.exit(42)`。已初始化后再调恒 409（多标签页幂等）。
+
+**无头 / 自动化路径**（CI 冒烟、脚本化部署、纯 API 演示）二选一，无需任何模式 env：
+
+1. 起服前把一份合法 `config.json` 预置进数据目录 / compose 卷；
+2. 起服后 `curl -X POST /api/setup/init -d '{"dataMode":"demo","identityMode":"anonymous"}'`，等自动重启完成。
+
+**升级迁移**：既有 v0.25.x 部署（有数据文件、无 config.json）升级后**会见一次向导**。向导检测到数据目录
+非空时显示"检测到已有数据——本次只写配置，不动任何数据"提示；dataMode 语义本就只影响**新建**落盘文件
+（K6 裁决），既有数据按原样加载，选什么都不会被清。选完固化，之后不再出现。RUNBOOK 加升级注记。
 
 ## 4. 自动重启机制
 
@@ -104,8 +115,9 @@ config.json 不存在
 
 ## 7. 文档同步（批后与刀③一起做）
 
-- README「给战队正式部署」段：删两个 env 前缀的启动命令，改为"启动后浏览器打开，向导里选"；env 表述降级为"Docker/无头部署另见 DEPLOY §5"。
-- DEPLOY.md §3 三个决定改为"向导里点选"；§4 顺序简化（向导接管）；§5 速查表两行加"（已由向导/设置页接管，仅无头部署需要）"。
+- README「给战队正式部署」段：删两个 env 前缀的启动命令，改为"启动后浏览器打开，向导里选"。
+- DEPLOY.md §3 三个决定改为"向导里点选"；§4 顺序简化（向导接管）；§5 速查表**删除** `TEAMHUB_DEMO_SEED` / `TEAMHUB_IDENTITY_MODE` 两行，换成一行 `TEAMHUB_CONFIG_FILE`（config.json 路径，默认 `~/teamhub-data/config.json`）+ 无头路径说明（预置 config 或 curl init）。
+- start-teamhub.sh 头部注释、deploy/teamhub.env.example、compose.yaml：同步删除两个模式变量的全部残留（全仓 grep 复核零命中，照 K4 清死变量先例）。
 - ai-agent-deploy-prompt.md 第一段第 4 步删两个 env 前缀（助手只负责起服，模式由用户在向导里自己点）——**助手的活变得更少更安全**。
 - RUNBOOK §1.6 改引用向导流程。
 
@@ -117,15 +129,15 @@ config.json 不存在
 | 刀② 向导 UI | App.tsx setup 分支 + 全屏向导组件 + 复活轮询 + i18n | 中 |
 | 刀③ 设置页部署配置区+文档 | 两写 API + 分区 UI + 演示归档 + §7 文档四处 | 中小 |
 
-现有测试面：main.ts 启动逻辑测试、health-check 需加"setup 模式渲染向导"用例；`POST /api/setup/init` 幂等 409 用例；config 坏文件 fail-closed 用例；演示归档后文件确在归档目录用例。
+现有测试面：main.ts 启动逻辑测试、health-check 需加"setup 模式渲染向导"用例；`POST /api/setup/init` 幂等 409 用例；config 坏文件 fail-closed 用例；演示归档后文件确在归档目录用例。**装置改造**（v2，模式 env 退役的连带）：e2e/health-check 与 verify-hub-compose.sh 冒烟在起服前预置 config.json（或起服后先 curl init 再跑既有断言）；hub-server 单测不受影响（直接 buildHubServer(options) 构造，不经 env）。
 
 ## 9. 风险与对策
 
 - **config 写坏 → 循环起不来**：fail-closed 拒启动是既有纪律；exit 非 42 循环即停，不会无限重启。修复路径=删/修 config.json（文档写明）。
-- **env 与 config 双真相困惑**：唯一优先级规则 + 启动 banner 明示"config.json 生效，env 已忽略"。
 - **向导抢注窗口**：沿用 loopback 纪律（已裁决），DEPLOY/RUNBOOK 既有警示继续背书；残余风险与名册豁免窗口同级、同留档。
 - **演示归档失败中途**：先归档后写 config，任一步失败即中止且不重启（数据完好，报错给操作者）。
-- **无头部署（compose）死等向导**：§3 的"env 显式设置=固化跳过"规则兜底；compose 的 env 文件本来就显式设值。
+- **无头/自动化部署死等向导**（v2 改口径）：不再有 env 兜底——预置 config.json 或 curl init 二选一，写进 DEPLOY 无头小节；compose 冒烟脚本自带 init 步。
+- **升级用户突见向导**（v2 新增）：既有 v0.25.x 部署升级后见一次向导属预期行为；向导内"检测到已有数据、不动数据"提示 + RUNBOOK 升级注记双保险，且 dataMode 只影响新建文件（K6），误选也不清库。
 
 ## 10. 开放问题（批设计稿时顺手拍）
 
