@@ -845,7 +845,7 @@ function resolveHolderPattern(
 }
 
 /**
- * 库存 / BOM 锚点场景（INV-BOM-CORE，demo 模式才注入；TEAMHUB_DEMO_SEED=false → 空板）。
+ * 库存 / BOM 锚点场景（INV-BOM-CORE，demo 模式才注入；config.dataMode='real' → 空板）。
  * 机器人列引用由 resourceRefs 注入（不直连 SCHEDULE 资源 id 字面量，见上）。
  * 三个 trackIndividually 件（电机/电调/主控）+ 一个按数量件（M4 螺丝）；个体实例与 allocations.used 计数一致：
  *  - GM6020 电机 total 9：primary 用 2 / secondary 用 4 / 闲置 3（历史：盘点 10 → 烧坏 1 → 9）。

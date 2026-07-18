@@ -153,6 +153,8 @@ import {
   decodeRosterBytes,
   parseRosterCsv,
   RosterImportReportSchema,
+  // SETUP-WIZARD 刀①：正常模式 setup 状态回执（GET /api/setup/state → initialized:true）。
+  SetupStateResponseSchema,
 } from '@teamhub/hub-contracts';
 import { ZodError } from 'zod';
 import { isGateReviewer, isGroupLeadOf, isSuperAdmin } from './authz.js';
@@ -2140,7 +2142,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   const clock: Clock =
     options.clock ?? new FixedClock(new Date(GOVERNANCE_SCENARIO_NOW));
   // K6（时钟与空板刀）：未注入 store 走默认内存 store 时，**复用上面的 clock** 而非各自 new FixedClock——
-  // 否则 main.ts 在 TEAMHUB_DEMO_SEED=false 无落盘 env 时注入 RealClock 到 options.clock，路由层（claim/
+  // 否则 main.ts 在 dataMode='real' 无落盘 env 时注入 RealClock 到 options.clock，路由层（claim/
   // assign/baseline/artifact/schedule now）走真钟，但默认 InMemoryGovStore 的 createTask 仍回退假钟 6/11
   // （"server options 有真钟、默认 store 仍假钟"缺口）。缺省态 clock=FixedClock(GOVERNANCE_SCENARIO_NOW)、
   // 与原 `new InMemoryGovStore()` 逐字等价，演示 / 测试零变化。
@@ -2190,6 +2192,9 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   const WRITE_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
   app.addHook('onRequest', async (request, reply) => {
     if (!WRITE_METHODS.has(request.method) || !request.url.startsWith('/api/')) return;
+    // SETUP-WIZARD 刀①：正常模式 POST /api/setup/init 恒 409（多标签页幂等），不做任何写、无副作用，
+    // 故豁免写门（鉴权 / 限流）直达处理器——身份模式 / 配 token 下也稳定 409，不因缺会话 / 缺 Bearer 变 401。
+    if (request.url.split('?')[0] === '/api/setup/init') return;
     // 鉴权（配了 token 才强制 Bearer；未配=loopback dev 放行）
     if (writeToken && request.headers.authorization !== `Bearer ${writeToken}`) {
       void reply.code(401).send({ detail: 'unauthorized' });
@@ -2313,6 +2318,19 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     if (token) sessions.destroy(token);
     void reply.header('set-cookie', clearSessionCookie());
     return SessionResponseSchema.parse({ mode: 'identity', session: null });
+  });
+
+  // ── Setup 端点（SETUP-WIZARD 刀①，setup-wizard.md §3/§4）：宿主级横切，两模式都挂 ──────────────
+  // 正常模式（config.json 已存在，才走 buildHubServer）：GET 恒报 initialized:true（前端据此渲染正常 app
+  // 而非向导）；POST 恒 409（多标签页 / 重复提交幂等——不再接受初始化，改配置走设置页刀③的写 API）。
+  // dataDirHasData 在正常模式已无意义（仅升级迁移提示用），恒 true。setup 模式的 initialized:false 版本由
+  // build-setup-server.ts 提供（那条链根本不建 store / 不进本函数）。
+  app.get('/api/setup/state', async () => {
+    return SetupStateResponseSchema.parse({ initialized: true, dataDirHasData: true });
+  });
+  app.post('/api/setup/init', async (_request, reply) => {
+    void reply.code(409).send({ detail: '已初始化（config.json 已存在）' });
+    return reply;
   });
 
   // 装配外壳核心：遍历 enabledModules → 挂载各域路由。未启用模块的函数根本不被调用，端点整段不挂

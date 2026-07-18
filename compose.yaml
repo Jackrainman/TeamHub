@@ -4,12 +4,18 @@ services:
       context: .
       dockerfile: Dockerfile
     image: teamhub-hub:local
+    # SETUP-WIZARD 刀①：exit code 42 = 请求重启（向导 / 设置页改配置后 process.exit(42)）。on-failure 非零即
+    # 拉起（含 42），顺带补容器崩溃自愈（此前无 restart 策略）。同一容器原地重启 → config 卷持久、进正常模式。
+    restart: on-failure
     env_file:
       - deploy/teamhub.env.example
     environment:
       HUB_HOST: 0.0.0.0
       HUB_PORT: 4177
       TEAMHUB_CONSOLE_DIST_DIR: /opt/teamhub/console
+      # SETUP-WIZARD 刀①：部署配置文件（dataMode / identityMode 唯一真相）。首启动无此文件 → 向导；提交后
+      # 写到此卷、重启进正常模式。无头部署可预置本文件到卷，或起服后 curl POST /api/setup/init。
+      TEAMHUB_CONFIG_FILE: /var/lib/teamhub/config/config.json
       # M11（AUDIT-FIXES 部署前必修）：容器内 KB 落盘到挂卷——否则每次重启静默丢全部
       # IssueCard/ErrorEntry/ArchiveDocument，破「AI+知识库闭环」前提。
       TEAMHUB_KB_DATA_FILE: /var/lib/teamhub/kb/kb-data.json
@@ -29,6 +35,7 @@ services:
     ports:
       - "${TEAMHUB_HOST_PORT:-4177}:4177"
     volumes:
+      - hub_config:/var/lib/teamhub/config
       - hub_artifacts:/var/lib/teamhub/artifacts
       - hub_kb:/var/lib/teamhub/kb
       - hub_gov:/var/lib/teamhub/gov
@@ -49,6 +56,7 @@ services:
       start_period: 10s
 
 volumes:
+  hub_config:
   hub_artifacts:
   hub_kb:
   hub_gov:

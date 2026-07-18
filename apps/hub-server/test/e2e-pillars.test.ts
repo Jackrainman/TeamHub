@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'vitest';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -52,7 +52,8 @@ async function startServer(
     cwd: serverRoot,
     env: {
       ...process.env,
-      TEAMHUB_DEMO_SEED: 'false', // 空板：完全受控，断言确定
+      // SETUP-WIZARD 刀①：模式类 env 已退役，dataMode/identityMode 走预置 config.json（见 makeDataDir，
+      // dataMode='real' = 空板，完全受控、断言确定）。TEAMHUB_CONFIG_FILE 随各 test 的 env 传入。
       HUB_HOST: '127.0.0.1',
       HUB_PORT: String(port),
       ...env,
@@ -88,10 +89,27 @@ async function stopServer(proc: ChildProcess): Promise<void> {
   });
 }
 
-async function makeDataDir(): Promise<{ gov: string; kb: string }> {
+async function makeDataDir(): Promise<{
+  gov: string;
+  kb: string;
+  config: string;
+}> {
   const dir = await mkdtemp(join(tmpdir(), 'teamhub-e2e-'));
   tmpDirs.push(dir);
-  return { gov: join(dir, 'gov.json'), kb: join(dir, 'kb.json') };
+  // SETUP-WIZARD 刀①：预置 config.json（dataMode='real' 空板 + 匿名），起服即进正常模式、跳过向导，
+  // 断言完全受控。TEAMHUB_CONFIG_FILE 指向此文件（各 test 的 env 传入）。
+  const config = join(dir, 'config.json');
+  await writeFile(
+    config,
+    JSON.stringify({
+      schemaVersion: 1,
+      dataMode: 'real',
+      identityMode: 'anonymous',
+      initializedAt: '2026-07-18T00:00:00.000Z',
+    }),
+    'utf8',
+  );
+  return { gov: join(dir, 'gov.json'), kb: join(dir, 'kb.json'), config };
 }
 
 afterAll(async () => {
@@ -160,8 +178,12 @@ const hasEdge = (
 
 describe('e2e: 真 HTTP + 真落盘 + 真重启（驱动 src/main.ts）', () => {
   test('KB 结案 → 杀进程重启 → 同症状仍召回（FileKbStore 跨真实 reload 存活）', async () => {
-    const { gov, kb } = await makeDataDir();
-    const env = { TEAMHUB_GOV_DATA_FILE: gov, TEAMHUB_KB_DATA_FILE: kb };
+    const { gov, kb, config } = await makeDataDir();
+    const env = {
+      TEAMHUB_GOV_DATA_FILE: gov,
+      TEAMHUB_KB_DATA_FILE: kb,
+      TEAMHUB_CONFIG_FILE: config,
+    };
     const recallUrl =
       '/api/kb/similar?symptom=' +
       encodeURIComponent(probeIssue.symptomSummary) +
@@ -189,8 +211,12 @@ describe('e2e: 真 HTTP + 真落盘 + 真重启（驱动 src/main.ts）', () => 
   }, 60_000);
 
   test('PM 建任务+依赖 → 杀进程重启 → 任务与边存活（FileGovStore 跨真实 reload）', async () => {
-    const { gov, kb } = await makeDataDir();
-    const env = { TEAMHUB_GOV_DATA_FILE: gov, TEAMHUB_KB_DATA_FILE: kb };
+    const { gov, kb, config } = await makeDataDir();
+    const env = {
+      TEAMHUB_GOV_DATA_FILE: gov,
+      TEAMHUB_KB_DATA_FILE: kb,
+      TEAMHUB_CONFIG_FILE: config,
+    };
 
     const port1 = await freePort();
     const s1 = await startServer(env, port1);
@@ -228,11 +254,12 @@ describe('e2e: 真 HTTP + 真落盘 + 真重启（驱动 src/main.ts）', () => 
   }, 60_000);
 
   test('H3：配 TEAMHUB_WRITE_TOKEN 后，写端点无 Bearer→401、带 Bearer→201、读端点不受限', async () => {
-    const { gov, kb } = await makeDataDir();
+    const { gov, kb, config } = await makeDataDir();
     const token = 'e2e-secret-token';
     const env = {
       TEAMHUB_GOV_DATA_FILE: gov,
       TEAMHUB_KB_DATA_FILE: kb,
+      TEAMHUB_CONFIG_FILE: config,
       TEAMHUB_WRITE_TOKEN: token,
     };
     const port = await freePort();

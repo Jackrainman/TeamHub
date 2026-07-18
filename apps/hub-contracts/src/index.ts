@@ -123,6 +123,8 @@ export * from './checklist.js';
 // 跨端单一源（D-052 重复真相收口）：errorCode 派生 / 系统状态契约 / PM 写请求契约
 export * from './error-code.js';
 export * from './system-status.js';
+// 部署配置落盘层（SETUP-WIZARD 刀①，setup-wizard.md §2/§3）：config.json 契约 + setup 三端点请求/响应契约。
+export * from './deploy-config.js';
 export * from './pm-requests.js';
 // 名册导入（ROSTER-IMPORT，K8）：CSV 模板生成 + 编码探测 + 手写零依赖解析器 + 导入报告契约（纯，无状态）。
 export * from './roster-import.js';

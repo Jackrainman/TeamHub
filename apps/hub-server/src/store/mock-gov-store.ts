@@ -115,7 +115,7 @@ export class InMemoryGovStore implements GovStore {
     seed: GovernanceSnapshot = governanceScenarioFixture,
     clock: Clock = new FixedClock(new Date(GOVERNANCE_SCENARIO_NOW)),
     // K6（时钟与空板刀）：演示态 = 演示锚点、真实态 = 真空板。demoSeed=true（默认）从 scheduleScenarioFixture
-    // seed 资源/占用窗口/接力交接线；demoSeed=false（main.ts 在 TEAMHUB_DEMO_SEED=false 时透传）→ 空数组。
+    // seed 资源/占用窗口/接力交接线；demoSeed=false（main.ts 在 config.dataMode='real' 时透传）→ 空数组。
     demoSeed = true,
   ) {
     // 浅克隆 + 克隆全部 8 个数组（M13）：写方法追加时不污染共享 fixture。复用 cloneArrayFields（与

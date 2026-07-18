@@ -4,10 +4,10 @@ import { MemberPublicSchema, MemberRoleSchema } from './pm-core.js';
 /**
  * 轻身份登录契约（IDENTITY-LITE，D-083 §4.2 + 路线 v4 第 2 步）。
  *
- * **双模式一等公民**：
- *  - 匿名模式（`TEAMHUB_IDENTITY_MODE` 未设 / `anonymous`）= 今天的形态，整个身份模块不启用、
+ * **双模式一等公民**（模式来源 = `config.json` 的 `identityMode`，SETUP-WIZARD 刀①；模式类 env 已退役）：
+ *  - 匿名模式（`identityMode: 'anonymous'`）= 今天的形态，整个身份模块不启用、
  *    共享写口令（TEAMHUB_WRITE_TOKEN 门不变），session 端点禁用（POST/DELETE → 404）。
- *  - 身份模式（`TEAMHUB_IDENTITY_MODE=identity`）= 匿名可读一切 + 登录才能写。登录 = 选人 + 可选 PIN
+ *  - 身份模式（`identityMode: 'identity'`）= 匿名可读一切 + 登录才能写。登录 = 选人 + 可选 PIN
  *    （家庭影院级重量，无邮箱注册）。有 pinHash 的成员须验 PIN，无 pinHash 免 PIN。
  *
  * **密钥纪律**：本文件契约**绝不**含 pinHash——登录只收 memberId + 明文 pin（一次性校验、不回存），

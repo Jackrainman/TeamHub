@@ -35,21 +35,15 @@
 #                         漏设则 main.ts 回落 InMemoryChecklistStore、每次重启清空。本脚本默认接好。
 #   TEAMHUB_WRITE_TOKEN   写端点鉴权密钥（AUDIT H3）。绑非 loopback（0.0.0.0）时必填，未填则本脚本自动生成并打印；
 #                         写端点 POST /api/* 须带 `Authorization: Bearer <token>`，读端点不受影响。
-#   TEAMHUB_IDENTITY_MODE 轻身份登录模式（IDENTITY-LITE，D-083 §4.2）。缺省 anonymous = 现状零变化
-#                         （身份模块不启用、共享写口令）。设 identity → 匿名可读一切 + 登录才能写：session
-#                         端点启用（POST /api/session 选人+可选 PIN），写路由须携有效会话（httpOnly cookie）、
-#                         actor 服务端注入。会话存内存、重启全员重登（家庭影院级）。身份模式下非 loopback
-#                         暴露即便无 TEAMHUB_WRITE_TOKEN 也放行（写由会话把关）。
+#   TEAMHUB_CONFIG_FILE   部署配置文件（默认 ~/teamhub-data/config.json，SETUP-WIZARD 刀①）。**模式的唯一
+#                         真相**：dataMode（演示/真实）+ identityMode（匿名/登录制）落在这里。文件不存在 →
+#                         首启动向导（浏览器里点选，人类路径零 env）；存在 → 严格解析、坏文件拒启动。改配置
+#                         走设置页「部署配置」（自动重启生效）。无头/自动化部署可预置本文件或起服后 curl
+#                         POST /api/setup/init。（演示态开关 / 身份模式两个模式类 env 已退役，来源改本文件。）
 #   TEAMHUB_TRUST_PROXY   反代信任（默认 false）。反代 / SSH 隧道部署后面**必须**设 true，否则写端点
 #                         限流塌成全队共用一个桶（任一客户端可耗尽、DoS 全队写入，见 server.ts）；
 #                         直连暴露（无反代）保持 false（否则 X-Forwarded-For 可伪造）。本脚本原样
 #                         透传给 node 进程（不额外处理），设置方式同其余变量：前缀赋值后跑本脚本。
-#   TEAMHUB_DEMO_SEED     演示态 vs 真实态开关（默认未设 = 演示态）。**DEMO_SEED=false 同时启用真实时钟与
-#                         真空板**：真实时钟（RealClock，新建任务 createdAt 走真钟、不再恒 6/11，挂单池
-#                         stalenessDays 不再第一秒 >14 天全标红）+ 真空板（落盘文件首次创建时 seed 仅赛季 /
-#                         项目 / 阶段元信息，schedule 三块空、不见虚构车 + 演示排班）。默认演示态 = 冻结时钟 +
-#                         演示场景（8 任务 + 图纸版本日志 + 知识库语料 + 演示车/排班），便于走查。仅影响
-#                         **新建**落盘文件与内存态，已有数据文件按原样加载、不受此 flag 影响。
 #   TEAMHUB_SKIP_BUILD=1  跳过构建（只重启时用）
 #
 set -euo pipefail
@@ -70,8 +64,8 @@ TEAMHUB_BASELINE_DATA_FILE="${TEAMHUB_BASELINE_DATA_FILE:-${HOME}/teamhub-data/b
 TEAMHUB_CHECKLIST_DATA_FILE="${TEAMHUB_CHECKLIST_DATA_FILE:-${HOME}/teamhub-data/checklist.json}"
 TEAMHUB_ARTIFACT_FILES_DIR="${TEAMHUB_ARTIFACT_FILES_DIR:-${HOME}/teamhub-data/artifacts}"
 TEAMHUB_WRITE_TOKEN="${TEAMHUB_WRITE_TOKEN:-}"
-# IDENTITY-LITE（D-083 §4.2）：缺省 anonymous = 现状零变化；设 identity 启用轻身份登录（见文件头注释）。
-TEAMHUB_IDENTITY_MODE="${TEAMHUB_IDENTITY_MODE:-anonymous}"
+# SETUP-WIZARD 刀①：部署配置文件（模式的唯一真相）。不存在 → 首启动向导；存在 → 严格解析（坏文件拒启动）。
+TEAMHUB_CONFIG_FILE="${TEAMHUB_CONFIG_FILE:-${HOME}/teamhub-data/config.json}"
 # 活体戳：注入 git short SHA 进 /health.buildId，重启后一行 curl 即知在服哪个构建（feiyue ?v= 校验等价）。
 TEAMHUB_BUILD_ID="${TEAMHUB_BUILD_ID:-$(git -C "${ROOT_DIR}" rev-parse --short HEAD 2>/dev/null || echo nogit)}"
 # 产品版本号（D-074 单一真相 = 根 VERSION，bump-version.sh 同步进三包 package.json）。
@@ -107,7 +101,7 @@ done
 
 # 语料 / 治理 / 库存 / 基准线 / 归档物落盘目录就位（server 启动即读：KB 召回 + PM 录入 + 库存盘点 +
 # 倒排基准线 + 图纸文件上传下载，重启不丢）
-mkdir -p "$(dirname "${TEAMHUB_KB_DATA_FILE}")" "$(dirname "${TEAMHUB_GOV_DATA_FILE}")" "$(dirname "${TEAMHUB_GOV_SQLITE_FILE}")" "$(dirname "${TEAMHUB_INV_DATA_FILE}")" "$(dirname "${TEAMHUB_BASELINE_DATA_FILE}")" "$(dirname "${TEAMHUB_CHECKLIST_DATA_FILE}")" "${TEAMHUB_ARTIFACT_FILES_DIR}"
+mkdir -p "$(dirname "${TEAMHUB_CONFIG_FILE}")" "$(dirname "${TEAMHUB_KB_DATA_FILE}")" "$(dirname "${TEAMHUB_GOV_DATA_FILE}")" "$(dirname "${TEAMHUB_GOV_SQLITE_FILE}")" "$(dirname "${TEAMHUB_INV_DATA_FILE}")" "$(dirname "${TEAMHUB_BASELINE_DATA_FILE}")" "$(dirname "${TEAMHUB_CHECKLIST_DATA_FILE}")" "${TEAMHUB_ARTIFACT_FILES_DIR}"
 
 if [[ "${SKIP_BUILD}" != "1" ]]; then
   echo "[1/2] 构建 console（产出静态站 dist/）…"
@@ -118,7 +112,7 @@ fi
 
 # console 静态产物交给 server 单端口托管
 export TEAMHUB_CONSOLE_DIST_DIR="${CONSOLE_DIR}/dist"
-export TEAMHUB_KB_DATA_FILE TEAMHUB_GOV_DATA_FILE TEAMHUB_INV_DATA_FILE TEAMHUB_BASELINE_DATA_FILE TEAMHUB_CHECKLIST_DATA_FILE TEAMHUB_ARTIFACT_FILES_DIR HUB_HOST HUB_PORT TEAMHUB_WRITE_TOKEN TEAMHUB_BUILD_ID TEAMHUB_IDENTITY_MODE TEAMHUB_GOV_BACKEND TEAMHUB_GOV_SQLITE_FILE
+export TEAMHUB_CONFIG_FILE TEAMHUB_KB_DATA_FILE TEAMHUB_GOV_DATA_FILE TEAMHUB_INV_DATA_FILE TEAMHUB_BASELINE_DATA_FILE TEAMHUB_CHECKLIST_DATA_FILE TEAMHUB_ARTIFACT_FILES_DIR HUB_HOST HUB_PORT TEAMHUB_WRITE_TOKEN TEAMHUB_BUILD_ID TEAMHUB_GOV_BACKEND TEAMHUB_GOV_SQLITE_FILE
 
 echo "──────────────────────────────────────────────"
 echo " Team Hub v${TEAMHUB_VERSION} 启动 → http://${HUB_HOST}:${HUB_PORT}  (console + API 同端口)"
@@ -133,7 +127,11 @@ echo " 基准线文件：${TEAMHUB_BASELINE_DATA_FILE}（队长手写覆盖/验�
 echo " 检查单文件：${TEAMHUB_CHECKLIST_DATA_FILE}（现场快记欠条/清偿/豁免重启不丢）"
 echo " 归档物目录：${TEAMHUB_ARTIFACT_FILES_DIR}（图纸文件上传下载，重启不丢）"
 echo " 版本：v${TEAMHUB_VERSION}（/api/system/status.version 同源）　构建戳：${TEAMHUB_BUILD_ID}（/health.buildId）"
-echo " 身份模式：${TEAMHUB_IDENTITY_MODE}（anonymous=现状零变化；identity=匿名可读+登录才写，GET /api/session 探测）"
+if [[ -f "${TEAMHUB_CONFIG_FILE}" ]]; then
+  echo " 部署配置：${TEAMHUB_CONFIG_FILE}（dataMode / identityMode 唯一真相；改配置走设置页→部署配置，自动重启）"
+else
+  echo " 首次启动：打开浏览器跟随向导完成初始化（选演示数据 / 正式安装 + 登录方式），配置将写入 ${TEAMHUB_CONFIG_FILE}"
+fi
 if [[ "${HUB_HOST}" != "127.0.0.1" && "${HUB_HOST}" != "localhost" && "${HUB_HOST}" != "::1" ]]; then
   echo " 已绑 ${HUB_HOST}：写端点 POST /api/* 须带 Authorization: Bearer <token>（读端点不限）。"
   if [[ "${AUTO_TOKEN:-0}" == "1" ]]; then
@@ -143,4 +141,18 @@ if [[ "${HUB_HOST}" != "127.0.0.1" && "${HUB_HOST}" != "localhost" && "${HUB_HOS
 fi
 echo "──────────────────────────────────────────────"
 
-exec node "${SERVER_DIR}/dist/main.js"
+# SETUP-WIZARD 刀①：自动重启循环。约定 exit code 42 = 请求重启（向导 / 设置页改配置后 POST init →
+# 服务端写 config.json → exit 42）。非 42（含正常崩溃）原样退出——不引入「崩了就无限拉起」的新行为。
+# 用 if 承接退出码，避免 set -e 在 node 非零退出时先中止（拿不到 $? 就重启不了）。
+while :; do
+  if node "${SERVER_DIR}/dist/main.js"; then
+    code=0
+  else
+    code=$?
+  fi
+  if [[ "${code}" -eq 42 ]]; then
+    echo "配置已更新，自动重启…"
+    continue
+  fi
+  exit "${code}"
+done

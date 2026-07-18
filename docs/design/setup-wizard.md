@@ -145,3 +145,26 @@ config.json 不存在 ─→ **setup 模式**
 1. 试驾态的"高级：演示+登录制"折叠项 → **做**（成本≈0，默认收起、默认匿名）。
 2. `POST /api/setup/graduate` 转正式后的名册导入 → **引导横幅跳设置页**（复用现有流程，不嵌弹窗不重复实现）。
 3. 匿名⇄身份切换在匿名侧的鉴权 → **走写门**（与现状双模式非对称裁决一致，不特殊收紧）。
+
+## 11. 实现期偏离（刀① 落地记录，2026-07-18）
+
+刀①（配置层+状态机+重启循环，对应 §2/§3/§4）落地时与设计稿的偏离 / 落点选择，如下留档（未静默）：
+
+1. **start-teamhub.sh 重启循环写法**：§4 示例是 `node …; code=$?`，但脚本头有 `set -euo pipefail`——裸 `node`
+   非零退出会先触发 `set -e` 中止、拿不到 `$?` 就无法判 42。改为 `if node …; then code=0; else code=$?; fi`
+   承接退出码，**语义与 §4 逐字一致**（42→continue，其余→`exit $code`），仅为兼容 `set -e`。
+2. **setup 三端点契约落点**：`SetupInitRequestSchema` / `SetupInitResponseSchema` / `SetupStateResponseSchema`
+   与 `DeployConfigSchema` 一并放 `hub-contracts/deploy-config.ts`（单一源、前后端复用），而非 server 内联声明。
+   §3 只定义了形状、未指定落点，此为实现选择。
+3. **compose.yaml 除 `restart: on-failure` 外**另加 `TEAMHUB_CONFIG_FILE` env + `hub_config` 卷——config.json
+   须跨 exit-42 重启持久，否则容器重建即丢、每次回到向导。呼应 §3「预置 config.json / compose 卷」，是让两态
+   模型在容器里真正成立的必要接线（§8 只点名"加 restart"）。
+4. **全仓 grep 尚未字面归零**：两处模式类 env 名残留在本刀范围外——(a)
+   `apps/hub-console/src/features/settings/SettingsPage.tsx`（设置页「部署信息」区，§6 归刀③重写）、
+   (b) `docs/*.md`（§7 归刀③）。本刀自有文件（hub-contracts / hub-server / start-teamhub.sh / compose.yaml /
+   deploy/teamhub.env.example）已零命中。
+5. **setup 模式 server 不施加 H3「非 loopback 无 writeToken 拒启」闸**：按 §0/§9 loopback 纪律裁决（不加安装码），
+   首启动 `HUB_HOST=0.0.0.0` 会暴露 `POST /api/setup/init`，属 §9 已留档的残余风险（与名册豁免窗口同级）。非偏离，口径备注。
+6. **e2e/health 装置改造范围**：本刀已改 `apps/hub-server/test/e2e-pillars.test.ts`（起服前预置 config.json 代替
+   旧 `TEAMHUB_DEMO_SEED=false`）。`apps/hub-console/e2e/health-check.cjs` 与 `scripts/verify-hub-compose.sh`
+   的同类改造归刀②/文档轮（本刀不跑它们、其起服路径由刀②适配）。

@@ -25,16 +25,21 @@ import type { GovStore } from './store/gov-store.js';
 import { getArtifactDir } from './artifact-storage.js';
 import { resolveBuildId } from './status.js';
 import { parseTenantConfigEnv } from './tenant-config-env.js';
+import { readDeployConfigFile } from './deploy-config-file.js';
+import { buildSetupServer } from './build-setup-server.js';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 4177;
 
-// V1-FOLLOWUP-2 + K6（时钟与空板刀）：TEAMHUB_DEMO_SEED 一个开关派生「演示态 vs 真实态」两套地基——
-// **DEMO_SEED=false 同时启用真实时钟与真空板**。默认（未设 / 非 'false'）= 演示态：冻结时钟
-// FixedClock(GOVERNANCE_SCENARIO_NOW) + 演示锚点（8 任务 + 图纸版本日志 + 知识库语料 + 演示车/排班），便于走查；
-// 真实团队设 false → 真实态：RealClock（真实部署新建任务 createdAt 走真钟，不再恒 6/11、挂单池 stalenessDays
-// 不再第一秒 >14 天全标红）+ 落盘文件首启动 seed 为**空板**（仅保留赛季 / 项目 / 阶段元信息，schedule 三块空、
-// 不再见虚构车 + 演示排班）。仅影响**新建**落盘文件与内存态；已有数据文件按原样加载、不受此 flag 影响。
+// V1-FOLLOWUP-2 + K6（时钟与空板刀）+ SETUP-WIZARD 刀①：config.dataMode 派生「演示态 vs 真实态」两套地基——
+// **dataMode='real' 同时启用真实时钟与真空板**（旧演示态开关 false 的等价，模式类 env 已退役、来源改 config）。
+// dataMode='demo' = 演示态：冻结时钟 FixedClock(GOVERNANCE_SCENARIO_NOW) + 演示锚点（8 任务 + 图纸版本日志 +
+// 知识库语料 + 演示车/排班），便于走查；dataMode='real' = 真实态：RealClock（真实部署新建任务 createdAt 走真钟，
+// 不再恒 6/11、挂单池 stalenessDays 不再第一秒 >14 天全标红）+ 落盘文件首启动 seed 为**空板**（仅保留赛季 /
+// 项目 / 阶段元信息，schedule 三块空、不再见虚构车 + 演示排班）。仅影响**新建**落盘文件与内存态；已有数据文件
+// 按原样加载、不受此影响。
 function emptyGovSnapshot(): GovernanceSnapshot {
   return {
     seasonId: governanceScenarioFixture.seasonId,
@@ -72,22 +77,61 @@ function emptyInventorySnapshot(): InventorySnapshot {
 }
 
 async function main(): Promise<void> {
-  // 设了 TEAMHUB_GOV_DATA_FILE → 治理快照落盘（重启不丢，PM 录入 / 图纸提交日志 / 结案知识节点累积）；
-  // 文件不存在时 seed 真实锚点场景 + 图纸版本日志（A6）。未设则维持 InMemoryGovStore（mock-first 不变）。
-  // 单一真相在服务器，与 TEAMHUB_KB_DATA_FILE / FileKbStore 同一套落盘纪律。
+  // 部署配置（SETUP-WIZARD 刀①，setup-wizard.md §2/§3）：config.json 是模式的唯一真相。
+  // 存在 → 严格解析（坏文件 fail-closed 抛错、拒启动）→ dataMode/identityMode 全取自 config；
+  // 不存在 → setup 模式（首启动向导）。TEAMHUB_CONFIG_FILE 覆盖路径（默认 ~/teamhub-data/config.json）。
+  const configFile =
+    process.env.TEAMHUB_CONFIG_FILE ??
+    join(homedir(), 'teamhub-data', 'config.json');
+  const config = await readDeployConfigFile(configFile);
+
+  const host = process.env.HUB_HOST ?? DEFAULT_HOST;
+  const port = Number.parseInt(process.env.HUB_PORT ?? String(DEFAULT_PORT), 10);
+
+  if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+    throw new Error('invalid HUB_PORT');
+  }
+
+  // SS3 SQLite 增量迁移（product-redefine-2026-07 §4.4 / §9-③）：**默认仍 JSON、现状零变化**。
+  // 仅当 TEAMHUB_GOV_BACKEND=sqlite 时切 SqliteGovStore（须同时设 TEAMHUB_GOV_SQLITE_FILE=库文件路径）——
+  // 本地 SQLite 文件与 gov.json 同性质落盘（D-083 刀④拍板不属「真实服务器写入」）。库不存在则按 demoSeed
+  // 落种子（同 FileGovStore 首启动纪律）；已迁移/既有库按原样打开（fail-closed：schema 版本过高即拒开）。
+  // 运维 env、与模式无关：既用于正常模式建店，也用于 setup 模式 dataDirHasData 探测（gov 域走 sqlite 时探测库文件）。
+  const govBackend =
+    process.env.TEAMHUB_GOV_BACKEND === 'sqlite' ? 'sqlite' : 'json';
+
+  // ── setup 模式（config.json 不存在）：最小 server 托管向导，不建任何 store、不落任何种子 ────────────
+  if (!config) {
+    // dataDirHasData 候选（五域落盘文件路径，任一存在 → 升级迁移提示）。gov 域按 backend 选文件。
+    const dataFileCandidates = [
+      govBackend === 'sqlite'
+        ? process.env.TEAMHUB_GOV_SQLITE_FILE
+        : process.env.TEAMHUB_GOV_DATA_FILE,
+      process.env.TEAMHUB_KB_DATA_FILE,
+      process.env.TEAMHUB_INV_DATA_FILE,
+      process.env.TEAMHUB_BASELINE_DATA_FILE,
+      process.env.TEAMHUB_CHECKLIST_DATA_FILE,
+    ].filter((p): p is string => Boolean(p));
+    const setupApp = buildSetupServer({
+      configFile,
+      consoleDistDir: process.env.TEAMHUB_CONSOLE_DIST_DIR,
+      dataFileCandidates,
+    });
+    await setupApp.listen({ host, port });
+    console.log(
+      `[teamhub-hub-server] setup 模式（未初始化）：打开 http://${host}:${port} 跟随向导完成初始化（配置将写入 ${configFile}）`,
+    );
+    return;
+  }
+
+  // ── 正常模式（config.json 存在）：dataMode/identityMode 全取自 config ──────────────────────────
   // 空板 flag：仅决定**新建**落盘文件的首次种子（演示场景 vs 空板）；已有文件按原样加载。
-  const demoSeed = process.env.TEAMHUB_DEMO_SEED !== 'false';
+  const demoSeed = config.dataMode === 'demo';
   // K6（时钟与空板刀）：真实态注入 RealClock 到所有吃 clock 的构造点（各 store 工厂 + buildHubServer options）；
   // 演示态传 undefined → 各构造点回退 FixedClock(GOVERNANCE_SCENARIO_NOW)，演示 / health-check / 既有测试零变化。
   // kb/baseline/checklist 三 store 本身不吃 clock（其 createdAt 由路由层 clock=buildHubServer options 注入），
   // 故只 gov/inv store 工厂 + server options 三处显式透传；逐个 grep 确认无遗漏（clock.ts 全仓消费点）。
   const clock: Clock | undefined = demoSeed ? undefined : new RealClock();
-  // SS3 SQLite 增量迁移（product-redefine-2026-07 §4.4 / §9-③）：**默认仍 JSON、现状零变化**。
-  // 仅当 TEAMHUB_GOV_BACKEND=sqlite 时切 SqliteGovStore（须同时设 TEAMHUB_GOV_SQLITE_FILE=库文件路径）——
-  // 本地 SQLite 文件与 gov.json 同性质落盘（D-083 刀④拍板不属「真实服务器写入」）。库不存在则按 demoSeed
-  // 落种子（同 FileGovStore 首启动纪律）；已迁移/既有库按原样打开（fail-closed：schema 版本过高即拒开）。
-  const govBackend =
-    process.env.TEAMHUB_GOV_BACKEND === 'sqlite' ? 'sqlite' : 'json';
   const govSeed = demoSeed ? governanceScenarioFixture : emptyGovSnapshot();
   let store: GovStore | undefined;
   if (govBackend === 'sqlite') {
@@ -146,7 +190,7 @@ async function main(): Promise<void> {
   // 设了 TEAMHUB_BASELINE_DATA_FILE → 倒排基准线落盘（重启不丢，队长手写覆盖 / 验证门过门留痕累积）；
   // 独立文件 baseline.json（红线3：不进 TEAMHUB_GOV_DATA_FILE/GovernanceSnapshot）。未设则维持
   // InMemoryBaselineStore（mock-first 不变）。新建落盘文件按 demoSeed 落三版车演示基准线（S6 接上，
-  // 同 gov/kb/inv 一套开关）：demoSeed → baselineScenarioFixture（首屏非空）；TEAMHUB_DEMO_SEED=false
+  // 同 gov/kb/inv 一套开关）：demoSeed → baselineScenarioFixture（首屏非空）；dataMode='real'
   // → 空数组（真实团队首次 PATCH /api/baseline 生成自己的模板）。已有文件按原样加载、不受此 flag 影响。
   const baselineDataFile = process.env.TEAMHUB_BASELINE_DATA_FILE;
   const baselineStore = baselineDataFile
@@ -165,7 +209,7 @@ async function main(): Promise<void> {
   // 独立文件 checklist.json（红线：轻量域不进 TEAMHUB_GOV_DATA_FILE/GovernanceSnapshot，照 baseline.json 先例）。
   // 未设则维持 InMemoryChecklistStore（mock-first 不变）。新建落盘文件按 demoSeed 落两条演示欠条 + 空模板（同
   // gov/kb/inv/baseline 一套开关）：demoSeed → checklistScenarioFixture（首屏门检查单卡 / 告警区非空）；
-  // TEAMHUB_DEMO_SEED=false → 空（真实团队现场快记自己的欠条）。已有文件按原样加载、不受此 flag 影响。
+  // dataMode='real' → 空（真实团队现场快记自己的欠条）。已有文件按原样加载、不受此 flag 影响。
   const checklistDataFile = process.env.TEAMHUB_CHECKLIST_DATA_FILE;
   const checklistStore = checklistDataFile
     ? await FileChecklistStore.create(
@@ -179,18 +223,11 @@ async function main(): Promise<void> {
     );
   }
 
-  const host = process.env.HUB_HOST ?? DEFAULT_HOST;
-  const port = Number.parseInt(process.env.HUB_PORT ?? String(DEFAULT_PORT), 10);
-
-  if (!Number.isInteger(port) || port <= 0 || port > 65535) {
-    throw new Error('invalid HUB_PORT');
-  }
-
-  // IDENTITY-LITE（D-083 §4.2）：轻身份登录双模式。缺省（未设 / 非 'identity'）= 匿名模式，**现状零变化**
-  // （身份模块不启用、session 端点禁用、写路由信客户端自报 actor、写门只认 TEAMHUB_WRITE_TOKEN）。
-  // 设 TEAMHUB_IDENTITY_MODE=identity → 身份模式：匿名可读一切 + 登录才能写（写路由须携有效会话，actor 服务端注入）。
-  const identityMode =
-    process.env.TEAMHUB_IDENTITY_MODE === 'identity' ? 'identity' : 'anonymous';
+  // IDENTITY-LITE（D-083 §4.2）：轻身份登录双模式，来源 = config.identityMode（SETUP-WIZARD 刀①，模式类
+  // env 已退役）。'anonymous' = 匿名模式（身份模块不启用、session 端点禁用、写路由信客户端自报 actor、写门
+  // 只认 TEAMHUB_WRITE_TOKEN）；'identity' = 身份模式（匿名可读一切 + 登录才能写，写路由须携有效会话、actor
+  // 服务端注入）。
+  const identityMode = config.identityMode;
 
   // H3（AUDIT-FIXES 部署前必修）：非 loopback 暴露写端点必须配 TEAMHUB_WRITE_TOKEN，否则拒绝启动——
   // 避免裸暴露未鉴权的 POST /api/*（任意可达者污染治理数据 / 撑爆 KB / 回环 actor 身份）。
