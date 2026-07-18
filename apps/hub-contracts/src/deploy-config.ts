@@ -65,3 +65,29 @@ export const SetupStateResponseSchema = z.object({
   dataDirHasData: z.boolean(),
 });
 export type SetupStateResponse = z.infer<typeof SetupStateResponseSchema>;
+
+/**
+ * `PUT /api/setup/config` 请求体（SETUP-WIZARD 刀③，setup-wizard.md §6.3）：设置页「部署配置」里
+ * 改**登录方式**（匿名 ⇄ 身份）。只让改 identityMode——dataMode 走单向的 graduate 门（不反向），
+ * schemaVersion / initializedAt 由服务端保留原值，客户端不自报。
+ */
+export const SetupConfigRequestSchema = z.object({
+  identityMode: ConfigIdentityModeSchema,
+});
+export type SetupConfigRequest = z.infer<typeof SetupConfigRequestSchema>;
+
+/** `PUT /api/setup/config` 回执：受理 → 服务将自动重启（exit 42 → 循环 / restart:on-failure 拉起）。 */
+export const SetupConfigResponseSchema = z.object({
+  restarting: z.literal(true),
+});
+export type SetupConfigResponse = z.infer<typeof SetupConfigResponseSchema>;
+
+/**
+ * `POST /api/setup/graduate` 回执（SETUP-WIZARD 刀③，setup-wizard.md §6.2）：结束试驾转正式（单向门，
+ * 仅 dataMode==='demo' 可调）。服务端先把五域落盘 JSON + 归档物目录内容挪进 `demo-archive-<时间戳>/`
+ * （挪走不删、可手工找回）→ 写 dataMode=real → exit 42 重启进真空板。请求无 body（当前部署即目标）。
+ */
+export const SetupGraduateResponseSchema = z.object({
+  restarting: z.literal(true),
+});
+export type SetupGraduateResponse = z.infer<typeof SetupGraduateResponseSchema>;

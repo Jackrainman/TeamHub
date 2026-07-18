@@ -5,6 +5,9 @@ import {
   SetupInitRequestSchema,
   SetupStateResponseSchema,
   SetupInitResponseSchema,
+  SetupConfigRequestSchema,
+  SetupConfigResponseSchema,
+  SetupGraduateResponseSchema,
 } from '../src/index.js';
 
 /**
@@ -88,5 +91,28 @@ describe('setup 端点契约', () => {
   test('SetupInitResponseSchema：restarting 恒 true', () => {
     expect(() => SetupInitResponseSchema.parse({ restarting: true })).not.toThrow();
     expect(() => SetupInitResponseSchema.parse({ restarting: false })).toThrow();
+  });
+});
+
+describe('部署配置写端点契约（SETUP-WIZARD 刀③）', () => {
+  test('SetupConfigRequestSchema：只收 identityMode（改登录方式）', () => {
+    expect(SetupConfigRequestSchema.parse({ identityMode: 'identity' })).toEqual({
+      identityMode: 'identity',
+    });
+    expect(SetupConfigRequestSchema.parse({ identityMode: 'anonymous' })).toEqual({
+      identityMode: 'anonymous',
+    });
+  });
+
+  test('SetupConfigRequestSchema：拒非法枚举 / 缺字段', () => {
+    expect(() => SetupConfigRequestSchema.parse({ identityMode: 'oauth' })).toThrow();
+    expect(() => SetupConfigRequestSchema.parse({})).toThrow();
+  });
+
+  test('SetupConfigResponseSchema / SetupGraduateResponseSchema：restarting 恒 true', () => {
+    expect(() => SetupConfigResponseSchema.parse({ restarting: true })).not.toThrow();
+    expect(() => SetupConfigResponseSchema.parse({ restarting: false })).toThrow();
+    expect(() => SetupGraduateResponseSchema.parse({ restarting: true })).not.toThrow();
+    expect(() => SetupGraduateResponseSchema.parse({ restarting: false })).toThrow();
   });
 });

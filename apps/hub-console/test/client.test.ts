@@ -460,6 +460,65 @@ describe('hub console API client', () => {
     expect(JSON.parse(String(call[1]?.body))).toEqual(req);
   });
 
+  test('SETUP-WIZARD 刀②：getSetupState GET /api/setup/state；initSetup POST /api/setup/init（body 原样、响应过 zod）', async () => {
+    const calls: Array<[string, RequestInit | undefined]> = [];
+    const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+      const path = new URL(url, 'http://teamhub.local').pathname;
+      calls.push([path, init]);
+      if (init?.method === 'POST') {
+        return { ok: true, status: 200, json: async () => ({ restarting: true }) } as Response;
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ initialized: false, dataDirHasData: true }),
+      } as Response;
+    });
+    const client = createHubApiClient({
+      baseUrl: 'http://127.0.0.1:4177',
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+
+    const state = await client.getSetupState();
+    expect(state).toEqual({ initialized: false, dataDirHasData: true });
+
+    const req = { dataMode: 'real' as const, identityMode: 'identity' as const };
+    const res = await client.initSetup(req);
+    expect(res).toEqual({ restarting: true });
+
+    const stateCall = calls.find(([p, i]) => p === '/api/setup/state' && i?.method !== 'POST');
+    expect(stateCall).toBeTruthy();
+    const initCall = calls.find(([p, i]) => p === '/api/setup/init' && i?.method === 'POST');
+    expect(initCall).toBeTruthy();
+    expect(JSON.parse(String(initCall?.[1]?.body))).toEqual(req);
+  });
+
+  test('SETUP-WIZARD 刀③：setConfig PUT /api/setup/config（body 原样）；graduate POST /api/setup/graduate（无 body）', async () => {
+    const calls: Array<[string, RequestInit | undefined]> = [];
+    const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push([new URL(url, 'http://teamhub.local').pathname, init]);
+      return { ok: true, status: 200, json: async () => ({ restarting: true }) } as Response;
+    });
+    const client = createHubApiClient({
+      baseUrl: 'http://127.0.0.1:4177',
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+
+    const cfg = await client.setConfig({ identityMode: 'identity' });
+    expect(cfg).toEqual({ restarting: true });
+    const grad = await client.graduate();
+    expect(grad).toEqual({ restarting: true });
+
+    const putCall = calls.find(([p, i]) => p === '/api/setup/config' && i?.method === 'PUT');
+    expect(putCall).toBeTruthy();
+    expect(JSON.parse(String(putCall?.[1]?.body))).toEqual({ identityMode: 'identity' });
+
+    const gradCall = calls.find(([p, i]) => p === '/api/setup/graduate' && i?.method === 'POST');
+    expect(gradCall).toBeTruthy();
+    // 无 body：不发请求体。
+    expect(gradCall?.[1]?.body).toBeUndefined();
+  });
+
   test('writeToken 正向：createTask + uploadArtifactFile 均带 Bearer 头', async () => {
     const capturedInits: RequestInit[] = [];
     const fetcher = vi.fn(async (url: string, init?: RequestInit) => {

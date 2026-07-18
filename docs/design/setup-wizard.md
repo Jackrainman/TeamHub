@@ -168,3 +168,36 @@ config.json 不存在 ─→ **setup 模式**
 6. **e2e/health 装置改造范围**：本刀已改 `apps/hub-server/test/e2e-pillars.test.ts`（起服前预置 config.json 代替
    旧 `TEAMHUB_DEMO_SEED=false`）。`apps/hub-console/e2e/health-check.cjs` 与 `scripts/verify-hub-compose.sh`
    的同类改造归刀②/文档轮（本刀不跑它们、其起服路径由刀②适配）。
+
+### 刀③ 落地记录（2026-07-18，设置页部署配置区 + 转正式 + 文档同步，对应 §6/§7）
+
+1. **两写端点的运行时依赖经 `BuildHubServerOptions.setupControl` 透传**：§6.3 只列了端点契约，未指定
+   `PUT /api/setup/config` / `POST /api/setup/graduate` 如何拿到 configFile / 当前 config / 五域落盘文件 /
+   归档物目录。实现新增 `SetupControl` 结构（server.ts），main.ts 正常模式装配时填实参；**给了才注册这两端点**，
+   缺省不注册 → 404。这同时满足「**setup 模式不注册/404**」：setup 模式那条链是 build-setup-server.ts、根本不进
+   buildHubServer，故两端点在 setup 模式天然 404（无需额外分支）。
+2. **console 判「转正式」按钮显隐需知 dataMode → `DeploymentInfoSchema` 增 `dataMode` 字段（required）**：§6.2 定
+   「按钮只在 dataMode=demo 时出现」，但设置页原先只从 `/api/system/status` 的 deployment 拿到 identityMode、拿不到
+   dataMode。实现给 DeploymentInfo 补 `dataMode`（main.ts 从 config.dataMode 透传），并更新唯一一处既有 deployment
+   测试装置。字段是运维定位事实、非密钥，符合 K3 分区纪律。
+3. **设置页重启复活信号 = 宽限 + 轮询 `getSetupState` 可达性**（而非刀② 向导的 `initialized` 翻转）：正常模式两态皆
+   `initialized:true`（无电平翻转可用），故改用「先等 ~1.5s 宽限（服务端延迟 ~500ms 退出，避免探到正要死的旧进程）
+   → 轮询 getSetupState 首次成功即复活 → 整页刷新」。语义与刀② 的「重启轮询→刷新」等价（§6 末段要求）。
+4. **两写端点响应 / 请求契约落 `hub-contracts/deploy-config.ts`**：新增 `SetupConfigRequestSchema` /
+   `SetupConfigResponseSchema` / `SetupGraduateResponseSchema`（单一源、前后端复用），未复用 `SetupInitResponseSchema`
+   ——§6.3 分别命名两端点，独立类型便于将来分化。均为 `{restarting: true}` 形状。
+5. **转正式归档 = 只挪不删（`rename`）**：`demo-archive.ts` 把五域 JSON + 归档物目录内容 `rename` 进
+   `<数据目录>/demo-archive-<ISO时间戳，冒号/点规范为->/`（数据目录 = `dirname(configFile)`，呼应 §6.2 的
+   `~/teamhub-data/demo-archive-<ts>/`）。**全程只移动、绝不删除**，任一步失败即抛 → graduate 中止（不写 config、
+   不重启、500 报错），数据完好（已挪的在归档、未挪的在原位，均可找回，§9）。归档目录与数据目录同盘，`rename`
+   原子；跨设备（EXDEV，非标准布局）会让 graduate 报 500 中止、数据仍完好——属 §9「归档失败中途」已覆盖口径。
+6. **§7 文档残留清零范围 = 面向部署者的四篇 + 活代码；历史决策/设计日志按「历史文档」豁免**：已清 README /
+   DEPLOY / RUNBOOK / ai-agent-deploy-prompt 四篇部署者读的文档 + 设置页身份分区的 `TEAMHUB_IDENTITY_MODE=identity`
+   活代码残留。`docs/design/{release-pipeline,modularization-feasibility,beta-readiness-2026-07-16,product-redefine-2026-07}.md`
+   与 `docs/planning/{now,decisions}.md` 里的模式类 env 名**有意保留**——它们是带日期 / commit 的历史决策与设计
+   落点记录（env 名在其成文时点历史准确），改写会污染审计轨迹；与 §7 括注「docs/archive/ 历史文档除外」同一原则
+   （这些即 archive 性质的历史日志，只是物理不在 docs/archive/ 下）。四篇部署文档 + 全部 `apps/**/src` + start 脚本 /
+   compose / deploy 已 grep 零命中。
+7. **版本引用未动（`git checkout v0.25.0` / version 0.25.0）**：DEPLOY §1 与 ai-agent-deploy-prompt 里的公测 tag 引用
+   保持 v0.25.0（当前公开 tag，向导属其后的 v0.26.x 尚未 tag）。本刀不预判未来 tag——待发布轮切新 tag 时由发布流程
+   统一 bump（历来如此），非本刀范围。

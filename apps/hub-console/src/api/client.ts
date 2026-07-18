@@ -27,6 +27,10 @@ import {
   SetGateReviewerResponseSchema,
   SetMemberRoleResponseSchema,
   SetupSuperAdminResponseSchema,
+  SetupStateResponseSchema,
+  SetupInitResponseSchema,
+  SetupConfigResponseSchema,
+  SetupGraduateResponseSchema,
   RosterImportReportSchema,
   type ChecklistItemsResponse,
   type CreateChecklistItemRequest,
@@ -41,6 +45,12 @@ import {
   type SetMemberRoleResponse,
   type SetupSuperAdminRequest,
   type SetupSuperAdminResponse,
+  type SetupStateResponse,
+  type SetupInitRequest,
+  type SetupInitResponse,
+  type SetupConfigRequest,
+  type SetupConfigResponse,
+  type SetupGraduateResponse,
   type RosterImportReport,
   type ArtifactsResponse,
   type DepGraph,
@@ -207,6 +217,18 @@ export interface HubApiClient {
   getSession(): Promise<SessionResponse>;
   login(req: SessionRequest): Promise<SessionResponse>;
   logout(): Promise<SessionResponse>;
+  // 首启动向导（SETUP-WIZARD 刀②，setup-wizard.md §3/§5）。两态启动的前端入口：
+  // 读 GET /api/setup/state（initialized:false → 渲染全屏向导；true → 正常 app；dataDirHasData 供升级迁移提示）；
+  // 写 POST /api/setup/init（选 dataMode+identityMode → 服务端写 config.json → 回 restarting:true → exit 42 自动重启）。
+  // 已初始化后再调 init 恒 409（多标签页幂等），前端当作「已完成」进重启轮询。
+  getSetupState(): Promise<SetupStateResponse>;
+  initSetup(req: SetupInitRequest): Promise<SetupInitResponse>;
+  // 部署配置写通道（SETUP-WIZARD 刀③，setup-wizard.md §6）：设置页「部署配置」写区调用。
+  // setConfig = PUT /api/setup/config 改登录方式（identityMode）；graduate = POST /api/setup/graduate
+  // 结束试驾转正式（无 body）。两者写完 config.json → 服务端 exit 42 自动重启 → 回 {restarting:true}，
+  // 前端据此进重启轮询 → 整页刷新。鉴权：身份模式须 superAdmin（403）、匿名模式走写门（与 init 同 Bearer）。
+  setConfig(req: SetupConfigRequest): Promise<SetupConfigResponse>;
+  graduate(): Promise<SetupGraduateResponse>;
   // 成员名册只读（登录选人 + 任务 ownerId 选人共同数据源）。剥 pinHash（MemberPublicSchema，密钥纪律）；
   // 两模式均可读（名册非隐私，读侧全开，同 I0 先例）。
   getMembers(): Promise<{ members: MemberPublic[] }>;
@@ -506,6 +528,43 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         `${baseUrl}/api/session`,
         undefined,
         SessionResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async getSetupState() {
+      return fetchJson(
+        `${baseUrl}/api/setup/state`,
+        SetupStateResponseSchema,
+        fetcher,
+      );
+    },
+    async initSetup(req: SetupInitRequest) {
+      return postJson(
+        `${baseUrl}/api/setup/init`,
+        req,
+        SetupInitResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async setConfig(req: SetupConfigRequest) {
+      return sendJson(
+        'PUT',
+        `${baseUrl}/api/setup/config`,
+        req,
+        SetupConfigResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async graduate() {
+      // 无 body（当前部署即目标）：sendJson body=undefined → 不发请求体、不设 content-type。
+      return sendJson(
+        'POST',
+        `${baseUrl}/api/setup/graduate`,
+        undefined,
+        SetupGraduateResponseSchema,
         fetcher,
         writeToken,
       );

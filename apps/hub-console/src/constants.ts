@@ -15,6 +15,14 @@ export const APIBASE_KEY = 'teamhub.apiBase';
 export const WRITE_TOKEN_KEY = 'teamhub.writeToken';
 
 /**
+ * localStorage key: 首启动向导（SETUP-WIZARD 刀②）提交并重启完成后、整页刷新前写入的落点提示。
+ * 只在「正式 + 登录制」组合下写值 `'roster'`——重启后 ConsoleApp 首屏据此落到设置页 + 亮出
+ * 「三步走：导入名册 → 登录本人 → 初始化管理员」引导横幅（复用现有流程，不重复实现）。读到即清除，
+ * 只出现一次。其余组合（试驾 / 正式+匿名）不写值，落点走各自默认（总览页）。
+ */
+export const SETUP_LANDING_KEY = 'teamhub.setup.landing';
+
+/**
  * ArtifactKind → translation key map. Shared between OverviewPage and ArchivePage.
  * HUB-MODULARIZATION 第6步：`ArtifactRef['kind']` 已从闭集 enum 放宽为开放 string（见
  * hub-contracts/schemas.ts），故此处不再是"漏配即编译报错"的穷举——values 是机器人租户已知值

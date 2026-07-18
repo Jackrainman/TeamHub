@@ -1531,6 +1531,234 @@ button,
 
 /* （B3 归并）原 .settings-btn → .btn.btn--secondary（禁用透明度 0.5→0.55 统一，容差内）。 */
 
+/* ===== 首启动向导（SETUP-WIZARD 刀②，setup-wizard.md §5）——全屏两态启动，覆盖整个 app shell ===== */
+.setup-wizard {
+  min-height: 100vh;
+  padding: 6vh 20px 48px;
+  background: var(--page-bg);
+  color: var(--text);
+}
+/* applying / error / splash 三态居中；表单态从顶部起排（内容多）。 */
+.setup-wizard--center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.setup-wizard__inner {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.setup-wizard__head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.setup-wizard__title {
+  margin: 0;
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-heavy);
+  line-height: 1.2;
+}
+.setup-wizard__subtitle {
+  margin: 0;
+  max-width: 640px;
+  color: var(--muted);
+  font-size: var(--text-md);
+  line-height: 1.6;
+}
+/* 升级迁移提示（数据目录非空）：信息蓝，非警示。 */
+.setup-wizard__notice {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--blue);
+  border-radius: var(--radius-md);
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-size: var(--text-base);
+  line-height: 1.5;
+}
+
+/* 两张大卡：等宽并排，窄屏堆叠。 */
+.setup-wizard__cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.setup-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+/* 正式安装卡 = 推荐主角，边框 / 投影升一档（同 .panel--hero 主次分档逻辑）。 */
+.setup-card--primary {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+.setup-card__title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+}
+.setup-card__desc {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-base);
+  line-height: 1.6;
+}
+/* 试驾卡把 CTA 顶到底、与正式卡按钮对齐（正式卡多一格选择、天然更高）。 */
+.setup-card__spacer {
+  flex: 1 1 auto;
+}
+.setup-card__advanced {
+  padding: 10px 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+.setup-card__advanced summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+.setup-card__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: var(--text-base);
+}
+.setup-card__hint {
+  margin: 6px 0 0;
+  color: var(--faint);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.setup-card__foot {
+  margin: 0;
+  color: var(--faint);
+  font-size: var(--text-sm);
+}
+.setup-card .btn {
+  width: 100%;
+}
+
+/* 登录方式追问：两个可选块，选中时描边 + 底色提亮（:has 不支持时退化为纯 radio，功能不受影响）。 */
+.setup-card__choice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+.setup-card__choice legend {
+  padding: 0;
+  margin-bottom: 2px;
+  color: var(--text);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+}
+.setup-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  cursor: pointer;
+}
+.setup-choice:has(input:checked) {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+}
+.setup-choice input {
+  margin-top: 3px;
+}
+.setup-choice__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.setup-choice__label {
+  color: var(--text);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+}
+.setup-choice__hint {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+/* applying / error / splash 的居中状态块。 */
+.setup-wizard__status {
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+}
+.setup-wizard__status .setup-wizard__subtitle {
+  max-width: 460px;
+}
+.setup-spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid var(--border);
+  border-top-color: var(--blue);
+  animation: setup-spin 0.9s linear infinite;
+}
+@keyframes setup-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .setup-spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+@media (max-width: 720px) {
+  .setup-wizard__cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 向导落点引导横幅（§5 末段）：正式+登录制装完落设置页时的「三步走」提示，可关闭。 */
+.setup-guide-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 13px 15px;
+  border: 1px solid var(--blue);
+  border-radius: var(--radius-md);
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+.setup-guide-banner__body strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: var(--text-base);
+}
+.setup-guide-banner__body p {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
 /* ===== 总览补色：绿色 metric（PM 已完成） ===== */
 .metric-tile--green strong {
   color: var(--green);

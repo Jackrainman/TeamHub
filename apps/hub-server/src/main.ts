@@ -15,7 +15,11 @@ import type {
 import { buildHubServer } from './server.js';
 import { RealClock } from './clock.js';
 import type { Clock } from './clock.js';
-import { FileGovStore } from './store/file-gov-store.js';
+import {
+  FileGovStore,
+  deriveResourcesFilePath,
+  deriveScheduleSessionsFilePath,
+} from './store/file-gov-store.js';
 import { SqliteGovStore } from './store/sqlite-gov-store.js';
 import { FileKbStore } from './store/file-kb-store.js';
 import { FileInvStore } from './store/file-inv-store.js';
@@ -276,6 +280,8 @@ async function main(): Promise<void> {
       : { domain: 'checklist', backend: 'memory' },
   ];
   const deployment: DeploymentInfo = {
+    // SETUP-WIZARD 刀③：数据形态回显——设置页「部署配置」据此决定是否显示「结束试驾，转正式」按钮（仅 demo）。
+    dataMode: config.dataMode,
     identityMode,
     storage,
     // 启用模块 = 有效租户配置（未设 TEAMHUB_TENANT_MODULES → 缺省全 6 模块，与 buildHubServer 同一缺省）。
@@ -284,6 +290,31 @@ async function main(): Promise<void> {
     artifactUploadEnabled: getArtifactDir() !== null,
     buildId: resolveBuildId(),
   };
+
+  // SETUP-WIZARD 刀③：部署配置写通道依赖。改 identityMode / 转正式后重写 config.json（唯一真相）；
+  // 转正式归档的落盘文件 = 五域各自的落盘路径（gov 按 backend 选文件），存在的才归档、不存在跳过（某域走
+  // 内存 / 未配落盘时天然缺席）。**gov 域 JSON 后端另有两份 sibling**（resources.json / schedule-sessions.json，
+  // R3 车 + 排班占用/接力，与 gov.json 同目录）——不一并挪走，demo 车 / 排班在真空板重启后还在，故用 store 的
+  // 派生函数同源补上（sqlite 后端整库一个文件、无 sibling）。
+  const govDataFileForArchive =
+    govBackend === 'sqlite'
+      ? process.env.TEAMHUB_GOV_SQLITE_FILE
+      : process.env.TEAMHUB_GOV_DATA_FILE;
+  const govSiblingFiles =
+    govBackend === 'json' && govDataFileForArchive
+      ? [
+          deriveResourcesFilePath(govDataFileForArchive),
+          deriveScheduleSessionsFilePath(govDataFileForArchive),
+        ]
+      : [];
+  const setupDataFiles = [
+    govDataFileForArchive,
+    ...govSiblingFiles,
+    process.env.TEAMHUB_KB_DATA_FILE,
+    process.env.TEAMHUB_INV_DATA_FILE,
+    process.env.TEAMHUB_BASELINE_DATA_FILE,
+    process.env.TEAMHUB_CHECKLIST_DATA_FILE,
+  ].filter((p): p is string => Boolean(p));
 
   const app = buildHubServer({
     consoleDistDir: process.env.TEAMHUB_CONSOLE_DIST_DIR,
@@ -300,6 +331,12 @@ async function main(): Promise<void> {
     identityMode,
     tenantConfig,
     deployment,
+    setupControl: {
+      configFile,
+      config,
+      dataFiles: setupDataFiles,
+      artifactDir: getArtifactDir() ?? undefined,
+    },
   });
 
   await app.listen({ host, port });

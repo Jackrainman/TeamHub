@@ -60,6 +60,7 @@ describe('hub-server routes', () => {
     // K3 部署信息回显：落盘域带 path、内存域省 path；identityMode / 启用模块 / 图纸开关 / 构建标识齐备。
     const deployApp = buildHubServer({
       deployment: {
+        dataMode: 'real',
         identityMode: 'identity',
         storage: [
           { domain: 'gov', backend: 'file', path: '/data/gov.json' },
@@ -78,6 +79,7 @@ describe('hub-server routes', () => {
       expect(response.statusCode).toBe(200);
       const body = SystemStatusResponseSchema.parse(response.json());
       expect(body.deployment).toBeDefined();
+      expect(body.deployment?.dataMode).toBe('real');
       expect(body.deployment?.identityMode).toBe('identity');
       // 落盘形态：带路径。
       expect(body.deployment?.storage[0]).toEqual({

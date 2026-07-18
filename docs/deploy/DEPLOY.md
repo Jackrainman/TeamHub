@@ -33,50 +33,56 @@ npm --prefix apps/hub-console install
 
 ## 2. 先在演示态摸一遍
 
-不带任何环境变量启动就是**演示态**：时钟冻结在一个演示锚点日，自带示例任务 / 车辆 / 排班 / 知识库语料。
-先在这里把九个页面点一遍（页面清单见 [README](../../README.md#页面一览)），摸熟了再切真实态——
+第一次启动后浏览器打开，会有个**首启动向导**问你「先试试（演示数据）还是直接安装（正式使用）」。
+选「**先试试**」就进**演示态**：时钟冻结在一个演示锚点日，自带示例任务 / 车辆 / 排班 / 知识库语料。
+先在这里把九个页面点一遍（页面清单见 [README](../../README.md#页面一览)），摸熟了再转真实态（§3）——
 演示数据随便造随便删，不心疼。
 
-## 3. 真实部署要做的三个决定
+## 3. 真实部署的两个选择：向导里点选，不改 env
 
-### ① 演示还是真实：`TEAMHUB_DEMO_SEED=false`
+以前"演示 / 真实"和"匿名 / 登录"是两个模式类环境变量，现在**降为产品内配置**，落盘 `config.json`
+（默认 `~/teamhub-data/config.json`），由**首启动向导**点选、**设置页可改**、改完自动重启生效——
+人类路径全程零 env。
 
-真实态 = 真实时钟 + 空板（只有赛季 / 项目 / 阶段元信息，没有虚构车和演示排班）。
-**忘设的症状**：新建任务时间戳恒为演示锚点日、挂单池全员标红滞留。
-该开关只影响**新建**的数据文件；已有数据文件按原样加载。
+### ① 演示还是真实、匿名还是登录：首启动向导
 
-### ② 匿名还是登录制：`TEAMHUB_IDENTITY_MODE`
+第一次打开的向导，第 1 步两张大卡二选一：
 
-| | `anonymous`（默认） | `identity`（推荐真实团队用） |
-|---|---|---|
-| 读 | 谁都能看 | 谁都能看 |
-| 写 | 共用一个写口令（`TEAMHUB_WRITE_TOKEN`） | 登录本人才能写，操作自动留名 |
-| 管理员 | 无此概念 | 队长设 PIN 成为 superAdmin，角色 / 赛季 / 验收人等敏感设置须此身份 |
-| 我的视图 | 不可用（没有"登录=某人"概念） | 可用 |
-| 会话 | — | 存内存，**服务重启全员重登**；首次登录免 PIN，登录后自设 |
+- 「**先试试**」= 演示态（冻结时钟 + 示例数据），随便点不心疼。
+- 「**直接安装**」= 真实态（真实时钟 + 空板，只有赛季 / 项目 / 阶段元信息），追问一格「写操作要登录吗」：
 
-### ③ 怎么暴露给队友
+  | | 匿名共用 | 登录制（推荐真实团队用） |
+  |---|---|---|
+  | 读 | 谁都能看 | 谁都能看 |
+  | 写 | 共用一个写口令（`TEAMHUB_WRITE_TOKEN`） | 登录本人才能写，操作自动留名 |
+  | 管理员 | 无此概念 | 队长设 PIN 成为 superAdmin，角色 / 赛季 / 验收人等敏感设置须此身份 |
+  | 我的视图 | 不可用（没有"登录=某人"概念） | 可用 |
+  | 会话 | — | 存内存，**服务重启全员重登**；首次登录免 PIN，登录后自设 |
 
-- **第一步永远先绑 loopback**（默认 `127.0.0.1`），完成 §4 的初始化后再暴露。
-- 直连内网：`HUB_HOST=0.0.0.0`。匿名模式此时**必须**配 `TEAMHUB_WRITE_TOKEN`（强随机：`openssl rand -hex 32`），否则 server 拒启动；身份模式写由会话把关，token 可不配。
-- 挂在 nginx 反代 / SSH 隧道后面：再加 `TEAMHUB_TRUST_PROXY=true`（否则写限流全队共用一个桶）；**直连时保持 false**。
-
-三个决定拼起来，真实部署的典型启动命令：
-
-```bash
-TEAMHUB_DEMO_SEED=false TEAMHUB_IDENTITY_MODE=identity \
-  nohup ./start-teamhub.sh >teamhub.log 2>&1 &
-```
-
+选完自动写 `config.json` 并重启，几秒后就绪。**之后随时能在 设置 → 部署配置 改**：切换登录方式、
+或从演示态点「结束试驾，转正式」（演示数据归档到 `~/teamhub-data/demo-archive-<时间戳>/`，挪走不删可找回）。
 数据落在 `~/teamhub-data/`（kb / gov / inventory / baseline / checklist 五个 JSON + artifacts 目录），
 `start-teamhub.sh` 已默认接好全部落盘变量；要换路径见 §5 速查表。
 
+### ② 怎么暴露给队友
+
+- **第一步永远先绑 loopback**（默认 `127.0.0.1`），走完向导 + §4 的初始化后再暴露。
+- 直连内网：`HUB_HOST=0.0.0.0`。匿名模式此时**必须**配 `TEAMHUB_WRITE_TOKEN`（强随机：`openssl rand -hex 32`），否则 server 拒启动；身份模式写由会话把关，token 可不配。
+- 挂在 nginx 反代 / SSH 隧道后面：再加 `TEAMHUB_TRUST_PROXY=true`（否则写限流全队共用一个桶）；**直连时保持 false**。
+
+典型启动命令（模式由向导点选，命令里不带任何模式 env）：
+
+```bash
+nohup ./start-teamhub.sh >teamhub.log 2>&1 &
+```
+
 ## 4. 身份模式首次启动（顺序别乱）
 
-空板 + 登录制有个先有鸡还是先有蛋的问题：名册里没人，谁也登录不了。名册导入自带**引导豁免**
-（名册为空时上传免登录）来破局，但这也意味着**谁先上传谁说了算**——所以顺序必须是：
+在向导里选了「直接安装 + 登录制」后，空板 + 登录制有个先有鸡还是先有蛋的问题：名册里没人，谁也登录不了。
+名册导入自带**引导豁免**（名册为空时上传免登录）来破局，但这也意味着**谁先上传谁说了算**——所以顺序必须是：
 
-1. 起服，**保持 loopback**（先别绑 0.0.0.0）。
+1. 起服，**保持 loopback**（先别绑 0.0.0.0），跟随向导选「直接安装 + 登录制」。
+   （重启后落到设置页，有「三步走：导入名册 → 登录本人 → 初始化管理员」引导横幅。）
 2. 打开设置页「成员与权限」→ 下载名册 CSV 模板 → 本地 Excel 填好（姓名 / 年级 / 组 / 组长 / 验收人，
    另存 CSV 即可，GBK / UTF-8 都认）→ 上传，核对导入报告。
 3. 右上角登录本人（首次免 PIN）。
@@ -95,8 +101,7 @@ TEAMHUB_DEMO_SEED=false TEAMHUB_IDENTITY_MODE=identity \
 |---|---|---|
 | `HUB_HOST` | `127.0.0.1` | 监听地址；`0.0.0.0` = 暴露内网 |
 | `HUB_PORT` | `4177` | 单端口同时托管前端和 API |
-| `TEAMHUB_DEMO_SEED` | 未设=演示态 | `false` = 真实时钟 + 空板（§3①） |
-| `TEAMHUB_IDENTITY_MODE` | `anonymous` | `identity` = 登录制（§3②） |
+| `TEAMHUB_CONFIG_FILE` | `~/teamhub-data/config.json` | 部署配置（演示/真实、匿名/登录）落盘路径；模式由**向导**点选写入这里，非 env（见 §3 与下方无头路径） |
 | `TEAMHUB_WRITE_TOKEN` | 无 | 匿名模式绑非 loopback 时**必填**，否则拒启动 |
 | `TEAMHUB_TRUST_PROXY` | `false` | 反代 / 隧道后**必须** `true`；直连保持 `false` |
 | `TEAMHUB_KB_DATA_FILE` | `~/teamhub-data/kb.json` | 知识库落盘；漏设=内存态，重启清零 |
@@ -111,6 +116,24 @@ TEAMHUB_DEMO_SEED=false TEAMHUB_IDENTITY_MODE=identity \
 | `TEAMHUB_CONSOLE_DIST_DIR` | 脚本自动设 | console 静态站目录；自定义启动别漏 |
 | `TEAMHUB_SKIP_BUILD` | `0` | `1` = 跳过构建只重启 |
 
+### 5.1 无头 / 自动化路径（CI、脚本化部署，跳过浏览器向导）
+
+没有浏览器点向导的场景，二选一让 server 跳过向导直接进正常模式（都不需要任何模式类 env）：
+
+1. **预置 `config.json`**：起服前把一份合法配置写进 `TEAMHUB_CONFIG_FILE` 指向的路径（或 compose 卷）：
+   ```bash
+   mkdir -p ~/teamhub-data && cat > ~/teamhub-data/config.json <<'JSON'
+   { "schemaVersion": 1, "dataMode": "real", "identityMode": "identity", "initializedAt": "2026-01-01T00:00:00.000Z" }
+   JSON
+   ```
+   `dataMode` = `demo`/`real`，`identityMode` = `anonymous`/`identity`。坏文件会 fail-closed 拒启动。
+2. **起服后 curl init**：先起服（无 config → setup 模式），再一条命令初始化并等自动重启完成：
+   ```bash
+   curl -X POST http://127.0.0.1:4177/api/setup/init \
+     -H 'content-type: application/json' \
+     -d '{"dataMode":"real","identityMode":"identity"}'
+   ```
+
 ## 6. Docker Compose 路径
 
 ```bash
@@ -120,7 +143,8 @@ docker compose up -d --build hub
 
 容器绑 `0.0.0.0:4177`（宿主端口用 `TEAMHUB_HOST_PORT` 覆盖），六个命名卷
 （`hub_kb` / `hub_gov` / `hub_inv` / `hub_baseline` / `hub_checklist` / `hub_artifacts`）承载全部数据，
-自带 `/health` 健康检查。演示 / 真实、匿名 / 登录同样在 env 文件里切。
+自带 `/health` 健康检查（`config.json` 落在 `hub_config` 卷、跨重启持久）。演示 / 真实、匿名 / 登录
+由首启动向导点选（首次浏览器打开 `http://<宿主>:4177` 即向导）；无头场景按 §5.1 预置 config 或 curl init。
 
 ## 7. 验证部署成功
 

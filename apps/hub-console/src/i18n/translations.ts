@@ -65,7 +65,7 @@ const zh = {
   'settings.identity.mode.anonymous': '匿名模式',
   'settings.identity.mode.identity': '登录模式',
   'settings.identity.anon.body':
-    '现在所有人不用登录就能看、也能改；每次操作记在谁名下，靠操作时自己选。想改成先登录才能改、按角色分权限，需要在启动服务器的环境里加上下面这个设置，然后重启服务：',
+    '现在所有人不用登录就能看、也能改；每次操作记在谁名下，靠操作时自己选。想改成先登录才能改、按角色分权限，到下方「部署配置」里切换到登录模式即可——改完会自动重启生效，不用改服务器环境变量。',
   'settings.identity.identity.loggedIn': '已登录：{name}（{role}）',
   'settings.identity.identity.loggedOut': '还没登录，点右上角的登录。',
   'settings.identity.identity.restartNote':
@@ -127,6 +127,30 @@ const zh = {
   'settings.deployment.artifactUpload': '图纸上传',
   'settings.deployment.artifactUpload.enabled': '已启用',
   'settings.deployment.artifactUpload.disabled': '未配置（无法上传图纸文件）',
+  // 部署配置写区（SETUP-WIZARD 刀③，setup-wizard.md §6）：登录方式切换 + 结束试驾转正式，改完自动重启。
+  'settings.section.deployConfig': '部署配置',
+  'settings.deployConfig.desc':
+    '在这里改这台服务器的登录方式、或结束试驾转正式。每次更改会自动重启服务（约 10 秒）后生效。',
+  'settings.deployConfig.identity.title': '登录方式',
+  'settings.deployConfig.identity.current': '当前：{mode}',
+  'settings.deployConfig.identity.toIdentity': '切换到登录模式',
+  'settings.deployConfig.identity.toAnon': '切换到匿名模式',
+  'settings.deployConfig.identity.toIdentityConfirm':
+    '切换到登录模式后，服务会重启，之后需要有名册且已初始化管理员才能正常写（如果之前没做过，重启后按引导先导名册、登录本人、初始化管理员）。确定切换吗？',
+  'settings.deployConfig.identity.toAnonConfirm':
+    '切换到匿名模式后，认领 / 验收等操作将不再留名，且所有人的登录会话会全部失效（需重新使用）。服务会重启。确定切换吗？',
+  'settings.deployConfig.graduate.title': '结束试驾，转正式',
+  'settings.deployConfig.graduate.desc':
+    '当前是演示态（自带示例数据）。转正式会把演示数据归档到数据目录下的 demo-archive 文件夹（挪走不删、可手工找回），然后以空板重启，开始录入你们战队的真实数据。此操作单向不可逆。',
+  'settings.deployConfig.graduate.cta': '结束试驾，转正式',
+  'settings.deployConfig.graduate.confirm':
+    '确定结束试驾转正式吗？演示数据会被归档到数据目录下的 demo-archive 文件夹（不会删除，可手工找回），服务将以真实空板重启。此操作不可逆。',
+  'settings.deployConfig.applying': '正在应用配置，服务将自动重启（约 10 秒），这个页面会自动刷新。',
+  'settings.deployConfig.error.desc': '配置可能没写成功。点下面重新加载再试一次。',
+  'settings.deployConfig.error.timeout': '服务重启等得有点久。多半已经生效了，点下面重新加载看看。',
+  'settings.deployConfig.reload': '重新加载',
+  'settings.deployConfig.restartNote':
+    '更改部署配置会自动重启服务（约 10 秒），全员需要刷新页面、登录制下需要重新登录。',
   // 集成（地基重建：按物种三分，归设置页只读子节）
   // 赛季分区（SEASON-CREATE 补链路）：总览空态"先在设置里建一个赛季"的落脚点。
   'settings.section.seasons': '赛季',
@@ -1077,6 +1101,38 @@ const zh = {
   // 我的视图空态跳挂单池（A2 红线：只在本人视图私显）
   'myview.empty.pool': '没有进行中的任务，挂单池里有 {n} 个活——没把握就去问问学长。',
   'myview.empty.goPool': '去挂单池看看',
+
+  // 首启动向导（SETUP-WIZARD 刀②，setup-wizard.md §5）：第一次打开时的全屏二选一 + 提交 / 重启 / 落点文案。
+  'setup.title': '欢迎，先选个开局',
+  'setup.subtitle':
+    '第一次打开 TeamHub，选一种方式开始。选完自动配置，几秒后就绪；之后随时能在设置里改。',
+  'setup.existingData': '检测到已有数据——本次只写配置，不动任何数据。',
+  'setup.demo.title': '先试试（演示数据）',
+  'setup.demo.desc': '带一套演示任务、机器人和排班，随便点不心疼。想先摸清楚它能干嘛，选这个。',
+  'setup.demo.advanced': '高级',
+  'setup.demo.advanced.identityLabel': '演示态也开登录制',
+  'setup.demo.advanced.identityHint':
+    '默认匿名，谁都能读能写。勾上则演示里也要先点名字才能写，用来预览登录制的样子。',
+  'setup.demo.cta': '先试试',
+  'setup.real.title': '直接安装（正式使用）',
+  'setup.real.desc': '空白开始，录你们战队真实的任务和数据。正式用，选这个。',
+  'setup.real.identity.question': '写操作要登录吗？',
+  'setup.real.identity.identity': '登录制（推荐）',
+  'setup.real.identity.identityHint': '认领 / 验收都留名。不设 PIN 就是点名字即登录，想要密码再补。',
+  'setup.real.identity.anon': '匿名共用（最省事）',
+  'setup.real.identity.anonHint':
+    '不用登录，谁都能改、写操作不留名。暴露到内网时需要共享一个写口令。',
+  'setup.real.cta': '直接安装',
+  'setup.changeableHint': '之后随时可在 设置 → 部署配置 更改。',
+  'setup.applying.title': '正在应用配置，服务将自动重启（约 10 秒）',
+  'setup.applying.desc': '这个页面会自动刷新，不用手动操作。',
+  'setup.error.title': '没能完成初始化',
+  'setup.error.desc': '配置可能没写成功。点下面重新加载再试一次。',
+  'setup.error.timeout': '服务重启等得有点久。多半已经装好了，点下面重新加载看看。',
+  'setup.error.retry': '重新加载',
+  'setup.landing.title': '装好了，三步就能开始用',
+  'setup.landing.steps': '① 导入名册　② 登录你自己　③ 初始化管理员——都在下面这一页完成。',
+  'setup.landing.dismiss': '知道了',
 } as const;
 
 export type TranslationKey = keyof typeof zh;
@@ -1132,7 +1188,7 @@ const en: Record<TranslationKey, string> = {
   'settings.identity.mode.anonymous': 'Anonymous mode',
   'settings.identity.mode.identity': 'Login mode',
   'settings.identity.anon.body':
-    'Right now anyone can read and write without logging in; who each action is recorded under comes from picking a name at the time. To require login for writes and split permissions by role, add the following to the server\'s startup environment and restart the service:',
+    'Right now anyone can read and write without logging in; who each action is recorded under comes from picking a name at the time. To require login for writes and split permissions by role, switch to login mode under "Deployment config" below — it restarts automatically to take effect, no server env change needed.',
   'settings.identity.identity.loggedIn': 'Logged in: {name} ({role})',
   'settings.identity.identity.loggedOut': 'Not logged in — use the login button top-right.',
   'settings.identity.identity.restartNote':
@@ -1195,6 +1251,32 @@ const en: Record<TranslationKey, string> = {
   'settings.deployment.artifactUpload': 'Artifact upload',
   'settings.deployment.artifactUpload.enabled': 'Enabled',
   'settings.deployment.artifactUpload.disabled': 'Not configured (cannot upload files)',
+  // Deployment config write area (SETUP-WIZARD knife 3): switch login mode + end trial / go live.
+  'settings.section.deployConfig': 'Deployment config',
+  'settings.deployConfig.desc':
+    "Change this server's login mode, or end the trial and go live. Each change restarts the service automatically (about 10s) to take effect.",
+  'settings.deployConfig.identity.title': 'Login mode',
+  'settings.deployConfig.identity.current': 'Current: {mode}',
+  'settings.deployConfig.identity.toIdentity': 'Switch to login mode',
+  'settings.deployConfig.identity.toAnon': 'Switch to anonymous mode',
+  'settings.deployConfig.identity.toIdentityConfirm':
+    'After switching to login mode the service restarts; you then need a roster and an initialized admin to write normally (if not done before, follow the guide after restart to import the roster, log in, and initialize an admin). Switch?',
+  'settings.deployConfig.identity.toAnonConfirm':
+    'After switching to anonymous mode, claims / reviews will no longer be attributed, and everyone\'s login sessions will be invalidated. The service will restart. Switch?',
+  'settings.deployConfig.graduate.title': 'End trial, go live',
+  'settings.deployConfig.graduate.desc':
+    'This is currently demo mode (with sample data). Going live archives the demo data to a demo-archive folder under the data directory (moved, not deleted — recoverable by hand), then restarts blank so you can enter your team\'s real data. This is one-way and irreversible.',
+  'settings.deployConfig.graduate.cta': 'End trial, go live',
+  'settings.deployConfig.graduate.confirm':
+    'End the trial and go live? Demo data will be archived to a demo-archive folder under the data directory (not deleted — recoverable by hand), and the service restarts on a real blank board. This is irreversible.',
+  'settings.deployConfig.applying':
+    'Applying config — the service restarts automatically (about 10s); this page will refresh on its own.',
+  'settings.deployConfig.error.desc': 'The config may not have been written. Reload below and try again.',
+  'settings.deployConfig.error.timeout':
+    'The restart is taking a while. It probably already took effect — reload below to check.',
+  'settings.deployConfig.reload': 'Reload',
+  'settings.deployConfig.restartNote':
+    'Changing deployment config restarts the service automatically (about 10s); everyone needs to refresh, and re-log-in under login mode.',
   // Seasons section (SEASON-CREATE): where the overview empty-state "create one in Settings" lands.
   'settings.section.seasons': 'Seasons',
   'settings.seasons.desc':
@@ -2155,6 +2237,45 @@ const en: Record<TranslationKey, string> = {
   'pool.result.unowned': 'Unclaimed',
   'myview.empty.pool': 'No in-progress tasks. The pool has {n} open item(s) — if unsure, go ask a senior.',
   'myview.empty.goPool': 'Go to the pool',
+
+  // First-launch setup wizard (SETUP-WIZARD 刀②).
+  'setup.title': 'Welcome — pick how to start',
+  'setup.subtitle':
+    'First time opening TeamHub. Choose a way to begin; it configures itself and is ready in seconds. Change this anytime in Settings.',
+  'setup.existingData':
+    'Existing data detected — this only writes config, it touches none of your data.',
+  'setup.demo.title': 'Try it first (demo data)',
+  'setup.demo.desc':
+    'Comes with sample tasks, robots and schedules — click around freely. Pick this to see what it does.',
+  'setup.demo.advanced': 'Advanced',
+  'setup.demo.advanced.identityLabel': 'Turn on login in demo too',
+  'setup.demo.advanced.identityHint':
+    'Anonymous by default — anyone can read and write. Check this to require picking your name before writing, to preview the login mode.',
+  'setup.demo.cta': 'Try it first',
+  'setup.real.title': 'Install now (real use)',
+  'setup.real.desc':
+    "Start blank and enter your team's real tasks and data. Pick this for production use.",
+  'setup.real.identity.question': 'Require login to write?',
+  'setup.real.identity.identity': 'Login (recommended)',
+  'setup.real.identity.identityHint':
+    'Claims and reviews are attributed. With no PIN, picking your name logs you in; add a password later if you want.',
+  'setup.real.identity.anon': 'Anonymous (simplest)',
+  'setup.real.identity.anonHint':
+    "No login — anyone can edit and writes aren't attributed. Needs a shared write passphrase when exposed on a LAN.",
+  'setup.real.cta': 'Install now',
+  'setup.changeableHint': 'Change anytime under Settings → Deployment config.',
+  'setup.applying.title':
+    'Applying config — the service will restart automatically (about 10s)',
+  'setup.applying.desc': 'This page refreshes on its own; nothing to do.',
+  'setup.error.title': "Couldn't finish setup",
+  'setup.error.desc': 'The config may not have been written. Reload below and try again.',
+  'setup.error.timeout':
+    'The restart is taking a while. It probably already installed — reload below to check.',
+  'setup.error.retry': 'Reload',
+  'setup.landing.title': "You're set — three steps to get going",
+  'setup.landing.steps':
+    '(1) Import the roster  (2) Log in as yourself  (3) Initialize an admin — all on this page below.',
+  'setup.landing.dismiss': 'Got it',
 };
 
 export const translations: Record<Lang, Record<TranslationKey, string>> = {

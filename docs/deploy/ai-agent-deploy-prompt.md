@@ -19,8 +19,9 @@ https://github.com/Jackrainman/TeamHub）。按以下步骤严格顺序执行，
 
 我的选择（已按默认填好，发送前可改）：
 - 部署目录：~/TeamHub
-- 模式：正式使用（真实空板 + 登录制）。若想先要演示体验（自带示例数据），
-  把第 4 步的两个 TEAMHUB_ 环境变量前缀去掉即可。
+
+（演示还是正式、匿名还是登录，都在第一次打开的向导里由我本人经 SSH 隧道点选——你只负责把服务起到
+本机验证通过，模式不用你管、也没有对应的环境变量。）
 
 步骤：
 
@@ -40,10 +41,11 @@ https://github.com/Jackrainman/TeamHub）。按以下步骤严格顺序执行，
 
 4. 启动（只绑本机回环，先不暴露）：
    cd ~/TeamHub
-   TEAMHUB_DEMO_SEED=false TEAMHUB_IDENTITY_MODE=identity \
-     nohup ./start-teamhub.sh > ~/teamhub.log 2>&1 &
+   nohup ./start-teamhub.sh > ~/teamhub.log 2>&1 &
    首次会构建前端和后端，可能要几分钟；构建与启动日志都在 ~/teamhub.log。
    记下进程 PID。数据会落在 ~/teamhub-data/ 下，重启不丢。
+   （启动后是首启动向导页，等我经 SSH 隧道在浏览器里点选演示/正式、匿名/登录——你不用点、也不用配
+   任何模式环境变量。）
 
 5. 验证（等构建完成、服务起来后再跑；可轮询直到 /health 有响应，最多等 10 分钟）：
    curl -s http://127.0.0.1:4177/health
@@ -81,10 +83,10 @@ TeamHub 的名册导入和管理员初始化我已完成，现在把它暴露到
 
 1. 停掉现有 TeamHub 进程（之前记录的 PID，或
    pkill -f 'hub-server/dist/main.js'），确认 4177 已释放。
-2. 重新启动，这次绑 0.0.0.0、跳过重复构建：
+2. 重新启动，这次绑 0.0.0.0、跳过重复构建（模式已在向导里定好、存在 config.json 里，重启保持不变）：
    cd ~/TeamHub
-   HUB_HOST=0.0.0.0 TEAMHUB_DEMO_SEED=false TEAMHUB_IDENTITY_MODE=identity \
-     TEAMHUB_SKIP_BUILD=1 nohup ./start-teamhub.sh > ~/teamhub.log 2>&1 &
+   HUB_HOST=0.0.0.0 TEAMHUB_SKIP_BUILD=1 \
+     nohup ./start-teamhub.sh > ~/teamhub.log 2>&1 &
 3. 验证 curl -s http://127.0.0.1:4177/health 仍为 ok，
    然后把这台服务器的内网 IP（hostname -I 或 ip addr）发给我，
    我把 http://<内网IP>:4177 发给队友。

@@ -29,6 +29,7 @@ describe('SystemStatusResponseSchema：deployment optional 增量', () => {
     const parsed = SystemStatusResponseSchema.parse({
       ...baseStatus,
       deployment: {
+        dataMode: 'real',
         identityMode: 'identity',
         storage: [
           { domain: 'gov', backend: 'file', path: '/data/gov.json' },
@@ -40,6 +41,7 @@ describe('SystemStatusResponseSchema：deployment optional 增量', () => {
         buildId: 'abc1234',
       },
     });
+    expect(parsed.deployment?.dataMode).toBe('real');
     expect(parsed.deployment?.identityMode).toBe('identity');
     expect(parsed.deployment?.storage[1]).toEqual({ domain: 'kb', backend: 'memory' });
     expect(parsed.deployment?.artifactUploadEnabled).toBe(false);
@@ -49,6 +51,7 @@ describe('SystemStatusResponseSchema：deployment optional 增量', () => {
 describe('DeploymentStorageEntry：memory 无路径 / 未知 backend 拒绝', () => {
   test('memory 域可省 path', () => {
     const parsed = DeploymentInfoSchema.parse({
+      dataMode: 'demo',
       identityMode: 'anonymous',
       storage: [{ domain: 'checklist', backend: 'memory' }],
       enabledModules: [],

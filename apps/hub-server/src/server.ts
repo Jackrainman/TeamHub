@@ -1,8 +1,8 @@
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 import multipart from '@fastify/multipart';
-import { readFile, readdir } from 'node:fs/promises';
-import { extname, isAbsolute, join, relative } from 'node:path';
+import { readFile, readdir, writeFile, mkdir } from 'node:fs/promises';
+import { dirname, extname, isAbsolute, join, relative } from 'node:path';
 import {
   getArtifactDir,
   sha256Of,
@@ -130,6 +130,7 @@ import type {
   IdentityMode,
   SessionIdentity,
   DeploymentInfo,
+  DeployConfig,
 } from '@teamhub/hub-contracts';
 import {
   ROBOTICS_TENANT_CONFIG,
@@ -155,6 +156,9 @@ import {
   RosterImportReportSchema,
   // SETUP-WIZARD 刀①：正常模式 setup 状态回执（GET /api/setup/state → initialized:true）。
   SetupStateResponseSchema,
+  // SETUP-WIZARD 刀③：部署配置写端点（PUT /api/setup/config 改 identityMode；graduate 转正式）。
+  DeployConfigSchema,
+  SetupConfigRequestSchema,
 } from '@teamhub/hub-contracts';
 import { ZodError } from 'zod';
 import { isGateReviewer, isGroupLeadOf, isSuperAdmin } from './authz.js';
@@ -187,6 +191,33 @@ import {
   buildSystemStatusResponse,
 } from './status.js';
 import { tryServeStaticConsole } from './static-console.js';
+// SETUP-WIZARD 刀③：转正式演示数据归档 + exit 42 重启码（与 setup 模式 build-setup-server 同一约定）。
+import { archiveDemoData } from './demo-archive.js';
+import { RESTART_EXIT_CODE } from './build-setup-server.js';
+
+/**
+ * 部署配置写通道运行时依赖（SETUP-WIZARD 刀③，setup-wizard.md §6）：设置页「部署配置」写区背后的
+ * `PUT /api/setup/config`（改 identityMode）+ `POST /api/setup/graduate`（转正式）两端点所需。
+ * **仅正常模式**（buildHubServer）注册这两端点——setup 模式那条链是 build-setup-server.ts，不进本函数，
+ * 故两端点在 setup 模式天然 404。缺省 undefined → 两端点不注册（测试 / 无 config 上下文 → 404），
+ * 由 main.ts 在正常模式装配时透传实参。**绝不含密钥**（同 deployment 纪律）。
+ */
+export interface SetupControl {
+  /** config.json 落盘路径（改 identityMode / 转正式后重写这里，随后 exit 42 重启）。 */
+  configFile: string;
+  /** 当前部署配置（graduate 前置判 dataMode==='demo'；改 identityMode 时保留 dataMode/initializedAt/schemaVersion）。 */
+  config: DeployConfig;
+  /** 转正式时要归档的五域落盘文件路径（存在的才挪、不存在跳过）。归档落点 = configFile 所在目录 / demo-archive-<时间戳>/。 */
+  dataFiles: readonly string[];
+  /** 归档物文件目录（转正式时其内容整体挪进 demo-archive/artifacts/）；未配则跳过。 */
+  artifactDir?: string;
+  /** 时钟（默认真钟）：注入以便测试断言 demo-archive 目录时间戳确定。 */
+  now?: () => Date;
+  /** 退出函数（默认 process.exit）：注入以便测试断言退出码而不真杀进程。 */
+  exit?: (code: number) => void;
+  /** 受理后延迟退出的毫秒数（默认 500ms，给回执落地时间）；测试可调 0 免等待。 */
+  restartDelayMs?: number;
+}
 
 export interface BuildHubServerOptions {
   consoleDistDir?: string;
@@ -261,6 +292,11 @@ export interface BuildHubServerOptions {
    * （测试 / 内存 dev）→ status 不带 deployment 字段，旧客户端零影响。
    */
   deployment?: DeploymentInfo;
+  /**
+   * 部署配置写通道（SETUP-WIZARD 刀③）。给了才注册 `PUT /api/setup/config` + `POST /api/setup/graduate`
+   * （否则两端点 404）。main.ts 在正常模式装配时透传 configFile / 当前 config / 五域落盘文件 / 归档物目录。
+   */
+  setupControl?: SetupControl;
 }
 
 // 归档物文件上传上限（50MB）：覆盖机械 CAD（step/stp/sldprt）+ 电路 PDF + 固件，又约束资源耗尽面。
@@ -2332,6 +2368,104 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     void reply.code(409).send({ detail: '已初始化（config.json 已存在）' });
     return reply;
   });
+
+  // ── 部署配置写通道（SETUP-WIZARD 刀③，setup-wizard.md §6）：设置页「部署配置」写区背后的两写端点 ──────
+  // 仅当装配层给了 setupControl 才注册（缺省 → 404；setup 模式那条链不进本函数 → 也 404，满足「setup 模式
+  // 不注册」）。两端点都是写方法，天然被上面的写门 onRequest 钩子罩：匿名模式=宿主级写门即可（Bearer + 限流，
+  // 与现有敏感门非对称裁决一致，§10 拍板③）；身份模式=钩子先保证有会话（否则 401），路由内再判 superAdmin
+  // （否则 403，照 createSeason 敏感门先例、另读实时名册 fail-closed）。改配置后写 config.json → exit 42
+  // 自动重启（start 脚本循环 / compose restart:on-failure 拉起）→ 前端轮询复活刷新。
+  const setupControl = options.setupControl;
+  if (setupControl) {
+    const setupExit =
+      setupControl.exit ?? ((code: number) => process.exit(code));
+    const setupNow = setupControl.now ?? (() => new Date());
+    const setupRestartDelayMs = setupControl.restartDelayMs ?? 500;
+
+    // PUT /api/setup/config：改登录方式（identityMode）。保留 dataMode/initializedAt/schemaVersion，
+    // 落盘前 DeployConfigSchema.parse 自校验产物合法（对称 fail-closed，绝不落坏 config 让下次启动拒起）。
+    app.put('/api/setup/config', async (request, reply) => {
+      // 身份模式 superAdmin 门（匿名模式跳过，走写门即可）。
+      if (identityMode === 'identity') {
+        const snapshot = await store.getSnapshot();
+        if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
+          void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
+          return reply;
+        }
+      }
+      const parsed = SetupConfigRequestSchema.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+        return reply;
+      }
+      const next = DeployConfigSchema.parse({
+        ...setupControl.config,
+        identityMode: parsed.data.identityMode,
+      });
+      await mkdir(dirname(setupControl.configFile), { recursive: true });
+      await writeFile(
+        setupControl.configFile,
+        `${JSON.stringify(next, null, 2)}\n`,
+        'utf8',
+      );
+      setTimeout(() => setupExit(RESTART_EXIT_CODE), setupRestartDelayMs);
+      void reply.code(200).send({ restarting: true });
+      return reply;
+    });
+
+    // POST /api/setup/graduate：结束试驾转正式（单向门）。仅 dataMode==='demo' 可调（否则 409）。
+    // 先归档五域 JSON + 归档物目录内容到 <数据目录>/demo-archive-<时间戳>/（只挪不删、可手工找回）；
+    // 任一步失败即中止——不写 config、不重启（数据完好，报错给操作者，§6.2 / §9）；成功后写 dataMode=real
+    // → exit 42 重启进真空板。
+    app.post('/api/setup/graduate', async (request, reply) => {
+      if (identityMode === 'identity') {
+        const snapshot = await store.getSnapshot();
+        if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
+          void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
+          return reply;
+        }
+      }
+      // 前置：只有演示态可转正式（真空板已是正式，无反向门——防误触清库，§1 非目标）。
+      if (setupControl.config.dataMode !== 'demo') {
+        void reply
+          .code(409)
+          .send({ detail: '当前已是正式（real）部署，转正式门只在演示（demo）态可用' });
+        return reply;
+      }
+      // 归档目录时间戳（冒号 / 点在多数文件系统合法，仍规范成 `-` 求跨平台稳妥）。
+      const stamp = setupNow().toISOString().replace(/[:.]/g, '-');
+      const archiveDir = join(
+        dirname(setupControl.configFile),
+        `demo-archive-${stamp}`,
+      );
+      try {
+        await archiveDemoData({
+          archiveDir,
+          dataFiles: setupControl.dataFiles,
+          artifactDir: setupControl.artifactDir,
+        });
+      } catch (err) {
+        // 任一步失败即中止：不写 config、不重启。只移动不删除故数据完好（部分在归档、部分在原位，均可找回）。
+        void reply.code(500).send({
+          detail: `演示数据归档失败，已中止转正式（未改配置、未重启，数据完好）：${(err as Error).message}`,
+        });
+        return reply;
+      }
+      const next = DeployConfigSchema.parse({
+        ...setupControl.config,
+        dataMode: 'real',
+      });
+      await mkdir(dirname(setupControl.configFile), { recursive: true });
+      await writeFile(
+        setupControl.configFile,
+        `${JSON.stringify(next, null, 2)}\n`,
+        'utf8',
+      );
+      setTimeout(() => setupExit(RESTART_EXIT_CODE), setupRestartDelayMs);
+      void reply.code(200).send({ restarting: true });
+      return reply;
+    });
+  }
 
   // 装配外壳核心：遍历 enabledModules → 挂载各域路由。未启用模块的函数根本不被调用，端点整段不挂
   // （§3.4-A；游戏工作室等租户可省 presence-schedule，此步无需拆 ScheduleStore——GovStore 的 schedule

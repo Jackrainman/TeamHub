@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, X } from 'lucide-react';
 import { ROBOTICS_TENANT_CONFIG, type TenantConfig } from '@teamhub/hub-contracts';
-import { createHubApiClient } from './api/client';
+import { createHubApiClient, type HubApiClient } from './api/client';
 import { ConsoleLayout } from './components/layout/ConsoleLayout';
 import {
   CONSOLE_PAGES,
@@ -13,8 +13,9 @@ import {
 } from './console-pages';
 import { setVocabularyOverrides, useI18n } from './i18n';
 import { ROBOTICS_VOCAB_OVERRIDES } from './verticals/robotics';
-import { APIBASE_KEY, WRITE_TOKEN_KEY } from './constants';
+import { APIBASE_KEY, SETUP_LANDING_KEY, WRITE_TOKEN_KEY } from './constants';
 import { IdentityBar } from './features/identity/IdentityBar';
+import { SetupWizard } from './features/setup/SetupWizard';
 import { ChecklistQuickRecord } from './features/checklist/ChecklistQuickRecord';
 import { canWriteIdentity, identityCacheKey } from './features/identity/identity-utils';
 // 单一真实后端：queryKey 维度保留稳定常量（曾区分 mock/real，现恒为 real），
@@ -48,12 +49,15 @@ function readWriteToken(): string | undefined {
   return window.localStorage.getItem(WRITE_TOKEN_KEY)?.trim() || undefined;
 }
 
+/**
+ * 两态启动闸（SETUP-WIZARD 刀②，setup-wizard.md §5）：App 首屏先问 `GET /api/setup/state`——
+ *  - 未初始化（config.json 不存在）→ 全屏向导（`SetupWizard`），现有页面一个都不渲染（store 未建、
+ *    getSession/getOverview 等此刻打过去全是 404）。
+ *  - 已初始化 / 状态读不到 → 正常 app（`ConsoleApp`），后者分页自带「后端没连上」兜底。
+ * `retry:1` 界定 splash 时长：后端在线时 setup/state 同源毫秒级返回、splash 一闪即过；后端不可达时一次
+ * 快速重试后即落 ConsoleApp（不把整屏卡在 splash，与刀②前"打开就是 app"的观感一致）。
+ */
 export function App() {
-  const { t } = useI18n();
-  const [page, setPage] = useState<ConsolePage>('overview');
-
-  // 单一真实后端：默认相对路径同源（dev 走 vite proxy → 本地 hub-server；同源部署直接命中 /api）。
-  // VITE_API_BASE / 设置页 localStorage 可覆盖为绝对地址。
   const apiClient = useMemo(
     () =>
       createHubApiClient({
@@ -62,6 +66,45 @@ export function App() {
       }),
     [],
   );
+
+  const setupQuery = useQuery({
+    queryKey: ['setup-state'],
+    queryFn: () => apiClient.getSetupState(),
+    retry: 1,
+  });
+
+  if (setupQuery.isLoading) return <SetupSplash />;
+  if (setupQuery.data && !setupQuery.data.initialized) {
+    return <SetupWizard client={apiClient} state={setupQuery.data} />;
+  }
+  return <ConsoleApp apiClient={apiClient} />;
+}
+
+// setup/state 未落定前的极简全屏占位（无 chrome、无 nav）：只一个转圈，避免闪现半截 app 或向导。
+function SetupSplash() {
+  return (
+    <div className="setup-wizard setup-wizard--center" aria-hidden="true">
+      <div className="setup-wizard__inner setup-wizard__status">
+        <div className="setup-spinner" />
+      </div>
+    </div>
+  );
+}
+
+// 正常运行态的 console 主壳（原 App 主体，apiClient 由启动闸创建后下传，避免重复构造）。
+function ConsoleApp({ apiClient }: { apiClient: HubApiClient }) {
+  const { t } = useI18n();
+
+  // 首启动向导落点（SETUP-WIZARD 刀②，setup-wizard.md §5 末段）：正式+登录制重启回来后，落设置页并亮出
+  // 「三步走：导入名册 → 登录本人 → 初始化管理员」引导横幅（复用现有名册导入 / 初始化管理员流程，向导不
+  // 重复实现）。标记经 localStorage 跨整页刷新传递，读到即清除——只出现一次，刷新 / 再进不复现。
+  const [setupLanding] = useState<boolean>(() => {
+    const flag = window.localStorage.getItem(SETUP_LANDING_KEY);
+    if (flag) window.localStorage.removeItem(SETUP_LANDING_KEY);
+    return flag === 'roster';
+  });
+  const [page, setPage] = useState<ConsolePage>(setupLanding ? 'settings' : 'overview');
+  const [showSetupGuide, setShowSetupGuide] = useState<boolean>(setupLanding);
 
   // 轻身份（IDENTITY-LITE，I2 console 接线）：两模式均可读，缺省 anonymous（GET /api/session
   // 报当前部署模式 + 当前身份），前端据此判断要不要渲染登录 UI / 收紧写门——不是另开一个开关。
@@ -140,6 +183,25 @@ export function App() {
           ) : null}
         </div>
       </div>
+      {/* 首启动向导落点引导横幅（SETUP-WIZARD 刀②）：正式+登录制装完落设置页时亮出「三步走」，
+          可关闭；离开设置页自动隐藏。指向的名册导入 / 登录 / 初始化管理员均是设置页现有流程。 */}
+      {activePage?.key === 'settings' && showSetupGuide ? (
+        <div className="setup-guide-banner" role="status">
+          <div className="setup-guide-banner__body">
+            <strong>{t('setup.landing.title')}</strong>
+            <p>{t('setup.landing.steps')}</p>
+          </div>
+          <button
+            className="icon-button"
+            type="button"
+            onClick={() => setShowSetupGuide(false)}
+            aria-label={t('setup.landing.dismiss')}
+            title={t('setup.landing.dismiss')}
+          >
+            <X aria-hidden="true" size={18} />
+          </button>
+        </div>
+      ) : null}
       {activePage ? (
         activePage.render(renderCtx)
       ) : disabledPage ? (

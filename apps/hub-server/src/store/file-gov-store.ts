@@ -79,7 +79,10 @@ import type {
 const ResourcesFileSchema = z.array(SharedResourceSchema);
 
 /** resources.json 路径：与 govFilePath 同目录、basename 钉 `resources.json`（gov.json → resources.json）。 */
-function deriveResourcesFilePath(govFilePath: string): string {
+// 导出（SETUP-WIZARD 刀③）：转正式归档须挪走 gov 域的全部落盘文件——gov.json 之外还有这两份 sibling
+// （R3 车 + 排班占用/接力），否则 demo 车 / 排班在真空板重启后还在。main.ts 用它派生归档清单，与本 store
+// 的落盘布局同源、不各写一遍 basename。
+export function deriveResourcesFilePath(govFilePath: string): string {
   return join(dirname(govFilePath), 'resources.json');
 }
 
@@ -101,7 +104,8 @@ const ScheduleSessionsFileSchema = z.object({
  * schedule-sessions.json 路径：与 govFilePath 同目录、basename 钉 `schedule-sessions.json`
  * （gov.json → schedule-sessions.json，与 resources.json 同一套派生纪律）。
  */
-function deriveScheduleSessionsFilePath(govFilePath: string): string {
+// 导出（SETUP-WIZARD 刀③）：同 deriveResourcesFilePath——转正式归档须一并挪走本 sibling。
+export function deriveScheduleSessionsFilePath(govFilePath: string): string {
   return join(dirname(govFilePath), 'schedule-sessions.json');
 }
 
