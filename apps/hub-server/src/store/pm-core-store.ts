@@ -13,6 +13,15 @@ import type {
 } from '@teamhub/hub-contracts';
 
 /**
+ * `setMemberRole` 结果（K1 权限地基 + 公测余项⑥ nit③ TOCTOU 修复）：判别联合——
+ * `ok` 带更新后成员；`not-found` = id 不存在（路由转 404）；`last-superadmin` = 降级保护拦截
+ * （目标是最后一个 superAdmin 且新 role 非 superAdmin，路由转 409），仅 `guardLastSuperAdmin` 开启时可能返回。
+ */
+export type SetMemberRoleResult =
+  | { ok: true; member: Member }
+  | { ok: false; reason: 'not-found' | 'last-superadmin' };
+
+/**
  * `importRoster` 结果（ROSTER-IMPORT，K8）：报告里**非 failed 那五段**——failed（坏行）在纯解析层
  * （parseRosterCsv）产出、由路由拼进最终 `RosterImportReport`；本 store 侧只回它做出的名单事实变更。
  * 全是名单事实回显给操作者本人（I0：绝不含任何按人聚合/排名/按人筛选派生）。
@@ -134,8 +143,10 @@ export interface PmCoreStore {
    * id 不存在 → 返回 null（路由层转 404）。**密钥纪律**：pinHash 只落盘、绝不经读视图外露（路由层回带
    * 走 MemberPublicSchema 剥离）。FileGovStore 落 governance.json（members 是 GovernanceSnapshot 字段，
    * persist 失败按 idx 原地还原，镜像 updateTaskStatus）。
+   * **`pinHash = null`（公测余项⑦ PIN-RESET）= 清除 pinHash**（DELETE /api/members/:id/pin 消费）：
+   * 成员回到「无 pinHash 免 PIN」态，下次登录后经 firstSetup 流程自行重设。授权（须 superAdmin）在路由层判。
    */
-  setMemberPin(memberId: string, pinHash: string): Promise<Member | null>;
+  setMemberPin(memberId: string, pinHash: string | null): Promise<Member | null>;
 
   /**
    * 设 / 撤成员门验收人资格（PATCH /api/members/:id/gate-reviewer，GATE-CHECKLIST-IOU，D-087 拍板②）。
@@ -153,12 +164,19 @@ export interface PmCoreStore {
   /**
    * 设成员角色（PUT /api/members/:id/role + POST /api/setup/super-admin，K1 权限地基）。就地改
    * members[idx] 的 `role`（照 setMemberGateReviewer 逐字形状）+ bump updatedAt、钉 updatedBy=`console`。
-   * 授权（匿名=写门即可 / 身份=须 superAdmin）+ 降级保护（不摘最后一个 superAdmin）在**路由层**判——store
-   * 只做无条件就地写。id 不存在 → 返回 null（路由层转 404）。**I0**：只改一个枚举位，绝不做按人聚合/排行。
+   * 授权（匿名=写门即可 / 身份=须 superAdmin）在**路由层**判；**降级保护（不摘最后一个 superAdmin）收进
+   * 本方法同一临界区**（公测余项⑥ nit③ TOCTOU 修复：`opts.guardLastSuperAdmin` 开启时，判「至多 1 个
+   * 管理员」与写在同一 store 调用内完成，堵住路由层先读后写的并发窗口——两个并发降级各自看到 2 个
+   * 管理员双双放行、终态归 0 全队锁死）。结果走 `SetMemberRoleResult` 判别联合（ok / not-found /
+   * last-superadmin），路由层映射 200 / 404 / 409。**I0**：只改一个枚举位，绝不做按人聚合/排行。
    * FileGovStore 落 governance.json（members 是 GovernanceSnapshot 字段，persist 失败按 idx 原地还原，
    * 镜像 setMemberGateReviewer）。响应回带走 MemberPublicSchema 剥 pinHash（路由层，密钥纪律）。
    */
-  setMemberRole(memberId: string, role: MemberRole): Promise<Member | null>;
+  setMemberRole(
+    memberId: string,
+    role: MemberRole,
+    opts?: { guardLastSuperAdmin?: boolean },
+  ): Promise<SetMemberRoleResult>;
 
   /**
    * 名册批量导入（POST /api/roster/import，ROSTER-IMPORT，K8）：一次原子应用已校验行到

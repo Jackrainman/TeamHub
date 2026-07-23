@@ -141,6 +141,7 @@ import {
   SessionResponseSchema,
   SetPinRequestSchema,
   SetPinResponseSchema,
+  ClearPinResponseSchema,
   // 门验收人名单维护（GATE-CHECKLIST-IOU，D-087 拍板②）：PUT /api/members/:id/gate-reviewer 读/写契约。
   SetGateReviewerRequestSchema,
   SetGateReviewerResponseSchema,
@@ -755,6 +756,37 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     return SetPinResponseSchema.parse({ member: MemberPublicSchema.parse(updated) });
   });
 
+  // 重置成员 PIN（DELETE /api/members/:id/pin，公测余项⑦ PIN-RESET）——「忘 PIN」的产品通道：此前连
+  // superAdmin 也无重置入口、只能手工清落盘 pinHash（DEPLOY §7.1 的手工步骤即源于此缺口）。**身份模式
+  // only**（匿名 → 404，照 PUT pin 先例）；**须 superAdmin**（isSuperAdmin 读实时名册，403——重置他人
+  // 口令是敏感动作，匿名演示态无此概念）。效果 = 清除目标 pinHash（store.setMemberPin null 分支）：成员
+  // 回到「无 pinHash 免 PIN」态，下次登录后经既有 PUT pin 首设流程（firstSetup）自行重设——本端点**绝不
+  // 代收新 PIN 明文**（管理员不经手他人口令，密钥纪律延续）。响应走 ClearPinResponseSchema（剥 pinHash）。
+  app.delete<{ Params: { id: string } }>('/api/members/:id/pin', async (request, reply) => {
+    if (identityMode !== 'identity') {
+      void reply.code(404).send({ detail: '身份模式未启用' });
+      return;
+    }
+    const { id } = request.params;
+    const snapshot = await store.getSnapshot();
+    if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
+      void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
+      return;
+    }
+    const target = snapshot.members.find((m) => m.id === id);
+    if (!target) {
+      void reply.code(404).send({ detail: 'member not found' });
+      return;
+    }
+    const updated = await store.setMemberPin(id, null);
+    if (!updated) {
+      void reply.code(404).send({ detail: 'member not found' });
+      return;
+    }
+    // MemberPublicSchema.parse 剥 pinHash（密钥纪律）——回带公开视图。
+    return ClearPinResponseSchema.parse({ member: MemberPublicSchema.parse(updated) });
+  });
+
   // 初始化首个管理员（POST /api/setup/super-admin，K1 权限地基）。**身份模式 only**（匿名 → 404，照 PUT pin
   // 先例）。前置=名册尚无任何 superAdmin（否则 409——一次性初始化门，已有管理员后改角色走 PUT role）。须已登录
   // （写门钩子天然保证 request.identity）。效果=把 **session 本人** role→superAdmin **且同笔设 pinHash**——
@@ -787,12 +819,15 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       void reply.code(404).send({ detail: 'member not found' });
       return;
     }
+    // 升 role 无并发降级风险（初始化门前置=名册零 superAdmin，本笔是造第一个），不传 guard。
     const promoted = await store.setMemberRole(selfId, 'superAdmin');
-    if (!promoted) {
+    if (!promoted.ok) {
       void reply.code(404).send({ detail: 'member not found' });
       return;
     }
-    return SetupSuperAdminResponseSchema.parse({ member: MemberPublicSchema.parse(promoted) });
+    return SetupSuperAdminResponseSchema.parse({
+      member: MemberPublicSchema.parse(promoted.member),
+    });
   });
 
   // ── 名册批量导入（ROSTER-IMPORT，K8 —— minor v0.25.0）────────────────────────────────────────
@@ -1616,7 +1651,9 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   // PUT /api/members/:id/role：成员角色维护（K1 权限地基）。全库首个能改 role 的写口——挂单指派 isGroupLeadOf
   // 恒 403、敏感设置无门都因它缺位。**匿名模式=写门即可**（v1，与 gate-reviewer 对称，演示态零门槛）；
   // **身份模式=须 superAdmin**（isSuperAdmin，403）。**降级保护**（两模式统一）：目标是最后一个 superAdmin
-  // 且新 role 非 superAdmin → 409（防摘掉唯一管理员把全队锁死在无人可改角色态）。响应剥 pinHash。id 不存在 → 404。
+  // 且新 role 非 superAdmin → 409（防摘掉唯一管理员把全队锁死在无人可改角色态）。余项⑥ nit③ TOCTOU
+  // 修复：判定收进 store.setMemberRole 同一临界区（guardLastSuperAdmin），不再路由层先读后写。响应剥
+  // pinHash。id 不存在 → 404。
   app.put<{ Params: { id: string } }>('/api/members/:id/role', async (request, reply) => {
     const { id } = request.params;
     const parsed = SetMemberRoleRequestSchema.safeParse(request.body ?? {});
@@ -1633,26 +1670,21 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
       return;
     }
-    const target = snapshot.members.find((m) => m.id === id);
-    if (!target) {
-      void reply.code(404).send({ detail: 'member not found' });
+    // 降级保护（两模式统一）收进 store 同一临界区：判「至多 1 个管理员」与写不分离，并发降级无法双放行。
+    const result = await store.setMemberRole(id, parsed.data.role, {
+      guardLastSuperAdmin: true,
+    });
+    if (!result.ok) {
+      if (result.reason === 'last-superadmin') {
+        void reply.code(409).send({ detail: '不能撤销最后一个管理员（superAdmin）' });
+      } else {
+        void reply.code(404).send({ detail: 'member not found' });
+      }
       return;
     }
-    // 降级保护（两模式统一）：不许摘掉最后一个 superAdmin，否则无人再能改角色 = 永久锁死。
-    if (
-      target.role === 'superAdmin' &&
-      parsed.data.role !== 'superAdmin' &&
-      snapshot.members.filter((m) => m.role === 'superAdmin').length <= 1
-    ) {
-      void reply.code(409).send({ detail: '不能撤销最后一个管理员（superAdmin）' });
-      return;
-    }
-    const updated = await store.setMemberRole(id, parsed.data.role);
-    if (!updated) {
-      void reply.code(404).send({ detail: 'member not found' });
-      return;
-    }
-    return SetMemberRoleResponseSchema.parse({ member: MemberPublicSchema.parse(updated) });
+    return SetMemberRoleResponseSchema.parse({
+      member: MemberPublicSchema.parse(result.member),
+    });
   });
   // ── 门检查单 / 欠条路由结束 ───────────────────────────────────────────────────────────────────
 }

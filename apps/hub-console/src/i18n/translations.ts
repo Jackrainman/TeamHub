@@ -979,6 +979,11 @@ const zh = {
   'settings.members.role.groupAdmin': '组长',
   'settings.members.role.member': '成员',
   'settings.members.role.error': '角色更新失败：{detail}',
+  'settings.members.resetPin': '重置 PIN',
+  'settings.members.resetPin.confirm':
+    '确定重置 {name} 的 PIN？重置后旧 PIN 立即失效，该成员下次登录可免 PIN 进入并自行重设。',
+  'settings.members.resetPin.done': '已重置。该成员下次登录免 PIN，进入后可自行设置新 PIN。',
+  'settings.members.resetPin.error': '重置失败：{detail}',
   'settings.members.setup.title': '初始化管理员',
   'settings.members.setup.desc':
     '本队还没有超级管理员。设一个 PIN，把当前登录的你设为管理员——此后改角色、建赛季等敏感设置都需要管理员身份。',
@@ -2126,6 +2131,12 @@ const en: Record<TranslationKey, string> = {
   'settings.members.role.groupAdmin': 'Group lead',
   'settings.members.role.member': 'Member',
   'settings.members.role.error': 'Failed to update role: {detail}',
+  'settings.members.resetPin': 'Reset PIN',
+  'settings.members.resetPin.confirm':
+    'Reset PIN for {name}? The old PIN stops working immediately; they can log in without a PIN and set a new one.',
+  'settings.members.resetPin.done':
+    'PIN reset. They can now log in without a PIN and set a new one.',
+  'settings.members.resetPin.error': 'Reset failed: {detail}',
   'settings.members.setup.title': 'Set up admin',
   'settings.members.setup.desc':
     'This team has no super admin yet. Set a PIN to make the currently logged-in you the admin — after that, sensitive settings like changing roles or creating seasons require admin rights.',

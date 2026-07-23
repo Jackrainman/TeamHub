@@ -444,6 +444,12 @@ function MembersPermissionsSection({
       client.setMemberGateReviewer(vars.id, { gateReviewer: vars.gateReviewer }),
     onSuccess: invalidateMembers,
   });
+  // 重置 PIN（公测余项⑦）：superAdmin 清目标 pinHash → 该成员回免 PIN 态、下次登录自行重设。
+  // 仅身份模式渲染（匿名模式端点 404、无身份概念）；二次确认防误点（重置后旧 PIN 立即失效）。
+  const clearPinMutation = useMutation({
+    mutationFn: (vars: { id: string }) => client.clearMemberPin(vars.id),
+    onSuccess: invalidateMembers,
+  });
 
   const members = membersQuery.data?.members ?? [];
   const groups = groupsQuery.data?.groups ?? [];
@@ -520,11 +526,43 @@ function MembersPermissionsSection({
                     />
                     <span>{t('settings.reviewers.toggle')}</span>
                   </label>
+                  {identity.mode === 'identity' ? (
+                    <button
+                      type="button"
+                      className="btn btn--secondary btn--sm"
+                      disabled={
+                        writeLocked ||
+                        (clearPinMutation.isPending &&
+                          clearPinMutation.variables?.id === member.id)
+                      }
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            t('settings.members.resetPin.confirm', {
+                              name: member.displayName,
+                            }),
+                          )
+                        ) {
+                          clearPinMutation.mutate({ id: member.id });
+                        }
+                      }}
+                    >
+                      {t('settings.members.resetPin')}
+                    </button>
+                  ) : null}
                 </div>
               </article>
             ))}
           </div>
         )}
+        {clearPinMutation.isSuccess ? (
+          <p className="form-hint">{t('settings.members.resetPin.done')}</p>
+        ) : null}
+        {clearPinMutation.error ? (
+          <p className="form-hint form-hint--warn">
+            {humanizeFormError(clearPinMutation.error, t, 'settings.members.resetPin.error')}
+          </p>
+        ) : null}
         {roleMutation.error ? (
           <p className="form-hint form-hint--warn">
             {humanizeFormError(roleMutation.error, t, 'settings.members.role.error')}

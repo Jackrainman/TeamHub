@@ -158,8 +158,11 @@ curl -s http://127.0.0.1:4177/api/system/status      # version 应与 VERSION �
 
 ### 7.1 常见维护动作：队员忘了 PIN
 
-产品里**没有**任何人能重置他人 PIN 的通道（superAdmin 也不行，名册重导也刻意不碰 PIN），
-部署方只能手工清：
+**产品通道（v0.27.0 起，推荐）**：superAdmin 登录 → 设置页「成员与权限」→ 该成员行点「重置 PIN」。
+效果是清除该成员的 PIN 散列——TA 下次登录回到"首次免 PIN"状态，登录后自行重设。
+重置口不经手新 PIN 明文（管理员看不到也设不了他人口令）。
+
+**手工兜底（服务起不来 / 没有可用 superAdmin 时）**：
 
 1. 停服，跑一次 `./scripts/backup-teamhub-data.sh`。
 2. 编辑治理数据文件（默认 `~/teamhub-data/gov.json`）：找到该成员条目，删掉 `pinHash` 字段。

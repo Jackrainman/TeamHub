@@ -42,6 +42,7 @@ import type {
   ResourceSessionPatch,
   ResourceStatusPatch,
   RosterImportOutcome,
+  SetMemberRoleResult,
   SeasonDraft,
   TaskDraft,
 } from './gov-store.js';
@@ -507,7 +508,8 @@ export class FileGovStore implements GovStore {
   // 设 / 改成员 PIN 散列（IDENTITY-LITE）：members 是 GovernanceSnapshot 字段 → 落 governance.json。
   // idx 类回滚（写前存整条，persist 失败按 id 原地还原，镜像 updateTaskStatus）。**密钥纪律**：pinHash
   // 随 members 一并落盘（预期，落盘文件里可以有），但绝不经读视图外露（路由层剥）。
-  async setMemberPin(memberId: string, pinHash: string): Promise<Member | null> {
+  // `pinHash = null`（余项⑦ PIN-RESET）= 清除，成员回到免 PIN 态。
+  async setMemberPin(memberId: string, pinHash: string | null): Promise<Member | null> {
     const snap = this.inner.snapshotForRollback();
     const idx = snap.members.findIndex((m) => m.id === memberId);
     const prior = idx >= 0 ? snap.members[idx] : undefined;
@@ -538,19 +540,24 @@ export class FileGovStore implements GovStore {
     return member;
   }
 
-  // 设成员角色（K1 权限地基）：members 是 GovernanceSnapshot 字段 → 落 governance.json。
-  // idx 类回滚（写前存整条，persist 失败按 id 原地还原，镜像 setMemberGateReviewer）。
-  async setMemberRole(memberId: string, role: MemberRole): Promise<Member | null> {
+  // 设成员角色（K1 权限地基 + 余项⑥ nit③ TOCTOU 修复）：members 是 GovernanceSnapshot 字段 → 落
+  // governance.json。idx 类回滚（写前存整条，persist 失败按 id 原地还原，镜像 setMemberGateReviewer）。
+  // 降级保护 guard 透传 inner（判与写在 inner 同一临界区完成）；guard 拦截 / 未命中时不落盘。
+  async setMemberRole(
+    memberId: string,
+    role: MemberRole,
+    opts?: { guardLastSuperAdmin?: boolean },
+  ): Promise<SetMemberRoleResult> {
     const snap = this.inner.snapshotForRollback();
     const idx = snap.members.findIndex((m) => m.id === memberId);
     const prior = idx >= 0 ? snap.members[idx] : undefined;
-    const member = await this.inner.setMemberRole(memberId, role);
-    if (member) {
+    const result = await this.inner.setMemberRole(memberId, role, opts);
+    if (result.ok) {
       await this.persistOrRollback(() => {
         if (prior) snap.members[idx] = prior;
       });
     }
-    return member;
+    return result;
   }
 
   // 名册批量导入（ROSTER-IMPORT，K8）：members + groups 都是 GovernanceSnapshot 字段 → 落 governance.json。

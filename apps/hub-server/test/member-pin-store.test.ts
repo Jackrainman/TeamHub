@@ -47,4 +47,29 @@ describe('GovStore.setMemberPin', () => {
     const m = snap.members.find((x) => x.id === 'm-ecB');
     expect(verifyPin('4321', m!.pinHash!)).toBe(true);
   });
+
+  test('清除（pinHash=null，余项⑦ PIN-RESET）：InMemory 移除字段；File 落盘后重启仍无 pinHash', async () => {
+    const mem = new InMemoryGovStore();
+    await mem.setMemberPin('m-ecB', hashPin('1234'));
+    const cleared = await mem.setMemberPin('m-ecB', null);
+    expect(cleared).not.toBeNull();
+    expect(cleared?.pinHash).toBeUndefined();
+    expect('pinHash' in cleared!).toBe(false);
+    expect(
+      (await mem.getSnapshot()).members.find((x) => x.id === 'm-ecB')?.pinHash,
+    ).toBeUndefined();
+
+    dir = await mkdtemp(join(tmpdir(), 'gov-pin-clear-'));
+    const file = join(dir, 'gov.json');
+    const store = await FileGovStore.create(file);
+    await store.setMemberPin('m-ecB', hashPin('4321'));
+    await store.setMemberPin('m-ecB', null);
+    const onDisk = JSON.parse(await readFile(file, 'utf8'));
+    expect(onDisk.members.find((m: { id: string }) => m.id === 'm-ecB').pinHash).toBeUndefined();
+
+    const reloaded = await FileGovStore.create(file);
+    expect(
+      (await reloaded.getSnapshot()).members.find((x) => x.id === 'm-ecB')?.pinHash,
+    ).toBeUndefined();
+  });
 });

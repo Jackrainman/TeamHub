@@ -76,6 +76,18 @@ export const SetPinResponseSchema = z.object({
 export type SetPinResponse = z.infer<typeof SetPinResponseSchema>;
 
 /**
+ * DELETE /api/members/:id/pin（重置 PIN，公测余项⑦ PIN-RESET）响应：回带该成员**公开视图**（剥 pinHash，
+ * 密钥纪律）。**请求无体**。授权语义（路由层）：身份模式 only（匿名 → 404，照 PUT pin 先例）+ 须
+ * superAdmin（403）——解决「忘 PIN 后连管理员也无产品通道、只能手工清落盘 pinHash」的缺口。效果 = 清除
+ * 目标成员 pinHash：该成员回到「无 pinHash 免 PIN」态，下次登录后经既有 PUT pin 首设流程（firstSetup）
+ * 自行重设——重置口本身**绝不代收新 PIN 明文**（管理员不经手他人口令，密钥纪律延续）。
+ */
+export const ClearPinResponseSchema = z.object({
+  member: MemberPublicSchema,
+});
+export type ClearPinResponse = z.infer<typeof ClearPinResponseSchema>;
+
+/**
  * POST /api/setup/super-admin（初始化首个管理员，K1 权限地基）请求：只收明文 pin（min4 max64，家庭影院级
  * 最低强度，服务端 scrypt 散列后落库、不回存明文）。**身份模式 only**（匿名 → 404，照 PUT pin 先例）。
  *

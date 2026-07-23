@@ -210,6 +210,133 @@ describe('PUT /api/members/:id/role（成员角色维护）', () => {
   });
 });
 
+describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => {
+  test('匿名模式 → 404（身份模式未启用）', async () => {
+    const app = buildHubServer();
+    try {
+      const res = await app.inject({ method: 'DELETE', url: '/api/members/m-ecB/pin' });
+      expect(res.statusCode).toBe(404);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('身份模式未登录 → 401（写门钩子）；非 superAdmin → 403', async () => {
+    const store = new InMemoryGovStore();
+    const app = buildHubServer({ identityMode: 'identity', store });
+    try {
+      const anon = await app.inject({ method: 'DELETE', url: '/api/members/m-visionA/pin' });
+      expect(anon.statusCode).toBe(401);
+
+      const cookie = await login(app, 'm-ecB'); // 普通成员
+      const forbid = await app.inject({
+        method: 'DELETE',
+        url: '/api/members/m-visionA/pin',
+        headers: { cookie },
+      });
+      expect(forbid.statusCode).toBe(403);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('superAdmin 重置他人 PIN → 200：pinHash 清除、回免 PIN 态、可经 firstSetup 重设；响应剥 pinHash', async () => {
+    const store = new InMemoryGovStore();
+    const app = buildHubServer({ identityMode: 'identity', store });
+    try {
+      // 造 superAdmin（m-ecB）+ 给 m-visionA 设 PIN（本人登录后自设）
+      const adminCookie = await login(app, 'm-ecB');
+      await app.inject({
+        method: 'POST',
+        url: '/api/setup/super-admin',
+        headers: { cookie: adminCookie },
+        payload: { pin: '1234' },
+      });
+      const userCookie = await login(app, 'm-visionA');
+      await app.inject({
+        method: 'PUT',
+        url: '/api/members/m-visionA/pin',
+        headers: { cookie: userCookie },
+        payload: { pin: '9999' },
+      });
+      // 确认已设：免 PIN 登录 m-visionA 失败
+      const locked = await app.inject({
+        method: 'POST',
+        url: '/api/session',
+        payload: { memberId: 'm-visionA' },
+      });
+      expect(locked.statusCode).toBe(401);
+
+      // superAdmin 重置 → 200
+      const res = await app.inject({
+        method: 'DELETE',
+        url: '/api/members/m-visionA/pin',
+        headers: { cookie: adminCookie },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().member.id).toBe('m-visionA');
+      expect(JSON.stringify(res.json())).not.toContain('pinHash');
+
+      // 落库：pinHash 已清 → 免 PIN 登录恢复（回免 PIN 态）
+      expect(
+        (await store.getSnapshot()).members.find((m) => m.id === 'm-visionA')?.pinHash,
+      ).toBeUndefined();
+      const relogin = await app.inject({
+        method: 'POST',
+        url: '/api/session',
+        payload: { memberId: 'm-visionA' },
+      });
+      expect(relogin.statusCode).toBe(200);
+
+      // firstSetup 流程可重设新 PIN（旧 PIN 已失效）
+      const cookie2 = await login(app, 'm-visionA');
+      const reset = await app.inject({
+        method: 'PUT',
+        url: '/api/members/m-visionA/pin',
+        headers: { cookie: cookie2 },
+        payload: { pin: '5555' },
+      });
+      expect(reset.statusCode).toBe(200);
+      const oldPin = await app.inject({
+        method: 'POST',
+        url: '/api/session',
+        payload: { memberId: 'm-visionA', pin: '9999' },
+      });
+      expect(oldPin.statusCode).toBe(401);
+      const newPin = await app.inject({
+        method: 'POST',
+        url: '/api/session',
+        payload: { memberId: 'm-visionA', pin: '5555' },
+      });
+      expect(newPin.statusCode).toBe(200);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('superAdmin 重置未知 id → 404', async () => {
+    const store = new InMemoryGovStore();
+    const app = buildHubServer({ identityMode: 'identity', store });
+    try {
+      const cookie = await login(app, 'm-ecB');
+      await app.inject({
+        method: 'POST',
+        url: '/api/setup/super-admin',
+        headers: { cookie },
+        payload: { pin: '1234' },
+      });
+      const res = await app.inject({
+        method: 'DELETE',
+        url: '/api/members/m-nope/pin',
+        headers: { cookie },
+      });
+      expect(res.statusCode).toBe(404);
+    } finally {
+      await app.close();
+    }
+  });
+});
+
 describe('敏感门收口：身份模式须 superAdmin（匿名不变）', () => {
   test('gate-reviewer：身份非 superAdmin → 403，superAdmin → 200；匿名仍 200', async () => {
     // 匿名不变

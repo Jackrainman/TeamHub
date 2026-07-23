@@ -58,6 +58,7 @@ import type {
   ResourceSessionPatch,
   ResourceStatusPatch,
   RosterImportOutcome,
+  SetMemberRoleResult,
   SeasonDraft,
   TaskDraft,
 } from './gov-store.js';
@@ -611,18 +612,23 @@ export class InMemoryGovStore implements GovStore {
   /**
    * 设 / 改成员登录 PIN 散列（PUT /api/members/:id/pin，IDENTITY-LITE）。就地改 members[idx].pinHash
    * （scrypt 串，路由层散列后传入）+ bump updatedAt、钉 updatedBy=`console`。id 不存在 → null（路由转 404）。
+   * **`pinHash = null`（公测余项⑦ PIN-RESET）= 清除 pinHash**（DELETE pin 消费）：成员回到免 PIN 态。
    * **密钥纪律**：pinHash 只落内存 / 落盘，读视图剥离（路由回带走 MemberPublicSchema）。
    */
-  async setMemberPin(memberId: string, pinHash: string): Promise<Member | null> {
+  async setMemberPin(memberId: string, pinHash: string | null): Promise<Member | null> {
     const idx = this.snapshot.members.findIndex((m) => m.id === memberId);
     if (idx === -1) return null;
     const now = this.clock.now().toISOString();
     const updated: Member = {
       ...this.snapshot.members[idx],
-      pinHash,
       updatedBy: MEMBER_PIN_UPDATED_BY,
       updatedAt: now,
     };
+    if (pinHash === null) {
+      delete updated.pinHash;
+    } else {
+      updated.pinHash = pinHash;
+    }
     this.snapshot.members[idx] = updated;
     return updated;
   }
@@ -652,20 +658,35 @@ export class InMemoryGovStore implements GovStore {
   /**
    * 设成员角色（PUT /api/members/:id/role + POST /api/setup/super-admin，K1 权限地基）。就地改
    * members[idx].role（枚举位）+ bump updatedAt、钉 updatedBy=`console`（镜像 setMemberGateReviewer）。
-   * 授权 + 降级保护在路由层判，本方法无条件写。id 不存在 → null（路由转 404）。**I0**：只改枚举位，绝不聚合。
+   * 授权在路由层判；**降级保护收进本方法同一临界区**（余项⑥ nit③ TOCTOU 修复，`guardLastSuperAdmin`
+   * 开启时判与写不分离——单线程事件循环内本方法体无 await 间断，并发请求无法插入判定与写之间）。
+   * id 不存在 → `{ ok:false, reason:'not-found' }`（路由转 404）。**I0**：只改枚举位，绝不聚合。
    */
-  async setMemberRole(memberId: string, role: MemberRole): Promise<Member | null> {
+  async setMemberRole(
+    memberId: string,
+    role: MemberRole,
+    opts?: { guardLastSuperAdmin?: boolean },
+  ): Promise<SetMemberRoleResult> {
     const idx = this.snapshot.members.findIndex((m) => m.id === memberId);
-    if (idx === -1) return null;
+    if (idx === -1) return { ok: false, reason: 'not-found' };
+    const prev = this.snapshot.members[idx];
+    if (
+      opts?.guardLastSuperAdmin &&
+      prev.role === 'superAdmin' &&
+      role !== 'superAdmin' &&
+      this.snapshot.members.filter((m) => m.role === 'superAdmin').length <= 1
+    ) {
+      return { ok: false, reason: 'last-superadmin' };
+    }
     const now = this.clock.now().toISOString();
     const updated: Member = {
-      ...this.snapshot.members[idx],
+      ...prev,
       role,
       updatedBy: MEMBER_ROLE_UPDATED_BY,
       updatedAt: now,
     };
     this.snapshot.members[idx] = updated;
-    return updated;
+    return { ok: true, member: updated };
   }
 
   /**

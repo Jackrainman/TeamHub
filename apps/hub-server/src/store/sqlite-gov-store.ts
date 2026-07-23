@@ -62,6 +62,7 @@ import type {
   ResourceSessionPatch,
   ResourceStatusPatch,
   RosterImportOutcome,
+  SetMemberRoleResult,
   SeasonDraft,
   TaskDraft,
 } from './gov-store.js';
@@ -481,16 +482,21 @@ export class SqliteGovStore implements GovStore {
     });
   }
 
-  async setMemberPin(memberId: string, pinHash: string): Promise<Member | null> {
+  async setMemberPin(memberId: string, pinHash: string | null): Promise<Member | null> {
     return this.tx(() => {
       const prev = this.getRow<Member>('members', memberId);
       if (!prev) return null;
       const updated: Member = {
         ...prev,
-        pinHash,
         updatedBy: MEMBER_PIN_UPDATED_BY,
         updatedAt: this.clock.now().toISOString(),
       };
+      // `pinHash = null`（余项⑦ PIN-RESET）= 清除，成员回到免 PIN 态。
+      if (pinHash === null) {
+        delete updated.pinHash;
+      } else {
+        updated.pinHash = pinHash;
+      }
       this.updateRow('members', memberId, updated);
       return updated;
     });
@@ -515,11 +521,24 @@ export class SqliteGovStore implements GovStore {
     });
   }
 
-  // 设成员角色（K1 权限地基）：整实体 JSON 就地重写（文档式行存），镜像 setMemberGateReviewer。
-  async setMemberRole(memberId: string, role: MemberRole): Promise<Member | null> {
+  // 设成员角色（K1 权限地基 + 余项⑥ nit③ TOCTOU 修复）：整实体 JSON 就地重写（文档式行存），镜像
+  // setMemberGateReviewer。降级保护 guard 在同一事务内判+写（node:sqlite 事务即临界区，并发请求串行化）。
+  async setMemberRole(
+    memberId: string,
+    role: MemberRole,
+    opts?: { guardLastSuperAdmin?: boolean },
+  ): Promise<SetMemberRoleResult> {
     return this.tx(() => {
       const prev = this.getRow<Member>('members', memberId);
-      if (!prev) return null;
+      if (!prev) return { ok: false as const, reason: 'not-found' as const };
+      if (
+        opts?.guardLastSuperAdmin &&
+        prev.role === 'superAdmin' &&
+        role !== 'superAdmin' &&
+        this.allRows<Member>('members').filter((m) => m.role === 'superAdmin').length <= 1
+      ) {
+        return { ok: false as const, reason: 'last-superadmin' as const };
+      }
       const updated: Member = {
         ...prev,
         role,
@@ -527,7 +546,7 @@ export class SqliteGovStore implements GovStore {
         updatedAt: this.clock.now().toISOString(),
       };
       this.updateRow('members', memberId, updated);
-      return updated;
+      return { ok: true as const, member: updated };
     });
   }
 

@@ -143,3 +143,12 @@ server 379 / console 163）。红线全数坐实：匿名模式敏感门全部 i
 4. **deployment.storage.path 回显宿主绝对路径**：`GET /api/system/status` 读端点可读，任意可达者可知
    目录布局。§2.4 已裁"路径=运维元信息可接受"，与该裁决一致、知情记录；要收紧可只回 basename 或仅
    superAdmin 会话返回全路径。
+
+> **收口注记（2026-07-23，公测余项轮）**：
+> - **nit③ 已修**（v0.27.0）：降级保护判定收进 `setMemberRole` 同一临界区（`guardLastSuperAdmin`，
+>   mock/file/sqlite 三实现同语义，sqlite 走事务），路由层不再先读后写，并发双降级无法放行。
+> - **余项⑦ 已落地**（v0.27.0）：`DELETE /api/members/:id/pin`（身份 only + 须 superAdmin）+
+>   设置页「成员与权限」重置入口；只清 pinHash 不经手新明文，成员回免 PIN 态经 firstSetup 自设。
+>   DEPLOY §7.1 已改产品通道优先、手工步骤降为兜底。
+> - nit① 维持原裁（可信 LAN 引导取舍，RUNBOOK §1.6 缓解已足）；nit② 维持"若成真痛点再加学号列"
+>   （公测未发生同名冲突前不动幂等键）；nit④ 维持 §2.4 知情裁决（路径=运维元信息可接受）。
