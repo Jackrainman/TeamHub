@@ -158,6 +158,15 @@
 | ROSTER-CSV-3COL | pending（**2026-07-24 已拍板**：保留前三列 姓名/年级/组；确认组长页有成员必选；组别筛选复用项目已有控件逻辑） | code | **名册 CSV 5 列→3 列 + 导入后确认组长页**：去组长/验收人列（验收人沿用大三及以上默认派生；importRoster 不写 role → 重导幂等天然不洗已任命组长）；确认页逐组选组长（role→groupAdmin，有成员必选+默认建议第一行，空组不出现）；组候选复用 PmCreatePanel Combobox/deriveLeafGroups 等已有逻辑且排除非叶子组+哨兵组 |
 | PROGRAM-GROUP-ABSTRACT | pending（摸底完成 + **已定向方案②结构派生**，2026-07-24 用户认「理论上最符合」） | design/code | **程序组残留收口**：fixtures 已调和干净，残留=写入口（importRoster 组名静默命中 grp-program/自动建程序组 + createTask groupId 零校验）+ 读出口（GET /api/groups 无过滤 + PmCreatePanel 候选全量且显示组 id 非中文名=UX bug）。方案②=有子组的组即抽象（不可领任务/挂人），零 schema 改动、组树结构即单一真相、与 D-072 同构；读写两端统一用叶子组集合，顺带修组 id 显示 bug；风险=隐式翻转（叶子组添子组自动变抽象，UI 一句解释化解）。连带：设置页组管理 UI（D-072 可增减）从未实现=前置；gov-oncall-schedule.md:38 标 superseded |
 
+## P1 — 文档与 harness 减负（2026-07-24 立项，三路 explore 量化报告为据）
+
+> 三路 explore 量化（2026-07-24）：planning 三活文件 371K 约 60% 是历史日志/落地账单；docs 全树 16M 中 screenshots 占 87.5%（**单独决策，不在本批**）；harness 环节里 skills 软链从未安装、debug 卡 6 周零新增、版本钩子链机制写了没装。两刀均不碰 `apps/hub-*/src`、不 bump。
+
+| 任务 | 状态 | type | 内容 |
+|------|------|------|------|
+| DOCS-SLIM | pending（多 commit） | docs | **活账本纪律执行**（D-070/D-073 现成基建）：①now.md 56K→~15K（frontier 17 done 条压一行指针/最近完成留 3 条/repo_sync 历史段移 archive）②decisions.md ~25 个落地账单段（D-044~D-082 区间）压 3 行 stub+全文移 decisions-archive ③backlog done 行（55%）压「任务名\|done\|日期+D号」一行+死引用路径修（completion-model/agent-state→archive/legacy-harness）④死文件 12 篇移 docs/archive（planning 死报告 5+design 历史稿 4+aurash+superpowers spec+dogfood）⑤7 篇文档头状态回写（setup-wizard/sched-date-relay/depgraph-drag-connect/daily-plan-presets/modularization-feasibility/presence-reconcile-lock + gov-oncall-schedule:38 标 superseded）⑥deploy 单一真相（RUNBOOK 首启动段改指针、guide FAQ 忘 PIN 同步 v0.27.0 产品通道） |
+| HARNESS-DIET | pending | chore | **失效环节砍/降级**：①skills 砍死件（debug-checklist+PROTOCOL-v1.0 移 archive/legacy-harness，personal-daily-summary 删或补用法，留 kb-debug/pre-match-checklist）②砍 .debug-archive 双轨（tracked README 移除，gitignore 保留）③AGENTS §6 debug 卡规则如实降级（事故复盘可直接进 design/planning）+§4「改 skill 必重链」改「要用才装」④版本钩子链：本机跑 install-hooks.sh 使反射真活（AGENTS §7 纪律兑现） |
+
 ## P0 — Team Hub 壳子（已落地，作为治理触点/集成 + 展示底座保留）
 
 | 任务 | 状态 | type | 内容 |
