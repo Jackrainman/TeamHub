@@ -29,6 +29,7 @@ frontier:                                # 本轮(07-11~07-12)=路线 v4 五把�
   - MODULARIZATION-PHASE2                 # 后置(D-083)：游戏包推迟，先把 Robocon 写明白；届时再切垂直包 worktree
   - DEPGRAPH-AI-AUTODRAW                  # AI 自动布大致 DAG + 人拖拽微调（AI 只建议不落库，卡 Hermes 触点）← 跳过
   # 公测准备余项(2026-07-16 文档轮后)：① ✅Excel 名册导入(已落地 K8-ROSTER-IMPORT v0.25.0，见上) ② ✅README 重写+部署指南+队员上手页(2026-07-16 文档轮落地，含 AI 部署提示词四件套+备份脚本五域扩展) ③ ✅打 tag(v0.25.0=公测就绪点①；v0.27.0=公测就绪点② 已打并推送+GitHub Release 已发，2026-07-23，含 SETUP-WIZARD 三刀+PIN-RESET+nit③) ④ 检查单模板(等复盘产出) ⑤ ✅push 已恢复(07-16 用户重建 PAT；根因=旧 token 30 天到期+credential-store 拒后自抹致 0 字节之谜) ⑥ 复审 4 nit——nit③ TOCTOU ✅已修(2026-07-23 v0.27.0，guard 收进 setMemberRole 临界区)，nit①②④ 维持原裁留档(beta-readiness §6 尾注记) ⑦ ✅PIN 重置写口已落地(2026-07-23 PIN-RESET v0.27.0，见上 frontier 首行)
+  # 公测补强代办(2026-07-24 立项，用户实测部署命中初始化/PIN 死锁，「先写代办、待会一起修复」)：PIN-DEADLOCK-RECOVERY(loopback 可重置 PIN) / SETUP-WIZARD-ROSTER(向导强制导 CSV+操作者即管理员) / ROSTER-CSV-3COL(5列→3列+组别可筛选，3 开放问题待拍板) / PROGRAM-GROUP-ABSTRACT(程序组残留，decision-needed)——方案+活体复现证据=docs/design/onboarding-pin-deadlock-2026-07-24.md，候选行已入 backlog「P0 公测补强」段；修复落地后备份→重置已部署实例(4177)→用户冒烟
   # 排班收窄(D-083)：在场排班/接力退出日常动线，只服务「人必须凑齐」的关键窗口(联调日/赛前)；课表围绕排班停建(伪需求，MemberAvailability schema/派生保留不扩建)
   # 仍卡外部基建/排期：INV-Hermes 自动对话记账(卡 HUB-HERMES-ADAPTER) / KB-LARK 飞书 wiki·drive→KB 摄入(需落点 schema 定稿) / 正式部署上线(卡用户审批) / Hermes
   # 后置(D-069)：STUDY-BROAD-D039-REVIVAL(HARD-GATED 封存·B1 已拍；D-083 AI 三红线延续其精神)
