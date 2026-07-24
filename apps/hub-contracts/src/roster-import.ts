@@ -130,7 +130,7 @@ export interface RosterImportRow {
   displayName: string;
   grade: MemberGrade;
   groupName: string;
-  // 解析器只产 'groupAdmin' | 'member'（superAdmin 不经导入产生，store 侧另有降级保护）。
+  // 解析器只产 'groupAdmin' | 'member'（项目管理旗标不经导入产生——授旗走 PUT project-manager 写口）。
   role: MemberRole;
   gateReviewer: boolean;
   // true = 验收人列留空 + 年级默认规则判为 true（进报告 autoReviewers，让操作者看清自动标了谁）。

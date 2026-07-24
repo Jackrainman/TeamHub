@@ -457,7 +457,9 @@ export function buildPmSeed(): PmSeedFixture {
     // PRESENCE-RECONCILE-LOCK：程序 AB 归口电控/视觉，程序组去领任务身份（仅留汇报视角）。
     // m-progA 降为 member（Q6 不突出组长）、改持新常规任务 t-r1-system-tune（电控做 R1 系统调试）。
     // gateReviewer:true：大四/学长同在验收人名单（跨组各留一名验收人 demo）。
-    { id: 'm-progA', displayName: '程序A', role: 'member', grade: 'senior', groupId: 'grp-ec', status: 'working', currentTaskId: 't-r1-system-tune', updatedBy: 'git', updatedAt: GOVERNANCE_SCENARIO_NOW, gateReviewer: true },
+    // projectManager:true（MEMBER-PM-FLAG demo，刀②b）：项目管理旗标与 role 正交——程序A 是大四学长兼
+    // 项目管理（role 仍 member，旗标独立），演示「旗标不冲突组长身份」的新权限形态。
+    { id: 'm-progA', displayName: '程序A', role: 'member', grade: 'senior', groupId: 'grp-ec', status: 'working', currentTaskId: 't-r1-system-tune', updatedBy: 'git', updatedAt: GOVERNANCE_SCENARIO_NOW, gateReviewer: true, projectManager: true },
     { id: 'm-progB', displayName: '程序B', role: 'member', grade: 'junior', groupId: 'grp-vision', status: 'working', currentTaskId: 't-r2-integration', updatedBy: 'git', updatedAt: GOVERNANCE_SCENARIO_NOW },
   ],
   tasks: [

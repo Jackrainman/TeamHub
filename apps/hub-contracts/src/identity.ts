@@ -20,11 +20,12 @@ export type IdentityMode = z.infer<typeof IdentityModeSchema>;
 
 /**
  * 当前会话身份（服务端从 session 表解析、经 GET /api/session 与登录成功响应回带）。
- * 仅名册投影字段（memberId/displayName/groupId/role/gateReviewer），**无 pinHash / 无 PIN**——够前端做
+ * 仅名册投影字段（memberId/displayName/groupId/role/gateReviewer/projectManager），**无 pinHash / 无 PIN**——够前端做
  * 「我的视图」按 memberId 过滤（D-083 I0 例外：本人看本人）+ 角色态判断即可。
  *
- * **快照语义（K1 权限地基）**：`role`/`gateReviewer` 是**登录当刻的快照**。改角色（PUT /api/members/:id/role）
- * 或改验收人名单（PUT gate-reviewer）后，**已存在的会话仍持旧值**——须重新登录才刷新前端所见。服务端的敏感
+ * **快照语义（K1 权限地基）**：`role`/`gateReviewer`/`projectManager` 是**登录当刻的快照**。改角色
+ * （PUT /api/members/:id/role）、改验收人名单（PUT gate-reviewer）或授/收项目管理旗标
+ * （PUT project-manager）后，**已存在的会话仍持旧值**——须重新登录才刷新前端所见。服务端的敏感
  * 写门（isSuperAdmin/isGateReviewer）另读**实时名册**鉴权、不吃这份快照，故权限判定本身永远最新、不受陈旧快照
  * 影响；快照只喂前端角色态展示。
  */
@@ -35,6 +36,9 @@ export const SessionIdentitySchema = z.object({
   role: MemberRoleSchema,
   // optional：旧会话 / 非验收人省略（视同 false）。登录时从名册 Member.gateReviewer 快照。
   gateReviewer: z.boolean().optional(),
+  // optional：旧会话 / 非项目管理省略（视同 false）。登录时从名册 Member.projectManager 快照
+  // （MEMBER-PM-FLAG，公测补强刀②b——原 superAdmin 角色的正交旗标，前端权限态判它而非 role）。
+  projectManager: z.boolean().optional(),
 });
 export type SessionIdentity = z.infer<typeof SessionIdentitySchema>;
 
@@ -88,13 +92,15 @@ export const ClearPinResponseSchema = z.object({
 export type ClearPinResponse = z.infer<typeof ClearPinResponseSchema>;
 
 /**
- * POST /api/setup/super-admin（初始化首个管理员，K1 权限地基）请求：只收明文 pin（min4 max64，家庭影院级
- * 最低强度，服务端 scrypt 散列后落库、不回存明文）。**身份模式 only**（匿名 → 404，照 PUT pin 先例）。
+ * POST /api/setup/super-admin（初始化首个管理员，K1 权限地基 + MEMBER-PM-FLAG 旗标化）请求：只收明文
+ * pin（min4 max64，家庭影院级最低强度，服务端 scrypt 散列后落库、不回存明文）。**身份模式 only**（匿名 → 404，
+ * 照 PUT pin 先例）。
  *
- * 授权/前置（路由层）：① 须已登录（写门钩子天然保证）；② 名册尚无任何 `role==='superAdmin'` 成员——否则
- * 409（一次性初始化门；已有管理员后改角色走 PUT /api/members/:id/role）。**效果**：把**登录本人** role→
- * superAdmin **且同笔设 pinHash**——先设 pin 再升 role，防"无 PIN 管理员被免密登录冒用"（这就是"敏感设置
- * 须密码"的落点：首个管理员诞生即带口令）。响应回带该成员公开视图（MemberPublicSchema 剥 pinHash，密钥纪律）。
+ * 授权/前置（路由层）：① 须已登录（写门钩子天然保证）；② 名册尚无任何持「项目管理」旗标成员——否则
+ * 409（一次性初始化门；已有管理员后授/收旗走 PUT /api/members/:id/project-manager）。**效果**：给**登录本人**
+ * 授 `projectManager` 旗标 **且同笔设 pinHash**——先设 pin 再授旗，防"无 PIN 管理员被免密登录冒用"（这就是
+ * "敏感设置须密码"的落点：首个管理员诞生即带口令）。响应回带该成员公开视图（MemberPublicSchema 剥 pinHash，
+ * 密钥纪律）。
  */
 export const SetupSuperAdminRequestSchema = z.object({
   pin: z.string().min(4).max(64),

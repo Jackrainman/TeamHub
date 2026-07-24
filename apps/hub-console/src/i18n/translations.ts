@@ -972,13 +972,14 @@ const zh = {
   // 设置页「成员与权限」分区（K1 权限地基 + 验收人名单）
   'settings.section.members': '成员与权限',
   'settings.members.desc':
-    '管理每位成员的角色与门验收人资格。角色决定谁能改敏感设置（超级管理员）、谁是组长（可指派本组任务）；验收人（大三）可签字豁免欠条。名单只做权限，不做任何按人统计。',
+    '管理每位成员的角色、项目管理旗标与门验收人资格。项目管理旗标决定谁能改敏感设置（授旗/收旗、建赛季等）；角色决定谁是组长（可指派本组任务）；验收人（大三）可签字豁免欠条。名单只做权限，不做任何按人统计。',
   'settings.members.empty': '暂无成员。',
   'settings.members.role.label': '角色',
-  'settings.members.role.superAdmin': '超级管理员',
   'settings.members.role.groupAdmin': '组长',
   'settings.members.role.member': '成员',
   'settings.members.role.error': '角色更新失败：{detail}',
+  'settings.members.pm.toggle': '项目管理',
+  'settings.members.pm.error': '项目管理旗标更新失败：{detail}',
   'settings.members.resetPin': '重置 PIN',
   'settings.members.resetPin.confirm':
     '确定重置 {name} 的 PIN？重置后旧 PIN 立即失效，该成员下次登录可免 PIN 进入并自行重设。',
@@ -986,7 +987,7 @@ const zh = {
   'settings.members.resetPin.error': '重置失败：{detail}',
   'settings.members.setup.title': '初始化管理员',
   'settings.members.setup.desc':
-    '本队还没有超级管理员。设一个 PIN，把当前登录的你设为管理员——此后改角色、建赛季等敏感设置都需要管理员身份。',
+    '本队还没有项目管理成员。设一个 PIN，给当前登录的你授项目管理旗标——此后授旗/收旗、建赛季等敏感设置都需要管理员身份。',
   'settings.members.setup.pinLabel': '管理员 PIN',
   'settings.members.setup.pinPlaceholder': '至少 4 位',
   'settings.members.setup.submit': '设为管理员',
@@ -1001,7 +1002,7 @@ const zh = {
   'settings.reviewers.grade.senior': '大四',
   'settings.reviewers.grade.graduate': '研究生',
   // 写权限说明（K8 复审 nit 收口）：身份模式已登录但非管理员时的禁用说明。
-  'settings.permission.adminOnly': '此操作需要管理员（超级管理员）权限。',
+  'settings.permission.adminOnly': '此操作需要管理员（项目管理旗标）权限。',
   // 设置页「名册导入」块（ROSTER-IMPORT，K8）
   'settings.roster.title': '名册导入',
   'settings.roster.desc':
@@ -2124,13 +2125,14 @@ const en: Record<TranslationKey, string> = {
   'overview.checklist.warn.pendingCount': '{count} IOU(s) still pending',
   'settings.section.members': 'Members & permissions',
   'settings.members.desc':
-    "Manage each member's role and gate-reviewer status. Roles decide who can change sensitive settings (super admin) and who is a group lead (may assign their group's tasks); reviewers (juniors) may sign off IOU waivers. The roster is permissions only — no per-person tallies.",
+    "Manage each member's role, project-management flag and gate-reviewer status. The project-management flag decides who can change sensitive settings (granting flags, creating seasons); roles decide who is a group lead (may assign their group's tasks); reviewers (juniors) may sign off IOU waivers. The roster is permissions only — no per-person tallies.",
   'settings.members.empty': 'No members yet.',
   'settings.members.role.label': 'Role',
-  'settings.members.role.superAdmin': 'Super admin',
   'settings.members.role.groupAdmin': 'Group lead',
   'settings.members.role.member': 'Member',
   'settings.members.role.error': 'Failed to update role: {detail}',
+  'settings.members.pm.toggle': 'Project mgmt',
+  'settings.members.pm.error': 'Failed to update project-management flag: {detail}',
   'settings.members.resetPin': 'Reset PIN',
   'settings.members.resetPin.confirm':
     'Reset PIN for {name}? The old PIN stops working immediately; they can log in without a PIN and set a new one.',
@@ -2139,7 +2141,7 @@ const en: Record<TranslationKey, string> = {
   'settings.members.resetPin.error': 'Reset failed: {detail}',
   'settings.members.setup.title': 'Set up admin',
   'settings.members.setup.desc':
-    'This team has no super admin yet. Set a PIN to make the currently logged-in you the admin — after that, sensitive settings like changing roles or creating seasons require admin rights.',
+    'This team has no project-management member yet. Set a PIN to grant the currently logged-in you the project-management flag — after that, sensitive settings like granting flags or creating seasons require admin rights.',
   'settings.members.setup.pinLabel': 'Admin PIN',
   'settings.members.setup.pinPlaceholder': 'At least 4 characters',
   'settings.members.setup.submit': 'Become admin',
@@ -2153,7 +2155,7 @@ const en: Record<TranslationKey, string> = {
   'settings.reviewers.grade.junior': 'Junior',
   'settings.reviewers.grade.senior': 'Senior',
   'settings.reviewers.grade.graduate': 'Graduate',
-  'settings.permission.adminOnly': 'This action requires admin (super admin) permission.',
+  'settings.permission.adminOnly': 'This action requires admin (project-management flag) permission.',
   // Settings "Roster import" block (ROSTER-IMPORT, K8)
   'settings.roster.title': 'Roster import',
   'settings.roster.desc':

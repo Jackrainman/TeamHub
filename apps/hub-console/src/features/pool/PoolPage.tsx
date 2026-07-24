@@ -182,7 +182,7 @@ function PoolCard({
   const isIdentity = identity.mode === 'identity' && identity.session != null;
   const writeLocked = !identity.canWrite;
   // 指派权属该组组长（镜像服务端 isGroupLeadOf：role==='groupAdmin' && groupId===task.groupId；
-  // superAdmin 不算某组组长，故不放行——与 server.ts /assign 鉴权逐条对齐，避免"点了才 403"）。
+  // 项目管理旗标不算某组组长，故不放行——与 server.ts /assign 鉴权逐条对齐，避免"点了才 403"）。
   const groupLeads = members.filter(
     (m) => m.role === 'groupAdmin' && m.groupId === task.groupId,
   );

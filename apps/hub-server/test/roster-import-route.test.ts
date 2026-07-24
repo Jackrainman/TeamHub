@@ -11,7 +11,7 @@ import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
 /**
  * 名册导入端到端（ROSTER-IMPORT，K8）：GET 模板 + POST 导入（匿名成功 / 身份空板豁免 / 身份非管理员
- * 403 / 重导更新且 superAdmin 保护 / 自动建组 / missingFromSheet / GBK 编码 / 编码识别失败 400）。
+ * 403 / 重导更新且旗标保护 / 自动建组 / missingFromSheet / GBK 编码 / 编码识别失败 400）。
  */
 
 // 构造单文件 multipart 请求体（照 artifact-upload.test.ts 先例）。content 为 Buffer 时按原字节发（GBK 用）。
@@ -157,13 +157,13 @@ describe('POST /api/roster/import — 匿名模式', () => {
     }
   });
 
-  test('superAdmin 保护：重导时目标现为 superAdmin → role 不动、pinHash 不动', async () => {
+  test('旗标保护：重导时目标持 projectManager 旗标 → 旗标不动、pinHash 不动、role 照表更新', async () => {
     const store = new InMemoryGovStore(
       seedWith([
         member({
           id: 'm-boss',
           displayName: '队长',
-          role: 'superAdmin',
+          projectManager: true,
           grade: 'senior',
           pinHash: 'scrypt:aa:bb',
         }),
@@ -171,7 +171,7 @@ describe('POST /api/roster/import — 匿名模式', () => {
     );
     const app = buildHubServer({ store });
     try {
-      // 表里把「队长」标成普通成员（无组长）——role 应保持 superAdmin。
+      // 表里把「队长」标成普通成员（无组长）——role 照表更新，旗标 / pinHash 不动。
       const csv = '姓名,年级,组,组长,验收人\n队长,大四,机械,,\n';
       const res = await app.inject({
         method: 'POST',
@@ -181,7 +181,8 @@ describe('POST /api/roster/import — 匿名模式', () => {
       expect(res.statusCode).toBe(200);
       const snap = await store.getSnapshot();
       const boss = snap.members.find((m) => m.displayName === '队长')!;
-      expect(boss.role).toBe('superAdmin'); // 保护：role 不动
+      expect(boss.role).toBe('member'); // role 照表更新（刀②b 起 role 不再承载管理员权限）
+      expect(boss.projectManager).toBe(true); // 旗标永不动（导入不洗）
       expect(boss.pinHash).toBe('scrypt:aa:bb'); // pinHash 永不动
       expect(boss.grade).toBe('senior'); // 大四 → senior，其余字段仍更新
     } finally {
@@ -249,13 +250,13 @@ describe('POST /api/roster/import — 身份模式', () => {
     }
   });
 
-  test('名册非空 + 已登录但非 superAdmin → 403', async () => {
+  test('名册非空 + 已登录但非持旗成员 → 403', async () => {
     const store = new InMemoryGovStore(
       seedWith([member({ id: 'm-plain', displayName: '普通成员', role: 'member' })]),
     );
     const app = buildHubServer({ store, identityMode: 'identity' });
     try {
-      const cookie = await login(app, 'm-plain'); // 非 superAdmin
+      const cookie = await login(app, 'm-plain'); // 非持旗成员
       const csv = '姓名,年级,组,组长,验收人\n谁,大三,机械,,\n';
       const payload = multipart(csv);
       const res = await app.inject({
@@ -270,9 +271,9 @@ describe('POST /api/roster/import — 身份模式', () => {
     }
   });
 
-  test('名册非空 + superAdmin 登录 → 200 导入', async () => {
+  test('名册非空 + 持旗管理员登录 → 200 导入', async () => {
     const store = new InMemoryGovStore(
-      seedWith([member({ id: 'm-boss', displayName: '队长', role: 'superAdmin' })]),
+      seedWith([member({ id: 'm-boss', displayName: '队长', projectManager: true })]),
     );
     const app = buildHubServer({ store, identityMode: 'identity' });
     try {

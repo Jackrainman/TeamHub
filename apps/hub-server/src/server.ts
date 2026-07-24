@@ -145,9 +145,12 @@ import {
   // 门验收人名单维护（GATE-CHECKLIST-IOU，D-087 拍板②）：PUT /api/members/:id/gate-reviewer 读/写契约。
   SetGateReviewerRequestSchema,
   SetGateReviewerResponseSchema,
-  // 成员角色维护 + 初始化首个管理员（K1 权限地基）：PUT /api/members/:id/role + POST /api/setup/super-admin。
+  // 成员角色维护 + 项目管理旗标授/收 + 初始化首个管理员（K1 权限地基 + MEMBER-PM-FLAG 刀②b）：
+  // PUT /api/members/:id/role + PUT /api/members/:id/project-manager + POST /api/setup/super-admin。
   SetMemberRoleRequestSchema,
   SetMemberRoleResponseSchema,
+  SetProjectManagerRequestSchema,
+  SetProjectManagerResponseSchema,
   SetupSuperAdminRequestSchema,
   SetupSuperAdminResponseSchema,
   // 名册导入（ROSTER-IMPORT，K8）：CSV 模板生成 + 编码探测 + 手写零依赖解析器 + 导入报告契约。
@@ -162,7 +165,7 @@ import {
   SetupConfigRequestSchema,
 } from '@teamhub/hub-contracts';
 import { ZodError } from 'zod';
-import { isGateReviewer, isGroupLeadOf, isSuperAdmin } from './authz.js';
+import { isGateReviewer, isGroupLeadOf, isSuperAdmin, memberHasPmFlag } from './authz.js';
 import { hashPin, verifyPin } from './identity/pin.js';
 import { SessionManager } from './identity/session-store.js';
 import { deriveErrorCode } from './kb/error-code.js';
@@ -814,11 +817,11 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     return ClearPinResponseSchema.parse({ member: MemberPublicSchema.parse(updated) });
   });
 
-  // 初始化首个管理员（POST /api/setup/super-admin，K1 权限地基）。**身份模式 only**（匿名 → 404，照 PUT pin
-  // 先例）。前置=名册尚无任何 superAdmin（否则 409——一次性初始化门，已有管理员后改角色走 PUT role）。须已登录
-  // （写门钩子天然保证 request.identity）。效果=把 **session 本人** role→superAdmin **且同笔设 pinHash**——
-  // 先设 pin 再升 role（防升 role 后 pin 落库失败留下"无 PIN 的 superAdmin"被免密冒用；这就是"敏感设置须
-  // 密码"的落点）。响应经 MemberPublicSchema 剥 pinHash（密钥纪律）。
+  // 初始化首个管理员（POST /api/setup/super-admin，K1 权限地基 + MEMBER-PM-FLAG 旗标化）。**身份模式 only**
+  // （匿名 → 404，照 PUT pin 先例）。前置=名册尚无任何持「项目管理」旗标成员（否则 409——一次性初始化门，
+  // 已有管理员后授/收旗走 PUT project-manager）。须已登录（写门钩子天然保证 request.identity）。效果=给
+  // **session 本人**授 projectManager 旗标 **且同笔设 pinHash**——先设 pin 再授旗（防授旗后 pin 落库失败留下
+  // "无 PIN 管理员"被免密冒用；这就是"敏感设置须密码"的落点）。响应经 MemberPublicSchema 剥 pinHash（密钥纪律）。
   app.post('/api/setup/super-admin', async (request, reply) => {
     if (identityMode !== 'identity') {
       void reply.code(404).send({ detail: '身份模式未启用' });
@@ -830,8 +833,8 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       return;
     }
     const snapshot = await store.getSnapshot();
-    if (snapshot.members.some((m) => m.role === 'superAdmin')) {
-      void reply.code(409).send({ detail: '已存在管理员（superAdmin）' });
+    if (snapshot.members.some((m) => memberHasPmFlag(m))) {
+      void reply.code(409).send({ detail: '已存在管理员（项目管理旗标）' });
       return;
     }
     // 写门钩子已保证有会话；防御式兜底 401（identity 恒非空于身份模式过门后）。
@@ -840,14 +843,14 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       void reply.code(401).send({ detail: 'login required' });
       return;
     }
-    // 先设 pin（防升 role 后 pin 落库失败 → 无 PIN 管理员），再升 role。两步皆命中登录本人。
+    // 先设 pin（防授旗后 pin 落库失败 → 无 PIN 管理员），再授旗。两步皆命中登录本人。
     const pinned = await store.setMemberPin(selfId, hashPin(parsed.data.pin));
     if (!pinned) {
       void reply.code(404).send({ detail: 'member not found' });
       return;
     }
-    // 升 role 无并发降级风险（初始化门前置=名册零 superAdmin，本笔是造第一个），不传 guard。
-    const promoted = await store.setMemberRole(selfId, 'superAdmin');
+    // 授旗无并发收旗风险（初始化门前置=名册零持旗成员，本笔是造第一个），不传 guard。
+    const promoted = await store.setProjectManager(selfId, true);
     if (!promoted.ok) {
       void reply.code(404).send({ detail: 'member not found' });
       return;
@@ -1675,12 +1678,11 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     return SetGateReviewerResponseSchema.parse({ member: MemberPublicSchema.parse(updated) });
   });
 
-  // PUT /api/members/:id/role：成员角色维护（K1 权限地基）。全库首个能改 role 的写口——挂单指派 isGroupLeadOf
-  // 恒 403、敏感设置无门都因它缺位。**匿名模式=写门即可**（v1，与 gate-reviewer 对称，演示态零门槛）；
-  // **身份模式=须 superAdmin**（isSuperAdmin，403）。**降级保护**（两模式统一）：目标是最后一个 superAdmin
-  // 且新 role 非 superAdmin → 409（防摘掉唯一管理员把全队锁死在无人可改角色态）。余项⑥ nit③ TOCTOU
-  // 修复：判定收进 store.setMemberRole 同一临界区（guardLastSuperAdmin），不再路由层先读后写。响应剥
-  // pinHash。id 不存在 → 404。
+  // PUT /api/members/:id/role：成员组织身份维护（K1 权限地基 + MEMBER-PM-FLAG 刀②b 收窄）。role 现为
+  // groupAdmin/member 两档（组织身份），项目管理权限不再经本写口（授/收旗走下方 project-manager 写口）。
+  // **匿名模式=写门即可**（v1，与 gate-reviewer 对称，演示态零门槛）；**身份模式=须持旗管理员**
+  // （isSuperAdmin 读旗标，403）。role 不再承载管理员权限，故本写口无降级保护（随权限移到 project-manager）。
+  // 响应剥 pinHash。id 不存在 → 404。
   app.put<{ Params: { id: string } }>('/api/members/:id/role', async (request, reply) => {
     const { id } = request.params;
     const parsed = SetMemberRoleRequestSchema.safeParse(request.body ?? {});
@@ -1689,30 +1691,65 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       return;
     }
     const snapshot = await store.getSnapshot();
-    // 身份模式鉴权：仅 superAdmin 可改角色（fail-closed，另读实时名册）；匿名模式跳过（写门即可）。
+    // 身份模式鉴权：仅持旗管理员可改角色（fail-closed，另读实时名册）；匿名模式跳过（写门即可）。
     if (
       identityMode === 'identity' &&
       !isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')
     ) {
-      void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
+      void reply.code(403).send({ detail: '该操作需管理员（项目管理旗标）' });
       return;
     }
-    // 降级保护（两模式统一）收进 store 同一临界区：判「至多 1 个管理员」与写不分离，并发降级无法双放行。
-    const result = await store.setMemberRole(id, parsed.data.role, {
-      guardLastSuperAdmin: true,
-    });
-    if (!result.ok) {
-      if (result.reason === 'last-superadmin') {
-        void reply.code(409).send({ detail: '不能撤销最后一个管理员（superAdmin）' });
-      } else {
-        void reply.code(404).send({ detail: 'member not found' });
-      }
+    const updated = await store.setMemberRole(id, parsed.data.role);
+    if (!updated) {
+      void reply.code(404).send({ detail: 'member not found' });
       return;
     }
     return SetMemberRoleResponseSchema.parse({
-      member: MemberPublicSchema.parse(result.member),
+      member: MemberPublicSchema.parse(updated),
     });
   });
+
+  // PUT /api/members/:id/project-manager：项目管理旗标授 / 收（MEMBER-PM-FLAG 公测补强刀②b）——原
+  // superAdmin 角色的正交化写口，与 role 拆分（队长兼组长 = groupAdmin + 旗标，天然不冲突）。
+  // **匿名模式=写门即可**；**身份模式=须持旗管理员**（isSuperAdmin 读旗标，403）。**降级保护**（两模式
+  // 统一）：目标是最后一个持旗成员且新值=false → 409（防摘掉唯一管理员把全队锁死；判与写收进
+  // store.setProjectManager 同一临界区 guardLastProjectManager，照余项⑥ nit③ TOCTOU 修复先例）。响应剥
+  // pinHash。id 不存在 → 404。
+  app.put<{ Params: { id: string } }>(
+    '/api/members/:id/project-manager',
+    async (request, reply) => {
+      const { id } = request.params;
+      const parsed = SetProjectManagerRequestSchema.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+        return;
+      }
+      const snapshot = await store.getSnapshot();
+      // 身份模式鉴权：仅持旗管理员可授/收旗（fail-closed，另读实时名册）；匿名模式跳过（写门即可）。
+      if (
+        identityMode === 'identity' &&
+        !isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')
+      ) {
+        void reply.code(403).send({ detail: '该操作需管理员（项目管理旗标）' });
+        return;
+      }
+      // 降级保护（两模式统一）收进 store 同一临界区：判「至多 1 个持旗成员」与写不分离，并发收旗无法双放行。
+      const result = await store.setProjectManager(id, parsed.data.projectManager, {
+        guardLastProjectManager: true,
+      });
+      if (!result.ok) {
+        if (result.reason === 'last-projectmanager') {
+          void reply.code(409).send({ detail: '不能撤销最后一个项目管理成员' });
+        } else {
+          void reply.code(404).send({ detail: 'member not found' });
+        }
+        return;
+      }
+      return SetProjectManagerResponseSchema.parse({
+        member: MemberPublicSchema.parse(result.member),
+      });
+    },
+  );
   // ── 门检查单 / 欠条路由结束 ───────────────────────────────────────────────────────────────────
 }
 
@@ -2400,13 +2437,15 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
       void reply.code(401).send({ detail: '登录失败' });
       return;
     }
-    // role/gateReviewer 快照（K1）：登录当刻定格，改角色/名单后须重登才刷新（服务端敏感门另读实时名册）。
+    // role/gateReviewer/projectManager 快照（K1 + MEMBER-PM-FLAG）：登录当刻定格，改角色/名单/旗标后须重登
+    // 才刷新（服务端敏感门另读实时名册）。
     const identity: SessionIdentity = {
       memberId: member.id,
       displayName: member.displayName,
       groupId: member.groupId,
       role: member.role,
       gateReviewer: member.gateReviewer,
+      projectManager: member.projectManager,
     };
     const token = sessions.create(identity);
     void reply.header('set-cookie', buildSessionCookie(token));

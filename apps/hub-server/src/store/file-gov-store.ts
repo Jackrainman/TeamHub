@@ -42,7 +42,7 @@ import type {
   ResourceSessionPatch,
   ResourceStatusPatch,
   RosterImportOutcome,
-  SetMemberRoleResult,
+  SetProjectManagerResult,
   SeasonDraft,
   TaskDraft,
 } from './gov-store.js';
@@ -540,18 +540,33 @@ export class FileGovStore implements GovStore {
     return member;
   }
 
-  // 设成员角色（K1 权限地基 + 余项⑥ nit③ TOCTOU 修复）：members 是 GovernanceSnapshot 字段 → 落
-  // governance.json。idx 类回滚（写前存整条，persist 失败按 id 原地还原，镜像 setMemberGateReviewer）。
-  // 降级保护 guard 透传 inner（判与写在 inner 同一临界区完成）；guard 拦截 / 未命中时不落盘。
-  async setMemberRole(
-    memberId: string,
-    role: MemberRole,
-    opts?: { guardLastSuperAdmin?: boolean },
-  ): Promise<SetMemberRoleResult> {
+  // 设成员组织身份（K1 权限地基）：members 是 GovernanceSnapshot 字段 → 落 governance.json。
+  // idx 类回滚（写前存整条，persist 失败按 id 原地还原，镜像 setMemberGateReviewer）；未命中（null）不落盘。
+  async setMemberRole(memberId: string, role: MemberRole): Promise<Member | null> {
     const snap = this.inner.snapshotForRollback();
     const idx = snap.members.findIndex((m) => m.id === memberId);
     const prior = idx >= 0 ? snap.members[idx] : undefined;
-    const result = await this.inner.setMemberRole(memberId, role, opts);
+    const member = await this.inner.setMemberRole(memberId, role);
+    if (member) {
+      await this.persistOrRollback(() => {
+        if (prior) snap.members[idx] = prior;
+      });
+    }
+    return member;
+  }
+
+  // 授 / 收成员项目管理旗标（MEMBER-PM-FLAG 公测补强刀②b）：members 是 GovernanceSnapshot 字段 → 落
+  // governance.json。idx 类回滚（写前存整条，persist 失败按 id 原地还原，镜像 setMemberRole）。
+  // 降级保护 guard 透传 inner（判与写在 inner 同一临界区完成）；guard 拦截 / 未命中时不落盘。
+  async setProjectManager(
+    memberId: string,
+    projectManager: boolean,
+    opts?: { guardLastProjectManager?: boolean },
+  ): Promise<SetProjectManagerResult> {
+    const snap = this.inner.snapshotForRollback();
+    const idx = snap.members.findIndex((m) => m.id === memberId);
+    const prior = idx >= 0 ? snap.members[idx] : undefined;
+    const result = await this.inner.setProjectManager(memberId, projectManager, opts);
     if (result.ok) {
       await this.persistOrRollback(() => {
         if (prior) snap.members[idx] = prior;
@@ -563,7 +578,7 @@ export class FileGovStore implements GovStore {
   // 名册批量导入（ROSTER-IMPORT，K8）：members + groups 都是 GovernanceSnapshot 字段 → 落 governance.json。
   // 一次调用批量改两数组（新建/更新成员 + 自动建组），故回滚不是单条 removeById——写前存**两组元素**，
   // persist 失败时原地整组还原（保持数组引用稳定，镜像 createSeason 的整组还原纪律）。委托 inner 补 id /
-  // clamp / superAdmin 保护逻辑（零漂移），落盘失败即整体撤回。
+  // clamp / 旗标保护逻辑（零漂移），落盘失败即整体撤回。
   async importRoster(rows: readonly RosterImportRow[]): Promise<RosterImportOutcome> {
     const snap = this.inner.snapshotForRollback();
     const priorMembers = [...snap.members];

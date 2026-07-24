@@ -62,10 +62,11 @@ import type {
   ResourceSessionPatch,
   ResourceStatusPatch,
   RosterImportOutcome,
-  SetMemberRoleResult,
+  SetProjectManagerResult,
   SeasonDraft,
   TaskDraft,
 } from './gov-store.js';
+import { memberHasPmFlag } from '../authz.js';
 
 /**
  * SQLite 落盘实现（SS3 SQLite，product-redefine-2026-07 §4.4 / §9-③ + D-083 刀④）：与
@@ -521,27 +522,45 @@ export class SqliteGovStore implements GovStore {
     });
   }
 
-  // 设成员角色（K1 权限地基 + 余项⑥ nit③ TOCTOU 修复）：整实体 JSON 就地重写（文档式行存），镜像
-  // setMemberGateReviewer。降级保护 guard 在同一事务内判+写（node:sqlite 事务即临界区，并发请求串行化）。
-  async setMemberRole(
+  // 设成员组织身份（K1 权限地基）：整实体 JSON 就地重写（文档式行存），镜像 setMemberGateReviewer。
+  // MEMBER-PM-FLAG 后 role 不再承载管理员权限，本写口无降级保护（已随权限移到 setProjectManager）。
+  async setMemberRole(memberId: string, role: MemberRole): Promise<Member | null> {
+    return this.tx(() => {
+      const prev = this.getRow<Member>('members', memberId);
+      if (!prev) return null;
+      const updated: Member = {
+        ...prev,
+        role,
+        updatedBy: MEMBER_ROLE_UPDATED_BY,
+        updatedAt: this.clock.now().toISOString(),
+      };
+      this.updateRow('members', memberId, updated);
+      return updated;
+    });
+  }
+
+  // 授 / 收成员项目管理旗标（MEMBER-PM-FLAG 公测补强刀②b）：整实体 JSON 就地重写，镜像 setMemberRole。
+  // 降级保护 guard 在同一事务内判+写（node:sqlite 事务即临界区，并发请求串行化）；持旗计数走
+  // memberHasPmFlag（双读兼容——sqlite 行存是文档式 JSON，旧行 role 可能仍是 'superAdmin'）。
+  async setProjectManager(
     memberId: string,
-    role: MemberRole,
-    opts?: { guardLastSuperAdmin?: boolean },
-  ): Promise<SetMemberRoleResult> {
+    projectManager: boolean,
+    opts?: { guardLastProjectManager?: boolean },
+  ): Promise<SetProjectManagerResult> {
     return this.tx(() => {
       const prev = this.getRow<Member>('members', memberId);
       if (!prev) return { ok: false as const, reason: 'not-found' as const };
       if (
-        opts?.guardLastSuperAdmin &&
-        prev.role === 'superAdmin' &&
-        role !== 'superAdmin' &&
-        this.allRows<Member>('members').filter((m) => m.role === 'superAdmin').length <= 1
+        opts?.guardLastProjectManager &&
+        memberHasPmFlag(prev) &&
+        !projectManager &&
+        this.allRows<Member>('members').filter((m) => memberHasPmFlag(m)).length <= 1
       ) {
-        return { ok: false as const, reason: 'last-superadmin' as const };
+        return { ok: false as const, reason: 'last-projectmanager' as const };
       }
       const updated: Member = {
         ...prev,
-        role,
+        projectManager,
         updatedBy: MEMBER_ROLE_UPDATED_BY,
         updatedAt: this.clock.now().toISOString(),
       };
@@ -554,7 +573,7 @@ export class SqliteGovStore implements GovStore {
    * 名册批量导入（ROSTER-IMPORT，K8）：整批在一个事务里应用到 members + groups（半程崩溃回滚，
    * 无「建了组没建人」中间态）。逐字镜像 InMemoryGovStore.importRoster——组按 name 匹配现有 / 本批
    * 已建、否则自动建（`grp-new-N` + kind 默认 + 当前赛季）；成员按 displayName 幂等 upsert
-   * （新建 `member-new-N` / 命中更新 grade·groupId·role·gateReviewer，superAdmin role 保护、pinHash 永不动）。
+   * （新建 `member-new-N` / 命中更新 grade·groupId·role·gateReviewer，pinHash / projectManager 旗标永不动）。
    * 本地 Map 缓存追踪同批已建组 / 已改成员，避免同批同名重复建。
    */
   async importRoster(rows: readonly RosterImportRow[]): Promise<RosterImportOutcome> {
@@ -611,10 +630,9 @@ export class SqliteGovStore implements GovStore {
           memberByName.set(member.displayName, member);
           created.push(row.displayName);
         } else {
-          const role = prev.role === 'superAdmin' ? prev.role : row.role;
           const member: Member = {
             ...prev,
-            role,
+            role: row.role,
             grade: row.grade,
             groupId,
             gateReviewer: row.gateReviewer,

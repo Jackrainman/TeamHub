@@ -131,7 +131,7 @@ export function TaskDetailDrawer({
     null;
 
   // 选人器候选过滤 = 镜像服务端鉴权（避免"点了才 403"）：跨组确认属本组组长（isGroupLeadOf：
-  // role==='groupAdmin' && 同组，superAdmin 不算某组组长故不入列）、验收属验收人名单（gateReviewer）。
+  // role==='groupAdmin' && 同组，项目管理旗标不算某组组长故不入列）、验收属验收人名单（gateReviewer）。
   const groupLeads = members.filter(
     (m) => m.role === 'groupAdmin' && m.groupId === task.groupId,
   );

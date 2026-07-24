@@ -58,12 +58,13 @@ import type {
   ResourceSessionPatch,
   ResourceStatusPatch,
   RosterImportOutcome,
-  SetMemberRoleResult,
+  SetProjectManagerResult,
   SeasonDraft,
   TaskDraft,
 } from './gov-store.js';
 import { createIdSequence, nextSequentialId } from './id-sequence.js';
 import type { IdSequence } from './id-sequence.js';
+import { memberHasPmFlag } from '../authz.js';
 
 /**
  * 治理快照全数组字段键（写方法可能 push/splice 的集合）——构造期克隆隔离 + getSnapshot 浅拷贝共用。
@@ -656,32 +657,53 @@ export class InMemoryGovStore implements GovStore {
   }
 
   /**
-   * 设成员角色（PUT /api/members/:id/role + POST /api/setup/super-admin，K1 权限地基）。就地改
-   * members[idx].role（枚举位）+ bump updatedAt、钉 updatedBy=`console`（镜像 setMemberGateReviewer）。
-   * 授权在路由层判；**降级保护收进本方法同一临界区**（余项⑥ nit③ TOCTOU 修复，`guardLastSuperAdmin`
-   * 开启时判与写不分离——单线程事件循环内本方法体无 await 间断，并发请求无法插入判定与写之间）。
-   * id 不存在 → `{ ok:false, reason:'not-found' }`（路由转 404）。**I0**：只改枚举位，绝不聚合。
+   * 设成员组织身份（PUT /api/members/:id/role，K1 权限地基）。就地改 members[idx].role（groupAdmin/
+   * member 两档）+ bump updatedAt、钉 updatedBy=`console`（镜像 setMemberGateReviewer）。授权在路由层判。
+   * MEMBER-PM-FLAG 后 role 不再承载管理员权限，本写口无降级保护（已随权限移到 setProjectManager）。
+   * id 不存在 → null（路由转 404）。**I0**：只改枚举位，绝不聚合。
    */
-  async setMemberRole(
+  async setMemberRole(memberId: string, role: MemberRole): Promise<Member | null> {
+    const idx = this.snapshot.members.findIndex((m) => m.id === memberId);
+    if (idx === -1) return null;
+    const now = this.clock.now().toISOString();
+    const updated: Member = {
+      ...this.snapshot.members[idx],
+      role,
+      updatedBy: MEMBER_ROLE_UPDATED_BY,
+      updatedAt: now,
+    };
+    this.snapshot.members[idx] = updated;
+    return updated;
+  }
+
+  /**
+   * 授 / 收成员项目管理旗标（PUT /api/members/:id/project-manager + POST /api/setup/super-admin，
+   * MEMBER-PM-FLAG）。就地改 members[idx].projectManager + bump updatedAt、钉 updatedBy=`console`。
+   * 授权在路由层判；**降级保护收进本方法同一临界区**（照余项⑥ nit③ TOCTOU 修复先例，
+   * `guardLastProjectManager` 开启时判与写不分离——单线程事件循环内本方法体无 await 间断，并发请求
+   * 无法插入判定与写之间）。持旗计数走 memberHasPmFlag（双读兼容旧 role 值）。id 不存在 →
+   * `{ ok:false, reason:'not-found' }`（路由转 404）。**I0**：只改布尔位，绝不聚合。
+   */
+  async setProjectManager(
     memberId: string,
-    role: MemberRole,
-    opts?: { guardLastSuperAdmin?: boolean },
-  ): Promise<SetMemberRoleResult> {
+    projectManager: boolean,
+    opts?: { guardLastProjectManager?: boolean },
+  ): Promise<SetProjectManagerResult> {
     const idx = this.snapshot.members.findIndex((m) => m.id === memberId);
     if (idx === -1) return { ok: false, reason: 'not-found' };
     const prev = this.snapshot.members[idx];
     if (
-      opts?.guardLastSuperAdmin &&
-      prev.role === 'superAdmin' &&
-      role !== 'superAdmin' &&
-      this.snapshot.members.filter((m) => m.role === 'superAdmin').length <= 1
+      opts?.guardLastProjectManager &&
+      memberHasPmFlag(prev) &&
+      !projectManager &&
+      this.snapshot.members.filter((m) => memberHasPmFlag(m)).length <= 1
     ) {
-      return { ok: false, reason: 'last-superadmin' };
+      return { ok: false, reason: 'last-projectmanager' };
     }
     const now = this.clock.now().toISOString();
     const updated: Member = {
       ...prev,
-      role,
+      projectManager,
       updatedBy: MEMBER_ROLE_UPDATED_BY,
       updatedAt: now,
     };
@@ -693,8 +715,8 @@ export class InMemoryGovStore implements GovStore {
    * 名册批量导入（POST /api/roster/import，ROSTER-IMPORT，K8）。一次遍历已校验行，对 members + groups
    * 就地应用：组按 name 匹配现有 / 本批已建、否则自动建（`grp-new-N` + kind 默认 + 当前赛季）；成员按
    * displayName 幂等 upsert（新建 `member-new-N` / 命中更新 grade·groupId·role·gateReviewer）。
-   * **保护例外**：目标现为 superAdmin 时 role 不动；**pinHash 永不动**（update 走 `...prev` 保留、
-   * new 不含）。库里有但表里没有 → missingFromSheet（**绝不删**）。授权在路由层判、本方法无条件写。
+   * **pinHash / projectManager 旗标永不动**（update 走 `...prev` 保留、new 不含——旗标与 role 正交、
+   * 导入不洗）。库里有但表里没有 → missingFromSheet（**绝不删**）。授权在路由层判、本方法无条件写。
    * **I0**：只做名单事实变更，绝不派生任何按人聚合/排行/按人筛选。
    */
   async importRoster(rows: readonly RosterImportRow[]): Promise<RosterImportOutcome> {
@@ -745,11 +767,10 @@ export class InMemoryGovStore implements GovStore {
         created.push(row.displayName);
       } else {
         const prev = this.snapshot.members[idx];
-        // 保护例外：目标现为 superAdmin 时 role 不动；pinHash 永不动（`...prev` 保留）。
-        const role = prev.role === 'superAdmin' ? prev.role : row.role;
+        // pinHash / projectManager 旗标永不动（`...prev` 保留）——旗标与 role 正交、导入不洗。
         const member: Member = {
           ...prev,
-          role,
+          role: row.role,
           grade: row.grade,
           groupId,
           gateReviewer: row.gateReviewer,

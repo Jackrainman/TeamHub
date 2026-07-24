@@ -12,7 +12,7 @@ import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
 /**
  * SETUP-WIZARD 刀③：部署配置写通道两端点（PUT /api/setup/config 改 identityMode + POST /api/setup/graduate
- * 转正式）。覆盖 setup-wizard.md §6：鉴权矩阵（匿名走写门 / 身份须 superAdmin）+ config 落盘 + exit 42 +
+ * 转正式）。覆盖 setup-wizard.md §6：鉴权矩阵（匿名走写门 / 身份须持旗管理员）+ config 落盘 + exit 42 +
  * graduate 演示归档确在 demo-archive 目录 + 非 demo 409 + setup 模式两端点不注册（404）。
  */
 
@@ -175,10 +175,12 @@ describe('PUT /api/setup/config：改 identityMode', () => {
     }
   });
 
-  test('身份模式：无会话 → 401（写门钩子）；非 superAdmin → 403；superAdmin → 200', async () => {
+  test('身份模式：无会话 → 401（写门钩子）；非持旗成员 → 403；持旗管理员 → 200', async () => {
     const dir = await makeTmpDir();
     const configFile = join(dir, 'config.json');
     const store = new InMemoryGovStore();
+    // fixtures 的 demo 持旗成员（m-progA）先收旗——让「初始化首个管理员」流程有零旗标起点。
+    await store.setProjectManager('m-progA', false);
     const { app } = buildWithSetupControl(
       { configFile },
       { identityMode: 'identity', store },
@@ -192,7 +194,7 @@ describe('PUT /api/setup/config：改 identityMode', () => {
       });
       expect(anon.statusCode).toBe(401);
 
-      // 登录但非 superAdmin → 403
+      // 登录但非持旗成员 → 403
       const cookie = await login(app, 'm-ecB');
       const forbid = await app.inject({
         method: 'PUT',
@@ -202,7 +204,7 @@ describe('PUT /api/setup/config：改 identityMode', () => {
       });
       expect(forbid.statusCode).toBe(403);
 
-      // 升 superAdmin 后 → 200
+      // 授项目管理旗标后 → 200
       await app.inject({
         method: 'POST',
         url: '/api/setup/super-admin',
@@ -287,7 +289,7 @@ describe('POST /api/setup/graduate：转正式', () => {
     }
   });
 
-  test('身份模式非 superAdmin → 403（不归档、不退出）', async () => {
+  test('身份模式非持旗成员 → 403（不归档、不退出）', async () => {
     const dir = await makeTmpDir();
     const configFile = join(dir, 'config.json');
     const govFile = join(dir, 'gov.json');

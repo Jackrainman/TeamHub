@@ -27,7 +27,7 @@ export function isGateReviewer(members: readonly Member[], memberId: string): bo
 /**
  * 该成员是否为某组的组长（TASK-POST-CLAIM 指派 / 跨组确认鉴权，D-088 / 体检 D6 phase 2 兑现）：
  * `role==='groupAdmin' && groupId===该组`。体检 ①/②-1 裁定「不给 Group 加 leadMemberId」——组长身份由
- * `MemberRole==='groupAdmin'` + `Member.groupId` 直接判出，无需新字段（`superAdmin` 不算某组组长，
+ * `MemberRole==='groupAdmin'` + `Member.groupId` 直接判出，无需新字段（项目管理旗标不算某组组长，
  * 只有本组 groupAdmin 才是）。与 `isGateReviewer` 同居本文件、同「布尔条件 + 403」范式。
  *
  * **I0**：只回一个布尔资格判定，绝不做任何按人聚合/排行/按人筛选（本 helper 只在写路由做「这一个人是不是
@@ -44,14 +44,28 @@ export function isGroupLeadOf(
 }
 
 /**
- * 该成员是否为超级管理员（K1 权限地基）：`role==='superAdmin'`。全库敏感写门（改角色 / 验收人名单维护 /
- * 建赛季）的鉴权基元——**身份模式**下只有 superAdmin 能过这些门（否则 403），**匿名模式**各门跳过本判定
- * （宿主级写门即可，演示态零门槛）。与 isGateReviewer/isGroupLeadOf 同居本文件、同「布尔条件 + 403」范式。
+ * 该成员是否持「项目管理」旗标（MEMBER-PM-FLAG，公测补强刀②b）：`projectManager === true`。
+ * **双读兼容**：旧数据 `role:'superAdmin'` 加载侧已归一（MemberSchema preprocess → flag=true +
+ * role:'member'），但 sqlite 行存是文档式 JSON、个别路径可能读到未过 schema 的旧行，故这里对
+ * legacy role 值再做一次兜底读（cast 比较——MemberRole 枚举已收窄，类型上不含 'superAdmin'）。
+ */
+export function memberHasPmFlag(member: Member): boolean {
+  return (
+    member.projectManager === true || (member.role as string) === 'superAdmin'
+  );
+}
+
+/**
+ * 该成员是否为管理员（K1 权限地基 + MEMBER-PM-FLAG 旗标化）：持「项目管理」旗标（memberHasPmFlag——
+ * 原 `role==='superAdmin'` 判定，刀②b 后权限活在正交旗标上、与组长身份不冲突）。全库敏感写门（授/收旗 /
+ * 改角色 / 验收人名单维护 / 建赛季）的鉴权基元——**身份模式**下只有持旗成员能过这些门（否则 403），
+ * **匿名模式**各门跳过本判定（宿主级写门即可，演示态零门槛）。与 isGateReviewer/isGroupLeadOf 同居本文件、
+ * 同「布尔条件 + 403」范式。
  *
  * **I0**：只回一个布尔资格判定，绝不做任何按人聚合/排行/按人筛选（本 helper 只在写路由做「这一个人是不是
- * 超级管理员」的授权门，不派生名单视图）。`memberId` 不在名册 / 非 superAdmin → false（fail-closed，
- * 无资格默认拒绝）。
+ * 管理员」的授权门，不派生名单视图）。`memberId` 不在名册 / 未持旗 → false（fail-closed，无资格默认拒绝）。
  */
 export function isSuperAdmin(members: readonly Member[], memberId: string): boolean {
-  return members.find((m) => m.id === memberId)?.role === 'superAdmin';
+  const member = members.find((m) => m.id === memberId);
+  return member !== undefined && memberHasPmFlag(member);
 }

@@ -101,7 +101,11 @@ export const GroupSchema = z.object({
 // Member（+role+资历）
 // ---------------------------------------------------------------------------
 
-export const MemberRoleSchema = z.enum(['superAdmin', 'groupAdmin', 'member']);
+// 组织身份两档（MEMBER-PM-FLAG，公测补强刀②b，onboarding-pin-deadlock-2026-07-24 §3 刀②b）：
+// member / groupAdmin。原 superAdmin 档由正交旗标 `Member.projectManager` 取代——单值枚举装不下
+// 「队长兼组长」（= role:groupAdmin + projectManager:true），2026-07-24 用户提案采纳。
+// 旧数据 role:'superAdmin' 由 MemberSchema 加载侧归一（见下 preprocess），枚举本身不再含它。
+export const MemberRoleSchema = z.enum(['groupAdmin', 'member']);
 
 /** 资历维度，仅服务 G5（对低资历更主动兜底）；绝不用于产能对比。 */
 export const MemberGradeSchema = z.enum([
@@ -119,7 +123,7 @@ export const MemberStatusSchema = z.enum([
   'offline',
 ]);
 
-export const MemberSchema = z.object({
+export const MemberObjectSchema = z.object({
   id: z.string().min(1),
   displayName: z.string().min(1),
   role: MemberRoleSchema,
@@ -144,7 +148,28 @@ export const MemberSchema = z.object({
   // **语义=每年换届更新**：验收人=大三，换届交接门的一项（gate-checklist-iou.md §3）。旧 gov.json
   // 无此字段 optional 兜底、照常加载（D-080 向后兼容）。**I0**：资格布尔而已，绝不做按人聚合/排行。
   gateReviewer: z.boolean().optional(),
+  // ── 项目管理旗标（MEMBER-PM-FLAG，公测补强刀②b）──────────────────────────────────────────
+  // **optional 布尔位，缺省 false**：`true` = 该成员持「项目管理」旗标——原 superAdmin 角色的正交化，
+  // 与组长身份不冲突（队长兼组长 = role:groupAdmin + projectManager:true）。旧 gov.json 无此字段
+  // optional 兜底、照常加载；旧数据 `role:'superAdmin'` 由下方 MemberSchema 的 preprocess 加载归一
+  // （flag=true + role:'member'），FileGovStore/SqliteGovStore 无需迁移脚本、fail-closed 校验不误杀。
+  // **I0**：权限布尔而已，绝不做按人聚合/排行。
+  projectManager: z.boolean().optional(),
 });
+
+/**
+ * 旧数据归一（MEMBER-PM-FLAG 双读兼容）：v0.28 及更早落盘里 `role:'superAdmin'` 的成员，
+ * 加载时归一为 `projectManager:true + role:'member'`——契约只加 optional 字段 + 本 preprocess，
+ * store 层零迁移脚本。写侧从此只产两档 role + 旗标（授旗/收旗走 PUT /api/members/:id/project-manager）。
+ */
+function normalizeLegacyMember(raw: unknown): unknown {
+  if (raw && typeof raw === 'object' && (raw as { role?: unknown }).role === 'superAdmin') {
+    return { ...(raw as Record<string, unknown>), role: 'member', projectManager: true };
+  }
+  return raw;
+}
+
+export const MemberSchema = z.preprocess(normalizeLegacyMember, MemberObjectSchema);
 
 /**
  * 读视图用成员（IDENTITY-LITE）：剥 `pinHash`（密钥纪律——凭证散列永不过读边界，即便是散列也不外露）。
@@ -152,7 +177,7 @@ export const MemberSchema = z.object({
  *（`GET /api/members` 名册、`PUT /api/members/:id/pin` 回带、未来我的视图）一律经本 schema 过——
  * zod `.parse` 默认剥未知键，故经本 schema parse 的对象绝不含 pinHash。
  */
-export const MemberPublicSchema = MemberSchema.omit({ pinHash: true });
+export const MemberPublicSchema = MemberObjectSchema.omit({ pinHash: true });
 
 /**
  * PUT /api/members/:id/gate-reviewer（验收人名单维护，GATE-CHECKLIST-IOU / D-087 拍板②）：
@@ -171,17 +196,31 @@ export const SetGateReviewerResponseSchema = z.object({
 });
 
 /**
- * PUT /api/members/:id/role（成员角色维护，K1 权限地基）：设成员角色（superAdmin/groupAdmin/member）。
- * MemberRole 三档久已存在，但此前**全库无任何路由能改 role**——导致挂单指派 `isGroupLeadOf` 恒 403、敏感设置
- * 无权限门。本 schema 补上写口。授权语义（路由层）：**匿名模式=宿主级写门即可**（v1，与 SetGateReviewer 对称，
- * 家庭影院级取舍）；**身份模式=须 isSuperAdmin**（authz.ts helper，否则 403）。**降级保护**（两模式统一，路由
- * 层判）：目标是最后一个 superAdmin 且新 role 非 superAdmin → 409（防把全队锁死在无管理员态）。响应回带该成员
- * 公开视图（MemberPublicSchema 剥 pinHash，密钥纪律）。放本文件、照上方 SetGateReviewer 邻位范式。
+ * PUT /api/members/:id/role（成员角色维护，K1 权限地基）：设成员组织身份（groupAdmin/member 两档，
+ * MEMBER-PM-FLAG 后项目管理权限不再经本写口——授旗/收旗走下方 PUT /api/members/:id/project-manager）。
+ * 授权语义（路由层）：**匿名模式=宿主级写门即可**（v1，与 SetGateReviewer 对称，家庭影院级取舍）；
+ * **身份模式=须 isSuperAdmin**（authz.ts helper，否则 403）。响应回带该成员公开视图
+ * （MemberPublicSchema 剥 pinHash，密钥纪律）。放本文件、照上方 SetGateReviewer 邻位范式。
  */
 export const SetMemberRoleRequestSchema = z.object({
   role: MemberRoleSchema,
 });
 export const SetMemberRoleResponseSchema = z.object({
+  member: MemberPublicSchema,
+});
+
+/**
+ * PUT /api/members/:id/project-manager（项目管理旗标授/收，MEMBER-PM-FLAG 公测补强刀②b）：
+ * 设 / 撤该成员的 `projectManager` 布尔位（原 superAdmin 角色的正交化——与 role 写口拆分，
+ * 「队长兼组长」天然成立）。授权语义（路由层）：**匿名模式=宿主级写门即可**；**身份模式=须
+ * isSuperAdmin**（403）。**降级保护**（两模式统一，收进 store 同一临界区）：目标是最后一个持旗
+ * 成员且新值=false → 409（防把全队锁死在无管理员态，原 superAdmin 降级保护的旗标版）。响应回带
+ * 该成员公开视图（MemberPublicSchema 剥 pinHash，密钥纪律）。照上方 SetMemberRole 邻位范式。
+ */
+export const SetProjectManagerRequestSchema = z.object({
+  projectManager: z.boolean(),
+});
+export const SetProjectManagerResponseSchema = z.object({
   member: MemberPublicSchema,
 });
 
@@ -650,6 +689,8 @@ export type SetGateReviewerRequest = z.infer<typeof SetGateReviewerRequestSchema
 export type SetGateReviewerResponse = z.infer<typeof SetGateReviewerResponseSchema>;
 export type SetMemberRoleRequest = z.infer<typeof SetMemberRoleRequestSchema>;
 export type SetMemberRoleResponse = z.infer<typeof SetMemberRoleResponseSchema>;
+export type SetProjectManagerRequest = z.infer<typeof SetProjectManagerRequestSchema>;
+export type SetProjectManagerResponse = z.infer<typeof SetProjectManagerResponseSchema>;
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 export type TaskComplexity = z.infer<typeof TaskComplexitySchema>;
 export type Task = z.infer<typeof TaskSchema>;

@@ -26,6 +26,7 @@ import {
   WaiveChecklistItemResponseSchema,
   SetGateReviewerResponseSchema,
   SetMemberRoleResponseSchema,
+  SetProjectManagerResponseSchema,
   ClearPinResponseSchema,
   SetupSuperAdminResponseSchema,
   SetupStateResponseSchema,
@@ -44,6 +45,8 @@ import {
   type SetGateReviewerResponse,
   type SetMemberRoleRequest,
   type SetMemberRoleResponse,
+  type SetProjectManagerRequest,
+  type SetProjectManagerResponse,
   type ClearPinResponse,
   type SetupSuperAdminRequest,
   type SetupSuperAdminResponse,
@@ -228,7 +231,7 @@ export interface HubApiClient {
   // 部署配置写通道（SETUP-WIZARD 刀③，setup-wizard.md §6）：设置页「部署配置」写区调用。
   // setConfig = PUT /api/setup/config 改登录方式（identityMode）；graduate = POST /api/setup/graduate
   // 结束试驾转正式（无 body）。两者写完 config.json → 服务端 exit 42 自动重启 → 回 {restarting:true}，
-  // 前端据此进重启轮询 → 整页刷新。鉴权：身份模式须 superAdmin（403）、匿名模式走写门（与 init 同 Bearer）。
+  // 前端据此进重启轮询 → 整页刷新。鉴权：身份模式须持旗管理员（403）、匿名模式走写门（与 init 同 Bearer）。
   setConfig(req: SetupConfigRequest): Promise<SetupConfigResponse>;
   graduate(): Promise<SetupGraduateResponse>;
   // 成员名册只读（登录选人 + 任务 ownerId 选人共同数据源）。剥 pinHash（MemberPublicSchema，密钥纪律）；
@@ -312,13 +315,19 @@ export interface HubApiClient {
     id: string,
     req: SetGateReviewerRequest,
   ): Promise<SetGateReviewerResponse>;
-  // 成员角色维护（K1 权限地基）：设成员角色（superAdmin/groupAdmin/member）。匿名=写门即可 / 身份=须
-  // superAdmin（服务端 403）；降级保护=不摘最后一个 superAdmin（409）。响应剥 pinHash。
+  // 成员角色维护（K1 权限地基 + MEMBER-PM-FLAG 刀②b）：设成员组织身份（groupAdmin/member 两档）。
+  // 匿名=写门即可 / 身份=须持旗管理员（服务端 403）。响应剥 pinHash。
   setMemberRole(id: string, req: SetMemberRoleRequest): Promise<SetMemberRoleResponse>;
-  // 初始化首个管理员（K1）：身份模式 only（匿名 404）；名册无 superAdmin 时把登录本人升 superAdmin +
+  // 项目管理旗标授 / 收（MEMBER-PM-FLAG 刀②b）：原 superAdmin 的正交化写口。匿名=写门即可 /
+  // 身份=须持旗管理员（403）；降级保护=不摘最后一个持旗成员（409）。响应剥 pinHash。
+  setMemberProjectManager(
+    id: string,
+    req: SetProjectManagerRequest,
+  ): Promise<SetProjectManagerResponse>;
+  // 初始化首个管理员（K1 + 旗标化）：身份模式 only（匿名 404）；名册无持旗成员时给登录本人授旗 +
   // 同笔设 pinHash（否则 409）。响应剥 pinHash。
   setupSuperAdmin(req: SetupSuperAdminRequest): Promise<SetupSuperAdminResponse>;
-  // 重置成员 PIN（公测余项⑦ PIN-RESET）：身份模式 only（匿名 404）+ 须 superAdmin（服务端 403）。
+  // 重置成员 PIN（公测余项⑦ PIN-RESET）：身份模式 only（匿名 404）+ 须持旗管理员（服务端 403）。
   // 清目标 pinHash → 成员回免 PIN 态，下次登录经首设流程自行重设（本端点不经手新 PIN 明文）。响应剥 pinHash。
   clearMemberPin(id: string): Promise<ClearPinResponse>;
   // 名册导入（ROSTER-IMPORT，K8）。模板：GET 直链（下载按钮 href，不走 fetch）；导入：上传 CSV（multipart，
@@ -819,6 +828,16 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         `${baseUrl}/api/members/${encodeURIComponent(id)}/role`,
         req,
         SetMemberRoleResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async setMemberProjectManager(id: string, req: SetProjectManagerRequest) {
+      return sendJson(
+        'PUT',
+        `${baseUrl}/api/members/${encodeURIComponent(id)}/project-manager`,
+        req,
+        SetProjectManagerResponseSchema,
         fetcher,
         writeToken,
       );

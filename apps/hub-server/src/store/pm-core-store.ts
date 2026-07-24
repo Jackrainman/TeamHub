@@ -13,13 +13,13 @@ import type {
 } from '@teamhub/hub-contracts';
 
 /**
- * `setMemberRole` 结果（K1 权限地基 + 公测余项⑥ nit③ TOCTOU 修复）：判别联合——
- * `ok` 带更新后成员；`not-found` = id 不存在（路由转 404）；`last-superadmin` = 降级保护拦截
- * （目标是最后一个 superAdmin 且新 role 非 superAdmin，路由转 409），仅 `guardLastSuperAdmin` 开启时可能返回。
+ * `setProjectManager` 结果（MEMBER-PM-FLAG，公测补强刀②b）：判别联合——
+ * `ok` 带更新后成员；`not-found` = id 不存在（路由转 404）；`last-projectmanager` = 降级保护拦截
+ * （目标是最后一个持旗成员且新值=false，路由转 409），仅 `guardLastProjectManager` 开启时可能返回。
  */
-export type SetMemberRoleResult =
+export type SetProjectManagerResult =
   | { ok: true; member: Member }
-  | { ok: false; reason: 'not-found' | 'last-superadmin' };
+  | { ok: false; reason: 'not-found' | 'last-projectmanager' };
 
 /**
  * `importRoster` 结果（ROSTER-IMPORT，K8）：报告里**非 failed 那五段**——failed（坏行）在纯解析层
@@ -162,21 +162,32 @@ export interface PmCoreStore {
   ): Promise<Member | null>;
 
   /**
-   * 设成员角色（PUT /api/members/:id/role + POST /api/setup/super-admin，K1 权限地基）。就地改
-   * members[idx] 的 `role`（照 setMemberGateReviewer 逐字形状）+ bump updatedAt、钉 updatedBy=`console`。
-   * 授权（匿名=写门即可 / 身份=须 superAdmin）在**路由层**判；**降级保护（不摘最后一个 superAdmin）收进
-   * 本方法同一临界区**（公测余项⑥ nit③ TOCTOU 修复：`opts.guardLastSuperAdmin` 开启时，判「至多 1 个
-   * 管理员」与写在同一 store 调用内完成，堵住路由层先读后写的并发窗口——两个并发降级各自看到 2 个
-   * 管理员双双放行、终态归 0 全队锁死）。结果走 `SetMemberRoleResult` 判别联合（ok / not-found /
-   * last-superadmin），路由层映射 200 / 404 / 409。**I0**：只改一个枚举位，绝不做按人聚合/排行。
+   * 设成员组织身份（PUT /api/members/:id/role，K1 权限地基）。就地改 members[idx] 的 `role`
+   * （groupAdmin/member 两档，照 setMemberGateReviewer 逐字形状）+ bump updatedAt、钉 updatedBy=`console`。
+   * 授权（匿名=写门即可 / 身份=须持旗管理员）在**路由层**判。MEMBER-PM-FLAG 后 role 不再承载管理员权限
+   * （原 superAdmin 档 → projectManager 旗标），故本写口无降级保护——降级保护随权限移到 setProjectManager。
+   * id 不存在 → 返回 null（路由层转 404）。**I0**：只改一个枚举位，绝不做按人聚合/排行。
    * FileGovStore 落 governance.json（members 是 GovernanceSnapshot 字段，persist 失败按 idx 原地还原，
    * 镜像 setMemberGateReviewer）。响应回带走 MemberPublicSchema 剥 pinHash（路由层，密钥纪律）。
    */
-  setMemberRole(
+  setMemberRole(memberId: string, role: MemberRole): Promise<Member | null>;
+
+  /**
+   * 授 / 收成员项目管理旗标（PUT /api/members/:id/project-manager + POST /api/setup/super-admin，
+   * MEMBER-PM-FLAG 公测补强刀②b）。就地改 members[idx] 的 `projectManager` 布尔位（照 setMemberRole
+   * 范式）+ bump updatedAt、钉 updatedBy=`console`。授权（匿名=写门即可 / 身份=须持旗管理员）在**路由层**
+   * 判；**降级保护（不摘最后一个持旗成员）收进本方法同一临界区**（照余项⑥ nit③ TOCTOU 修复先例：
+   * `opts.guardLastProjectManager` 开启时，判「至多 1 个持旗成员」与写在同一 store 调用内完成，堵住路由层
+   * 先读后写的并发窗口）。结果走 `SetProjectManagerResult` 判别联合（ok / not-found /
+   * last-projectmanager），路由层映射 200 / 404 / 409。**I0**：只改一个布尔位，绝不做按人聚合/排行。
+   * FileGovStore 落 governance.json（persist 失败按 idx 原地还原，镜像 setMemberRole）。响应回带走
+   * MemberPublicSchema 剥 pinHash（路由层，密钥纪律）。
+   */
+  setProjectManager(
     memberId: string,
-    role: MemberRole,
-    opts?: { guardLastSuperAdmin?: boolean },
-  ): Promise<SetMemberRoleResult>;
+    projectManager: boolean,
+    opts?: { guardLastProjectManager?: boolean },
+  ): Promise<SetProjectManagerResult>;
 
   /**
    * 名册批量导入（POST /api/roster/import，ROSTER-IMPORT，K8）：一次原子应用已校验行到
@@ -186,9 +197,9 @@ export interface PmCoreStore {
    *  - **组解析**：`groupName` 匹配现有 `Group.name`，不存在则**自动建组**（id 生成照 nextSequentialId
    *    先例=`grp-new-N`、kind 用开放串默认值 `custom`、seasonId 取当前 active 赛季 ?? 顶层 seasonId）；
    *    同批同名组只建一次、计入 createdGroups。
-   *  - **幂等键 = displayName**：命中既有成员 → 更新 grade/groupId/role/gateReviewer（**保护例外**：
-   *    目标现为 `superAdmin` 时 role 不动；**pinHash 永不动**）；不命中 → 新建（id=`member-new-N`、
-   *    status=idle、currentTaskId=null、updatedBy='console'）。
+   *  - **幂等键 = displayName**：命中既有成员 → 更新 grade/groupId/role/gateReviewer（**pinHash 与
+   *    projectManager 旗标永不动**——role 枚举已不含管理员档，旗标与 role 正交、导入不洗）；不命中 →
+   *    新建（id=`member-new-N`、status=idle、currentTaskId=null、updatedBy='console'）。
    *  - **missingFromSheet**：库里有但表里没有的成员 → 只回报告、**绝不删**。
    *
    * 授权（匿名=写门即可 / 身份=须 superAdmin，但空板豁免登录）在**路由层**判——store 只做无条件应用。

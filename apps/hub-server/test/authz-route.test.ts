@@ -4,12 +4,14 @@ import { buildHubServer } from '../src/server.js';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
 /**
- * 权限地基路由端到端（K1，minor bump）：
- *  - POST /api/setup/super-admin：匿名 404 / 未登录 401 / 无 superAdmin 时把登录本人升 superAdmin + 同笔设
- *    pinHash / 已有 superAdmin 时 409。
- *  - PUT /api/members/:id/role：匿名=写门即可 / 身份=须 superAdmin（403）/ 降级保护（最后一个 superAdmin 409）。
- *  - 敏感门收口：身份模式下 gate-reviewer / seasons 非 superAdmin → 403，superAdmin → 放行；匿名不变。
+ * 权限地基路由端到端（K1 + MEMBER-PM-FLAG 公测补强刀②b）：
+ *  - POST /api/setup/super-admin：匿名 404 / 未登录 401 / 无持旗成员时给登录本人授 projectManager 旗标 +
+ *    同笔设 pinHash / 已有持旗成员时 409。
+ *  - PUT /api/members/:id/role：匿名=写门即可 / 身份=须持旗管理员（403）；role 两档不再承载管理员权限。
+ *  - PUT /api/members/:id/project-manager：授/收旗 + 降级保护（最后一个持旗成员 409）。
+ *  - 敏感门收口：身份模式下 gate-reviewer / seasons 非持旗成员 → 403，持旗 → 放行；匿名不变。
  * 红线：无任何按人聚合端点，快照身份陈旧不影响服务端鉴权（服务端另读实时名册）。
+ * 注：fixtures 里 m-progA 已持旗（demo）——凡要走「初始化首个管理员」流程的用例先收它的旗。
  */
 
 /** 登录并回带 session cookie 头。免 PIN 成员省 pin。 */
@@ -22,6 +24,11 @@ async function login(app: FastifyInstance, memberId: string, pin?: string): Prom
   expect(res.statusCode).toBe(200);
   const cookie = res.cookies.find((c) => c.name === 'teamhub_session');
   return `teamhub_session=${cookie!.value}`;
+}
+
+/** fixtures 的 demo 持旗成员（m-progA）收旗——让「初始化首个管理员」流程有干净的零旗标起点。 */
+async function clearFixturePm(store: InMemoryGovStore): Promise<void> {
+  await store.setProjectManager('m-progA', false);
 }
 
 describe('POST /api/setup/super-admin（初始化首个管理员）', () => {
@@ -53,11 +60,12 @@ describe('POST /api/setup/super-admin（初始化首个管理员）', () => {
     }
   });
 
-  test('无 superAdmin：升登录本人为 superAdmin + 同笔设 pinHash（此后免 PIN 登录失败）；响应剥 pinHash', async () => {
+  test('无持旗成员：给登录本人授 projectManager 旗标 + 同笔设 pinHash（此后免 PIN 登录失败）；响应剥 pinHash', async () => {
     const store = new InMemoryGovStore();
+    await clearFixturePm(store);
     const app = buildHubServer({ identityMode: 'identity', store });
     try {
-      const cookie = await login(app, 'm-ecB'); // 免 PIN 登入（role=member）
+      const cookie = await login(app, 'm-ecB'); // 免 PIN 登入（role=member、无旗标）
       const res = await app.inject({
         method: 'POST',
         url: '/api/setup/super-admin',
@@ -65,14 +73,14 @@ describe('POST /api/setup/super-admin（初始化首个管理员）', () => {
         payload: { pin: '1234' },
       });
       expect(res.statusCode).toBe(200);
-      expect(res.json().member.role).toBe('superAdmin');
+      expect(res.json().member.projectManager).toBe(true);
+      expect(res.json().member.role).toBe('member'); // 旗标与 role 正交：组织身份不动
       expect(JSON.stringify(res.json())).not.toContain('pinHash');
       expect(JSON.stringify(res.json())).not.toContain('scrypt:');
 
-      // 落库：role superAdmin + pinHash 已设 → 免 PIN 登录此后失败（401），带对 PIN 成功
-      expect((await store.getSnapshot()).members.find((m) => m.id === 'm-ecB')?.role).toBe(
-        'superAdmin',
-      );
+      // 落库：旗标已授 + pinHash 已设 → 免 PIN 登录此后失败（401），带对 PIN 成功
+      const me = (await store.getSnapshot()).members.find((m) => m.id === 'm-ecB');
+      expect(me?.projectManager).toBe(true);
       const noPin = await app.inject({
         method: 'POST',
         url: '/api/session',
@@ -90,27 +98,18 @@ describe('POST /api/setup/super-admin（初始化首个管理员）', () => {
     }
   });
 
-  test('已存在 superAdmin → 409（一次性初始化门）', async () => {
-    const store = new InMemoryGovStore();
+  test('已存在持旗成员 → 409（一次性初始化门）', async () => {
+    const store = new InMemoryGovStore(); // fixtures 的 m-progA 已持旗
     const app = buildHubServer({ identityMode: 'identity', store });
     try {
       const cookie = await login(app, 'm-ecB');
-      const first = await app.inject({
+      const res = await app.inject({
         method: 'POST',
         url: '/api/setup/super-admin',
         headers: { cookie },
         payload: { pin: '1234' },
       });
-      expect(first.statusCode).toBe(200);
-      // 换个人登入再试 → 已有管理员 → 409
-      const cookie2 = await login(app, 'm-visionA');
-      const second = await app.inject({
-        method: 'POST',
-        url: '/api/setup/super-admin',
-        headers: { cookie: cookie2 },
-        payload: { pin: '5678' },
-      });
-      expect(second.statusCode).toBe(409);
+      expect(res.statusCode).toBe(409);
     } finally {
       await app.close();
     }
@@ -142,32 +141,40 @@ describe('PUT /api/members/:id/role（成员角色维护）', () => {
     }
   });
 
-  test('降级保护（两模式统一）：摘掉最后一个 superAdmin → 409', async () => {
-    const app = buildHubServer(); // 匿名，便于直接改角色
+  test('降级保护（两模式统一）：摘掉最后一个持旗成员 → 409', async () => {
+    const app = buildHubServer(); // 匿名，便于直接授/收旗
     try {
-      // 先造出唯一 superAdmin
-      await app.inject({
+      // fixtures 里 m-progA 持旗；先给 m-ecB 授旗，再收 m-progA（非最后一个 → 200）
+      const grant = await app.inject({
         method: 'PUT',
-        url: '/api/members/m-ecB/role',
-        payload: { role: 'superAdmin' },
+        url: '/api/members/m-ecB/project-manager',
+        payload: { projectManager: true },
       });
-      // 摘掉它（唯一 superAdmin 降级）→ 409
+      expect(grant.statusCode).toBe(200);
+      expect(grant.json().member.projectManager).toBe(true);
+      const revokeProgA = await app.inject({
+        method: 'PUT',
+        url: '/api/members/m-progA/project-manager',
+        payload: { projectManager: false },
+      });
+      expect(revokeProgA.statusCode).toBe(200);
+      // 摘掉最后一个持旗成员（m-ecB）→ 409
       const demote = await app.inject({
         method: 'PUT',
-        url: '/api/members/m-ecB/role',
-        payload: { role: 'member' },
+        url: '/api/members/m-ecB/project-manager',
+        payload: { projectManager: false },
       });
       expect(demote.statusCode).toBe(409);
-      // 但若先有第二个 superAdmin，再降第一个 → 200（非最后一个）
+      // 但若先有第二个持旗成员，再收第一个 → 200（非最后一个）
       await app.inject({
         method: 'PUT',
-        url: '/api/members/m-visionA/role',
-        payload: { role: 'superAdmin' },
+        url: '/api/members/m-visionA/project-manager',
+        payload: { projectManager: true },
       });
       const demoteOk = await app.inject({
         method: 'PUT',
-        url: '/api/members/m-ecB/role',
-        payload: { role: 'member' },
+        url: '/api/members/m-ecB/project-manager',
+        payload: { projectManager: false },
       });
       expect(demoteOk.statusCode).toBe(200);
     } finally {
@@ -175,8 +182,9 @@ describe('PUT /api/members/:id/role（成员角色维护）', () => {
     }
   });
 
-  test('身份模式：非 superAdmin → 403；superAdmin → 200', async () => {
+  test('身份模式：非持旗成员 → 403；持旗管理员 → 200', async () => {
     const store = new InMemoryGovStore();
+    await clearFixturePm(store);
     const app = buildHubServer({ identityMode: 'identity', store });
     try {
       // 未初始化管理员时，普通登录人改角色 → 403（fail-closed）
@@ -189,7 +197,7 @@ describe('PUT /api/members/:id/role（成员角色维护）', () => {
       });
       expect(forbid.statusCode).toBe(403);
 
-      // 本人成为 superAdmin 后再改 → 200（服务端读实时名册，不吃陈旧会话快照）
+      // 本人授旗后再改 → 200（服务端读实时名册，不吃陈旧会话快照）
       await app.inject({
         method: 'POST',
         url: '/api/setup/super-admin',
@@ -221,7 +229,7 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
     }
   });
 
-  test('身份模式未登录 → 401（写门钩子）；非 superAdmin → 403（非 loopback 来源）', async () => {
+  test('身份模式未登录 → 401（写门钩子）；非持旗成员 → 403（非 loopback 来源）', async () => {
     const store = new InMemoryGovStore();
     const app = buildHubServer({ identityMode: 'identity', store });
     try {
@@ -246,7 +254,7 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
     }
   });
 
-  test('loopback 豁免（PIN-DEADLOCK-RECOVERY）：非 superAdmin 会话 / 无会话 经 loopback DELETE → 200，pinHash 清除', async () => {
+  test('loopback 豁免（PIN-DEADLOCK-RECOVERY）：非持旗会话 / 无会话 经 loopback DELETE → 200，pinHash 清除', async () => {
     const store = new InMemoryGovStore();
     const app = buildHubServer({ identityMode: 'identity', store });
     try {
@@ -259,7 +267,7 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
         payload: { pin: '9999' },
       });
 
-      // ① 非 superAdmin 会话（m-ecB，role=member）经 loopback（inject 默认 127.0.0.1）→ 放行
+      // ① 非持旗会话（m-ecB，role=member）经 loopback（inject 默认 127.0.0.1）→ 放行
       const memberCookie = await login(app, 'm-ecB');
       const viaMember = await app.inject({
         method: 'DELETE',
@@ -328,11 +336,12 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
     }
   });
 
-  test('superAdmin 重置他人 PIN → 200：pinHash 清除、回免 PIN 态、可经 firstSetup 重设；响应剥 pinHash', async () => {
+  test('持旗管理员重置他人 PIN → 200：pinHash 清除、回免 PIN 态、可经 firstSetup 重设；响应剥 pinHash', async () => {
     const store = new InMemoryGovStore();
+    await clearFixturePm(store);
     const app = buildHubServer({ identityMode: 'identity', store });
     try {
-      // 造 superAdmin（m-ecB）+ 给 m-visionA 设 PIN（本人登录后自设）
+      // 造持旗管理员（m-ecB）+ 给 m-visionA 设 PIN（本人登录后自设）
       const adminCookie = await login(app, 'm-ecB');
       await app.inject({
         method: 'POST',
@@ -355,7 +364,7 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
       });
       expect(locked.statusCode).toBe(401);
 
-      // superAdmin 重置 → 200
+      // 持旗管理员重置 → 200
       const res = await app.inject({
         method: 'DELETE',
         url: '/api/members/m-visionA/pin',
@@ -402,8 +411,9 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
     }
   });
 
-  test('superAdmin 重置未知 id → 404', async () => {
+  test('持旗管理员重置未知 id → 404', async () => {
     const store = new InMemoryGovStore();
+    await clearFixturePm(store);
     const app = buildHubServer({ identityMode: 'identity', store });
     try {
       const cookie = await login(app, 'm-ecB');
@@ -425,8 +435,8 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
   });
 });
 
-describe('敏感门收口：身份模式须 superAdmin（匿名不变）', () => {
-  test('gate-reviewer：身份非 superAdmin → 403，superAdmin → 200；匿名仍 200', async () => {
+describe('敏感门收口：身份模式须持旗管理员（匿名不变）', () => {
+  test('gate-reviewer：身份非持旗成员 → 403，持旗 → 200；匿名仍 200', async () => {
     // 匿名不变
     const anon = buildHubServer();
     try {
@@ -440,7 +450,9 @@ describe('敏感门收口：身份模式须 superAdmin（匿名不变）', () =>
       await anon.close();
     }
 
-    const app = buildHubServer({ identityMode: 'identity', store: new InMemoryGovStore() });
+    const store = new InMemoryGovStore();
+    await clearFixturePm(store);
+    const app = buildHubServer({ identityMode: 'identity', store });
     try {
       const cookie = await login(app, 'm-ecB');
       const forbid = await app.inject({
@@ -469,8 +481,10 @@ describe('敏感门收口：身份模式须 superAdmin（匿名不变）', () =>
     }
   });
 
-  test('POST /api/seasons：身份非 superAdmin → 403，superAdmin → 201', async () => {
-    const app = buildHubServer({ identityMode: 'identity', store: new InMemoryGovStore() });
+  test('POST /api/seasons：身份非持旗成员 → 403，持旗 → 201', async () => {
+    const store = new InMemoryGovStore();
+    await clearFixturePm(store);
+    const app = buildHubServer({ identityMode: 'identity', store });
     try {
       const cookie = await login(app, 'm-ecB');
       const body = { name: 'Robocon 2028', startsAt: '2027-09-01T00:00:00.000Z', endsAt: null };

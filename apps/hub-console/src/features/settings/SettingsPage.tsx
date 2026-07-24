@@ -65,13 +65,13 @@ const GRADE_KEY: Record<MemberGrade, TranslationKey> = {
   graduate: 'settings.reviewers.grade.graduate',
 };
 
-// 成员角色枚举 → 文案键（K1 权限地基；枚举变更会在此处编译报错）。三档下拉选项顺序钉高→低。
+// 成员角色枚举 → 文案键（K1 权限地基 + MEMBER-PM-FLAG 刀②b 收窄两档；枚举变更会在此处编译报错）。
+// 项目管理权限不走本下拉——每行另有「项目管理」开关（PUT project-manager）。
 const ROLE_KEY: Record<MemberRole, TranslationKey> = {
-  superAdmin: 'settings.members.role.superAdmin',
   groupAdmin: 'settings.members.role.groupAdmin',
   member: 'settings.members.role.member',
 };
-const MEMBER_ROLE_OPTIONS: readonly MemberRole[] = ['superAdmin', 'groupAdmin', 'member'];
+const MEMBER_ROLE_OPTIONS: readonly MemberRole[] = ['groupAdmin', 'member'];
 
 // 语言选项——扩展时须同步 i18n 键（settings.language.<value>）与 Lang 类型。
 const LANG_OPTIONS = [
@@ -112,8 +112,9 @@ interface IntegrationRow {
   pillClass: string;
 }
 
-// 分区写权限判定（K8 复审留档 nit 收口）：区分「未登录」与「身份模式已登录但非 superAdmin」两种锁态，
-// 各给对应说明（照 K2 前置资格判先例——写控件禁用 + 说明，不隐藏、保可发现性）。匿名模式恒不锁（现状不变）。
+// 分区写权限判定（K8 复审留档 nit 收口 + MEMBER-PM-FLAG 刀②b）：区分「未登录」与「身份模式已登录但未持
+// 项目管理旗标」两种锁态，各给对应说明（照 K2 前置资格判先例——写控件禁用 + 说明，不隐藏、保可发现性）。
+// 匿名模式恒不锁（现状不变）。旗标吃会话快照（登录当刻定格），服务端敏感门另读实时名册。
 function sectionPermission(
   identity: PageIdentityCtx,
   t: (key: TranslationKey) => string,
@@ -122,7 +123,7 @@ function sectionPermission(
   const adminLocked =
     identity.mode === 'identity' &&
     !!identity.session &&
-    identity.session.role !== 'superAdmin';
+    identity.session.projectManager !== true;
   const writeLocked = loggedOutLocked || adminLocked;
   const lockHint = loggedOutLocked
     ? t('identity.writeHint')
@@ -398,9 +399,11 @@ function SeasonRow({ season }: { season: Season }) {
   );
 }
 
-// 成员与权限（K1 权限地基 + GATE-CHECKLIST-IOU，D-087 拍板②）：一张名单表——每个成员一行，含角色三档
-// 下拉（PUT /api/members/:id/role）+ 验收人开关（PUT /api/members/:id/gate-reviewer，豁免权属名单内成员=大三，
-// 每年换届更新）。身份模式且名册无 superAdmin 时，顶部显示「初始化管理员」引导卡（调 setup 路由）。
+// 成员与权限（K1 权限地基 + GATE-CHECKLIST-IOU，D-087 拍板② + MEMBER-PM-FLAG 刀②b）：一张名单表——
+// 每个成员一行，含角色两档下拉（PUT /api/members/:id/role，组织身份）+ 项目管理开关
+// （PUT /api/members/:id/project-manager，原 superAdmin 的正交旗标）+ 验收人开关
+// （PUT /api/members/:id/gate-reviewer，豁免权属名单内成员=大三，每年换届更新）。身份模式且名册无持旗成员时，
+// 顶部显示「初始化管理员」引导卡（调 setup 路由）。
 // **绝不做任何按人统计**（红线 I0：本域无按人聚合/排行）；名单只决定「谁是管理员 / 谁能签字豁免」，非考勤非画像。
 function MembersPermissionsSection({
   client,
@@ -439,6 +442,12 @@ function MembersPermissionsSection({
       client.setMemberRole(vars.id, { role: vars.role }),
     onSuccess: invalidateMembers,
   });
+  // 项目管理旗标授 / 收（MEMBER-PM-FLAG 刀②b）：与 role 正交——队长兼组长 = groupAdmin + 旗标。
+  const pmMutation = useMutation({
+    mutationFn: (vars: { id: string; projectManager: boolean }) =>
+      client.setMemberProjectManager(vars.id, { projectManager: vars.projectManager }),
+    onSuccess: invalidateMembers,
+  });
   const reviewerMutation = useMutation({
     mutationFn: (vars: { id: string; gateReviewer: boolean }) =>
       client.setMemberGateReviewer(vars.id, { gateReviewer: vars.gateReviewer }),
@@ -454,11 +463,11 @@ function MembersPermissionsSection({
   const members = membersQuery.data?.members ?? [];
   const groups = groupsQuery.data?.groups ?? [];
   const groupName = (id: string) => groups.find((g) => g.id === id)?.name ?? id;
-  const hasSuperAdmin = members.some((m) => m.role === 'superAdmin');
+  const hasPm = members.some((m) => m.projectManager === true);
   // 名册是否为空（确已加载才判——加载中不当空板，避免闪现「首次可直接上传」）。空板 = 导入引导豁免态。
   const emptyRoster = !membersQuery.isLoading && members.length === 0;
-  // 引导卡：仅身份模式 + 名册确已加载且无任何 superAdmin 时显示（匿名模式无身份概念、有管理员后自动消失）。
-  const showSetup = identity.mode === 'identity' && !membersQuery.isLoading && !hasSuperAdmin;
+  // 引导卡：仅身份模式 + 名册确已加载且无任何持旗成员时显示（匿名模式无身份概念、有管理员后自动消失）。
+  const showSetup = identity.mode === 'identity' && !membersQuery.isLoading && !hasPm;
 
   return (
     <section className="panel settings-panel">
@@ -508,6 +517,23 @@ function MembersPermissionsSection({
                       (roleMutation.isPending && roleMutation.variables?.id === member.id)
                     }
                   />
+                  <label className="pm-check">
+                    <input
+                      type="checkbox"
+                      checked={member.projectManager === true}
+                      disabled={
+                        writeLocked ||
+                        (pmMutation.isPending && pmMutation.variables?.id === member.id)
+                      }
+                      onChange={(e) =>
+                        pmMutation.mutate({
+                          id: member.id,
+                          projectManager: e.target.checked,
+                        })
+                      }
+                    />
+                    <span>{t('settings.members.pm.toggle')}</span>
+                  </label>
                   <label className="pm-check">
                     <input
                       type="checkbox"
@@ -568,6 +594,11 @@ function MembersPermissionsSection({
             {humanizeFormError(roleMutation.error, t, 'settings.members.role.error')}
           </p>
         ) : null}
+        {pmMutation.error ? (
+          <p className="form-hint form-hint--warn">
+            {humanizeFormError(pmMutation.error, t, 'settings.members.pm.error')}
+          </p>
+        ) : null}
         {reviewerMutation.error ? (
           <p className="form-hint form-hint--warn">
             {humanizeFormError(reviewerMutation.error, t, 'settings.reviewers.error')}
@@ -578,9 +609,9 @@ function MembersPermissionsSection({
   );
 }
 
-// 初始化首个管理员引导卡（K1 权限地基）：身份模式且名册无 superAdmin 时显示——填 PIN → POST /api/setup/super-admin
-// 把登录本人升 superAdmin + 同笔设 pinHash。须先登录（写门锁时禁用提交、复用 identity.writeHint 说明）。
-// 成功后 onDone 刷新名册（有管理员后本卡自动消失）。
+// 初始化首个管理员引导卡（K1 权限地基 + MEMBER-PM-FLAG 旗标化）：身份模式且名册无持旗成员时显示——
+// 填 PIN → POST /api/setup/super-admin 给登录本人授项目管理旗标 + 同笔设 pinHash。须先登录（写门锁时禁用
+// 提交、复用 identity.writeHint 说明）。成功后 onDone 刷新名册（有管理员后本卡自动消失）。
 function SetupAdminCard({
   client,
   writeLocked,
