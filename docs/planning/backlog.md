@@ -154,8 +154,8 @@
 |------|------|------|------|
 | PIN-DEADLOCK-RECOVERY | pending（方案已录，待修复批） | code | **loopback 操作员可重置 PIN**：`DELETE /api/members/:id/pin` 对裸 socket=loopback 的请求豁免 superAdmin 判定（把 DEPLOY §7.1 手工清 gov.json 降级为一条 curl；宿主操作员本就能改文件，不引入新权限面）。注意：判裸 socket 不吃 TRUST_PROXY 转发头；inject 测试装置默认 127.0.0.1，既有 403 用例须显式非 loopback。DEPLOY §7.1 改三级（产品通道→loopback curl→手工清） |
 | SETUP-WIZARD-ROSTER | pending（方案已录，待修复批） | code | **向导强制名册导入步 + 操作者即管理员**：身份模式正式安装首重启后进全屏初始化门（identity 且名册无 superAdmin 时出现，完成才进 app）：①导入名册 CSV（空名册豁免已有）②选「我是名册里的谁」+设 PIN → 前端静默免密登录 + `POST /api/setup/super-admin` → 已登录 superAdmin 态落 app。匿名/demo 路径不出现 |
-| ROSTER-CSV-3COL | pending（**3 个开放问题待拍板**，见方案文档 §3 刀③） | code | **名册 CSV 5 列→3 列 + 组别可选择/可筛选**：现 姓名/年级/组/组长/验收人 → 减三列（候选 姓名/年级/组），组别改可筛选控件。待拍板：保留哪三列 / 组别选择形态（逐行下拉 or 统一选组）/ 组长任命动线 |
-| PROGRAM-GROUP-ABSTRACT | **decision-needed**（摸底 agent 进行中，结果出来后讨论） | design | **程序组残留收口**：D-072 口径程序组非领任务单元（仅汇报视角），但用户导入选组时看到「程序」。用户意向=程序作抽象类（视觉/电控继承），少量场景显示或 DB 层筛选。待摸底报告（fixtures/契约/console 组选择器/server 组匹配/活文档陈旧表述）后定方案 |
+| ROSTER-CSV-3COL | pending（**2026-07-24 已拍板**：保留前三列 姓名/年级/组；导入后加确认组长页、没录入人的组暂空；组别筛选复用项目已有控件逻辑） | code | **名册 CSV 5 列→3 列 + 导入后确认组长页**：去组长/验收人列（验收人沿用大三及以上默认派生）；导入后进确认页逐组选组长（role→groupAdmin）；组候选复用 PmCreatePanel Combobox/deriveLeafGroups 等已有逻辑且排除非叶子组+哨兵组。门内顺序=导 CSV→选我+PIN 升 superAdmin→确认组长（确认组长写 role 须 superAdmin，顺序即鉴权）。剩余待拍板：队长兼组长的单值 role 张力、操作者不在名册的出口——详见方案文档 §3 刀③ |
+| PROGRAM-GROUP-ABSTRACT | **decision-needed**（摸底已完成 2026-07-24，三方案待拍板） | design | **程序组残留收口**：fixtures 已调和干净，残留=两通道——写入口（importRoster 组名静默命中 grp-program/自动建程序组 + createTask groupId 零校验）、读出口（GET /api/groups 无过滤 + PmCreatePanel 组候选全量且显示组 id 非中文名）。用户意向=程序作抽象类（视觉/电控继承、少量场景显示）。三方案：①Group 加 assignable 属性 ②结构派生（有子组=抽象不可选，零 schema 改动，贴合抽象类比喻）③读出口最小过滤。连带缺口：设置页组管理 UI（D-072 可增减）从未实现=前置。详方案文档 §3 刀④ |
 
 ## P0 — Team Hub 壳子（已落地，作为治理触点/集成 + 展示底座保留）
 
