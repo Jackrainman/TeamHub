@@ -2,7 +2,8 @@
 
 > 权威实现规格。消解 D-072 §1/§7.1 给出方向但无字段级/派生级/测试级精度的歧义
 > （`presence-resource-redesign.md §7.1 DEFERRED` 标注：「无安全默认、改动会波及 ~9 测试文件」）。
-> 本文锁定后，PRESENCE-RECONCILE 阶段② 可无人值守实现、零猜测。
+> 本文锁定后，PRESENCE-RECONCILE 阶段② 可无人值守实现、零猜测。**阶段②已实现**
+> （fixture 调和 + 总联调收敛语义已在代码 / fixtures 生效）。
 >
 > 上游决策：`decisions.md` D-072（组织结构 G/L）+ `presence-resource-redesign.md §1`（调和三步）。
 >

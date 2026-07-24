@@ -1,5 +1,6 @@
 ---
-status: ready-to-implement
+status: implemented
+implemented_at: 2026-06-14
 backlog: DEPGRAPH-DRAG-CONNECT
 decided_by: wf_3845c9c0-aa2 (3-opus 设计+对抗核实)
 blocks_on: 用户 UX 拍板（见 §5）

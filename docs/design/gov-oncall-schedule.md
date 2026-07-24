@@ -35,7 +35,7 @@ implements: D-026 第②规则层（按依赖位置差异化在场）+ 第③展
 - 资源升一等实体 → "车撞坏 = `status='down'`，一个状态翻转整片下游变 free"，不必手摆 N 条 pairwise 边。
 - 窗口粗粒度 + 接力顺序（`orderInWindow`），**不锁定钟点**（`startsAt/endsAt` 留 open）。
 - 一次可选多组多人 + 备注：`ResourceSession.invitedMemberIds` 承载，但**仅本窗操作名单，绝不跨窗按人累计**。
-- **组织层级：布置任务 / 排班按小组，汇报按大组**。大组 = 程序 / 电路 / 机械；程序大组下有**电控 / 视觉**两个小组（`Group.parentGroupId` 自引用，电路 / 机械本就顶层）。排班单元是**小组**（`PresenceRecommendation.groupId`，电控被卡 ≠ 视觉被卡），收敛任务（如总联调，跨小组）可挂大组；汇报 / 过载滚动到**大组**（`reportingGroupId` = groupId 的顶层祖先，由 `topLevelGroupId` 上溯）。
+- **组织层级：布置任务 / 排班按小组，汇报按大组**。大组 = 程序 / 电路 / 机械；程序大组下有**电控 / 视觉**两个小组（`Group.parentGroupId` 自引用，电路 / 机械本就顶层）。排班单元是**小组**（`PresenceRecommendation.groupId`，电控被卡 ≠ 视觉被卡），收敛任务（如总联调，跨小组）可挂大组（**SUPERSEDED 2026-07**：已被 D-072 决策6 + `presence-reconcile-lock.md` 反转——总联调挂哨兵组 `grp-convergence`、`convergenceScope='allLeafGroups'`、`ownerId=null`，不挂单一组/大组）；汇报 / 过载滚动到**大组**（`reportingGroupId` = groupId 的顶层祖先，由 `topLevelGroupId` 上溯）。
 
 ## 2. 派生规则（`derivePresenceSchedule`，MVP 启发式）
 
