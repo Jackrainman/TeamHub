@@ -158,11 +158,29 @@ curl -s http://127.0.0.1:4177/api/system/status      # version 应与 VERSION �
 
 ### 7.1 常见维护动作：队员忘了 PIN
 
-**产品通道（v0.27.0 起，推荐）**：superAdmin 登录 → 设置页「成员与权限」→ 该成员行点「重置 PIN」。
+**第一级 · 产品通道（v0.27.0 起，推荐）**：superAdmin 登录 → 设置页「成员与权限」→ 该成员行点「重置 PIN」。
 效果是清除该成员的 PIN 散列——TA 下次登录回到"首次免 PIN"状态，登录后自行重设。
 重置口不经手新 PIN 明文（管理员看不到也设不了他人口令）。
 
-**手工兜底（服务起不来 / 没有可用 superAdmin 时）**：
+**第二级 · 宿主 loopback curl（v0.28.0 起；唯一 superAdmin 自己忘 PIN、无人能登录时）**：
+在宿主本机（或 SSH 隧道到宿主的会话）对 loopback 发一条 DELETE 即可重置——
+来自 loopback 的请求豁免 superAdmin 判定（宿主操作员本就能直接编辑 gov.json，不引入新权限面；
+非 loopback 来源行为不变）：
+
+```bash
+# 先查成员 id（读端点无需登录）
+curl -s http://127.0.0.1:4177/api/members
+# 重置该成员 PIN（<memberId> 换成上一步的 id）
+curl -X DELETE http://127.0.0.1:4177/api/members/<memberId>/pin
+```
+
+效果与产品通道相同：该成员回到"首次免 PIN"状态，登录后自行重设。
+若部署配了 `TEAMHUB_WRITE_TOKEN`（非 loopback 暴露的实例必须配），curl 须加
+`-H "Authorization: Bearer <token>"`（写门 Bearer 检查不受 loopback 豁免影响）。
+部署在反代后且开了 `TEAMHUB_TRUST_PROXY=true` 时，须真正从宿主本机 / SSH 隧道发起
+（转发头须解析为 loopback）；经远端客户端访问无效（按设计）。
+
+**第三级 · 手工兜底（服务起不来时）**：
 
 1. 停服，跑一次 `./scripts/backup-teamhub-data.sh`。
 2. 编辑治理数据文件（默认 `~/teamhub-data/gov.json`）：找到该成员条目，删掉 `pinHash` 字段。

@@ -384,6 +384,22 @@ function sessionActor(identity: SessionIdentity): ActorRef {
   return { id: identity.memberId, displayName: identity.displayName, source: 'console' };
 }
 
+// ── PIN-DEADLOCK-RECOVERY（公测补强刀①，2026-07-24）：loopback 操作员判定 ─────────────────────
+// 「唯一 superAdmin 忘 PIN = 完全死锁」（活体复现见 onboarding-pin-deadlock-2026-07-24.md §2 路径 A）的
+// 逃生门：DELETE /api/members/:id/pin 对来自 loopback 的请求豁免 superAdmin 判定。**威胁模型**：宿主
+// loopback 操作员本就能直接编辑 gov.json 清 pinHash（DEPLOY §7.1 手工兜底步骤），本豁免只是把手工编文件
+// 降级为一条 curl，不引入新权限面；非 loopback 请求行为零变化。
+// 判定规则：默认（trustProxy 未开）信**裸 socket 地址**——X-Forwarded-For 等转发头可伪造、坚决不吃；
+// trustProxy 开启时裸 socket 是反代地址不可信，退而看 request.ip（此时它解析自转发头，SSH 隧道场景仍可用）。
+const LOOPBACK_ADDRESSES = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+function isLoopbackOperator(
+  request: { ip: string; socket: { remoteAddress?: string } },
+  trustProxy: boolean | string,
+): boolean {
+  const addr = trustProxy ? request.ip : request.socket.remoteAddress;
+  return addr !== undefined && LOOPBACK_ADDRESSES.has(addr);
+}
+
 // 把治理快照 + 共享资源 + 占用窗口 + 接力交接线拼成 ScheduleSnapshot（GET /api/schedule、/api/relay 共用装配）。
 // relayHandoffs 是 ScheduleSnapshot 必填字段（R1 接力画布并入）；在场建议派生不读它，仍带上以满足类型。
 // 四次读独立、无依赖 → Promise.all 并发取。
@@ -415,6 +431,9 @@ interface ModuleRouteCtx {
   // IDENTITY-LITE：部署身份模式。pm-core 的 PUT /api/members/:id/pin 据此在匿名模式 404、身份模式行使
   // 「本人会话 / 首次设置」授权。写路由的 actor 注入不看它、只看 request.identity（匿名模式恒 null）。
   identityMode: IdentityMode;
+  // PIN-DEADLOCK-RECOVERY：反代信任设置（= BuildHubServerOptions.trustProxy 缺省 false），
+  // 供 isLoopbackOperator 决定信裸 socket 还是 request.ip（见该函数注释）。
+  trustProxy: boolean | string;
 }
 
 // ============================================================================
@@ -759,9 +778,13 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   // 重置成员 PIN（DELETE /api/members/:id/pin，公测余项⑦ PIN-RESET）——「忘 PIN」的产品通道：此前连
   // superAdmin 也无重置入口、只能手工清落盘 pinHash（DEPLOY §7.1 的手工步骤即源于此缺口）。**身份模式
   // only**（匿名 → 404，照 PUT pin 先例）；**须 superAdmin**（isSuperAdmin 读实时名册，403——重置他人
-  // 口令是敏感动作，匿名演示态无此概念）。效果 = 清除目标 pinHash（store.setMemberPin null 分支）：成员
-  // 回到「无 pinHash 免 PIN」态，下次登录后经既有 PUT pin 首设流程（firstSetup）自行重设——本端点**绝不
-  // 代收新 PIN 明文**（管理员不经手他人口令，密钥纪律延续）。响应走 ClearPinResponseSchema（剥 pinHash）。
+  // 口令是敏感动作，匿名演示态无此概念）。**loopback 豁免（PIN-DEADLOCK-RECOVERY，公测补强刀①）**：
+  // 请求来自 loopback（isLoopbackOperator）时跳过 superAdmin 判定直接放行——宿主操作员本就能直接编辑
+  // gov.json 清 pinHash（DEPLOY §7.1 兜底），豁免只是把手工编文件降级为一条 curl，不引入新权限面；
+  // 非 loopback 无变化（无会话仍被写门钩子 401、非 superAdmin 仍 403）。效果 = 清除目标 pinHash
+  // （store.setMemberPin null 分支）：成员回到「无 pinHash 免 PIN」态，下次登录后经既有 PUT pin 首设
+  // 流程（firstSetup）自行重设——本端点**绝不代收新 PIN 明文**（管理员不经手他人口令，密钥纪律延续）。
+  // 响应走 ClearPinResponseSchema（剥 pinHash）。
   app.delete<{ Params: { id: string } }>('/api/members/:id/pin', async (request, reply) => {
     if (identityMode !== 'identity') {
       void reply.code(404).send({ detail: '身份模式未启用' });
@@ -769,7 +792,11 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     }
     const { id } = request.params;
     const snapshot = await store.getSnapshot();
-    if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
+    // loopback 操作员豁免 superAdmin（威胁模型见 isLoopbackOperator 注释）。
+    if (
+      !isLoopbackOperator(request, ctx.trustProxy) &&
+      !isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')
+    ) {
       void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
       return;
     }
@@ -2196,14 +2223,16 @@ function registerPresenceScheduleRoutes(app: FastifyInstance, ctx: ModuleRouteCt
 }
 
 export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInstance {
+  // 反代信任（默认 false）：开启后 request.ip 解析为转发的真实客户端 IP，限流才按客户端分桶
+  // （见 BuildHubServerOptions.trustProxy；4177 反代部署须开，否则限流塌成全局单桶）。同时供
+  // isLoopbackOperator（PIN-DEADLOCK-RECOVERY）决定信裸 socket 还是 request.ip。
+  const trustProxy = options.trustProxy ?? false;
   // H3（AUDIT-FIXES）：显式 bodyLimit 收口写端点请求体上限（默认 Fastify 1MB 仍偏大，配合 KB 整文件重写是
   // 低成本资源耗尽面，见 M17）；256KB 足够任务 / 结案录入。
   const app = Fastify({
     logger: false,
     bodyLimit: 256 * 1024,
-    // 反代信任（默认 false）：开启后 request.ip 解析为转发的真实客户端 IP，限流才按客户端分桶
-    // （见 BuildHubServerOptions.trustProxy；4177 反代部署须开，否则限流塌成全局单桶）。
-    trustProxy: options.trustProxy ?? false,
+    trustProxy,
   });
   // 派生 / 时间戳求值时刻（先于默认 store 定义——默认内存 store 复用同一 clock，见下）。缺省钉在
   // fixture 场景时间 GOVERNANCE_SCENARIO_NOW（演示态冻结钟，与 hub-console mock 同口径）。
@@ -2281,7 +2310,14 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
       // 名册非空且无会话 → 路由内自行 401，与本钩子同结果，故此处统一放过、鉴权收敛在路由一处判。
       const isRosterBootstrap =
         path === '/api/roster/import' && request.method === 'POST';
-      if (!isSessionAuthEndpoint && !isRosterBootstrap && !request.identity) {
+      // PIN 死锁恢复豁免（PIN-DEADLOCK-RECOVERY）：DELETE /api/members/:id/pin 来自 loopback 时
+      // 放过「须有会话」硬门——唯一 superAdmin 忘 PIN 时无人能登录，若不放过则 401 挡在路由之外、
+      // loopback 豁免永远触达不到。非 loopback 不在此列（无会话仍 401），鉴权收敛在路由一处判。
+      const isPinRecovery =
+        request.method === 'DELETE' &&
+        /^\/api\/members\/[^/]+\/pin$/.test(path) &&
+        isLoopbackOperator(request, trustProxy);
+      if (!isSessionAuthEndpoint && !isRosterBootstrap && !isPinRecovery && !request.identity) {
         void reply.code(401).send({ detail: 'login required' });
         return reply;
       }
@@ -2315,6 +2351,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     checklistStore,
     artifactMaxBytes: options.artifactMaxBytes ?? ARTIFACT_MAX_BYTES,
     identityMode,
+    trustProxy,
   };
   const moduleEnabled = (id: ModuleId): boolean => isModuleEnabled(tenantConfig, id);
 

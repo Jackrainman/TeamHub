@@ -221,11 +221,16 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
     }
   });
 
-  test('身份模式未登录 → 401（写门钩子）；非 superAdmin → 403', async () => {
+  test('身份模式未登录 → 401（写门钩子）；非 superAdmin → 403（非 loopback 来源）', async () => {
     const store = new InMemoryGovStore();
     const app = buildHubServer({ identityMode: 'identity', store });
     try {
-      const anon = await app.inject({ method: 'DELETE', url: '/api/members/m-visionA/pin' });
+      // 显式非 loopback 来源（inject 默认 127.0.0.1 会命中 PIN-DEADLOCK-RECOVERY loopback 豁免）
+      const anon = await app.inject({
+        method: 'DELETE',
+        url: '/api/members/m-visionA/pin',
+        remoteAddress: '10.0.0.5',
+      });
       expect(anon.statusCode).toBe(401);
 
       const cookie = await login(app, 'm-ecB'); // 普通成员
@@ -233,8 +238,91 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
         method: 'DELETE',
         url: '/api/members/m-visionA/pin',
         headers: { cookie },
+        remoteAddress: '10.0.0.5',
       });
       expect(forbid.statusCode).toBe(403);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('loopback 豁免（PIN-DEADLOCK-RECOVERY）：非 superAdmin 会话 / 无会话 经 loopback DELETE → 200，pinHash 清除', async () => {
+    const store = new InMemoryGovStore();
+    const app = buildHubServer({ identityMode: 'identity', store });
+    try {
+      // 给 m-visionA 设 PIN（本人登录自设）
+      const userCookie = await login(app, 'm-visionA');
+      await app.inject({
+        method: 'PUT',
+        url: '/api/members/m-visionA/pin',
+        headers: { cookie: userCookie },
+        payload: { pin: '9999' },
+      });
+
+      // ① 非 superAdmin 会话（m-ecB，role=member）经 loopback（inject 默认 127.0.0.1）→ 放行
+      const memberCookie = await login(app, 'm-ecB');
+      const viaMember = await app.inject({
+        method: 'DELETE',
+        url: '/api/members/m-visionA/pin',
+        headers: { cookie: memberCookie },
+      });
+      expect(viaMember.statusCode).toBe(200);
+      expect(JSON.stringify(viaMember.json())).not.toContain('pinHash');
+      expect(
+        (await store.getSnapshot()).members.find((m) => m.id === 'm-visionA')?.pinHash,
+      ).toBeUndefined();
+
+      // ② 无会话经 loopback → 写门钩子放过、路由豁免 → 200（死锁现场无人能登录的逃生门）
+      await store.setMemberPin('m-visionA', 'scrypt:testsalt:testhash'); // 再设回 PIN
+      const noSession = await app.inject({ method: 'DELETE', url: '/api/members/m-visionA/pin' });
+      expect(noSession.statusCode).toBe(200);
+      expect(
+        (await store.getSnapshot()).members.find((m) => m.id === 'm-visionA')?.pinHash,
+      ).toBeUndefined();
+      // 免 PIN 登录恢复（回免 PIN 态）
+      const relogin = await app.inject({
+        method: 'POST',
+        url: '/api/session',
+        payload: { memberId: 'm-visionA' },
+      });
+      expect(relogin.statusCode).toBe(200);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('trustProxy=true：豁免改信转发头——X-Forwarded-For=loopback 放行（SSH 隧道），=非 loopback 仍 401', async () => {
+    const store = new InMemoryGovStore();
+    const app = buildHubServer({ identityMode: 'identity', store, trustProxy: true });
+    try {
+      const userCookie = await login(app, 'm-visionA');
+      await app.inject({
+        method: 'PUT',
+        url: '/api/members/m-visionA/pin',
+        headers: { cookie: userCookie },
+        payload: { pin: '9999' },
+      });
+
+      // 裸 socket 非 loopback（反代），转发头为 loopback（SSH 隧道/本机反代客户端）→ request.ip=127.0.0.1 → 放行
+      const tunneled = await app.inject({
+        method: 'DELETE',
+        url: '/api/members/m-visionA/pin',
+        remoteAddress: '10.0.0.1',
+        headers: { 'x-forwarded-for': '127.0.0.1' },
+      });
+      expect(tunneled.statusCode).toBe(200);
+      expect(
+        (await store.getSnapshot()).members.find((m) => m.id === 'm-visionA')?.pinHash,
+      ).toBeUndefined();
+
+      // 转发头非 loopback → 无会话仍被写门 401（豁免不扩散到远端客户端）
+      const remote = await app.inject({
+        method: 'DELETE',
+        url: '/api/members/m-visionA/pin',
+        remoteAddress: '10.0.0.1',
+        headers: { 'x-forwarded-for': '203.0.113.9' },
+      });
+      expect(remote.statusCode).toBe(401);
     } finally {
       await app.close();
     }
