@@ -53,7 +53,7 @@ curl -s http://127.0.0.1:4177/health | grep buildId
 ## 4. 验证门
 | 任务类型 | 必跑 |
 |---|---|
-| docs / planning / skills-only | `git diff --check`；`now.md` yaml 可解析；grep 旧路径无残留；改 skill 后 `bash .agents/skills/install.sh` 重链进 `.claude/skills/`（单一真源 `.agents/skills/`，软链零拷贝、无同步钩子） |
+| docs / planning / skills-only | `git diff --check`；`now.md` yaml 可解析；grep 旧路径无残留；skills 要用才装——本机需要触发时跑 `bash .agents/skills/install.sh` 软链进 `.claude/skills/`（单一真源 `.agents/skills/`，软链零拷贝；clone 后不强制装） |
 | hub 后端 / 契约 / 控制台 | 对应包 `npm run verify:all`（exit 0）；`git diff --check` |
 | 部署相关行为 | `apps/hub-server` e2e-pillars 绿；`curl /health` buildId 非空 |
 | compose / 部署冒烟 | `scripts/verify-hub-compose.sh`（需 Docker/Compose） |
@@ -67,8 +67,8 @@ curl -s http://127.0.0.1:4177/health | grep buildId
 - 停止条件：git 不干净且无法归类；verify 失败且当前边界内不可修；命中 SSH/sudo/部署/密钥/数据迁移；planning 与代码冲突且不知谁 stale；连续两次修复仍失败。
 
 ## 6. 踩坑 → 铁律（dogfood）+ 真实性
-- TeamHub 自身工程 bug 修完 → 在 `docs/dev-debug-archive/` 加一张卡（`parse-debug-archive` 格式）→ `kb:import` 进语料 → 由它而生的铁律引该卡症状/errorCode（bug→铁律可追溯，feiyue TROUBLESHOOTING 模型；已落 H1–H5）。
-- **真实性**：禁止把「规划中」写成「已完成」、把占位壳说成真实功能、把 `localStorage`/内存 fallback 当「服务器化成功」；验证失败不得伪造完成，创建 repair task 或回退，连续两次失败升级人工。`.debug-archive/*.md` 归档后读回验证；工具调用必查 exit code、失败不静默吞。
+- TeamHub 自身工程 bug 修完 → 复盘直接记 design/planning 文档即可（现行主流做法，如 PIN 死锁=onboarding-pin-deadlock-2026-07-24.md）；**值得跨赛季沉淀的重大反复事故**才在 `docs/dev-debug-archive/` 加卡（`parse-debug-archive` 格式）→ `kb:import` 进语料，由它而生的铁律引该卡症状/errorCode（已落 H1–H5；该通道 2026-06 后使用频率≈0，如实降级为可选）。
+- **真实性**：禁止把「规划中」写成「已完成」、把占位壳说成真实功能、把 `localStorage`/内存 fallback 当「服务器化成功」；验证失败不得伪造完成，创建 repair task 或回退，连续两次失败升级人工。工具调用必查 exit code、失败不静默吞。
 
 ## 7. 版本号纪律（D-074）
 - **产品单一版本** = 根 `VERSION`（SemVer `MAJOR.MINOR.PATCH`）。三支柱同端口 4177 同发布 = 一个产品一个版本号；`scripts/bump-version.sh` 把它同步进 hub-* 三包 `package.json`，`/api/system/status`·`/health` 即刻报告（`status.ts` 读包根 version）。**只用 `bump-version.sh` 改版本，别手改 package.json**——手改让 VERSION 与三包漂移，正是历史 bug 根因。
