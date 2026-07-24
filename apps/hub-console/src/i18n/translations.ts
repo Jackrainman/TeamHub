@@ -1146,6 +1146,34 @@ const zh = {
   'setup.landing.title': '装好了，三步就能开始用',
   'setup.landing.steps': '① 导入名册　② 登录你自己　③ 初始化管理员——都在下面这一页完成。',
   'setup.landing.dismiss': '知道了',
+  'gate.title': '初始化：先把你自己放进名册',
+  'gate.subtitle':
+    '登录制已开启，但名册里还没有项目管理成员。三步完成初始化——先说你是谁，再导名册、认组长。',
+  'gate.step.who': '① 你是谁',
+  'gate.step.roster': '② 导入名册',
+  'gate.step.leads': '③ 确认各组组长',
+  'gate.who.desc':
+    '一笔完成：建你的成员行（或认领名册里已有的你）+ 授项目管理旗标 + 设 PIN + 登录。此后你就是本队第一个管理员。',
+  'gate.who.name': '姓名',
+  'gate.who.namePlaceholder': '和名册 CSV 里保持一致',
+  'gate.who.claimHint': '名册里已有这个名字——将直接认领该成员行。',
+  'gate.who.group': '所在组',
+  'gate.who.groupPlaceholder': '组名（不存在会自动新建）',
+  'gate.who.asLead': '我是该组组长',
+  'gate.who.pm': '项目管理（可改敏感设置，建议勾选）',
+  'gate.who.pin': '设置 PIN',
+  'gate.who.pinPlaceholder': '至少 4 位，重启后登录要用',
+  'gate.who.submit': '创建并继续',
+  'gate.who.submitting': '创建中…',
+  'gate.who.error': '初始化失败：{detail}',
+  'gate.roster.desc':
+    '上传名册 CSV（姓名/年级/组三列，可先去设置页下载模板）。名册已经导入过的话直接下一步。',
+  'gate.roster.ready': '名册已就绪，下一步',
+  'gate.roster.next': '下一步',
+  'gate.leads.skip': '稍后再认，先完成',
+  'gate.done.title': '④ 完成',
+  'gate.done.desc': '初始化完成——你已登录，项目管理权限在手。',
+  'gate.done.cta': '进入 TeamHub',
 } as const;
 
 export type TranslationKey = keyof typeof zh;
@@ -2303,6 +2331,34 @@ const en: Record<TranslationKey, string> = {
   'setup.landing.steps':
     '(1) Import the roster  (2) Log in as yourself  (3) Initialize an admin — all on this page below.',
   'setup.landing.dismiss': 'Got it',
+  'gate.title': 'Setup: put yourself on the roster first',
+  'gate.subtitle':
+    'Login mode is on, but no project-management member exists yet. Three steps: say who you are, import the roster, confirm group leads.',
+  'gate.step.who': '(1) Who are you',
+  'gate.step.roster': '(2) Import roster',
+  'gate.step.leads': '(3) Confirm group leads',
+  'gate.who.desc':
+    'One shot: create your member row (or claim the existing one) + grant the project-management flag + set a PIN + log you in. You become the team’s first admin.',
+  'gate.who.name': 'Name',
+  'gate.who.namePlaceholder': 'Match the roster CSV',
+  'gate.who.claimHint': 'This name already exists — you will claim that member row.',
+  'gate.who.group': 'Group',
+  'gate.who.groupPlaceholder': 'Group name (auto-created if missing)',
+  'gate.who.asLead': 'I am the lead of this group',
+  'gate.who.pm': 'Project management (can change sensitive settings, recommended)',
+  'gate.who.pin': 'Set a PIN',
+  'gate.who.pinPlaceholder': 'At least 4 characters — needed to log in after restarts',
+  'gate.who.submit': 'Create & continue',
+  'gate.who.submitting': 'Creating…',
+  'gate.who.error': 'Setup failed: {detail}',
+  'gate.roster.desc':
+    'Upload the roster CSV (three columns: name/grade/group; grab the template in Settings first if needed). If the roster is already imported, just continue.',
+  'gate.roster.ready': 'Roster ready — next',
+  'gate.roster.next': 'Next',
+  'gate.leads.skip': 'Do it later — finish for now',
+  'gate.done.title': '(4) Done',
+  'gate.done.desc': 'Setup complete — you are logged in with project-management rights.',
+  'gate.done.cta': 'Enter TeamHub',
 };
 
 export const translations: Record<Lang, Record<TranslationKey, string>> = {

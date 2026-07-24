@@ -772,7 +772,8 @@ function RosterImportBlock({
 
 // 导入报告渲染（K8）：六段名单事实——failed（坏行=行号+原因，醒目告警底）+ created/updated/自动建组/
 // 自动验收人/库里有但表里没有（绝不删）。全是回显给操作者本人的名单事实（I0 无聚合统计）。
-function RosterReportView({ report }: { report: RosterImportReport }) {
+// export：刀② 全屏初始化门第②步（BootstrapGate）复用同一渲染。
+export function RosterReportView({ report }: { report: RosterImportReport }) {
   const { t } = useI18n();
   const segs: Array<{ key: string; labelKey: TranslationKey; names: readonly string[] }> = [
     { key: 'created', labelKey: 'settings.roster.report.created', names: report.created },

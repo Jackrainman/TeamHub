@@ -16,6 +16,7 @@ import { ROBOTICS_VOCAB_OVERRIDES } from './verticals/robotics';
 import { APIBASE_KEY, SETUP_LANDING_KEY, WRITE_TOKEN_KEY } from './constants';
 import { IdentityBar } from './features/identity/IdentityBar';
 import { SetupWizard } from './features/setup/SetupWizard';
+import { BootstrapGate } from './features/setup/BootstrapGate';
 import { ChecklistQuickRecord } from './features/checklist/ChecklistQuickRecord';
 import { canWriteIdentity, identityCacheKey } from './features/identity/identity-utils';
 // 单一真实后端：queryKey 维度保留稳定常量（曾区分 mock/real，现恒为 real），
@@ -128,6 +129,27 @@ function ConsoleApp({ apiClient }: { apiClient: HubApiClient }) {
     queryKey: ['hub-overview', SOURCE, identityCacheKey(identitySession)],
     queryFn: () => apiClient.getOverview(),
   });
+
+  // 全屏初始化门（SETUP-WIZARD-ROSTER 刀②）：identity 模式且名册无任何持「项目管理」旗标成员 →
+  // 整屏换 BootstrapGate（①你是谁→bootstrap 一笔建人+授旗+PIN+登录态 ②导入 CSV ③确认组长 ④进 app），
+  // 完成才渲染正常 shell。匿名 / demo 路径不出现（匿名无身份概念；demo fixtures 自带持旗成员 m-progA）。
+  // 读端点无鉴权，未登录也能读名册做判定。gateDone = 本标签页走完门后不再出现（刷新后条件已假：
+  // 门第①步已授旗——中途刷新则直接进 app，后续可经设置页补导入/确认）。
+  const [gateDone, setGateDone] = useState(false);
+  const gateMembersQuery = useQuery({
+    queryKey: ['members', 'bootstrap-gate'],
+    queryFn: () => apiClient.getMembers(),
+    enabled: identityMode === 'identity',
+  });
+  const needsBootstrapGate =
+    identityMode === 'identity' &&
+    !gateDone &&
+    !sessionQuery.isLoading &&
+    !gateMembersQuery.isLoading &&
+    !(gateMembersQuery.data?.members.some((m) => m.projectManager === true) ?? true);
+  if (needsBootstrapGate) {
+    return <BootstrapGate client={apiClient} onDone={() => setGateDone(true)} />;
+  }
 
   // 页面注册表（console-pages.tsx）驱动渲染 + 标题——不再是 if-else 链（HUB-MODULARIZATION 第2步）。
   // 只在按 TenantConfig 过滤后的列表里找页：未启用模块的页在 ENABLED_PAGES 里不存在。

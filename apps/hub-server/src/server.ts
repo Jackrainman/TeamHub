@@ -437,6 +437,9 @@ interface ModuleRouteCtx {
   // PIN-DEADLOCK-RECOVERY：反代信任设置（= BuildHubServerOptions.trustProxy 缺省 false），
   // 供 isLoopbackOperator 决定信裸 socket 还是 request.ip（见该函数注释）。
   trustProxy: boolean | string;
+  // SETUP-WIZARD-ROSTER 刀②：内存会话表（匿名模式 null）——POST /api/setup/super-admin 的 bootstrap
+  // 路径一笔落库后签发会话 cookie（建人+授旗+设 PIN+登录态），免操作者再登一次。
+  sessions: SessionManager | null;
 }
 
 // ============================================================================
@@ -817,11 +820,18 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     return ClearPinResponseSchema.parse({ member: MemberPublicSchema.parse(updated) });
   });
 
-  // 初始化首个管理员（POST /api/setup/super-admin，K1 权限地基 + MEMBER-PM-FLAG 旗标化）。**身份模式 only**
-  // （匿名 → 404，照 PUT pin 先例）。前置=名册尚无任何持「项目管理」旗标成员（否则 409——一次性初始化门，
-  // 已有管理员后授/收旗走 PUT project-manager）。须已登录（写门钩子天然保证 request.identity）。效果=给
-  // **session 本人**授 projectManager 旗标 **且同笔设 pinHash**——先设 pin 再授旗（防授旗后 pin 落库失败留下
-  // "无 PIN 管理员"被免密冒用；这就是"敏感设置须密码"的落点）。响应经 MemberPublicSchema 剥 pinHash（密钥纪律）。
+  // 初始化首个管理员（POST /api/setup/super-admin，K1 权限地基 + MEMBER-PM-FLAG 旗标化 + SETUP-WIZARD-ROSTER
+  // 刀② bootstrap 扩展）。**身份模式 only**（匿名 → 404，照 PUT pin 先例）。前置=名册尚无任何持「项目管理」
+  // 旗标成员（否则 409——一次性初始化门，已有管理员后授/收旗走 PUT project-manager）。**两路径**：
+  //  - 老路径（无 displayName）：须已登录，给 session 本人授旗 + 同笔设 pinHash（先 pin 后旗，防"无 PIN
+  //    管理员被免密冒用"）。
+  //  - bootstrap 路径（刀② v2「先问你是谁」，给 displayName）：**豁免登录**（写门钩子已放过本路由，
+  //    此处自判——解开"名册无管理员 → 无人能登录 → 无法初始化"死锁）。按姓名认领既有成员行，或顺带新建
+  //    （groupName 必填、importRoster 单行复用建组+建人；asGroupLead → role:groupAdmin 组长申报；grade 缺省
+  //    freshman、后续名册 CSV 按姓名 upsert 修正），一笔落库 = 建人 + 授旗（projectManager 缺省 true）+
+  //    设 PIN + **签发会话 cookie（登录态）**。操作者由此必在名册（原"操作者不在 CSV"问题消解；残余
+  //    edge = CSV 同名错拼会 upsert 出重名人，导入报告回显 created 可肉眼发现）。
+  // 响应经 MemberPublicSchema 剥 pinHash（密钥纪律）。
   app.post('/api/setup/super-admin', async (request, reply) => {
     if (identityMode !== 'identity') {
       void reply.code(404).send({ detail: '身份模式未启用' });
@@ -837,26 +847,86 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       void reply.code(409).send({ detail: '已存在管理员（项目管理旗标）' });
       return;
     }
-    // 写门钩子已保证有会话；防御式兜底 401（identity 恒非空于身份模式过门后）。
-    const selfId = request.identity?.memberId;
-    if (!selfId) {
-      void reply.code(401).send({ detail: 'login required' });
-      return;
+    let memberId: string;
+    if (parsed.data.displayName) {
+      // bootstrap 路径：按姓名认领既有成员（groupName 忽略），或新建成员行。
+      const existing = snapshot.members.find(
+        (m) => m.displayName === parsed.data.displayName,
+      );
+      if (existing) {
+        memberId = existing.id;
+      } else {
+        if (!parsed.data.groupName) {
+          void reply.code(400).send({ detail: '新建成员需提供所在组' });
+          return;
+        }
+        // 复用 importRoster 单行（组按名 upsert + 建人 role=member）；验收人沿用年级默认派生（刀③ 同律）。
+        const grade = parsed.data.grade ?? 'freshman';
+        const reviewer =
+          grade === 'junior' || grade === 'senior' || grade === 'graduate';
+        await store.importRoster([
+          {
+            displayName: parsed.data.displayName,
+            grade,
+            groupName: parsed.data.groupName,
+            gateReviewer: reviewer,
+            gateReviewerAuto: reviewer,
+          },
+        ]);
+        const after = await store.getSnapshot();
+        const created = after.members.find(
+          (m) => m.displayName === parsed.data.displayName,
+        );
+        if (!created) {
+          void reply.code(500).send({ detail: 'bootstrap 建成员失败' });
+          return;
+        }
+        memberId = created.id;
+        // 组长申报：新建成员 role→groupAdmin（队长兼组长 = groupAdmin + 旗标，刀②b 正交）。
+        if (parsed.data.asGroupLead) {
+          await store.setMemberRole(memberId, 'groupAdmin');
+        }
+      }
+    } else {
+      // 老路径：须有会话（设置页「初始化管理员」卡——操作登录本人）。
+      const selfId = request.identity?.memberId;
+      if (!selfId) {
+        void reply.code(401).send({ detail: 'login required' });
+        return;
+      }
+      memberId = selfId;
     }
-    // 先设 pin（防授旗后 pin 落库失败 → 无 PIN 管理员），再授旗。两步皆命中登录本人。
-    const pinned = await store.setMemberPin(selfId, hashPin(parsed.data.pin));
+    // 先设 pin（防授旗后 pin 落库失败 → 无 PIN 管理员），再授旗（缺省 true）。
+    const pinned = await store.setMemberPin(memberId, hashPin(parsed.data.pin));
     if (!pinned) {
       void reply.code(404).send({ detail: 'member not found' });
       return;
     }
-    // 授旗无并发收旗风险（初始化门前置=名册零持旗成员，本笔是造第一个），不传 guard。
-    const promoted = await store.setProjectManager(selfId, true);
-    if (!promoted.ok) {
+    if (parsed.data.projectManager !== false) {
+      // 授旗无并发收旗风险（初始化门前置=名册零持旗成员，本笔是造第一个），不传 guard。
+      await store.setProjectManager(memberId, true);
+    }
+    // 一笔落库最后一环 = 登录态：签发会话 cookie（刀②——操作者无需再登一次）。
+    const finalSnap = await store.getSnapshot();
+    const member = finalSnap.members.find((m) => m.id === memberId);
+    if (!member) {
       void reply.code(404).send({ detail: 'member not found' });
       return;
     }
+    if (ctx.sessions) {
+      const identity: SessionIdentity = {
+        memberId: member.id,
+        displayName: member.displayName,
+        groupId: member.groupId,
+        role: member.role,
+        gateReviewer: member.gateReviewer,
+        projectManager: member.projectManager,
+      };
+      const token = ctx.sessions.create(identity);
+      void reply.header('set-cookie', buildSessionCookie(token));
+    }
     return SetupSuperAdminResponseSchema.parse({
-      member: MemberPublicSchema.parse(promoted.member),
+      member: MemberPublicSchema.parse(member),
     });
   });
 
@@ -2347,6 +2417,12 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
       // 名册非空且无会话 → 路由内自行 401，与本钩子同结果，故此处统一放过、鉴权收敛在路由一处判。
       const isRosterBootstrap =
         path === '/api/roster/import' && request.method === 'POST';
+      // 初始化 bootstrap 豁免（SETUP-WIZARD-ROSTER 刀②）：POST /api/setup/super-admin 从「须有会话」硬门
+      // 放过——名册无持旗成员时无人能登录（初始化门第一步「你是谁」此刻还没建人没授旗），若不放过则 401
+      // 挡在路由之外、bootstrap 永远触达不到。鉴权收敛在路由一处判：已有持旗成员 → 409；无持旗成员且
+      // 走老路径（无 displayName）→ 仍须会话 401。
+      const isSetupBootstrap =
+        path === '/api/setup/super-admin' && request.method === 'POST';
       // PIN 死锁恢复豁免（PIN-DEADLOCK-RECOVERY）：DELETE /api/members/:id/pin 来自 loopback 时
       // 放过「须有会话」硬门——唯一 superAdmin 忘 PIN 时无人能登录，若不放过则 401 挡在路由之外、
       // loopback 豁免永远触达不到。非 loopback 不在此列（无会话仍 401），鉴权收敛在路由一处判。
@@ -2354,7 +2430,13 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
         request.method === 'DELETE' &&
         /^\/api\/members\/[^/]+\/pin$/.test(path) &&
         isLoopbackOperator(request, trustProxy);
-      if (!isSessionAuthEndpoint && !isRosterBootstrap && !isPinRecovery && !request.identity) {
+      if (
+        !isSessionAuthEndpoint &&
+        !isRosterBootstrap &&
+        !isSetupBootstrap &&
+        !isPinRecovery &&
+        !request.identity
+      ) {
         void reply.code(401).send({ detail: 'login required' });
         return reply;
       }
@@ -2389,6 +2471,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     artifactMaxBytes: options.artifactMaxBytes ?? ARTIFACT_MAX_BYTES,
     identityMode,
     trustProxy,
+    sessions,
   };
   const moduleEnabled = (id: ModuleId): boolean => isModuleEnabled(tenantConfig, id);
 

@@ -1563,6 +1563,17 @@ button,
 
 /* （B3 归并）原 .settings-btn → .btn.btn--secondary（禁用透明度 0.5→0.55 统一，容差内）。 */
 
+/* 初始化门表单字段（SETUP-WIZARD-ROSTER 刀② BootstrapGate）：竖排标签+输入，复用 setup-card 容器。 */
+.gate-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
 /* ===== 首启动向导（SETUP-WIZARD 刀②，setup-wizard.md §5）——全屏两态启动，覆盖整个 app shell ===== */
 .setup-wizard {
   min-height: 100vh;

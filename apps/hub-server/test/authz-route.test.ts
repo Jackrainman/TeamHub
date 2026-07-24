@@ -46,8 +46,10 @@ describe('POST /api/setup/super-admin（初始化首个管理员）', () => {
     }
   });
 
-  test('身份模式未登录 → 401（写门钩子）', async () => {
-    const app = buildHubServer({ identityMode: 'identity' });
+  test('身份模式未登录 + 老路径（无 displayName）→ 401（路由内自判；钩子已豁免本端点供 bootstrap）', async () => {
+    const store = new InMemoryGovStore();
+    await clearFixturePm(store);
+    const app = buildHubServer({ identityMode: 'identity', store });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -110,6 +112,118 @@ describe('POST /api/setup/super-admin（初始化首个管理员）', () => {
         payload: { pin: '1234' },
       });
       expect(res.statusCode).toBe(409);
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+describe('POST /api/setup/super-admin — bootstrap 路径（SETUP-WIZARD-ROSTER 刀②）', () => {
+  test('无会话 + displayName/groupName → 一笔建人+授旗+设 PIN+签会话 cookie（此后带 cookie 可写）', async () => {
+    const store = new InMemoryGovStore();
+    await clearFixturePm(store);
+    const app = buildHubServer({ identityMode: 'identity', store });
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/setup/super-admin',
+        payload: { displayName: '新队长', groupName: '机械', asGroupLead: true, pin: '1234' },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.member.displayName).toBe('新队长');
+      expect(body.member.projectManager).toBe(true);
+      expect(body.member.role).toBe('groupAdmin'); // 组长申报
+      expect(JSON.stringify(body)).not.toContain('pinHash');
+      expect(JSON.stringify(body)).not.toContain('scrypt:');
+      // 登录态：响应签发会话 cookie
+      const cookie = res.cookies.find((c) => c.name === 'teamhub_session');
+      expect(cookie?.value).toBeTruthy();
+
+      // 落库核实：建人（挂机械组）+ 授旗 + pinHash 已设
+      const snap = await store.getSnapshot();
+      const me = snap.members.find((m) => m.displayName === '新队长')!;
+      expect(me.projectManager).toBe(true);
+      expect(me.pinHash).toBeTruthy();
+      expect(snap.groups.find((g) => g.id === me.groupId)?.name).toBe('机械');
+      // 免 PIN 登录失败、带 PIN 成功（PIN 同笔已设）
+      const noPin = await app.inject({
+        method: 'POST',
+        url: '/api/session',
+        payload: { memberId: me.id },
+      });
+      expect(noPin.statusCode).toBe(401);
+      // 签发的会话可直接写（持旗）：改角色 200
+      const write = await app.inject({
+        method: 'PUT',
+        url: '/api/members/m-ecB/role',
+        headers: { cookie: `teamhub_session=${cookie!.value}` },
+        payload: { role: 'groupAdmin' },
+      });
+      expect(write.statusCode).toBe(200);
+      // 第二个人再来 → 已有持旗成员 → 409（一次性初始化门）
+      const second = await app.inject({
+        method: 'POST',
+        url: '/api/setup/super-admin',
+        payload: { displayName: '另一个', groupName: '机械', pin: '5678' },
+      });
+      expect(second.statusCode).toBe(409);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('姓名命中既有成员 → 认领该行（不新建、组不动），授旗+PIN+会话', async () => {
+    const store = new InMemoryGovStore();
+    await clearFixturePm(store);
+    const app = buildHubServer({ identityMode: 'identity', store });
+    try {
+      const before = (await store.getSnapshot()).members.length;
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/setup/super-admin',
+        payload: { displayName: '电控B', pin: '1234' }, // fixtures 既有成员
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().member.id).toBe('m-ecB');
+      expect(res.json().member.projectManager).toBe(true);
+      const snap = await store.getSnapshot();
+      expect(snap.members.length).toBe(before); // 未新建
+      expect(snap.members.find((m) => m.id === 'm-ecB')?.groupId).toBe('grp-ec'); // 组不动
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('新建但缺 groupName → 400；显式 projectManager:false → 建人+PIN 但不授旗（门可再现）', async () => {
+    const store = new InMemoryGovStore();
+    await clearFixturePm(store);
+    const app = buildHubServer({ identityMode: 'identity', store });
+    try {
+      const bad = await app.inject({
+        method: 'POST',
+        url: '/api/setup/super-admin',
+        payload: { displayName: '没给组', pin: '1234' },
+      });
+      expect(bad.statusCode).toBe(400);
+
+      const noFlag = await app.inject({
+        method: 'POST',
+        url: '/api/setup/super-admin',
+        payload: { displayName: '普通队员', groupName: '视觉', projectManager: false, pin: '1234' },
+      });
+      expect(noFlag.statusCode).toBe(200);
+      const me = (await store.getSnapshot()).members.find((m) => m.displayName === '普通队员')!;
+      expect(me.projectManager).toBeFalsy(); // 不授旗
+      expect(me.pinHash).toBeTruthy(); // PIN 照设
+      // 名册仍无持旗成员 → 下一个人仍可走 bootstrap（门再现）
+      const next = await app.inject({
+        method: 'POST',
+        url: '/api/setup/super-admin',
+        payload: { displayName: '真队长', groupName: '机械', pin: '1234' },
+      });
+      expect(next.statusCode).toBe(200);
+      expect(next.json().member.projectManager).toBe(true);
     } finally {
       await app.close();
     }

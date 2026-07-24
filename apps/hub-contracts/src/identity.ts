@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MemberPublicSchema, MemberRoleSchema } from './pm-core.js';
+import { MemberGradeSchema, MemberPublicSchema, MemberRoleSchema } from './pm-core.js';
 
 /**
  * 轻身份登录契约（IDENTITY-LITE，D-083 §4.2 + 路线 v4 第 2 步）。
@@ -92,18 +92,30 @@ export const ClearPinResponseSchema = z.object({
 export type ClearPinResponse = z.infer<typeof ClearPinResponseSchema>;
 
 /**
- * POST /api/setup/super-admin（初始化首个管理员，K1 权限地基 + MEMBER-PM-FLAG 旗标化）请求：只收明文
- * pin（min4 max64，家庭影院级最低强度，服务端 scrypt 散列后落库、不回存明文）。**身份模式 only**（匿名 → 404，
- * 照 PUT pin 先例）。
+ * POST /api/setup/super-admin（初始化首个管理员，K1 权限地基 + MEMBER-PM-FLAG 旗标化 + SETUP-WIZARD-ROSTER
+ * 刀② bootstrap 扩展）请求：pin 明文必填（min4 max64，家庭影院级最低强度，服务端 scrypt 散列后落库、
+ * 不回存明文）。**身份模式 only**（匿名 → 404，照 PUT pin 先例）。
  *
- * 授权/前置（路由层）：① 须已登录（写门钩子天然保证）；② 名册尚无任何持「项目管理」旗标成员——否则
- * 409（一次性初始化门；已有管理员后授/收旗走 PUT /api/members/:id/project-manager）。**效果**：给**登录本人**
- * 授 `projectManager` 旗标 **且同笔设 pinHash**——先设 pin 再授旗，防"无 PIN 管理员被免密登录冒用"（这就是
- * "敏感设置须密码"的落点：首个管理员诞生即带口令）。响应回带该成员公开视图（MemberPublicSchema 剥 pinHash，
- * 密钥纪律）。
+ * 授权/前置（路由层）：名册尚无任何持「项目管理」旗标成员——否则 409（一次性初始化门；已有管理员后
+ * 授/收旗走 PUT /api/members/:id/project-manager）。**两路径**：
+ *  - **老路径（无 displayName）**：须已登录，给**登录本人**授旗 + 同笔设 pinHash（先 pin 后旗，防"无 PIN
+ *    管理员被免密登录冒用"）。
+ *  - **bootstrap 路径（刀② v2「先问你是谁」，给 displayName）**：名册无持旗成员时**豁免登录**（写门钩子
+ *    放过本路由，路由内自判）——按姓名认领既有成员行，或顺带新建（groupName 必填、按名 upsert 组；
+ *    asGroupLead → role:groupAdmin 组长申报；grade 缺省 freshman、后续名册 CSV 按姓名 upsert 修正），
+ *    一笔落库 = 建人 + 授旗（projectManager 缺省 true）+ 设 PIN + **签发会话 cookie（登录态）**。
+ *    操作者由此必在名册（原"操作者不在 CSV"问题消解；残余 edge = CSV 同名错拼会 upsert 出重名人，
+ *    导入报告回显 created 列表可肉眼发现）。
+ * 响应回带该成员公开视图（MemberPublicSchema 剥 pinHash，密钥纪律）。
  */
 export const SetupSuperAdminRequestSchema = z.object({
   pin: z.string().min(4).max(64),
+  // 见上 bootstrap 路径：四字段皆 optional，只在「先问你是谁」初始化门给。
+  displayName: z.string().min(1).optional(),
+  groupName: z.string().min(1).optional(),
+  asGroupLead: z.boolean().optional(),
+  projectManager: z.boolean().optional(),
+  grade: MemberGradeSchema.optional(),
 });
 export type SetupSuperAdminRequest = z.infer<typeof SetupSuperAdminRequestSchema>;
 
