@@ -712,11 +712,12 @@ export class InMemoryGovStore implements GovStore {
   }
 
   /**
-   * 名册批量导入（POST /api/roster/import，ROSTER-IMPORT，K8）。一次遍历已校验行，对 members + groups
-   * 就地应用：组按 name 匹配现有 / 本批已建、否则自动建（`grp-new-N` + kind 默认 + 当前赛季）；成员按
-   * displayName 幂等 upsert（新建 `member-new-N` / 命中更新 grade·groupId·role·gateReviewer）。
-   * **pinHash / projectManager 旗标永不动**（update 走 `...prev` 保留、new 不含——旗标与 role 正交、
-   * 导入不洗）。库里有但表里没有 → missingFromSheet（**绝不删**）。授权在路由层判、本方法无条件写。
+   * 名册批量导入（POST /api/roster/import，ROSTER-IMPORT，K8 + 刀③ 不写 role）。一次遍历已校验行，
+   * 对 members + groups 就地应用：组按 name 匹配现有 / 本批已建、否则自动建（`grp-new-N` + kind 默认 +
+   * 当前赛季）；成员按 displayName 幂等 upsert（新建 `member-new-N` role 恒 'member' / 命中更新
+   * grade·groupId·gateReviewer）。**role / pinHash / projectManager 旗标永不动**（update 走 `...prev`
+   * 保留——刀③ 起导入完全不写 role：组长改在导入后确认页任命，重导幂等天然不洗已任命组长）。
+   * 库里有但表里没有 → missingFromSheet（**绝不删**）。授权在路由层判、本方法无条件写。
    * **I0**：只做名单事实变更，绝不派生任何按人聚合/排行/按人筛选。
    */
   async importRoster(rows: readonly RosterImportRow[]): Promise<RosterImportOutcome> {
@@ -754,7 +755,7 @@ export class InMemoryGovStore implements GovStore {
         const member: Member = {
           id: nextSequentialId('member-new', this.memberSeq),
           displayName: row.displayName,
-          role: row.role,
+          role: 'member', // 刀③：导入不写 role——组长走导入后确认页，新成员恒 member
           grade: row.grade,
           groupId,
           status: ROSTER_IMPORT_MEMBER_STATUS,
@@ -767,10 +768,9 @@ export class InMemoryGovStore implements GovStore {
         created.push(row.displayName);
       } else {
         const prev = this.snapshot.members[idx];
-        // pinHash / projectManager 旗标永不动（`...prev` 保留）——旗标与 role 正交、导入不洗。
+        // role / pinHash / projectManager 旗标永不动（`...prev` 保留）——重导幂等不洗已任命组长。
         const member: Member = {
           ...prev,
-          role: row.role,
           grade: row.grade,
           groupId,
           gateReviewer: row.gateReviewer,

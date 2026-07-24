@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { MemberGrade, MemberRole } from './pm-core.js';
+import type { MemberGrade } from './pm-core.js';
 
 // `TextDecoder` 是 Node/浏览器共有的 WHATWG 标准全局，但 contracts 的 tsconfig `lib=ES2022`
 // （无 DOM / 无 node types）未声明它。这里补一个**最小、环境中立**的 module 级 ambient 声明——
@@ -28,7 +28,10 @@ declare const TextDecoder: {
 
 // ── CSV 模板（GET /api/roster/template）─────────────────────────────────────────────────────────
 // 表头列序即解析列序（parser 依此下标取字段）。**列说明放前端文案、不进 CSV 内**（K8 拍板①）。
-export const ROSTER_TEMPLATE_HEADERS = ['姓名', '年级', '组', '组长', '验收人'] as const;
+// **三列（ROSTER-CSV-3COL，公测补强刀③，2026-07-24 用户拍板）**：原五列（姓名/年级/组/组长/验收人）
+// 去掉组长、验收人两列——组长改在导入后确认页逐组选（有成员必选），验收人沿用年级默认派生
+// （大三及以上，见 GATE_REVIEWER_DEFAULT_GRADES）。解析器不再产 role。
+export const ROSTER_TEMPLATE_HEADERS = ['姓名', '年级', '组'] as const;
 
 // UTF-8 BOM（U+FEFF）：Excel 直接双击打开 CSV 时据此识别 UTF-8（否则中文乱码）。
 const UTF8_BOM = '﻿';
@@ -78,62 +81,22 @@ const GRADE_BY_LABEL: Record<string, MemberGrade> = {
   研究生: 'graduate',
 };
 
-/** 验收人默认规则（K8 拍板③）：留空时大三及以上（junior/senior/graduate）默认 true，否则 false。 */
+/** 验收人默认规则（K8 拍板③，刀③ 后唯一来源）：大三及以上（junior/senior/graduate）默认 true，否则 false。 */
 const GATE_REVIEWER_DEFAULT_GRADES: ReadonlySet<MemberGrade> = new Set([
   'junior',
   'senior',
   'graduate',
 ]);
 
-// 组长列 / 验收人列真值 token（大小写不敏感）：勾选类符号 + 是/1/y/true 家族。
-const TRUTHY_TOKENS: ReadonlySet<string> = new Set([
-  '✓',
-  '√',
-  '☑',
-  '是',
-  '对',
-  '1',
-  'y',
-  'yes',
-  'true',
-  't',
-]);
-// 验收人列显式假值 token（区别于「留空走默认」）。
-const FALSY_TOKENS: ReadonlySet<string> = new Set([
-  '✗',
-  '×',
-  '☐',
-  '否',
-  '0',
-  'n',
-  'no',
-  'false',
-  'f',
-  'x',
-]);
-
-function isTruthyCell(raw: string): boolean {
-  return TRUTHY_TOKENS.has(raw.trim().toLowerCase());
-}
-
-/** 验收人列三态：显式真 → true、显式假 → false、留空 / 无法识别 → null（走年级默认规则）。 */
-function parseReviewerCell(raw: string): boolean | null {
-  const v = raw.trim().toLowerCase();
-  if (v === '') return null;
-  if (TRUTHY_TOKENS.has(v)) return true;
-  if (FALSY_TOKENS.has(v)) return false;
-  return null; // 无法识别 → 宽松走默认（不为一格拼写把整行判失败）
-}
-
 // ── 已校验行草稿（parseRosterCsv 产出，store.importRoster 消费）────────────────────────────────
 export interface RosterImportRow {
   displayName: string;
   grade: MemberGrade;
   groupName: string;
-  // 解析器只产 'groupAdmin' | 'member'（项目管理旗标不经导入产生——授旗走 PUT project-manager 写口）。
-  role: MemberRole;
+  // 验收人 = 年级默认规则派生（刀③ 去掉验收人列后沿用既有默认，无新逻辑）。
   gateReviewer: boolean;
-  // true = 验收人列留空 + 年级默认规则判为 true（进报告 autoReviewers，让操作者看清自动标了谁）。
+  // true = 按年级默认规则判为 true（进报告 autoReviewers，让操作者看清自动标了谁）。刀③ 后恒等于
+  // gateReviewer（无显式列可覆盖，全部自动）。
   gateReviewerAuto: boolean;
 }
 
@@ -222,9 +185,10 @@ function tokenizeCsv(text: string): CsvRecord[] {
 }
 
 /**
- * CSV 文本 → 已校验行 + 坏行报告（K8 拍板②/③）。**首条非空记录 = 表头**（模板由 buildRosterTemplateCsv
- * 生成、列说明在前端），跳过。逐数据行：姓名/组为空 → 该行报错；年级非法 → 该行报错；组长/验收人列
- * 按真值 token 判定，验收人留空走年级默认规则。**任一坏行只报进 errors、不中断整批**。
+ * CSV 文本 → 已校验行 + 坏行报告（K8 拍板②/③ + 刀③ 三列）。**首条非空记录 = 表头**（模板由
+ * buildRosterTemplateCsv 生成、列说明在前端），跳过。逐数据行（只读前三列，多余列忽略）：姓名/组为空 →
+ * 该行报错；年级非法 → 该行报错；验收人按年级默认规则派生（大三及以上）。**任一坏行只报进 errors、
+ * 不中断整批**。
  */
 export function parseRosterCsv(text: string): RosterParseResult {
   // 防御性剥前导 BOM（decodeRosterBytes 已处理，但独立调用也稳）。
@@ -242,8 +206,6 @@ export function parseRosterCsv(text: string): RosterParseResult {
     const displayName = cell(0);
     const gradeLabel = cell(1);
     const groupName = cell(2);
-    const leadCell = record.fields[3] ?? '';
-    const reviewerCell = record.fields[4] ?? '';
 
     if (displayName === '') {
       errors.push({ line: record.line, reason: '姓名为空' });
@@ -261,12 +223,8 @@ export function parseRosterCsv(text: string): RosterParseResult {
       errors.push({ line: record.line, reason: '组为空' });
       continue;
     }
-    const role: MemberRole = isTruthyCell(leadCell) ? 'groupAdmin' : 'member';
-    const reviewerExplicit = parseReviewerCell(reviewerCell);
-    const gateReviewer =
-      reviewerExplicit !== null ? reviewerExplicit : GATE_REVIEWER_DEFAULT_GRADES.has(grade);
-    const gateReviewerAuto = reviewerExplicit === null && gateReviewer;
-    rows.push({ displayName, grade, groupName, role, gateReviewer, gateReviewerAuto });
+    const gateReviewer = GATE_REVIEWER_DEFAULT_GRADES.has(grade);
+    rows.push({ displayName, grade, groupName, gateReviewer, gateReviewerAuto: gateReviewer });
   }
   return { rows, errors };
 }

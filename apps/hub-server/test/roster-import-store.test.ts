@@ -16,7 +16,6 @@ import { SqliteGovStore } from '../src/store/sqlite-gov-store.js';
 function row(over: Partial<RosterImportRow> & Pick<RosterImportRow, 'displayName' | 'groupName'>): RosterImportRow {
   return {
     grade: 'junior',
-    role: 'member',
     gateReviewer: false,
     gateReviewerAuto: false,
     ...over,
@@ -30,15 +29,15 @@ describe('GovStore.importRoster', () => {
     dir = '';
   });
 
-  test('InMemory：自动建组 + 更新既有（pinHash / projectManager 旗标不动）+ missingFromSheet', async () => {
-    // fixture 既有成员含 m-visionA（视觉A, member）；先手动授旗 + 设 pinHash 验「导入不洗旗标/凭证」。
+  test('InMemory：自动建组 + 更新既有（role / pinHash / projectManager 旗标不动）+ missingFromSheet', async () => {
+    // fixture 既有成员含 m-visionA（视觉A, member）；先手动授旗 + 设 pinHash 验「导入不洗旗标/凭证/role」。
     const store = new InMemoryGovStore();
     await store.setProjectManager('m-visionA', true);
     await store.setMemberPin('m-visionA', 'scrypt:aa:bb');
 
     const outcome = await store.importRoster([
-      // 表里把持旗的「视觉A」标成组长——role 照表更新为 groupAdmin，旗标 / pinHash 不动。
-      row({ displayName: '视觉A', groupName: '视觉', role: 'groupAdmin', grade: 'senior' }),
+      // 重导「视觉A」——刀③ 起行草稿不含 role，库内 role/旗标/pinHash 全不动。
+      row({ displayName: '视觉A', groupName: '视觉', grade: 'senior' }),
       // 全新组「宣传」→ 自动建组 + 新成员。
       row({ displayName: '新宣传员', groupName: '宣传', grade: 'freshman', gateReviewer: true, gateReviewerAuto: true }),
     ]);
@@ -53,7 +52,7 @@ describe('GovStore.importRoster', () => {
 
     const snap = await store.getSnapshot();
     const vA = snap.members.find((m) => m.displayName === '视觉A')!;
-    expect(vA.role).toBe('groupAdmin'); // role 照表更新（刀②b 起 role 不再承载管理员权限）
+    expect(vA.role).toBe('member'); // role 永不动（重导幂等不洗已任命组长，刀③）
     expect(vA.projectManager).toBe(true); // 旗标永不动（导入不洗）
     expect(vA.pinHash).toBe('scrypt:aa:bb'); // pinHash 永不动
     expect(vA.grade).toBe('senior'); // 其余字段仍更新

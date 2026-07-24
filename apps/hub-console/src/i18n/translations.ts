@@ -1006,7 +1006,14 @@ const zh = {
   // 设置页「名册导入」块（ROSTER-IMPORT，K8）
   'settings.roster.title': '名册导入',
   'settings.roster.desc':
-    '用 CSV 批量导入 / 更新成员。列：姓名、年级（大一/大二/大三/大四/研究生）、组（组名，不存在会自动新建）、组长（填 ✓ 或 是 表示组长）、验收人（填 是/否；留空则大三及以上自动为验收人）。以姓名为准：已有则更新、没有则新建；库里有但表里没有的成员只提示、绝不删除。',
+    '用 CSV 批量导入 / 更新成员。列：姓名、年级（大一/大二/大三/大四/研究生）、组（组名，不存在会自动新建）。以姓名为准：已有则更新、没有则新建；库里有但表里没有的成员只提示、绝不删除。验收人按年级自动标（大三及以上）；导入完成后逐组确认组长。',
+  'settings.leads.title': '确认各组组长',
+  'settings.leads.desc':
+    '逐组从该组成员里选一名组长（有成员的组必选，已按现任组长或第一行成员预填建议）。没录入人的组不出现，可稍后再任命。',
+  'settings.leads.rowLabel': '{group}组长',
+  'settings.leads.submit': '确认组长',
+  'settings.leads.submitting': '任命中…',
+  'settings.leads.error': '组长任命失败：{detail}',
   'settings.roster.downloadTemplate': '下载模板',
   'settings.roster.upload': '上传 CSV',
   'settings.roster.importing': '正在导入…',
@@ -2159,7 +2166,14 @@ const en: Record<TranslationKey, string> = {
   // Settings "Roster import" block (ROSTER-IMPORT, K8)
   'settings.roster.title': 'Roster import',
   'settings.roster.desc':
-    'Bulk import / update members from CSV. Columns: name, grade (freshman/sophomore/junior/senior/graduate), group (group name; auto-created if missing), group lead (✓ or 是 marks a lead), reviewer (yes/no; blank auto-marks junior and above). Keyed by name: existing rows are updated, new ones created; members in the roster but not in the sheet are only reported, never deleted.',
+    'Bulk import / update members from CSV. Columns: name, grade (freshman/sophomore/junior/senior/graduate), group (group name; auto-created if missing). Keyed by name: existing rows are updated, new ones created; members in the roster but not in the sheet are only reported, never deleted. Reviewers are auto-marked by grade (junior and above); after import, confirm a lead for each group.',
+  'settings.leads.title': 'Confirm group leads',
+  'settings.leads.desc':
+    'Pick one lead per group from that group’s members (required for groups with members; pre-filled with the current lead or first member). Groups with no members are not shown — you can appoint later.',
+  'settings.leads.rowLabel': '{group} lead',
+  'settings.leads.submit': 'Confirm leads',
+  'settings.leads.submitting': 'Appointing…',
+  'settings.leads.error': 'Failed to appoint leads: {detail}',
   'settings.roster.downloadTemplate': 'Download template',
   'settings.roster.upload': 'Upload CSV',
   'settings.roster.importing': 'Importing…',

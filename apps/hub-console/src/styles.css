@@ -1529,6 +1529,38 @@ button,
   font-weight: var(--weight-medium);
 }
 
+/* 确认组长块（ROSTER-CSV-3COL 刀③）：逐组一行「组名 + 成员下拉」。复用 .settings-desc / .btn / .form-hint。 */
+.lead-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.lead-confirm__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lead-confirm__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.lead-confirm__group {
+  flex-shrink: 0;
+  min-width: 72px;
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+.lead-confirm__actions {
+  display: flex;
+  gap: 10px;
+}
+
 /* （B3 归并）原 .settings-btn → .btn.btn--secondary（禁用透明度 0.5→0.55 统一，容差内）。 */
 
 /* ===== 首启动向导（SETUP-WIZARD 刀②，setup-wizard.md §5）——全屏两态启动，覆盖整个 app shell ===== */

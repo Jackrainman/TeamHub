@@ -72,7 +72,7 @@ async function login(app: ReturnType<typeof buildHubServer>, memberId: string): 
 }
 
 describe('GET /api/roster/template', () => {
-  test('200 + CSV 带 BOM + 五列表头 + 附件下载头', async () => {
+  test('200 + CSV 带 BOM + 三列表头 + 附件下载头（刀③）', async () => {
     const app = buildHubServer();
     try {
       const res = await app.inject({ method: 'GET', url: '/api/roster/template' });
@@ -80,7 +80,7 @@ describe('GET /api/roster/template', () => {
       expect(res.headers['content-type']).toContain('text/csv');
       expect(res.headers['content-disposition']).toContain('attachment');
       expect(res.body.charCodeAt(0)).toBe(0xfeff); // BOM
-      expect(res.body).toContain('姓名,年级,组,组长,验收人');
+      expect(res.body).toContain('姓名,年级,组');
     } finally {
       await app.close();
     }
@@ -98,10 +98,10 @@ describe('POST /api/roster/import — 匿名模式', () => {
     const app = buildHubServer({ store });
     try {
       const csv =
-        '姓名,年级,组,组长,验收人\n' +
-        '老队员甲,大三,机械,✓,\n' + // 更新既有：grade→junior、组长、验收人默认 true(auto)
-        '新人丙,大一,电路,,\n' + // 新建 + 自动建组「电路」
-        '新人丁,大四,机械,,否\n'; // 新建，显式验收人否
+        '姓名,年级,组\n' +
+        '老队员甲,大三,机械\n' + // 更新既有：grade→junior、验收人默认 true(auto)
+        '新人丙,大一,电路\n' + // 新建 + 自动建组「电路」
+        '新人丁,大四,机械\n'; // 新建，验收人默认 true（大四）
       const res = await app.inject({
         method: 'POST',
         url: '/api/roster/import',
@@ -112,24 +112,25 @@ describe('POST /api/roster/import — 匿名模式', () => {
       expect(report.created.sort()).toEqual(['新人丁', '新人丙']);
       expect(report.updated).toEqual(['老队员甲']);
       expect(report.createdGroups).toEqual(['电路']);
-      expect(report.autoReviewers).toEqual(['老队员甲']);
+      expect(report.autoReviewers.sort()).toEqual(['新人丁', '老队员甲']);
       expect(report.missingFromSheet).toEqual(['老队员乙']);
       expect(report.failed).toEqual([]);
 
-      // 落库核实：老队员甲 role→groupAdmin、grade→junior、gateReviewer true；老队员乙不动、绝不删。
+      // 落库核实：老队员甲 grade→junior、gateReviewer true、role 不动（刀③ 导入不写 role）；老队员乙不动、绝不删。
       const snap = await store.getSnapshot();
       const jiaa = snap.members.find((m) => m.displayName === '老队员甲')!;
-      expect(jiaa.role).toBe('groupAdmin');
+      expect(jiaa.role).toBe('member');
       expect(jiaa.grade).toBe('junior');
       expect(jiaa.gateReviewer).toBe(true);
       expect(jiaa.updatedBy).toBe('console');
       expect(snap.members.find((m) => m.displayName === '老队员乙')).toBeDefined();
-      // 新组「电路」已建、id 自动生成；新人挂到正确组。
+      // 新组「电路」已建、id 自动生成；新人挂到正确组、role 恒 member。
       const dianlu = snap.groups.find((g) => g.name === '电路')!;
       expect(dianlu.id).toMatch(/^grp-new-/);
       const bing = snap.members.find((m) => m.displayName === '新人丙')!;
       expect(bing.id).toMatch(/^member-new-/);
       expect(bing.groupId).toBe(dianlu.id);
+      expect(bing.role).toBe('member');
       expect(bing.gateReviewer).toBe(false);
     } finally {
       await app.close();
@@ -140,7 +141,7 @@ describe('POST /api/roster/import — 匿名模式', () => {
     const store = new InMemoryGovStore(seedWith([]));
     const app = buildHubServer({ store });
     try {
-      const csv = '姓名,年级,组,组长,验收人\n错的,大五,机械,,\n阿甲,大三,机械,,'; // 无尾换行
+      const csv = '姓名,年级,组\n错的,大五,机械\n阿甲,大三,机械'; // 无尾换行
       const res = await app.inject({
         method: 'POST',
         url: '/api/roster/import',
@@ -157,12 +158,13 @@ describe('POST /api/roster/import — 匿名模式', () => {
     }
   });
 
-  test('旗标保护：重导时目标持 projectManager 旗标 → 旗标不动、pinHash 不动、role 照表更新', async () => {
+  test('旗标 + role 双保护：重导时目标持旗且已是组长 → 旗标 / role / pinHash 全不动（刀③ 导入不写 role）', async () => {
     const store = new InMemoryGovStore(
       seedWith([
         member({
           id: 'm-boss',
           displayName: '队长',
+          role: 'groupAdmin',
           projectManager: true,
           grade: 'senior',
           pinHash: 'scrypt:aa:bb',
@@ -171,8 +173,8 @@ describe('POST /api/roster/import — 匿名模式', () => {
     );
     const app = buildHubServer({ store });
     try {
-      // 表里把「队长」标成普通成员（无组长）——role 照表更新，旗标 / pinHash 不动。
-      const csv = '姓名,年级,组,组长,验收人\n队长,大四,机械,,\n';
+      // 重导（不含任何 role 信息）——旗标 / role / pinHash 全不动，其余字段照表更新。
+      const csv = '姓名,年级,组\n队长,大四,机械\n';
       const res = await app.inject({
         method: 'POST',
         url: '/api/roster/import',
@@ -181,7 +183,7 @@ describe('POST /api/roster/import — 匿名模式', () => {
       expect(res.statusCode).toBe(200);
       const snap = await store.getSnapshot();
       const boss = snap.members.find((m) => m.displayName === '队长')!;
-      expect(boss.role).toBe('member'); // role 照表更新（刀②b 起 role 不再承载管理员权限）
+      expect(boss.role).toBe('groupAdmin'); // role 永不动（重导幂等不洗已任命组长）
       expect(boss.projectManager).toBe(true); // 旗标永不动（导入不洗）
       expect(boss.pinHash).toBe('scrypt:aa:bb'); // pinHash 永不动
       expect(boss.grade).toBe('senior'); // 大四 → senior，其余字段仍更新
@@ -236,7 +238,7 @@ describe('POST /api/roster/import — 身份模式', () => {
     const store = new InMemoryGovStore(seedWith([]));
     const app = buildHubServer({ store, identityMode: 'identity' });
     try {
-      const csv = '姓名,年级,组,组长,验收人\n首个队员,大三,机械,✓,\n';
+      const csv = '姓名,年级,组\n首个队员,大三,机械\n';
       const res = await app.inject({
         method: 'POST',
         url: '/api/roster/import',
@@ -257,7 +259,7 @@ describe('POST /api/roster/import — 身份模式', () => {
     const app = buildHubServer({ store, identityMode: 'identity' });
     try {
       const cookie = await login(app, 'm-plain'); // 非持旗成员
-      const csv = '姓名,年级,组,组长,验收人\n谁,大三,机械,,\n';
+      const csv = '姓名,年级,组\n谁,大三,机械\n';
       const payload = multipart(csv);
       const res = await app.inject({
         method: 'POST',
@@ -278,7 +280,7 @@ describe('POST /api/roster/import — 身份模式', () => {
     const app = buildHubServer({ store, identityMode: 'identity' });
     try {
       const cookie = await login(app, 'm-boss');
-      const csv = '姓名,年级,组,组长,验收人\n新兵,大一,机械,,\n';
+      const csv = '姓名,年级,组\n新兵,大一,机械\n';
       const payload = multipart(csv);
       const res = await app.inject({
         method: 'POST',
@@ -300,7 +302,7 @@ describe('POST /api/roster/import — 身份模式', () => {
     );
     const app = buildHubServer({ store, identityMode: 'identity' });
     try {
-      const csv = '姓名,年级,组,组长,验收人\n谁,大三,机械,,\n';
+      const csv = '姓名,年级,组\n谁,大三,机械\n';
       const res = await app.inject({
         method: 'POST',
         url: '/api/roster/import',

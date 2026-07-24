@@ -8,8 +8,10 @@ import {
 } from '../src/index.js';
 
 /**
- * 名册导入纯层（ROSTER-IMPORT，K8）单测：编码探测（UTF-8 BOM / GBK 硬编码字节 / 无法识别）+
- * CSV 手写解析（引号字段 / 逗号转义 / 空行跳过 / 坏行报告 / 组长·验收人列 / 大三默认验收人）。
+ * 名册导入纯层（ROSTER-IMPORT，K8 + ROSTER-CSV-3COL 公测补强刀③）单测：编码探测（UTF-8 BOM /
+ * GBK 硬编码字节 / 无法识别）+ CSV 手写解析（引号字段 / 逗号转义 / 空行跳过 / 坏行报告 /
+ * 大三默认验收人）。刀③：模板三列（姓名/年级/组），解析器不再产 role（组长走导入后确认页），
+ * 验收人沿用年级默认派生。
  */
 
 // contracts 测试 tsconfig types 仅 vitest/globals（无 node types）——TextEncoder 是 Node/浏览器共有全局，
@@ -31,11 +33,11 @@ function gbkBytes(): Uint8Array {
 }
 
 describe('buildRosterTemplateCsv', () => {
-  test('带 BOM + CRLF + 五列表头，仅表头行', () => {
+  test('带 BOM + CRLF + 三列表头，仅表头行（刀③：去组长/验收人列）', () => {
     const csv = buildRosterTemplateCsv();
     expect(csv.charCodeAt(0)).toBe(0xfeff); // BOM
-    expect(csv).toBe('﻿姓名,年级,组,组长,验收人\r\n');
-    expect(ROSTER_TEMPLATE_HEADERS).toEqual(['姓名', '年级', '组', '组长', '验收人']);
+    expect(csv).toBe('﻿姓名,年级,组\r\n');
+    expect(ROSTER_TEMPLATE_HEADERS).toEqual(['姓名', '年级', '组']);
   });
 });
 
@@ -72,12 +74,12 @@ describe('decodeRosterBytes', () => {
 });
 
 describe('parseRosterCsv', () => {
-  test('基础行：年级映射 + 组长真值 + 大三默认验收人', () => {
+  test('基础行：年级映射 + 大三默认验收人（不再产 role）', () => {
     const csv =
-      '姓名,年级,组,组长,验收人\n' +
-      '张三,大一,机械,,\n' + // 大一 → freshman，验收人默认 false
-      '李四,大三,电控,✓,\n' + // 大三 → junior + 组长；验收人默认 true（auto）
-      '王五,研究生,视觉,,否\n'; // 研究生但显式否 → gateReviewer=false（非 auto）
+      '姓名,年级,组\n' +
+      '张三,大一,机械\n' + // 大一 → freshman，验收人默认 false
+      '李四,大三,电控\n' + // 大三 → junior；验收人默认 true（auto）
+      '王五,研究生,视觉\n'; // 研究生 → graduate；验收人默认 true（auto）
     const { rows, errors } = parseRosterCsv(csv);
     expect(errors).toEqual([]);
     expect(rows).toHaveLength(3);
@@ -85,48 +87,58 @@ describe('parseRosterCsv', () => {
       displayName: '张三',
       grade: 'freshman',
       groupName: '机械',
-      role: 'member',
       gateReviewer: false,
       gateReviewerAuto: false,
     });
     expect(rows[1]).toMatchObject({
       displayName: '李四',
       grade: 'junior',
-      role: 'groupAdmin',
       gateReviewer: true,
       gateReviewerAuto: true,
     });
     expect(rows[2]).toMatchObject({
       displayName: '王五',
       grade: 'graduate',
-      gateReviewer: false,
-      gateReviewerAuto: false,
+      gateReviewer: true,
+      gateReviewerAuto: true,
     });
+    // 行草稿无 role 字段（刀③：导入不写 role，组长走导入后确认页）。
+    expect(rows[0]).not.toHaveProperty('role');
+  });
+
+  test('旧五列 CSV 向后兼容：多余列被忽略（只读前三列）', () => {
+    const csv =
+      '姓名,年级,组,组长,验收人\n' +
+      '李四,大三,电控,✓,否\n'; // 旧表多出的组长/验收人列忽略——验收人仍按年级默认 true
+    const { rows, errors } = parseRosterCsv(csv);
+    expect(errors).toEqual([]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].gateReviewer).toBe(true); // 大三默认派生，旧「否」列不再生效
+    expect(rows[0].gateReviewerAuto).toBe(true);
   });
 
   test('引号字段：内部逗号 / 转义引号 / 引号内换行', () => {
     const csv =
-      '姓名,年级,组,组长,验收人\n' +
-      '"张,三","大二","机械, 组",,\n' + // 姓名/组含逗号
-      '"李""四""","大三","电控",是,是\n'; // 转义引号 + 显式验收人真
+      '姓名,年级,组\n' +
+      '"张,三","大二","机械, 组"\n' + // 姓名/组含逗号
+      '"李""四""","大三","电控"\n'; // 转义引号
     const { rows, errors } = parseRosterCsv(csv);
     expect(errors).toEqual([]);
     expect(rows[0].displayName).toBe('张,三');
     expect(rows[0].groupName).toBe('机械, 组');
     expect(rows[0].grade).toBe('sophomore');
     expect(rows[1].displayName).toBe('李"四"');
-    expect(rows[1].gateReviewer).toBe(true);
-    expect(rows[1].gateReviewerAuto).toBe(false); // 显式给了、非默认
+    expect(rows[1].gateReviewer).toBe(true); // 大三默认
   });
 
   test('空行跳过 + 坏行报告（年级非法 / 姓名空 / 组空）不中断整批', () => {
     const csv =
-      '姓名,年级,组,组长,验收人\n' +
+      '姓名,年级,组\n' +
       '\n' + // 空行跳过（不报错）
-      '张三,大三,电控,,\n' + // 行3 正常
-      '错误行,大五,机械,,\n' + // 行4 年级非法
-      ',大三,视觉,,\n' + // 行5 姓名空
-      '孤儿,大四,,,\n'; // 行6 组空
+      '张三,大三,电控\n' + // 行3 正常
+      '错误行,大五,机械\n' + // 行4 年级非法
+      ',大三,视觉\n' + // 行5 姓名空
+      '孤儿,大四,\n'; // 行6 组空
     const { rows, errors } = parseRosterCsv(csv);
     expect(rows).toHaveLength(1);
     expect(rows[0].displayName).toBe('张三');
@@ -139,14 +151,14 @@ describe('parseRosterCsv', () => {
   });
 
   test('末行无换行结尾也解析', () => {
-    const csv = '姓名,年级,组,组长,验收人\n张三,大三,电控,,';
+    const csv = '姓名,年级,组\n张三,大三,电控';
     const { rows } = parseRosterCsv(csv);
     expect(rows).toHaveLength(1);
     expect(rows[0].displayName).toBe('张三');
   });
 
   test('前导 BOM 字符被剥（表头行不被误当数据）', () => {
-    const csv = '﻿姓名,年级,组,组长,验收人\n张三,大三,电控,,';
+    const csv = '﻿姓名,年级,组\n张三,大三,电控';
     const { rows, errors } = parseRosterCsv(csv);
     expect(errors).toEqual([]);
     expect(rows).toHaveLength(1);

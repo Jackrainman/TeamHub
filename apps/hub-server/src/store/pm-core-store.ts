@@ -197,9 +197,10 @@ export interface PmCoreStore {
    *  - **组解析**：`groupName` 匹配现有 `Group.name`，不存在则**自动建组**（id 生成照 nextSequentialId
    *    先例=`grp-new-N`、kind 用开放串默认值 `custom`、seasonId 取当前 active 赛季 ?? 顶层 seasonId）；
    *    同批同名组只建一次、计入 createdGroups。
-   *  - **幂等键 = displayName**：命中既有成员 → 更新 grade/groupId/role/gateReviewer（**pinHash 与
-   *    projectManager 旗标永不动**——role 枚举已不含管理员档，旗标与 role 正交、导入不洗）；不命中 →
-   *    新建（id=`member-new-N`、status=idle、currentTaskId=null、updatedBy='console'）。
+   *  - **幂等键 = displayName**：命中既有成员 → 更新 grade/groupId/gateReviewer（**role / pinHash /
+   *    projectManager 旗标永不动**——刀③ 起导入完全不写 role，组长走导入后确认页任命，重导幂等
+   *    天然不洗已任命组长）；不命中 → 新建（id=`member-new-N`、role 恒 'member'、status=idle、
+   *    currentTaskId=null、updatedBy='console'）。
    *  - **missingFromSheet**：库里有但表里没有的成员 → 只回报告、**绝不删**。
    *
    * 授权（匿名=写门即可 / 身份=须 superAdmin，但空板豁免登录）在**路由层**判——store 只做无条件应用。

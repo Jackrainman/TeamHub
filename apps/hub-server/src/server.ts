@@ -864,7 +864,7 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   // 名册此前无任何增删通道（唯一来源 = demo seed 落盘）；身份模式 + 空板 = 登录死锁。本对端点解开它。
 
   // GET /api/roster/template：下载 CSV 模板（读端点、不过写门）。UTF-8 带 BOM（Excel 直开不乱码）+
-  // Content-Disposition 附件下载。表头 = 姓名,年级,组,组长,验收人（仅表头行；列说明放前端文案、不进 CSV）。
+  // Content-Disposition 附件下载。表头 = 姓名,年级,组（刀③ 三列；仅表头行；列说明放前端文案、不进 CSV）。
   app.get('/api/roster/template', async (_request, reply) => {
     void reply.header(
       'content-disposition',
@@ -881,7 +881,7 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   // 一旦有人即恢复须 superAdmin。全局写门钩子已把本路由排除在「须有会话」硬门之外（isRosterBootstrap），
   // 故此处自行做完整鉴权。**编码探测**：decodeRosterBytes（UTF-8 BOM / 无 BOM UTF-8 / 回退 gbk），都失败 → 400。
   // **解析**：parseRosterCsv（手写零依赖，坏行进报告不中断整批）；**应用**：store.importRoster（displayName
-  // 幂等 upsert + 自动建组 + superAdmin/pinHash 保护 + missingFromSheet 绝不删）。响应 = 六段导入报告（I0：
+  // 幂等 upsert + 自动建组 + role/pinHash/旗标永不动 + missingFromSheet 绝不删）。响应 = 六段导入报告（I0：
   // 全是名单事实回显给操作者本人，不落任何聚合统计）。
   app.post('/api/roster/import', async (request, reply) => {
     const snapshot = await store.getSnapshot();

@@ -570,10 +570,11 @@ export class SqliteGovStore implements GovStore {
   }
 
   /**
-   * 名册批量导入（ROSTER-IMPORT，K8）：整批在一个事务里应用到 members + groups（半程崩溃回滚，
-   * 无「建了组没建人」中间态）。逐字镜像 InMemoryGovStore.importRoster——组按 name 匹配现有 / 本批
-   * 已建、否则自动建（`grp-new-N` + kind 默认 + 当前赛季）；成员按 displayName 幂等 upsert
-   * （新建 `member-new-N` / 命中更新 grade·groupId·role·gateReviewer，pinHash / projectManager 旗标永不动）。
+   * 名册批量导入（ROSTER-IMPORT，K8 + 刀③ 不写 role）：整批在一个事务里应用到 members + groups（半程
+   * 崩溃回滚，无「建了组没建人」中间态）。逐字镜像 InMemoryGovStore.importRoster——组按 name 匹配现有 /
+   * 本批已建、否则自动建（`grp-new-N` + kind 默认 + 当前赛季）；成员按 displayName 幂等 upsert
+   * （新建 `member-new-N` role 恒 'member' / 命中更新 grade·groupId·gateReviewer，role / pinHash /
+   * projectManager 旗标永不动——重导幂等不洗已任命组长）。
    * 本地 Map 缓存追踪同批已建组 / 已改成员，避免同批同名重复建。
    */
   async importRoster(rows: readonly RosterImportRow[]): Promise<RosterImportOutcome> {
@@ -617,7 +618,7 @@ export class SqliteGovStore implements GovStore {
           const member: Member = {
             id: nextSequentialId('member-new', this.memberSeq),
             displayName: row.displayName,
-            role: row.role,
+            role: 'member', // 刀③：导入不写 role——组长走导入后确认页，新成员恒 member
             grade: row.grade,
             groupId,
             status: ROSTER_IMPORT_MEMBER_STATUS,
@@ -632,7 +633,6 @@ export class SqliteGovStore implements GovStore {
         } else {
           const member: Member = {
             ...prev,
-            role: row.role,
             grade: row.grade,
             groupId,
             gateReviewer: row.gateReviewer,

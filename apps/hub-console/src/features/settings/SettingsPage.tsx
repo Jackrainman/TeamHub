@@ -5,7 +5,9 @@ import type {
   AgentBackend,
   BotChannel,
   ConfigIdentityMode,
+  Group,
   MemberGrade,
+  MemberPublic,
   MemberRole,
   RosterImportReport,
   Season,
@@ -20,6 +22,7 @@ import { FormGrid } from '../../components/FormGrid';
 import { MetaRow } from '../../components/MetaRow';
 import { SegToggle } from '../../components/SegToggle';
 import { Select } from '../../components/Select';
+import { GroupLeadConfirm } from './GroupLeadConfirm';
 import { APIBASE_KEY, WRITE_TOKEN_KEY } from '../../constants';
 import { humanizeFormError } from '../../utils';
 
@@ -482,6 +485,8 @@ function MembersPermissionsSection({
           emptyRoster={emptyRoster}
           sectionWriteLocked={writeLocked}
           lockHint={lockHint}
+          members={members}
+          groups={groups}
           onImported={invalidateRoster}
         />
         {lockHint ? <p className="task-detail__hint">{lockHint}</p> : null}
@@ -671,27 +676,38 @@ function SetupAdminCard({
   );
 }
 
-// 名册导入块（ROSTER-IMPORT，K8）：下载 CSV 模板（直链 GET）+ 上传 CSV（multipart）+ 导入后渲染六段报告。
-// **空板豁免**：名册为空时上传免锁（解开身份模式空板死锁——无人可选→无法登录→无法初始化管理员）；否则
-// 跟随分区权限（未登录 / 非管理员则禁用 + 说明）。模板下载按钮恒可用（读端点无鉴权）。
+// 名册导入块（ROSTER-IMPORT，K8 + 刀③ 导入后确认组长）：下载 CSV 模板（直链 GET）+ 上传 CSV
+// （multipart）+ 导入后渲染六段报告 + 确认组长块（GroupLeadConfirm——刀③ 起 CSV 不含组长列，
+// 导入完成后逐组从该组成员选组长）。**空板豁免**：名册为空时上传免锁（解开身份模式空板死锁——
+// 无人可选→无法登录→无法初始化管理员）；否则跟随分区权限（未登录 / 非管理员则禁用 + 说明）。
+// 模板下载按钮恒可用（读端点无鉴权）。
 function RosterImportBlock({
   client,
   emptyRoster,
   sectionWriteLocked,
   lockHint,
+  members,
+  groups,
   onImported,
 }: {
   client: HubApiClient;
   emptyRoster: boolean;
   sectionWriteLocked: boolean;
   lockHint: string | null;
+  members: readonly MemberPublic[];
+  groups: readonly Group[];
   onImported: () => void;
 }) {
   const { t } = useI18n();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // 确认组长块按「本次导入」开合：再次导入重新出现（leadsDone 复位）。
+  const [leadsDone, setLeadsDone] = useState(false);
   const mutation = useMutation({
     mutationFn: (file: File) => client.importRoster(file),
-    onSuccess: () => onImported(),
+    onSuccess: () => {
+      setLeadsDone(false);
+      onImported();
+    },
   });
   // 空板豁免：名册为空时上传免锁；否则跟随分区写权限（未登录 / 非管理员锁）。
   const uploadLocked = emptyRoster ? false : sectionWriteLocked;
@@ -738,6 +754,18 @@ function RosterImportBlock({
         </p>
       ) : null}
       {report ? <RosterReportView report={report} /> : null}
+      {/* 刀③：导入完成 → 确认各组组长（有成员的叶子组必选、默认建议现任组长 ?? 第一行成员，空组不出现）。 */}
+      {report && !leadsDone ? (
+        <GroupLeadConfirm
+          client={client}
+          members={members}
+          groups={groups}
+          onConfirmed={() => {
+            setLeadsDone(true);
+            onImported();
+          }}
+        />
+      ) : null}
     </div>
   );
 }
