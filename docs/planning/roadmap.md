@@ -161,7 +161,7 @@ v0.3 形态本质上是"跨组需求单"——为大组织异步协作 + 责任�
 - 目标：群聊中声明状态和阻塞，自动同步到多维表格
 - 形态：可能是飞书捷径/自动化流程 + ProbeFlash 后端
 
-> 出站扩展实现通道（D-022 拍板）：3 秒 ack 同步路径 → SDK；卡片 / 多维表 / 建群 / OAuth / 拉成员等非同步路径 → lark-cli（经 apps/lark-toolkit/cli-bridge.ts）。详见 `docs/design/lark-connector.md` §9 与 `docs/superpowers/specs/2026-05-21-lark-cli-integration-design.md`。
+> 出站扩展实现通道（D-022 拍板）：3 秒 ack 同步路径 → SDK；卡片 / 多维表 / 建群 / OAuth / 拉成员等非同步路径 → lark-cli（经 apps/lark-toolkit/cli-bridge.ts）。详见 `docs/design/lark-connector.md` §9 与 `docs/archive/pre-pivot-plans/2026-05-21-lark-cli-integration-design.md`。
 
 ## 5. ProbeFlash v0.3 — 已冻结
 

@@ -18,7 +18,7 @@ export interface HandlerDeps {
 }
 
 /**
- * L6 入站信任边界校验矩阵（docs/planning/code-audit-2026-06-14.md）——三项全部只在
+ * L6 入站信任边界校验矩阵（docs/archive/audits/code-audit-2026-06-14.md）——三项全部只在
  * 对应 env 配置时启用，未配置保持放行（不 fail-closed）；限流阈值本身恒生效：
  *   1. tenant_key allow-list  — LARK_ALLOWED_TENANT_KEY 未设 → 放行
  *   2. sender open_id allow-list — LARK_ALLOWED_SENDER_IDS 未设 → 放行

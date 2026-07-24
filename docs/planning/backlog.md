@@ -33,7 +33,7 @@
 
 ## P0 — 三支柱（D-039 第一轮落地，演进留地基 / AI 不碰治理）
 
-> 三根全 P0（**D-040 破冰序 `base → kb → pm → inv`**，**D-042 定基调**：base 补收口刀、KB 拆 CORE/LARK、PM 删 Member.status+结构键、INV 留着排最后对话记账防死、Hermes 最后接）。frontier 顺序：**三支柱读写全 done（KB-CORE D-044 / PM D-045 / 读视图 D-046 / KB 闭环 D-047 / 写侧表单 D-048 / 设置页 D-049 / KB 导入 D-050，2026-06-14）→ 下一批待用户排期：AUDIT-FIXES（部署前必修 7 条）/ CONSOLE-COPY-HUMANIZE / INV 第三支柱 / 部署上线**（KB-LARK/Hermes 后置）。设计北极星：比死掉的表格更省事 ｜ 用着就更新（派生优先）｜ AI 只当仓管·转译不下判断 ｜ 人在环 ｜ 小作坊轻量。共享底座 = `HUB-SERVER-GOV-SCAFFOLD`（持久层 + real CRUD 路由），任一根先做都先过它。详见 `docs/design/three-pillar-feasibility.md`。
+> 三根全 P0（**D-040 破冰序 `base → kb → pm → inv`**，**D-042 定基调**：base 补收口刀、KB 拆 CORE/LARK、PM 删 Member.status+结构键、INV 留着排最后对话记账防死、Hermes 最后接）。frontier 顺序：**三支柱读写全 done（KB-CORE D-044 / PM D-045 / 读视图 D-046 / KB 闭环 D-047 / 写侧表单 D-048 / 设置页 D-049 / KB 导入 D-050，2026-06-14）→ 下一批待用户排期：AUDIT-FIXES（部署前必修 7 条）/ CONSOLE-COPY-HUMANIZE / INV 第三支柱 / 部署上线**（KB-LARK/Hermes 后置）。设计北极星：比死掉的表格更省事 ｜ 用着就更新（派生优先）｜ AI 只当仓管·转译不下判断 ｜ 人在环 ｜ 小作坊轻量。共享底座 = `HUB-SERVER-GOV-SCAFFOLD`（持久层 + real CRUD 路由），任一根先做都先过它。详见 `docs/archive/three-pillar-feasibility.md`。
 
 | 任务 | 状态 | type | 内容 |
 |------|------|------|------|
@@ -43,7 +43,7 @@
 | KB-IMPORT-PROBEFLASH | done(2026-06-14, D-050) | code | ProbeFlash `.debug-archive` 一次性导入 CLI（`npm kb:import`）；nit 收口见 KB-IMPORT-FOLLOWUP |
 | KB-IMPORT-FOLLOWUP | done(2026-06-20, D-051 续) | code | 二次对抗审计 3 缺陷硬化（撞 slug/日历/EISDIR）+nit①②收口；hub-server 149 测绿 |
 | INV-BOM-DESIGN | pending (P1；**07-15 D-086 修正**：对话记账判死作废"主力"定位，防死改"必要动作的副产品"；缺料双报警×赛场打标×粒度分级设计已出=`docs/design/inv-alert-redesign.md` DESIGN-DRAFT，实现不排期) | design | **库存/BOM**（低频但找一次要命）：零件台账（3508/达妙6220/备件/坏件/每车 BOM 用量余量）。**D-042 定位 = 不冻结·留着·排最后·重要**。防死机制：**对话记账（主力，靠 Hermes：说"坏了一个 3508"助手记一笔，依赖 `HUB-HERMES-ADAPTER`）+ 一次性盘点建底（起步，老师也要）+ 看图算量（增强，后续；本地大内存可兜底）**；新增 **缺口主动向用户汇报**；老实定位 = **"大概有什么/还有没有"非精确实时账**（静默拿走的漏认了）；**锁松一档**=不禁止做，但做时必须带对话记账低门槛入口、不许做成纯手敲死表。`PartStock/BomEntry/DamagedPart` 新建（confirmedBy=timestamp 守 I0、AI 草稿态 confirmedBy=null 守 C4、不回写 Bitable 守 G2）。归战队数据库家族（同机械图纸档案库 D-038）|
-| LARK-BIN-PROBE | pending（跨根前置，D-040） | probe/fix | **lark bin 双语义债实测 + 统一修**（KB R5 拉飞书资料 / INV bitable 的前置）：`cli-bridge.ts:17,47` 调 `execa('lark', …)` 但 `:22` 报错写 `'lark-cli not found'`，KB/INV 设计修复方向相反、无法从代码判定。**实测由用户在 WSL2（100.78.202.84）跑**（那台是测试机、不默认 SSH）：`which lark && which lark-cli && lark --version`；bin 名错→改 execa 参数，否则→改 message。顺带可实测 `wiki.v1.documents.get` / `bitable…record.search` method 名（风险5）。详见 `docs/design/three-pillar-reqdesign.md` §4 |
+| LARK-BIN-PROBE | pending（跨根前置，D-040） | probe/fix | **lark bin 双语义债实测 + 统一修**（KB R5 拉飞书资料 / INV bitable 的前置）：`cli-bridge.ts:17,47` 调 `execa('lark', …)` 但 `:22` 报错写 `'lark-cli not found'`，KB/INV 设计修复方向相反、无法从代码判定。**实测由用户在 WSL2（100.78.202.84）跑**（那台是测试机、不默认 SSH）：`which lark && which lark-cli && lark --version`；bin 名错→改 execa 参数，否则→改 message。顺带可实测 `wiki.v1.documents.get` / `bitable…record.search` method 名（风险5）。详见 `docs/archive/three-pillar-reqdesign.md` §4 |
 | HUB-HERMES-ADAPTER | pending (**最后做**, D-042) | code/design | **统一触点能力：项目调用 Hermes/openclaw**（四层架构最上层，先搭壳子→最后接，一次接多根受益）。能力是真的（Hermes 已接通能调飞书 CLI），缺口在项目侧"去调用助手"的对接代码。接上后：库存**对话记账**（"坏了一个 3508"→助手记一笔同步表）+ 知识库随手沉淀 + 进度表随口更新 走同一条路。接时核 `LARK-BIN-PROBE` 细节、mock-first、§3/§8 审批门后。归 D-036 openclaw=Hermes 类 adapter 轨（≠ 否决的 openclaw-lark 协议桥）|
 
 ## P1 — Console 收尾 / UI 打磨（D-048 后，2026-06-14 立项；当轮只记录未实现）
@@ -63,7 +63,7 @@
 | OOP-QUALITY-ROADMAP | done(2026-06-22) | code | OOP+质量四批次（`882fd56`/`2fd6970` v0.7.5→0.7.6/`21ea803`/`c7d410f`） |
 | VISUAL-POLISH-A-H | done(2026-06-23~24) | code | 视觉打磨 A-H 全批+暗色主题（`54dcfa6`…`657f208`） |
 | PLAYWRIGHT-HEALTHCHECK-CONSOLIDATE | done(2026-06-24) | code | Playwright 体检收口进 hub-console devDep（`2231903`/`b4ac8d8`，`npm run health-check`） |
-| AUDIT-FIXES-2026-06-14 | 必修 7 条 (D-059) + 2nd 批 (D-065) + **长尾 14 修 done (2026-06-19)** / 余 defer | code | **代码审计修复批次** —— 详单见 `docs/planning/code-audit-2026-06-14.md`（15-agent 对抗审计，confirmed 42：High 5 / Med 16 / Low 12 / Nit 3）。**部署前必修 7 条 done (D-059)**：H1 环守卫 / H2 写链重置 / H3 写鉴权+限流+bodyLimit / H4 status clamp / M6 剥 confirmedBy / H5+M11 compose / M9 单调序号。**2nd 批 done (D-065，2026-06-15 审计后 server 硬化)**：M8（invoke safeParse+400）/ L4（closeout 201）/ M13（构造器补全克隆 8 数组）/ M21（console 写侧测试）+ 预写部署代码（SystemStatus.mode enum / trustProxy / DEMO_SEED 空板）。**长尾 14 修 done (2026-06-19，wf_70fbdabb)**：M7(getSnapshot 浅拷贝)/M15(nodesDraggable)/M18(IssueCard .min)/M19(closeout .trim().min→400)/L1(单调 ID)/L5(static-console realpath)/L7(KbSimilar projectId)/L8(updatedAt isoDateTime)/L9(seq useRef)/L10(冷启动 defaults)/L12(.nvmrc+engines)/N1(adapter enum)/N2(tie-break Date.parse)/N3(sharedResourceBusy 测试+I0 护栏)；2-lens 双 ship/mustFix=0·三包 verify 绿(95/136/35)。**defer/已做**：M8/M9/M10/M16/M17主体/L4/L11 复核已落或不适用、M14(DepGraph selectedId 重接线无法确证无回归)·M17 .max 阈值未定·M20 workspace infra 侵入。**L6 已修（2026-07-03，`9676461`，见 GATEWAY-INBOUND-WHITELIST-L6）——42 条全清**。**仍 decision-needed**：bridge/members（用户拍暂留·部署前必处理）、ownerId/ownerLabel 设计张力（AGENTS §5 对账） |
+| AUDIT-FIXES-2026-06-14 | 必修 7 条 (D-059) + 2nd 批 (D-065) + **长尾 14 修 done (2026-06-19)** / 余 defer | code | **代码审计修复批次** —— 详单见 `docs/archive/audits/code-audit-2026-06-14.md`（15-agent 对抗审计，confirmed 42：High 5 / Med 16 / Low 12 / Nit 3）。**部署前必修 7 条 done (D-059)**：H1 环守卫 / H2 写链重置 / H3 写鉴权+限流+bodyLimit / H4 status clamp / M6 剥 confirmedBy / H5+M11 compose / M9 单调序号。**2nd 批 done (D-065，2026-06-15 审计后 server 硬化)**：M8（invoke safeParse+400）/ L4（closeout 201）/ M13（构造器补全克隆 8 数组）/ M21（console 写侧测试）+ 预写部署代码（SystemStatus.mode enum / trustProxy / DEMO_SEED 空板）。**长尾 14 修 done (2026-06-19，wf_70fbdabb)**：M7(getSnapshot 浅拷贝)/M15(nodesDraggable)/M18(IssueCard .min)/M19(closeout .trim().min→400)/L1(单调 ID)/L5(static-console realpath)/L7(KbSimilar projectId)/L8(updatedAt isoDateTime)/L9(seq useRef)/L10(冷启动 defaults)/L12(.nvmrc+engines)/N1(adapter enum)/N2(tie-break Date.parse)/N3(sharedResourceBusy 测试+I0 护栏)；2-lens 双 ship/mustFix=0·三包 verify 绿(95/136/35)。**defer/已做**：M8/M9/M10/M16/M17主体/L4/L11 复核已落或不适用、M14(DepGraph selectedId 重接线无法确证无回归)·M17 .max 阈值未定·M20 workspace infra 侵入。**L6 已修（2026-07-03，`9676461`，见 GATEWAY-INBOUND-WHITELIST-L6）——42 条全清**。**仍 decision-needed**：bridge/members（用户拍暂留·部署前必处理）、ownerId/ownerLabel 设计张力（AGENTS §5 对账） |
 | GATEWAY-INBOUND-WHITELIST-L6 | done(2026-07-03, `9676461`) | code | lark-gateway 入站白名单+限流；审计 42 条至此全清 |
 | FORM-ADDLEG-INLINE-TASK | pending（07-02 表单审计遗留补记） | code | 接力画布「加一棒」表单支持**就地新建任务**（现只能从已有任务下拉选，任务不存在时须先去项目页建再回来）；随 SCHED-NARROW 一轮做或独立小刀 |
 | UX-SCAN-BACKLOG-2026-07-12 | pending（B0 sonnet 9 页×4 主题扫描，交互/信息架构类分流） | code | **UX 扫描 backlog 项**（详单=`docs/design/design-language.md` §10 第二表）：我的视图空态自相矛盾+黑话；知识库首屏空壳无预览/角标；总览空态大卡压实据+统计卡异常态规则不一+黑话无解释；依赖图无图例+空态详情面板占 1/3 屏；学习方向电控卡过载破网格+缺口三处重复表达；图纸档案 artifact:// 裸链接+分组标题层级倒挂；日期输入原生 mm/dd/yyyy；库存追踪方式选择器散装；warm 主题区分度弱；面包屑与品牌名重复。视觉/结构类 8 条（U1–U8）已分流进 DESIGN-LANG B1–B5 批次顺带修复，不在此表 |
@@ -173,7 +173,7 @@
 |------|------|------|------|
 | WORKFLOW-CONTEXT-SLIM-01 | done(2026-06-06) | docs | agent-state.json 机器索引（后随 D-066 退役，现存 `archive/legacy-harness/`） |
 | HUB-CONCEPT-01 | done(2026-06-06, D-024) | design | `docs/design/team-hub-concept.md`（canonical）落地 |
-| HUB-STACK-DECISION | done(2026-06-06, D-025) | design | `docs/design/team-hub-stack-decision.md`（Node/TS 统一栈+Compose 硬要求） |
+| HUB-STACK-DECISION | done(2026-06-06, D-025) | design | `docs/archive/team-hub-stack-decision.md`（Node/TS 统一栈+Compose 硬要求） |
 | HUB-BACKEND-SCAFFOLD | done(2026-06-07) | code | `apps/hub-server` 包起手（Fastify+Zod+契约测试） |
 | HUB-CONTRACTS-V0 | done(2026-06-07) | code | `apps/hub-contracts` 共享契约包（Zod schema+fixtures） |
 | HUB-CONSOLE-SCAFFOLD | done(2026-06-07) | code | `apps/hub-console` 包起手（React/Vite+mock/real split） |
@@ -188,7 +188,7 @@
 | 任务 | 状态 | type | 内容 |
 |------|------|------|------|
 | SKILL-01-DEBUG-CHECKLIST-V0_0_1 | done(`f5df2bf`) | skill | 已闭环；skill 后随 HARNESS-DIET 移 `archive/legacy-harness/` |
-| SKILL-02-DOGFOOD-NOTE | done(`f5df2bf`) | docs | `docs/dogfood/README.md` 落地 |
+| SKILL-02-DOGFOOD-NOTE | done(`f5df2bf`) | docs | `docs/archive/dogfood-readme.md` 落地（流程从未运转，2026-07-24 归档） |
 | SKILL-03-PROMPT-ITERATION | pending（dogfood ≥ 30 天） | skill | 基于 dogfood 数据调 SKILL.md 的 prompt 模板；只动 SKILL.md，不动其他 |
 | SKILL-04-PERSONAL-DAILY-SUMMARY | done(`93dc7d0`) | skill | 已闭环 |
 | SKILL-05-PRE-MATCH-CHECKLIST | done(`9beb907`) | skill | 已闭环 |

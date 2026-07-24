@@ -18,4 +18,4 @@ const reply = await skills.dispatch('自动跑点又歪了');
 - `claude`：当前 stub（throw not implemented）；接入真实 Claude provider 后实现
 - `deepseek`：当前 stub；接入真实 DeepSeek provider 后实现
 
-详见仓库根 `docs/superpowers/specs/2026-05-21-lark-cli-integration-design.md` §3。
+详见仓库根 `docs/archive/pre-pivot-plans/2026-05-21-lark-cli-integration-design.md` §3。

@@ -81,7 +81,7 @@
   - 死守 SDK（路径 ①）：每加一个能力线性增加 wrapper 代码
 - 落地任务：LARK-CLI-01..06（见 docs/archive/pre-pivot-plans/2026-05-21-lark-cli-integration.md）
 - 回滚：包级 git revert 到基线 e821c8f；决策级标 SUPERSEDED + 加 D-023
-- 关联 spec：docs/superpowers/specs/2026-05-21-lark-cli-integration-design.md
+- 关联 spec：docs/archive/pre-pivot-plans/2026-05-21-lark-cli-integration-design.md
 
 ## D-023 — SKILL.md 协议 v1.0
 
@@ -96,7 +96,7 @@
   - 路径 ④ 把流程类 skill 一并纳入 v1.0（强行统一会让协议太抽象失去解释力；留 v1.0 跑两三个迭代后单独评估）
 - 适用范围：v1.0 协议升 DECIDED 后对**新 skill** 立即生效（含飞书 / BRIDGE / TRAIL 系列）；对**老 skill**（3 个 active）通过后续迁移任务逐个达到合规。本期**不动**任何现有 SKILL.md。
 - 落地任务：SKILL-PROTOCOL-V1（本任务，design）+ 后续 `SKILL-MIGRATION-V1-*` 系列三个独立原子任务（升 DECIDED 后认领，单 skill ~20 min）
-- 详细 ADR 草稿：`docs/design/D-023-skill-protocol-v1.md`（含 §3 放弃方案展开 / §4 影响 / §5 落地任务）
+- 详细 ADR 草稿：`docs/archive/D-023-skill-protocol-v1.md`（含 §3 放弃方案展开 / §4 影响 / §5 落地任务）
 - 关联：`.agents/skills/PROTOCOL-v1.0.md`（协议正文）、`docs/planning/skill-protocol-migration-gap.md`（3 个 skill + 1 个流程类 skill 的迁移差距清单）
 - 关联 ADR：D-018（pivot 后 Skill / Bridge / Trail 三 facet——本协议是 Skill facet 的契约底座）、D-022（lark-cli 接入 + 三包拆分——后续飞书 skill 输出按 v1.0 协议）
 
@@ -144,7 +144,7 @@
   - Teamhub 自研 Git forge 或 artifact 仓库：偏离 Team Hub 控制面定位，维护成本过高。
 - 适用范围：Team Hub 后续新代码包、控制台、adapter contract、Compose 部署与数据边界。v0.3 冻结包仅保留历史与致命补丁。
 - 后续任务：`HUB-BACKEND-SCAFFOLD`、`HUB-CONSOLE-SCAFFOLD`、`HUB-CONTRACTS-V0`、`HUB-COMPOSE-SCAFFOLD`、`HUB-LARK-WIRE`、`HUB-ADAPTERS-MOCK`、`HUB-GIT-FORGE-DESIGN`。
-- 事实源：`docs/design/team-hub-stack-decision.md`
+- 事实源：`docs/archive/team-hub-stack-decision.md`
 
 ## D-026 — Teamhub 立魂：四层架构 + 路线 A + 设计宪法三层重构【thesis 已回中·推演归档】
 
@@ -223,7 +223,7 @@
   1. **文档保留规则**：一篇文档留在 `docs/design`/`docs/research`，当且仅当它是 (a) 某个已 ship 或 frontier 功能的当前 spec，或 (b) 一个人会照着做的 guide。凡"导向某决策的调研"或"某项已完成工作的计划"，`git mv` 进 `docs/archive/`，结论留在本文件。archive≠delete（git 历史 + `docs/archive/` 保留）。
   2. **本轮退役**：`docs/superpowers/plans/` → `docs/archive/pre-pivot-plans/`（3 个 pivot 前大 plan，4038 行）。
   3. **本轮合并（杀双写）**：`team-hub-product-definition.md` 的独有实质（数据模型细节：牵头组=重心组 / Assignment 多对多带角色 / 跨组天然 / Resource 争用；中央视图务实版；反监视机制；假完成判定）并入 canonical `team-hub-concept.md`，原文件退役至 `docs/archive/team-hub-product-definition-v0.md`（status: retired）。**canonical 单一定位源 = concept.md**。
-- 暂缓（用户认同，记此以免遗忘）：`lark-api-capability.md` + `lark-oss-candidates.md` 暂留 `docs/research`——前者仍是 pending `GOV-LARK-DERIVE`（触点层）的事实底座，二者均被 append-only 的 D-020/D-021 引用，现在动会 churn 决策日志且收益仅 364 行；**待 GOV-LARK-DERIVE 落地后归档**。scope 3（`superpowers/specs` / `visuals.md` / `D-023` / `workflow-evolution` / `agents/workflow`）未在本轮范围，留待后续；`docs/superpowers/specs/*` 内对已移走 plan 的交叉引用暂为 stale path，随 scope 3 一并清理。
+- 暂缓（用户认同，记此以免遗忘）：`lark-api-capability.md` + `lark-oss-candidates.md` 暂留 `docs/research`——前者仍是 pending `GOV-LARK-DERIVE`（触点层）的事实底座，二者均被 append-only 的 D-020/D-021 引用，现在动会 churn 决策日志且收益仅 364 行；**待 GOV-LARK-DERIVE 落地后归档**。scope 3（`superpowers/specs` / `visuals.md` / `D-023` / `workflow-evolution` / `agents/workflow`）未在本轮范围，留待后续；`docs/superpowers/specs/*` 内对已移走 plan 的交叉引用暂为 stale path，随 scope 3 一并清理。**（2026-07-24 追记：scope 3 的 `superpowers/specs` 部分已由 DOCS-SLIM ④执行——目录整体退役进 `docs/archive/`。）**
 - 影响：活文档 8838 → ~4760 行（−46%）。引用更新：`now.md`（product-definition→concept）、`lark-connector.md` / `decisions.md`（plans 路径→archive）。
 - 事实源：`docs/design/team-hub-concept.md`（canonical 产品+架构）；本 ADR（保留规则）。
 
@@ -352,7 +352,7 @@
 
 ## D-040 — 三支柱需求设计分析：采纳破冰顺序 + 共享底座首任务收敛
 
-- 状态：**DECIDED**（用户 2026-06-13 "1+2+3 可行" 采纳；本 ADR = 落地路径权威源；详细分析见 `docs/design/three-pillar-reqdesign.md`）
+- 状态：**DECIDED**（用户 2026-06-13 "1+2+3 可行" 采纳；本 ADR = 落地路径权威源；详细分析见 `docs/archive/three-pillar-reqdesign.md`）
 - 日期：2026-06-13
 - 上下文：D-039 定三支柱但留口"先做哪根暂不指定"。跑 14-agent dynamic workflow（5 haiku 资产盘点 → 4 sonnet 逐根需求/接口设计 → 4 对抗核实[base=opus] → 1 opus 综合）做需求设计分析；对抗核实层用 grep 实证抓出初稿设计错误，综合据此收敛。
 - 决策：
@@ -361,7 +361,7 @@
   3. **7 条跨根风险**（见设计文档 §4）落地前必处理；其中 **lark bin 双语义债**（`cli-bridge.ts:17/47` execa 用 `'lark'` 但报错写 `'lark-cli'`，KB/INV 修复方向相反）单拆 **`LARK-BIN-PROBE`** 微任务，WSL2 实测 `which` 定论后统一修，先于任何飞书 CLI 功能（KB R5 / INV bitable）。
   4. **freeIdle/C2 测量错误**属已挂起治理派生债（D-031/D-039 边界），PM 本轮只 UI 降级标注「状态待确认」、不修底层。
 - supersedes / 细化：D-039 的"先后由真实痛点+破冰快慢定（暂不指定首发）" → 本 ADR 定 `base→kb→pm→inv` + 首任务。`HUB-SERVER-GOV-SCAFFOLD` 初稿的"8 GET 一把梭"被收敛。
-- 影响：本 ADR + `docs/design/three-pillar-reqdesign.md`（新建分析记录）+ `backlog.md`（base 行首任务收敛 + 新增 `LARK-BIN-PROBE` + 三支柱破冰序指针）+ `now.md`/`agent-state.json`（最近完成 + stage_goal）。**纯 docs/planning**（首任务实现是后续单独 atomic-task）。
+- 影响：本 ADR + `docs/archive/three-pillar-reqdesign.md`（新建分析记录）+ `backlog.md`（base 行首任务收敛 + 新增 `LARK-BIN-PROBE` + 三支柱破冰序指针）+ `now.md`/`agent-state.json`（最近完成 + stage_goal）。**纯 docs/planning**（首任务实现是后续单独 atomic-task）。
 - 事实源：本 ADR；workflow 输出（run `wf_67b54169-c3f`，14 agent / 853K token）；grep 实证（`server.ts`/`client.ts:87`/`attribution.ts:270`/`governance.ts:306`/`fixtures.ts:237`）；`D-039`（被细化）。
 
 ## D-041 — 任务为核心 + 项目计划表全员可见 + 甘特暂缓 + 视图解耦 + “和人关系”判定尺
@@ -393,7 +393,7 @@
 
 - 状态：**DECIDED**（甲方 2026-06-13 设计对话拍板"冲突直接用最新版、Hermes 最后接、库存留着排最后、修改 commit push 然后开始构建"；本 ADR = 三支柱**开始构建前的最终定基调**权威源；细化 D-039/D-040/D-041、推翻 D-040 一处 PM 指令；纯 docs/planning，代码零改）
 - 日期：2026-06-13
-- 上下文：在 D-041 定调"这次之后开始构建"后，跑 20-agent 闸门式 workflow 做**需求分析（闸门）+ 需求可行性分析**（5 分析器需求闸门[宪法=opus] → opus 裁定 → 5 haiku 实证盘点 → 4 sonnet 逐根评估 → 4 opus 对抗核实 → 1 opus 综合）。需求分析判 **proceed/0 阻断**（14 条全 major/minor），可行性分析出四根裁决；甲方就两处分歧拍板，并新增 Hermes 排序。分析记录 `docs/design/three-pillar-feasibility.md`。
+- 上下文：在 D-041 定调"这次之后开始构建"后，跑 20-agent 闸门式 workflow 做**需求分析（闸门）+ 需求可行性分析**（5 分析器需求闸门[宪法=opus] → opus 裁定 → 5 haiku 实证盘点 → 4 sonnet 逐根评估 → 4 opus 对抗核实 → 1 opus 综合）。需求分析判 **proceed/0 阻断**（14 条全 major/minor），可行性分析出四根裁决；甲方就两处分歧拍板，并新增 Hermes 排序。分析记录 `docs/archive/three-pillar-feasibility.md`。
 - 决策：
   1. **需求合理、可以构建**：需求分析闸门通过（0 阻断）；14 条遗留为构建前收口项（见可行性文档 §7），非需求错。
   2. **冲突直接取最新版**（裁定唯一真矛盾）：D-040"PM 读 `Member.status` + UI 降级标注「状态待确认」"与 D-041"项目计划表不含在不在干活" 矛盾 → **取最新版 D-041**。落地 = **PM 需求层彻底删去 `Member.status`/freeIdle 任何展示通道，而非"读了再降级"**；`DepGraphPage` 现 `freeIdleCount` 在 PM 页复用须显式去掉。
@@ -406,8 +406,8 @@
   - **细化 D-039 库存 P1**：从"等 AI 自保鲜再做、否则不做"细化为"留着排最后 + 对话记账防死 + 大概账定位"（决策 4）；**openclaw=Hermes 类 adapter** 由"数据河方向"升为"统一触点能力、最后做"（决策 3）。
   - **细化 D-041**：决策 7③ 人治封存逐条落到 PM 需求层删 `Member.status`（决策 2）。
   - **D-036 数据河 / openclaw adapter 轨**：归入决策 3 的统一 Hermes 能力，方向不变。
-- 影响：本 ADR + `docs/design/three-pillar-feasibility.md`（新建分析记录）+ `backlog.md`（KB 拆 CORE/LARK、PM 行去 Member.status/dueDate 加结构键、INV 行新定位、base 收口刀、新增 HUB-HERMES-ADAPTER 行最后做、GOV-SCHED-VIZ 标挂起）+ `now.md`/`agent-state.json`（stage/frontier/最近完成）。**纯 docs/planning，不碰代码 / 服务器 / 真实数据**；`verify:all` 应零回归。
-- 事实源：本 ADR；workflow 输出（run `wf_0ef0d4cc-4c8`，20 agent / 1.26M token，gate=proceed/0 blocker）；`docs/design/three-pillar-feasibility.md`；grep 实证（`gov-store.ts:9`/`server.ts`/`governance.ts` 无 dueDate·有 criticalChainTaskIds·blockedByLabel/`boundary.ts` 白名单/`cli-bridge.ts:17/47`/无 kb.ts·inv.ts）；2026-06-13 设计对话（甲方拍板冲突取最新版 / Hermes 最后接 / 库存对话记账）；`D-039`/`D-040`/`D-041`（被细化）；`D-037`/`D-036`。
+- 影响：本 ADR + `docs/archive/three-pillar-feasibility.md`（新建分析记录）+ `backlog.md`（KB 拆 CORE/LARK、PM 行去 Member.status/dueDate 加结构键、INV 行新定位、base 收口刀、新增 HUB-HERMES-ADAPTER 行最后做、GOV-SCHED-VIZ 标挂起）+ `now.md`/`agent-state.json`（stage/frontier/最近完成）。**纯 docs/planning，不碰代码 / 服务器 / 真实数据**；`verify:all` 应零回归。
+- 事实源：本 ADR；workflow 输出（run `wf_0ef0d4cc-4c8`，20 agent / 1.26M token，gate=proceed/0 blocker）；`docs/archive/three-pillar-feasibility.md`；grep 实证（`gov-store.ts:9`/`server.ts`/`governance.ts` 无 dueDate·有 criticalChainTaskIds·blockedByLabel/`boundary.ts` 白名单/`cli-bridge.ts:17/47`/无 kb.ts·inv.ts）；2026-06-13 设计对话（甲方拍板冲突取最新版 / Hermes 最后接 / 库存对话记账）；`D-039`/`D-040`/`D-041`（被细化）；`D-037`/`D-036`。
 
 ## D-043 — 构建纪律双轨化（连续构建 vs 串行 atomic-task·共享底座 §6.0）【SUPERSEDED-BY D-066·已归档】
 

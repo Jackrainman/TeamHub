@@ -71,5 +71,5 @@ npm run verify:all   # typecheck + test + build
 
 ## 依据
 
-- `docs/superpowers/specs/2026-05-21-lark-cli-integration-design.md` §3（boundary）+ §4.1 M1（lark-toolkit 立包）
+- `docs/archive/pre-pivot-plans/2026-05-21-lark-cli-integration-design.md` §3（boundary）+ §4.1 M1（lark-toolkit 立包）
 - D-022 拍板：lark-gateway 拆 3 包架构（apps/lark-gateway + apps/lark-toolkit + apps/pf-skills）

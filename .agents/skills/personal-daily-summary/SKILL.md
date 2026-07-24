@@ -28,7 +28,7 @@ trigger: 用户希望立刻拿到一份"被老师/学长问'你这周干了啥'�
   - `git config user.name` / `user.email` → 仅用本人作者过滤
   - `git log --author="<本人>" --since=<起点>` → 时间窗内**本人**的提交
   - `.debug-archive/` 时间窗内的命中文件
-  - `docs/dogfood/` 时间窗内的命中文件
+  - `docs/dogfood/` 时间窗内的命中文件（该流程从未运转，2026-07-24 已归档退役——恒无命中，跳过即可）
 - **不需要**：IssueCard、ProbeFlash workspace、远端 API、他人的提交记录
 
 ## 模式
@@ -86,7 +86,7 @@ trigger: 用户希望立刻拿到一份"被老师/学长问'你这周干了啥'�
    - `git config user.name` 和 `user.email` 取作者
    - `git log --author="<author>" --since=<start> --until=<end> --pretty=format:"%h %s" --no-merges` 取本人提交
    - `find .debug-archive -newer <start>` 或 `ls -la .debug-archive/ | awk '$6$7$8 >= start'` 取同期归档（命中文件名即可，不全文读）
-   - `find docs/dogfood -newer <start>` 同上
+   - `find docs/dogfood -newer <start>` 同上（目录已退役，find 报错/无命中即跳过）
    - 必要时读 1-2 个最相关的归档/dogfood 文件头部（≤ 30 行），**不全文阅读**
 3. **拼第一版**：用 git 证据 + 归档命中先填"做了什么"，每条带证据。**不编**没有证据的事。
 4. **追问用户口述**：把第一版打出来后问："**git 看不到但你今天/这周干了啥？**（线下调试、跟队友讨论、读了什么、等谁回消息……）" — 一次性把缺口讲完。
@@ -137,7 +137,7 @@ debugArchives: ["<filename>", ...]
 可用 Claude Code 内置工具：
 
 - `Bash`：`git config` / `git log --author=<self>` / `find` / `ls`（**禁止** push / commit / reset / checkout）
-- `Glob` / `Grep`：在 `.debug-archive/` 和 `docs/dogfood/` 内命中
+- `Glob` / `Grep`：在 `.debug-archive/` 和 `docs/dogfood/` 内命中（`docs/dogfood/` 已退役，跳过）
 - `Read`：读相关归档/dogfood 文件头部（≤ 2 个文件，每个 ≤ 30 行）
 - `Write`：仅在用户同意归档后写入 `docs/daily/...` 或 `docs/weekly/...`
 
@@ -166,7 +166,7 @@ debugArchives: ["<filename>", ...]
 
 - 本 skill 是 D-018 pivot 后"个人 Trail"的**主动产出入口**——回答"你这周干了啥"。
 - `debug-checklist`（已落地）的 `.debug-archive/*.md` 是本 skill 的**证据来源**之一。
-- `docs/dogfood/*.md`（SKILL-02）也是本 skill 的**证据来源**之一。
+- `docs/dogfood/*.md`（SKILL-02）也曾是本 skill 的证据来源——该流程从未运转，2026-07-24 已归档退役，不再需要查。
 - 未来 TRAIL-04-WEEKLY-SUMMARY 会**读取** `docs/daily/` 和 `docs/weekly/` 做更长时间窗的聚合（月度 / 赛季 / 年度）。本 skill 是上游写入者。
 - 未来 BRIDGE-04-WORKLOAD-VISIBILITY 是**团队视图**（看任务阻塞而非比人），与本 skill（**单人视图**）正交，互不读取。
 

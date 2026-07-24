@@ -1,7 +1,7 @@
 # 库存/BOM 第三支柱 — buildable-now 内核设计（locked）
 
 > 权威实现规格。消解 D-042/D-072 §3.4 只给概念、无 schema 的歧义（sonnet 审计 2026-06-19 标 AMBIGUOUS）。
-> 本文锁定后，INV 内核可无人值守实现、零猜测。上游决策见 `decisions.md` D-042（定位/排序）+ D-072 §3.4（血缘/总表/预留）+ `three-pillar-feasibility.md` §4（防死/大概账）。
+> 本文锁定后，INV 内核可无人值守实现、零猜测。上游决策见 `decisions.md` D-042（定位/排序）+ D-072 §3.4（血缘/总表/预留）+ `docs/archive/three-pillar-feasibility.md` §4（防死/大概账）。
 
 ## 0. 已锁决策（消解 sonnet 两问）
 1. **本轮在范围内**：INV 最小内核（contracts + 落盘 store + API + 表格 UI + 一句话快记 + demo seed）本轮做；自动对话记账（Hermes 自动填）后置，但**手动一句话快记现在就上**（满足"不许做纯手敲死表"铁律，Hermes 将来调同一 POST）。

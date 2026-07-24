@@ -10,6 +10,13 @@
 - `v0.3-closeout/`:v0.3.0 代码(`apps/server` / `apps/desktop`)于 2026-06-09 D-026 删除前固化的精华 `PROBEFLASH-V03-ESSENCE.md`(领域模型 / 混合存储 / 离线纪律 / verify 纪律 / 部署经验)与 `probeflash.service.template`(systemd 模板)。完整代码留在 git 历史。
 - `lark-research/`:两份飞书开放平台调研大文档(gemini,~69KB),D-020 原始研究输入;继任者是 `docs/research/lark-api-capability.md`(蒸馏版,唯一工程事实源)。详见该目录 README。
 - `reviews/`:历史 review 报告(如 `2026-05-17-se-review.md`,飞书 SDK / Hono / Quartz / monorepo 等 10 条建议)。
+- `audits/`:已执行完毕的审计 / 体检报告(DOCS-SLIM ④,2026-07-24 归档)——`code-audit-2026-06-14.md`(15-agent 对抗审计,confirmed 42,修复已全清)、`rot-audit-2026-07-12.md`、`arch-checkup-2026-07-15.md`(阶段0体检门)、`oop-quality-roadmap-2026-06-21.md` + `-plain-zh.md`(四批次已落地)。
+
+## 平级散文件(部分)
+
+- `three-pillar-feasibility.md` / `three-pillar-reqdesign.md`:D-040/D-042 三支柱分析记录,构建已完成后归档(2026-07-24)。
+- `team-hub-stack-decision.md`(D-025)、`D-023-skill-protocol-v1.md`、`ia-refactor-next-prompts.md`(IA 重构阶段 2-4 spec,已执行)、`aurash-restyle-assessment.md`(D-060,已被 D-084 superseded)、`dogfood-readme.md`(SKILL-02 流程,从未运转):同批归档(2026-07-24)。
+- `superpowers-specs-readme.md`:`docs/superpowers/` 退役前的 spec 目录说明(2026-07-24)。
 
 ## 读取触发条件
 

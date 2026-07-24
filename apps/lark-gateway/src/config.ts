@@ -6,7 +6,7 @@ export const ConfigSchema = z.object({
   LARK_BOT_OPEN_ID: z.string().min(1, 'LARK_BOT_OPEN_ID required'),
   LARK_DOMAIN: z.enum(['feishu', 'lark']).default('feishu'),
   PROBEFLASH_SKILL_MODE: z.enum(['mock', 'claude', 'deepseek']).default('mock'),
-  // L6（docs/planning/code-audit-2026-06-14.md）入站信任边界。三者全部可选——未配置时保持
+  // L6（docs/archive/audits/code-audit-2026-06-14.md）入站信任边界。三者全部可选——未配置时保持
   // 现行为、不 fail-closed，避免破坏现有部署：
   // - LARK_ALLOWED_TENANT_KEY：租户白名单（单租户），与事件 `sender.tenant_key` 比对；
   //   未配置 = 不校验（放行），gateway 启动时打一条 warn 提醒运营者。
