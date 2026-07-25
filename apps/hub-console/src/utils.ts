@@ -49,6 +49,21 @@ export function suggestSeason(now: Date): {
   };
 }
 
+export function seasonForYear(year: number): { name: string; startsAt: string; endsAt: string } {
+  return {
+    name: `${year}赛季`,
+    startsAt: `${year - 1}-09-01T00:00:00.000Z`,
+    endsAt: `${year}-07-31T23:59:59.999Z`,
+  };
+}
+
+export function seasonYearOptions(now: Date): { years: number[]; suggested: number } {
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth();
+  const suggested = month >= 7 ? year + 1 : year;
+  return { years: [suggested - 1, suggested, suggested + 1], suggested };
+}
+
 /**
  * suggestSeason 产物的展示用区间标签：「2026.9–2027.7」。纯解析 ISO 前 10 位（YYYY-MM-DD），
  * 不做时区换算（输入本就钉在 UTC 日期边界上）。i18n 的 {range} 参数统一走这里，zh/en 同形。

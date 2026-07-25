@@ -24,7 +24,7 @@ import {
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n, type TranslationKey } from '../../i18n';
-import { humanizeFormError, suggestSeason } from '../../utils';
+import { humanizeFormError, seasonForYear, seasonYearOptions, suggestSeason } from '../../utils';
 import { GroupLeadConfirm } from '../settings/GroupLeadConfirm';
 import { RosterPreviewTable } from '../settings/RosterPreviewTable';
 import { InvPreviewTable, InvReportView } from '../inv/InvPreviewTable';
@@ -592,11 +592,25 @@ function SeasonStep({
         <form onSubmit={(e) => void submit(e)}>
           <label className="gate-field">
             <span>{t('gate.season.name')}</span>
-            <input
+            <select
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-            />
+              onChange={(e) => {
+                const year = Number(e.target.value);
+                const s = seasonForYear(year);
+                setForm({
+                  ...form,
+                  name: s.name,
+                  semesterStart: s.startsAt.slice(0, 10),
+                  endsAt: s.endsAt,
+                });
+              }}
+            >
+              {seasonYearOptions(new Date()).years.map((y) => (
+                <option key={y} value={y}>
+                  {y}赛季
+                </option>
+              ))}
+            </select>
           </label>
           <label className="gate-field">
             <span>{t('gate.season.semesterStart')}</span>

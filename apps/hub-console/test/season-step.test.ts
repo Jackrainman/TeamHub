@@ -14,6 +14,7 @@ import {
   suggestSeasonForm,
   type SeasonForm,
 } from '../src/features/setup/BootstrapGate';
+import { seasonForYear, seasonYearOptions } from '../src/utils';
 import { translations } from '../src/i18n/translations';
 
 /**
@@ -77,6 +78,33 @@ describe('season-step: 预填派生', () => {
     expect(form.name).toBe('2027赛季');
     expect(form.semesterStart).toBe('2026-09-01');
     expect(form.endsAt).toBe('2027-07-31T23:59:59.999Z');
+  });
+});
+
+describe('season-step: 年份下拉选项', () => {
+  test('seasonForYear：任意年份 → 名/startsAt/endsAt 钉死', () => {
+    expect(seasonForYear(2027)).toEqual({
+      name: '2027赛季',
+      startsAt: '2026-09-01T00:00:00.000Z',
+      endsAt: '2027-07-31T23:59:59.999Z',
+    });
+    expect(seasonForYear(2025)).toEqual({
+      name: '2025赛季',
+      startsAt: '2024-09-01T00:00:00.000Z',
+      endsAt: '2025-07-31T23:59:59.999Z',
+    });
+  });
+
+  test('seasonYearOptions：1–7 月 → suggested=当年，选项 [年-1, 年, 年+1]', () => {
+    const opts = seasonYearOptions(new Date(Date.UTC(2026, 6, 16))); // 2026-07
+    expect(opts.suggested).toBe(2026);
+    expect(opts.years).toEqual([2025, 2026, 2027]);
+  });
+
+  test('seasonYearOptions：8–12 月 → suggested=次年', () => {
+    const opts = seasonYearOptions(new Date(Date.UTC(2026, 8, 1))); // 2026-09
+    expect(opts.suggested).toBe(2027);
+    expect(opts.years).toEqual([2026, 2027, 2028]);
   });
 });
 
