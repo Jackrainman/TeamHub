@@ -182,6 +182,11 @@ import {
   InventoryPreviewResponseSchema,
   type InventoryImportFailure,
   type InventoryImportRow,
+  // 车队批量导入（FLEET-CSV-IMPORT）：模板生成 + 解析器 + 预览契约；编码探测复用 csv-core decodeCsvBytes。
+  // 落库不新增语义——预览确认后前端拼 CreateResourcesBatchRequest 走既有 POST /api/resources/batch。
+  buildFleetTemplateCsv,
+  parseFleetCsv,
+  FleetPreviewResponseSchema,
   // KB 批量 md 导入（KB-BULK-MD-IMPORT 打磨轮刀⑫）：报告契约 + 归档文档 schema（逐文件预验）+ 标题上限。
   ArchiveDocumentSchema,
   KbImportDocsReportSchema,
@@ -343,6 +348,10 @@ const ROSTER_MAX_BYTES = 1024 * 1024;
 // 库存导入 CSV 上限（INV-BULK-IMPORT 刀⑪）：1MB——与名册同律（纯文本零件表绰绰有余，又约束资源
 // 耗尽面）。由 POST /api/inventory/{preview,import} 的 `request.file({ limits })` per-request 覆盖插件默认。
 const INVENTORY_IMPORT_MAX_BYTES = 1024 * 1024;
+
+// 车队导入 CSV 上限（FLEET-CSV-IMPORT）：1MB——与名册/库存同律（纯文本车队表绰绰有余，又约束资源
+// 耗尽面）。由 POST /api/resources/preview 的 `request.file({ limits })` per-request 覆盖插件默认。
+const FLEET_IMPORT_MAX_BYTES = 1024 * 1024;
 
 // KB 批量 md 导入上限（KB-BULK-MD-IMPORT 打磨轮刀⑫）：单文件 1MB（纯文本 md 绰绰有余）+ 单批至多
 // 20 个（初始化向导「导入一堆文件」场景；整批峰值 20MB 内存，约束耗尽面）。
@@ -2559,6 +2568,73 @@ function registerPresenceScheduleRoutes(app: FastifyInstance, ctx: ModuleRouteCt
     });
     void reply.code(201);
     return CreateResourceResponseSchema.parse({ resource });
+  });
+
+  // ── 车队批量导入（FLEET-CSV-IMPORT，结构照库存 INV-BULK-IMPORT 刀⑪ / 名册 ROSTER-IMPORT 刀⑦）─────────
+  // 车队此前唯一写通道 = POST /api/resources 单建 + POST /api/resources/batch 批量——初始化向导「车队」步
+  // 加 CSV 主路径：模板下载 + 上传预览（只解析不落库）→ 前端行内编辑 → 确认后拼 CreateResourcesBatchRequest
+  // 走**既有** POST /api/resources/batch（本刀不新增落库语义）。
+
+  // GET /api/resources/template：下载车队 CSV 模板（读端点、不过写门）。UTF-8 带 BOM（Excel 直开不乱码）+
+  // Content-Disposition 附件下载。表头 = 名称,编号,赛季码,第几代,状态（仅表头行；列说明放前端文案）。
+  app.get('/api/resources/template', async (_request, reply) => {
+    void reply.header(
+      'content-disposition',
+      `attachment; filename*=UTF-8''${encodeURIComponent('车队模板.csv')}`,
+    );
+    void reply.type('text/csv; charset=utf-8');
+    return buildFleetTemplateCsv();
+  });
+
+  // 车队预览写口：multipart 读 CSV（单文件 1MB 上限，per-request limits 覆盖插件默认，照库存/名册先例）
+  // → 编码探测（decodeCsvBytes：UTF-8 BOM / 无 BOM UTF-8 / 回退 gbk，都失败 → 400）。成功返回文本；失败已回
+  // 错误响应、返回 null。
+  const readFleetCsvText = async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<string | null> => {
+    let data;
+    try {
+      data = await request.file({ limits: { fileSize: FLEET_IMPORT_MAX_BYTES, files: 1 } });
+    } catch {
+      void reply.code(400).send({ detail: '请求体不是 multipart 表单' });
+      return null;
+    }
+    if (!data) {
+      void reply.code(400).send({ detail: '未收到文件' });
+      return null;
+    }
+    let buf: Buffer;
+    try {
+      buf = await data.toBuffer();
+    } catch (err) {
+      if ((err as { code?: string })?.code === 'FST_REQ_FILE_TOO_LARGE') {
+        void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
+        return null;
+      }
+      void reply.code(400).send({ detail: '读取文件失败' });
+      return null;
+    }
+    if (data.file.truncated) {
+      void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
+      return null;
+    }
+    const text = decodeCsvBytes(buf);
+    if (text === null) {
+      void reply.code(400).send({ detail: '编码无法识别，请另存为 CSV UTF-8' });
+      return null;
+    }
+    return text;
+  };
+
+  // POST /api/resources/preview：**只解析不落库**——前端拿解析结果做可编辑预览表，确认后走既有批量端点。
+  // 鉴权与 POST /api/resources/batch 完全同律（继承 H3 onRequest 写门 + 限流，无额外路由级门——预览是批量
+  // 的前置，不严于它所喂的写口）。响应 { rows, failed }（I0：车队事实回显，无人键）。
+  app.post('/api/resources/preview', async (request, reply) => {
+    const text = await readFleetCsvText(request, reply);
+    if (text === null) return;
+    const { rows, errors } = parseFleetCsv(text);
+    return FleetPreviewResponseSchema.parse({ rows, failed: errors });
   });
 
   // 车队批量初始化（POST /api/resources/batch，FLEET-BATCH-INIT 打磨轮刀⑩ / onboarding-init-wizard §4 刀⑩）。

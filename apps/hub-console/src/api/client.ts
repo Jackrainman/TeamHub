@@ -39,6 +39,7 @@ import {
   RosterPreviewResponseSchema,
   InventoryImportReportSchema,
   InventoryPreviewResponseSchema,
+  FleetPreviewResponseSchema,
   type ChecklistItemsResponse,
   type CreateChecklistItemRequest,
   type CreateChecklistItemResponse,
@@ -68,6 +69,7 @@ import {
   type InventoryImportReport,
   type InventoryImportRow,
   type InventoryPreviewResponse,
+  type FleetPreviewResponse,
   type ArtifactsResponse,
   type DepGraph,
   type Group,
@@ -215,6 +217,11 @@ export interface HubApiClient {
   createResourcesBatch(
     req: CreateResourcesBatchRequest,
   ): Promise<CreateResourcesBatchResponse>;
+  // 车队批量导入（FLEET-CSV-IMPORT，照库存刀⑪）：初始化向导「车队」步 CSV 主路径——模板 GET 直链；
+  // 上传 → previewFleet 只解析不落库 → 预览表行内编辑 → 确认后拼 CreateResourcesBatchRequest 走既有
+  // createResourcesBatch（本簇不新增落库端点）。I0：车队事实回显，无人键。
+  fleetTemplateUrl(): string;
+  previewFleet(file: File): Promise<FleetPreviewResponse>;
   updateResourceStatus(
     id: string,
     patch: UpdateResourceStatusRequest,
@@ -515,6 +522,19 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         `${baseUrl}/api/resources/batch`,
         req,
         CreateResourcesBatchResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    fleetTemplateUrl() {
+      // 模板下载 = 直链 GET（浏览器原生下载，不走 fetch/Bearer——读端点无鉴权）。
+      return `${baseUrl}/api/resources/template`;
+    },
+    async previewFleet(file: File) {
+      return postFormData(
+        `${baseUrl}/api/resources/preview`,
+        file,
+        FleetPreviewResponseSchema,
         fetcher,
         writeToken,
       );

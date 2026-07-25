@@ -6,6 +6,8 @@ import {
   RESOURCE_INIT_STATUSES,
   type CreateResourcesBatchRequest,
   type CreateSeasonRequest,
+  type FleetImportRow,
+  type FleetPreviewResponse,
   type Group,
   type InventoryImportReport,
   type InventoryImportRow,
@@ -26,6 +28,7 @@ import { humanizeFormError, suggestSeason } from '../../utils';
 import { GroupLeadConfirm } from '../settings/GroupLeadConfirm';
 import { RosterPreviewTable } from '../settings/RosterPreviewTable';
 import { InvPreviewTable, InvReportView } from '../inv/InvPreviewTable';
+import { FleetPreviewTable } from '../fleet/FleetPreviewTable';
 import { GRADE_KEY, RosterReportView } from '../settings/SettingsPage';
 
 /**
@@ -59,6 +62,22 @@ import { GRADE_KEY, RosterReportView } from '../settings/SettingsPage';
  */
 
 type Step = 'who' | 'roster' | 'leads' | 'season' | 'fleet' | 'inventory' | 'kb' | 'done';
+
+/**
+ * 向导进度（WIZARD-PROGRESS）：步 → 1-based 序号 + 短名 i18n 键。顶显「第 N/8 步 · 步名」用——
+ * 短名（gate.stepName.*）独立于带圈号标题（gate.step.* = 「① 你是谁」），进度行不重复圈号。
+ */
+export const WIZARD_STEP_TOTAL = 8;
+export const WIZARD_STEP_META: Record<Step, { n: number; nameKey: TranslationKey }> = {
+  who: { n: 1, nameKey: 'gate.stepName.who' },
+  roster: { n: 2, nameKey: 'gate.stepName.roster' },
+  leads: { n: 3, nameKey: 'gate.stepName.leads' },
+  season: { n: 4, nameKey: 'gate.stepName.season' },
+  fleet: { n: 5, nameKey: 'gate.stepName.fleet' },
+  inventory: { n: 6, nameKey: 'gate.stepName.inventory' },
+  kb: { n: 7, nameKey: 'gate.stepName.kb' },
+  done: { n: 8, nameKey: 'gate.stepName.done' },
+};
 
 /**
  * 「你是谁」步年级下拉选项（GRADE-7-TIERS 刀⑥）：大一~大四/研一~研三七档，按序、默认 freshman。
@@ -110,6 +129,13 @@ export function BootstrapGate({
           <p className="eyebrow">{t('toolbar.eyebrow')}</p>
           <h1 className="setup-wizard__title">{t('gate.title')}</h1>
           <p className="setup-wizard__subtitle">{t('gate.subtitle')}</p>
+          <p className="setup-wizard__progress">
+            {t('gate.progress', {
+              n: WIZARD_STEP_META[step].n,
+              total: WIZARD_STEP_TOTAL,
+              name: t(WIZARD_STEP_META[step].nameKey),
+            })}
+          </p>
         </header>
         {step === 'who' ? (
           <WhoStep
@@ -689,6 +715,19 @@ export function buildFleetBatchRequest(
   };
 }
 
+/**
+ * CSV 预览行 → 批量请求体（FLEET-CSV-IMPORT）：FleetImportRow 形状本就和批量单项同形（name/robotTarget/
+ * season?/version?/status?），只多一个物理行号 line——剥掉即合法批量请求体（kind 缺省 robot、statusReason
+ * 不引入）。预览表已把坏行拦在提交外（fleetEditRowsValid），此处不再校验。
+ */
+export function fleetImportRowsToBatch(
+  rows: readonly FleetImportRow[],
+): CreateResourcesBatchRequest {
+  return {
+    resources: rows.map(({ line: _line, ...rest }) => rest),
+  };
+}
+
 function FleetStep({
   client,
   onNext,
@@ -698,6 +737,7 @@ function FleetStep({
 }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const resourcesQuery = useQuery({
     queryKey: ['resources', 'bootstrap-gate'],
     queryFn: () => client.getResources(),
@@ -708,6 +748,7 @@ function FleetStep({
   ]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const [preview, setPreview] = useState<FleetPreviewResponse | null>(null);
   const [created, setCreated] = useState<readonly SharedResource[] | null>(null);
 
   const submittable = fleetRowsSubmittable(rows);
@@ -716,6 +757,36 @@ function FleetStep({
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
   }
 
+  // CSV 主路径①：上传 → preview 只解析不落库 → FleetPreviewTable 行内编辑。
+  async function upload(file: File) {
+    setPending(true);
+    setError(null);
+    try {
+      setPreview(await client.previewFleet(file));
+    } catch (err) {
+      setError(err);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  // CSV 主路径②：确认预览行 → 拼批量请求体走既有 POST /api/resources/batch（不新增落库端点）。
+  async function confirmImport(importRows: FleetImportRow[]) {
+    setPending(true);
+    setError(null);
+    try {
+      const res = await client.createResourcesBatch(fleetImportRowsToBatch(importRows));
+      setCreated(res.resources);
+      setPreview(null);
+      void queryClient.invalidateQueries({ queryKey: ['resources'] });
+    } catch (err) {
+      setError(err);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  // 手动兜底：逐台表格行 → 同一批量端点。
   async function submit() {
     if (!submittable) return;
     setPending(true);
@@ -752,116 +823,155 @@ function FleetStep({
         </>
       ) : (
         <>
-          <table className="resources-table">
-            <thead>
-              <tr>
-                <th>{t('gate.fleet.colName')}</th>
-                <th>{t('gate.fleet.colTarget')}</th>
-                <th>{t('gate.fleet.colSeason')}</th>
-                <th>{t('gate.fleet.colVersion')}</th>
-                <th>{t('gate.fleet.colStatus')}</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, idx) => (
-                <tr key={idx}>
-                  <td>
-                    <input
-                      value={row.name}
-                      onChange={(e) => patchRow(idx, { name: e.target.value })}
-                      placeholder={t('gate.fleet.namePlaceholder')}
-                    />
-                  </td>
-                  <td>
-                    <select
-                      value={row.robotTarget}
-                      onChange={(e) =>
-                        patchRow(idx, { robotTarget: e.target.value as RobotTarget })
-                      }
-                    >
-                      {FLEET_ROBOT_TARGETS.map((rt) => (
-                        <option value={rt} key={rt}>
-                          {rt === 'shared' ? t('resources.robot.shared') : rt}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <input
-                      value={row.season}
-                      onChange={(e) => patchRow(idx, { season: e.target.value })}
-                      placeholder={suggestFleetSeasonCode(new Date())}
-                      size={4}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      min={1}
-                      value={row.version}
-                      onChange={(e) => patchRow(idx, { version: e.target.value })}
-                      size={3}
-                    />
-                  </td>
-                  <td>
-                    <select
-                      value={row.status}
-                      onChange={(e) =>
-                        patchRow(idx, { status: e.target.value as FleetInitStatus })
-                      }
-                    >
-                      {RESOURCE_INIT_STATUSES.map((s) => (
-                        <option value={s} key={s}>
-                          {t(FLEET_STATUS_KEY[s])}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn btn--secondary btn--sm"
-                      onClick={() => setRows((prev) => prev.filter((_, i) => i !== idx))}
-                      aria-label={t('gate.fleet.removeRow')}
-                    >
-                      ×
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {/* CSV 导入（主路径，照库存步范式）：模板下载 + 上传 → 预览表行内编辑 → 确认创建。 */}
+          <p className="settings-desc">{t('gate.fleet.import.desc')}</p>
           <div className="roster-import__actions">
+            <a className="btn btn--secondary btn--sm" href={client.fleetTemplateUrl()} download>
+              {t('gate.fleet.import.downloadTemplate')}
+            </a>
             <button
               type="button"
               className="btn btn--secondary btn--sm"
-              onClick={() =>
-                setRows((prev) => [...prev, newFleetRow(suggestFleetSeasonCode(new Date()))])
-              }
+              onClick={() => fileInputRef.current?.click()}
+              disabled={pending}
             >
-              {t('gate.fleet.addRow')}
+              {pending && !preview
+                ? t('gate.fleet.import.importing')
+                : t('gate.fleet.import.upload')}
             </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void upload(file);
+                e.target.value = '';
+              }}
+            />
           </div>
           {error ? (
             <p className="form-hint form-hint--warn">
-              {humanizeFormError(error, t, 'gate.fleet.error')}
+              {humanizeFormError(error, t, 'gate.fleet.import.error')}
             </p>
           ) : null}
-          {submittable ? (
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={pending}
-              onClick={() => void submit()}
-            >
-              {pending ? t('gate.fleet.submitting') : t('gate.fleet.submit')}
-            </button>
-          ) : (
-            <button type="button" className="btn btn--primary" onClick={onNext}>
-              {t('gate.fleet.skip')}
-            </button>
-          )}
+          {preview ? (
+            <FleetPreviewTable
+              preview={preview}
+              pending={pending}
+              onConfirm={(importRows) => void confirmImport(importRows)}
+              onCancel={() => setPreview(null)}
+            />
+          ) : null}
+          {/* 手动录入（兜底）：折叠区，逐台表格行，走同一批量端点。 */}
+          <details className="setup-card__advanced">
+            <summary>{t('gate.fleet.manual.title')}</summary>
+            <table className="resources-table">
+              <thead>
+                <tr>
+                  <th>{t('gate.fleet.colName')}</th>
+                  <th>{t('gate.fleet.colTarget')}</th>
+                  <th>{t('gate.fleet.colSeason')}</th>
+                  <th>{t('gate.fleet.colVersion')}</th>
+                  <th>{t('gate.fleet.colStatus')}</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, idx) => (
+                  <tr key={idx}>
+                    <td>
+                      <input
+                        value={row.name}
+                        onChange={(e) => patchRow(idx, { name: e.target.value })}
+                        placeholder={t('gate.fleet.namePlaceholder')}
+                      />
+                    </td>
+                    <td>
+                      <select
+                        value={row.robotTarget}
+                        onChange={(e) =>
+                          patchRow(idx, { robotTarget: e.target.value as RobotTarget })
+                        }
+                      >
+                        {FLEET_ROBOT_TARGETS.map((rt) => (
+                          <option value={rt} key={rt}>
+                            {rt === 'shared' ? t('resources.robot.shared') : rt}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                        value={row.season}
+                        onChange={(e) => patchRow(idx, { season: e.target.value })}
+                        placeholder={suggestFleetSeasonCode(new Date())}
+                        size={4}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        min={1}
+                        value={row.version}
+                        onChange={(e) => patchRow(idx, { version: e.target.value })}
+                        size={3}
+                      />
+                    </td>
+                    <td>
+                      <select
+                        value={row.status}
+                        onChange={(e) =>
+                          patchRow(idx, { status: e.target.value as FleetInitStatus })
+                        }
+                      >
+                        {RESOURCE_INIT_STATUSES.map((s) => (
+                          <option value={s} key={s}>
+                            {t(FLEET_STATUS_KEY[s])}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn btn--secondary btn--sm"
+                        onClick={() => setRows((prev) => prev.filter((_, i) => i !== idx))}
+                        aria-label={t('gate.fleet.removeRow')}
+                      >
+                        ×
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="roster-import__actions">
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                onClick={() =>
+                  setRows((prev) => [...prev, newFleetRow(suggestFleetSeasonCode(new Date()))])
+                }
+              >
+                {t('gate.fleet.addRow')}
+              </button>
+            </div>
+            {submittable ? (
+              <button
+                type="button"
+                className="btn btn--primary"
+                disabled={pending}
+                onClick={() => void submit()}
+              >
+                {pending ? t('gate.fleet.submitting') : t('gate.fleet.submit')}
+              </button>
+            ) : null}
+          </details>
+          <button type="button" className="btn btn--primary" onClick={onNext}>
+            {t('gate.fleet.skip')}
+          </button>
         </>
       )}
     </section>
@@ -1011,59 +1121,72 @@ function KbStep({
     <section className="setup-card setup-card--primary">
       <h2 className="setup-card__title">{t('gate.step.kb')}</h2>
       <p className="setup-card__desc">{t('gate.kb.desc')}</p>
-      <div className="roster-import__actions">
-        <button
-          type="button"
-          className="btn btn--secondary btn--sm"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={pending}
-        >
-          {pending ? t('gate.kb.uploading') : t('gate.kb.pick')}
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept={KB_DOC_ACCEPT}
-          style={{ display: 'none' }}
-          onChange={(e) => {
-            const files = Array.from(e.target.files ?? []);
-            if (files.length > 0) void upload(files);
-            e.target.value = '';
-          }}
-        />
+
+      {/* A 段：排障笔记——历年 markdown 文档批量导入（保持原样）。 */}
+      <div className="gate-section">
+        <h3 className="gate-section__title">{t('gate.kb.notes.title')}</h3>
+        <p className="setup-card__desc">{t('gate.kb.notes.desc')}</p>
+        <div className="roster-import__actions">
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={pending}
+          >
+            {pending ? t('gate.kb.uploading') : t('gate.kb.pick')}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={KB_DOC_ACCEPT}
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              if (files.length > 0) void upload(files);
+              e.target.value = '';
+            }}
+          />
+        </div>
+        {error ? (
+          <p className="form-hint form-hint--warn">
+            {humanizeFormError(error, t, 'gate.kb.error')}
+          </p>
+        ) : null}
+        {report ? (
+          <>
+            <p className="settings-desc">{t('gate.kb.report', kbImportReportCounts(report))}</p>
+            {report.imported.length > 0 ? (
+              <ul className="settings-desc">
+                {report.imported.map((d) => (
+                  <li key={d.id}>{d.title}</li>
+                ))}
+              </ul>
+            ) : null}
+            {[...report.skipped, ...report.failed].length > 0 ? (
+              <ul className="settings-desc">
+                {report.skipped.map((d, i) => (
+                  <li key={`s${i}`}>
+                    {d.title}（{d.reason}）
+                  </li>
+                ))}
+                {report.failed.map((d, i) => (
+                  <li key={`f${i}`}>
+                    {d.title}（{d.reason}）
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </>
+        ) : null}
       </div>
-      {error ? (
-        <p className="form-hint form-hint--warn">
-          {humanizeFormError(error, t, 'gate.kb.error')}
-        </p>
-      ) : null}
-      {report ? (
-        <>
-          <p className="settings-desc">{t('gate.kb.report', kbImportReportCounts(report))}</p>
-          {report.imported.length > 0 ? (
-            <ul className="settings-desc">
-              {report.imported.map((d) => (
-                <li key={d.id}>{d.title}</li>
-              ))}
-            </ul>
-          ) : null}
-          {[...report.skipped, ...report.failed].length > 0 ? (
-            <ul className="settings-desc">
-              {report.skipped.map((d, i) => (
-                <li key={`s${i}`}>
-                  {d.title}（{d.reason}）
-                </li>
-              ))}
-              {report.failed.map((d, i) => (
-                <li key={`f${i}`}>
-                  {d.title}（{d.reason}）
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </>
-      ) : null}
+
+      {/* B 段：Bug 快速记录——本刀不新增端点（结案归档要根因/处理全字段），仅引导进应用后到排障档案页录入。 */}
+      <div className="gate-section">
+        <h3 className="gate-section__title">{t('gate.kb.bug.title')}</h3>
+        <p className="setup-card__desc">{t('gate.kb.bug.hint')}</p>
+      </div>
+
       <button type="button" className="btn btn--primary" onClick={onNext}>
         {report ? t('gate.kb.next') : t('gate.kb.skip')}
       </button>

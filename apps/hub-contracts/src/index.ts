@@ -131,6 +131,8 @@ export * from './pm-requests.js';
 // 名册导入（ROSTER-IMPORT，K8）：CSV 模板生成 + 编码探测 + 手写零依赖解析器 + 导入报告契约（纯，无状态）。
 export * from './roster-import.js';
 export * from './inventory-import.js';
+// 车队批量导入（FLEET-CSV-IMPORT）：CSV 模板生成 + 手写零依赖解析器 + 预览契约（纯，无状态；落库走既有批量端点）。
+export * from './fleet-import.js';
 export * from './csv-core.js';
 // 装配契约（HUB-MODULARIZATION 第2步）：ModuleDescriptor / TenantConfig / VocabularyRegistry，只接口不实现。
 export * from './assembly.js';
