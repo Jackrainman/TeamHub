@@ -2,8 +2,10 @@ import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   deriveLeafGroups,
+  generateRoboconBaselineTemplate,
   RESOURCE_INIT_STATUSES,
   type CreateResourcesBatchRequest,
+  type CreateSeasonRequest,
   type Group,
   type InventoryImportReport,
   type InventoryImportRow,
@@ -15,6 +17,7 @@ import {
   type RosterImportReport,
   type RosterImportRow,
   type RosterPreviewResponse,
+  type Season,
   type SharedResource,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
@@ -39,19 +42,23 @@ import { GRADE_KEY, RosterReportView } from '../settings/SettingsPage';
  *    原"顺序即鉴权"问题，零新豁免面）。刀⑦：上传 → preview 只解析不落库 → 预览表行内编辑 → 确认后
  *    JSON 导入。名册已就绪（如死锁恢复场景成员早导入过）可直接下一步。
  *  ③ **确认各组组长**：复用 GroupLeadConfirm（刀③——有成员必选 + 默认建议、空组不出现、叶子组候选）。
- *  ④ **录入车队**（FLEET-BATCH-INIT 刀⑩）：一次录全部车（名称/编号位/赛季/第几代/能用·在修·退役·停用），
+ *  ④ **建赛季**（WIZARD-SEASON-STEP 刀⑬）：赛季名按 suggestSeason 预填可改 + 学期开始（预填推导
+ *    startsAt 日期段）+ 比赛日（选填）→ createSeason（status 服务端钉 active、旧 active 同笔归档）；
+ *    两锚点齐则顺手 generateRoboconBaselineTemplate + updateBaseline 落基准线模板（比赛日空只建赛季，
+ *    进 app 后总览空态可补锚点生成）。已有 active 赛季可直接下一步（照 fleet「已有 N 台车」先例）；可跳过。
+ *  ⑤ **录入车队**（FLEET-BATCH-INIT 刀⑩）：一次录全部车（名称/编号位/赛季/第几代/能用·在修·退役·停用），
  *    批量端点 zod 全量先验、任一坏整批不落；空表可跳过，已有车可直接下一步（照名册已就绪先例）。
- *  ⑤ **录入库存**（INV-BULK-IMPORT 刀⑪）：库存 CSV 批量导入（件号/名称/类别/单位/总数/低储阈值），
+ *  ⑥ **录入库存**（INV-BULK-IMPORT 刀⑪）：库存 CSV 批量导入（件号/名称/类别/单位/总数/低储阈值），
  *    上传 → preview 只解析不落库 → 预览表行内编辑 → 确认后 JSON 导入（partNumber 幂等 upsert、绝不删）；
  *    可跳过。
- *  ⑥ **导入知识库**（KB-BULK-MD-IMPORT 刀⑫）：历年 markdown 文档批量导入（多选 .md/.markdown，
+ *  ⑦ **导入知识库**（KB-BULK-MD-IMPORT 刀⑫）：历年 markdown 文档批量导入（多选 .md/.markdown，
  *    服务端按 title 幂等去重）→ 三段报告回显（导入/跳过/失败）；AI 分析不做；可跳过。
- *  ⑦ **进 app**（已登录、项目管理权限在手）。
+ *  ⑧ **进 app**（已登录、项目管理权限在手）。
  *
  * 反监视 I0：门只收集操作者本人这一行事实 + 组长任命事实 + 车/零件/文档（无成员维度），不做任何按人聚合。
  */
 
-type Step = 'who' | 'roster' | 'leads' | 'fleet' | 'inventory' | 'kb' | 'done';
+type Step = 'who' | 'roster' | 'leads' | 'season' | 'fleet' | 'inventory' | 'kb' | 'done';
 
 /**
  * 「你是谁」步年级下拉选项（GRADE-7-TIERS 刀⑥）：大一~大四/研一~研三七档，按序、默认 freshman。
@@ -133,18 +140,21 @@ export function BootstrapGate({
                 groups={groups}
                 onConfirmed={() => {
                   invalidateRoster();
-                  setStep('fleet');
+                  setStep('season');
                 }}
               />
               <button
                 type="button"
                 className="btn btn--secondary"
-                onClick={() => setStep('fleet')}
+                onClick={() => setStep('season')}
               >
                 {t('gate.leads.skip')}
               </button>
             </section>
           )
+        ) : null}
+        {step === 'season' ? (
+          <SeasonStep client={client} onNext={() => setStep('fleet')} />
         ) : null}
         {step === 'fleet' ? (
           <FleetStep client={client} onNext={() => setStep('inventory')} />
@@ -422,7 +432,191 @@ function RosterStep({
   );
 }
 
-// ④ 录入车队（FLEET-BATCH-INIT 刀⑩）：一次录全部车——表格行（名称 / 编号位 R1·R2·共用 /
+// ④ 建赛季（WIZARD-SEASON-STEP 刀⑬）：赛季名预填 suggestSeason 可改 + 学期开始（date input，预填推导
+// startsAt 的日期段）+ 比赛日（date input，选填）→ createSeason（startsAt=学期开始→ISO、endsAt=suggestSeason
+// 推导值，status 服务端钉 active）；两锚点齐（学期开始+比赛日都填）则顺手 generateRoboconBaselineTemplate +
+// updateBaseline 落基准线模板；比赛日空只建赛季（提示进 app 后总览可补锚点生成）。已有 active 赛季显示
+// 「已有当前赛季」可直接下一步（照 fleet「已有 N 台车」先例）；任何时刻可「跳过」（刀⑨ app 内空态一键创建兜底）。
+
+/** 赛季步本地表单态：semesterStart/competitionDate 承接 date input 原生 YYYY-MM-DD；endsAt 不暴露编辑。 */
+export interface SeasonForm {
+  name: string;
+  semesterStart: string; // 学期开始（锚点①，必填）
+  competitionDate: string; // 比赛日（锚点②，选填；空串 = 不生成基准线模板）
+  endsAt: string; // 赛季结束 ISO（suggestSeason 推导，随表单走不另算）
+}
+
+/** 预填派生：赛季名/学期开始日期段/结束日均从 suggestSeason 拿（UTC 钉边界，同刀⑨）；比赛日不预填。 */
+export function suggestSeasonForm(now: Date): SeasonForm {
+  const s = suggestSeason(now);
+  return {
+    name: s.name,
+    semesterStart: s.startsAt.slice(0, 10),
+    competitionDate: '',
+    endsAt: s.endsAt,
+  };
+}
+
+/** 两锚点齐否：学期开始 + 比赛日都给了 → 提交后顺手生成基准线模板（照 BaselineOverview 空态同律）。 */
+export function seasonAnchorsComplete(
+  form: Pick<SeasonForm, 'semesterStart' | 'competitionDate'>,
+): boolean {
+  return Boolean(form.semesterStart && form.competitionDate);
+}
+
+/** 可提交 = 赛季名非空 + 学期开始必填；比赛日填了则须晚于学期开始（同 BaselineEmptyState orderOk）。 */
+export function seasonFormSubmittable(form: SeasonForm): boolean {
+  if (form.name.trim().length === 0 || !form.semesterStart) return false;
+  return !form.competitionDate || form.competitionDate > form.semesterStart;
+}
+
+/** 本地表单 → createSeason 请求体：学期开始日期段 → ISO 零点（UTC，同 suggestSeason 边界钉法）。 */
+export function buildSeasonCreateRequest(form: SeasonForm): CreateSeasonRequest {
+  return {
+    name: form.name.trim(),
+    startsAt: `${form.semesterStart}T00:00:00.000Z`,
+    endsAt: form.endsAt,
+  };
+}
+
+/**
+ * 提交序列（顺序钉死：模板 PATCH 要新建赛季的 id）——先 createSeason，两锚点齐则
+ * generateRoboconBaselineTemplate（参数照 BaselineOverview 空态既有调用）+ updateBaseline PATCH 回；
+ * 比赛日空只建赛季。抽成纯数据 helper 供单测 mock client 断言顺序与参数形状。
+ */
+export async function submitSeasonStep(
+  client: Pick<HubApiClient, 'createSeason' | 'updateBaseline'>,
+  form: SeasonForm,
+): Promise<{ season: Season; baselineGenerated: boolean }> {
+  const { season } = await client.createSeason(buildSeasonCreateRequest(form));
+  if (!seasonAnchorsComplete(form)) return { season, baselineGenerated: false };
+  const template = generateRoboconBaselineTemplate({
+    semesterStart: `${form.semesterStart}T00:00:00.000Z`,
+    competitionDate: `${form.competitionDate}T00:00:00.000Z`,
+  });
+  await client.updateBaseline(season.id, template);
+  return { season, baselineGenerated: true };
+}
+
+function SeasonStep({
+  client,
+  onNext,
+}: {
+  client: HubApiClient;
+  onNext: () => void;
+}) {
+  const { t } = useI18n();
+  const queryClient = useQueryClient();
+  const seasonsQuery = useQuery({
+    queryKey: ['seasons', 'bootstrap-gate'],
+    queryFn: () => client.getSeasons(),
+  });
+  const activeSeason =
+    seasonsQuery.data?.seasons.find((s) => s.status === 'active') ?? null;
+  const [form, setForm] = useState<SeasonForm>(() => suggestSeasonForm(new Date()));
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const [created, setCreated] = useState<{ name: string; baselineGenerated: boolean } | null>(
+    null,
+  );
+
+  const submittable = seasonFormSubmittable(form);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!submittable) return;
+    setPending(true);
+    setError(null);
+    try {
+      const res = await submitSeasonStep(client, form);
+      setCreated({ name: res.season.name, baselineGenerated: res.baselineGenerated });
+      void queryClient.invalidateQueries({ queryKey: ['seasons'] });
+    } catch (err) {
+      setError(err);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <section className="setup-card setup-card--primary">
+      <h2 className="setup-card__title">{t('gate.step.season')}</h2>
+      <p className="setup-card__desc">{t('gate.season.desc')}</p>
+      {activeSeason ? (
+        <>
+          <p className="settings-desc">
+            {t('gate.season.hasSeason', { name: activeSeason.name })}
+          </p>
+          <button type="button" className="btn btn--primary" onClick={onNext}>
+            {t('gate.season.next')}
+          </button>
+        </>
+      ) : created ? (
+        <>
+          <p className="settings-desc">
+            {created.baselineGenerated
+              ? t('gate.season.createdWithBaseline', { name: created.name })
+              : t('gate.season.createdNoBaseline', { name: created.name })}
+          </p>
+          <button type="button" className="btn btn--primary" onClick={onNext}>
+            {t('gate.season.next')}
+          </button>
+        </>
+      ) : (
+        <form onSubmit={(e) => void submit(e)}>
+          <label className="gate-field">
+            <span>{t('gate.season.name')}</span>
+            <input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
+          </label>
+          <label className="gate-field">
+            <span>{t('gate.season.semesterStart')}</span>
+            <input
+              type="date"
+              value={form.semesterStart}
+              onChange={(e) => setForm({ ...form, semesterStart: e.target.value })}
+              required
+            />
+          </label>
+          <label className="gate-field">
+            <span>{t('gate.season.competitionDate')}</span>
+            <input
+              type="date"
+              value={form.competitionDate}
+              onChange={(e) => setForm({ ...form, competitionDate: e.target.value })}
+            />
+          </label>
+          <p className="settings-desc">{t('gate.season.competitionHint')}</p>
+          {form.competitionDate && form.competitionDate <= form.semesterStart ? (
+            <p className="form-hint form-hint--warn">{t('gate.season.dateOrder')}</p>
+          ) : null}
+          {error ? (
+            <p className="form-hint form-hint--warn">
+              {humanizeFormError(error, t, 'gate.season.error')}
+            </p>
+          ) : null}
+          <div className="roster-import__actions">
+            <button
+              type="submit"
+              className="btn btn--primary"
+              disabled={!submittable || pending}
+            >
+              {pending ? t('gate.season.submitting') : t('gate.season.submit')}
+            </button>
+            <button type="button" className="btn btn--secondary" onClick={onNext}>
+              {t('gate.season.skip')}
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
+  );
+}
+
+// ⑤ 录入车队（FLEET-BATCH-INIT 刀⑩）：一次录全部车——表格行（名称 / 编号位 R1·R2·共用 /
 // 赛季（默认按 suggestSeason 派生两位赛季码预填、可改可留空）/ 第几代（默认 1）/ 状态四档
 // 能用·在修·退役·停用），行可增删；空表直接「跳过」；提交走 POST /api/resources/batch
 // （zod 全量先验、任一坏整批不落）→ 回显创建结果（displayCode 列表）→「下一步」。
@@ -674,7 +868,7 @@ function FleetStep({
   );
 }
 
-// ⑤ 录入库存（INV-BULK-IMPORT 刀⑪，结构照 RosterStep 刀⑦）：模板下载 + 上传 → preview 只解析不落库
+// ⑥ 录入库存（INV-BULK-IMPORT 刀⑪，结构照 RosterStep 刀⑦）：模板下载 + 上传 → preview 只解析不落库
 // → InvPreviewTable 行内编辑（件号只读 = 幂等匹配键）→ 确认后 JSON 导入（partNumber 幂等 upsert、
 // totalQuantity 覆盖、绝不删）→ 报告回显；没有库存要录可直接「跳过」。
 function InventoryStep({
@@ -767,7 +961,7 @@ function InventoryStep({
   );
 }
 
-// ⑥ 导入知识库（KB-BULK-MD-IMPORT 刀⑫）：多选 .md/.markdown → importKbDocs 整批上传（服务端
+// ⑦ 导入知识库（KB-BULK-MD-IMPORT 刀⑫）：多选 .md/.markdown → importKbDocs 整批上传（服务端
 // 按 title 幂等去重）→ 三段报告回显（导入 N 篇 / 跳过 M / 失败 K，含逐条原因）；没有要导的可直接
 // 「跳过」。AI 分析不做（backlog KB-AI-STRUCT）——本步只沉淀可检索文档。
 
