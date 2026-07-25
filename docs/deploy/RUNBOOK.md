@@ -30,7 +30,9 @@
    ```bash
    openssl rand -hex 32        # 填进 TEAMHUB_WRITE_TOKEN，别留 change-me 占位
    ```
-   `HUB_HOST` 非 loopback（compose 用 `0.0.0.0`）时**必须**配，否则 server 拒启动。
+   `HUB_HOST` 非 loopback（compose 用 `0.0.0.0`）时**必须**配，否则 server 拒启动（身份模式除外——
+   那里写门认**有效会话或 Bearer 任一**：登录/首启动向导/loopback PIN 恢复四类路径免 Bearer，
+   浏览器用户登录后即可写，无需把令牌贴进设置页；匿名模式仍全部写只认 Bearer）。
 
 3. **反代后开 TRUST_PROXY**：4177 在 nginx 反代 / SSH 隧道后面时设 `TEAMHUB_TRUST_PROXY=true`，
    否则写限流塌成**全队共用一个桶**（任一客户端可 DoS 全队写入）。**直连暴露时保持 false**

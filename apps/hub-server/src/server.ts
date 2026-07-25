@@ -2518,37 +2518,49 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     // SETUP-WIZARD 刀①：正常模式 POST /api/setup/init 恒 409（多标签页幂等），不做任何写、无副作用，
     // 故豁免写门（鉴权 / 限流）直达处理器——身份模式 / 配 token 下也稳定 409，不因缺会话 / 缺 Bearer 变 401。
     if (request.url.split('?')[0] === '/api/setup/init') return;
-    // 鉴权（配了 token 才强制 Bearer；未配=loopback dev 放行）
-    if (writeToken && request.headers.authorization !== `Bearer ${writeToken}`) {
+    const path = request.url.split('?')[0];
+    // 四条例外路径（对 Bearer 硬门与「须有会话」硬门同享，鉴权收敛在各路由一处判）：
+    //  - session 认证端点（POST/DELETE /api/session）：登录/登出入口，不能要求先有会话或令牌——
+    //    否则配了 writeToken 的部署里**登录本身**就被 401 锁死（令牌要进设置页，设置页要先登录）。
+    //  - 名册导入引导豁免（ROSTER-IMPORT，K8）：身份模式 + 空板 = 登录死锁。路由内自判：名册为空放行、
+    //    一旦有人即恢复须持旗管理员会话。
+    //  - 初始化 bootstrap 豁免（SETUP-WIZARD-ROSTER 刀②）：POST /api/setup/super-admin——名册无持旗成员时
+    //    无人能登录，向导第一步发生在任何会话/令牌配置之前。路由内自判：已有持旗成员 → 409；老路径
+    //    （无 displayName）→ 仍须会话 401。
+    //  - PIN 死锁恢复豁免（PIN-DEADLOCK-RECOVERY）：loopback 的 DELETE /api/members/:id/pin——唯一管理员
+    //    忘 PIN 时操作者只能在部署机上 curl，不会先持有令牌/会话。非 loopback 不在此列。
+    const isSessionAuthEndpoint =
+      path === '/api/session' &&
+      (request.method === 'POST' || request.method === 'DELETE');
+    const isRosterBootstrap =
+      path === '/api/roster/import' && request.method === 'POST';
+    const isSetupBootstrap =
+      path === '/api/setup/super-admin' && request.method === 'POST';
+    const isPinRecovery =
+      request.method === 'DELETE' &&
+      /^\/api\/members\/[^/]+\/pin$/.test(path) &&
+      isLoopbackOperator(request, trustProxy);
+    // 鉴权（配了 token 才强制 Bearer；未配=loopback dev 放行）。
+    // **身份模式下有效会话即已鉴权**（会话 = 本人 PIN 登录，httpOnly + SameSite=Lax，强度不低于共享令牌；
+    // main.ts 本就不要求身份模式配 writeToken 才能非 loopback 启动——令牌在此只是匿名客户端的写闸）。
+    // 否则配了令牌的部署里整个首启动向导（bootstrap → 导 CSV → 确认组长）与日常浏览器写操作全被 401 锁死。
+    // 匿名模式无会话概念、行为不变（仍只认 Bearer）。
+    const sessionAuthed = identityMode === 'identity' && request.identity != null;
+    if (
+      writeToken &&
+      !isSessionAuthEndpoint &&
+      !isRosterBootstrap &&
+      !isSetupBootstrap &&
+      !isPinRecovery &&
+      !sessionAuthed &&
+      request.headers.authorization !== `Bearer ${writeToken}`
+    ) {
       void reply.code(401).send({ detail: 'unauthorized' });
       return reply;
     }
-    // IDENTITY-LITE：身份模式下，写方法一律须携有效会话（否则 401）——**例外 = session 认证端点本身**
-    // （POST/DELETE /api/session 是登录/登出入口，不能要求先有会话，否则永远登不进来）。匿名模式此段整段跳过。
+    // IDENTITY-LITE：身份模式下，写方法一律须携有效会话（否则 401）——例外即上面四条例外路径。
+    // 匿名模式此段整段跳过。
     if (identityMode === 'identity') {
-      const path = request.url.split('?')[0];
-      const isSessionAuthEndpoint =
-        path === '/api/session' &&
-        (request.method === 'POST' || request.method === 'DELETE');
-      // 名册导入引导豁免（ROSTER-IMPORT，K8）：身份模式 + 空板 = 登录死锁（无人可选 → 无法登录 →
-      // 无法初始化管理员）。故把 POST /api/roster/import 从「须有会话」硬门放行，由**路由内**自行做完整
-      // 鉴权——名册为空时放行、一旦有人即恢复须 superAdmin（依据 = 解开空板死锁，见路由处注释）。
-      // 名册非空且无会话 → 路由内自行 401，与本钩子同结果，故此处统一放过、鉴权收敛在路由一处判。
-      const isRosterBootstrap =
-        path === '/api/roster/import' && request.method === 'POST';
-      // 初始化 bootstrap 豁免（SETUP-WIZARD-ROSTER 刀②）：POST /api/setup/super-admin 从「须有会话」硬门
-      // 放过——名册无持旗成员时无人能登录（初始化门第一步「你是谁」此刻还没建人没授旗），若不放过则 401
-      // 挡在路由之外、bootstrap 永远触达不到。鉴权收敛在路由一处判：已有持旗成员 → 409；无持旗成员且
-      // 走老路径（无 displayName）→ 仍须会话 401。
-      const isSetupBootstrap =
-        path === '/api/setup/super-admin' && request.method === 'POST';
-      // PIN 死锁恢复豁免（PIN-DEADLOCK-RECOVERY）：DELETE /api/members/:id/pin 来自 loopback 时
-      // 放过「须有会话」硬门——唯一 superAdmin 忘 PIN 时无人能登录，若不放过则 401 挡在路由之外、
-      // loopback 豁免永远触达不到。非 loopback 不在此列（无会话仍 401），鉴权收敛在路由一处判。
-      const isPinRecovery =
-        request.method === 'DELETE' &&
-        /^\/api\/members\/[^/]+\/pin$/.test(path) &&
-        isLoopbackOperator(request, trustProxy);
       if (
         !isSessionAuthEndpoint &&
         !isRosterBootstrap &&

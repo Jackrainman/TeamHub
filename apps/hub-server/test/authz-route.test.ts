@@ -628,3 +628,93 @@ describe('敏感门收口：身份模式须持旗管理员（匿名不变）', (
     }
   });
 });
+
+describe('H3 写门 × 身份模式（令牌/会话双轨，SETUP-WIZARD-TOKEN 修复）', () => {
+  // 背景：非 loopback 部署常配 writeToken（start-teamhub.sh 自动生成）。旧写门对所有写一律先查 Bearer，
+  // 导致登录本身（POST /api/session）与整个首启动向导（bootstrap → 导 CSV → 确认组长）被 401 锁死——
+  // 令牌要进设置页、设置页要先登录。现行规则：身份模式下**有效会话即已鉴权**，且四条引导/认证例外路径
+  // （session、bootstrap、roster 导入、loopback PIN 恢复）从 Bearer 硬门放过、鉴权收敛在路由一处判。
+  test('身份 + 配 writeToken：无 Bearer 可登录（POST /api/session 豁免 Bearer 门）', async () => {
+    const app = buildHubServer({ identityMode: 'identity', writeToken: 'sekret' });
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/session',
+        payload: { memberId: 'm-ecB' }, // 免 PIN 成员
+      });
+      expect(res.statusCode).toBe(200);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('身份 + 配 writeToken：持会话 cookie 的写无 Bearer → 放行；无会话无 Bearer → 401', async () => {
+    const app = buildHubServer({ identityMode: 'identity', writeToken: 'sekret' });
+    try {
+      const cookie = await login(app, 'm-progA'); // demo 持旗成员
+      const withSession = await app.inject({
+        method: 'PUT',
+        url: '/api/members/m-ecB/role',
+        headers: { cookie },
+        payload: { role: 'groupAdmin' },
+      });
+      expect(withSession.statusCode).toBe(200);
+      const anon = await app.inject({
+        method: 'PUT',
+        url: '/api/members/m-ecB/role',
+        payload: { role: 'member' },
+      });
+      expect(anon.statusCode).toBe(401);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('身份 + 配 writeToken：bootstrap 无 Bearer 无会话 → 200 一笔建人授旗，再来 → 409', async () => {
+    const store = new InMemoryGovStore();
+    await clearFixturePm(store);
+    const app = buildHubServer({ identityMode: 'identity', store, writeToken: 'sekret' });
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/setup/super-admin',
+        payload: { displayName: '新队长', groupName: '机械', pin: '1234' },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().member.projectManager).toBe(true);
+      const second = await app.inject({
+        method: 'POST',
+        url: '/api/setup/super-admin',
+        payload: { displayName: '另一个', groupName: '机械', pin: '5678' },
+      });
+      expect(second.statusCode).toBe(409);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('身份 + 配 writeToken：loopback PIN 恢复无 Bearer → 放行（inject 默认 127.0.0.1）', async () => {
+    const store = new InMemoryGovStore();
+    const app = buildHubServer({ identityMode: 'identity', store, writeToken: 'sekret' });
+    try {
+      // 先给 m-ecB 设 PIN（经持旗会话），再从 loopback 无令牌恢复
+      const cookie = await login(app, 'm-progA');
+      await app.inject({
+        method: 'PUT',
+        url: '/api/members/m-ecB/pin',
+        headers: { cookie },
+        payload: { pin: '1234' },
+      });
+      const res = await app.inject({
+        method: 'DELETE',
+        url: '/api/members/m-ecB/pin',
+      });
+      expect(res.statusCode).toBe(200);
+      expect(
+        (await store.getSnapshot()).members.find((m) => m.id === 'm-ecB')?.pinHash,
+      ).toBeFalsy();
+    } finally {
+      await app.close();
+    }
+  });
+});
