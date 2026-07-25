@@ -168,9 +168,12 @@ import {
 } from './schemas/schedule';
 import {
   CreateResourceResponseSchema,
+  CreateResourcesBatchResponseSchema,
   UpdateResourceResponseSchema,
   type CreateResourceRequest,
   type CreateResourceResponse,
+  type CreateResourcesBatchRequest,
+  type CreateResourcesBatchResponse,
   type UpdateResourceStatusRequest,
   type UpdateResourceResponse,
 } from './schemas/resources';
@@ -200,6 +203,11 @@ export interface HubApiClient {
   //（禁手写）；改状态：维修 / 退役 / 拆解 / 恢复等状态迁移（**退役 = status→retired、非物删，无 DELETE 口子**）。
   // 反监视红线：SharedResource 结构上无成员维度，写请求绝不含 memberId / 出勤。
   createResource(req: CreateResourceRequest): Promise<CreateResourceResponse>;
+  // 车队批量初始化（FLEET-BATCH-INIT 刀⑩）：初始化向导「车队」步一次录全部车——服务端 zod 全量先验，
+  // 任一行坏整批 400 一台不落；displayCode 服务端派生（禁手写不变）。
+  createResourcesBatch(
+    req: CreateResourcesBatchRequest,
+  ): Promise<CreateResourcesBatchResponse>;
   updateResourceStatus(
     id: string,
     patch: UpdateResourceStatusRequest,
@@ -482,6 +490,15 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         `${baseUrl}/api/resources`,
         req,
         CreateResourceResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async createResourcesBatch(req: CreateResourcesBatchRequest) {
+      return postJson(
+        `${baseUrl}/api/resources/batch`,
+        req,
+        CreateResourcesBatchResponseSchema,
         fetcher,
         writeToken,
       );

@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { buildHubServer } from '../src/server.js';
 import {
   CreateResourceResponseSchema,
+  CreateResourcesBatchResponseSchema,
   UpdateResourceResponseSchema,
 } from '../src/contracts.js';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
@@ -372,5 +373,159 @@ describe('FileGovStore 车落盘（resources.json，重启不丢）', () => {
     const { writeFile } = await import('node:fs/promises');
     await writeFile(join(dir, 'resources.json'), '{"not":"an array"}');
     await expect(FileGovStore.create(file)).rejects.toThrow();
+  });
+});
+
+// FLEET-BATCH-INIT（打磨轮刀⑩）：初始化向导「车队」步的批量建车端点。原子性照
+// /api/resource-sessions/batch 全量先验范式——zod 整包先验，任一行坏 → 整批 400、一台不落；
+// 全过才逐台 createResource（displayCode 派生不变）+ status ≠ available 时补迁移。
+describe('POST /api/resources/batch（FLEET-BATCH-INIT 车队批量初始化）', () => {
+  test('三台全过 → 201；displayCode 派生（27/R1/2 → 27R1-v2）、kind 默认 robot、建时 clamp available', async () => {
+    const store = new InMemoryGovStore();
+    const before = (await store.listResources()).length;
+    const app = buildHubServer({ store });
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/resources/batch',
+        payload: {
+          resources: [
+            { name: 'R1 第二代', robotTarget: 'R1', season: '27', version: 2 },
+            { name: 'R2 比赛车', robotTarget: 'R2', season: '27' },
+            { name: '共用测试架', robotTarget: 'shared', kind: 'testRig' },
+          ],
+        },
+      });
+      expect(res.statusCode).toBe(201);
+      const body = CreateResourcesBatchResponseSchema.parse(res.json());
+      expect(body.resources).toHaveLength(3);
+      // displayCode 服务端派生（禁手写不变）：('27','R1',2) → '27R1-v2'；version 缺省 1 → 不显 -vN
+      expect(body.resources[0].displayCode).toBe('27R1-v2');
+      expect(body.resources[1].displayCode).toBe('27R2');
+      // 不给 season → displayCode undefined（读视图回退 name，与单建同律）
+      expect(body.resources[2].displayCode).toBeUndefined();
+      // kind 省略 → 默认 robot
+      expect(body.resources[0].kind).toBe('robot');
+      // 建时 clamp：available / statusReason=null / statusSource=console
+      expect(body.resources[0].status).toBe('available');
+      expect(body.resources[0].statusReason).toBeNull();
+      expect(body.resources[0].statusSource).toBe('console');
+      // 落库 + I0 无成员维度
+      expect((await store.listResources()).length).toBe(before + 3);
+      expect(body.resources[0]).not.toHaveProperty('memberId');
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('行带 status=repair（+statusReason）→ 建后补迁移落库；statusSource 钉 console（照单台迁移钉法）', async () => {
+    const store = new InMemoryGovStore();
+    const app = buildHubServer({ store });
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/resources/batch',
+        payload: {
+          resources: [
+            { name: '能用的车', robotTarget: 'R1', season: '27' },
+            {
+              name: '在修的车',
+              robotTarget: 'R2',
+              season: '27',
+              status: 'repair',
+              statusReason: '撞坏底盘',
+            },
+            { name: '退役的老车', robotTarget: 'shared', season: '25', status: 'retired' },
+          ],
+        },
+      });
+      expect(res.statusCode).toBe(201);
+      const body = CreateResourcesBatchResponseSchema.parse(res.json());
+      expect(body.resources[0].status).toBe('available');
+      expect(body.resources[1].status).toBe('repair');
+      expect(body.resources[1].statusReason).toBe('撞坏底盘');
+      expect(body.resources[1].statusSource).toBe('console');
+      expect(body.resources[2].status).toBe('retired');
+      // 迁移落库（重启口径同 store 层，这里断言 live 读回）
+      const live = await store.listResources();
+      expect(live.find((r) => r.id === body.resources[1].id)?.status).toBe('repair');
+      expect(live.find((r) => r.id === body.resources[2].id)?.status).toBe('retired');
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('原子性：任一行坏（第 2 台缺 robotTarget）→ 400 整批不落，resources 快照零变化；detail 带第几台', async () => {
+    const store = new InMemoryGovStore();
+    const app = buildHubServer({ store });
+    try {
+      const snapshotBefore = JSON.stringify(await store.listResources());
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/resources/batch',
+        payload: {
+          resources: [
+            { name: '好车', robotTarget: 'R1', season: '27' },
+            { name: '没编号位的坏行' }, // 缺 robotTarget
+            { name: '又一台好车', robotTarget: 'R2', season: '27' },
+          ],
+        },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json().detail).toContain('第 2 台');
+      // 一台不落——含第 1 台好车也不落（全量先验、通过才落盘）
+      expect(JSON.stringify(await store.listResources())).toBe(snapshotBefore);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('status 只收初始化四档：第 1 台 inUse → 400 整批不落', async () => {
+    const store = new InMemoryGovStore();
+    const before = (await store.listResources()).length;
+    const app = buildHubServer({ store });
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/resources/batch',
+        payload: {
+          resources: [{ name: '在用的车', robotTarget: 'R1', status: 'inUse' }],
+        },
+      });
+      expect(res.statusCode).toBe(400);
+      expect((await store.listResources()).length).toBe(before);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('空数组 → 400（min 1，空批无意义）', async () => {
+    const app = buildHubServer();
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/resources/batch',
+        payload: { resources: [] },
+      });
+      expect(res.statusCode).toBe(400);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('鉴权继承写门：配 writeToken 无 Bearer → 401（与单建 POST /api/resources 同门，不新加敏感门）', async () => {
+    const guarded = buildHubServer({ writeToken: 'secret' });
+    try {
+      const res = await guarded.inject({
+        method: 'POST',
+        url: '/api/resources/batch',
+        payload: {
+          resources: [{ name: 'R1 比赛车', robotTarget: 'R1', season: '27' }],
+        },
+      });
+      expect(res.statusCode).toBe(401);
+    } finally {
+      await guarded.close();
+    }
   });
 });

@@ -74,6 +74,8 @@ import {
   RelayBoardResponseSchema,
   CreateResourceRequestSchema,
   CreateResourceResponseSchema,
+  CreateResourcesBatchRequestSchema,
+  CreateResourcesBatchResponseSchema,
   UpdateResourceStatusRequestSchema,
   UpdateResourceResponseSchema,
   UpdateResourceDefaultPresetRequestSchema,
@@ -2283,6 +2285,50 @@ function registerPresenceScheduleRoutes(app: FastifyInstance, ctx: ModuleRouteCt
     });
     void reply.code(201);
     return CreateResourceResponseSchema.parse({ resource });
+  });
+
+  // 车队批量初始化（POST /api/resources/batch，FLEET-BATCH-INIT 打磨轮刀⑩ / onboarding-init-wizard §4 刀⑩）。
+  // **原子性照 /api/resource-sessions/batch 全量先验范式**：zod 对整包先验——任一行坏 → 整批 400、
+  // 一台不落（detail 带第几台的原因）；全过才逐台走 store.createResource 等价逻辑（status 先 available、
+  // displayCode 由 store 内 deriveDisplayCode 派生——与单建完全同律，禁手写不变）；行带 status ≠ available
+  // 时紧接补一次 updateResourceStatus 迁移（statusReason 同带，store 钉 statusSource=console——照单台
+  // 创建/迁移的钉法）。projectId 钉 'prj-robots'（C3 单团队单项目，同 console 单建表单钉法）。
+  // POST /api/* → 继承 H3 onRequest 鉴权 + 限流（与单建同门，不新加敏感门）。**I0**：无成员维度。
+  app.post('/api/resources/batch', async (request, reply) => {
+    const parsed = CreateResourcesBatchRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      // 行号取自 issue path（resources.<i>.<field>）——detail 带「第几台」便于向导定位坏行。
+      const rowIdx = typeof issue?.path[1] === 'number' ? issue.path[1] : null;
+      const detail =
+        rowIdx !== null
+          ? `第 ${rowIdx + 1} 台：${issue?.message ?? 'invalid body'}`
+          : firstZodMsg(parsed.error);
+      void reply.code(400).send({ detail });
+      return;
+    }
+    const created = [];
+    for (const row of parsed.data.resources) {
+      const resource = await store.createResource({
+        projectId: 'prj-robots',
+        name: row.name,
+        kind: row.kind,
+        robotTarget: row.robotTarget,
+        season: row.season,
+        version: row.version,
+      });
+      if (row.status && row.status !== 'available') {
+        const migrated = await store.updateResourceStatus(resource.id, {
+          status: row.status,
+          statusReason: row.statusReason ?? null,
+        });
+        created.push(migrated ?? resource);
+      } else {
+        created.push(resource);
+      }
+    }
+    void reply.code(201);
+    return CreateResourcesBatchResponseSchema.parse({ resources: created });
   });
 
   // 改状态（PATCH /api/resources/:id/status，R3 / D-072 §3.3 车生命周期）。镜像 PATCH /api/resource-sessions/:id：

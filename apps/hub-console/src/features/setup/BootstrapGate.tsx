@@ -2,16 +2,20 @@ import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   deriveLeafGroups,
+  RESOURCE_INIT_STATUSES,
+  type CreateResourcesBatchRequest,
   type Group,
   type MemberGrade,
   type MemberPublic,
+  type RobotTarget,
   type RosterImportReport,
   type RosterImportRow,
   type RosterPreviewResponse,
+  type SharedResource,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
-import { useI18n } from '../../i18n';
-import { humanizeFormError } from '../../utils';
+import { useI18n, type TranslationKey } from '../../i18n';
+import { humanizeFormError, suggestSeason } from '../../utils';
 import { GroupLeadConfirm } from '../settings/GroupLeadConfirm';
 import { RosterPreviewTable } from '../settings/RosterPreviewTable';
 import { GRADE_KEY, RosterReportView } from '../settings/SettingsPage';
@@ -30,12 +34,14 @@ import { GRADE_KEY, RosterReportView } from '../settings/SettingsPage';
  *    原"顺序即鉴权"问题，零新豁免面）。刀⑦：上传 → preview 只解析不落库 → 预览表行内编辑 → 确认后
  *    JSON 导入。名册已就绪（如死锁恢复场景成员早导入过）可直接下一步。
  *  ③ **确认各组组长**：复用 GroupLeadConfirm（刀③——有成员必选 + 默认建议、空组不出现、叶子组候选）。
- *  ④ **进 app**（已登录、项目管理权限在手）。
+ *  ④ **录入车队**（FLEET-BATCH-INIT 刀⑩）：一次录全部车（名称/编号位/赛季/第几代/能用·在修·退役·停用），
+ *    批量端点 zod 全量先验、任一坏整批不落；空表可跳过，已有车可直接下一步（照名册已就绪先例）。
+ *  ⑤ **进 app**（已登录、项目管理权限在手）。
  *
- * 反监视 I0：门只收集操作者本人这一行事实 + 组长任命事实，不做任何按人聚合。
+ * 反监视 I0：门只收集操作者本人这一行事实 + 组长任命事实 + 车（无成员维度），不做任何按人聚合。
  */
 
-type Step = 'who' | 'roster' | 'leads' | 'done';
+type Step = 'who' | 'roster' | 'leads' | 'fleet' | 'done';
 
 /**
  * 「你是谁」步年级下拉选项（GRADE-7-TIERS 刀⑥）：大一~大四/研一~研三七档，按序、默认 freshman。
@@ -117,18 +123,21 @@ export function BootstrapGate({
                 groups={groups}
                 onConfirmed={() => {
                   invalidateRoster();
-                  setStep('done');
+                  setStep('fleet');
                 }}
               />
               <button
                 type="button"
                 className="btn btn--secondary"
-                onClick={() => setStep('done')}
+                onClick={() => setStep('fleet')}
               >
                 {t('gate.leads.skip')}
               </button>
             </section>
           )
+        ) : null}
+        {step === 'fleet' ? (
+          <FleetStep client={client} onNext={() => setStep('done')} />
         ) : null}
         {step === 'done' ? (
           <section className="setup-card setup-card--primary">
@@ -395,6 +404,258 @@ function RosterStep({
       <button type="button" className="btn btn--primary" onClick={onNext}>
         {report ? t('gate.roster.next') : t('gate.roster.ready')}
       </button>
+    </section>
+  );
+}
+
+// ④ 录入车队（FLEET-BATCH-INIT 刀⑩）：一次录全部车——表格行（名称 / 编号位 R1·R2·共用 /
+// 赛季（默认按 suggestSeason 派生两位赛季码预填、可改可留空）/ 第几代（默认 1）/ 状态四档
+// 能用·在修·退役·停用），行可增删；空表直接「跳过」；提交走 POST /api/resources/batch
+// （zod 全量先验、任一坏整批不落）→ 回显创建结果（displayCode 列表）→「下一步」。
+// 已有车（resources 非空）时显示「已有 N 台车」可直接下一步（照 RosterStep 名册已就绪先例）。
+
+/** 初始化语义四档（能用/在修/退役/停用）——与 contracts RESOURCE_INIT_STATUSES 同源，不放开全 7 枚举。 */
+export type FleetInitStatus = (typeof RESOURCE_INIT_STATUSES)[number];
+
+/** 车队步表格行（本地编辑态）：version 用 string 承接 number input，提交时才 parse。 */
+export interface FleetRow {
+  name: string;
+  robotTarget: RobotTarget;
+  season: string; // 赛季后两位 "27"；可留空（不给 season → displayCode 不派生、读视图回退 name）
+  version: string;
+  status: FleetInitStatus;
+}
+
+export const FLEET_ROBOT_TARGETS: readonly RobotTarget[] = ['R1', 'R2', 'shared'];
+
+/** 状态四档的 i18n 键映射（Record 穷举：加档 TS 指路）。 */
+export const FLEET_STATUS_KEY: Record<FleetInitStatus, TranslationKey> = {
+  available: 'gate.fleet.status.available',
+  repair: 'gate.fleet.status.repair',
+  retired: 'gate.fleet.status.retired',
+  down: 'gate.fleet.status.down',
+};
+
+/**
+ * 赛季预填：suggestSeason(now).name（"2027赛季"）取年份后两位 → "27"（displayCode 的赛季位语义）。
+ * 与刀⑨ suggestSeason 同函数派生——8–12 月指向次年赛季、1–7 月指向当年赛季，时区无关（UTC）。
+ */
+export function suggestFleetSeasonCode(now: Date): string {
+  return suggestSeason(now).name.replace('赛季', '').slice(-2);
+}
+
+/** 新行默认值：空名 / R1 / 赛季码预填 / 第 1 代 / 能用。 */
+export function newFleetRow(seasonCode: string): FleetRow {
+  return { name: '', robotTarget: 'R1', season: seasonCode, version: '1', status: 'available' };
+}
+
+/** 空行 = 名称为空（其余字段有默认值）——提交前剔除，不参与批量。 */
+export function isFleetRowBlank(row: FleetRow): boolean {
+  return row.name.trim().length === 0;
+}
+
+/** 可提交 = 至少一条非空行，且每条非空行 version 为正整数（赛季可留空）。 */
+export function fleetRowsSubmittable(rows: readonly FleetRow[]): boolean {
+  const filled = rows.filter((r) => !isFleetRowBlank(r));
+  if (filled.length === 0) return false;
+  return filled.every((r) => {
+    const v = Number.parseInt(r.version, 10);
+    return Number.isInteger(v) && v >= 1 && String(v) === r.version.trim();
+  });
+}
+
+/** 本地行 → 批量请求体：剔空行、trim、version 转数；kind 不传（服务端默认 robot）。 */
+export function buildFleetBatchRequest(
+  rows: readonly FleetRow[],
+): CreateResourcesBatchRequest {
+  return {
+    resources: rows
+      .filter((r) => !isFleetRowBlank(r))
+      .map((r) => ({
+        name: r.name.trim(),
+        robotTarget: r.robotTarget,
+        season: r.season.trim() || undefined,
+        version: Number.parseInt(r.version, 10),
+        status: r.status,
+      })),
+  };
+}
+
+function FleetStep({
+  client,
+  onNext,
+}: {
+  client: HubApiClient;
+  onNext: () => void;
+}) {
+  const { t } = useI18n();
+  const queryClient = useQueryClient();
+  const resourcesQuery = useQuery({
+    queryKey: ['resources', 'bootstrap-gate'],
+    queryFn: () => client.getResources(),
+  });
+  const existingCount = resourcesQuery.data?.resources.length ?? 0;
+  const [rows, setRows] = useState<FleetRow[]>(() => [
+    newFleetRow(suggestFleetSeasonCode(new Date())),
+  ]);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const [created, setCreated] = useState<readonly SharedResource[] | null>(null);
+
+  const submittable = fleetRowsSubmittable(rows);
+
+  function patchRow(idx: number, patch: Partial<FleetRow>) {
+    setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  }
+
+  async function submit() {
+    if (!submittable) return;
+    setPending(true);
+    setError(null);
+    try {
+      const res = await client.createResourcesBatch(buildFleetBatchRequest(rows));
+      setCreated(res.resources);
+      void queryClient.invalidateQueries({ queryKey: ['resources'] });
+    } catch (err) {
+      setError(err);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <section className="setup-card setup-card--primary">
+      <h2 className="setup-card__title">{t('gate.step.fleet')}</h2>
+      <p className="setup-card__desc">{t('gate.fleet.desc')}</p>
+      {existingCount > 0 ? (
+        <p className="settings-desc">{t('gate.fleet.hasFleet', { count: existingCount })}</p>
+      ) : null}
+      {created ? (
+        <>
+          <p className="settings-desc">{t('gate.fleet.created')}</p>
+          <ul className="settings-desc">
+            {created.map((r) => (
+              <li key={r.id}>{r.displayCode ?? r.name}</li>
+            ))}
+          </ul>
+          <button type="button" className="btn btn--primary" onClick={onNext}>
+            {t('gate.fleet.next')}
+          </button>
+        </>
+      ) : (
+        <>
+          <table className="resources-table">
+            <thead>
+              <tr>
+                <th>{t('gate.fleet.colName')}</th>
+                <th>{t('gate.fleet.colTarget')}</th>
+                <th>{t('gate.fleet.colSeason')}</th>
+                <th>{t('gate.fleet.colVersion')}</th>
+                <th>{t('gate.fleet.colStatus')}</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, idx) => (
+                <tr key={idx}>
+                  <td>
+                    <input
+                      value={row.name}
+                      onChange={(e) => patchRow(idx, { name: e.target.value })}
+                      placeholder={t('gate.fleet.namePlaceholder')}
+                    />
+                  </td>
+                  <td>
+                    <select
+                      value={row.robotTarget}
+                      onChange={(e) =>
+                        patchRow(idx, { robotTarget: e.target.value as RobotTarget })
+                      }
+                    >
+                      {FLEET_ROBOT_TARGETS.map((rt) => (
+                        <option value={rt} key={rt}>
+                          {rt === 'shared' ? t('resources.robot.shared') : rt}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      value={row.season}
+                      onChange={(e) => patchRow(idx, { season: e.target.value })}
+                      placeholder={suggestFleetSeasonCode(new Date())}
+                      size={4}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      min={1}
+                      value={row.version}
+                      onChange={(e) => patchRow(idx, { version: e.target.value })}
+                      size={3}
+                    />
+                  </td>
+                  <td>
+                    <select
+                      value={row.status}
+                      onChange={(e) =>
+                        patchRow(idx, { status: e.target.value as FleetInitStatus })
+                      }
+                    >
+                      {RESOURCE_INIT_STATUSES.map((s) => (
+                        <option value={s} key={s}>
+                          {t(FLEET_STATUS_KEY[s])}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn btn--secondary btn--sm"
+                      onClick={() => setRows((prev) => prev.filter((_, i) => i !== idx))}
+                      aria-label={t('gate.fleet.removeRow')}
+                    >
+                      ×
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="roster-import__actions">
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={() =>
+                setRows((prev) => [...prev, newFleetRow(suggestFleetSeasonCode(new Date()))])
+              }
+            >
+              {t('gate.fleet.addRow')}
+            </button>
+          </div>
+          {error ? (
+            <p className="form-hint form-hint--warn">
+              {humanizeFormError(error, t, 'gate.fleet.error')}
+            </p>
+          ) : null}
+          {submittable ? (
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={pending}
+              onClick={() => void submit()}
+            >
+              {pending ? t('gate.fleet.submitting') : t('gate.fleet.submit')}
+            </button>
+          ) : (
+            <button type="button" className="btn btn--primary" onClick={onNext}>
+              {t('gate.fleet.skip')}
+            </button>
+          )}
+        </>
+      )}
     </section>
   );
 }

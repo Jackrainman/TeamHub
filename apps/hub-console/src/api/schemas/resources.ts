@@ -4,6 +4,10 @@
 export {
   CreateResourceRequestSchema,
   CreateResourceResponseSchema,
+  // 车队批量初始化（FLEET-BATCH-INIT 打磨轮刀⑩）：向导「车队」步一次录全部车。
+  CreateResourcesBatchRequestSchema,
+  CreateResourcesBatchResponseSchema,
+  RESOURCE_INIT_STATUSES,
   UpdateResourceStatusRequestSchema,
   UpdateResourceResponseSchema,
   SharedResourceSchema,
@@ -17,6 +21,8 @@ export {
 export type {
   CreateResourceRequest,
   CreateResourceResponse,
+  CreateResourcesBatchRequest,
+  CreateResourcesBatchResponse,
   UpdateResourceStatusRequest,
   UpdateResourceResponse,
   SharedResource,

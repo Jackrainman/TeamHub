@@ -348,6 +348,43 @@ export const CreateResourceResponseSchema = z.object({
 });
 
 /**
+ * 初始化车队批量录入（FLEET-BATCH-INIT 打磨轮刀⑩ / onboarding-init-wizard §4 刀⑩）允许的四档状态：
+ * 初始化语义 = 「能用 / 在修 / 退役 / 停用（坏了）」——**不放开全 7 枚举**（inUse/upgrading/disassembling
+ * 是运行期/退役后语义，初始化现场不产生）。console 向导下拉与 schema 共用此唯一来源。
+ */
+export const RESOURCE_INIT_STATUSES = ['available', 'repair', 'retired', 'down'] as const;
+
+/**
+ * POST /api/resources/batch（FLEET-BATCH-INIT 刀⑩）：初始化向导「车队」步一次录全部车。
+ * 行 = 单台建车（POST /api/resources）的最小字段 + 初始化语义的可选 status/statusReason：
+ *  - `kind` 可省，默认 `robot`（初始化录的都是整机；测试台/仪器走设置页单建）。
+ *  - `status` 限 RESOURCE_INIT_STATUSES 四档，省略 = available；**displayCode 仍禁手写**（server 派生不变）。
+ *  - 行内不含 projectId（C3 单团队单项目，server 钉 'prj-robots'，同 console 单建表单的钉法）。
+ * **原子性（照 /api/resource-sessions/batch 全量先验范式）**：zod 对整包先验——任一行坏 → 整批 400、
+ * 一台不落（detail 带第几台的原因）；全过才逐台落库。数组 min 1（空批无意义）max 50（初始化规模上限）。
+ * **反监视红线**：与单建同——SharedResource 无成员维度，本请求绝不收 memberId / 出勤。
+ */
+export const CreateResourcesBatchRequestSchema = z.object({
+  resources: z
+    .array(
+      z.object({
+        name: z.string().min(1),
+        kind: ResourceKindSchema.default('robot'),
+        robotTarget: RobotTargetSchema,
+        season: z.string().min(1).optional(),
+        version: z.number().int().positive().optional(),
+        status: z.enum(RESOURCE_INIT_STATUSES).optional(),
+        statusReason: z.string().min(1).optional(),
+      }),
+    )
+    .min(1)
+    .max(50),
+});
+export const CreateResourcesBatchResponseSchema = z.object({
+  resources: z.array(SharedResourceSchema),
+});
+
+/**
  * PATCH /api/resources/:id/status（R3 改状态 / D-072 §3.3 机器人生命周期）：既有机器人的状态迁移
  *（维修 repair / 退役 retired / 拆解 disassembling / 回 available 等）。**退役 = 状态迁移、非物理删除**
  *（整机留展示——ResourceSession 仍引用 resourceId，物删会悬空；故无 DELETE 路由）。
@@ -473,6 +510,14 @@ export type CreateResourceRequest = z.infer<
 >;
 export type CreateResourceResponse = z.infer<
   typeof CreateResourceResponseSchema
+>;
+// Request 用 z.input 而非 z.infer（output）：kind 带 .default('robot')，output 类型里 kind 必填，
+// 但客户端本就该省略它（服务端补默认）——input 才是「线上请求体」的真实形状。
+export type CreateResourcesBatchRequest = z.input<
+  typeof CreateResourcesBatchRequestSchema
+>;
+export type CreateResourcesBatchResponse = z.infer<
+  typeof CreateResourcesBatchResponseSchema
 >;
 export type UpdateResourceStatusRequest = z.infer<
   typeof UpdateResourceStatusRequestSchema

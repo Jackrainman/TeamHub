@@ -90,6 +90,9 @@ export {
   deriveDisplayCode,
   CreateResourceRequestSchema,
   CreateResourceResponseSchema,
+  // 车队批量初始化（FLEET-BATCH-INIT 打磨轮刀⑩）：zod 全量先验、任一坏整批 400。
+  CreateResourcesBatchRequestSchema,
+  CreateResourcesBatchResponseSchema,
   UpdateResourceStatusRequestSchema,
   UpdateResourceResponseSchema,
   // 今日计划：每车预设写回 + 表格页批量确认落盘（D-082 daily-plan-presets）。
