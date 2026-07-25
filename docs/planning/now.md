@@ -32,7 +32,7 @@ frontier:                                # 本轮(07-11~07-12)=路线 v4 五把�
   # 公测补强代办(2026-07-24 立项)：刀①~④ ✅已全部落地(v0.28.0~v0.32.0)；刀⑤ 运维动作 ✅(2026-07-25：部署重置+用户冒烟中)；追加修复=写门 401 死锁 ✅(v0.33.0)
   # 公测打磨轮+向导 v3(2026-07-25 立项，设计真相=docs/design/onboarding-init-wizard-2026-07-25.md)：✅全部落地——刀⑤默认四组 ✅(v0.34.0)/⑥年级七档 ✅(v0.35.0)/⑦名册预览表 ✅(v0.36.0)/⑧成员页UX ✅(v0.37.0)/⑨赛季建议 ✅(v0.38.0)/⑩车队批量 ✅(v0.39.0)/⑪库存导入 ✅(v0.40.0)/⑫KB md导入 ✅(v0.41.0)/⑬向导赛季步 ✅(v0.42.0)
   # 排班收窄(D-083)：在场排班/接力退出日常动线，只服务「人必须凑齐」的关键窗口(联调日/赛前)；课表围绕排班停建(伪需求，MemberAvailability schema/派生保留不扩建)
-  # 仍卡外部基建/排期：INV-Hermes 自动对话记账(卡 HUB-HERMES-ADAPTER) / KB-LARK 飞书 wiki·drive→KB 摄入(需落点 schema 定稿) / 正式部署上线(卡用户审批) / Hermes
+  # 仍卡外部基建/排期：INV-Hermes 对话记账(Hermes inbound API 已落地 v0.43.4，卡飞书侧 skill 编写+鉴权最终方案) / KB-LARK 飞书 wiki·drive→KB 摄入(需落点 schema 定稿) / 正式部署上线(卡用户审批)
   # 后置(D-069)：STUDY-BROAD-D039-REVIVAL(HARD-GATED 封存·B1 已拍；D-083 AI 三红线延续其精神)
   # 挂起(D-039 AI 退治理，spec 留、复活触发=未来要 AI 参与治理判断)：GOV-MEMBER-STATUS-DERIVE / GOV-RULES-LAYER-DESIGN + D-032~035 治理派生整簇 + 自动派活 + freeIdle·双写债
   # 历史已落地条目(IA-REFACTOR D-077 / ARTIFACT-FILE-CHAIN D-078 / PRESENCE-RECONCILE D-079 / DAILY-PLAN-PRESETS D-082 / PHASE2-CONSOLE-ASSEMBLY 等)→ docs/archive/completed-log.md + git log
@@ -61,7 +61,7 @@ frozen:
 
 ## 阻塞 / 待拍板
 
-- **真实外部 adapter**：Hermes / 小龙虾 / Claude Code 真实接入需用户提供运行方式与权限；AI 当前只能做 mock-first 适配设计。
+- **Hermes 飞书侧接通**：TeamHub 入站 API 已落地（POST /api/hermes/inbound，v0.43.4）；剩余 = 飞书侧 skill 编写（用户侧）+ 鉴权最终方案（飞书 app 授权流调研中）+ .env token 管理设计化。
 - **真实服务器写入**：Forgejo/Gitea/bare git 部署、SSH、systemd、80/443、真实数据迁移均需用户白天审批后再做。
 
 ## 已冻结
