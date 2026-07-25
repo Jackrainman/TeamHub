@@ -138,3 +138,5 @@ export * from './csv-core.js';
 export * from './assembly.js';
 // robotics 垂直包（HUB-MODULARIZATION 第6步）：词汇 + 词汇相关派生函数，只此一个已注册垂直包。
 export * from './verticals/robotics.js';
+// Hermes 入站命令契约（HUB-HERMES-ADAPTER 最小链路）：命令枚举 + 参数 schema + 原始文本规则匹配（纯，无 I/O）。
+export * from './hermes.js';

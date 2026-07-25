@@ -198,6 +198,12 @@ import {
   // SETUP-WIZARD 刀③：部署配置写端点（PUT /api/setup/config 改 identityMode；graduate 转正式）。
   DeployConfigSchema,
   SetupConfigRequestSchema,
+  // Hermes 入站命令（HUB-HERMES-ADAPTER 最小链路）：请求/响应契约 + 原始文本规则匹配。
+  HermesInboundRequestSchema,
+  HermesInboundResponseSchema,
+  HermesInvQueryArgsSchema,
+  HermesInvRecordArgsSchema,
+  parseHermesText,
 } from '@teamhub/hub-contracts';
 import { ZodError } from 'zod';
 import { isGateReviewer, isGroupLeadOf, isSuperAdmin, memberHasPmFlag } from './authz.js';
@@ -2499,6 +2505,237 @@ function registerLedgerRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       updated: outcome.updated,
       failed: [...parseErrors, ...outcome.failed],
     });
+  });
+
+  // ── Hermes 入站命令（HUB-HERMES-ADAPTER 最小链路）──────────────────────────────────────────────
+  // POST /api/hermes/inbound：接收结构化 {command, args} 或原始文本 {text}（内置规则匹配），
+  // 执行 inv-query / inv-record，返回 {ok, text} 纯文本供飞书侧直接回复。
+  // 鉴权 = 宿主级写门（Bearer WRITE_TOKEN / 会话），无额外 PM 旗标要求（Hermes 是受信服务端进程）。
+  app.post('/api/hermes/inbound', async (request, reply) => {
+    const parsed = HermesInboundRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+
+    let command: string;
+    let args: Record<string, unknown>;
+
+    if ('text' in parsed.data) {
+      const result = parseHermesText(parsed.data.text);
+      if (!result) {
+        return HermesInboundResponseSchema.parse({
+          ok: false,
+          text: `没听懂「${parsed.data.text}」。试试：「3508还有几个」「新到了5个电容」「3508烧了一个」「把电容从R1拆到R2」`,
+        });
+      }
+      command = result.command;
+      args = result.args;
+    } else {
+      command = parsed.data.command;
+      args = parsed.data.args;
+    }
+
+    const snapshot = await invStore.getInventorySnapshot();
+    const resources = await store.listResources();
+
+    if (command === 'inv-query') {
+      const q = HermesInvQueryArgsSchema.safeParse(args);
+      if (!q.success) {
+        return HermesInboundResponseSchema.parse({
+          ok: false,
+          text: `查询参数不对：${firstZodMsg(q.error)}`,
+        });
+      }
+      const { name, category, robot } = q.data;
+      let matched = snapshot.partTypes;
+
+      if (name) {
+        const lower = name.toLowerCase();
+        matched = matched.filter(
+          (p) =>
+            p.name.toLowerCase().includes(lower) ||
+            p.partNumber.toLowerCase().includes(lower),
+        );
+      }
+      if (category) {
+        const lower = category.toLowerCase();
+        matched = matched.filter((p) => p.category.toLowerCase().includes(lower));
+      }
+      if (robot) {
+        const res = resources.find(
+          (r) =>
+            r.displayCode?.toLowerCase() === robot.toLowerCase() ||
+            r.name.toLowerCase().includes(robot.toLowerCase()) ||
+            r.robotTarget.toLowerCase() === robot.toLowerCase(),
+        );
+        if (!res) {
+          return HermesInboundResponseSchema.parse({
+            ok: false,
+            text: `没找到叫「${robot}」的机器人。`,
+          });
+        }
+        matched = matched.filter((p) =>
+          p.allocations.some((a) => a.resourceId === res.id && (a.used > 0 || a.reserved > 0)),
+        );
+        if (matched.length === 0) {
+          return HermesInboundResponseSchema.parse({
+            ok: true,
+            text: `${res.displayCode ?? res.name} 上没有装配任何零件。`,
+          });
+        }
+        const lines = matched.map((p) => {
+          const alloc = p.allocations.find((a) => a.resourceId === res!.id)!;
+          return `  ${p.name}(${p.partNumber}): 已装${alloc.used} 预留${alloc.reserved}`;
+        });
+        return HermesInboundResponseSchema.parse({
+          ok: true,
+          text: `${res.displayCode ?? res.name} 装配清单：\n${lines.join('\n')}`,
+        });
+      }
+
+      if (matched.length === 0) {
+        const hint = name
+          ? `没找到叫「${name}」的件。`
+          : category
+            ? `类别「${category}」下没有件。`
+            : '没有匹配的零件。';
+        return HermesInboundResponseSchema.parse({ ok: false, text: hint });
+      }
+
+      const lines = matched.slice(0, 20).map((p) => {
+        const usedTotal = p.allocations.reduce((s, a) => s + a.used + a.reserved, 0);
+        const idle = p.totalQuantity - usedTotal;
+        return `  ${p.name}(${p.partNumber}): 总${p.totalQuantity} 闲置${idle} [${p.category}]`;
+      });
+      const suffix = matched.length > 20 ? `\n  …还有${matched.length - 20}条` : '';
+      return HermesInboundResponseSchema.parse({
+        ok: true,
+        text: `库存查询结果（${matched.length}条）：\n${lines.join('\n')}${suffix}`,
+      });
+    }
+
+    if (command === 'inv-record') {
+      const r = HermesInvRecordArgsSchema.safeParse(args);
+      if (!r.success) {
+        return HermesInboundResponseSchema.parse({
+          ok: false,
+          text: `记账参数不对：${firstZodMsg(r.error)}`,
+        });
+      }
+      const { name, action, quantity, from, to, note } = r.data;
+
+      const lower = name.toLowerCase();
+      const partType = snapshot.partTypes.find(
+        (p) =>
+          p.name.toLowerCase() === lower || p.partNumber.toLowerCase() === lower,
+      ) ?? snapshot.partTypes.find(
+        (p) =>
+          p.name.toLowerCase().includes(lower) ||
+          p.partNumber.toLowerCase().includes(lower),
+      );
+      if (!partType) {
+        return HermesInboundResponseSchema.parse({
+          ok: false,
+          text: `没找到叫「${name}」的件，无法记账。`,
+        });
+      }
+
+      const findResource = (label: string) =>
+        resources.find(
+          (res) =>
+            res.displayCode?.toLowerCase() === label.toLowerCase() ||
+            res.name.toLowerCase().includes(label.toLowerCase()) ||
+            res.robotTarget.toLowerCase() === label.toLowerCase(),
+        );
+
+      try {
+        if (action === 'add') {
+          await invStore.recordPartAction({
+            projectId: partType.projectId,
+            partTypeId: partType.id,
+            trackedPartId: null,
+            kind: 'restock',
+            quantityDelta: quantity,
+            fromHolder: null,
+            toHolder: null,
+            note: note ?? `Hermes 入库 +${quantity}`,
+            source: 'hermes',
+          });
+          return HermesInboundResponseSchema.parse({
+            ok: true,
+            text: `已记录：${partType.name} 入库 +${quantity}，当前总数 ${partType.totalQuantity + quantity}。`,
+          });
+        }
+
+        if (action === 'subtract') {
+          await invStore.recordPartAction({
+            projectId: partType.projectId,
+            partTypeId: partType.id,
+            trackedPartId: null,
+            kind: 'damage',
+            quantityDelta: -quantity,
+            fromHolder: null,
+            toHolder: null,
+            note: note ?? `Hermes 损耗 -${quantity}`,
+            source: 'hermes',
+          });
+          return HermesInboundResponseSchema.parse({
+            ok: true,
+            text: `已记录：${partType.name} 损耗 -${quantity}，当前总数 ${partType.totalQuantity - quantity}。`,
+          });
+        }
+
+        // transfer
+        const fromRes = findResource(from!);
+        const toRes = findResource(to!);
+        if (!fromRes) {
+          return HermesInboundResponseSchema.parse({
+            ok: false,
+            text: `没找到叫「${from}」的机器人。`,
+          });
+        }
+        if (!toRes) {
+          return HermesInboundResponseSchema.parse({
+            ok: false,
+            text: `没找到叫「${to}」的机器人。`,
+          });
+        }
+        await invStore.recordPartAction({
+          projectId: partType.projectId,
+          partTypeId: partType.id,
+          trackedPartId: null,
+          kind: 'dismount',
+          quantityDelta: -quantity,
+          fromHolder: fromRes.id,
+          toHolder: null,
+          note: note ?? `Hermes 调拨 ${fromRes.displayCode ?? fromRes.name}→${toRes.displayCode ?? toRes.name}`,
+          source: 'hermes',
+        });
+        await invStore.recordPartAction({
+          projectId: partType.projectId,
+          partTypeId: partType.id,
+          trackedPartId: null,
+          kind: 'mount',
+          quantityDelta: quantity,
+          fromHolder: null,
+          toHolder: toRes.id,
+          note: note ?? `Hermes 调拨 ${fromRes.displayCode ?? fromRes.name}→${toRes.displayCode ?? toRes.name}`,
+          source: 'hermes',
+        });
+        return HermesInboundResponseSchema.parse({
+          ok: true,
+          text: `已记录：${partType.name} ×${quantity} 从 ${fromRes.displayCode ?? fromRes.name} 调到 ${toRes.displayCode ?? toRes.name}。`,
+        });
+      } catch (err) {
+        if (err instanceof InvalidPartActionError) {
+          return HermesInboundResponseSchema.parse({ ok: false, text: `记账失败：${err.message}` });
+        }
+        throw err;
+      }
+    }
+
+    void reply.code(400).send({ detail: `未知命令: ${command}` });
   });
 }
 
