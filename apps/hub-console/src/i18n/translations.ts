@@ -1035,6 +1035,7 @@ const zh = {
   'settings.members.role.error': '角色更新失败：{detail}',
   'settings.members.pm.toggle': '项目管理',
   'settings.members.pm.error': '项目管理旗标更新失败：{detail}',
+  'settings.members.pm.revokeConfirm': '确定要撤销 {name} 的项目管理权限吗？撤销后该成员将无法执行管理操作。',
   'settings.members.resetPin': '重置 PIN',
   'settings.members.resetPin.confirm':
     '确定重置 {name} 的 PIN？重置后旧 PIN 立即失效，该成员下次登录可免 PIN 进入并自行重设。',
@@ -2384,6 +2385,7 @@ const en: Record<TranslationKey, string> = {
   'settings.members.role.error': 'Failed to update role: {detail}',
   'settings.members.pm.toggle': 'Project mgmt',
   'settings.members.pm.error': 'Failed to update project-management flag: {detail}',
+  'settings.members.pm.revokeConfirm': 'Revoke project-management access from {name}? They will lose all admin capabilities.',
   'settings.members.resetPin': 'Reset PIN',
   'settings.members.resetPin.confirm':
     'Reset PIN for {name}? The old PIN stops working immediately; they can log in without a PIN and set a new one.',

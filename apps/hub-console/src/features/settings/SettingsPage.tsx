@@ -824,12 +824,22 @@ function MembersPermissionsSection({
                         writeLocked ||
                         (pmMutation.isPending && pmMutation.variables?.id === member.id)
                       }
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const grant = e.target.checked;
+                        if (
+                          !grant &&
+                          !window.confirm(
+                            t('settings.members.pm.revokeConfirm', {
+                              name: member.displayName,
+                            }),
+                          )
+                        )
+                          return;
                         pmMutation.mutate({
                           id: member.id,
-                          projectManager: e.target.checked,
-                        })
-                      }
+                          projectManager: grant,
+                        });
+                      }}
                     />
                     <span>{t('settings.members.pm.toggle')}</span>
                   </label>
