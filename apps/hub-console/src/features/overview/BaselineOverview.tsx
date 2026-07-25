@@ -19,7 +19,7 @@ import {
 import type { HubApiClient } from '../../api/client';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n, type TranslationKey } from '../../i18n';
-import { humanizeFormError } from '../../utils';
+import { humanizeFormError, seasonRangeLabel, suggestSeason } from '../../utils';
 import { Field } from '../../components/Field';
 import { FormGrid } from '../../components/FormGrid';
 import { FormActions } from '../../components/FormActions';
@@ -168,11 +168,12 @@ export function BaselineOverview({
   }
   if (!seasonId) {
     return (
-      <section className="panel panel--hero baseline-hero">
-        <div className="baseline-hero__body">
-          <div className="state-band" role="status">{t('overview.baseline.noSeason')}</div>
-        </div>
-      </section>
+      <NoSeasonState
+        client={client}
+        onCreated={() =>
+          queryClient.invalidateQueries({ queryKey: ['seasons', source] })
+        }
+      />
     );
   }
   if (!baseline) {
@@ -478,6 +479,54 @@ function BaselineTimeline({
           ))}
         </div>
       ) : null}
+      </div>
+    </section>
+  );
+}
+
+/** 无赛季态（SEASON-SUGGEST 刀⑨）：引导文案旁给一键创建——suggestSeason 派生本届三字段直接
+ *  POST 建赛季（只在用户点击时落库，读路径零写）；成功后 invalidate seasons，首屏切到空 baseline 态。 */
+function NoSeasonState({
+  client,
+  onCreated,
+}: {
+  client: HubApiClient;
+  onCreated: () => void;
+}) {
+  const { t } = useI18n();
+  const suggestion = useMemo(() => suggestSeason(new Date()), []);
+  const mutation = useMutation({
+    mutationFn: () => client.createSeason(suggestion),
+    onSuccess: () => onCreated(),
+  });
+
+  return (
+    <section className="panel panel--hero baseline-hero">
+      <div className="baseline-hero__body">
+        <div className="state-band" role="status">{t('overview.baseline.noSeason')}</div>
+        <p className="baseline-muted">
+          {t('overview.baseline.noSeasonSuggest', {
+            name: suggestion.name,
+            range: seasonRangeLabel(suggestion),
+          })}
+        </p>
+        <p>
+          <button
+            type="button"
+            className="btn btn--primary btn--sm"
+            onClick={() => mutation.mutate()}
+            disabled={mutation.isPending}
+          >
+            {mutation.isPending
+              ? t('overview.baseline.noSeasonCreating')
+              : t('overview.baseline.noSeasonCreate', { name: suggestion.name })}
+          </button>
+        </p>
+        {mutation.error ? (
+          <div className="state-band state-band-error" role="alert">
+            {humanizeFormError(mutation.error, t, 'overview.baseline.noSeasonError')}
+          </div>
+        ) : null}
       </div>
     </section>
   );

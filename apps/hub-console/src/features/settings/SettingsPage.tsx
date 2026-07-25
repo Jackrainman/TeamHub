@@ -28,7 +28,7 @@ import { Select } from '../../components/Select';
 import { GroupLeadConfirm } from './GroupLeadConfirm';
 import { RosterPreviewTable } from './RosterPreviewTable';
 import { APIBASE_KEY, WRITE_TOKEN_KEY } from '../../constants';
-import { humanizeFormError } from '../../utils';
+import { humanizeFormError, seasonRangeLabel, suggestSeason } from '../../utils';
 
 // 设置页：收纳此前散落各处的运行时设置——语言 / 集成 / 后端地址 / 关于。
 // 语言复用 i18n 的同一份状态（无本地副本，故无同步问题）。单一真实后端，无数据源切换。
@@ -297,6 +297,10 @@ function SeasonsSection({
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
 
+  // 赛季建议卡（SEASON-SUGGEST 刀⑨）：无 active 赛季时给一键预填——suggestSeason 派生本届
+  // 名称/区间，点击只把三字段填进下方表单（读路径不落库，用户可改后再提交）。
+  const suggestion = useMemo(() => suggestSeason(new Date()), []);
+
   const mutation = useMutation({
     mutationFn: () =>
       client.createSeason({
@@ -323,6 +327,15 @@ function SeasonsSection({
   }
 
   const seasons = seasonsQuery.data?.seasons ?? [];
+  const hasActive = seasons.some((s) => s.status === 'active');
+
+  // 预填建议进表单：date input 只吃 YYYY-MM-DD（suggestSeason 的 endsAt 钉 23:59:59.999Z，
+  // 截日期段即可，提交时按表单既有规则拼 T00:00:00.000Z，行为与手填一致）。
+  function applySuggestion() {
+    setName(suggestion.name);
+    setStartsAt(suggestion.startsAt.slice(0, 10));
+    setEndsAt(suggestion.endsAt.slice(0, 10));
+  }
 
   return (
     <section className="panel settings-panel">
@@ -342,6 +355,26 @@ function SeasonsSection({
             ))}
           </div>
         )}
+        {!seasonsQuery.isLoading && !hasActive ? (
+          <div className="settings-section">
+            <p className="settings-desc">
+              {t('settings.seasons.suggest', {
+                name: suggestion.name,
+                range: seasonRangeLabel(suggestion),
+              })}
+            </p>
+            <p>
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                onClick={applySuggestion}
+                disabled={writeLocked}
+              >
+                {t('settings.seasons.suggestApply')}
+              </button>
+            </p>
+          </div>
+        ) : null}
         {lockHint ? <p className="task-detail__hint">{lockHint}</p> : null}
         <form className="pm-form" onSubmit={submit} title={lockHint ?? undefined}>
           <FormGrid cols={3}>

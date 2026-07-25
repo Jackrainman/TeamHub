@@ -20,6 +20,46 @@ export function errorDetail(error: unknown): string {
 }
 
 /**
+ * 赛季建议（SEASON-SUGGEST 刀⑨ / onboarding-init-wizard §2 决策4）：赛季语义 =「2026 赛季」指 2026 年
+ * 比赛，时间区间 2025.9.1–2026.7.31；7 月过后滚到下一届。8–12 月 → 次年赛季（当年 9.1–次年 7.31）；
+ * 1–7 月 → 当年赛季（去年 9.1–当年 7.31）。
+ * 刻意用 UTC（getUTCFullYear/getUTCMonth）而非本地时区：产出是纯日期语义（ISO 钉 Z 后缀），
+ * 用 UTC 保证任何运行环境/测试时区下结果确定。刀⑬ 初始化向导赛季步复用本函数。
+ */
+export function suggestSeason(now: Date): {
+  name: string;
+  startsAt: string;
+  endsAt: string;
+} {
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth(); // 0-based：0=1月 … 6=7月，7=8月 … 11=12月
+  if (month >= 7) {
+    // 8–12 月：新赛季 9 月开赛，打到次年 7 月。
+    return {
+      name: `${year + 1}赛季`,
+      startsAt: `${year}-09-01T00:00:00.000Z`,
+      endsAt: `${year + 1}-07-31T23:59:59.999Z`,
+    };
+  }
+  // 1–7 月：当前赛季去年 9 月已开赛，今年 7 月收官。
+  return {
+    name: `${year}赛季`,
+    startsAt: `${year - 1}-09-01T00:00:00.000Z`,
+    endsAt: `${year}-07-31T23:59:59.999Z`,
+  };
+}
+
+/**
+ * suggestSeason 产物的展示用区间标签：「2026.9–2027.7」。纯解析 ISO 前 10 位（YYYY-MM-DD），
+ * 不做时区换算（输入本就钉在 UTC 日期边界上）。i18n 的 {range} 参数统一走这里，zh/en 同形。
+ */
+export function seasonRangeLabel(season: { startsAt: string; endsAt: string }): string {
+  const [sy, sm] = season.startsAt.slice(0, 7).split('-');
+  const [ey, em] = season.endsAt.slice(0, 7).split('-');
+  return `${sy}.${Number(sm)}–${ey}.${Number(em)}`;
+}
+
+/**
  * Return the CSS class string for a segmented-control button.
  * active=true  → 'seg__btn seg__btn--active'
  * active=false → 'seg__btn'
