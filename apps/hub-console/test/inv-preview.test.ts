@@ -140,10 +140,10 @@ describe('inv-preview（刀⑪）：i18n 双语齐全', () => {
     }
   });
 
-  test('向导步序号锚点：库存 = ⑤/(5)，完成 = ⑥/(6)（fleet ④ 与 done 之间插入）', () => {
+  test('向导步序号锚点：库存 = ⑤/(5)，完成 = ⑦/(7)（fleet ④ 与 done 之间插入，kb ⑥ 见 kb-step.test.ts）', () => {
     expect(translations.zh['gate.step.inventory']).toContain('⑤');
     expect(translations.en['gate.step.inventory']).toContain('(5)');
-    expect(translations.zh['gate.done.title']).toContain('⑥');
-    expect(translations.en['gate.done.title']).toContain('(6)');
+    expect(translations.zh['gate.done.title']).toContain('⑦');
+    expect(translations.en['gate.done.title']).toContain('(7)');
   });
 });

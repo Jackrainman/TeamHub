@@ -69,6 +69,20 @@ export interface KbStore {
    * issueCard 按 id upsert（结案后是 `archived` 版，替换原卡）；errorEntry / archiveDocument 追加。
    */
   appendCloseout(input: KbCloseoutAppend): Promise<void>;
+  /**
+   * 批量归档文档追加（KB-BULK-MD-IMPORT，打磨轮刀⑫）：`POST /api/kb/import-docs` 的整批落库。
+   * **幂等 = 按 title 去重**：路由从文件名（=title）确定性派生 issueId（`iss-md-<slug>-<hash>`），
+   * 故同 title 重导 → 同 issueId → 已存在则不进、计入 `skippedIssueIds`——不覆盖既有文档（批量导入
+   * 定位是「沉淀可检索」，重导同批幂等不翻倍、也不悄悄改旧档）；本批内重复 issueId 同样只取首条。
+   * **只动 archiveDocuments**，绝不碰 issueCards / errorEntries（纯文档导入，无结案语义）。
+   */
+  addArchiveDocuments(docs: readonly ArchiveDocument[]): Promise<KbAddArchiveDocsResult>;
+}
+
+/** `KbStore.addArchiveDocuments` 结果：落库成功的文档 + 因幂等去重跳过的 issueId（报告映射回 title）。 */
+export interface KbAddArchiveDocsResult {
+  added: ArchiveDocument[];
+  skippedIssueIds: string[];
 }
 
 /**

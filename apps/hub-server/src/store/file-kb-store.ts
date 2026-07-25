@@ -7,10 +7,14 @@ import {
   IssueCardSchema,
   kbScenarioFixture,
 } from '@teamhub/hub-contracts';
-import type { KbSnapshot } from '@teamhub/hub-contracts';
+import type { ArchiveDocument, KbSnapshot } from '@teamhub/hub-contracts';
 import { cloneArrayFields } from './clone-snapshot.js';
-import { appendCloseoutInto } from './mock-kb-store.js';
-import type { KbCloseoutAppend, KbStore } from './gov-store.js';
+import { addArchiveDocumentsInto, appendCloseoutInto } from './mock-kb-store.js';
+import type {
+  KbAddArchiveDocsResult,
+  KbCloseoutAppend,
+  KbStore,
+} from './gov-store.js';
 
 /**
  * 知识库语料 JSON 落盘实现（AI+知识库闭环 MVP 持久层）：进程重启不丢、closeout 回灌后累积。
@@ -104,6 +108,27 @@ export class FileKbStore implements KbStore {
       );
       throw err;
     }
+  }
+
+  async addArchiveDocuments(
+    docs: readonly ArchiveDocument[],
+  ): Promise<KbAddArchiveDocsResult> {
+    // 与 appendCloseout 同范式（修复 #3）：先改内存再落盘，persist 失败回滚到写前快照再抛——
+    // 否则「内存已追加 + 客户端 500 重试」会绕过幂等判重（重试时同 issueId 全被判 skipped、
+    // 报告撒谎说「已存在」）。写前只快照 archiveDocuments 一条数组（本方法唯一触及的集合）。
+    const before = [...this.snapshot.archiveDocuments];
+    const result = addArchiveDocumentsInto(this.snapshot, docs);
+    try {
+      await this.persist();
+    } catch (err) {
+      this.snapshot.archiveDocuments.splice(
+        0,
+        this.snapshot.archiveDocuments.length,
+        ...before,
+      );
+      throw err;
+    }
+    return result;
   }
 
   /** 原子写：写 tmp 再 rename，串行化避免并发覆盖。 */

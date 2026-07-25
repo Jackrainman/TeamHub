@@ -5,11 +5,13 @@ export {
   KbSimilarResponseSchema,
   KbCloseoutRequestSchema,
   KbCloseoutResponseSchema,
+  KbImportDocsReportSchema,
 } from '@teamhub/hub-contracts';
 export type {
   KbSimilarResponse,
   KbCloseoutRequest,
   KbCloseoutResponse,
+  KbImportDocsReport,
 } from '@teamhub/hub-contracts';
 
 /** GET /api/kb/similar 查询入参（前端表单 → querystring）。前端专用、不跨端，留在本地。 */

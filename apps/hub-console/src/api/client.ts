@@ -99,10 +99,12 @@ import {
 import {
   KbSimilarResponseSchema,
   KbCloseoutResponseSchema,
+  KbImportDocsReportSchema,
   type KbSimilarParams,
   type KbSimilarResponse,
   type KbCloseoutRequest,
   type KbCloseoutResponse,
+  type KbImportDocsReport,
 } from './schemas/kb';
 import {
   CreateTaskResponseSchema,
@@ -377,6 +379,9 @@ export interface HubApiClient {
   inventoryTemplateUrl(): string;
   previewInventory(file: File): Promise<InventoryPreviewResponse>;
   importInventoryRows(rows: InventoryImportRow[]): Promise<InventoryImportReport>;
+  // KB 批量 md 导入（KB-BULK-MD-IMPORT 打磨轮刀⑫）：初始化向导知识库步——多文件 multipart 上传
+  // （.md/.markdown，服务端按 title 幂等去重）。响应 = 三段报告（imported/skipped/failed，文档事实回显，I0 无人键）。
+  importKbDocs(files: File[]): Promise<KbImportDocsReport>;
   // 挂单认领制窄写动作（TASK-POST-CLAIM，D-088）。全部 POST 子资源、继承 H3 写门；留名 actor 沿
   // IDENTITY-LITE（身份模式服务端从 session 注入、匿名模式 body 供名）。红线：留名只落单条任务卡，
   // 本簇绝无按人聚合/排行/按人筛选端点。响应统一 { task }（TaskSchema，不带 isBig 元）。
@@ -1004,6 +1009,15 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         writeToken,
       );
     },
+    async importKbDocs(files: File[]) {
+      return postMultiFormData(
+        `${baseUrl}/api/kb/import-docs`,
+        files,
+        KbImportDocsReportSchema,
+        fetcher,
+        writeToken,
+      );
+    },
     async claimTask(taskId: string, req: ClaimTaskRequest) {
       return postJson(
         `${baseUrl}/api/tasks/${encodeURIComponent(taskId)}/claim`,
@@ -1138,6 +1152,29 @@ async function postFormData<T>(
 ): Promise<T> {
   const form = new FormData();
   form.append('file', file);
+  const headers: Record<string, string> = {};
+  if (writeToken) headers.authorization = `Bearer ${writeToken}`;
+  const response = await fetcher(url, { method: 'POST', headers, body: form });
+  if (!response.ok) {
+    const detail = await readDetail(response);
+    throw new Error(
+      detail ? `${response.status}: ${detail}` : `Hub API ${response.status}: ${url}`,
+    );
+  }
+  return schema.parse(await response.json());
+}
+
+// 多文件上传（KB-BULK-MD-IMPORT 刀⑫）：与 postFormData 同律，同名字段 'files' 逐文件 append——
+// 服务端 request.files() 收全部文件 part（字段名不拘，'files' 与读取方式对齐语义）。
+async function postMultiFormData<T>(
+  url: string,
+  files: readonly File[],
+  schema: { parse(value: unknown): T },
+  fetcher: FetchLike,
+  writeToken?: string,
+): Promise<T> {
+  const form = new FormData();
+  for (const file of files) form.append('files', file);
   const headers: Record<string, string> = {};
   if (writeToken) headers.authorization = `Bearer ${writeToken}`;
   const response = await fetcher(url, { method: 'POST', headers, body: form });

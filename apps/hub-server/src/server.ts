@@ -129,6 +129,8 @@ import {
 } from './contracts.js';
 import type {
   IssueCard,
+  ArchiveDocument,
+  KbImportDocIssue,
   ScheduleSnapshot,
   ModuleId,
   TenantConfig,
@@ -180,6 +182,10 @@ import {
   InventoryPreviewResponseSchema,
   type InventoryImportFailure,
   type InventoryImportRow,
+  // KB 批量 md 导入（KB-BULK-MD-IMPORT 打磨轮刀⑫）：报告契约 + 归档文档 schema（逐文件预验）+ 标题上限。
+  ArchiveDocumentSchema,
+  KbImportDocsReportSchema,
+  KB_TITLE_MAX,
   // 验收人年级默认派生集合（GRADE-7-TIERS 刀⑥ 起由 contracts 导出，bootstrap 与 CSV 导入同源消费）。
   GATE_REVIEWER_DEFAULT_GRADES,
   // SETUP-WIZARD 刀①：正常模式 setup 状态回执（GET /api/setup/state → initialized:true）。
@@ -337,6 +343,12 @@ const ROSTER_MAX_BYTES = 1024 * 1024;
 // 库存导入 CSV 上限（INV-BULK-IMPORT 刀⑪）：1MB——与名册同律（纯文本零件表绰绰有余，又约束资源
 // 耗尽面）。由 POST /api/inventory/{preview,import} 的 `request.file({ limits })` per-request 覆盖插件默认。
 const INVENTORY_IMPORT_MAX_BYTES = 1024 * 1024;
+
+// KB 批量 md 导入上限（KB-BULK-MD-IMPORT 打磨轮刀⑫）：单文件 1MB（纯文本 md 绰绰有余）+ 单批至多
+// 20 个（初始化向导「导入一堆文件」场景；整批峰值 20MB 内存，约束耗尽面）。
+// 由 POST /api/kb/import-docs 的 `request.files({ limits })` per-request 覆盖插件默认（files:1 宿主级默认）。
+const KB_IMPORT_DOC_MAX_BYTES = 1024 * 1024;
+const KB_IMPORT_DOCS_MAX_FILES = 20;
 
 // 上传后缀白名单 → 规范 contentType。**以后缀为准**（CAD 的浏览器 MIME 多为 octet-stream，不可信）。
 // 战队格式：CAD（机械）/ 文档（图纸说明、电路 PDF）/ 图（截图）/ 包（多文件打包）/ 固件（电控/驱动）/
@@ -2047,8 +2059,39 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
 // ============================================================================
 // knowledge-base 模块（可选）：症状 → 相似历史 bug 召回 + 结案闭环。零机器人词汇（§3.3 generic）。
 // ============================================================================
+
+// ── KB 批量 md 导入派生（KB-BULK-MD-IMPORT 打磨轮刀⑫）──────────────────────────────────────
+// title = 文件名去后缀；issueId/fileName 由 title 确定性派生——同 title 重导 → 同 issueId →
+// store 幂等 skipped（判重键 = issueId，见 KbStore.addArchiveDocuments 注释）。
+
+/** 文件名 → title：去 .md/.markdown 后缀 + trim；剥完为空回退原文件名。截 KB_TITLE_MAX 防超长文件名撑爆报告 schema。 */
+function kbImportTitle(filename: string): string {
+  const stripped = filename.replace(/\.(md|markdown)$/i, '').trim();
+  return (stripped || filename.trim() || 'untitled').slice(0, KB_TITLE_MAX);
+}
+
+/** slug 口径与 kb-closeout 的 toSlug 同律（小写 a-z0-9-）；纯中文文件名 slug 为空，调用方回退 doc-<hash>。 */
+function kbImportSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64)
+    .replace(/-+$/g, '');
+}
+
+/** djb2(title) 8 位 hex：确定性纯函数——同 title 必同 issueId（幂等键）；两个 slug 相同/皆空的
+ *  不同中文名靠 hash 段区分，几乎不撞。 */
+function kbImportTitleHash(title: string): string {
+  let h = 5381;
+  for (let i = 0; i < title.length; i++) {
+    h = ((h << 5) + h + title.charCodeAt(i)) >>> 0;
+  }
+  return h.toString(16).padStart(8, '0');
+}
+
 function registerKnowledgeBaseRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
-  const { store, clock, kbStore } = ctx;
+  const { store, clock, kbStore, identityMode } = ctx;
 
   // KB-CORE：症状 → top-N 相似历史 bug（跨赛季同类 bug 召回）。纯函数 rankSimilarIssues 在 KbStore 语料上排序。
   // A4 护栏：响应 note 明示「只列候选、不断言同因、由人选用」；返回主键是 issue/errorCode，无人维度（C2）。
@@ -2160,6 +2203,108 @@ function registerKnowledgeBaseRoutes(app: FastifyInstance, ctx: ModuleRouteCtx):
       errorEntry: result.errorEntry,
       updatedIssueCard: result.updatedIssueCard,
       knowledgeNode,
+    });
+  });
+
+  // KB-BULK-MD-IMPORT（打磨轮刀⑫）：批量 md 导入知识库——初始化向导「导入一堆文件」纯沉淀可检索
+  // （AI 分析/结构化不做，backlog KB-AI-STRUCT）。multipart 多文件（request.files；单文件 1MB / 单批
+  // 20 个，per-request limits 覆盖插件默认 files:1，照名册/库存先例）。每文件一条 ArchiveDocument：
+  // title=文件名去后缀、markdownContent=utf-8 文本（md 假定 utf-8——非 utf-8 会乱码进库，不拦、人自查）、
+  // generatedBy='manual'（I0：非人名）、issueId/fileName 由 title 确定性派生。整批 addArchiveDocuments
+  // （按 title 幂等去重）→ 三段报告（imported/skipped/failed，文档事实回显给操作者本人，无人键）。
+  // **只进 archiveDocuments，不碰 issueCards/errorEntries**（纯文档导入，无结案语义）。
+  // 鉴权：身份模式 = 须持旗管理员（isSuperAdmin，403；无空板豁免——向导走到这步操作者已持旗，写门
+  // 「须有会话」段先把无会话挡 401，同库存导入律）；匿名模式 = H3 写门即可（Bearer/限流双轨已覆盖，
+  // 钩子零改动）。
+  app.post('/api/kb/import-docs', async (request, reply) => {
+    if (identityMode === 'identity') {
+      const snapshot = await store.getSnapshot();
+      if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
+        void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
+        return;
+      }
+    }
+    const projectId = (await kbStore.getKbSnapshot()).projectId;
+    const now = clock.now().toISOString();
+    const datePart = now.slice(0, 10);
+    const skipped: KbImportDocIssue[] = [];
+    const failed: KbImportDocIssue[] = [];
+    const docs: ArchiveDocument[] = [];
+    const titleByIssueId = new Map<string, string>(); // 报告回显：issueId → title
+    // 迭代层错误（非 multipart 请求 / 超 20 个文件上限）→ 整批拒、一字不落（store 写在迭代完成后）。
+    try {
+      const parts = request.files({
+        limits: { fileSize: KB_IMPORT_DOC_MAX_BYTES, files: KB_IMPORT_DOCS_MAX_FILES },
+      });
+      for await (const part of parts) {
+        const filename = part.filename ?? '';
+        const lower = filename.toLowerCase();
+        if (!lower.endsWith('.md') && !lower.endsWith('.markdown')) {
+          skipped.push({ title: kbImportTitle(filename), reason: '仅支持 .md / .markdown 文件' });
+          part.file.resume(); // 不消费的流必须排空，否则迭代挂起
+          continue;
+        }
+        const title = kbImportTitle(filename);
+        let buf: Buffer;
+        try {
+          buf = await part.toBuffer();
+        } catch (err) {
+          failed.push({
+            title,
+            reason:
+              (err as { code?: string })?.code === 'FST_REQ_FILE_TOO_LARGE'
+                ? '文件过大（上限 1MB）'
+                : '读取文件失败',
+          });
+          continue;
+        }
+        if (part.file.truncated) {
+          failed.push({ title, reason: '文件过大（上限 1MB）' });
+          continue;
+        }
+        const slug = kbImportSlug(title);
+        const hash = kbImportTitleHash(title);
+        const issueId = `iss-md-${slug || 'doc'}-${hash}`;
+        const fileName = `${datePart}_${slug || `doc-${hash}`}.md`;
+        // 逐文件 schema 预验（如正文超 KB_MARKDOWN_MAX）：单文件不合只进 failed，不中断整批。
+        const parsedDoc = ArchiveDocumentSchema.safeParse({
+          issueId,
+          projectId,
+          fileName,
+          filePath: `.debug_workspace/archive/${fileName}`,
+          markdownContent: buf.toString('utf8'), // md 假定 utf-8（见路由头注释）
+          generatedBy: 'manual',
+          generatedAt: now,
+        });
+        if (!parsedDoc.success) {
+          failed.push({ title, reason: firstZodMsg(parsedDoc.error) });
+          continue;
+        }
+        docs.push(parsedDoc.data);
+        titleByIssueId.set(issueId, title);
+      }
+    } catch (err) {
+      if ((err as { code?: string })?.code === 'FST_FILES_LIMIT') {
+        void reply.code(413).send({ detail: '文件数过多（单批上限 20 个）' });
+        return;
+      }
+      void reply.code(400).send({ detail: '请求体不是 multipart 表单' });
+      return;
+    }
+    const outcome = await kbStore.addArchiveDocuments(docs);
+    for (const issueId of outcome.skippedIssueIds) {
+      skipped.push({
+        title: titleByIssueId.get(issueId) ?? issueId,
+        reason: '同名文档已在库（按 title 幂等去重，不重复导入）',
+      });
+    }
+    return KbImportDocsReportSchema.parse({
+      imported: outcome.added.map((d) => ({
+        id: d.issueId,
+        title: titleByIssueId.get(d.issueId) ?? d.issueId,
+      })),
+      skipped,
+      failed,
     });
   });
 }

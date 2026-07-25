@@ -155,6 +155,28 @@ export const ErrorEntriesResponseSchema = z.object({
 });
 
 /**
+ * KB 批量 md 导入报告（KB-BULK-MD-IMPORT，打磨轮刀⑫）：`POST /api/kb/import-docs` 响应。
+ * 三段（照名册/库存导入报告范式，段从简不照搬六段）：
+ *  - imported：落库的归档文档（id = ArchiveDocument.issueId，title = 文件名去后缀）；
+ *  - skipped：未落库但非错误——同 title 幂等去重（库里已有同名文档）/ 非 .md/.markdown 后缀；
+ *  - failed：读取失败 / 超单文件上限 / 文档不合 ArchiveDocumentSchema。
+ * I0：报告全是文档事实回显给操作者本人，无人键、无聚合。
+ */
+export const KbImportDocRefSchema = z.object({
+  id: z.string().min(1).max(KB_ID_MAX),
+  title: z.string().min(1).max(KB_TITLE_MAX),
+});
+export const KbImportDocIssueSchema = z.object({
+  title: z.string().min(1).max(KB_TITLE_MAX),
+  reason: z.string().min(1).max(KB_TEXT_MAX),
+});
+export const KbImportDocsReportSchema = z.object({
+  imported: z.array(KbImportDocRefSchema),
+  skipped: z.array(KbImportDocIssueSchema),
+  failed: z.array(KbImportDocIssueSchema),
+});
+
+/**
  * 知识库读快照（与 `GovernanceSnapshot` 对称）：相似检索（kb-similar）的排序语料。
  * **不在 `GovernanceSnapshot` 内**——故 KbStore 独立于 GovStore（承接 base 收口刀对抗核实结论，
  * 见 gov-store.ts KbStore；knowledgeNodes/taskKnowledgeTags 那半仍复用 GovernanceSnapshot）。
@@ -176,3 +198,6 @@ export type InvestigationRecord = z.infer<typeof InvestigationRecordSchema>;
 export type ErrorEntry = z.infer<typeof ErrorEntrySchema>;
 export type ArchiveGeneratedBy = z.infer<typeof ArchiveGeneratedBySchema>;
 export type ArchiveDocument = z.infer<typeof ArchiveDocumentSchema>;
+export type KbImportDocRef = z.infer<typeof KbImportDocRefSchema>;
+export type KbImportDocIssue = z.infer<typeof KbImportDocIssueSchema>;
+export type KbImportDocsReport = z.infer<typeof KbImportDocsReportSchema>;

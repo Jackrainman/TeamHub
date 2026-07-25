@@ -173,7 +173,7 @@
 | SEASON-SUGGEST | done(2026-07-25, v0.38.0) | code | `suggestSeason(now)` 日期派生（8–12月→次年赛季，UTC 钉死）；设置页建议卡一键预填 + 总览无赛季态一键创建（读不落库） |
 | FLEET-BATCH-INIT | done(2026-07-25, v0.39.0) | code | `POST /api/resources/batch`（zod 全验任一坏整批 400；displayCode 照派生 + status 补迁移，限初始化四档）+ 向导车队表格步（名称/编号位/赛季/第几代/能用·在修·退役·停用，可跳过） |
 | INV-BULK-IMPORT | done(2026-07-25, v0.40.0) | code | 库存批量导入仿名册：contracts inventory-import（模板/解析/行号，编码探测抽 csv-core 两域共用）+ template/preview/import 三端点 + store `importPartTypes`（partNumber 幂等 upsert、totalQuantity 覆盖、绝不删）+ 向导库存步（可跳过）+ InvPage 入口 |
-| KB-BULK-MD-IMPORT | pending（刀⑫） | code | `POST /api/kb/import-docs`（multipart 多 md→ArchiveDocument generatedBy:manual）+ kb store `addArchiveDocuments` + 向导知识库步（可跳过） |
+| KB-BULK-MD-IMPORT | done(2026-07-25, v0.41.0) | code | `POST /api/kb/import-docs`（multipart 多 md→ArchiveDocument generatedBy:manual、issueId 由 title 派生）+ kb store `addArchiveDocuments`（按 title 幂等去重→skipped，只动 archiveDocuments）+ 向导知识库步⑥（可跳过） |
 | WIZARD-SEASON-STEP | pending（刀⑬） | code | 向导赛季步：suggestSeason 预填 + 学期开始/比赛日两锚点 → createSeason + 锚点齐则 generateRoboconBaselineTemplate+PATCH 落基准线模板；可跳过 |
 | KB-AI-STRUCT | pending（研究项，2026-07-25 用户猜想） | research | 知识库初始化引入 AI 分析：导入一堆文件→AI 创建结构化文档/知识库。猜想阶段，先积累批量导入语料（KB-BULK-MD-IMPORT）再评估 |
 | CHECKLIST-TPL-IMPORT | pending（缺口） | code | 检查单模板无任何导入通道（schema 已落四字段、store 只读、无端点无脚本）；等复盘产出模板时补最小导入 |

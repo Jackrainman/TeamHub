@@ -1,7 +1,11 @@
 import { kbScenarioFixture } from '@teamhub/hub-contracts';
-import type { KbSnapshot } from '@teamhub/hub-contracts';
+import type { ArchiveDocument, KbSnapshot } from '@teamhub/hub-contracts';
 import { cloneArrayFields } from './clone-snapshot.js';
-import type { KbCloseoutAppend, KbStore } from './gov-store.js';
+import type {
+  KbAddArchiveDocsResult,
+  KbCloseoutAppend,
+  KbStore,
+} from './gov-store.js';
 
 /** 语料快照的三数组字段（appendCloseout upsert 触及的集合）——构造期克隆隔离 + getKbSnapshot 浅拷贝共用。 */
 const KB_ARRAY_FIELDS: (keyof KbSnapshot)[] = [
@@ -34,6 +38,37 @@ export class InMemoryKbStore implements KbStore {
   async appendCloseout(input: KbCloseoutAppend): Promise<void> {
     appendCloseoutInto(this.snapshot, input);
   }
+
+  async addArchiveDocuments(
+    docs: readonly ArchiveDocument[],
+  ): Promise<KbAddArchiveDocsResult> {
+    return addArchiveDocumentsInto(this.snapshot, docs);
+  }
+}
+
+/**
+ * 批量归档文档追加（InMemory / File 共用，KB-BULK-MD-IMPORT 打磨轮刀⑫）。
+ * **幂等 = 按 title 去重**：issueId 由路由从 title 确定性派生（`iss-md-<slug>-<hash>`），
+ * 故判重键就是 issueId——库里已有 / 本批内重复的 issueId 一律跳过（不覆盖旧档），计入 skippedIssueIds。
+ * 只 push 进 archiveDocuments，issueCards / errorEntries 不动（纯文档导入，无结案语义）。
+ */
+export function addArchiveDocumentsInto(
+  snapshot: KbSnapshot,
+  docs: readonly ArchiveDocument[],
+): KbAddArchiveDocsResult {
+  const seen = new Set(snapshot.archiveDocuments.map((d) => d.issueId));
+  const added: ArchiveDocument[] = [];
+  const skippedIssueIds: string[] = [];
+  for (const doc of docs) {
+    if (seen.has(doc.issueId)) {
+      skippedIssueIds.push(doc.issueId);
+      continue;
+    }
+    seen.add(doc.issueId);
+    snapshot.archiveDocuments.push(doc);
+    added.push(doc);
+  }
+  return { added, skippedIssueIds };
 }
 
 /**

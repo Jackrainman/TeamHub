@@ -1224,12 +1224,13 @@ const zh = {
   'setup.landing.dismiss': '知道了',
   'gate.title': '初始化：先把你自己放进名册',
   'gate.subtitle':
-    '登录制已开启，但名册里还没有项目管理成员。五步完成初始化——先说你是谁，再导名册、认组长、录车队、录库存。',
+    '登录制已开启，但名册里还没有项目管理成员。六步完成初始化——先说你是谁，再导名册、认组长、录车队、录库存、导知识库。',
   'gate.step.who': '① 你是谁',
   'gate.step.roster': '② 导入名册',
   'gate.step.leads': '③ 确认各组组长',
   'gate.step.fleet': '④ 录入车队',
   'gate.step.inventory': '⑤ 录入库存',
+  'gate.step.kb': '⑥ 导入知识库',
   'gate.who.desc':
     '一笔完成：建你的成员行（或认领名册里已有的你）+ 授项目管理旗标 + 设 PIN + 登录。此后你就是本队第一个管理员。',
   'gate.who.name': '姓名',
@@ -1275,7 +1276,15 @@ const zh = {
     '用 CSV 一张表把库存建起来：件号 / 名称 / 类别 / 单位 / 总数 / 低储阈值（阈值可留空）。上传后先预览、可逐行改，确认才真正导入；同件号覆盖更新，绝不删已有零件。没有库存要录可直接跳过。',
   'gate.inv.skip': '没有库存要录，跳过',
   'gate.inv.next': '下一步',
-  'gate.done.title': '⑥ 完成',
+  'gate.kb.desc':
+    '把历年的 markdown 文档（赛季总结、调试记录、设计笔记……）一次性导进知识库，之后相似检索能查到。只收 .md / .markdown 文件，单文件 ≤1MB、一次至多 20 个；同名文档不会重复导入。AI 分析暂不做。没有要导的可直接跳过。',
+  'gate.kb.pick': '选择 md 文件',
+  'gate.kb.uploading': '导入中…',
+  'gate.kb.report': '导入 {imported} 篇 · 跳过 {skipped} · 失败 {failed}',
+  'gate.kb.error': '导入失败：{detail}',
+  'gate.kb.skip': '没有文档要导，跳过',
+  'gate.kb.next': '下一步',
+  'gate.done.title': '⑦ 完成',
   'gate.done.desc': '初始化完成——你已登录，项目管理权限在手。',
   'gate.done.cta': '进入 TeamHub',
 } as const;
@@ -2514,12 +2523,13 @@ const en: Record<TranslationKey, string> = {
   'setup.landing.dismiss': 'Got it',
   'gate.title': 'Setup: put yourself on the roster first',
   'gate.subtitle':
-    'Login mode is on, but no project-management member exists yet. Five steps: say who you are, import the roster, confirm group leads, register the fleet, load the inventory.',
+    'Login mode is on, but no project-management member exists yet. Six steps: say who you are, import the roster, confirm group leads, register the fleet, load the inventory, import the knowledge base.',
   'gate.step.who': '(1) Who are you',
   'gate.step.roster': '(2) Import roster',
   'gate.step.leads': '(3) Confirm group leads',
   'gate.step.fleet': '(4) Register the fleet',
   'gate.step.inventory': '(5) Load inventory',
+  'gate.step.kb': '(6) Import knowledge base',
   'gate.who.desc':
     'One shot: create your member row (or claim the existing one) + grant the project-management flag + set a PIN + log you in. You become the team’s first admin.',
   'gate.who.name': 'Name',
@@ -2565,7 +2575,15 @@ const en: Record<TranslationKey, string> = {
     'Load the inventory from one CSV: part number / name / category / unit / total / low-stock threshold (threshold optional). Upload shows an editable preview first — nothing is written until you confirm. Same part number overwrites; existing parts are never deleted. Skip if there is nothing to load.',
   'gate.inv.skip': 'Nothing to load — skip',
   'gate.inv.next': 'Next',
-  'gate.done.title': '(6) Done',
+  'gate.kb.desc':
+    'Import your archive of markdown documents (season retros, debug notes, design notes…) into the knowledge base in one go, so similar-bug search can find them later. Only .md / .markdown files, up to 1MB each and 20 per batch; documents with the same title are not imported twice. No AI analysis for now. Skip if there is nothing to import.',
+  'gate.kb.pick': 'Choose .md files',
+  'gate.kb.uploading': 'Importing…',
+  'gate.kb.report': 'Imported {imported} · skipped {skipped} · failed {failed}',
+  'gate.kb.error': 'Import failed: {detail}',
+  'gate.kb.skip': 'Nothing to import — skip',
+  'gate.kb.next': 'Next',
+  'gate.done.title': '(7) Done',
   'gate.done.desc': 'Setup complete — you are logged in with project-management rights.',
   'gate.done.cta': 'Enter TeamHub',
 };

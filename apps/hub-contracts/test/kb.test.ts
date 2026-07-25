@@ -6,6 +6,7 @@ import {
   IssueCardSchema,
   KB_ARRAY_MAX,
   KB_TITLE_MAX,
+  KbImportDocsReportSchema,
   kbScenarioFixture,
 } from '../src/index.js';
 
@@ -76,5 +77,65 @@ describe('IssueCardSchema 字段上限（M17）', () => {
 
   test('正常体量卡仍通过（上限不误伤真实排障文本）', () => {
     expect(IssueCardSchema.safeParse(base).success).toBe(true);
+  });
+});
+
+// KB-BULK-MD-IMPORT（打磨轮刀⑫）：批量 md 导入报告契约边界——三段结构 / 空段合法 / 缺字段拒 / 空 reason 拒。
+describe('KbImportDocsReportSchema（KB-BULK-MD-IMPORT 刀⑫）', () => {
+  test('完整三段报告通过（imported 带 id+title，skipped/failed 带 title+reason）', () => {
+    const report = {
+      imported: [{ id: 'iss-md-can-3508-a1b2c3d4', title: 'CAN 总线掉线排查' }],
+      skipped: [{ title: 'notes.txt', reason: '仅支持 .md / .markdown 文件' }],
+      failed: [{ title: 'big', reason: '文件过大（上限 1MB）' }],
+    };
+    expect(KbImportDocsReportSchema.parse(report)).toEqual(report);
+  });
+
+  test('三段全空合法（整批零文件的空报告）', () => {
+    expect(
+      KbImportDocsReportSchema.safeParse({ imported: [], skipped: [], failed: [] }).success,
+    ).toBe(true);
+  });
+
+  test('缺段 / imported 缺 id / skipped 缺 reason → 拒绝', () => {
+    expect(KbImportDocsReportSchema.safeParse({ imported: [], skipped: [] }).success).toBe(false);
+    expect(
+      KbImportDocsReportSchema.safeParse({
+        imported: [{ title: '无 id' }],
+        skipped: [],
+        failed: [],
+      }).success,
+    ).toBe(false);
+    expect(
+      KbImportDocsReportSchema.safeParse({
+        imported: [],
+        skipped: [{ title: 'x' }],
+        failed: [],
+      }).success,
+    ).toBe(false);
+  });
+
+  test('空 title / 空 reason / 超长 title（>KB_TITLE_MAX）→ 拒绝', () => {
+    expect(
+      KbImportDocsReportSchema.safeParse({
+        imported: [],
+        skipped: [{ title: '', reason: 'r' }],
+        failed: [],
+      }).success,
+    ).toBe(false);
+    expect(
+      KbImportDocsReportSchema.safeParse({
+        imported: [],
+        skipped: [],
+        failed: [{ title: 't', reason: '' }],
+      }).success,
+    ).toBe(false);
+    expect(
+      KbImportDocsReportSchema.safeParse({
+        imported: [{ id: 'iss-md-x', title: 't'.repeat(KB_TITLE_MAX + 1) }],
+        skipped: [],
+        failed: [],
+      }).success,
+    ).toBe(false);
   });
 });
