@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { RefreshCw, X } from 'lucide-react';
 import { ROBOTICS_TENANT_CONFIG, type TenantConfig } from '@teamhub/hub-contracts';
@@ -136,19 +136,22 @@ function ConsoleApp({ apiClient }: { apiClient: HubApiClient }) {
   // 读端点无鉴权，未登录也能读名册做判定。gateDone = 本标签页走完门后不再出现（刷新后条件已假：
   // 门第①步已授旗——中途刷新则直接进 app，后续可经设置页补导入/确认）。
   const [gateDone, setGateDone] = useState(false);
+  const gateShownRef = useRef(false);
   const gateMembersQuery = useQuery({
     queryKey: ['members', 'bootstrap-gate'],
     queryFn: () => apiClient.getMembers(),
     enabled: identityMode === 'identity',
   });
-  const needsBootstrapGate =
+  const gateConditionMet =
     identityMode === 'identity' &&
     !gateDone &&
     !sessionQuery.isLoading &&
     !gateMembersQuery.isLoading &&
     !(gateMembersQuery.data?.members.some((m) => m.projectManager === true) ?? true);
+  if (gateConditionMet) gateShownRef.current = true;
+  const needsBootstrapGate = gateConditionMet || (gateShownRef.current && !gateDone);
   if (needsBootstrapGate) {
-    return <BootstrapGate client={apiClient} onDone={() => setGateDone(true)} />;
+    return <BootstrapGate client={apiClient} onDone={() => { gateShownRef.current = false; setGateDone(true); }} />;
   }
 
   // 页面注册表（console-pages.tsx）驱动渲染 + 标题——不再是 if-else 链（HUB-MODULARIZATION 第2步）。
