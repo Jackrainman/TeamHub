@@ -4,6 +4,7 @@ import {
   RosterImportReportSchema,
   governanceScenarioFixture,
   type GovernanceSnapshot,
+  type Group,
   type Member,
 } from '@teamhub/hub-contracts';
 import { buildHubServer } from '../src/server.js';
@@ -45,7 +46,7 @@ function member(over: Partial<Member> & Pick<Member, 'id' | 'displayName'>): Mem
 }
 
 // 干净种子：保留 fixture 的 seasonId/seasons/projectId/stage（建组需 active 赛季），其余数组自定/清空。
-function seedWith(members: Member[], groups: readonly (typeof GRP_MECH)[] = [GRP_MECH]): GovernanceSnapshot {
+function seedWith(members: Member[], groups: readonly Group[] = [GRP_MECH]): GovernanceSnapshot {
   return {
     ...governanceScenarioFixture,
     groups: [...groups],
@@ -227,6 +228,48 @@ describe('POST /api/roster/import — 匿名模式', () => {
       });
       expect(res.statusCode).toBe(400);
       expect(res.json().detail).toContain('编码');
+    } finally {
+      await app.close();
+    }
+  });
+
+  // 刀④ PROGRAM-GROUP-ABSTRACT：CSV 写「程序」不再静默命中 grp-program——非叶子/哨兵组是汇报视角、
+  // 不可挂人，该行拒进 failed（说明原因 + 指回原行）；叶子组与本批新建组不受影响。
+  test('刀④：组名命中非叶子/哨兵组 → 拒行进 failed（指回原行+说明）；叶子组正常导入', async () => {
+    const store = new InMemoryGovStore(
+      seedWith(
+        [],
+        [
+          { id: 'grp-program', seasonId: 'season-robocon-2026', parentGroupId: null, name: '程序', kind: 'program' },
+          { id: 'grp-ec', seasonId: 'season-robocon-2026', parentGroupId: 'grp-program', name: '电控', kind: 'electrical' },
+          { id: 'grp-convergence', seasonId: 'season-robocon-2026', parentGroupId: null, name: '全组联调', kind: 'custom' },
+        ],
+      ),
+    );
+    const app = buildHubServer({ store });
+    try {
+      const csv =
+        '姓名,年级,组\n' +
+        '程甲,大三,程序\n' + // 行2：非叶子（有子组 grp-ec）→ 拒
+        '联乙,大二,全组联调\n' + // 行3：哨兵组 → 拒
+        '电丙,大一,电控\n'; // 行4：叶子组 → 正常
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/roster/import',
+        ...multipart(csv),
+      });
+      expect(res.statusCode).toBe(200);
+      const report = RosterImportReportSchema.parse(res.json());
+      expect(report.created).toEqual(['电丙']);
+      expect(report.failed).toHaveLength(2);
+      expect(report.failed.map((f) => f.line)).toEqual([2, 3]);
+      expect(report.failed[0].reason).toContain('程序');
+      expect(report.failed[0].reason).toContain('汇报视角');
+      // 被拒的成员没落库（不建不改）；叶子组那位正常挂 grp-ec。
+      const snap = await store.getSnapshot();
+      expect(snap.members.find((m) => m.displayName === '程甲')).toBeUndefined();
+      expect(snap.members.find((m) => m.displayName === '联乙')).toBeUndefined();
+      expect(snap.members.find((m) => m.displayName === '电丙')?.groupId).toBe('grp-ec');
     } finally {
       await app.close();
     }

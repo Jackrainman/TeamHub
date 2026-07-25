@@ -2,10 +2,12 @@ import type {
   ActorRef,
   Dependency,
   GovernanceSnapshot,
+  Group,
   KnowledgeNode,
   Member,
   MemberRole,
   Need,
+  RosterImportFailure,
   RosterImportRow,
   Season,
   Task,
@@ -22,17 +24,47 @@ export type SetProjectManagerResult =
   | { ok: false; reason: 'not-found' | 'last-projectmanager' };
 
 /**
- * `importRoster` 结果（ROSTER-IMPORT，K8）：报告里**非 failed 那五段**——failed（坏行）在纯解析层
- * （parseRosterCsv）产出、由路由拼进最终 `RosterImportReport`；本 store 侧只回它做出的名单事实变更。
+ * `importRoster` 结果（ROSTER-IMPORT，K8）：报告里**非 failed 那五段** + 刀④ 起新增 store 侧 failed——
+ * 纯解析层坏行（parseRosterCsv errors）仍由路由拼进最终 `RosterImportReport`；本 store 侧回它做出的
+ * 名单事实变更 + **组名命中非叶子/哨兵组而被拒的行**（PROGRAM-GROUP-ABSTRACT 刀④：抽象组=汇报视角、
+ * 不可挂人，拒行进 failed 说明原因，行号随 RosterImportRow.line 指回 CSV 原行）。
  * 全是名单事实回显给操作者本人（I0：绝不含任何按人聚合/排名/按人筛选派生）。
  */
 export interface RosterImportOutcome {
   created: string[];
   updated: string[];
+  /** 刀④：组名命中既有**非叶子/哨兵组**（如「程序」/「全组联调」）而被拒的行（成员未建未改）。 */
+  failed: RosterImportFailure[];
   missingFromSheet: string[];
   createdGroups: string[];
   autoReviewers: string[];
 }
+
+/**
+ * createGroup 入参（刀④ 组管理最小版）：只有 name——id（`grp-new-N`）、seasonId（当前 active ??
+ * 顶层）、parentGroupId=null、kind=custom 全由实现钉（新建组天然无子组 = 叶子组）。
+ */
+export type GroupDraft = Pick<Group, 'name'>;
+
+/**
+ * 组管理写结果（刀④）判别联合，路由层映射 200/404/409：
+ *  - `name-exists`：同名组已存在（组名是 importRoster 的匹配键，重名会静默错挂）。
+ *  - `not-leaf`：目标是非叶子/哨兵组（抽象汇报视角，不可改名/删除——改名只开放给叶子组；
+ *    哨兵组 grp-convergence 同列）。
+ *  - `has-members` / `has-children` / `has-tasks`：删除防孤儿守卫（先迁走成员/任务再删）。
+ */
+export type CreateGroupResult =
+  | { ok: true; group: Group }
+  | { ok: false; reason: 'name-exists' };
+export type RenameGroupResult =
+  | { ok: true; group: Group }
+  | { ok: false; reason: 'not-found' | 'not-leaf' | 'name-exists' };
+export type DeleteGroupResult =
+  | { ok: true; group: Group }
+  | {
+      ok: false;
+      reason: 'not-found' | 'not-leaf' | 'has-members' | 'has-children' | 'has-tasks';
+    };
 
 /**
  * pm-core 域写入口（STORE-SPLIT-SQLITE，product-redefine-2026-07 §4.4 / §9-③）：项目计划表
@@ -207,6 +239,29 @@ export interface PmCoreStore {
    * **I0**：只做名单事实变更、绝不做任何按人聚合/排行/按人筛选。返回名单事实回显给操作者本人。
    */
   importRoster(rows: readonly RosterImportRow[]): Promise<RosterImportOutcome>;
+
+  // ── 组管理最小版（PROGRAM-GROUP-ABSTRACT 刀④，D-072「设置页可增减组」前置缺口）─────────────────
+  // 「可选组 = 叶子组且非哨兵」由 `deriveLeafGroups` 结构派生（parentGroupId 链，零 Group schema 改动）；
+  // 授权（匿名=写门即可 / 身份=须持旗管理员）在**路由层**判，守卫全收进本方法同一临界区（照
+  // setProjectManager TOCTOU 先例）。FileGovStore 落 governance.json（groups 是 GovernanceSnapshot
+  // 字段；create=append 类回滚、rename=idx 类、delete=写前存整条失败时原位插回）。
+
+  /**
+   * 新建叶子组（POST /api/groups）：只有 name（id/seasonId/parentGroupId=null/kind=custom 由实现钉，
+   * 照 importRoster 自动建组先例）。同名（既有组，含非叶子/哨兵）→ `name-exists`（路由转 409）。
+   */
+  createGroup(draft: GroupDraft): Promise<CreateGroupResult>;
+  /**
+   * 组改名（PUT /api/groups/:id）：**仅叶子组可改**——非叶子/哨兵组（汇报视角）→ `not-leaf`（409）；
+   * 撞其它组同名 → `name-exists`（409）；id 不存在 → `not-found`（404）。
+   */
+  renameGroup(groupId: string, name: string): Promise<RenameGroupResult>;
+  /**
+   * 删组（DELETE /api/groups/:id）：**仅叶子组可删** + 防孤儿——有成员 / 有子组 / 有任务引用 →
+   * 对应 reason（409，先迁走再删）；非叶子/哨兵 → `not-leaf`；id 不存在 → `not-found`。
+   * ok 时回带被删的组（路由响应投影用）。
+   */
+  deleteGroup(groupId: string): Promise<DeleteGroupResult>;
 
   // ── 挂单认领制窄写方法（TASK-POST-CLAIM，D-088 / docs/design/task-post-claim.md）─────────────────
   // 全部照 updateTaskStatus/setMemberPin 受限迁移先例：就地改 tasks[idx] 的**自己那簇留名字段** + bump

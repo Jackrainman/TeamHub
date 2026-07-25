@@ -628,7 +628,30 @@ export const CreateSeasonResponseSchema = z.object({ season: SeasonSchema });
 export const ProjectsResponseSchema = z.object({
   projects: z.array(ProjectSchema),
 });
-export const GroupsResponseSchema = z.object({ groups: z.array(GroupSchema) });
+/**
+ * GET /api/groups 响应（PROGRAM-GROUP-ABSTRACT，公测补强刀④，方案②结构派生）：`groups` 保持**全量**
+ * （组树展示 / 汇报视角需要非叶子组「程序」与哨兵组「全组联调」在场），另补派生位
+ * `assignableGroupIds` = **叶子组且非哨兵**（由 server 用 `deriveLeafGroups` 从 parentGroupId 链现算，
+ * 同 schedule.ts 在场派生先例）——「可领任务 / 可挂人」的可选组集合。写入口（importRoster 组名匹配 /
+ * createTask groupId）与读出口候选过滤统一消费它；**零 schema 改动**（Group 本体不加字段，组树结构即声明，
+ * 避免「有子组却标可领」的双真相打架）。
+ */
+export const GroupsResponseSchema = z.object({
+  groups: z.array(GroupSchema),
+  assignableGroupIds: z.array(z.string()),
+});
+
+/**
+ * 组管理写口（PROGRAM-GROUP-ABSTRACT 刀④ 顺带补 D-072「设置页可增减组」前置缺口的最小版）：
+ *  - POST /api/groups：新建**叶子组**（只有 name；id/seasonId/parentGroupId=null/kind 由 server 钉，
+ *    新建组天然无子组=叶子）。同名（既有组）→ 409。
+ *  - PUT /api/groups/:id：改名，**仅叶子组可改**（非叶子/哨兵组是汇报视角 → 409）；同名 → 409。
+ *  - DELETE /api/groups/:id：删除，**仅叶子组可删**且防孤儿——有成员 / 有子组 / 有任务引用 → 409。
+ * 授权语义（路由层，照 SetMemberRole 邻位范式）：匿名模式=宿主级写门即可；身份模式=须持旗管理员（403）。
+ */
+export const CreateGroupRequestSchema = z.object({ name: z.string().min(1) });
+export const RenameGroupRequestSchema = z.object({ name: z.string().min(1) });
+export const GroupResponseSchema = z.object({ group: GroupSchema });
 export const MembersResponseSchema = z.object({
   // IDENTITY-LITE：名册读视图用 MemberPublicSchema（剥 pinHash）——GET /api/members 走此契约，
   // 凭证散列永不过读边界（密钥纪律）。
@@ -691,6 +714,10 @@ export type SetMemberRoleRequest = z.infer<typeof SetMemberRoleRequestSchema>;
 export type SetMemberRoleResponse = z.infer<typeof SetMemberRoleResponseSchema>;
 export type SetProjectManagerRequest = z.infer<typeof SetProjectManagerRequestSchema>;
 export type SetProjectManagerResponse = z.infer<typeof SetProjectManagerResponseSchema>;
+export type CreateGroupRequest = z.infer<typeof CreateGroupRequestSchema>;
+export type RenameGroupRequest = z.infer<typeof RenameGroupRequestSchema>;
+export type GroupResponse = z.infer<typeof GroupResponseSchema>;
+export type GroupsResponse = z.infer<typeof GroupsResponseSchema>;
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 export type TaskComplexity = z.infer<typeof TaskComplexitySchema>;
 export type Task = z.infer<typeof TaskSchema>;

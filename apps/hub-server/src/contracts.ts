@@ -36,6 +36,12 @@ export {
   isBigTask,
   // 组只读端点（PHASE2-CONSOLE-ASSEMBLY）：GroupsResponseSchema 早有契约（pm-core.ts），此前零消费方。
   GroupsResponseSchema,
+  // 组管理写端点 + 叶子组派生（PROGRAM-GROUP-ABSTRACT 刀④）：POST/PUT/DELETE /api/groups——设置页
+  // 「组」分区消费；deriveLeafGroups = 「可选组 = 叶子组且非哨兵」结构派生单一源（schedule.ts）。
+  CreateGroupRequestSchema,
+  RenameGroupRequestSchema,
+  GroupResponseSchema,
+  deriveLeafGroups,
   // 赛季只读端点（S1 接线，product-redefine-2026-07 §4.1/§9-①）：SeasonsResponseSchema 早有契约
   // （pm-core.ts），此前零消费方；随 GET /api/seasons 一并接线。
   SeasonsResponseSchema,

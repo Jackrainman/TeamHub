@@ -98,6 +98,12 @@ export interface RosterImportRow {
   // true = 按年级默认规则判为 true（进报告 autoReviewers，让操作者看清自动标了谁）。刀③ 后恒等于
   // gateReviewer（无显式列可覆盖，全部自动）。
   gateReviewerAuto: boolean;
+  /**
+   * 该行在 CSV 里的物理行号（1-based，含表头；parseRosterCsv 填写）。刀④ PROGRAM-GROUP-ABSTRACT：
+   * store 侧拒绝（组名命中非叶子/哨兵组）也要进报告 failed 段，行号随行带到 store 才能指回原行。
+   * 非 CSV 来源（如 setup bootstrap 单行复用）不填 → 报告里 line=0。
+   */
+  line?: number;
 }
 
 export interface RosterImportFailure {
@@ -224,7 +230,14 @@ export function parseRosterCsv(text: string): RosterParseResult {
       continue;
     }
     const gateReviewer = GATE_REVIEWER_DEFAULT_GRADES.has(grade);
-    rows.push({ displayName, grade, groupName, gateReviewer, gateReviewerAuto: gateReviewer });
+    rows.push({
+      displayName,
+      grade,
+      groupName,
+      gateReviewer,
+      gateReviewerAuto: gateReviewer,
+      line: record.line, // 刀④：行号随行带到 store——组名命中非叶子/哨兵组被拒时能指回原行
+    });
   }
   return { rows, errors };
 }

@@ -106,4 +106,40 @@ describe('GovStore.importRoster', () => {
     expect(snap.members.find((m) => m.displayName === '甲')?.groupId).toBe(tongzu.id);
     reopened.close();
   });
+
+  // 刀④ PROGRAM-GROUP-ABSTRACT：组名命中批前既有的非叶子/哨兵组（fixture 的 grp-program /
+  // grp-convergence）→ 该行拒绝进 failed（行号随行指回 CSV 原行），成员不建不改；叶子组正常。
+  // InMemory 与 Sqlite 逐字镜像同语义。
+  test('刀④：InMemory 拒抽象组（非叶子/哨兵）进 failed；叶子组不受影响', async () => {
+    const store = new InMemoryGovStore();
+    const outcome = await store.importRoster([
+      row({ displayName: '程甲', groupName: '程序', line: 2 }), // grp-program 有子组 → 非叶子
+      row({ displayName: '联乙', groupName: '全组联调', line: 3 }), // grp-convergence 哨兵
+      row({ displayName: '视丙', groupName: '视觉', line: 4 }), // 叶子组正常
+    ]);
+    expect(outcome.failed).toHaveLength(2);
+    expect(outcome.failed.map((f) => f.line)).toEqual([2, 3]);
+    expect(outcome.failed[0].reason).toContain('汇报视角');
+    expect(outcome.created).toEqual(['视丙']);
+    const snap = await store.getSnapshot();
+    expect(snap.members.find((m) => m.displayName === '程甲')).toBeUndefined();
+    expect(snap.members.find((m) => m.displayName === '联乙')).toBeUndefined();
+    expect(snap.members.find((m) => m.displayName === '视丙')?.groupId).toBe('grp-vision');
+  });
+
+  test('刀④：Sqlite 镜像同语义——抽象组拒行不落库', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'gov-roster-sqlite-abstract-'));
+    const file = join(dir, 'gov.sqlite');
+    const store = await SqliteGovStore.create(file);
+    const out = await store.importRoster([
+      row({ displayName: '程甲', groupName: '程序', line: 2 }),
+      row({ displayName: '视丙', groupName: '视觉', line: 3 }),
+    ]);
+    expect(out.failed).toHaveLength(1);
+    expect(out.failed[0].line).toBe(2);
+    expect(out.created).toEqual(['视丙']);
+    const snap = await store.getSnapshot();
+    expect(snap.members.find((m) => m.displayName === '程甲')).toBeUndefined();
+    store.close();
+  });
 });

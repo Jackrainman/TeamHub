@@ -9,6 +9,7 @@ import {
   GitReposResponseSchema,
   GroupGapsResponseSchema,
   GroupsResponseSchema,
+  GroupResponseSchema,
   HubEventsResponseSchema,
   MembersResponseSchema,
   PresenceScheduleResponseSchema,
@@ -64,6 +65,9 @@ import {
   type MemberPublic,
   type PresenceScheduleResponse,
   type CreateSeasonRequest,
+  type CreateGroupRequest,
+  type RenameGroupRequest,
+  type GroupResponse,
   type ResourceSessionsResponse,
   type Season,
   type SessionRequest,
@@ -215,7 +219,15 @@ export interface HubApiClient {
   ): Promise<UpdateBaselineResponse>;
   // 组只读列表（PHASE2-CONSOLE-ASSEMBLY）：TodayPlanTable「负责组」下拉的数据源，
   // 替掉原先借 dep-graph 节点反查组名的临时办法（无任务的组不会漏进下拉）。
-  getGroups(): Promise<{ groups: Group[] }>;
+  // **刀④ PROGRAM-GROUP-ABSTRACT**：响应补派生位 `assignableGroupIds`（叶子组且非哨兵，server 侧
+  // deriveLeafGroups 现算）——「可领任务/可挂人」的可选组集合，候选过滤统一消费它；groups 仍全量
+  // （组树展示/汇报视角需要非叶子+哨兵在场）。
+  getGroups(): Promise<{ groups: Group[]; assignableGroupIds: string[] }>;
+  // 组管理最小版（刀④，D-072「设置页可增减组」前置缺口）：新建叶子组 / 改名（仅叶子）/ 删除
+  // （仅叶子 + 防孤儿守卫；失败原因经 {detail} 透出）。
+  createGroup(req: CreateGroupRequest): Promise<GroupResponse>;
+  renameGroup(id: string, req: RenameGroupRequest): Promise<GroupResponse>;
+  deleteGroup(id: string): Promise<GroupResponse>;
   // 轻身份（IDENTITY-LITE，I2 console 接线）：GET 两模式均可读（报当前部署模式 + 当前身份，未登录/
   // 匿名模式 session 恒 null）；POST 登录（选人 + 可选 PIN）；DELETE 登出。匿名模式下 POST/DELETE
   // 服务端 404（前端只在 mode==='identity' 才渲染登录入口，不主动调用）。
@@ -523,6 +535,37 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
     },
     async getGroups() {
       return fetchJson(`${baseUrl}/api/groups`, GroupsResponseSchema, fetcher);
+    },
+    // 组管理最小版（PROGRAM-GROUP-ABSTRACT 刀④）：设置页「组」分区消费——新建叶子组 / 改名 / 删除
+    // （守卫在服务端 store 同一临界区：非叶子/哨兵 409、防孤儿 409、同名 409，detail 透出给表单）。
+    async createGroup(req: CreateGroupRequest) {
+      return postJson(
+        `${baseUrl}/api/groups`,
+        req,
+        GroupResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async renameGroup(id: string, req: RenameGroupRequest) {
+      return sendJson(
+        'PUT',
+        `${baseUrl}/api/groups/${encodeURIComponent(id)}`,
+        req,
+        GroupResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async deleteGroup(id: string): Promise<GroupResponse> {
+      return sendJson(
+        'DELETE',
+        `${baseUrl}/api/groups/${encodeURIComponent(id)}`,
+        undefined,
+        GroupResponseSchema,
+        fetcher,
+        writeToken,
+      );
     },
     async getSession() {
       return fetchJson(`${baseUrl}/api/session`, SessionResponseSchema, fetcher);

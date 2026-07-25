@@ -2,6 +2,7 @@ import {
   GOVERNANCE_SCENARIO_NOW,
   GOVERNANCE_SNAPSHOT_ARRAY_KEYS,
   deriveDisplayCode,
+  deriveLeafGroups,
   governanceScenarioFixture,
   scheduleScenarioFixture,
 } from '@teamhub/hub-contracts';
@@ -47,11 +48,15 @@ import {
 import { cloneArrayFields } from './clone-snapshot.js';
 import type {
   ArtifactDraft,
+  CreateGroupResult,
+  DeleteGroupResult,
   DependencyDraft,
   GovStore,
+  GroupDraft,
   KnowledgeNodeDraft,
   NeedDraft,
   RelayHandoffDraft,
+  RenameGroupResult,
   ResourceDefaultPresetPatch,
   ResourceDraft,
   ResourceSessionDraft,
@@ -718,18 +723,27 @@ export class InMemoryGovStore implements GovStore {
    * grade·groupId·gateReviewer）。**role / pinHash / projectManager 旗标永不动**（update 走 `...prev`
    * 保留——刀③ 起导入完全不写 role：组长改在导入后确认页任命，重导幂等天然不洗已任命组长）。
    * 库里有但表里没有 → missingFromSheet（**绝不删**）。授权在路由层判、本方法无条件写。
-   * **I0**：只做名单事实变更，绝不派生任何按人聚合/排行/按人筛选。
+   * **刀④ PROGRAM-GROUP-ABSTRACT**：组名命中**批前既有**的非叶子/哨兵组（如「程序」挂子组、「全组联调」
+   * 哨兵——`deriveLeafGroups` 结构派生）→ 该行**拒绝**（成员不建不改），进 outcome.failed 说明原因；
+   * 本批自动新建的组天然是叶子（无子组），不受影响。**I0**：只做名单事实变更，绝不派生任何按人聚合/排行/按人筛选。
    */
   async importRoster(rows: readonly RosterImportRow[]): Promise<RosterImportOutcome> {
     const now = this.clock.now().toISOString();
     const created: string[] = [];
     const updated: string[] = [];
+    const failed: RosterImportOutcome['failed'] = [];
     const createdGroups: string[] = [];
     const autoReviewers: string[] = [];
     // 建组用赛季：当前 active 赛季 ?? 顶层 seasonId（后者恒非空——GroupSchema.seasonId min1 满足；
     // 空板真实态 emptyGovSnapshot 仍保留 seasons/seasonId 赛季元信息，故这里恒解析到合法值）。
     const seasonId =
       this.snapshot.seasons.find((s) => s.status === 'active')?.id ?? this.snapshot.seasonId;
+    // 刀④：批前既有组中的非叶子/哨兵组 id 集（抽象汇报视角，不可挂人）。只算批前——本批新建组恒为
+    // 叶子，若把它们也算进来会误伤同批后续同名行（本批已建组走「既有组」分支解析）。
+    const leafBefore = new Set(deriveLeafGroups([...this.snapshot.groups]));
+    const abstractGroupIds = new Set(
+      this.snapshot.groups.filter((g) => !leafBefore.has(g.id)).map((g) => g.id),
+    );
     // 组名 → id 解析（既有组 / 本批已建组）：同批同名组只建一次。
     const resolveGroupId = (name: string): string => {
       const existing = this.snapshot.groups.find((g) => g.name === name);
@@ -750,6 +764,14 @@ export class InMemoryGovStore implements GovStore {
     const sheetNames = new Set(rows.map((r) => r.displayName));
     for (const row of rows) {
       const groupId = resolveGroupId(row.groupName);
+      // 刀④：命中抽象组（非叶子/哨兵）→ 拒该行（成员不建不改），failed 指回 CSV 原行说明原因。
+      if (abstractGroupIds.has(groupId)) {
+        failed.push({
+          line: row.line ?? 0,
+          reason: `组「${row.groupName}」是汇报视角（含子组或是联调哨兵组），不能挂人——请改成其下的具体小组`,
+        });
+        continue;
+      }
       const idx = this.snapshot.members.findIndex((m) => m.displayName === row.displayName);
       if (idx === -1) {
         const member: Member = {
@@ -783,7 +805,74 @@ export class InMemoryGovStore implements GovStore {
       if (row.gateReviewerAuto) autoReviewers.push(row.displayName);
     }
     const missingFromSheet = priorNames.filter((n) => !sheetNames.has(n));
-    return { created, updated, missingFromSheet, createdGroups, autoReviewers };
+    return { created, updated, failed, missingFromSheet, createdGroups, autoReviewers };
+  }
+
+  // ── 组管理最小版（PROGRAM-GROUP-ABSTRACT 刀④）：「可选组 = 叶子组且非哨兵」由 deriveLeafGroups 结构
+  // 派生（零 Group schema 改动）；守卫全在本方法内完成（判与写不分离，照 setProjectManager 临界区先例）。
+
+  /**
+   * 新建叶子组（POST /api/groups）：id 照 nextSequentialId 先例（`grp-new-N`）、seasonId 取当前
+   * active ?? 顶层、parentGroupId=null、kind=custom（同 importRoster 自动建组钉的默认值）。新建组
+   * 天然无子组 = 叶子。同名（含非叶子/哨兵组）→ name-exists（组名是 importRoster 匹配键，重名会错挂）。
+   */
+  async createGroup(draft: GroupDraft): Promise<CreateGroupResult> {
+    if (this.snapshot.groups.some((g) => g.name === draft.name)) {
+      return { ok: false, reason: 'name-exists' };
+    }
+    const seasonId =
+      this.snapshot.seasons.find((s) => s.status === 'active')?.id ?? this.snapshot.seasonId;
+    const group: Group = {
+      id: nextSequentialId('grp-new', this.groupSeq),
+      seasonId,
+      parentGroupId: null,
+      name: draft.name,
+      kind: ROSTER_IMPORT_GROUP_KIND,
+    };
+    this.snapshot.groups.push(group);
+    return { ok: true, group };
+  }
+
+  /**
+   * 组改名（PUT /api/groups/:id）：**仅叶子组可改**（非叶子/哨兵 = 汇报视角，not-leaf）；撞其它组
+   * 同名 → name-exists；id 不存在 → not-found。
+   */
+  async renameGroup(groupId: string, name: string): Promise<RenameGroupResult> {
+    const idx = this.snapshot.groups.findIndex((g) => g.id === groupId);
+    if (idx === -1) return { ok: false, reason: 'not-found' };
+    if (!deriveLeafGroups([...this.snapshot.groups]).includes(groupId)) {
+      return { ok: false, reason: 'not-leaf' };
+    }
+    if (this.snapshot.groups.some((g) => g.id !== groupId && g.name === name)) {
+      return { ok: false, reason: 'name-exists' };
+    }
+    const updated: Group = { ...this.snapshot.groups[idx], name };
+    this.snapshot.groups[idx] = updated;
+    return { ok: true, group: updated };
+  }
+
+  /**
+   * 删组（DELETE /api/groups/:id）：**仅叶子组可删** + 防孤儿——有成员 / 有子组 / 有任务引用 →
+   * 对应 reason（先迁走再删）。ok 时回带被删的组（路由响应投影）。
+   */
+  async deleteGroup(groupId: string): Promise<DeleteGroupResult> {
+    const idx = this.snapshot.groups.findIndex((g) => g.id === groupId);
+    if (idx === -1) return { ok: false, reason: 'not-found' };
+    if (!deriveLeafGroups([...this.snapshot.groups]).includes(groupId)) {
+      // 非叶子（含「程序」这类汇报视角）/ 哨兵（grp-convergence）→ 不可删。
+      return { ok: false, reason: 'not-leaf' };
+    }
+    if (this.snapshot.groups.some((g) => g.parentGroupId === groupId)) {
+      return { ok: false, reason: 'has-children' };
+    }
+    if (this.snapshot.members.some((m) => m.groupId === groupId)) {
+      return { ok: false, reason: 'has-members' };
+    }
+    if (this.snapshot.tasks.some((t) => t.groupId === groupId)) {
+      return { ok: false, reason: 'has-tasks' };
+    }
+    const [removed] = this.snapshot.groups.splice(idx, 1);
+    return { ok: true, group: removed };
   }
 
   // ── 挂单认领制窄写（TASK-POST-CLAIM，D-088）：就地改 tasks[idx] 的自己那簇留名字段 + updatedAt。

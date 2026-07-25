@@ -4,6 +4,7 @@ import {
   GOVERNANCE_SCENARIO_NOW,
   GovernanceSnapshotSchema,
   deriveDisplayCode,
+  deriveLeafGroups,
   governanceScenarioFixture,
   scheduleScenarioFixture,
 } from '@teamhub/hub-contracts';
@@ -51,11 +52,15 @@ import { createIdSequence, nextSequentialId } from './id-sequence.js';
 import type { IdSequence } from './id-sequence.js';
 import type {
   ArtifactDraft,
+  CreateGroupResult,
+  DeleteGroupResult,
   DependencyDraft,
   GovStore,
+  GroupDraft,
   KnowledgeNodeDraft,
   NeedDraft,
   RelayHandoffDraft,
+  RenameGroupResult,
   ResourceDefaultPresetPatch,
   ResourceDraft,
   ResourceSessionDraft,
@@ -570,11 +575,12 @@ export class SqliteGovStore implements GovStore {
   }
 
   /**
-   * 名册批量导入（ROSTER-IMPORT，K8 + 刀③ 不写 role）：整批在一个事务里应用到 members + groups（半程
-   * 崩溃回滚，无「建了组没建人」中间态）。逐字镜像 InMemoryGovStore.importRoster——组按 name 匹配现有 /
-   * 本批已建、否则自动建（`grp-new-N` + kind 默认 + 当前赛季）；成员按 displayName 幂等 upsert
-   * （新建 `member-new-N` role 恒 'member' / 命中更新 grade·groupId·gateReviewer，role / pinHash /
-   * projectManager 旗标永不动——重导幂等不洗已任命组长）。
+   * 名册批量导入（ROSTER-IMPORT，K8 + 刀③ 不写 role + 刀④ 拒抽象组）：整批在一个事务里应用到
+   * members + groups（半程崩溃回滚，无「建了组没建人」中间态）。逐字镜像 InMemoryGovStore.importRoster——
+   * 组按 name 匹配现有 / 本批已建、否则自动建（`grp-new-N` + kind 默认 + 当前赛季）；成员按 displayName
+   * 幂等 upsert（新建 `member-new-N` role 恒 'member' / 命中更新 grade·groupId·gateReviewer，
+   * role / pinHash / projectManager 旗标永不动——重导幂等不洗已任命组长）；**刀④**：组名命中批前既有的
+   * 非叶子/哨兵组 → 该行拒绝进 failed（抽象汇报视角不可挂人）。
    * 本地 Map 缓存追踪同批已建组 / 已改成员，避免同批同名重复建。
    */
   async importRoster(rows: readonly RosterImportRow[]): Promise<RosterImportOutcome> {
@@ -582,14 +588,22 @@ export class SqliteGovStore implements GovStore {
       const now = this.clock.now().toISOString();
       const created: string[] = [];
       const updated: string[] = [];
+      const failed: RosterImportOutcome['failed'] = [];
       const createdGroups: string[] = [];
       const autoReviewers: string[] = [];
       const seasons = this.allRows<Season>('seasons');
       const seasonId =
         seasons.find((s) => s.status === 'active')?.id ?? this.getMeta('seasonId') ?? '';
+      // 刀④：批前既有组中的非叶子/哨兵组 id 集（抽象汇报视角，不可挂人）。只算批前——本批新建组
+      // 恒为叶子，若算进来会误伤同批后续同名行（逐字镜像 InMemoryGovStore）。
+      const groupsBefore = this.allRows<Group>('groups');
+      const leafBefore = new Set(deriveLeafGroups(groupsBefore));
+      const abstractGroupIds = new Set(
+        groupsBefore.filter((g) => !leafBefore.has(g.id)).map((g) => g.id),
+      );
       // 组名 → id（既有 + 本批已建）。
       const groupIdByName = new Map<string, string>();
-      for (const g of this.allRows<Group>('groups')) groupIdByName.set(g.name, g.id);
+      for (const g of groupsBefore) groupIdByName.set(g.name, g.id);
       const resolveGroupId = (name: string): string => {
         const hit = groupIdByName.get(name);
         if (hit) return hit;
@@ -613,6 +627,14 @@ export class SqliteGovStore implements GovStore {
       const sheetNames = new Set(rows.map((r) => r.displayName));
       for (const row of rows) {
         const groupId = resolveGroupId(row.groupName);
+        // 刀④：命中抽象组（非叶子/哨兵）→ 拒该行（成员不建不改），failed 指回 CSV 原行说明原因。
+        if (abstractGroupIds.has(groupId)) {
+          failed.push({
+            line: row.line ?? 0,
+            reason: `组「${row.groupName}」是汇报视角（含子组或是联调哨兵组），不能挂人——请改成其下的具体小组`,
+          });
+          continue;
+        }
         const prev = memberByName.get(row.displayName);
         if (!prev) {
           const member: Member = {
@@ -646,7 +668,74 @@ export class SqliteGovStore implements GovStore {
         if (row.gateReviewerAuto) autoReviewers.push(row.displayName);
       }
       const missingFromSheet = priorNames.filter((n) => !sheetNames.has(n));
-      return { created, updated, missingFromSheet, createdGroups, autoReviewers };
+      return { created, updated, failed, missingFromSheet, createdGroups, autoReviewers };
+    });
+  }
+
+  // ── 组管理最小版（PROGRAM-GROUP-ABSTRACT 刀④）：逐字镜像 InMemoryGovStore 三方法（守卫同临界区、
+  // 判据同 deriveLeafGroups 结构派生），一个事务读-判-写（半程崩溃回滚）。
+
+  /** 新建叶子组（POST /api/groups）：同名 → name-exists；其余字段钉法同 importRoster 自动建组。 */
+  async createGroup(draft: GroupDraft): Promise<CreateGroupResult> {
+    return this.tx(() => {
+      const groups = this.allRows<Group>('groups');
+      if (groups.some((g) => g.name === draft.name)) {
+        return { ok: false as const, reason: 'name-exists' as const };
+      }
+      const seasons = this.allRows<Season>('seasons');
+      const seasonId =
+        seasons.find((s) => s.status === 'active')?.id ?? this.getMeta('seasonId') ?? '';
+      const group: Group = {
+        id: nextSequentialId('grp-new', this.groupSeq),
+        seasonId,
+        parentGroupId: null,
+        name: draft.name,
+        kind: ROSTER_IMPORT_GROUP_KIND,
+      };
+      this.insertRow('groups', group.id, group);
+      return { ok: true as const, group };
+    });
+  }
+
+  /** 组改名（PUT /api/groups/:id）：仅叶子组可改（非叶子/哨兵 → not-leaf）；撞同名 → name-exists。 */
+  async renameGroup(groupId: string, name: string): Promise<RenameGroupResult> {
+    return this.tx(() => {
+      const groups = this.allRows<Group>('groups');
+      const prev = groups.find((g) => g.id === groupId);
+      if (!prev) return { ok: false as const, reason: 'not-found' as const };
+      if (!deriveLeafGroups(groups).includes(groupId)) {
+        return { ok: false as const, reason: 'not-leaf' as const };
+      }
+      if (groups.some((g) => g.id !== groupId && g.name === name)) {
+        return { ok: false as const, reason: 'name-exists' as const };
+      }
+      const updated: Group = { ...prev, name };
+      this.updateRow('groups', groupId, updated);
+      return { ok: true as const, group: updated };
+    });
+  }
+
+  /** 删组（DELETE /api/groups/:id）：仅叶子组可删 + 防孤儿（有成员/有子组/有任务引用 → 409）。 */
+  async deleteGroup(groupId: string): Promise<DeleteGroupResult> {
+    return this.tx(() => {
+      const groups = this.allRows<Group>('groups');
+      const prev = groups.find((g) => g.id === groupId);
+      if (!prev) return { ok: false as const, reason: 'not-found' as const };
+      if (!deriveLeafGroups(groups).includes(groupId)) {
+        // 非叶子（含「程序」这类汇报视角）/ 哨兵（grp-convergence）→ 不可删。
+        return { ok: false as const, reason: 'not-leaf' as const };
+      }
+      if (groups.some((g) => g.parentGroupId === groupId)) {
+        return { ok: false as const, reason: 'has-children' as const };
+      }
+      if (this.allRows<Member>('members').some((m) => m.groupId === groupId)) {
+        return { ok: false as const, reason: 'has-members' as const };
+      }
+      if (this.allRows<Task>('tasks').some((t) => t.groupId === groupId)) {
+        return { ok: false as const, reason: 'has-tasks' as const };
+      }
+      this.deleteRow('groups', groupId);
+      return { ok: true as const, group: prev };
     });
   }
 

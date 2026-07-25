@@ -104,6 +104,8 @@ describe('parseRosterCsv', () => {
     });
     // 行草稿无 role 字段（刀③：导入不写 role，组长走导入后确认页）。
     expect(rows[0]).not.toHaveProperty('role');
+    // 刀④：行号随行带到 store（组名命中非叶子/哨兵组被拒时能指回 CSV 原行，1-based 含表头）。
+    expect(rows.map((r) => r.line)).toEqual([2, 3, 4]);
   });
 
   test('旧五列 CSV 向后兼容：多余列被忽略（只读前三列）', () => {

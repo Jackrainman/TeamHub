@@ -14,6 +14,7 @@ import type {
   ArtifactRef,
   Dependency,
   GovernanceSnapshot,
+  Group,
   KnowledgeNode,
   Member,
   MemberRole,
@@ -31,11 +32,15 @@ import { cloneArrayFields } from './clone-snapshot.js';
 import { InMemoryGovStore } from './mock-gov-store.js';
 import type {
   ArtifactDraft,
+  CreateGroupResult,
+  DeleteGroupResult,
   DependencyDraft,
   GovStore,
+  GroupDraft,
   KnowledgeNodeDraft,
   NeedDraft,
   RelayHandoffDraft,
+  RenameGroupResult,
   ResourceDefaultPresetPatch,
   ResourceDraft,
   ResourceSessionDraft,
@@ -593,6 +598,45 @@ export class FileGovStore implements GovStore {
     return outcome;
   }
 
+  // ── 组管理最小版（PROGRAM-GROUP-ABSTRACT 刀④）：groups 是 GovernanceSnapshot 字段 → 落
+  // governance.json。委托 inner 做守卫 + id 钉法（零漂移）；create=append 类回滚（persist 失败按 id
+  // 移除，镜像 createTask）、rename=idx 类（写前存整条原地还原，镜像 setMemberRole）、delete=写前存
+  // 整条 + 失败时原位插回（splice(idx,0,prior)）。守卫未通过（ok:false）不落盘。
+
+  async createGroup(draft: GroupDraft): Promise<CreateGroupResult> {
+    const result = await this.inner.createGroup(draft);
+    if (result.ok) {
+      await this.persistOrRollback(() => this.removeById('groups', result.group.id));
+    }
+    return result;
+  }
+
+  async renameGroup(groupId: string, name: string): Promise<RenameGroupResult> {
+    const snap = this.inner.snapshotForRollback();
+    const idx = snap.groups.findIndex((g) => g.id === groupId);
+    const prior = idx >= 0 ? snap.groups[idx] : undefined;
+    const result = await this.inner.renameGroup(groupId, name);
+    if (result.ok) {
+      await this.persistOrRollback(() => {
+        if (prior) snap.groups[idx] = prior;
+      });
+    }
+    return result;
+  }
+
+  async deleteGroup(groupId: string): Promise<DeleteGroupResult> {
+    const snap = this.inner.snapshotForRollback();
+    const idx = snap.groups.findIndex((g) => g.id === groupId);
+    const prior: Group | undefined = idx >= 0 ? snap.groups[idx] : undefined;
+    const result = await this.inner.deleteGroup(groupId);
+    if (result.ok) {
+      await this.persistOrRollback(() => {
+        if (prior) snap.groups.splice(idx, 0, prior); // 原位插回（保持数组引用稳定）
+      });
+    }
+    return result;
+  }
+
   // 挂单认领制窄写（TASK-POST-CLAIM，D-088）：tasks 是 GovernanceSnapshot 字段 → 落 governance.json。
   // 六方法全 idx 类回滚（写前存整条，persist 失败按 id 原地还原，镜像 updateTaskStatus）：委托 inner
   // 补留名 + clamp 逻辑（零漂移），仅命中（非 null）才落盘。claimTask 的"已有主"由 inner 返回 null，
@@ -701,7 +745,7 @@ export class FileGovStore implements GovStore {
   }
 
   /** 回滚句柄：从 live 快照按 id 移除一条 append 元素（仅持久层 rollback 用）。 */
-  private removeById<K extends 'tasks' | 'dependencies' | 'needs' | 'artifacts'>(
+  private removeById<K extends 'tasks' | 'dependencies' | 'needs' | 'artifacts' | 'groups'>(
     key: K,
     id: string,
   ): void {

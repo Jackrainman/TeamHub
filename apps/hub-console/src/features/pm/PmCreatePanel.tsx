@@ -75,27 +75,42 @@ export function PmCreatePanel({
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { t } = useI18n();
-  const defaults = useMemo(
-    () => ({
-      projectId: tasks[0]?.projectId ?? '',
-      groupId: tasks[0]?.groupId ?? '',
-      // identity 模式已登录 → 默认负责人 = 当前登录人（D-083 §4.2）；否则空（匿名模式 / 未登录）。
-      ownerId: defaultOwnerId(identity.mode, identity.session),
-    }),
-    [tasks, identity.mode, identity.session],
-  );
-  // 组候选：GET /api/groups 全量组列表为主，任务反查的 groupId 兜底合并去重
-  // （万一某组还没同步进组表但已有任务引用它，候选里仍要能选中）。
+  // 组候选：GET /api/groups 的 **assignableGroupIds**（叶子组且非哨兵，server 侧 deriveLeafGroups 结构
+  // 派生，刀④ PROGRAM-GROUP-ABSTRACT）——非叶子组「程序」与哨兵组「全组联调」是汇报视角、不可领任务，
+  // 不进候选。任务反查的 groupId 兜底合并仅保留**未入组表**的裸 id（历史任务可引用未同步的组；
+  // 已入表但不可选的组——如 grp-program/grp-convergence——不再进候选）。
   const groupsQuery = useQuery({
     queryKey: ['groups', 'pm-create'],
     queryFn: () => client.getGroups(),
   });
+  const groups = useMemo(() => groupsQuery.data?.groups ?? [], [groupsQuery.data]);
+  // id ↔ 中文名双向映射（刀④ 顺带修 UX bug：候选此前显示组 id「grp-program」而非中文名——
+  // 表单显示名、提交时映射回 id；手填的未知名原样透传，兼容自由文本兜底）。
+  const idToName = useMemo(() => new Map(groups.map((g) => [g.id, g.name])), [groups]);
+  const nameToId = useMemo(() => new Map(groups.map((g) => [g.name, g.id])), [groups]);
   const groupOptions = useMemo(() => {
-    const ids = new Set<string>();
-    for (const g of groupsQuery.data?.groups ?? []) ids.add(g.id);
-    for (const task of tasks) ids.add(task.groupId);
-    return Array.from(ids);
-  }, [groupsQuery.data, tasks]);
+    const assignable = new Set(groupsQuery.data?.assignableGroupIds ?? []);
+    const options: string[] = [];
+    for (const g of groups) if (assignable.has(g.id)) options.push(g.name);
+    for (const task of tasks) {
+      if (!idToName.has(task.groupId) && !options.includes(task.groupId)) {
+        options.push(task.groupId); // 未入组表的历史引用：裸 id 兜底（仍可选中）
+      }
+    }
+    return options;
+  }, [groupsQuery.data, groups, tasks, idToName]);
+  const defaults = useMemo(
+    () => ({
+      projectId: tasks[0]?.projectId ?? '',
+      // 组字段内部持「显示值」（中文名；未知 id 原样）——提交时经 nameToId 映射回 id。
+      groupId: tasks[0]?.groupId
+        ? (idToName.get(tasks[0].groupId) ?? tasks[0].groupId)
+        : '',
+      // identity 模式已登录 → 默认负责人 = 当前登录人（D-083 §4.2）；否则空（匿名模式 / 未登录）。
+      ownerId: defaultOwnerId(identity.mode, identity.session),
+    }),
+    [tasks, identity.mode, identity.session, idToName],
+  );
   // 成员候选：ownerId 选人下拉的数据源（ownerId 自由文本→选人，D-083 §4.2 审计项，两模式都改）。
   // 名册读侧两模式均开（同 GET /api/groups 先例），匿名模式也走选人只是服务端不校验（§10 拍板）。
   const membersQuery = useQuery({
@@ -109,10 +124,12 @@ export function PmCreatePanel({
 
   // 冷启动修复：tasks 初始为空 → defaults 均为 ''；onCreated → invalidateQueries 重填 tasks 后
   // 已挂载的表单仍持有旧空态。只在字段仍为空时同步，保证不覆盖用户已输入的内容。
+  // 刀④：组字段持显示值——组表晚到时字段里可能是裸 id，idToName 到位后升级成中文名（不改变语义值）。
   useEffect(() => {
     if (!projectId && defaults.projectId) setProjectId(defaults.projectId);
     if (!groupId && defaults.groupId) setGroupId(defaults.groupId);
-  }, [defaults.projectId, defaults.groupId]); // eslint-disable-line react-hooks/exhaustive-deps
+    else if (groupId && idToName.has(groupId)) setGroupId(idToName.get(groupId)!);
+  }, [defaults.projectId, defaults.groupId, idToName]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [title, setTitle] = useState('');
   const [rawSummary, setRawSummary] = useState('');
@@ -173,7 +190,8 @@ export function PmCreatePanel({
     if (!valid || writeLocked) return;
     mutation.mutate({
       projectId: projectId.trim(),
-      groupId: groupId.trim(),
+      // 组字段持显示值（中文名）：提交时映射回组 id；未知名（手填裸 id / 历史引用）原样透传。
+      groupId: nameToId.get(groupId.trim()) ?? groupId.trim(),
       title: title.trim(),
       rawSummary: rawSummary.trim(),
       robotTarget,

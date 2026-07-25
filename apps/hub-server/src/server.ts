@@ -54,6 +54,10 @@ import {
   deriveDirectionGaps,
   GroupsResponseSchema,
   SeasonsResponseSchema,
+  CreateGroupRequestSchema,
+  RenameGroupRequestSchema,
+  GroupResponseSchema,
+  deriveLeafGroups,
   CreateSeasonRequestSchema,
   CreateSeasonResponseSchema,
   derivePresenceSchedule,
@@ -864,7 +868,7 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
         const grade = parsed.data.grade ?? 'freshman';
         const reviewer =
           grade === 'junior' || grade === 'senior' || grade === 'graduate';
-        await store.importRoster([
+        const importOutcome = await store.importRoster([
           {
             displayName: parsed.data.displayName,
             grade,
@@ -873,6 +877,12 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
             gateReviewerAuto: reviewer,
           },
         ]);
+        // 刀④：groupName 命中非叶子/哨兵组（如手填「程序」命中 grp-program）→ importRoster 拒行，
+        // 此处转 400 把原因摆给操作者（初始化门组候选本就只列叶子组，这是自由文本兜底的防线）。
+        if (importOutcome.failed.length > 0) {
+          void reply.code(400).send({ detail: importOutcome.failed[0].reason });
+          return;
+        }
         const after = await store.getSnapshot();
         const created = after.members.find(
           (m) => m.displayName === parsed.data.displayName,
@@ -1004,7 +1014,8 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     return RosterImportReportSchema.parse({
       created: outcome.created,
       updated: outcome.updated,
-      failed: errors,
+      // 坏行 = 解析层 errors + store 侧拒行（刀④：组名命中非叶子/哨兵组，抽象汇报视角不可挂人）。
+      failed: [...errors, ...outcome.failed],
       missingFromSheet: outcome.missingFromSheet,
       createdGroups: outcome.createdGroups,
       autoReviewers: outcome.autoReviewers,
@@ -1014,9 +1025,106 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   // 组只读列表（PHASE2-CONSOLE-ASSEMBLY）：console TodayPlanTable 原借 dep-graph 节点反查组名当临时
   // 数据源（节点集合=任务派生视图，没有任务的组不出现在里面、下拉会漏项）；GroupsResponseSchema 早有
   // 契约（pm-core.ts）却零消费方，这里补上语义正确的直读端点。
+  // **刀④ PROGRAM-GROUP-ABSTRACT**：`groups` 保持全量（组树展示 / 汇报视角需要非叶子组「程序」与哨兵组
+  // 「全组联调」在场），响应补派生位 `assignableGroupIds` = 叶子组且非哨兵（deriveLeafGroups 结构派生，
+  // 零 Group schema 改动）——写入口校验与前端候选过滤统一消费这个「可选组」集合。
   app.get('/api/groups', async () => {
     const snapshot = await store.getSnapshot();
-    return GroupsResponseSchema.parse({ groups: snapshot.groups });
+    return GroupsResponseSchema.parse({
+      groups: snapshot.groups,
+      assignableGroupIds: deriveLeafGroups(snapshot.groups),
+    });
+  });
+
+  // ── 组管理最小版（PROGRAM-GROUP-ABSTRACT 刀④，D-072「设置页可增减组」前置缺口）─────────────────
+  // 叶子组可新建 / 改名；删除防孤儿（有成员/有子组/有任务 → 409）；非叶子/哨兵组（汇报视角）不可改名
+  // 不可删（not-leaf → 409）。守卫全收在 store 方法同一临界区（判与写不分离，照 setProjectManager 先例）。
+  // **鉴权**（照 PUT /api/members/:id/role 邻位范式）：匿名模式=宿主级写门即可；身份模式=须持旗管理员
+  // （isSuperAdmin 读旗标，403）。写方法 /api/* 天然过 H3 onRequest 写门（Bearer + 限流 + 身份模式须有会话）。
+
+  // POST /api/groups：新建叶子组（只有 name；id/seasonId/parentGroupId=null/kind 由 store 钉）。
+  // 同名（含非叶子/哨兵组）→ 409（组名是 importRoster 的匹配键，重名会静默错挂）。
+  app.post('/api/groups', async (request, reply) => {
+    const parsed = CreateGroupRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    if (identityMode === 'identity') {
+      const snapshot = await store.getSnapshot();
+      if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
+        void reply.code(403).send({ detail: '该操作需管理员（项目管理旗标）' });
+        return;
+      }
+    }
+    const result = await store.createGroup({ name: parsed.data.name.trim() });
+    if (!result.ok) {
+      void reply.code(409).send({ detail: `组「${parsed.data.name}」已存在` });
+      return;
+    }
+    void reply.code(201);
+    return GroupResponseSchema.parse({ group: result.group });
+  });
+
+  // PUT /api/groups/:id：组改名，**仅叶子组可改**（非叶子/哨兵 = 汇报视角 → 409）；撞同名 → 409；
+  // id 不存在 → 404。
+  app.put<{ Params: { id: string } }>('/api/groups/:id', async (request, reply) => {
+    const { id } = request.params;
+    const parsed = RenameGroupRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    if (identityMode === 'identity') {
+      const snapshot = await store.getSnapshot();
+      if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
+        void reply.code(403).send({ detail: '该操作需管理员（项目管理旗标）' });
+        return;
+      }
+    }
+    const result = await store.renameGroup(id, parsed.data.name.trim());
+    if (!result.ok) {
+      if (result.reason === 'not-found') {
+        void reply.code(404).send({ detail: 'group not found' });
+      } else if (result.reason === 'not-leaf') {
+        void reply.code(409).send({ detail: '汇报视角组（含子组或是联调哨兵组）不可改名' });
+      } else {
+        void reply.code(409).send({ detail: `组「${parsed.data.name}」已存在` });
+      }
+      return;
+    }
+    return GroupResponseSchema.parse({ group: result.group });
+  });
+
+  // DELETE /api/groups/:id：删组，**仅叶子组可删** + 防孤儿——有成员 / 有子组 / 有任务引用 → 409
+  // （先迁走再删，不制造悬空引用）；非叶子/哨兵 → 409；id 不存在 → 404。响应回带被删的组。
+  app.delete<{ Params: { id: string } }>('/api/groups/:id', async (request, reply) => {
+    const { id } = request.params;
+    if (identityMode === 'identity') {
+      const snapshot = await store.getSnapshot();
+      if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
+        void reply.code(403).send({ detail: '该操作需管理员（项目管理旗标）' });
+        return;
+      }
+    }
+    const result = await store.deleteGroup(id);
+    if (!result.ok) {
+      if (result.reason === 'not-found') {
+        void reply.code(404).send({ detail: 'group not found' });
+      } else {
+        const detail =
+          result.reason === 'not-leaf'
+            ? '汇报视角组（含子组或是联调哨兵组）不可删除'
+            : result.reason === 'has-children'
+              ? '该组下有子组，不能删除'
+              : result.reason === 'has-members'
+                ? '该组下还有成员，先迁走成员再删'
+                : '该组下还有任务，先迁走任务再删';
+        void reply.code(409).send({ detail });
+      }
+      return;
+    }
+    return GroupResponseSchema.parse({ group: result.group });
   });
 
   // 赛季只读列表（S1 接线，product-redefine-2026-07 §4.1/§9-①）：SeasonSchema/SeasonsResponseSchema
@@ -1184,10 +1292,21 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
 
   // PM 项目计划表：单条任务录入（C1 兜底录入口）。server 补 id/时间戳/派生默认（status=pending/statusSource=console）。
   // 卡住原因走人建 Dependency 边由 toDepGraphView 派生（G2 不在 Task 上另存 blockedBy）；不引入 dueDate（G4）。
+  // **刀④ PROGRAM-GROUP-ABSTRACT**：groupId 命中组表里的非叶子/哨兵组（如 grp-program / grp-convergence，
+  // deriveLeafGroups 结构派生）→ 400——任务只能挂具体叶子组（汇报视角组不可领任务）；组表里**不存在**的
+  // id 维持既有宽松（历史任务可引用未入表的组，PmCreatePanel 兜底合并同律）。
   app.post('/api/tasks', async (request, reply) => {
     const parsed = CreateTaskRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
       void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+      return;
+    }
+    const snapshot = await store.getSnapshot();
+    const knownGroup = snapshot.groups.find((g) => g.id === parsed.data.groupId);
+    if (knownGroup && !deriveLeafGroups(snapshot.groups).includes(knownGroup.id)) {
+      void reply
+        .code(400)
+        .send({ detail: `组「${knownGroup.name}」是汇报视角（含子组或是联调哨兵组），任务请挂到其下的具体小组` });
       return;
     }
     const task = await store.createTask(parsed.data);
