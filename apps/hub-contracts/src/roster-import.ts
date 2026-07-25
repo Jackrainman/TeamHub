@@ -71,21 +71,31 @@ export function decodeRosterBytes(bytes: Uint8Array): string | null {
   return null;
 }
 
-// ── 中文年级 → grade 枚举（K8 拍板③）───────────────────────────────────────────────────────────
+// ── 中文年级 → grade 枚举（K8 拍板③ + GRADE-7-TIERS 刀⑥）───────────────────────────────────────
 // 非法值该行报错进报告、不中断整批（见 parseRosterCsv）。
 const GRADE_BY_LABEL: Record<string, MemberGrade> = {
   大一: 'freshman',
   大二: 'sophomore',
   大三: 'junior',
   大四: 'senior',
-  研究生: 'graduate',
+  研一: 'grad1',
+  研二: 'grad2',
+  研三: 'grad3',
+  研究生: 'graduate', // legacy 档：旧 CSV 写法仍可导入
 };
 
-/** 验收人默认规则（K8 拍板③，刀③ 后唯一来源）：大三及以上（junior/senior/graduate）默认 true，否则 false。 */
-const GATE_REVIEWER_DEFAULT_GRADES: ReadonlySet<MemberGrade> = new Set([
+/**
+ * 验收人默认规则（K8 拍板③，刀③ 后唯一来源；GRADE-7-TIERS 刀⑥ 扩研档）：大三及以上
+ * （junior/senior/graduate/grad1/grad2/grad3）默认 true，否则 false。**导出供 server 端
+ * bootstrap 等其它「年级→验收人」派生消费同一来源**（server 不再手列枚举）。
+ */
+export const GATE_REVIEWER_DEFAULT_GRADES: ReadonlySet<MemberGrade> = new Set([
   'junior',
   'senior',
   'graduate',
+  'grad1',
+  'grad2',
+  'grad3',
 ]);
 
 // ── 已校验行草稿（parseRosterCsv 产出，store.importRoster 消费）────────────────────────────────
@@ -221,7 +231,7 @@ export function parseRosterCsv(text: string): RosterParseResult {
     if (!grade) {
       errors.push({
         line: record.line,
-        reason: `年级无法识别：「${gradeLabel || '（空）'}」（应为 大一/大二/大三/大四/研究生）`,
+        reason: `年级无法识别：「${gradeLabel || '（空）'}」（应为 大一/大二/大三/大四/研一/研二/研三/研究生）`,
       });
       continue;
     }

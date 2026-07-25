@@ -1022,6 +1022,9 @@ const zh = {
   'settings.reviewers.grade.junior': '大三',
   'settings.reviewers.grade.senior': '大四',
   'settings.reviewers.grade.graduate': '研究生',
+  'settings.reviewers.grade.grad1': '研一',
+  'settings.reviewers.grade.grad2': '研二',
+  'settings.reviewers.grade.grad3': '研三',
   // 写权限说明（K8 复审 nit 收口）：身份模式已登录但非管理员时的禁用说明。
   'settings.permission.adminOnly': '此操作需要管理员（项目管理旗标）权限。',
   // 设置页「名册导入」块（ROSTER-IMPORT，K8）
@@ -1180,6 +1183,7 @@ const zh = {
   'gate.who.claimHint': '名册里已有这个名字——将直接认领该成员行。',
   'gate.who.group': '所在组',
   'gate.who.groupPlaceholder': '组名（不存在会自动新建）',
+  'gate.who.grade': '年级',
   'gate.who.asLead': '我是该组组长',
   'gate.who.pm': '项目管理（可改敏感设置，建议勾选）',
   'gate.who.pin': '设置 PIN',
@@ -2232,6 +2236,9 @@ const en: Record<TranslationKey, string> = {
   'settings.reviewers.grade.junior': 'Junior',
   'settings.reviewers.grade.senior': 'Senior',
   'settings.reviewers.grade.graduate': 'Graduate',
+  'settings.reviewers.grade.grad1': 'Grad year 1',
+  'settings.reviewers.grade.grad2': 'Grad year 2',
+  'settings.reviewers.grade.grad3': 'Grad year 3',
   'settings.permission.adminOnly': 'This action requires admin (project-management flag) permission.',
   // Settings "Roster import" block (ROSTER-IMPORT, K8)
   'settings.roster.title': 'Roster import',
@@ -2386,6 +2393,7 @@ const en: Record<TranslationKey, string> = {
   'gate.who.claimHint': 'This name already exists — you will claim that member row.',
   'gate.who.group': 'Group',
   'gate.who.groupPlaceholder': 'Group name (auto-created if missing)',
+  'gate.who.grade': 'Grade',
   'gate.who.asLead': 'I am the lead of this group',
   'gate.who.pm': 'Project management (can change sensitive settings, recommended)',
   'gate.who.pin': 'Set a PIN',

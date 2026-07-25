@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
+  GATE_REVIEWER_DEFAULT_GRADES,
+  MemberGradeSchema,
   ROSTER_TEMPLATE_HEADERS,
   RosterImportReportSchema,
   buildRosterTemplateCsv,
@@ -150,6 +152,32 @@ describe('parseRosterCsv', () => {
     expect(errors[0].reason).toContain('年级无法识别');
     expect(errors[1].reason).toContain('姓名');
     expect(errors[2].reason).toContain('组');
+  });
+
+  test('年级七档：研一/研二/研三 → grad1/2/3，验收人派生 true；旧「研究生」档仍兼容', () => {
+    const csv =
+      '姓名,年级,组\n' +
+      '研一甲,研一,电控\n' +
+      '研二乙,研二,视觉\n' +
+      '研三丙,研三,机械\n' +
+      '老生,研究生,电路\n';
+    const { rows, errors } = parseRosterCsv(csv);
+    expect(errors).toEqual([]);
+    expect(rows.map((r) => r.grade)).toEqual(['grad1', 'grad2', 'grad3', 'graduate']);
+    expect(rows.every((r) => r.gateReviewer && r.gateReviewerAuto)).toBe(true);
+    // GATE_REVIEWER_DEFAULT_GRADES = server bootstrap 等同源消费点（≥大三含研全档 true）。
+    for (const g of ['junior', 'senior', 'graduate', 'grad1', 'grad2', 'grad3'] as const) {
+      expect(GATE_REVIEWER_DEFAULT_GRADES.has(g)).toBe(true);
+    }
+    expect(GATE_REVIEWER_DEFAULT_GRADES.has('freshman')).toBe(false);
+    expect(GATE_REVIEWER_DEFAULT_GRADES.has('sophomore')).toBe(false);
+  });
+
+  test('MemberGradeSchema：新档 grad1/2/3 可 parse，legacy graduate 仍可 parse', () => {
+    for (const g of ['grad1', 'grad2', 'grad3', 'graduate'] as const) {
+      expect(MemberGradeSchema.safeParse(g).success).toBe(true);
+    }
+    expect(MemberGradeSchema.safeParse('grad4').success).toBe(false);
   });
 
   test('末行无换行结尾也解析', () => {

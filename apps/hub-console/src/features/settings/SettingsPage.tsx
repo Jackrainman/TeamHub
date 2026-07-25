@@ -60,12 +60,17 @@ const LIFECYCLE_PILL_CLASS: Record<AgentBackend['status'], string> = {
 };
 
 // 成员年级枚举 → 文案键（枚举变更会在此处编译报错）。验收人名单说明「豁免权属大三」，年级作辅助元信息。
-const GRADE_KEY: Record<MemberGrade, TranslationKey> = {
+// GRADE-7-TIERS 刀⑥：扩研一/研二/研三三档；`graduate` 为 legacy 档（旧落盘数据仍可能带它，UI 只读显示）。
+// 导出供初始化门 WhoStep 年级下拉复用同一份文案（不另起 i18n 键）。
+export const GRADE_KEY: Record<MemberGrade, TranslationKey> = {
   freshman: 'settings.reviewers.grade.freshman',
   sophomore: 'settings.reviewers.grade.sophomore',
   junior: 'settings.reviewers.grade.junior',
   senior: 'settings.reviewers.grade.senior',
   graduate: 'settings.reviewers.grade.graduate',
+  grad1: 'settings.reviewers.grade.grad1',
+  grad2: 'settings.reviewers.grade.grad2',
+  grad3: 'settings.reviewers.grade.grad3',
 };
 
 // 成员角色枚举 → 文案键（K1 权限地基 + MEMBER-PM-FLAG 刀②b 收窄两档；枚举变更会在此处编译报错）。

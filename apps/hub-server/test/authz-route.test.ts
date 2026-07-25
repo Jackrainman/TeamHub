@@ -173,6 +173,25 @@ describe('POST /api/setup/super-admin — bootstrap 路径（SETUP-WIZARD-ROSTER
     }
   });
 
+  test('GRADE-7-TIERS：带 grade:grad2 新建 → 落库 grade=grad2 + gateReviewer 自动 true（≥大三含研派生）', async () => {
+    const store = new InMemoryGovStore();
+    await clearFixturePm(store);
+    const app = buildHubServer({ identityMode: 'identity', store });
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/setup/super-admin',
+        payload: { displayName: '研二队长', groupName: '电控', grade: 'grad2', pin: '1234' },
+      });
+      expect(res.statusCode).toBe(200);
+      const me = (await store.getSnapshot()).members.find((m) => m.displayName === '研二队长')!;
+      expect(me.grade).toBe('grad2');
+      expect(me.gateReviewer).toBe(true); // 与 contracts GATE_REVIEWER_DEFAULT_GRADES 同源派生
+    } finally {
+      await app.close();
+    }
+  });
+
   test('姓名命中既有成员 → 认领该行（不新建、组不动），授旗+PIN+会话', async () => {
     const store = new InMemoryGovStore();
     await clearFixturePm(store);

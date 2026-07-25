@@ -108,12 +108,17 @@ export const GroupSchema = z.object({
 export const MemberRoleSchema = z.enum(['groupAdmin', 'member']);
 
 /** 资历维度，仅服务 G5（对低资历更主动兜底）；绝不用于产能对比。 */
+// 七档（GRADE-7-TIERS，2026-07-25 用户拍板）：大一~大四 + 研一~研三。
+// `graduate` 保留为 legacy 档——兼容旧落盘数据（parse 仍可过），新建/导入/UI 选项不再产它。
 export const MemberGradeSchema = z.enum([
   'freshman',
   'sophomore',
   'junior',
   'senior',
   'graduate',
+  'grad1',
+  'grad2',
+  'grad3',
 ]);
 
 export const MemberStatusSchema = z.enum([

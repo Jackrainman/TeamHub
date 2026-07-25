@@ -162,6 +162,8 @@ import {
   decodeRosterBytes,
   parseRosterCsv,
   RosterImportReportSchema,
+  // 验收人年级默认派生集合（GRADE-7-TIERS 刀⑥ 起由 contracts 导出，bootstrap 与 CSV 导入同源消费）。
+  GATE_REVIEWER_DEFAULT_GRADES,
   // SETUP-WIZARD 刀①：正常模式 setup 状态回执（GET /api/setup/state → initialized:true）。
   SetupStateResponseSchema,
   // SETUP-WIZARD 刀③：部署配置写端点（PUT /api/setup/config 改 identityMode；graduate 转正式）。
@@ -831,10 +833,10 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   //    管理员被免密冒用"）。
   //  - bootstrap 路径（刀② v2「先问你是谁」，给 displayName）：**豁免登录**（写门钩子已放过本路由，
   //    此处自判——解开"名册无管理员 → 无人能登录 → 无法初始化"死锁）。按姓名认领既有成员行，或顺带新建
-  //    （groupName 必填、importRoster 单行复用建组+建人；asGroupLead → role:groupAdmin 组长申报；grade 缺省
-  //    freshman、后续名册 CSV 按姓名 upsert 修正），一笔落库 = 建人 + 授旗（projectManager 缺省 true）+
-  //    设 PIN + **签发会话 cookie（登录态）**。操作者由此必在名册（原"操作者不在 CSV"问题消解；残余
-  //    edge = CSV 同名错拼会 upsert 出重名人，导入报告回显 created 可肉眼发现）。
+  //    （groupName 必填、importRoster 单行复用建组+建人；asGroupLead → role:groupAdmin 组长申报；grade 由
+  //    初始化门年级下拉传入（GRADE-7-TIERS 刀⑥ 七档），缺省 freshman），一笔落库 = 建人 + 授旗
+  //    （projectManager 缺省 true）+ 设 PIN + **签发会话 cookie（登录态）**。操作者由此必在名册（原"操作者
+  //    不在 CSV"问题消解；残余 edge = CSV 同名错拼会 upsert 出重名人，导入报告回显 created 可肉眼发现）。
   // 响应经 MemberPublicSchema 剥 pinHash（密钥纪律）。
   app.post('/api/setup/super-admin', async (request, reply) => {
     if (identityMode !== 'identity') {
@@ -864,10 +866,10 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
           void reply.code(400).send({ detail: '新建成员需提供所在组' });
           return;
         }
-        // 复用 importRoster 单行（组按名 upsert + 建人 role=member）；验收人沿用年级默认派生（刀③ 同律）。
+        // 复用 importRoster 单行（组按名 upsert + 建人 role=member）；验收人沿用年级默认派生（刀③ 同律，
+        // 刀⑥ 起派生集合直接消费 contracts GATE_REVIEWER_DEFAULT_GRADES，不再手列枚举）。
         const grade = parsed.data.grade ?? 'freshman';
-        const reviewer =
-          grade === 'junior' || grade === 'senior' || grade === 'graduate';
+        const reviewer = GATE_REVIEWER_DEFAULT_GRADES.has(grade);
         const importOutcome = await store.importRoster([
           {
             displayName: parsed.data.displayName,

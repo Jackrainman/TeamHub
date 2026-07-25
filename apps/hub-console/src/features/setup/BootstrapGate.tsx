@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   deriveLeafGroups,
   type Group,
+  type MemberGrade,
   type MemberPublic,
   type RosterImportReport,
 } from '@teamhub/hub-contracts';
@@ -10,7 +11,7 @@ import type { HubApiClient } from '../../api/client';
 import { useI18n } from '../../i18n';
 import { humanizeFormError } from '../../utils';
 import { GroupLeadConfirm } from '../settings/GroupLeadConfirm';
-import { RosterReportView } from '../settings/SettingsPage';
+import { GRADE_KEY, RosterReportView } from '../settings/SettingsPage';
 
 /**
  * 全屏初始化门（SETUP-WIZARD-ROSTER 刀② v2「先问你是谁」，onboarding-pin-deadlock-2026-07-24 §3 刀②）。
@@ -31,6 +32,21 @@ import { RosterReportView } from '../settings/SettingsPage';
  */
 
 type Step = 'who' | 'roster' | 'leads' | 'done';
+
+/**
+ * 「你是谁」步年级下拉选项（GRADE-7-TIERS 刀⑥）：大一~大四/研一~研三七档，按序、默认 freshman。
+ * legacy 档 `graduate`（旧落盘数据）不在选项内——新建成员不再产它；文案复用 SettingsPage 的
+ * GRADE_KEY（同一 i18n 键，不另起）。
+ */
+export const WHO_GRADE_OPTIONS: readonly MemberGrade[] = [
+  'freshman',
+  'sophomore',
+  'junior',
+  'senior',
+  'grad1',
+  'grad2',
+  'grad3',
+];
 
 export function BootstrapGate({
   client,
@@ -124,8 +140,9 @@ export function BootstrapGate({
   );
 }
 
-// ① 你是谁：姓名 + 所在组 + 组长申报 + 项目管理旗标 + PIN → bootstrap 一笔落库（建人/认领 + 授旗 +
-// 设 PIN + 登录态）。姓名命中既有成员 = 直接认领该行（组字段服务端忽略）。
+// ① 你是谁：姓名 + 所在组 + 年级下拉（GRADE-7-TIERS 刀⑥ 七档，默认大一）+ 组长申报 + 项目管理旗标 +
+// PIN → bootstrap 一笔落库（建人/认领 + 授旗 + 设 PIN + 登录态）。姓名命中既有成员 = 直接认领该行
+// （组/年级字段不显示、服务端忽略）。
 function WhoStep({
   client,
   members,
@@ -145,6 +162,7 @@ function WhoStep({
     return groups.filter((g) => leaf.has(g.id));
   }, [groups]);
   const [groupName, setGroupName] = useState('');
+  const [grade, setGrade] = useState<MemberGrade>('freshman');
   const [asLead, setAsLead] = useState(false);
   const [pm, setPm] = useState(true);
   const [pin, setPin] = useState('');
@@ -170,6 +188,7 @@ function WhoStep({
         pin: pin.trim(),
         displayName: nameTrim,
         groupName: claiming ? undefined : groupName.trim(),
+        grade: claiming ? undefined : grade, // 认领路径不动既有行 grade（服务端忽略）
         asGroupLead: asLead,
         projectManager: pm,
       });
@@ -222,6 +241,21 @@ function WhoStep({
                 placeholder={t('gate.who.groupPlaceholder')}
               />
             )}
+          </label>
+        ) : null}
+        {!claiming ? (
+          <label className="gate-field">
+            <span>{t('gate.who.grade')}</span>
+            <select
+              value={grade}
+              onChange={(e) => setGrade(e.target.value as MemberGrade)}
+            >
+              {WHO_GRADE_OPTIONS.map((g) => (
+                <option value={g} key={g}>
+                  {t(GRADE_KEY[g])}
+                </option>
+              ))}
+            </select>
           </label>
         ) : null}
         {!claiming ? (
