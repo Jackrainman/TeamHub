@@ -5,6 +5,7 @@ import {
   inventoryScenarioFixture,
 } from '@teamhub/hub-contracts';
 import type {
+  InventoryImportRow,
   InventorySnapshot,
   PartAction,
   PartType,
@@ -12,7 +13,12 @@ import type {
 import type { Clock } from '../clock.js';
 import { cloneArrayFields } from './clone-snapshot.js';
 import { InMemoryInvStore } from './mock-inv-store.js';
-import type { InvStore, PartActionDraft, PartTypeDraft } from './gov-store.js';
+import type {
+  InvStore,
+  InventoryImportOutcome,
+  PartActionDraft,
+  PartTypeDraft,
+} from './gov-store.js';
 
 /**
  * 库存 / BOM JSON 落盘实现（INV-BOM-CORE 持久层）：进程重启不丢，盘点 / 拆装 / 一句话快记累积。
@@ -94,6 +100,17 @@ export class FileInvStore implements InvStore {
     const partType = await this.inner.upsertPartType(draft);
     await this.persistOrRollback(before);
     return partType;
+  }
+
+  /**
+   * 批量导入（INV-BULK-IMPORT 刀⑪）：整批内存 upsert 完后**一次** persist（不是逐行落盘）；
+   * persist 失败 → 整批回滚（capture/restore 同 upsertPartType 范式），不留半批中间态。
+   */
+  async importPartTypes(rows: readonly InventoryImportRow[]): Promise<InventoryImportOutcome> {
+    const before = this.capture();
+    const outcome = await this.inner.importPartTypes(rows);
+    await this.persistOrRollback(before);
+    return outcome;
   }
 
   async recordPartAction(draft: PartActionDraft): Promise<PartAction> {

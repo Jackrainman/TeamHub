@@ -6,6 +6,7 @@ import {
   inventoryScenarioFixture,
 } from '@teamhub/hub-contracts';
 import type {
+  InventoryImportRow,
   InventorySnapshot,
   PartAction,
   PartType,
@@ -14,7 +15,12 @@ import type {
 import { FixedClock } from '../clock.js';
 import type { Clock } from '../clock.js';
 import { cloneArrayFields } from './clone-snapshot.js';
-import type { InvStore, PartActionDraft, PartTypeDraft } from './gov-store.js';
+import type {
+  InvStore,
+  InventoryImportOutcome,
+  PartActionDraft,
+  PartTypeDraft,
+} from './gov-store.js';
 
 /** 库存快照的三数组字段（写方法可能 push/replace 的集合）——构造期克隆隔离 + getInventorySnapshot 浅拷贝共用。 */
 const INVENTORY_ARRAY_FIELDS: (keyof InventorySnapshot)[] = [
@@ -93,6 +99,63 @@ export class InMemoryInvStore implements InvStore {
     };
     this.snapshot.partTypes.push(partType);
     return partType;
+  }
+
+  /**
+   * 库存批量导入（INV-BULK-IMPORT 刀⑪）：partNumber 幂等 upsert。同件号更新 name/category/unit
+   * （lowStockThreshold 行里给了才覆盖、未给保留既有），**totalQuantity = 覆盖**（CSV 全量盘点口径，
+   * 重导同表幂等不翻倍）；trackIndividually / allocations / lastCountedAt 不动既有行。新行钉
+   * trackIndividually=false、allocations=[]、projectId=快照项目、lastCountedAt=now（盘点建底首计）。
+   * 单行异常只进 failed（行号随行）不落该行、不中断整批；**绝不删**库里有但表里没有的零件。
+   */
+  async importPartTypes(rows: readonly InventoryImportRow[]): Promise<InventoryImportOutcome> {
+    const now = this.clock.now().toISOString();
+    const created: string[] = [];
+    const updated: string[] = [];
+    const failed: InventoryImportOutcome['failed'] = [];
+    for (const row of rows) {
+      try {
+        const idx = this.snapshot.partTypes.findIndex((p) => p.partNumber === row.partNumber);
+        if (idx === -1) {
+          const partType: PartType = {
+            id: `parttype-new-${++this.partTypeSeq}`,
+            projectId: this.snapshot.projectId,
+            partNumber: row.partNumber,
+            name: row.name,
+            category: row.category,
+            unit: row.unit,
+            trackIndividually: false, // 导入不产个体追踪；要追踪走单条新建表单
+            totalQuantity: row.totalQuantity,
+            allocations: [], // 新建行无机器人占用，矩阵从空起（同单条新建）
+            lowStockThreshold: row.lowStockThreshold ?? 0,
+            lastCountedAt: now,
+            updatedAt: now,
+          };
+          this.snapshot.partTypes.push(partType);
+          created.push(row.partNumber);
+        } else {
+          const prior = this.snapshot.partTypes[idx];
+          const partType: PartType = {
+            ...prior, // trackIndividually / allocations / lastCountedAt / projectId 全保留
+            name: row.name,
+            category: row.category,
+            unit: row.unit,
+            totalQuantity: row.totalQuantity, // 覆盖（全量盘点口径），不累加
+            lowStockThreshold: row.lowStockThreshold ?? prior.lowStockThreshold,
+            updatedAt: now,
+          };
+          this.snapshot.partTypes[idx] = partType;
+          updated.push(row.partNumber);
+        }
+      } catch (err) {
+        // 防御：行已 zod 预验，正常不至；任一单行异常只拒该行，不中断整批。
+        failed.push({
+          line: row.line ?? 0,
+          reason: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+    return { created, updated, failed };
   }
 
   /**

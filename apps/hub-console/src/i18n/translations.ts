@@ -867,6 +867,34 @@ const zh = {
   'inv.create.success': '已新建「{name}」。',
   'inv.create.error': '新建失败：{detail}',
 
+  // 库存批量导入（INV-BULK-IMPORT 刀⑪：库存页分区 + 向导库存步共用）
+  'inv.import.title': '批量导入',
+  'inv.import.desc':
+    '用 CSV 一张表建库存：件号 / 名称 / 类别 / 单位 / 总数 / 低储阈值（阈值可留空）。同件号覆盖更新，绝不删已有零件。',
+  'inv.import.downloadTemplate': '下载模板',
+  'inv.import.upload': '上传 CSV',
+  'inv.import.importing': '正在导入…',
+  'inv.import.error': '导入失败：{detail}',
+  'inv.import.preview.hint': '解析出 {count} 行——确认无误后点「确认导入」；行可直接改，也可整行删除。',
+  'inv.import.preview.failed': '{count} 行无法解析（不参与导入）',
+  'inv.import.preview.failedRow': '第 {line} 行：{reason}',
+  'inv.import.preview.colPartNumber': '件号',
+  'inv.import.preview.colName': '名称',
+  'inv.import.preview.colCategory': '类别',
+  'inv.import.preview.colUnit': '单位',
+  'inv.import.preview.colTotal': '总数',
+  'inv.import.preview.colThreshold': '低储阈值',
+  'inv.import.preview.colActions': '操作',
+  'inv.import.preview.removeRow': '删除',
+  'inv.import.preview.confirm': '确认导入',
+  'inv.import.preview.cancel': '取消',
+  'inv.import.preview.empty': '没有可导入的行（全部删除或均无法解析）。',
+  'inv.import.report.title': '导入结果',
+  'inv.import.report.failed': '{count} 行未导入（需修正）',
+  'inv.import.report.created': '新建',
+  'inv.import.report.updated': '更新',
+  'inv.import.report.empty': '没有变化。',
+
   // 库存类目选项
   'inv.catopt.motor': '电机（如 6020 / 3508）',
   'inv.catopt.esc': '电调（电机驱动）',
@@ -1196,11 +1224,12 @@ const zh = {
   'setup.landing.dismiss': '知道了',
   'gate.title': '初始化：先把你自己放进名册',
   'gate.subtitle':
-    '登录制已开启，但名册里还没有项目管理成员。四步完成初始化——先说你是谁，再导名册、认组长、录车队。',
+    '登录制已开启，但名册里还没有项目管理成员。五步完成初始化——先说你是谁，再导名册、认组长、录车队、录库存。',
   'gate.step.who': '① 你是谁',
   'gate.step.roster': '② 导入名册',
   'gate.step.leads': '③ 确认各组组长',
   'gate.step.fleet': '④ 录入车队',
+  'gate.step.inventory': '⑤ 录入库存',
   'gate.who.desc':
     '一笔完成：建你的成员行（或认领名册里已有的你）+ 授项目管理旗标 + 设 PIN + 登录。此后你就是本队第一个管理员。',
   'gate.who.name': '姓名',
@@ -1242,7 +1271,11 @@ const zh = {
   'gate.fleet.next': '下一步',
   'gate.fleet.skip': '没有车要录，跳过',
   'gate.fleet.error': '创建车队失败：{detail}',
-  'gate.done.title': '⑤ 完成',
+  'gate.inv.desc':
+    '用 CSV 一张表把库存建起来：件号 / 名称 / 类别 / 单位 / 总数 / 低储阈值（阈值可留空）。上传后先预览、可逐行改，确认才真正导入；同件号覆盖更新，绝不删已有零件。没有库存要录可直接跳过。',
+  'gate.inv.skip': '没有库存要录，跳过',
+  'gate.inv.next': '下一步',
+  'gate.done.title': '⑥ 完成',
   'gate.done.desc': '初始化完成——你已登录，项目管理权限在手。',
   'gate.done.cta': '进入 TeamHub',
 } as const;
@@ -2130,6 +2163,35 @@ const en: Record<TranslationKey, string> = {
   'inv.create.success': 'Created "{name}".',
   'inv.create.error': 'Create failed: {detail}',
 
+  // Inventory bulk import (INV-BULK-IMPORT: shared by the inventory page section and the wizard step)
+  'inv.import.title': 'Bulk import',
+  'inv.import.desc':
+    'Build the inventory from one CSV: part number / name / category / unit / total / low-stock threshold (threshold optional). Same part number overwrites; existing parts are never deleted.',
+  'inv.import.downloadTemplate': 'Download template',
+  'inv.import.upload': 'Upload CSV',
+  'inv.import.importing': 'Importing…',
+  'inv.import.error': 'Import failed: {detail}',
+  'inv.import.preview.hint':
+    '{count} row(s) parsed — review and hit "Confirm import"; rows are editable and removable.',
+  'inv.import.preview.failed': '{count} row(s) could not be parsed (excluded from import)',
+  'inv.import.preview.failedRow': 'Line {line}: {reason}',
+  'inv.import.preview.colPartNumber': 'Part no.',
+  'inv.import.preview.colName': 'Name',
+  'inv.import.preview.colCategory': 'Category',
+  'inv.import.preview.colUnit': 'Unit',
+  'inv.import.preview.colTotal': 'Total',
+  'inv.import.preview.colThreshold': 'Threshold',
+  'inv.import.preview.colActions': 'Actions',
+  'inv.import.preview.removeRow': 'Remove',
+  'inv.import.preview.confirm': 'Confirm import',
+  'inv.import.preview.cancel': 'Cancel',
+  'inv.import.preview.empty': 'Nothing to import (all rows removed or unparseable).',
+  'inv.import.report.title': 'Import result',
+  'inv.import.report.failed': '{count} row(s) not imported (need fixing)',
+  'inv.import.report.created': 'Created',
+  'inv.import.report.updated': 'Updated',
+  'inv.import.report.empty': 'No changes.',
+
   // Inventory category options
   'inv.catopt.motor': 'Motor (e.g. 6020 / 3508)',
   'inv.catopt.esc': 'ESC (motor driver)',
@@ -2452,11 +2514,12 @@ const en: Record<TranslationKey, string> = {
   'setup.landing.dismiss': 'Got it',
   'gate.title': 'Setup: put yourself on the roster first',
   'gate.subtitle':
-    'Login mode is on, but no project-management member exists yet. Four steps: say who you are, import the roster, confirm group leads, register the fleet.',
+    'Login mode is on, but no project-management member exists yet. Five steps: say who you are, import the roster, confirm group leads, register the fleet, load the inventory.',
   'gate.step.who': '(1) Who are you',
   'gate.step.roster': '(2) Import roster',
   'gate.step.leads': '(3) Confirm group leads',
   'gate.step.fleet': '(4) Register the fleet',
+  'gate.step.inventory': '(5) Load inventory',
   'gate.who.desc':
     'One shot: create your member row (or claim the existing one) + grant the project-management flag + set a PIN + log you in. You become the team’s first admin.',
   'gate.who.name': 'Name',
@@ -2498,7 +2561,11 @@ const en: Record<TranslationKey, string> = {
   'gate.fleet.next': 'Next',
   'gate.fleet.skip': 'Nothing to register — skip',
   'gate.fleet.error': 'Failed to create the fleet: {detail}',
-  'gate.done.title': '(5) Done',
+  'gate.inv.desc':
+    'Load the inventory from one CSV: part number / name / category / unit / total / low-stock threshold (threshold optional). Upload shows an editable preview first — nothing is written until you confirm. Same part number overwrites; existing parts are never deleted. Skip if there is nothing to load.',
+  'gate.inv.skip': 'Nothing to load — skip',
+  'gate.inv.next': 'Next',
+  'gate.done.title': '(6) Done',
   'gate.done.desc': 'Setup complete — you are logged in with project-management rights.',
   'gate.done.cta': 'Enter TeamHub',
 };

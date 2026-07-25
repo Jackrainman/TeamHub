@@ -1,6 +1,8 @@
 import type {
   ArchiveDocument,
   ErrorEntry,
+  InventoryImportFailure,
+  InventoryImportRow,
   InventorySnapshot,
   IssueCard,
   KbSnapshot,
@@ -98,21 +100,44 @@ export type PartActionDraft = Omit<
 > & { source: PartActionSource };
 
 /**
+ * 库存批量导入结果（INV-BULK-IMPORT 刀⑪）：created/updated = **件号**（partNumber 是幂等 upsert
+ * 匹配键）；failed = store 侧拒行（行号随行指回 CSV 原行，正常路径恒空——行已 zod 预验）。
+ */
+export interface InventoryImportOutcome {
+  created: string[];
+  updated: string[];
+  failed: InventoryImportFailure[];
+}
+
+/**
  * 库存 / BOM 读写出入口契约（INV-BOM-CORE，D-042 决策 4 / D-072 §3.4）。
  *
  * INV 是三支柱里**唯一需要扩 schema 的根**——`InventorySnapshot` 不在 `GovernanceSnapshot` 内，故 INV 不复用
  * `GovStore`，走本独立扩展点（BuildHubServerOptions.invStore?，缺省 InMemoryInvStore seed inventoryScenarioFixture）。
  *
- * 写白名单仅 `upsertPartType / recordPartAction`（C3：无通用 delete / list 全家桶）。**红线**：
+ * 写白名单仅 `upsertPartType / recordPartAction / importPartTypes`（C3：无通用 delete / list 全家桶）。**红线**：
  *  - **I0**：recordPartAction 的 recordedBy 永无 memberId（只 source）；无按人聚合视图。
  *  - **G2**：INV 自有真相、不回写飞书 Bitable。
  *  - **C3 / D-072 §3.4**：个体件拆装只移 currentHolder、绝不删 TrackedPart（保血缘）。
  *  - 非法迁移（负库存 / used 超 total / 缺持有者）→ recordPartAction 抛 InvalidPartActionError（路由转 400）。
+ *
+ * **实现面（刀⑪ 核实）**：INV 只有两实现——`InMemoryInvStore`（mock）+ `FileInvStore`（JSON 落盘）；
+ * **无 sqlite inv 实现**（SqliteGovStore 只管 GovernanceSnapshot，InventorySnapshot 独立），
+ * importPartTypes 亦只落这两实现。
  */
 export interface InvStore {
   getInventorySnapshot(): Promise<InventorySnapshot>;
   /** 盘点建底 / 补料 / 调阈值（POST /api/inventory/part-types）。带 id 命中即更新，否则创建。 */
   upsertPartType(draft: PartTypeDraft): Promise<PartType>;
+  /**
+   * 库存批量导入（INV-BULK-IMPORT 刀⑪，POST /api/inventory/import）：partNumber 幂等 upsert——
+   * 同件号更新 name/category/unit（+ lowStockThreshold 若行里给了；未给 = 保留既有阈值），
+   * **totalQuantity 更新策略 = 覆盖**（CSV 是全量盘点口径：表里写多少就是多少，不做增量累加，
+   * 重导同表幂等不翻倍）；trackIndividually / allocations / lastCountedAt 不动既有行；新行
+   * trackIndividually=false、allocations=[]、projectId 取快照项目。失败行不落（进 failed 继续整批）。
+   * **绝不删**——库里有但表里没有的零件原样保留（import 只 upsert）。
+   */
+  importPartTypes(rows: readonly InventoryImportRow[]): Promise<InventoryImportOutcome>;
   /**
    * 记一条动作并应用其效果（POST /api/inventory/actions）。append-only 落 PartAction +
    * 按动作语义改 PartType.allocations/totalQuantity（+ 个体件 currentHolder/status）。

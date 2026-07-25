@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useRef, type FormEvent } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
 import type {
@@ -7,6 +7,11 @@ import type {
   PartCategory,
   CreatePartTypeRequest,
 } from '../../api/schemas/inv';
+import type {
+  InventoryImportReport,
+  InventoryImportRow,
+  InventoryPreviewResponse,
+} from '@teamhub/hub-contracts';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { humanizeFormError } from '../../utils';
 import { Field } from '../../components/Field';
@@ -16,6 +21,7 @@ import { Select } from '../../components/Select';
 import { SegToggle } from '../../components/SegToggle';
 import { MetricTile } from '../../components/MetricTile';
 import { InvLedgerTable } from './InvLedgerTable';
+import { InvPreviewTable, InvReportView } from './InvPreviewTable';
 import { InvQuickRecordForm, type HolderOption } from './InvQuickRecordForm';
 
 const IDLE_HOLDER = 'idle';
@@ -141,6 +147,8 @@ export function InvPage({
         defaultProjectId={partTypes[0]?.projectId ?? DEFAULT_PROJECT_ID}
         onCreated={refresh}
       />
+
+      <InvImportSection client={client} onImported={refresh} />
 
       <InvQuickRecordForm
         client={client}
@@ -326,8 +334,105 @@ function CreatePartTypeForm({
   );
 }
 
-function nameLookup(
-  partTypes: { id: string; name: string }[],
+// --- 批量导入（INV-BULK-IMPORT 刀⑪）---------------------------------------------
+
+/**
+ * 批量导入分区：模板下载 + 上传 CSV → preview 只解析不落库 → InvPreviewTable 行内编辑 → 确认后
+ * JSON 导入（partNumber 幂等 upsert、totalQuantity 覆盖、绝不删）→ 报告回显。与向导 InventoryStep
+ * 共用同一预览确认流（InvPreviewTable / InvReportView）。I0：零件维度本就无成员字段。
+ */
+function InvImportSection({
+  client,
+  onImported,
+}: {
+  client: HubApiClient;
+  onImported: () => void;
+}) {
+  const { t } = useI18n();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const [preview, setPreview] = useState<InventoryPreviewResponse | null>(null);
+  const [report, setReport] = useState<InventoryImportReport | null>(null);
+
+  async function upload(file: File) {
+    setPending(true);
+    setError(null);
+    try {
+      setPreview(await client.previewInventory(file));
+      setReport(null); // 重新上传 → 清掉上一份报告，避免两态并存
+    } catch (err) {
+      setError(err);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function confirm(rows: InventoryImportRow[]) {
+    setPending(true);
+    setError(null);
+    try {
+      setReport(await client.importInventoryRows(rows));
+      setPreview(null);
+      onImported();
+    } catch (err) {
+      setError(err);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <section className="inv-create panel" aria-label={t('inv.import.title')}>
+      <header className="pm-create__head">
+        <div>
+          <h2>{t('inv.import.title')}</h2>
+          <p className="pm-create__note">{t('inv.import.desc')}</p>
+        </div>
+      </header>
+      <div className="roster-import__actions">
+        <a className="btn btn--secondary btn--sm" href={client.inventoryTemplateUrl()} download>
+          {t('inv.import.downloadTemplate')}
+        </a>
+        <button
+          type="button"
+          className="btn btn--secondary btn--sm"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={pending}
+        >
+          {pending && !preview ? t('inv.import.importing') : t('inv.import.upload')}
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,text/csv"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void upload(file);
+            e.target.value = '';
+          }}
+        />
+      </div>
+      {error ? (
+        <p className="form-hint form-hint--warn">
+          {humanizeFormError(error, t, 'inv.import.error')}
+        </p>
+      ) : null}
+      {preview ? (
+        <InvPreviewTable
+          preview={preview}
+          pending={pending}
+          onConfirm={(rows) => void confirm(rows)}
+          onCancel={() => setPreview(null)}
+        />
+      ) : null}
+      {report ? <InvReportView report={report} /> : null}
+    </section>
+  );
+}
+
+function nameLookup(  partTypes: { id: string; name: string }[],
 ): (id: string) => string {
   const map = new Map(partTypes.map((p) => [p.id, p.name]));
   return (id: string) => map.get(id) ?? id;

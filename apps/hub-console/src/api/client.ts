@@ -37,6 +37,8 @@ import {
   SetupGraduateResponseSchema,
   RosterImportReportSchema,
   RosterPreviewResponseSchema,
+  InventoryImportReportSchema,
+  InventoryPreviewResponseSchema,
   type ChecklistItemsResponse,
   type CreateChecklistItemRequest,
   type CreateChecklistItemResponse,
@@ -63,6 +65,9 @@ import {
   type RosterImportReport,
   type RosterImportRow,
   type RosterPreviewResponse,
+  type InventoryImportReport,
+  type InventoryImportRow,
+  type InventoryPreviewResponse,
   type ArtifactsResponse,
   type DepGraph,
   type Group,
@@ -366,6 +371,12 @@ export interface HubApiClient {
   importRoster(file: File): Promise<RosterImportReport>;
   previewRoster(file: File): Promise<RosterPreviewResponse>;
   importRosterRows(rows: RosterImportRow[]): Promise<RosterImportReport>;
+  // 库存批量导入（INV-BULK-IMPORT 刀⑪，结构照名册刀⑦）：模板 GET 直链；上传 → previewInventory
+  // 只解析不落库 → 预览表编辑 → importInventoryRows JSON 提交导入。报告 = 三段（created/updated=
+  // 件号、failed=行号+原因），库存事实回显（I0 无人键）。
+  inventoryTemplateUrl(): string;
+  previewInventory(file: File): Promise<InventoryPreviewResponse>;
+  importInventoryRows(rows: InventoryImportRow[]): Promise<InventoryImportReport>;
   // 挂单认领制窄写动作（TASK-POST-CLAIM，D-088）。全部 POST 子资源、继承 H3 写门；留名 actor 沿
   // IDENTITY-LITE（身份模式服务端从 session 注入、匿名模式 body 供名）。红线：留名只落单条任务卡，
   // 本簇绝无按人聚合/排行/按人筛选端点。响应统一 { task }（TaskSchema，不带 isBig 元）。
@@ -967,6 +978,28 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         `${baseUrl}/api/roster/import`,
         { rows },
         RosterImportReportSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    inventoryTemplateUrl() {
+      // 模板下载 = 直链 GET（浏览器原生下载，不走 fetch/Bearer——读端点无鉴权）。
+      return `${baseUrl}/api/inventory/template`;
+    },
+    async previewInventory(file: File) {
+      return postFormData(
+        `${baseUrl}/api/inventory/preview`,
+        file,
+        InventoryPreviewResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async importInventoryRows(rows: InventoryImportRow[]) {
+      return postJson(
+        `${baseUrl}/api/inventory/import`,
+        { rows },
+        InventoryImportReportSchema,
         fetcher,
         writeToken,
       );

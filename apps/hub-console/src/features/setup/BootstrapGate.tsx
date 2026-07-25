@@ -5,6 +5,9 @@ import {
   RESOURCE_INIT_STATUSES,
   type CreateResourcesBatchRequest,
   type Group,
+  type InventoryImportReport,
+  type InventoryImportRow,
+  type InventoryPreviewResponse,
   type MemberGrade,
   type MemberPublic,
   type RobotTarget,
@@ -18,6 +21,7 @@ import { useI18n, type TranslationKey } from '../../i18n';
 import { humanizeFormError, suggestSeason } from '../../utils';
 import { GroupLeadConfirm } from '../settings/GroupLeadConfirm';
 import { RosterPreviewTable } from '../settings/RosterPreviewTable';
+import { InvPreviewTable, InvReportView } from '../inv/InvPreviewTable';
 import { GRADE_KEY, RosterReportView } from '../settings/SettingsPage';
 
 /**
@@ -36,12 +40,15 @@ import { GRADE_KEY, RosterReportView } from '../settings/SettingsPage';
  *  ③ **确认各组组长**：复用 GroupLeadConfirm（刀③——有成员必选 + 默认建议、空组不出现、叶子组候选）。
  *  ④ **录入车队**（FLEET-BATCH-INIT 刀⑩）：一次录全部车（名称/编号位/赛季/第几代/能用·在修·退役·停用），
  *    批量端点 zod 全量先验、任一坏整批不落；空表可跳过，已有车可直接下一步（照名册已就绪先例）。
- *  ⑤ **进 app**（已登录、项目管理权限在手）。
+ *  ⑤ **录入库存**（INV-BULK-IMPORT 刀⑪）：库存 CSV 批量导入（件号/名称/类别/单位/总数/低储阈值），
+ *    上传 → preview 只解析不落库 → 预览表行内编辑 → 确认后 JSON 导入（partNumber 幂等 upsert、绝不删）；
+ *    可跳过。
+ *  ⑥ **进 app**（已登录、项目管理权限在手）。
  *
- * 反监视 I0：门只收集操作者本人这一行事实 + 组长任命事实 + 车（无成员维度），不做任何按人聚合。
+ * 反监视 I0：门只收集操作者本人这一行事实 + 组长任命事实 + 车/零件（无成员维度），不做任何按人聚合。
  */
 
-type Step = 'who' | 'roster' | 'leads' | 'fleet' | 'done';
+type Step = 'who' | 'roster' | 'leads' | 'fleet' | 'inventory' | 'done';
 
 /**
  * 「你是谁」步年级下拉选项（GRADE-7-TIERS 刀⑥）：大一~大四/研一~研三七档，按序、默认 freshman。
@@ -137,7 +144,10 @@ export function BootstrapGate({
           )
         ) : null}
         {step === 'fleet' ? (
-          <FleetStep client={client} onNext={() => setStep('done')} />
+          <FleetStep client={client} onNext={() => setStep('inventory')} />
+        ) : null}
+        {step === 'inventory' ? (
+          <InventoryStep client={client} onNext={() => setStep('done')} />
         ) : null}
         {step === 'done' ? (
           <section className="setup-card setup-card--primary">
@@ -656,6 +666,99 @@ function FleetStep({
           )}
         </>
       )}
+    </section>
+  );
+}
+
+// ⑤ 录入库存（INV-BULK-IMPORT 刀⑪，结构照 RosterStep 刀⑦）：模板下载 + 上传 → preview 只解析不落库
+// → InvPreviewTable 行内编辑（件号只读 = 幂等匹配键）→ 确认后 JSON 导入（partNumber 幂等 upsert、
+// totalQuantity 覆盖、绝不删）→ 报告回显；没有库存要录可直接「跳过」。
+function InventoryStep({
+  client,
+  onNext,
+}: {
+  client: HubApiClient;
+  onNext: () => void;
+}) {
+  const { t } = useI18n();
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const [preview, setPreview] = useState<InventoryPreviewResponse | null>(null);
+  const [report, setReport] = useState<InventoryImportReport | null>(null);
+
+  async function upload(file: File) {
+    setPending(true);
+    setError(null);
+    try {
+      setPreview(await client.previewInventory(file));
+    } catch (err) {
+      setError(err);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function confirm(rows: InventoryImportRow[]) {
+    setPending(true);
+    setError(null);
+    try {
+      setReport(await client.importInventoryRows(rows));
+      setPreview(null);
+      void queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    } catch (err) {
+      setError(err);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <section className="setup-card setup-card--primary">
+      <h2 className="setup-card__title">{t('gate.step.inventory')}</h2>
+      <p className="setup-card__desc">{t('gate.inv.desc')}</p>
+      <div className="roster-import__actions">
+        <a className="btn btn--secondary btn--sm" href={client.inventoryTemplateUrl()} download>
+          {t('inv.import.downloadTemplate')}
+        </a>
+        <button
+          type="button"
+          className="btn btn--secondary btn--sm"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={pending}
+        >
+          {pending && !preview ? t('inv.import.importing') : t('inv.import.upload')}
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,text/csv"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void upload(file);
+            e.target.value = '';
+          }}
+        />
+      </div>
+      {error ? (
+        <p className="form-hint form-hint--warn">
+          {humanizeFormError(error, t, 'inv.import.error')}
+        </p>
+      ) : null}
+      {preview ? (
+        <InvPreviewTable
+          preview={preview}
+          pending={pending}
+          onConfirm={(rows) => void confirm(rows)}
+          onCancel={() => setPreview(null)}
+        />
+      ) : null}
+      {report ? <InvReportView report={report} /> : null}
+      <button type="button" className="btn btn--primary" onClick={onNext}>
+        {report ? t('gate.inv.next') : t('gate.inv.skip')}
+      </button>
     </section>
   );
 }

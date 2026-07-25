@@ -170,6 +170,16 @@ import {
   RosterPreviewResponseSchema,
   type RosterImportFailure,
   type RosterImportRow,
+  // 库存批量导入（INV-BULK-IMPORT 刀⑪）：模板生成 + 解析器 + preview/JSON 双收 + 报告契约；
+  // 编码探测复用 csv-core decodeCsvBytes（与名册 decodeRosterBytes 同一来源）。
+  buildInventoryTemplateCsv,
+  decodeCsvBytes,
+  parseInventoryCsv,
+  InventoryImportReportSchema,
+  InventoryImportRowsRequestSchema,
+  InventoryPreviewResponseSchema,
+  type InventoryImportFailure,
+  type InventoryImportRow,
   // 验收人年级默认派生集合（GRADE-7-TIERS 刀⑥ 起由 contracts 导出，bootstrap 与 CSV 导入同源消费）。
   GATE_REVIEWER_DEFAULT_GRADES,
   // SETUP-WIZARD 刀①：正常模式 setup 状态回执（GET /api/setup/state → initialized:true）。
@@ -323,6 +333,10 @@ const ARTIFACT_MAX_BYTES = 50 * 1024 * 1024;
 // 名册导入 CSV 上限（ROSTER-IMPORT，K8）：1MB——纯文本花名册（几十人）绰绰有余，又约束资源耗尽面。
 // 由 POST /api/roster/import 的 `request.file({ limits })` per-request 覆盖插件默认（插件默认 = 归档物上限）。
 const ROSTER_MAX_BYTES = 1024 * 1024;
+
+// 库存导入 CSV 上限（INV-BULK-IMPORT 刀⑪）：1MB——与名册同律（纯文本零件表绰绰有余，又约束资源
+// 耗尽面）。由 POST /api/inventory/{preview,import} 的 `request.file({ limits })` per-request 覆盖插件默认。
+const INVENTORY_IMPORT_MAX_BYTES = 1024 * 1024;
 
 // 上传后缀白名单 → 规范 contentType。**以后缀为准**（CAD 的浏览器 MIME 多为 octet-stream，不可信）。
 // 战队格式：CAD（机械）/ 文档（图纸说明、电路 PDF）/ 图（截图）/ 包（多文件打包）/ 固件（电控/驱动）/
@@ -2154,7 +2168,7 @@ function registerKnowledgeBaseRoutes(app: FastifyInstance, ctx: ModuleRouteCtx):
 // ledger 模块（可选）：零件/个体件/库存总表读视图 + 缺料告警 + 录入。
 // ============================================================================
 function registerLedgerRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
-  const { store, invStore } = ctx;
+  const { store, invStore, identityMode } = ctx;
 
   // 库存 / BOM 读视图（INV-BOM-CORE）：零件 + 个体件 + 库存总表派生（零件×车 矩阵）+ 缺料告警。
   // 车列复用 GovStore.listResources（显示 displayCode ?? name，与 PRESENCE 解耦）。**I0**：返回体无任何
@@ -2216,6 +2230,121 @@ function registerLedgerRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       }
       throw err;
     }
+  });
+
+  // ── 库存批量导入（INV-BULK-IMPORT 刀⑪，结构照名册 ROSTER-IMPORT 刀⑦）───────────────────────────
+  // 库存此前唯一写通道 = POST /api/inventory/part-types 单条 upsert——初始化向导要「一张表建库存」。
+
+  // GET /api/inventory/template：下载 CSV 模板（读端点、不过写门）。UTF-8 带 BOM（Excel 直开不乱码）+
+  // Content-Disposition 附件下载。表头 = 件号,名称,类别,单位,总数,低储阈值（仅表头行；列说明放前端文案）。
+  app.get('/api/inventory/template', async (_request, reply) => {
+    void reply.header(
+      'content-disposition',
+      `attachment; filename*=UTF-8''${encodeURIComponent('库存模板.csv')}`,
+    );
+    void reply.type('text/csv; charset=utf-8');
+    return buildInventoryTemplateCsv();
+  });
+
+  // 库存导入写口共用鉴权（preview 与 import 完全同律）：匿名模式 = 宿主级写门即可（onRequest 钩子已过
+  // Bearer + 限流）；身份模式 = 须持旗管理员（isSuperAdmin，403）。**无空板豁免**（区别于名册——向导走到
+  // 库存步时操作者已在名册且持旗；身份模式写门「须有会话」段已先把无会话挡成 401，路由内只判旗标）。
+  // 通过返回 true；否则已回错误响应、返回 false。
+  const inventoryWriteAuth = async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<boolean> => {
+    if (identityMode === 'identity') {
+      const snapshot = await store.getSnapshot();
+      if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
+        void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
+        return false;
+      }
+    }
+    return true;
+  };
+
+  // 库存导入写口共用：multipart 读 CSV（单文件 1MB 上限，per-request limits 覆盖插件默认，照名册先例）
+  // → 编码探测（decodeCsvBytes：UTF-8 BOM / 无 BOM UTF-8 / 回退 gbk，都失败 → 400）。
+  // 成功返回文本；失败已回错误响应、返回 null。
+  const readInventoryCsvText = async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<string | null> => {
+    let data;
+    try {
+      data = await request.file({ limits: { fileSize: INVENTORY_IMPORT_MAX_BYTES, files: 1 } });
+    } catch {
+      void reply.code(400).send({ detail: '请求体不是 multipart 表单' });
+      return null;
+    }
+    if (!data) {
+      void reply.code(400).send({ detail: '未收到文件' });
+      return null;
+    }
+    let buf: Buffer;
+    try {
+      buf = await data.toBuffer();
+    } catch (err) {
+      if ((err as { code?: string })?.code === 'FST_REQ_FILE_TOO_LARGE') {
+        void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
+        return null;
+      }
+      void reply.code(400).send({ detail: '读取文件失败' });
+      return null;
+    }
+    if (data.file.truncated) {
+      void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
+      return null;
+    }
+    const text = decodeCsvBytes(buf);
+    if (text === null) {
+      void reply.code(400).send({ detail: '编码无法识别，请另存为 CSV UTF-8' });
+      return null;
+    }
+    return text;
+  };
+
+  // POST /api/inventory/preview：**只解析不落库**——前端拿解析结果做可编辑预览表，确认后走 JSON import。
+  // 鉴权 / 上限 / 编码探测 / 解析与 import 完全同律。响应 { rows, failed }（I0：库存事实回显，无人键）。
+  app.post('/api/inventory/preview', async (request, reply) => {
+    if (!(await inventoryWriteAuth(request, reply))) return;
+    const text = await readInventoryCsvText(request, reply);
+    if (text === null) return;
+    const { rows, errors } = parseInventoryCsv(text);
+    return InventoryPreviewResponseSchema.parse({ rows, failed: errors });
+  });
+
+  // POST /api/inventory/import：双收——
+  //  - application/json：body {rows}（前端预览表编辑后的行草稿，zod 校验）直进 store.importPartTypes，
+  //    跳过文件解析段（坏行在预览表已被拦下、绝不进提交）。
+  //  - multipart：上传 CSV → parseInventoryCsv（手写零依赖，坏行进报告不中断整批）。
+  // **应用**：store.importPartTypes（partNumber 幂等 upsert + totalQuantity 覆盖 + 绝不删）。
+  // 响应 = 三段导入报告（created/updated=件号，failed=解析层 errors + store 侧拒行；I0 无人键）。
+  app.post('/api/inventory/import', async (request, reply) => {
+    if (!(await inventoryWriteAuth(request, reply))) return;
+    let rows: InventoryImportRow[];
+    let parseErrors: InventoryImportFailure[] = [];
+    if ((request.headers['content-type'] ?? '').includes('application/json')) {
+      const parsed = InventoryImportRowsRequestSchema.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+        return;
+      }
+      rows = parsed.data.rows;
+    } else {
+      const text = await readInventoryCsvText(request, reply);
+      if (text === null) return;
+      const parsedCsv = parseInventoryCsv(text);
+      rows = parsedCsv.rows;
+      parseErrors = parsedCsv.errors;
+    }
+    const outcome = await invStore.importPartTypes(rows);
+    return InventoryImportReportSchema.parse({
+      created: outcome.created,
+      updated: outcome.updated,
+      failed: [...parseErrors, ...outcome.failed],
+    });
   });
 }
 
