@@ -1,5 +1,5 @@
 import Fastify from 'fastify';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import multipart from '@fastify/multipart';
 import { readFile, readdir, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, extname, isAbsolute, join, relative } from 'node:path';
@@ -162,6 +162,10 @@ import {
   decodeRosterBytes,
   parseRosterCsv,
   RosterImportReportSchema,
+  RosterImportRowsRequestSchema,
+  RosterPreviewResponseSchema,
+  type RosterImportFailure,
+  type RosterImportRow,
   // 验收人年级默认派生集合（GRADE-7-TIERS 刀⑥ 起由 contracts 导出，bootstrap 与 CSV 导入同源消费）。
   GATE_REVIEWER_DEFAULT_GRADES,
   // SETUP-WIZARD 刀①：正常模式 setup 状态回执（GET /api/setup/state → initialized:true）。
@@ -956,40 +960,50 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     return buildRosterTemplateCsv();
   });
 
-  // POST /api/roster/import：上传 CSV（multipart，单文件 1MB 上限，照 artifact upload 先例）。
+  // 名册写口共用鉴权（ROSTER-IMPORT-PREVIEW 刀⑦：preview 与 import 完全同律）。
   // **鉴权（引导豁免，K8 拍板⑤）**：匿名模式 = 宿主级写门即可（onRequest 钩子已过 Bearer + 限流）；
   // 身份模式 = 须 superAdmin（isSuperAdmin，403），**但名册完全为空时豁免登录要求**——bootstrap：
   // members.length===0 时免 session 放行（解开空板死锁：无人可选 → 无法登录 → 无法初始化管理员），
-  // 一旦有人即恢复须 superAdmin。全局写门钩子已把本路由排除在「须有会话」硬门之外（isRosterBootstrap），
-  // 故此处自行做完整鉴权。**编码探测**：decodeRosterBytes（UTF-8 BOM / 无 BOM UTF-8 / 回退 gbk），都失败 → 400。
-  // **解析**：parseRosterCsv（手写零依赖，坏行进报告不中断整批）；**应用**：store.importRoster（displayName
-  // 幂等 upsert + 自动建组 + role/pinHash/旗标永不动 + missingFromSheet 绝不删）。响应 = 六段导入报告（I0：
-  // 全是名单事实回显给操作者本人，不落任何聚合统计）。
-  app.post('/api/roster/import', async (request, reply) => {
+  // 一旦有人即恢复须 superAdmin。全局写门钩子已把两路由排除在「须有会话」硬门之外（isRosterBootstrap），
+  // 故此处自行做完整鉴权。通过返回 true；否则已回错误响应、返回 false。
+  const rosterWriteAuth = async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<boolean> => {
     const snapshot = await store.getSnapshot();
     const emptyRoster = snapshot.members.length === 0;
     if (identityMode === 'identity' && !emptyRoster) {
       // 名册非空：恢复须 superAdmin（fail-closed，另读实时名册；无会话 → 401，非管理员 → 403）。
       if (!request.identity) {
         void reply.code(401).send({ detail: 'login required' });
-        return;
+        return false;
       }
       if (!isSuperAdmin(snapshot.members, request.identity.memberId)) {
         void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
-        return;
+        return false;
       }
     }
+    return true;
+  };
+
+  // 名册写口共用：multipart 读 CSV（单文件 1MB 上限，per-request limits 覆盖插件默认，照 artifact
+  // upload 先例）→ 编码探测（decodeRosterBytes：UTF-8 BOM / 无 BOM UTF-8 / 回退 gbk，都失败 → 400）。
+  // 成功返回文本；失败已回错误响应、返回 null。
+  const readRosterCsvText = async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<string | null> => {
     let data;
     try {
       // per-request limits 覆盖插件默认（宿主级 multipart 插件默认 = 归档物上限），钉名册 1MB。
       data = await request.file({ limits: { fileSize: ROSTER_MAX_BYTES, files: 1 } });
     } catch {
       void reply.code(400).send({ detail: '请求体不是 multipart 表单' });
-      return;
+      return null;
     }
     if (!data) {
       void reply.code(400).send({ detail: '未收到文件' });
-      return;
+      return null;
     }
     let buf: Buffer;
     try {
@@ -997,27 +1011,64 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     } catch (err) {
       if ((err as { code?: string })?.code === 'FST_REQ_FILE_TOO_LARGE') {
         void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
-        return;
+        return null;
       }
       void reply.code(400).send({ detail: '读取文件失败' });
-      return;
+      return null;
     }
     if (data.file.truncated) {
       void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
-      return;
+      return null;
     }
     const text = decodeRosterBytes(buf);
     if (text === null) {
       void reply.code(400).send({ detail: '编码无法识别，请另存为 CSV UTF-8' });
-      return;
+      return null;
     }
+    return text;
+  };
+
+  // POST /api/roster/preview（ROSTER-IMPORT-PREVIEW 刀⑦）：**只解析不落库**——CSV 纯文本做不了下拉，
+  // 前端拿解析结果做可编辑预览表（年级下拉 / 组 datalist），确认后走 JSON import。鉴权 / 上限 /
+  // 编码探测 / 解析与 import 完全同律。响应 { rows, failed }（I0：名单事实回显给操作者本人，无聚合）。
+  app.post('/api/roster/preview', async (request, reply) => {
+    if (!(await rosterWriteAuth(request, reply))) return;
+    const text = await readRosterCsvText(request, reply);
+    if (text === null) return;
     const { rows, errors } = parseRosterCsv(text);
+    return RosterPreviewResponseSchema.parse({ rows, failed: errors });
+  });
+
+  // POST /api/roster/import：双收——
+  //  - application/json（刀⑦）：body {rows}（前端预览表编辑后的行草稿，zod 校验）直进
+  //    store.importRoster，跳过文件解析段（坏行在预览表已被拦下、绝不进提交）。
+  //  - multipart（原路径行为零变化）：上传 CSV → parseRosterCsv（手写零依赖，坏行进报告不中断整批）。
+  // **应用**：store.importRoster（displayName 幂等 upsert + 自动建组 + role/pinHash/旗标永不动 +
+  // missingFromSheet 绝不删）。响应 = 六段导入报告（I0：全是名单事实回显给操作者本人，不落任何聚合统计）。
+  app.post('/api/roster/import', async (request, reply) => {
+    if (!(await rosterWriteAuth(request, reply))) return;
+    let rows: RosterImportRow[];
+    let parseErrors: RosterImportFailure[] = [];
+    if ((request.headers['content-type'] ?? '').includes('application/json')) {
+      const parsed = RosterImportRowsRequestSchema.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+        return;
+      }
+      rows = parsed.data.rows;
+    } else {
+      const text = await readRosterCsvText(request, reply);
+      if (text === null) return;
+      const parsedCsv = parseRosterCsv(text);
+      rows = parsedCsv.rows;
+      parseErrors = parsedCsv.errors;
+    }
     const outcome = await store.importRoster(rows);
     return RosterImportReportSchema.parse({
       created: outcome.created,
       updated: outcome.updated,
       // 坏行 = 解析层 errors + store 侧拒行（刀④：组名命中非叶子/哨兵组，抽象汇报视角不可挂人）。
-      failed: [...errors, ...outcome.failed],
+      failed: [...parseErrors, ...outcome.failed],
       missingFromSheet: outcome.missingFromSheet,
       createdGroups: outcome.createdGroups,
       autoReviewers: outcome.autoReviewers,
@@ -2529,7 +2580,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     //  - session 认证端点（POST/DELETE /api/session）：登录/登出入口，不能要求先有会话或令牌——
     //    否则配了 writeToken 的部署里**登录本身**就被 401 锁死（令牌要进设置页，设置页要先登录）。
     //  - 名册导入引导豁免（ROSTER-IMPORT，K8）：身份模式 + 空板 = 登录死锁。路由内自判：名册为空放行、
-    //    一旦有人即恢复须持旗管理员会话。
+    //    一旦有人即恢复须持旗管理员会话。刀⑦ preview（只解析不落库）同律——同一路由内鉴权、同一豁免面。
     //  - 初始化 bootstrap 豁免（SETUP-WIZARD-ROSTER 刀②）：POST /api/setup/super-admin——名册无持旗成员时
     //    无人能登录，向导第一步发生在任何会话/令牌配置之前。路由内自判：已有持旗成员 → 409；老路径
     //    （无 displayName）→ 仍须会话 401。
@@ -2539,7 +2590,8 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
       path === '/api/session' &&
       (request.method === 'POST' || request.method === 'DELETE');
     const isRosterBootstrap =
-      path === '/api/roster/import' && request.method === 'POST';
+      (path === '/api/roster/import' || path === '/api/roster/preview') &&
+      request.method === 'POST';
     const isSetupBootstrap =
       path === '/api/setup/super-admin' && request.method === 'POST';
     const isPinRecovery =

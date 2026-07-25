@@ -1,16 +1,19 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Eye, EyeOff } from 'lucide-react';
-import type {
-  AgentBackend,
-  BotChannel,
-  ConfigIdentityMode,
-  Group,
-  MemberGrade,
-  MemberPublic,
-  MemberRole,
-  RosterImportReport,
-  Season,
+import {
+  deriveLeafGroups,
+  type AgentBackend,
+  type BotChannel,
+  type ConfigIdentityMode,
+  type Group,
+  type MemberGrade,
+  type MemberPublic,
+  type MemberRole,
+  type RosterImportReport,
+  type RosterImportRow,
+  type RosterPreviewResponse,
+  type Season,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import type { PageIdentityCtx } from '../../console-pages';
@@ -23,6 +26,7 @@ import { MetaRow } from '../../components/MetaRow';
 import { SegToggle } from '../../components/SegToggle';
 import { Select } from '../../components/Select';
 import { GroupLeadConfirm } from './GroupLeadConfirm';
+import { RosterPreviewTable } from './RosterPreviewTable';
 import { APIBASE_KEY, WRITE_TOKEN_KEY } from '../../constants';
 import { humanizeFormError } from '../../utils';
 
@@ -928,10 +932,11 @@ function SetupAdminCard({
   );
 }
 
-// 名册导入块（ROSTER-IMPORT，K8 + 刀③ 导入后确认组长）：下载 CSV 模板（直链 GET）+ 上传 CSV
-// （multipart）+ 导入后渲染六段报告 + 确认组长块（GroupLeadConfirm——刀③ 起 CSV 不含组长列，
-// 导入完成后逐组从该组成员选组长）。**空板豁免**：名册为空时上传免锁（解开身份模式空板死锁——
-// 无人可选→无法登录→无法初始化管理员）；否则跟随分区权限（未登录 / 非管理员则禁用 + 说明）。
+// 名册导入块（ROSTER-IMPORT，K8 + 刀③ 导入后确认组长 + 刀⑦ 预览表可编辑）：下载 CSV 模板（直链 GET）+
+// 上传 CSV → **preview 只解析不落库** → RosterPreviewTable 行内编辑（年级下拉七档 / 组 datalist 预填
+// 叶子组，可手打新组名）→ 确认后 JSON 导入 → 渲染六段报告 + 确认组长块（GroupLeadConfirm——刀③ 起
+// CSV 不含组长列，导入完成后逐组从该组成员选组长）。**空板豁免**：名册为空时上传免锁（解开身份模式
+// 空板死锁——无人可选→无法登录→无法初始化管理员）；否则跟随分区权限（未登录 / 非管理员则禁用 + 说明）。
 // 模板下载按钮恒可用（读端点无鉴权）。
 function RosterImportBlock({
   client,
@@ -954,16 +959,29 @@ function RosterImportBlock({
   const fileInputRef = useRef<HTMLInputElement>(null);
   // 确认组长块按「本次导入」开合：再次导入重新出现（leadsDone 复位）。
   const [leadsDone, setLeadsDone] = useState(false);
-  const mutation = useMutation({
-    mutationFn: (file: File) => client.importRoster(file),
+  // 刀⑦：上传 → 预览（不落库）→ 编辑确认 → 导入。preview 非空时展示可编辑预览表。
+  const [preview, setPreview] = useState<RosterPreviewResponse | null>(null);
+  const previewMutation = useMutation({
+    mutationFn: (file: File) => client.previewRoster(file),
+    onSuccess: (data) => setPreview(data),
+  });
+  const importMutation = useMutation({
+    mutationFn: (rows: RosterImportRow[]) => client.importRosterRows(rows),
     onSuccess: () => {
+      setPreview(null);
       setLeadsDone(false);
       onImported();
     },
   });
   // 空板豁免：名册为空时上传免锁；否则跟随分区写权限（未登录 / 非管理员锁）。
   const uploadLocked = emptyRoster ? false : sectionWriteLocked;
-  const report = mutation.data;
+  // 组 datalist 候选 = 叶子组名（deriveLeafGroups 结构派生，排非叶子+哨兵；可手打新组名=自动建组）。
+  const leafGroupNames = useMemo(() => {
+    const leaf = new Set(deriveLeafGroups([...groups]));
+    return groups.filter((g) => leaf.has(g.id)).map((g) => g.name);
+  }, [groups]);
+  const report = importMutation.data;
+  const error = previewMutation.error ?? importMutation.error;
 
   return (
     <div className="roster-import">
@@ -980,10 +998,10 @@ function RosterImportBlock({
           type="button"
           className="btn btn--primary btn--sm"
           onClick={() => fileInputRef.current?.click()}
-          disabled={uploadLocked || mutation.isPending}
+          disabled={uploadLocked || previewMutation.isPending || importMutation.isPending}
           title={uploadLocked ? (lockHint ?? undefined) : undefined}
         >
-          {mutation.isPending ? t('settings.roster.importing') : t('settings.roster.upload')}
+          {previewMutation.isPending ? t('settings.roster.importing') : t('settings.roster.upload')}
         </button>
         <input
           ref={fileInputRef}
@@ -992,7 +1010,7 @@ function RosterImportBlock({
           style={{ display: 'none' }}
           onChange={(e) => {
             const file = e.target.files?.[0];
-            if (file) mutation.mutate(file);
+            if (file) previewMutation.mutate(file);
             e.target.value = ''; // 允许同名文件再次触发 change
           }}
         />
@@ -1000,10 +1018,20 @@ function RosterImportBlock({
       {emptyRoster ? (
         <p className="settings-desc">{t('settings.roster.firstHint')}</p>
       ) : null}
-      {mutation.error ? (
+      {error ? (
         <p className="form-hint form-hint--warn">
-          {humanizeFormError(mutation.error, t, 'settings.roster.error')}
+          {humanizeFormError(error, t, 'settings.roster.error')}
         </p>
+      ) : null}
+      {/* 刀⑦：预览表（不落库）→ 行内编辑 → 确认后 JSON 导入；坏行红标不参与提交。 */}
+      {preview ? (
+        <RosterPreviewTable
+          preview={preview}
+          groupNames={leafGroupNames}
+          pending={importMutation.isPending}
+          onConfirm={(rows) => importMutation.mutate(rows)}
+          onCancel={() => setPreview(null)}
+        />
       ) : null}
       {report ? <RosterReportView report={report} /> : null}
       {/* 刀③：导入完成 → 确认各组组长（有成员的叶子组必选、默认建议现任组长 ?? 第一行成员，空组不出现）。 */}

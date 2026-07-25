@@ -4,6 +4,9 @@ import {
   MemberGradeSchema,
   ROSTER_TEMPLATE_HEADERS,
   RosterImportReportSchema,
+  RosterImportRowSchema,
+  RosterImportRowsRequestSchema,
+  RosterPreviewResponseSchema,
   buildRosterTemplateCsv,
   decodeRosterBytes,
   parseRosterCsv,
@@ -208,5 +211,54 @@ describe('RosterImportReportSchema', () => {
     });
     expect(report.created).toEqual(['张三']);
     expect(report.failed[0].line).toBe(4);
+  });
+});
+
+describe('ROSTER-IMPORT-PREVIEW 刀⑦：preview / JSON 提交契约', () => {
+  const goodRow = {
+    displayName: '张三',
+    grade: 'junior',
+    groupName: '电控',
+    gateReviewer: true,
+    gateReviewerAuto: true,
+    line: 2,
+  };
+
+  test('RosterImportRowSchema：合法行可 parse；line 可省（非 CSV 来源）', () => {
+    expect(RosterImportRowSchema.safeParse(goodRow).success).toBe(true);
+    const { line: _omit, ...noLine } = goodRow;
+    expect(RosterImportRowSchema.safeParse(noLine).success).toBe(true);
+  });
+
+  test('RosterImportRowSchema 边界：非法年级 / 空姓名 / 空组名 / line 非正整数均拒绝', () => {
+    expect(RosterImportRowSchema.safeParse({ ...goodRow, grade: '大五' }).success).toBe(false);
+    expect(RosterImportRowSchema.safeParse({ ...goodRow, grade: 'grad4' }).success).toBe(false);
+    expect(RosterImportRowSchema.safeParse({ ...goodRow, displayName: '' }).success).toBe(false);
+    expect(RosterImportRowSchema.safeParse({ ...goodRow, groupName: '' }).success).toBe(false);
+    expect(RosterImportRowSchema.safeParse({ ...goodRow, line: 0 }).success).toBe(false);
+    expect(RosterImportRowSchema.safeParse({ ...goodRow, line: 1.5 }).success).toBe(false);
+  });
+
+  test('RosterPreviewResponseSchema：rows + failed 两段可 parse；缺段拒绝', () => {
+    const res = RosterPreviewResponseSchema.safeParse({
+      rows: [goodRow],
+      failed: [{ line: 3, reason: '年级无法识别' }],
+    });
+    expect(res.success).toBe(true);
+    expect(RosterPreviewResponseSchema.safeParse({ rows: [goodRow] }).success).toBe(false);
+    // 行内含非法年级 → 整体拒绝（preview 响应永远只带已校验行）
+    expect(
+      RosterPreviewResponseSchema.safeParse({
+        rows: [{ ...goodRow, grade: '大五' }],
+        failed: [],
+      }).success,
+    ).toBe(false);
+  });
+
+  test('RosterImportRowsRequestSchema：{rows} 可 parse；rows 非数组 / 空 body 拒绝', () => {
+    expect(RosterImportRowsRequestSchema.safeParse({ rows: [goodRow] }).success).toBe(true);
+    expect(RosterImportRowsRequestSchema.safeParse({ rows: [] }).success).toBe(true);
+    expect(RosterImportRowsRequestSchema.safeParse({ rows: 'x' }).success).toBe(false);
+    expect(RosterImportRowsRequestSchema.safeParse({}).success).toBe(false);
   });
 });

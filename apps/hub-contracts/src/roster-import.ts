@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { MemberGrade } from './pm-core.js';
+import { MemberGradeSchema, type MemberGrade } from './pm-core.js';
 
 // `TextDecoder` 是 Node/浏览器共有的 WHATWG 标准全局，但 contracts 的 tsconfig `lib=ES2022`
 // （无 DOM / 无 node types）未声明它。这里补一个**最小、环境中立**的 module 级 ambient 声明——
@@ -99,22 +99,24 @@ export const GATE_REVIEWER_DEFAULT_GRADES: ReadonlySet<MemberGrade> = new Set([
 ]);
 
 // ── 已校验行草稿（parseRosterCsv 产出，store.importRoster 消费）────────────────────────────────
-export interface RosterImportRow {
-  displayName: string;
-  grade: MemberGrade;
-  groupName: string;
+// ROSTER-IMPORT-PREVIEW 刀⑦ 起落成 zod schema（JSON body / preview 响应都要校验），类型仍同形导出。
+export const RosterImportRowSchema = z.object({
+  displayName: z.string().min(1),
+  grade: MemberGradeSchema,
+  groupName: z.string().min(1),
   // 验收人 = 年级默认规则派生（刀③ 去掉验收人列后沿用既有默认，无新逻辑）。
-  gateReviewer: boolean;
+  gateReviewer: z.boolean(),
   // true = 按年级默认规则判为 true（进报告 autoReviewers，让操作者看清自动标了谁）。刀③ 后恒等于
   // gateReviewer（无显式列可覆盖，全部自动）。
-  gateReviewerAuto: boolean;
+  gateReviewerAuto: z.boolean(),
   /**
    * 该行在 CSV 里的物理行号（1-based，含表头；parseRosterCsv 填写）。刀④ PROGRAM-GROUP-ABSTRACT：
    * store 侧拒绝（组名命中非叶子/哨兵组）也要进报告 failed 段，行号随行带到 store 才能指回原行。
    * 非 CSV 来源（如 setup bootstrap 单行复用）不填 → 报告里 line=0。
    */
-  line?: number;
-}
+  line: z.number().int().positive().optional(),
+});
+export type RosterImportRow = z.infer<typeof RosterImportRowSchema>;
 
 export interface RosterImportFailure {
   /** 坏行的物理行号（1-based，含表头行——与 Excel/编辑器所见一致，便于操作者定位）。 */
@@ -273,3 +275,20 @@ export const RosterImportReportSchema = z.object({
   autoReviewers: z.array(z.string()),
 });
 export type RosterImportReport = z.infer<typeof RosterImportReportSchema>;
+
+// ── 预览 / JSON 提交契约（ROSTER-IMPORT-PREVIEW 刀⑦，2026-07-25 用户拍板：预览表可编辑防手打错）─────────
+// CSV 纯文本做不了下拉——前后端拆两段：preview（只解析不落库）→ 前端表格行内改年级/组 → 确认后 JSON
+// 提交导入。行草稿（RosterImportRow）即编辑载体，两端共用同一 schema。
+
+/** POST /api/roster/preview 响应：解析出的行 + 坏行（行号+原因，形状与报告 failed 段一致）。不落库。 */
+export const RosterPreviewResponseSchema = z.object({
+  rows: z.array(RosterImportRowSchema),
+  failed: z.array(RosterImportFailureSchema),
+});
+export type RosterPreviewResponse = z.infer<typeof RosterPreviewResponseSchema>;
+
+/** POST /api/roster/import 的 JSON body（multipart 之外的双收形态）：编辑后的行草稿直进 store。 */
+export const RosterImportRowsRequestSchema = z.object({
+  rows: z.array(RosterImportRowSchema),
+});
+export type RosterImportRowsRequest = z.infer<typeof RosterImportRowsRequestSchema>;

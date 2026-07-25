@@ -35,6 +35,7 @@ import {
   SetupConfigResponseSchema,
   SetupGraduateResponseSchema,
   RosterImportReportSchema,
+  RosterPreviewResponseSchema,
   type ChecklistItemsResponse,
   type CreateChecklistItemRequest,
   type CreateChecklistItemResponse,
@@ -58,6 +59,8 @@ import {
   type SetupConfigResponse,
   type SetupGraduateResponse,
   type RosterImportReport,
+  type RosterImportRow,
+  type RosterPreviewResponse,
   type ArtifactsResponse,
   type DepGraph,
   type Group,
@@ -344,8 +347,12 @@ export interface HubApiClient {
   clearMemberPin(id: string): Promise<ClearPinResponse>;
   // 名册导入（ROSTER-IMPORT，K8）。模板：GET 直链（下载按钮 href，不走 fetch）；导入：上传 CSV（multipart，
   // 引导豁免——身份模式名册为空时免登录）。响应 = 六段导入报告（名单事实回显给操作者本人，I0 无聚合统计）。
+  // 刀⑦（ROSTER-IMPORT-PREVIEW）：上传 → previewRoster 只解析不落库 → 预览表编辑 → importRosterRows
+  // JSON 提交导入（坏行绝不进提交）。importRoster（multipart 一步导入）保留可用。
   rosterTemplateUrl(): string;
   importRoster(file: File): Promise<RosterImportReport>;
+  previewRoster(file: File): Promise<RosterPreviewResponse>;
+  importRosterRows(rows: RosterImportRow[]): Promise<RosterImportReport>;
   // 挂单认领制窄写动作（TASK-POST-CLAIM，D-088）。全部 POST 子资源、继承 H3 写门；留名 actor 沿
   // IDENTITY-LITE（身份模式服务端从 session 注入、匿名模式 body 供名）。红线：留名只落单条任务卡，
   // 本簇绝无按人聚合/排行/按人筛选端点。响应统一 { task }（TaskSchema，不带 isBig 元）。
@@ -912,6 +919,24 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
       return postFormData(
         `${baseUrl}/api/roster/import`,
         file,
+        RosterImportReportSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async previewRoster(file: File) {
+      return postFormData(
+        `${baseUrl}/api/roster/preview`,
+        file,
+        RosterPreviewResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async importRosterRows(rows: RosterImportRow[]) {
+      return postJson(
+        `${baseUrl}/api/roster/import`,
+        { rows },
         RosterImportReportSchema,
         fetcher,
         writeToken,

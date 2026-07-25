@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import FormData from 'form-data';
 import {
   RosterImportReportSchema,
+  RosterPreviewResponseSchema,
   governanceScenarioFixture,
   type GovernanceSnapshot,
   type Group,
@@ -354,6 +355,302 @@ describe('POST /api/roster/import — 身份模式', () => {
       expect(res.statusCode).toBe(401);
     } finally {
       await app.close();
+    }
+  });
+});
+
+describe('POST /api/roster/preview — 只解析不落库（ROSTER-IMPORT-PREVIEW 刀⑦）', () => {
+  test('解析返回 rows/failed，store 快照零变化（不落库）', async () => {
+    const store = new InMemoryGovStore(
+      seedWith([member({ id: 'm-old', displayName: '老队员' })]),
+    );
+    const app = buildHubServer({ store });
+    try {
+      const before = await store.getSnapshot();
+      const csv = '姓名,年级,组\n新人甲,大三,电控\n错的,大五,机械\n';
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/roster/preview',
+        ...multipart(csv),
+      });
+      expect(res.statusCode).toBe(200);
+      const preview = RosterPreviewResponseSchema.parse(res.json());
+      expect(preview.rows).toHaveLength(1);
+      expect(preview.rows[0]).toMatchObject({
+        displayName: '新人甲',
+        grade: 'junior',
+        groupName: '电控',
+        gateReviewer: true,
+        gateReviewerAuto: true,
+        line: 2,
+      });
+      expect(preview.failed).toHaveLength(1);
+      expect(preview.failed[0].line).toBe(3);
+      expect(preview.failed[0].reason).toContain('年级');
+      // 不落库：成员 / 组快照与调用前逐字相等（preview 不建人也不建组）。
+      const after = await store.getSnapshot();
+      expect(after.members).toEqual(before.members);
+      expect(after.groups).toEqual(before.groups);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('GBK 字节（无 BOM）可解析返回行', async () => {
+    // 表头「姓名,年级,组\r\n」+ 行「李四,大三,电控\r\n」全 GBK 字节（同 import 的 GBK 用例）。
+    const gbk = Buffer.from([
+      0xd0, 0xd5, 0xc3, 0xfb, 0x2c, 0xc4, 0xea, 0xbc, 0xb6, 0x2c, 0xd7, 0xe9, 0x0d, 0x0a, 0xc0,
+      0xee, 0xcb, 0xc4, 0x2c, 0xb4, 0xf3, 0xc8, 0xfd, 0x2c, 0xb5, 0xe7, 0xbf, 0xd8, 0x0d, 0x0a,
+    ]);
+    const store = new InMemoryGovStore(seedWith([]));
+    const app = buildHubServer({ store });
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/roster/preview',
+        ...multipart(gbk),
+      });
+      expect(res.statusCode).toBe(200);
+      const preview = RosterPreviewResponseSchema.parse(res.json());
+      expect(preview.rows).toHaveLength(1);
+      expect(preview.rows[0].displayName).toBe('李四');
+      expect(preview.rows[0].groupName).toBe('电控');
+      expect(preview.failed).toEqual([]);
+      expect((await store.getSnapshot()).members).toHaveLength(0); // 不落库
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('鉴权三态：空板匿名放行 / 非空无会话 401 / 非持旗 403（与 import 同律）', async () => {
+    const csv = '姓名,年级,组\n谁,大三,机械\n';
+    // ① 空板匿名（identity 模式、无会话）→ 200
+    const emptyStore = new InMemoryGovStore(seedWith([]));
+    const appEmpty = buildHubServer({ store: emptyStore, identityMode: 'identity' });
+    try {
+      const res = await appEmpty.inject({
+        method: 'POST',
+        url: '/api/roster/preview',
+        ...multipart(csv),
+      });
+      expect(res.statusCode).toBe(200);
+      expect((await emptyStore.getSnapshot()).members).toHaveLength(0); // 放行也不落库
+    } finally {
+      await appEmpty.close();
+    }
+    // ② 非空 + 无会话 → 401
+    const appNoSession = buildHubServer({
+      store: new InMemoryGovStore(seedWith([member({ id: 'm-plain', displayName: '普通成员' })])),
+      identityMode: 'identity',
+    });
+    try {
+      const res = await appNoSession.inject({
+        method: 'POST',
+        url: '/api/roster/preview',
+        ...multipart(csv),
+      });
+      expect(res.statusCode).toBe(401);
+    } finally {
+      await appNoSession.close();
+    }
+    // ③ 非空 + 已登录但非持旗 → 403
+    const appForbidden = buildHubServer({
+      store: new InMemoryGovStore(seedWith([member({ id: 'm-plain', displayName: '普通成员' })])),
+      identityMode: 'identity',
+    });
+    try {
+      const cookie = await login(appForbidden, 'm-plain');
+      const payload = multipart(csv);
+      const res = await appForbidden.inject({
+        method: 'POST',
+        url: '/api/roster/preview',
+        payload: payload.payload,
+        headers: { ...payload.headers, cookie },
+      });
+      expect(res.statusCode).toBe(403);
+    } finally {
+      await appForbidden.close();
+    }
+  });
+});
+
+describe('POST /api/roster/import — JSON body（刀⑦ 双收）', () => {
+  test('JSON 与 multipart 等价：同语义的行 → 同一报告', async () => {
+    // 两个同种子 store：一个走 multipart CSV，一个走 JSON {rows}（行草稿 = 编辑载体）。
+    const csv = '姓名,年级,组\n新人丙,大一,电路\n新人丁,大四,机械\n';
+    const rows = [
+      {
+        displayName: '新人丙',
+        grade: 'freshman',
+        groupName: '电路',
+        gateReviewer: false,
+        gateReviewerAuto: false,
+        line: 2,
+      },
+      {
+        displayName: '新人丁',
+        grade: 'senior',
+        groupName: '机械',
+        gateReviewer: true,
+        gateReviewerAuto: true,
+        line: 3,
+      },
+    ];
+    const appMultipart = buildHubServer({ store: new InMemoryGovStore(seedWith([])) });
+    const appJson = buildHubServer({ store: new InMemoryGovStore(seedWith([])) });
+    try {
+      const resMultipart = await appMultipart.inject({
+        method: 'POST',
+        url: '/api/roster/import',
+        ...multipart(csv),
+      });
+      const resJson = await appJson.inject({
+        method: 'POST',
+        url: '/api/roster/import',
+        payload: { rows },
+      });
+      expect(resMultipart.statusCode).toBe(200);
+      expect(resJson.statusCode).toBe(200);
+      const reportMultipart = RosterImportReportSchema.parse(resMultipart.json());
+      const reportJson = RosterImportReportSchema.parse(resJson.json());
+      expect(reportJson).toEqual(reportMultipart);
+      expect(reportJson.created.sort()).toEqual(['新人丁', '新人丙']); // 码点序：丁(U+4E01) < 丙(U+4E19)
+      expect(reportJson.createdGroups).toEqual(['电路']);
+    } finally {
+      await appMultipart.close();
+      await appJson.close();
+    }
+  });
+
+  test('JSON 非法 body（缺 rows / 年级非法）→ 400，不落库', async () => {
+    const store = new InMemoryGovStore(seedWith([]));
+    const app = buildHubServer({ store });
+    try {
+      const bad1 = await app.inject({
+        method: 'POST',
+        url: '/api/roster/import',
+        payload: { nope: true },
+      });
+      expect(bad1.statusCode).toBe(400);
+      const bad2 = await app.inject({
+        method: 'POST',
+        url: '/api/roster/import',
+        payload: {
+          rows: [
+            {
+              displayName: '谁',
+              grade: '大五',
+              groupName: '机械',
+              gateReviewer: false,
+              gateReviewerAuto: false,
+            },
+          ],
+        },
+      });
+      expect(bad2.statusCode).toBe(400);
+      expect((await store.getSnapshot()).members).toHaveLength(0);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('JSON 鉴权三态：空板匿名放行 / 非空无会话 401 / 非持旗 403', async () => {
+    const body = {
+      rows: [
+        {
+          displayName: '谁',
+          grade: 'junior',
+          groupName: '机械',
+          gateReviewer: true,
+          gateReviewerAuto: true,
+        },
+      ],
+    };
+    // ① 空板匿名 → 200 导入
+    const appEmpty = buildHubServer({
+      store: new InMemoryGovStore(seedWith([])),
+      identityMode: 'identity',
+    });
+    try {
+      const res = await appEmpty.inject({
+        method: 'POST',
+        url: '/api/roster/import',
+        payload: body,
+      });
+      expect(res.statusCode).toBe(200);
+      expect(RosterImportReportSchema.parse(res.json()).created).toEqual(['谁']);
+    } finally {
+      await appEmpty.close();
+    }
+    // ② 非空 + 无会话 → 401
+    const appNoSession = buildHubServer({
+      store: new InMemoryGovStore(seedWith([member({ id: 'm-plain', displayName: '普通成员' })])),
+      identityMode: 'identity',
+    });
+    try {
+      const res = await appNoSession.inject({
+        method: 'POST',
+        url: '/api/roster/import',
+        payload: body,
+      });
+      expect(res.statusCode).toBe(401);
+    } finally {
+      await appNoSession.close();
+    }
+    // ③ 非空 + 非持旗 → 403
+    const appForbidden = buildHubServer({
+      store: new InMemoryGovStore(seedWith([member({ id: 'm-plain', displayName: '普通成员' })])),
+      identityMode: 'identity',
+    });
+    try {
+      const cookie = await login(appForbidden, 'm-plain');
+      const res = await appForbidden.inject({
+        method: 'POST',
+        url: '/api/roster/import',
+        payload: body,
+        headers: { cookie },
+      });
+      expect(res.statusCode).toBe(403);
+    } finally {
+      await appForbidden.close();
+    }
+  });
+});
+
+describe('写门 × writeToken（刀⑦ preview 豁免，照 authz-route 双轨范式）', () => {
+  test('身份 + 配 writeToken：无 Bearer 调 preview 不被写门 401 挡在路由外（鉴权收敛路由内）', async () => {
+    // 空板：写门放行（豁免面同 import），路由内空板豁免 → 200。若误被写门拦截会回 401 'unauthorized'。
+    const appEmpty = buildHubServer({
+      store: new InMemoryGovStore(seedWith([])),
+      identityMode: 'identity',
+      writeToken: 'sekret',
+    });
+    try {
+      const res = await appEmpty.inject({
+        method: 'POST',
+        url: '/api/roster/preview',
+        ...multipart('姓名,年级,组\n谁,大三,机械\n'), // 无 Bearer、无会话
+      });
+      expect(res.statusCode).toBe(200);
+    } finally {
+      await appEmpty.close();
+    }
+    // 非空 + 无会话：仍放行过写门，由路由判 401 'login required'（非写门的 'unauthorized'）。
+    const appNonEmpty = buildHubServer({
+      store: new InMemoryGovStore(seedWith([member({ id: 'm-plain', displayName: '普通成员' })])),
+      identityMode: 'identity',
+      writeToken: 'sekret',
+    });
+    try {
+      const res = await appNonEmpty.inject({
+        method: 'POST',
+        url: '/api/roster/preview',
+        ...multipart('姓名,年级,组\n谁,大三,机械\n'),
+      });
+      expect(res.statusCode).toBe(401);
+      expect(res.json().detail).toBe('login required');
+    } finally {
+      await appNonEmpty.close();
     }
   });
 });

@@ -1529,6 +1529,35 @@ button,
   font-weight: var(--weight-medium);
 }
 
+/* 名册导入预览表（ROSTER-IMPORT-PREVIEW 刀⑦）：行内编辑（年级下拉 / 组 input+datalist）+ 行尾删除。
+   坏行红标复用 .roster-report__fail；确认/取消按钮行复用 .roster-import__actions。 */
+.roster-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.roster-preview__table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+.roster-preview__table th {
+  padding: 4px 8px;
+  color: var(--faint);
+  font-weight: var(--weight-medium);
+  text-align: left;
+}
+.roster-preview__table td {
+  padding: 4px 8px;
+  border-top: 1px solid var(--border);
+}
+.roster-preview__table select,
+.roster-preview__table input {
+  box-sizing: border-box;
+  width: 100%;
+}
+
 /* 确认组长块（ROSTER-CSV-3COL 刀③）：逐组一行「组名 + 成员下拉」。复用 .settings-desc / .btn / .form-hint。 */
 .lead-confirm {
   display: flex;

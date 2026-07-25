@@ -6,11 +6,14 @@ import {
   type MemberGrade,
   type MemberPublic,
   type RosterImportReport,
+  type RosterImportRow,
+  type RosterPreviewResponse,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n } from '../../i18n';
 import { humanizeFormError } from '../../utils';
 import { GroupLeadConfirm } from '../settings/GroupLeadConfirm';
+import { RosterPreviewTable } from '../settings/RosterPreviewTable';
 import { GRADE_KEY, RosterReportView } from '../settings/SettingsPage';
 
 /**
@@ -24,7 +27,8 @@ import { GRADE_KEY, RosterReportView } from '../settings/SettingsPage';
  *    （POST /api/setup/super-admin 扩：名册无持旗成员豁免登录，一笔建人/认领 + 授旗 + 设 PIN + 签会话）。
  *    操作者由此必在名册（原"操作者不在 CSV"问题消解）。
  *  ② **导入名册 CSV**（空名册豁免已有；此刻操作者已持旗，导入/确认鉴权自然通过——v2 从结构上消除
- *    原"顺序即鉴权"问题，零新豁免面）。名册已就绪（如死锁恢复场景成员早导入过）可直接下一步。
+ *    原"顺序即鉴权"问题，零新豁免面）。刀⑦：上传 → preview 只解析不落库 → 预览表行内编辑 → 确认后
+ *    JSON 导入。名册已就绪（如死锁恢复场景成员早导入过）可直接下一步。
  *  ③ **确认各组组长**：复用 GroupLeadConfirm（刀③——有成员必选 + 默认建议、空组不出现、叶子组候选）。
  *  ④ **进 app**（已登录、项目管理权限在手）。
  *
@@ -98,7 +102,7 @@ export function BootstrapGate({
           />
         ) : null}
         {step === 'roster' ? (
-          <RosterStep client={client} onNext={() => setStep('leads')} />
+          <RosterStep client={client} groups={groups} onNext={() => setStep('leads')} />
         ) : null}
         {step === 'leads' ? (
           membersQuery.isLoading || groupsQuery.isLoading ? (
@@ -296,19 +300,48 @@ function WhoStep({
   );
 }
 
-// ② 导入名册 CSV：上传（multipart）+ 报告回显；名册已就绪可直接下一步（死锁恢复场景成员早导入过）。
-function RosterStep({ client, onNext }: { client: HubApiClient; onNext: () => void }) {
+// ② 导入名册 CSV（刀⑦ 预览表可编辑）：上传 → preview 只解析不落库 → RosterPreviewTable 行内编辑
+// （年级下拉 / 组 datalist）→ 确认后 JSON 导入 → 报告回显；名册已就绪可直接下一步（死锁恢复场景
+// 成员早导入过）。
+function RosterStep({
+  client,
+  groups,
+  onNext,
+}: {
+  client: HubApiClient;
+  groups: readonly Group[];
+  onNext: () => void;
+}) {
   const { t } = useI18n();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const [preview, setPreview] = useState<RosterPreviewResponse | null>(null);
   const [report, setReport] = useState<RosterImportReport | null>(null);
+  // 组 datalist 候选 = 叶子组名（排非叶子+哨兵；可手打新组名=自动建组）。
+  const leafGroupNames = useMemo(() => {
+    const leaf = new Set(deriveLeafGroups([...groups]));
+    return groups.filter((g) => leaf.has(g.id)).map((g) => g.name);
+  }, [groups]);
 
   async function upload(file: File) {
     setPending(true);
     setError(null);
     try {
-      setReport(await client.importRoster(file));
+      setPreview(await client.previewRoster(file));
+    } catch (err) {
+      setError(err);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function confirm(rows: RosterImportRow[]) {
+    setPending(true);
+    setError(null);
+    try {
+      setReport(await client.importRosterRows(rows));
+      setPreview(null);
     } catch (err) {
       setError(err);
     } finally {
@@ -330,7 +363,7 @@ function RosterStep({ client, onNext }: { client: HubApiClient; onNext: () => vo
           onClick={() => fileInputRef.current?.click()}
           disabled={pending}
         >
-          {pending ? t('settings.roster.importing') : t('settings.roster.upload')}
+          {pending && !preview ? t('settings.roster.importing') : t('settings.roster.upload')}
         </button>
         <input
           ref={fileInputRef}
@@ -348,6 +381,15 @@ function RosterStep({ client, onNext }: { client: HubApiClient; onNext: () => vo
         <p className="form-hint form-hint--warn">
           {humanizeFormError(error, t, 'settings.roster.error')}
         </p>
+      ) : null}
+      {preview ? (
+        <RosterPreviewTable
+          preview={preview}
+          groupNames={leafGroupNames}
+          pending={pending}
+          onConfirm={(rows) => void confirm(rows)}
+          onCancel={() => setPreview(null)}
+        />
       ) : null}
       {report ? <RosterReportView report={report} /> : null}
       <button type="button" className="btn btn--primary" onClick={onNext}>

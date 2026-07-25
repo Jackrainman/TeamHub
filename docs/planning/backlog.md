@@ -168,7 +168,7 @@
 |------|------|------|------|
 | EMPTY-BOARD-DEFAULT-GROUPS | done(2026-07-25, v0.34.0) | code | 空板预建 fixtures 同构组树（程序母→电控/视觉；机械/电路顶层）；store `ensureDefaultGroups()` 判空幂等 |
 | GRADE-7-TIERS | done(2026-07-25, v0.35.0) | code | MemberGrade 扩 grad1/2/3（graduate 留 legacy）；bootstrap 向导问年级下拉；验收派生含全部 ≥大三档 |
-| ROSTER-IMPORT-PREVIEW | pending（刀⑦） | code | `POST /api/roster/preview` 只解析不落库 + import 扩 JSON rows；console 预览表行内年级下拉/组 datalist，确认再导 |
+| ROSTER-IMPORT-PREVIEW | done(2026-07-25, v0.36.0) | code | `POST /api/roster/preview` 只解析不落库 + import 扩 JSON rows；console 预览表行内年级下拉/组 datalist，确认再导 |
 | MEMBER-PAGE-UX | pending（刀⑧） | code | 三件套：验收人只读徽标（纯年级派生）/ PIN 明文副本 `pinPlaintext` + `GET /api/members/:id/pin`（本人或持旗）+「显示PIN」按钮 / 成员表单行布局 |
 | SEASON-SUGGEST | pending（刀⑨） | code | `suggestSeason(now)` 日期派生（8–12月→次年赛季）；总览空态+设置页一键创建（读不落库） |
 | FLEET-BATCH-INIT | pending（刀⑩） | code | `POST /api/resources/batch`（zod 全验任一坏整批 400；displayCode 照派生 + status 补迁移）+ 向导车队表格步（几台/能用/在修） |

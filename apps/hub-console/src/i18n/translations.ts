@@ -1052,6 +1052,18 @@ const zh = {
   'settings.roster.report.autoReviewers': '自动设为验收人',
   'settings.roster.report.missingFromSheet': '库里有但表里没有（未改动）',
   'settings.roster.report.empty': '没有变化。',
+  // 刀⑦（ROSTER-IMPORT-PREVIEW）：上传 → 预览表行内编辑 → 确认后导入。坏行红标、绝不参与提交。
+  'settings.roster.preview.hint':
+    '解析出 {count} 行——可直接在表内改正年级 / 组，确认后才真正导入；无法解析的行不参与提交。',
+  'settings.roster.preview.failed': '{count} 行无法解析（不参与导入）',
+  'settings.roster.preview.colName': '姓名',
+  'settings.roster.preview.colGrade': '年级',
+  'settings.roster.preview.colGroup': '组',
+  'settings.roster.preview.colActions': '操作',
+  'settings.roster.preview.removeRow': '删除',
+  'settings.roster.preview.confirm': '确认导入',
+  'settings.roster.preview.cancel': '取消',
+  'settings.roster.preview.empty': '没有可导入的行（全部删除或均无法解析）。',
 
   // 挂单认领制（TASK-POST-CLAIM，D-088）：过夜登记处——挂单认领 / 留名徽章 / 两档验收 / 看谁做过。
   // 项目页第三视图
@@ -2266,6 +2278,18 @@ const en: Record<TranslationKey, string> = {
   'settings.roster.report.autoReviewers': 'Auto-set reviewers',
   'settings.roster.report.missingFromSheet': 'In roster, not in sheet (unchanged)',
   'settings.roster.report.empty': 'No changes.',
+  // 刀⑦ (ROSTER-IMPORT-PREVIEW): upload → editable preview table → confirm to import. Bad rows flagged red, never submitted.
+  'settings.roster.preview.hint':
+    'Parsed {count} row(s) — fix grade / group inline, then confirm to actually import; unparseable rows are not submitted.',
+  'settings.roster.preview.failed': '{count} row(s) could not be parsed (not imported)',
+  'settings.roster.preview.colName': 'Name',
+  'settings.roster.preview.colGrade': 'Grade',
+  'settings.roster.preview.colGroup': 'Group',
+  'settings.roster.preview.colActions': 'Actions',
+  'settings.roster.preview.removeRow': 'Remove',
+  'settings.roster.preview.confirm': 'Confirm import',
+  'settings.roster.preview.cancel': 'Cancel',
+  'settings.roster.preview.empty': 'No importable rows (all removed or unparseable).',
 
   // Post-and-claim (TASK-POST-CLAIM, D-088)
   'project.view.pool': 'Pool',
