@@ -152,11 +152,32 @@
 
 | 任务 | 状态 | type | 内容 |
 |------|------|------|------|
-| PIN-DEADLOCK-RECOVERY | pending（方案已录，待修复批） | code | **loopback 操作员可重置 PIN**：`DELETE /api/members/:id/pin` 对裸 socket=loopback 的请求豁免 superAdmin 判定（把 DEPLOY §7.1 手工清 gov.json 降级为一条 curl；宿主操作员本就能改文件，不引入新权限面）。注意：判裸 socket 不吃 TRUST_PROXY 转发头；inject 测试装置默认 127.0.0.1，既有 403 用例须显式非 loopback。DEPLOY §7.1 改三级（产品通道→loopback curl→手工清） |
-| SETUP-WIZARD-ROSTER | pending（v2 流程 2026-07-24 用户提案重构：上来先问「你是谁」） | code | **向导全屏初始化门（identity 且名册无项目管理成员时出现，完成才进 app）**：①你是谁=姓名+哪个组组长+「项目管理」旗标+PIN → bootstrap 端点（setup/super-admin 扩为顺带建成员）一笔建人+授旗+设 PIN+登录态 ②导入名册 CSV（空名册豁免已有）③确认各组组长（有成员必选、默认建议第一行；空组不出现）④进 app。顺序即鉴权被 v2 结构消除（导入/确认组长均在授旗后）；操作者必在名册 |
-| MEMBER-PM-FLAG | pending（2026-07-24 用户提案「项目管理与组长不冲突」，采纳） | code | **管理员从 role 枚举拆为正交旗标**：Member 加 `projectManager: boolean`（optional 缺省 false，兼容双读 role:'superAdmin' 归一 flag+member，fail-closed 无需迁移脚本）；MemberRole 收敛 member/groupAdmin 两档；波及 authz.isSuperAdmin/降级保护 guard/授旗收旗写口拆分/SessionIdentity 快照/设置页 UI/fixtures。队长兼组长 = groupAdmin+flag 天然不冲突 |
-| ROSTER-CSV-3COL | pending（**2026-07-24 已拍板**：保留前三列 姓名/年级/组；确认组长页有成员必选；组别筛选复用项目已有控件逻辑） | code | **名册 CSV 5 列→3 列 + 导入后确认组长页**：去组长/验收人列（验收人沿用大三及以上默认派生；importRoster 不写 role → 重导幂等天然不洗已任命组长）；确认页逐组选组长（role→groupAdmin，有成员必选+默认建议第一行，空组不出现）；组候选复用 PmCreatePanel Combobox/deriveLeafGroups 等已有逻辑且排除非叶子组+哨兵组 |
-| PROGRAM-GROUP-ABSTRACT | pending（摸底完成 + **已定向方案②结构派生**，2026-07-24 用户认「理论上最符合」） | design/code | **程序组残留收口**：fixtures 已调和干净，残留=写入口（importRoster 组名静默命中 grp-program/自动建程序组 + createTask groupId 零校验）+ 读出口（GET /api/groups 无过滤 + PmCreatePanel 候选全量且显示组 id 非中文名=UX bug）。方案②=有子组的组即抽象（不可领任务/挂人），零 schema 改动、组树结构即单一真相、与 D-072 同构；读写两端统一用叶子组集合，顺带修组 id 显示 bug；风险=隐式翻转（叶子组添子组自动变抽象，UI 一句解释化解）。连带：设置页组管理 UI（D-072 可增减）从未实现=前置；gov-oncall-schedule.md:38 标 superseded |
+| PIN-DEADLOCK-RECOVERY | done(2026-07-24，`c23667c` v0.28.0) | code | **loopback 操作员可重置 PIN**：`DELETE /api/members/:id/pin` 对裸 socket=loopback 的请求豁免 superAdmin 判定。DEPLOY §7.1 改三级 |
+| SETUP-WIZARD-ROSTER | done(2026-07-24，`5941be1` v0.31.0) | code | **向导全屏初始化门**：①你是谁→bootstrap 一笔建人+授旗+设 PIN+登录态 ②导入名册 ③确认组长 ④进 app |
+| MEMBER-PM-FLAG | done(2026-07-24，`b6281bc` v0.29.0) | code | **管理员拆正交旗标** `Member.projectManager`；MemberRole 收敛 member/groupAdmin |
+| ROSTER-CSV-3COL | done(2026-07-24，`0cc0ac4` v0.30.0) | code | **名册 CSV 3 列 + 确认组长页**；importRoster 不写 role 重导不洗组长 |
+| PROGRAM-GROUP-ABSTRACT | done(2026-07-24，`f13fb37` v0.32.0) | design/code | **程序组=结构派生抽象**（有子组不可选）；读写两端统一叶子组集合 + 最小组管理端点/设置页组分区 |
+| WRITE-GATE-SESSION | done(2026-07-25，`364ce97` v0.33.0) | code | **写门放行登录/会话/引导端点**：身份模式有效会话=已鉴权，session/bootstrap/roster/loopback PIN 恢复免 Bearer；修非 loopback 部署初始化 401 死锁 |
+
+## P0 — 公测打磨轮 + 初始化向导 v3（2026-07-25 立项：冒烟反馈 + 「初始化一次问完」）
+
+> 设计真相 = `docs/design/onboarding-init-wizard-2026-07-25.md`（问题清单/拍板决策/契约形状/边界复核）。
+> 向导八步：who→roster→leads→season→fleet→inventory→kb→done，每步可跳过。
+
+| 任务 | 状态 | type | 内容 |
+|------|------|------|------|
+| EMPTY-BOARD-DEFAULT-GROUPS | pending（刀⑤） | code | 空板预建 fixtures 同构组树（程序母→电控/视觉；机械/电路顶层）；store `ensureDefaultGroups()` 判空幂等 |
+| GRADE-7-TIERS | pending（刀⑥） | code | MemberGrade 扩 grad1/2/3（graduate 留 legacy）；bootstrap 向导问年级下拉；验收派生含全部 ≥大三档 |
+| ROSTER-IMPORT-PREVIEW | pending（刀⑦） | code | `POST /api/roster/preview` 只解析不落库 + import 扩 JSON rows；console 预览表行内年级下拉/组 datalist，确认再导 |
+| MEMBER-PAGE-UX | pending（刀⑧） | code | 三件套：验收人只读徽标（纯年级派生）/ PIN 明文副本 `pinPlaintext` + `GET /api/members/:id/pin`（本人或持旗）+「显示PIN」按钮 / 成员表单行布局 |
+| SEASON-SUGGEST | pending（刀⑨） | code | `suggestSeason(now)` 日期派生（8–12月→次年赛季）；总览空态+设置页一键创建（读不落库） |
+| FLEET-BATCH-INIT | pending（刀⑩） | code | `POST /api/resources/batch`（zod 全验任一坏整批 400；displayCode 照派生 + status 补迁移）+ 向导车队表格步（几台/能用/在修） |
+| INV-BULK-IMPORT | pending（刀⑪） | code | 库存批量导入仿名册：contracts inventory-import（模板/解析/行号）+ template/preview/import 三端点 + store `importPartTypes`（partNumber 幂等 upsert）+ 向导库存步（可跳过）+ InvPage 入口 |
+| KB-BULK-MD-IMPORT | pending（刀⑫） | code | `POST /api/kb/import-docs`（multipart 多 md→ArchiveDocument generatedBy:manual）+ kb store `addArchiveDocuments` + 向导知识库步（可跳过） |
+| WIZARD-SEASON-STEP | pending（刀⑬） | code | 向导赛季步：suggestSeason 预填 + 学期开始/比赛日两锚点 → createSeason + 锚点齐则 generateRoboconBaselineTemplate+PATCH 落基准线模板；可跳过 |
+| KB-AI-STRUCT | pending（研究项，2026-07-25 用户猜想） | research | 知识库初始化引入 AI 分析：导入一堆文件→AI 创建结构化文档/知识库。猜想阶段，先积累批量导入语料（KB-BULK-MD-IMPORT）再评估 |
+| CHECKLIST-TPL-IMPORT | pending（缺口） | code | 检查单模板无任何导入通道（schema 已落四字段、store 只读、无端点无脚本）；等复盘产出模板时补最小导入 |
+| INTEG-CONFIG | pending（缺口） | design | git 仓库/飞书/bot-channels 全是 mock 只读端点、无配置入口；真实接入前需设计配置面（与 REMOTE-ACCESS-DEPLOY 相关） |
 
 ## P1 — 文档与 harness 减负（2026-07-24 立项，三路 explore 量化报告为据）
 
