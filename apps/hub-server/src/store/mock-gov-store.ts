@@ -1,6 +1,7 @@
 import {
   GOVERNANCE_SCENARIO_NOW,
   GOVERNANCE_SNAPSHOT_ARRAY_KEYS,
+  buildDefaultGroupTree,
   deriveDisplayCode,
   deriveLeafGroups,
   governanceScenarioFixture,
@@ -873,6 +874,17 @@ export class InMemoryGovStore implements GovStore {
     }
     const [removed] = this.snapshot.groups.splice(idx, 1);
     return { ok: true, group: removed };
+  }
+
+  /**
+   * 空板默认组树（打磨轮刀⑤）：判空与插树在同一方法内完成（单线程内存快照即临界区）——groups
+   * 已非空 → no-op（幂等）；空 → 一次性插入整棵默认树（seasonId 钉法同 createGroup）。
+   */
+  async ensureDefaultGroups(): Promise<void> {
+    if (this.snapshot.groups.length > 0) return;
+    const seasonId =
+      this.snapshot.seasons.find((s) => s.status === 'active')?.id ?? this.snapshot.seasonId;
+    this.snapshot.groups.push(...buildDefaultGroupTree(seasonId));
   }
 
   // ── 挂单认领制窄写（TASK-POST-CLAIM，D-088）：就地改 tasks[idx] 的自己那簇留名字段 + updatedAt。

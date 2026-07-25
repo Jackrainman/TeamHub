@@ -499,6 +499,24 @@ export function buildPmSeed(): PmSeedFixture {
 }
 
 /**
+ * 空板默认组树（打磨轮刀⑤，onboarding-init-wizard-2026-07-25 §4）：real 模式真空板没有任何组、
+ * 初始化向导只能自由文本打组名 → 正常模式启动装配时若 store 的 groups 为空，由
+ * `GovStore.ensureDefaultGroups()` 预建本树（四组 + 程序母组）。结构 / id / kind 逐字对齐
+ * `buildPmSeed()` 的组树（程序母组挂电控/视觉、顶层机械/电路），**不含 grp-convergence 哨兵组**
+ * （空板无总联调收敛任务，哨兵组只随 demo seed 存在）。seasonId 由调用方注入（当前 active ??
+ * 顶层，照 createGroup 钉法），不硬编 fixtures 赛季字面量；设置页可删改（刀④组管理）。
+ */
+export function buildDefaultGroupTree(seasonId: string): Group[] {
+  return [
+    { id: 'grp-mech', seasonId, parentGroupId: null, name: '机械', kind: 'mechanical' },
+    { id: 'grp-circuit', seasonId, parentGroupId: null, name: '电路', kind: 'electrical' },
+    { id: 'grp-program', seasonId, parentGroupId: null, name: '程序', kind: 'program' },
+    { id: 'grp-ec', seasonId, parentGroupId: 'grp-program', name: '电控', kind: 'electrical' },
+    { id: 'grp-vision', seasonId, parentGroupId: 'grp-program', name: '视觉', kind: 'custom' },
+  ];
+}
+
+/**
  * KB 成长树 seed builder：GovernanceSnapshot 内嵌的 knowledgeNodes/taskKnowledgeTags
  * （growth.ts 知识树部分，随 knowledge-base 模块走）。kb.ts 域自身的 KbSnapshot（bug 追踪归档，
  * 见下方 kbScenarioFixture）本就独立于本 spread，未纳入本 builder——不是本次多域耦合的对象。

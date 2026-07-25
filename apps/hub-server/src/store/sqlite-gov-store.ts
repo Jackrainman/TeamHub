@@ -3,6 +3,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import {
   GOVERNANCE_SCENARIO_NOW,
   GovernanceSnapshotSchema,
+  buildDefaultGroupTree,
   deriveDisplayCode,
   deriveLeafGroups,
   governanceScenarioFixture,
@@ -736,6 +737,20 @@ export class SqliteGovStore implements GovStore {
       }
       this.deleteRow('groups', groupId);
       return { ok: true as const, group: prev };
+    });
+  }
+
+  /** 空板默认组树（打磨轮刀⑤）：单事务读-判-写——groups 非空 → no-op（幂等）；空 → 整树插入
+   * （逐字镜像 InMemoryGovStore.ensureDefaultGroups，seasonId 钉法同 createGroup）。 */
+  async ensureDefaultGroups(): Promise<void> {
+    return this.tx(() => {
+      if (this.allRows<Group>('groups').length > 0) return;
+      const seasons = this.allRows<Season>('seasons');
+      const seasonId =
+        seasons.find((s) => s.status === 'active')?.id ?? this.getMeta('seasonId') ?? '';
+      for (const group of buildDefaultGroupTree(seasonId)) {
+        this.insertRow('groups', group.id, group);
+      }
     });
   }
 

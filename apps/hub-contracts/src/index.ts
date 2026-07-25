@@ -89,6 +89,8 @@ export {
   buildGovernanceSeed,
   buildScheduleSeed,
   buildScheduleResourceDownVariant,
+  // 打磨轮刀⑤：空板默认组树（GovStore.ensureDefaultGroups 消费）
+  buildDefaultGroupTree,
 } from './fixtures.js';
 export type {
   PmSeedFixture,

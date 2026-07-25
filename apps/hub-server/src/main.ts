@@ -159,6 +159,12 @@ async function main(): Promise<void> {
     }
   }
 
+  // 空板默认组树（打磨轮刀⑤，onboarding-init-wizard-2026-07-25 §4）：real 真空板启动时预建默认四组树
+  // （程序母组挂电控/视觉 + 顶层机械/电路，不含 grp-convergence 哨兵组）；groups 非空（demo seed /
+  // 既有数据）天然 no-op。内存路径（store=undefined → server.ts 默认 InMemoryGovStore）由
+  // buildHubServer 内同源调用兜底。
+  if (store) await store.ensureDefaultGroups();
+
   // 设了 TEAMHUB_KB_DATA_FILE → 知识库语料落盘（重启不丢、closeout 回灌累积）；
   // 未设则维持 InMemoryKbStore（mock-first 不变）。单一真相在服务器。
   const kbDataFile = process.env.TEAMHUB_KB_DATA_FILE;

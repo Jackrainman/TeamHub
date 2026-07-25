@@ -637,6 +637,20 @@ export class FileGovStore implements GovStore {
     return result;
   }
 
+  // 空板默认组树（打磨轮刀⑤）：groups 是 GovernanceSnapshot 字段 → 落 governance.json。委托 inner
+  // 判空幂等 + 建树（零漂移）；整树 append 故回滚写前存整组元素、persist 失败原地整组还原
+  // （保持数组引用稳定，镜像 importRoster）；非空 no-op 不落盘。
+  async ensureDefaultGroups(): Promise<void> {
+    const snap = this.inner.snapshotForRollback();
+    if (snap.groups.length > 0) return;
+    const priorGroups = [...snap.groups];
+    await this.inner.ensureDefaultGroups();
+    await this.persistOrRollback(() => {
+      snap.groups.length = 0;
+      snap.groups.push(...priorGroups);
+    });
+  }
+
   // 挂单认领制窄写（TASK-POST-CLAIM，D-088）：tasks 是 GovernanceSnapshot 字段 → 落 governance.json。
   // 六方法全 idx 类回滚（写前存整条，persist 失败按 id 原地还原，镜像 updateTaskStatus）：委托 inner
   // 补留名 + clamp 逻辑（零漂移），仅命中（非 null）才落盘。claimTask 的"已有主"由 inner 返回 null，

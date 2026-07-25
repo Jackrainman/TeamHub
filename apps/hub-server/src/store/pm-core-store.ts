@@ -263,6 +263,16 @@ export interface PmCoreStore {
    */
   deleteGroup(groupId: string): Promise<DeleteGroupResult>;
 
+  /**
+   * 空板默认组树（打磨轮刀⑤，onboarding-init-wizard-2026-07-25 §4）：real 模式真空板没有任何组 →
+   * 正常模式启动装配（main.ts）调用本方法预建 contracts `buildDefaultGroupTree` 的默认树
+   * （四组 + 程序母组，**不含 grp-convergence 哨兵组**）。**临界区内判空幂等**：groups 已非空
+   * （demo seed / 既有数据）→ 什么都不做；空 → 一次性插入整棵树（seasonId 取当前 active ?? 顶层，
+   * 照 createGroup 钉法）。FileGovStore 落 governance.json（groups 是 GovernanceSnapshot 字段，
+   * persist 失败整组还原，镜像 importRoster）；SqliteGovStore 单事务读-判-写。
+   */
+  ensureDefaultGroups(): Promise<void>;
+
   // ── 挂单认领制窄写方法（TASK-POST-CLAIM，D-088 / docs/design/task-post-claim.md）─────────────────
   // 全部照 updateTaskStatus/setMemberPin 受限迁移先例：就地改 tasks[idx] 的**自己那簇留名字段** + bump
   // updatedAt，id 不存在 → null（路由层转 404）。**红线**：留名只落单条任务卡（事实层，D-085），本域绝不

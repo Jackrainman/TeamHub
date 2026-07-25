@@ -2470,6 +2470,10 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   // （"server options 有真钟、默认 store 仍假钟"缺口）。缺省态 clock=FixedClock(GOVERNANCE_SCENARIO_NOW)、
   // 与原 `new InMemoryGovStore()` 逐字等价，演示 / 测试零变化。
   const store: GovStore = options.store ?? new InMemoryGovStore(undefined, clock);
+  // 打磨轮刀⑤ 空板默认组树兜底：main.ts 正常模式已对落盘 store（file/sqlite）await 过
+  // ensureDefaultGroups()；这里覆盖「未注入 store → 默认内存 store」路径（内存 store 路径也调用）。
+  // InMemoryGovStore 实现无 await、同步生效（listen 前完成）；groups 非空（demo seed / 既有数据）天然 no-op。
+  void store.ensureDefaultGroups();
   // KB-CORE：知识库相似检索语料读出入口（缺省 InMemoryKbStore seed kbScenarioFixture），由 GET /api/kb/similar 消费。
   // invStore 仍只钉 options 字段、无消费方（INV 支柱落地时透传），符合 base 收口刀「扩展点先行、路由后置」节奏。
   const kbStore: KbStore = options.kbStore ?? new InMemoryKbStore();
