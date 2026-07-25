@@ -145,6 +145,14 @@ function sectionPermission(
   return { writeLocked, adminLocked, lockHint };
 }
 
+// 「显示PIN」按钮可见性判定（打磨轮刀⑧②，纯数据导出供单测——「测逻辑不测 DOM」）：仅身份模式且
+// 已登录时，本人行 或 持旗管理员可见；匿名模式 / 未登录 / 普通成员看他人行 → 不渲染（服务端 403 兜底）。
+// I0：单条读取出口，无列表批量出口。
+export function canShowMemberPin(identity: PageIdentityCtx, memberId: string): boolean {
+  if (identity.mode !== 'identity' || !identity.session) return false;
+  return identity.session.memberId === memberId || identity.session.projectManager === true;
+}
+
 export function SettingsPage({
   client,
   source,
@@ -658,10 +666,11 @@ function GroupRow({
   );
 }
 
-// 成员与权限（K1 权限地基 + GATE-CHECKLIST-IOU，D-087 拍板② + MEMBER-PM-FLAG 刀②b）：一张名单表——
-// 每个成员一行，含角色两档下拉（PUT /api/members/:id/role，组织身份）+ 项目管理开关
-// （PUT /api/members/:id/project-manager，原 superAdmin 的正交旗标）+ 验收人开关
-// （PUT /api/members/:id/gate-reviewer，豁免权属名单内成员=大三，每年换届更新）。身份模式且名册无持旗成员时，
+// 成员与权限（K1 权限地基 + GATE-CHECKLIST-IOU，D-087 拍板② + MEMBER-PM-FLAG 刀②b + 打磨轮刀⑧）：
+// 一张名单表——每个成员一行（刀⑧③ 单列布局，一行一人），含角色两档下拉（PUT /api/members/:id/role，
+// 组织身份）+ 项目管理开关（PUT /api/members/:id/project-manager，原 superAdmin 的正交旗标）+
+// 验收人**只读徽标**（刀⑧① 纯年级派生：大三及以上自动，去手勾——PUT gate-reviewer 端点保留但 UI 不消费）+
+// 「显示PIN」（刀⑧②，仅身份模式 + 本人/持旗管理员行可见）。身份模式且名册无持旗成员时，
 // 顶部显示「初始化管理员」引导卡（调 setup 路由）。
 // **绝不做任何按人统计**（红线 I0：本域无按人聚合/排行）；名单只决定「谁是管理员 / 谁能签字豁免」，非考勤非画像。
 function MembersPermissionsSection({
@@ -707,11 +716,6 @@ function MembersPermissionsSection({
       client.setMemberProjectManager(vars.id, { projectManager: vars.projectManager }),
     onSuccess: invalidateMembers,
   });
-  const reviewerMutation = useMutation({
-    mutationFn: (vars: { id: string; gateReviewer: boolean }) =>
-      client.setMemberGateReviewer(vars.id, { gateReviewer: vars.gateReviewer }),
-    onSuccess: invalidateMembers,
-  });
   // 重置 PIN（公测余项⑦）：superAdmin 清目标 pinHash → 该成员回免 PIN 态、下次登录自行重设。
   // 仅身份模式渲染（匿名模式端点 404、无身份概念）；二次确认防误点（重置后旧 PIN 立即失效）。
   const clearPinMutation = useMutation({
@@ -754,7 +758,8 @@ function MembersPermissionsSection({
         ) : members.length === 0 ? (
           <p className="settings-desc">{t('settings.members.empty')}</p>
         ) : (
-          <div className="adapter-grid">
+          // 刀⑧③ 一行一人：成员名单单列布局（adapter-grid--members），双列网格把名字列压到显示不下。
+          <div className="adapter-grid adapter-grid--members">
             {members.map((member) => (
               <article className="adapter-row" key={member.id}>
                 <div>
@@ -795,24 +800,16 @@ function MembersPermissionsSection({
                     />
                     <span>{t('settings.members.pm.toggle')}</span>
                   </label>
-                  <label className="pm-check">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(member.gateReviewer)}
-                      disabled={
-                        writeLocked ||
-                        (reviewerMutation.isPending &&
-                          reviewerMutation.variables?.id === member.id)
-                      }
-                      onChange={(e) =>
-                        reviewerMutation.mutate({
-                          id: member.id,
-                          gateReviewer: e.target.checked,
-                        })
-                      }
-                    />
-                    <span>{t('settings.reviewers.toggle')}</span>
-                  </label>
+                  {/* 验收人只读徽标（刀⑧① 纯年级派生，去手勾）：大三及以上（含研）自动获得，
+                      PUT gate-reviewer 端点保留但 UI 不再消费。 */}
+                  {member.gateReviewer ? (
+                    <span className="badge badge--wide badge--green">
+                      {t('settings.reviewers.badge.auto')}
+                    </span>
+                  ) : null}
+                  {identity.mode === 'identity' && canShowMemberPin(identity, member.id) ? (
+                    <MemberPinReveal client={client} memberId={member.id} />
+                  ) : null}
                   {identity.mode === 'identity' ? (
                     <button
                       type="button"
@@ -860,13 +857,62 @@ function MembersPermissionsSection({
             {humanizeFormError(pmMutation.error, t, 'settings.members.pm.error')}
           </p>
         ) : null}
-        {reviewerMutation.error ? (
-          <p className="form-hint form-hint--warn">
-            {humanizeFormError(reviewerMutation.error, t, 'settings.reviewers.error')}
-          </p>
-        ) : null}
       </div>
     </section>
+  );
+}
+
+// 「显示PIN」行内揭示（打磨轮刀⑧②）：点一下调 GET /api/members/:id/pin 揭示明文（等宽字体），
+// 再点遮回；404「未设置 PIN」（旧数据无 pinPlaintext 副本 / 从未设）→ 行内显示「未设置 PIN」。
+// 可见性由 canShowMemberPin 在上层判（本人或持旗管理员、仅身份模式），服务端 403 兜底。
+function MemberPinReveal({ client, memberId }: { client: HubApiClient; memberId: string }) {
+  const { t } = useI18n();
+  const [pin, setPin] = useState<string | null>(null);
+  const [state, setState] = useState<'idle' | 'loading' | 'unset' | 'error'>('idle');
+
+  async function reveal() {
+    setState('loading');
+    try {
+      const data = await client.getMemberPin(memberId);
+      setPin(data.pin);
+      setState('idle');
+    } catch (err) {
+      // fetchJson 错误串前缀带状态码（"404: …"）：404 = 未设置/无副本，其余 = 真实失败给提示。
+      setState(err instanceof Error && err.message.startsWith('404') ? 'unset' : 'error');
+    }
+  }
+
+  if (state === 'unset') {
+    return <span className="settings-member__pin">{t('settings.members.showPin.unset')}</span>;
+  }
+  if (pin !== null) {
+    return (
+      <span className="settings-member__pin">
+        <code>{t('settings.members.showPin.revealed', { pin })}</code>
+        <button
+          type="button"
+          className="btn btn--secondary btn--sm"
+          onClick={() => setPin(null)}
+        >
+          {t('settings.members.showPin.hide')}
+        </button>
+      </span>
+    );
+  }
+  return (
+    <span className="settings-member__pin">
+      <button
+        type="button"
+        className="btn btn--secondary btn--sm"
+        disabled={state === 'loading'}
+        onClick={() => void reveal()}
+      >
+        {t('settings.members.showPin')}
+      </button>
+      {state === 'error' ? (
+        <span className="form-hint form-hint--warn">{t('settings.members.showPin.error')}</span>
+      ) : null}
+    </span>
   );
 }
 

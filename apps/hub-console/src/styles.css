@@ -1422,7 +1422,8 @@ button,
   gap: 10px;
 }
 
-/* 成员与权限行（K1）：角色下拉 + 验收人开关并排靠右（adapter-row 第二列，不参与名字块的收缩）。 */
+/* 成员与权限行（K1 + 刀⑧）：角色下拉 + 项目管理开关 + 验收人只读徽标 + PIN 操作并排靠右
+   （adapter-row 第二列，不参与名字块的收缩）。 */
 .settings-member__controls {
   display: flex;
   flex-shrink: 0;
@@ -1435,6 +1436,29 @@ button,
   border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text);
+  font-size: var(--text-sm);
+}
+
+/* 成员名单一行一人（打磨轮刀⑧③）：双列 adapter-grid 把名字列压到显示不下——单列给足宽度；
+   名字列不折行、给足 min-width，操作区（flex-shrink:0）不挤断。 */
+.adapter-grid--members {
+  grid-template-columns: minmax(0, 1fr);
+}
+.adapter-grid--members .adapter-row > div:first-child {
+  flex: 1 1 auto;
+  min-width: 10ch;
+  white-space: nowrap;
+}
+
+/* 「显示PIN」行内揭示（刀⑧②）：明文用等宽字体，与按钮/提示同行排列。 */
+.settings-member__pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.settings-member__pin code {
+  font-family: var(--font-mono, monospace);
   font-size: var(--text-sm);
 }
 

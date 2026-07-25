@@ -146,6 +146,8 @@ import {
   SetPinRequestSchema,
   SetPinResponseSchema,
   ClearPinResponseSchema,
+  // 显示 PIN（打磨轮刀⑧② pinPlaintext 唯一透出口）：GET /api/members/:id/pin 响应契约。
+  MemberPinResponseSchema,
   // 门验收人名单维护（GATE-CHECKLIST-IOU，D-087 拍板②）：PUT /api/members/:id/gate-reviewer 读/写契约。
   SetGateReviewerRequestSchema,
   SetGateReviewerResponseSchema,
@@ -782,13 +784,44 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       void reply.code(403).send({ detail: '只能设置本人 PIN' });
       return;
     }
-    const updated = await store.setMemberPin(id, hashPin(parsed.data.pin));
+    // pinPlaintext 双写（刀⑧②）：明文副本随 hash 同笔落库（供 GET pin「显示PIN」），认证仍只走 scrypt。
+    const updated = await store.setMemberPin(id, hashPin(parsed.data.pin), parsed.data.pin);
     if (!updated) {
       void reply.code(404).send({ detail: 'member not found' });
       return;
     }
-    // MemberPublicSchema.parse 剥 pinHash（密钥纪律）——回带公开视图。
+    // MemberPublicSchema.parse 剥 pinHash/pinPlaintext（密钥纪律）——回带公开视图。
     return SetPinResponseSchema.parse({ member: MemberPublicSchema.parse(updated) });
+  });
+
+  // 读取成员 PIN 明文（GET /api/members/:id/pin，打磨轮刀⑧② pinPlaintext 可恢复存储的**唯一透出口**——
+  // 用户 2026-07-25 拍板的密钥纪律例外：团队级低 stakes PIN、「显示PIN」防忘）。**身份模式 only**
+  // （匿名 → 404，照 PUT pin 先例）。**读端点不过写门**（GET 天然放行），鉴权路由内自判：
+  // **本人会话或持旗管理员**（isSuperAdmin 读实时名册）→ 200 { pin }；非本人非管理员 → 403；
+  // 成员不存在 → 404；无 pinPlaintext（从未设 / 旧数据）→ 404「未设置 PIN」（前端引导重设 / 清除流程）。
+  // **I0**：单条读取出口，绝无列表批量出口（防一屏全队 PIN）。
+  app.get<{ Params: { id: string } }>('/api/members/:id/pin', async (request, reply) => {
+    if (identityMode !== 'identity') {
+      void reply.code(404).send({ detail: '身份模式未启用' });
+      return;
+    }
+    const { id } = request.params;
+    const snapshot = await store.getSnapshot();
+    const target = snapshot.members.find((m) => m.id === id);
+    if (!target) {
+      void reply.code(404).send({ detail: 'member not found' });
+      return;
+    }
+    const isSelf = request.identity?.memberId === id;
+    if (!isSelf && !isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
+      void reply.code(403).send({ detail: '只能查看本人 PIN' });
+      return;
+    }
+    if (!target.pinPlaintext) {
+      void reply.code(404).send({ detail: '未设置 PIN' });
+      return;
+    }
+    return MemberPinResponseSchema.parse({ pin: target.pinPlaintext });
   });
 
   // 重置成员 PIN（DELETE /api/members/:id/pin，公测余项⑦ PIN-RESET）——「忘 PIN」的产品通道：此前连
@@ -912,8 +945,8 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       }
       memberId = selfId;
     }
-    // 先设 pin（防授旗后 pin 落库失败 → 无 PIN 管理员），再授旗（缺省 true）。
-    const pinned = await store.setMemberPin(memberId, hashPin(parsed.data.pin));
+    // 先设 pin（防授旗后 pin 落库失败 → 无 PIN 管理员），再授旗（缺省 true）。pinPlaintext 同笔双写（刀⑧②）。
+    const pinned = await store.setMemberPin(memberId, hashPin(parsed.data.pin), parsed.data.pin);
     if (!pinned) {
       void reply.code(404).send({ detail: 'member not found' });
       return;

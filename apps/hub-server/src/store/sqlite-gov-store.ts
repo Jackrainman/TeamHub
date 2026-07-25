@@ -489,7 +489,11 @@ export class SqliteGovStore implements GovStore {
     });
   }
 
-  async setMemberPin(memberId: string, pinHash: string | null): Promise<Member | null> {
+  async setMemberPin(
+    memberId: string,
+    pinHash: string | null,
+    pinPlaintext?: string,
+  ): Promise<Member | null> {
     return this.tx(() => {
       const prev = this.getRow<Member>('members', memberId);
       if (!prev) return null;
@@ -498,11 +502,18 @@ export class SqliteGovStore implements GovStore {
         updatedBy: MEMBER_PIN_UPDATED_BY,
         updatedAt: this.clock.now().toISOString(),
       };
-      // `pinHash = null`（余项⑦ PIN-RESET）= 清除，成员回到免 PIN 态。
+      // `pinHash = null`（余项⑦ PIN-RESET）= 清除，成员回到免 PIN 态；明文副本（刀⑧②）同笔清。
       if (pinHash === null) {
         delete updated.pinHash;
+        delete updated.pinPlaintext;
       } else {
         updated.pinHash = pinHash;
+        // pinPlaintext 双写：未传则清旧副本（防 hash/明文错位）。
+        if (pinPlaintext !== undefined) {
+          updated.pinPlaintext = pinPlaintext;
+        } else {
+          delete updated.pinPlaintext;
+        }
       }
       this.updateRow('members', memberId, updated);
       return updated;

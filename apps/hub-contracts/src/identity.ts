@@ -92,6 +92,18 @@ export const ClearPinResponseSchema = z.object({
 export type ClearPinResponse = z.infer<typeof ClearPinResponseSchema>;
 
 /**
+ * GET /api/members/:id/pin（显示 PIN，打磨轮刀⑧② pinPlaintext 可恢复存储的唯一透出口）响应：
+ * 单条明文回带。**身份模式 only**（匿名 → 404，照 PUT pin 先例）。授权语义（路由层自判——
+ * 读端点不过写门）：**本人会话或持旗管理员**（isSuperAdmin 读实时名册）→ 200；非本人非管理员 → 403；
+ * 成员不存在 → 404；无 pinPlaintext（从未设 / 旧数据）→ 404「未设置 PIN」。
+ * **I0**：单条读取出口，绝无列表批量出口（防一屏全队 PIN）。
+ */
+export const MemberPinResponseSchema = z.object({
+  pin: z.string().min(4),
+});
+export type MemberPinResponse = z.infer<typeof MemberPinResponseSchema>;
+
+/**
  * POST /api/setup/super-admin（初始化首个管理员，K1 权限地基 + MEMBER-PM-FLAG 旗标化 + SETUP-WIZARD-ROSTER
  * 刀② bootstrap 扩展）请求：pin 明文必填（min4 max64，家庭影院级最低强度，服务端 scrypt 散列后落库、
  * 不回存明文）。**身份模式 only**（匿名 → 404，照 PUT pin 先例）。

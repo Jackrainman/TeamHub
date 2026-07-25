@@ -29,6 +29,7 @@ import {
   SetMemberRoleResponseSchema,
   SetProjectManagerResponseSchema,
   ClearPinResponseSchema,
+  MemberPinResponseSchema,
   SetupSuperAdminResponseSchema,
   SetupStateResponseSchema,
   SetupInitResponseSchema,
@@ -50,6 +51,7 @@ import {
   type SetProjectManagerRequest,
   type SetProjectManagerResponse,
   type ClearPinResponse,
+  type MemberPinResponse,
   type SetupSuperAdminRequest,
   type SetupSuperAdminResponse,
   type SetupStateResponse,
@@ -345,6 +347,9 @@ export interface HubApiClient {
   // 重置成员 PIN（公测余项⑦ PIN-RESET）：身份模式 only（匿名 404）+ 须持旗管理员（服务端 403）。
   // 清目标 pinHash → 成员回免 PIN 态，下次登录经首设流程自行重设（本端点不经手新 PIN 明文）。响应剥 pinHash。
   clearMemberPin(id: string): Promise<ClearPinResponse>;
+  // 显示成员 PIN（打磨轮刀⑧② pinPlaintext 唯一透出口）：身份模式 only（匿名 404）；本人或持旗管理员
+  // 单条读取（服务端 403 兜底）；未设 / 旧数据无副本 → 404「未设置 PIN」（UI 据此显示「未设置」）。
+  getMemberPin(id: string): Promise<MemberPinResponse>;
   // 名册导入（ROSTER-IMPORT，K8）。模板：GET 直链（下载按钮 href，不走 fetch）；导入：上传 CSV（multipart，
   // 引导豁免——身份模式名册为空时免登录）。响应 = 六段导入报告（名单事实回显给操作者本人，I0 无聚合统计）。
   // 刀⑦（ROSTER-IMPORT-PREVIEW）：上传 → previewRoster 只解析不落库 → 预览表编辑 → importRosterRows
@@ -909,6 +914,13 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         ClearPinResponseSchema,
         fetcher,
         writeToken,
+      );
+    },
+    async getMemberPin(id: string) {
+      return fetchJson(
+        `${baseUrl}/api/members/${encodeURIComponent(id)}/pin`,
+        MemberPinResponseSchema,
+        fetcher,
       );
     },
     rosterTemplateUrl() {

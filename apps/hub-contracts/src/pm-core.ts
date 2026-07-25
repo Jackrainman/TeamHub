@@ -147,6 +147,13 @@ export const MemberObjectSchema = z.object({
   // 用下方 `MemberPublicSchema`（.omit pinHash）过读边界，照 confirmedBy/passedBy 的 I0 剥离先例。
   // 旧 gov.json（无此字段）optional 兜底、照常加载（D-080 向后兼容）。
   pinHash: z.string().min(1).optional(),
+  // ── PIN 明文副本（打磨轮刀⑧②，2026-07-25 用户拍板的密钥纪律**例外**）────────────────────────
+  // 「显示PIN」防忘要求可恢复——与 pinHash **双写双清**（PUT pin / bootstrap 同笔落、DELETE pin 同笔清），
+  // 认证仍只走 scrypt hash、不降级。团队级低 stakes PIN（家庭影院级部署），非 provider key——
+  // provider key 纪律（§2.6）不受影响。读视图（MemberPublicSchema）照 pinHash 同法剥离；
+  // **唯一透出口** = GET /api/members/:id/pin（身份模式 only，本人或持旗管理员单条读取，无列表批量出口）。
+  // 旧落盘无此字段 → optional 兜底（「显示PIN」对该成员报「未设置 PIN」，引导重设）。
+  pinPlaintext: z.string().min(4).optional(),
   // ── 门验收人名单（GATE-CHECKLIST-IOU，D-087 拍板②/体检报告 ②-2）──────────────────────────
   // **optional 布尔位**：`true` = 该成员在「验收人名单」上（有权豁免欠条 waived + 门验收兜底）。
   // 落点选 Member 布尔位而非新实体 / 新 MemberRole 档（additive、非 refactor-first——体检 ②-2 裁定）。
@@ -177,12 +184,16 @@ function normalizeLegacyMember(raw: unknown): unknown {
 export const MemberSchema = z.preprocess(normalizeLegacyMember, MemberObjectSchema);
 
 /**
- * 读视图用成员（IDENTITY-LITE）：剥 `pinHash`（密钥纪律——凭证散列永不过读边界，即便是散列也不外露）。
+ * 读视图用成员（IDENTITY-LITE）：剥 `pinHash` + `pinPlaintext`（密钥纪律——凭证散列永不过读边界；
+ * pinPlaintext 是刀⑧② 用户拍板的可恢复副本，唯一透出口 = GET /api/members/:id/pin 单条读取）。
  * 照 `pm-requests.ts` 的 `DependencySchema.omit({ confirmedBy: true })` 范式：所有返回 Member 的端点
  *（`GET /api/members` 名册、`PUT /api/members/:id/pin` 回带、未来我的视图）一律经本 schema 过——
- * zod `.parse` 默认剥未知键，故经本 schema parse 的对象绝不含 pinHash。
+ * zod `.parse` 默认剥未知键，故经本 schema parse 的对象绝不含 pinHash/pinPlaintext。
  */
-export const MemberPublicSchema = MemberObjectSchema.omit({ pinHash: true });
+export const MemberPublicSchema = MemberObjectSchema.omit({
+  pinHash: true,
+  pinPlaintext: true,
+});
 
 /**
  * PUT /api/members/:id/gate-reviewer（验收人名单维护，GATE-CHECKLIST-IOU / D-087 拍板②）：

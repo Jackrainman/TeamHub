@@ -28,7 +28,7 @@
 3. **原子单元 + completion gate**：最小粒度 = 可独立验证 + 单独 commit 的改动。落地前自检 (a) 最小验证按 §4 通过 (b) planning sync（覆盖更新 `now.md`，候选变动同步 `backlog.md`，长期决策追 `decisions.md`——决策被 supersede / 过时则**同刀**压 3 行 stub + 全文移 `docs/archive/`，活文件只留仍约束当前代码/产品的项，别在活文件堆叠（D-070/D-073 活账本纪律））(c) 改 `apps/hub-*/src` 行为则按 §7 `scripts/bump-version.sh` 自增版本号（与本次 commit 同刀）(d) 单 commit。**DoD 必含至少 1 条工程谓词**（文件存在 / 命令 exit 0 / grep 命中 / schema safeParse / yaml 可解析）；「积累 N 条 / 了解了 X」等不可机器验证描述不构成 DoD、拒认领。
 4. **commit+push 默认（D-064）**：completion gate 过后**直接 commit 并 push 到 `origin/master`**（trunk-based），含交互式会话，不每次问「要不要提交」；push 前 `git fetch` 看分叉、有则先 rebase；仅用户明确叫停才暂缓。授权仅限 git（代码+docs+planning）。
 5. **数据安全**：重启 / 重建 / 跑 compose smoke 前先 `scripts/backup-teamhub-data.sh`（kb.json/gov.json 不可再生，备份读回校验不过别继续）。**落盘 env（`TEAMHUB_KB_DATA_FILE` + `TEAMHUB_GOV_DATA_FILE`）必须在真实启动路径接通**——漏接 = 重启清零（dev-debug-archive H5 / A1 教训）。`verify-hub-compose.sh` 的 `--volumes` 只许对 `*smoke*` 项目跑。
-6. **密钥不进仓**：不读/打印/搜索/提交任何真实密钥（`.env*` 除 `.env.example` / `*key*` / `*secret*`）；provider key 只走 server 进程 env，不进浏览器/localStorage/planning/日志/commit；commit 前过 `scripts/pre-commit.sh`。
+6. **密钥不进仓**：不读/打印/搜索/提交任何真实密钥（`.env*` 除 `.env.example` / `*key*` / `*secret*`）；provider key 只走 server 进程 env，不进浏览器/localStorage/planning/日志/commit；commit 前过 `scripts/pre-commit.sh`。**例外（2026-07-25 用户拍板，打磨轮刀⑧②）**：`Member.pinPlaintext` = 可恢复存储的团队级低 stakes PIN（供「显示PIN」防忘），与 pinHash 双写双清、读视图照 pinHash 同法剥离，仅本人/持旗管理员经 `GET /api/members/:id/pin` 单条读取（无列表批量出口）；provider key 纪律不变。
 7. **写端点信任边界**：`HUB_HOST` 非 loopback 暴露写端点**必须**配 `TEAMHUB_WRITE_TOKEN`（否则拒启动；身份模式除外——身份模式写门认**有效会话或 Bearer 任一**，登录/首启动向导/loopback PIN 恢复免 Bearer，匿名模式仍只认 Bearer）；反代/隧道后面开 `TEAMHUB_TRUST_PROXY=true`（否则写限流塌成全队单桶 = DoS）。详见 `docs/deploy/RUNBOOK.md`。
 
 ## 3. 常用命令

@@ -1006,6 +1006,12 @@ const zh = {
     '确定重置 {name} 的 PIN？重置后旧 PIN 立即失效，该成员下次登录可免 PIN 进入并自行重设。',
   'settings.members.resetPin.done': '已重置。该成员下次登录免 PIN，进入后可自行设置新 PIN。',
   'settings.members.resetPin.error': '重置失败：{detail}',
+  // 显示 PIN（打磨轮刀⑧②）：行内揭示/遮回 + 旧数据无副本态。
+  'settings.members.showPin': '显示 PIN',
+  'settings.members.showPin.hide': '隐藏',
+  'settings.members.showPin.revealed': 'PIN：{pin}',
+  'settings.members.showPin.unset': '未设置 PIN',
+  'settings.members.showPin.error': '读取 PIN 失败',
   'settings.members.setup.title': '初始化管理员',
   'settings.members.setup.desc':
     '本队还没有项目管理成员。设一个 PIN，给当前登录的你授项目管理旗标——此后授旗/收旗、建赛季等敏感设置都需要管理员身份。',
@@ -1015,8 +1021,8 @@ const zh = {
   'settings.members.setup.submitting': '设置中…',
   'settings.members.setup.success': '你已成为管理员。',
   'settings.members.setup.error': '初始化失败：{detail}',
-  'settings.reviewers.toggle': '验收人',
-  'settings.reviewers.error': '更新失败：{detail}',
+  // 验收人只读徽标（刀⑧① 纯年级派生，去手勾）：大三及以上（含研）自动获得。
+  'settings.reviewers.badge.auto': '验收人 · 大三以上自动',
   'settings.reviewers.grade.freshman': '大一',
   'settings.reviewers.grade.sophomore': '大二',
   'settings.reviewers.grade.junior': '大三',
@@ -2232,6 +2238,12 @@ const en: Record<TranslationKey, string> = {
   'settings.members.resetPin.done':
     'PIN reset. They can now log in without a PIN and set a new one.',
   'settings.members.resetPin.error': 'Reset failed: {detail}',
+  // Show PIN (polish pass slice 8.2): inline reveal/mask + legacy no-plaintext state.
+  'settings.members.showPin': 'Show PIN',
+  'settings.members.showPin.hide': 'Hide',
+  'settings.members.showPin.revealed': 'PIN: {pin}',
+  'settings.members.showPin.unset': 'PIN not set',
+  'settings.members.showPin.error': 'Failed to load PIN',
   'settings.members.setup.title': 'Set up admin',
   'settings.members.setup.desc':
     'This team has no project-management member yet. Set a PIN to grant the currently logged-in you the project-management flag — after that, sensitive settings like granting flags or creating seasons require admin rights.',
@@ -2241,8 +2253,8 @@ const en: Record<TranslationKey, string> = {
   'settings.members.setup.submitting': 'Setting up…',
   'settings.members.setup.success': 'You are now an admin.',
   'settings.members.setup.error': 'Setup failed: {detail}',
-  'settings.reviewers.toggle': 'Reviewer',
-  'settings.reviewers.error': 'Failed to update: {detail}',
+  // Reviewer read-only badge (polish pass slice 8.1, pure grade-derived): junior and above (incl. grad) get it automatically.
+  'settings.reviewers.badge.auto': 'Reviewer · auto from junior year',
   'settings.reviewers.grade.freshman': 'Freshman',
   'settings.reviewers.grade.sophomore': 'Sophomore',
   'settings.reviewers.grade.junior': 'Junior',

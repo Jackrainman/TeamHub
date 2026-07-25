@@ -514,11 +514,17 @@ export class FileGovStore implements GovStore {
   // idx 类回滚（写前存整条，persist 失败按 id 原地还原，镜像 updateTaskStatus）。**密钥纪律**：pinHash
   // 随 members 一并落盘（预期，落盘文件里可以有），但绝不经读视图外露（路由层剥）。
   // `pinHash = null`（余项⑦ PIN-RESET）= 清除，成员回到免 PIN 态。
-  async setMemberPin(memberId: string, pinHash: string | null): Promise<Member | null> {
+  // **pinPlaintext（刀⑧②）**：明文副本同笔透传 inner 双写双清——落盘文件含明文是用户拍板的例外
+  // （团队级低 stakes PIN、「显示PIN」防忘），读视图仍剥，唯一透出口 = GET /api/members/:id/pin。
+  async setMemberPin(
+    memberId: string,
+    pinHash: string | null,
+    pinPlaintext?: string,
+  ): Promise<Member | null> {
     const snap = this.inner.snapshotForRollback();
     const idx = snap.members.findIndex((m) => m.id === memberId);
     const prior = idx >= 0 ? snap.members[idx] : undefined;
-    const member = await this.inner.setMemberPin(memberId, pinHash);
+    const member = await this.inner.setMemberPin(memberId, pinHash, pinPlaintext);
     if (member) {
       await this.persistOrRollback(() => {
         if (prior) snap.members[idx] = prior;

@@ -72,4 +72,42 @@ describe('GovStore.setMemberPin', () => {
       (await reloaded.getSnapshot()).members.find((x) => x.id === 'm-ecB')?.pinHash,
     ).toBeUndefined();
   });
+
+  // pinPlaintext 明文副本（刀⑧②，用户拍板的密钥纪律例外）：双写双清 + File 落盘回读。
+  test('pinPlaintext 双写：InMemory snapshot 含明文；File 落盘 governance.json 且重启（新实例）仍在', async () => {
+    const mem = new InMemoryGovStore();
+    const hash = hashPin('1234');
+    await mem.setMemberPin('m-visionA', hash, '1234');
+    const m = (await mem.getSnapshot()).members.find((x) => x.id === 'm-visionA');
+    expect(m?.pinHash).toBe(hash);
+    expect(m?.pinPlaintext).toBe('1234');
+
+    dir = await mkdtemp(join(tmpdir(), 'gov-pin-plain-'));
+    const file = join(dir, 'gov.json');
+    const store = await FileGovStore.create(file);
+    await store.setMemberPin('m-ecB', hashPin('4321'), '4321');
+    const onDisk = JSON.parse(await readFile(file, 'utf8'));
+    const persisted = onDisk.members.find((x: { id: string }) => x.id === 'm-ecB');
+    expect(persisted.pinPlaintext).toBe('4321');
+
+    // 模拟重启：新实例从同文件加载，明文副本仍在
+    const reloaded = await FileGovStore.create(file);
+    expect(
+      (await reloaded.getSnapshot()).members.find((x) => x.id === 'm-ecB')?.pinPlaintext,
+    ).toBe('4321');
+  });
+
+  test('pinPlaintext 双清 + 防错位：设 hash 不传明文 → 旧副本清；pinHash=null → 两字段皆无', async () => {
+    const mem = new InMemoryGovStore();
+    await mem.setMemberPin('m-ecB', hashPin('1234'), '1234');
+    // 只换 hash 不传明文 → 旧副本一并清（防 hash/明文错位）
+    const swapped = await mem.setMemberPin('m-ecB', hashPin('9999'));
+    expect(swapped?.pinPlaintext).toBeUndefined();
+    // 清除路径 → 双字段皆无
+    await mem.setMemberPin('m-ecB', hashPin('1234'), '1234');
+    const cleared = await mem.setMemberPin('m-ecB', null);
+    expect(cleared?.pinHash).toBeUndefined();
+    expect(cleared?.pinPlaintext).toBeUndefined();
+    expect('pinPlaintext' in cleared!).toBe(false);
+  });
 });
