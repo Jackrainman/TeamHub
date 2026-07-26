@@ -38,10 +38,11 @@ function gbkBytes(): Uint8Array {
 }
 
 describe('buildRosterTemplateCsv', () => {
-  test('带 BOM + CRLF + 三列表头，仅表头行（刀③：去组长/验收人列）', () => {
+  test('带 BOM + CRLF + 三列表头 + 提示行（刀③：去组长/验收人列）', () => {
     const csv = buildRosterTemplateCsv();
     expect(csv.charCodeAt(0)).toBe(0xfeff); // BOM
-    expect(csv).toBe('﻿姓名,年级,组\r\n');
+    expect(csv).toContain('姓名,年级,组\r\n');
+    expect(csv).toContain('# 年级可选：大一/大二/大三/大四/研一/研二/研三');
     expect(ROSTER_TEMPLATE_HEADERS).toEqual(['姓名', '年级', '组']);
   });
 });

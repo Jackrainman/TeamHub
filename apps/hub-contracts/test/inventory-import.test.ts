@@ -15,11 +15,11 @@ import {
  * preview/JSON 提交/报告三 schema。编码探测已抽 csv-core 两域共用，这里只钉库存侧消费点。
  */
 describe('buildInventoryTemplateCsv', () => {
-  test('仅表头行：BOM + 六列（件号/名称/类别/单位/总数/低储阈值）+ CRLF', () => {
+  test('表头 + 提示行：BOM + 六列（件号/名称/类别/单位/总数/低储阈值）+ CRLF', () => {
     const csv = buildInventoryTemplateCsv();
     expect(csv.charCodeAt(0)).toBe(0xfeff);
-    expect(csv).toBe(`﻿${INVENTORY_TEMPLATE_HEADERS.join(',')}\r\n`);
     expect(csv).toContain('件号,名称,类别,单位,总数,低储阈值');
+    expect(csv).toContain('# 件号=幂等匹配键');
   });
 });
 

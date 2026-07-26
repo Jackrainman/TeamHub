@@ -71,7 +71,8 @@ export function tokenizeCsv(text: string): CsvRecord[] {
   const pushRecord = () => {
     pushField();
     // 全空记录 = 空行（含 `,,,,` 全空列、Excel 尾随空行），跳过。
-    if (!fields.every((f) => f === '')) {
+    // # 开头 = 注释行（模板提示有效值），跳过。
+    if (!fields.every((f) => f === '') && !fields[0].startsWith('#')) {
       records.push({ fields, line: recordStartLine });
     }
     fields = [];

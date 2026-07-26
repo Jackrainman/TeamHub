@@ -26,9 +26,9 @@ export const INVENTORY_TEMPLATE_HEADERS = [
   '低储阈值',
 ] as const;
 
-/** 构造库存导入 CSV 模板（仅表头行，带 BOM + CRLF——Excel 友好）。GET /api/inventory/template 直接回此串。 */
+/** 构造库存导入 CSV 模板（表头 + 提示行，带 BOM + CRLF——Excel 友好）。GET /api/inventory/template 直接回此串。 */
 export function buildInventoryTemplateCsv(): string {
-  return `${UTF8_BOM}${INVENTORY_TEMPLATE_HEADERS.join(',')}\r\n`;
+  return `${UTF8_BOM}${INVENTORY_TEMPLATE_HEADERS.join(',')}\r\n# 件号=幂等匹配键,类别如：电机/电调/传感器/结构件/紧固件/线材,总数和低储阈值填整数\r\n`;
 }
 
 // ── 已校验行草稿（parseInventoryCsv 产出，store.importPartTypes 消费）────────────────────────────
