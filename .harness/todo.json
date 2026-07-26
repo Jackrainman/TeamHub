@@ -1,16 +1,14 @@
 {
-  "focus": "Hermes 飞书侧接通（鉴权方案+skill 编写）+ SQLite 统一后端收口",
+  "focus": "飞书集成配置落地（设计已拍板 docs/design/lark-integration-config.md）+ code backlog 清仓",
   "blocked": [
-    {"id": "HERMES-LARK-SKILL", "reason": "卡飞书侧 skill 编写 + 鉴权最终方案", "owner": "user"},
+    {"id": "HERMES-LARK-SKILL", "reason": "卡飞书侧 skill 编写（用户侧）", "owner": "user"},
     {"id": "REMOTE-ACCESS-DEPLOY", "reason": "远程部署需用户审批（SSH/systemd/80/443）", "owner": "user"},
     {"id": "LARK-BIN-PROBE", "reason": "需用户在 WSL2 实测 which lark / which lark-cli", "owner": "user"}
   ],
   "todo": [
-    {"id": "HERMES-AUTH-SCHEME", "title": "Hermes 鉴权最终方案（飞书 app 授权流调研已有结论，待拍板）", "tag": "design"},
-    {"id": "ENV-TOKEN-DESIGN", "title": ".env token 管理设计化（向导生成/设置页轮换）", "tag": "design"},
+    {"id": "LARK-INTEG-CONFIG", "title": "飞书集成配置落地（设置页表单+credential端点+出站推送+向导步骤）", "tag": "code"},
     {"id": "CSV-TEMPLATE-VALIDATION", "title": "CSV 模板加数据验证下拉（年级/编号/状态固定选项）", "tag": "code"},
     {"id": "CHECKLIST-TPL-IMPORT", "title": "检查单模板最小导入通道（等复盘产出）", "tag": "code"},
-    {"id": "INTEG-CONFIG", "title": "集成配置入口设计（git/飞书/bot-channels 现全 mock）", "tag": "design"},
     {"id": "FORM-ADDLEG-INLINE-TASK", "title": "接力画布「加一棒」支持就地新建任务", "tag": "code"},
     {"id": "UX-SCAN-BACKLOG", "title": "UX 扫描 backlog 项（详见 docs/design/design-language.md §10）", "tag": "code"},
     {"id": "KB-AI-STRUCT", "title": "知识库 AI 结构化（研究项，先积累导入语料再评估）", "tag": "research"}
