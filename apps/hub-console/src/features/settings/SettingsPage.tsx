@@ -213,6 +213,7 @@ export function SettingsPage({
       <GroupsSection client={client} source={source} identity={identity} />
       <MembersPermissionsSection client={client} source={source} identity={identity} />
       <IntegrationsSection client={client} source={source} />
+      <LarkIntegrationSection client={client} />
       <ConnectionSection />
       <DeploymentSection client={client} source={source} />
       <DeploymentConfigSection client={client} source={source} identity={identity} />
@@ -1308,6 +1309,148 @@ function IntegrationGroup({
         </div>
       )}
     </div>
+  );
+}
+
+function LarkIntegrationSection({ client }: { client: HubApiClient }) {
+  const { t } = useI18n();
+  const queryClient = useQueryClient();
+  const [appId, setAppId] = useState('');
+  const [appSecret, setAppSecret] = useState('');
+  const [chatId, setChatId] = useState('');
+  const [feedback, setFeedback] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  const configQuery = useQuery({
+    queryKey: ['lark-config'],
+    queryFn: () => client.getLarkConfig(),
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: () => client.saveLarkConfig({ appId, appSecret, chatId }),
+    onSuccess: (res) => {
+      setFeedback(res.ok
+        ? { ok: true, msg: t('settings.integrations.lark.saved') }
+        : { ok: false, msg: res.error ?? t('settings.integrations.lark.error') });
+      void queryClient.invalidateQueries({ queryKey: ['lark-config'] });
+    },
+    onError: (err: Error) => setFeedback({ ok: false, msg: err.message }),
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: () => client.resetLarkConfig(),
+    onSuccess: () => {
+      setFeedback(null);
+      setAppId(''); setAppSecret(''); setChatId('');
+      void queryClient.invalidateQueries({ queryKey: ['lark-config'] });
+    },
+  });
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setFeedback(null);
+    saveMutation.mutate();
+  }
+
+  function handleReset() {
+    if (!window.confirm(t('settings.integrations.lark.resetConfirm'))) return;
+    resetMutation.mutate();
+  }
+
+  const config = configQuery.data;
+  const statusLabel = config
+    ? config.status === 'connected'
+      ? t('settings.integrations.lark.connected')
+      : config.status === 'error'
+        ? t('settings.integrations.lark.error')
+        : t('settings.integrations.lark.unconfigured')
+    : t('settings.integrations.lark.unconfigured');
+  const pillClass = config?.status === 'connected'
+    ? 'badge--green'
+    : config?.status === 'error'
+      ? 'badge--red'
+      : 'badge--amber';
+
+  return (
+    <section className="panel settings-panel">
+      <div className="panel-header">
+        <h2>{t('settings.integrations.lark.title')}</h2>
+        <span className={`badge badge--wide ${pillClass}`}>{statusLabel}</span>
+      </div>
+      <div className="settings-section">
+        <p className="settings-desc">{t('settings.integrations.lark.desc')}</p>
+        {config?.configured && (
+          <MetaRow label={t('settings.integrations.lark.appId')} value={config.appId ?? ''} />
+        )}
+        {config?.configured && config.appSecretMasked && (
+          <MetaRow label={t('settings.integrations.lark.appSecret')} value={config.appSecretMasked} />
+        )}
+        {config?.configured && (
+          <MetaRow label={t('settings.integrations.lark.chatId')} value={config.chatId ?? ''} />
+        )}
+        {config?.error && (
+          <p className="form-hint form-hint--warn">{config.error}</p>
+        )}
+        <form onSubmit={handleSubmit}>
+          <FormGrid>
+            <Field label={t('settings.integrations.lark.appId')}>
+              <input
+                className="input"
+                value={appId}
+                onChange={(e) => setAppId(e.target.value)}
+                placeholder={config?.appId ?? 'cli_xxxx'}
+                required
+              />
+            </Field>
+            <Field label={t('settings.integrations.lark.appSecret')}>
+              <input
+                className="input"
+                type="password"
+                value={appSecret}
+                onChange={(e) => setAppSecret(e.target.value)}
+                placeholder="••••••••"
+                required
+              />
+            </Field>
+            <Field label={t('settings.integrations.lark.chatId')}>
+              <input
+                className="input"
+                value={chatId}
+                onChange={(e) => setChatId(e.target.value)}
+                placeholder={config?.chatId ?? 'oc_xxxx'}
+                required
+              />
+            </Field>
+          </FormGrid>
+          <p className="form-hint">{t('settings.integrations.lark.hint')}</p>
+          {feedback && (
+            <p className={`form-hint ${feedback.ok ? 'form-hint--ok' : 'form-hint--warn'}`}>
+              {feedback.msg}
+            </p>
+          )}
+          <div className="pm-form__footer">
+            <button
+              className="btn btn--primary"
+              type="submit"
+              disabled={saveMutation.isPending}
+            >
+              {saveMutation.isPending
+                ? t('settings.integrations.lark.saving')
+                : t('settings.integrations.lark.save')}
+            </button>
+            {config?.configured && (
+              <button
+                className="btn btn--danger"
+                type="button"
+                onClick={handleReset}
+                disabled={resetMutation.isPending}
+              >
+                {t('settings.integrations.lark.reset')}
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
+    </section>
   );
 }
 

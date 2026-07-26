@@ -90,6 +90,11 @@ import {
   type BaselineResponse,
   type UpdateBaselineRequest,
   type UpdateBaselineResponse,
+  LarkConfigResponseSchema,
+  LarkConfigSaveResponseSchema,
+  type LarkConfigResponse,
+  type LarkConfigSaveRequest,
+  type LarkConfigSaveResponse,
 } from '@teamhub/hub-contracts';
 import {
   HealthResponseSchema,
@@ -407,6 +412,10 @@ export interface HubApiClient {
     req: CompleteTaskRequest,
   ): Promise<CompleteTaskResponse>; // §5 标完成留名
   reviewTask(taskId: string, req: ReviewTaskRequest): Promise<ReviewTaskResponse>; // §5 验收（accept）/ 打回（reject）
+  // 飞书集成配置（LARK-INTEG-CONFIG）：读/写/重置飞书凭据（设置页「集成」分区消费）。
+  getLarkConfig(): Promise<LarkConfigResponse>;
+  saveLarkConfig(req: LarkConfigSaveRequest): Promise<LarkConfigSaveResponse>;
+  resetLarkConfig(): Promise<{ ok: boolean }>;
 }
 
 export function createHubApiClient(options: HubApiClientOptions = {}): HubApiClient {
@@ -1088,6 +1097,33 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
         `${baseUrl}/api/tasks/${encodeURIComponent(taskId)}/review`,
         req,
         ReviewTaskResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async getLarkConfig() {
+      return fetchJson(
+        `${baseUrl}/api/integrations/lark`,
+        LarkConfigResponseSchema,
+        fetcher,
+      );
+    },
+    async saveLarkConfig(req: LarkConfigSaveRequest) {
+      return sendJson(
+        'PUT',
+        `${baseUrl}/api/integrations/lark`,
+        req,
+        LarkConfigSaveResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    async resetLarkConfig() {
+      return sendJson(
+        'DELETE',
+        `${baseUrl}/api/integrations/lark`,
+        undefined,
+        z.object({ ok: z.boolean() }),
         fetcher,
         writeToken,
       );

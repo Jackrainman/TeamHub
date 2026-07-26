@@ -25,6 +25,7 @@ export interface UnifiedStores {
   inv: SqliteInvStore;
   baseline: BaselineStore;
   checklist: ChecklistStore;
+  db: SqliteDatabase;
   close(): void;
 }
 
@@ -107,6 +108,7 @@ export function openUnifiedDb(
     inv,
     baseline,
     checklist,
+    db: sdb,
     close: () => sdb.close(),
   };
 }

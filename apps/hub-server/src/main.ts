@@ -29,6 +29,7 @@ import { FileChecklistStore } from './store/file-checklist-store.js';
 import type { GovStore, KbStore, InvStore } from './store/gov-store.js';
 import type { BaselineStore } from './store/baseline-store.js';
 import type { ChecklistStore } from './store/checklist-store.js';
+import { LarkIntegrationStore } from './store/lark-integration-store.js';
 import { getArtifactDir } from './artifact-storage.js';
 import { resolveBuildId } from './status.js';
 import { parseTenantConfigEnv } from './tenant-config-env.js';
@@ -147,6 +148,7 @@ async function main(): Promise<void> {
   let invStore: InvStore | undefined;
   let baselineStore: BaselineStore | undefined;
   let checklistStore: ChecklistStore | undefined;
+  let larkStore: LarkIntegrationStore | undefined;
   let unifiedClose: (() => void) | undefined;
 
   if (unifiedBackend) {
@@ -161,6 +163,7 @@ async function main(): Promise<void> {
     invStore = unified.inv;
     baselineStore = unified.baseline;
     checklistStore = unified.checklist;
+    larkStore = LarkIntegrationStore.fromSharedDb(unified.db);
     unifiedClose = unified.close;
     await store.ensureDefaultGroups();
   } else {
@@ -259,10 +262,11 @@ async function main(): Promise<void> {
   // 避免裸暴露未鉴权的 POST /api/*（任意可达者污染治理数据 / 撑爆 KB / 回环 actor 身份）。
   // 默认 127.0.0.1 / ::1 / localhost 放行（本机 dev）。**身份模式例外**：写路由已由会话（登录）把关，
   // 故非 loopback + identity 模式即便无 TEAMHUB_WRITE_TOKEN 也放行（大一大二 LAN 打开即看的预期形态）。
+  // LARK-INTEG-CONFIG：统一 SQLite 后端时 token 自动生成存 meta 表，不再依赖 env。
   const writeToken = process.env.TEAMHUB_WRITE_TOKEN;
   const isLoopback =
     host === '127.0.0.1' || host === '::1' || host === 'localhost';
-  if (!isLoopback && !writeToken && identityMode !== 'identity') {
+  if (!isLoopback && !writeToken && !larkStore && identityMode !== 'identity') {
     throw new Error(
       `refusing to bind non-loopback host ${host} without TEAMHUB_WRITE_TOKEN (write endpoints would be unauthenticated)`,
     );
@@ -357,11 +361,12 @@ async function main(): Promise<void> {
     invStore,
     baselineStore,
     checklistStore,
-    writeToken,
+    writeToken: larkStore ? larkStore.getWriteToken() : writeToken,
     trustProxy,
     identityMode,
     tenantConfig,
     deployment,
+    larkStore,
     setupControl: {
       configFile,
       config,

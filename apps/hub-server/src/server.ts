@@ -126,6 +126,7 @@ import {
   ReviewTaskRequestSchema,
   ReviewTaskResponseSchema,
   TasksQuerySchema,
+  LarkConfigSaveRequestSchema,
 } from './contracts.js';
 import type {
   IssueCard,
@@ -342,6 +343,8 @@ export interface BuildHubServerOptions {
    * （否则两端点 404）。main.ts 在正常模式装配时透传 configFile / 当前 config / 五域落盘文件 / 归档物目录。
    */
   setupControl?: SetupControl;
+  /** 飞书集成配置持久化（LARK-INTEG-CONFIG）。给了才注册 /api/integrations/lark + /api/hermes/credential。 */
+  larkStore?: import('./store/lark-integration-store.js').LarkIntegrationStore;
 }
 
 // 归档物文件上传上限（50MB）：覆盖机械 CAD（step/stp/sldprt）+ 电路 PDF + 固件，又约束资源耗尽面。
@@ -3534,6 +3537,75 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   }
   if (moduleEnabled('presence-schedule')) {
     registerPresenceScheduleRoutes(app, ctx);
+  }
+
+  // ── 飞书集成配置（LARK-INTEG-CONFIG）────────────────────────────────────────────────────────────
+  const larkStore = options.larkStore;
+  if (larkStore) {
+    app.get('/api/integrations/lark', async () => {
+      const config = larkStore.getConfig();
+      if (!config || !config.appId) {
+        return { configured: false, status: 'unconfigured' };
+      }
+      const masked = config.appSecret
+        ? `****${config.appSecret.slice(-4)}`
+        : undefined;
+      return {
+        configured: true,
+        appId: config.appId,
+        appSecretMasked: masked,
+        chatId: config.chatId,
+        status: config.status,
+        lastCheckedAt: config.lastCheckedAt,
+        error: config.error,
+      };
+    });
+
+    app.put('/api/integrations/lark', async (request, reply) => {
+      const parsed = LarkConfigSaveRequestSchema.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+        return;
+      }
+      const { appId, appSecret, chatId } = parsed.data;
+      const checkedAt = new Date().toISOString();
+      try {
+        const tokenRes = await fetch(
+          'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ app_id: appId, app_secret: appSecret }),
+            signal: AbortSignal.timeout(10_000),
+          },
+        );
+        const tokenJson = (await tokenRes.json()) as { code?: number; msg?: string };
+        if (tokenJson.code !== 0) {
+          larkStore.saveConfig({ appId, appSecret, chatId, status: 'error', lastCheckedAt: checkedAt, error: tokenJson.msg ?? 'auth failed' });
+          return { ok: false, status: 'error' as const, error: tokenJson.msg ?? 'auth failed' };
+        }
+        larkStore.saveConfig({ appId, appSecret, chatId, status: 'connected', lastCheckedAt: checkedAt });
+        return { ok: true, status: 'connected' as const };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'network error';
+        larkStore.saveConfig({ appId, appSecret, chatId, status: 'error', lastCheckedAt: checkedAt, error: msg });
+        return { ok: false, status: 'error' as const, error: msg };
+      }
+    });
+
+    app.delete('/api/integrations/lark', async () => {
+      larkStore.clearConfig();
+      larkStore.rotateWriteToken();
+      return { ok: true };
+    });
+
+    app.get('/api/hermes/credential', async (request, reply) => {
+      if (!isLoopbackOperator(request, trustProxy)) {
+        void reply.code(403).send({ detail: 'forbidden' });
+        return;
+      }
+      return { token: larkStore.getWriteToken() };
+    });
   }
 
   app.setNotFoundHandler(async (request, reply) => {

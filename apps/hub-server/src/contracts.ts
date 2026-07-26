@@ -145,6 +145,7 @@ export {
   ReviewTaskRequestSchema,
   ReviewTaskResponseSchema,
   TasksQuerySchema,
+  LarkConfigSaveRequestSchema,
 } from '@teamhub/hub-contracts';
 export type {
   AgentBackend,

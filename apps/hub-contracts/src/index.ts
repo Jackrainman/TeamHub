@@ -140,3 +140,5 @@ export * from './assembly.js';
 export * from './verticals/robotics.js';
 // Hermes 入站命令契约（HUB-HERMES-ADAPTER 最小链路）：命令枚举 + 参数 schema + 原始文本规则匹配（纯，无 I/O）。
 export * from './hermes.js';
+// 飞书集成配置（LARK-INTEG-CONFIG）：配置 CRUD 契约 + Hermes credential 端点契约。
+export * from './lark-integration.js';
