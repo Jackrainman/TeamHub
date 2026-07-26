@@ -74,9 +74,9 @@ npm --prefix apps/hub-console install
 
 ## 更多文档
 
-- 设计文档：[`docs/design/`](docs/design/)　·　决策记录：[`docs/planning/decisions.md`](docs/planning/decisions.md)
+- 设计文档：[`docs/design/`](docs/design/) · 设计约束：[`.harness/decisions.md`](.harness/decisions.md)
 - 项目缘起、痛点叙事、设计底线全文与 v0.3 历史：**[原版 README 归档](docs/archive/readme-pre-beta-2026-07.md)**
-- 内部事实源以 [`docs/planning/now.md`](docs/planning/now.md) 为准
+- 内部操作手册以 [`AGENTS.md`](AGENTS.md) 为准，待办见 [`.harness/todo.json`](.harness/todo.json)
 
 ---
 
