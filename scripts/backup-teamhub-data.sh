@@ -33,6 +33,42 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 command -v node >/dev/null 2>&1 || { echo "缺少 node（读回校验需要）" >&2; exit 127; }
 mkdir -p "$BACKUP_DIR"
 
+# ── 统一 SQLite 后端：VACUUM INTO 热备份（不停服） ──────────────────────────────────────
+if [[ "${TEAMHUB_BACKEND:-}" == "sqlite" ]]; then
+  DB_FILE="${TEAMHUB_DB_FILE:-${HOME}/teamhub-data/teamhub.sqlite}"
+  if [[ ! -f "$DB_FILE" ]]; then
+    echo "  [skip] 统一 SQLite 库不存在（$DB_FILE）——尚无数据"
+    exit 0
+  fi
+  DST="$BACKUP_DIR/teamhub.sqlite.$STAMP"
+  echo "== TeamHub 统一 SQLite 备份 @ $STAMP → $BACKUP_DIR"
+  node -e "
+    const { DatabaseSync } = require('node:sqlite');
+    const src = new DatabaseSync(process.argv[1], { readOnly: true });
+    src.exec(\"VACUUM INTO '\" + process.argv[2] + \"'\");
+    src.close();
+  " "$DB_FILE" "$DST"
+  # 校验：打开备份库，检查 user_version + schema_kind
+  if node -e "
+    const { DatabaseSync } = require('node:sqlite');
+    const db = new DatabaseSync(process.argv[1], { readOnly: true });
+    const uv = Number(db.prepare('PRAGMA user_version').get().user_version);
+    const kind = db.prepare('SELECT value FROM meta WHERE key = ?').get('schema_kind');
+    db.close();
+    if (uv < 1) { console.error('user_version=' + uv + '（期望>=1）'); process.exit(1); }
+    if (!kind || kind.value !== 'unified') { console.error('schema_kind 非 unified'); process.exit(1); }
+  " "$DST"; then
+    echo "  [ok]   统一 SQLite → $DST（读回校验通过）"
+  else
+    echo "  [FAIL] SQLite 备份读回校验失败" >&2
+    rm -f "$DST"
+    exit 1
+  fi
+  echo "完成：1 份统一 SQLite 已备份并校验。"
+  echo "提醒：归档物目录（图纸文件，默认 ~/teamhub-data/artifacts）不在本脚本内，需要时自行 tar/rsync。"
+  exit 0
+fi
+
 # 弱校验（仅 dist 缺失时回落）：能 JSON.parse 且顶层形状对（多数域=非空对象；baseline 域顶层是数组、
 # 且真实态空板下合法为 []）。**比启动加载弱**——放得过缺字段 / 字段类型错（如 tasks 非数组）的快照，
 # 这类快照备份「通过」却让 FileXStore.create 启动即崩，故仅兜底。

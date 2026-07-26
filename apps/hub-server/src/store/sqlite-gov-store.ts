@@ -1,5 +1,3 @@
-import { createRequire } from 'node:module';
-import type { DatabaseSync } from 'node:sqlite';
 import {
   GOVERNANCE_SCENARIO_NOW,
   GovernanceSnapshotSchema,
@@ -73,6 +71,7 @@ import type {
   TaskDraft,
 } from './gov-store.js';
 import { memberHasPmFlag } from '../authz.js';
+import { SqliteDatabase } from './sqlite-db.js';
 
 /**
  * SQLite 落盘实现（SS3 SQLite，product-redefine-2026-07 §4.4 / §9-③ + D-083 刀④）：与
@@ -105,14 +104,6 @@ import { memberHasPmFlag } from '../authz.js';
  * TEAMHUB_GOV_SQLITE_FILE）。kb/inv/baseline 三 store 本刀仍 JSON（不在本刀范围）。
  */
 
-// `node:sqlite` 经 createRequire 运行时加载（而非静态 import）：node24 内置模块，但 vitest 底层的
-// vite 解析器清单偏旧、会把静态 `import … from 'node:sqlite'` 的 id 去前缀成 `sqlite` 当普通包解析而报错
-// 「Failed to load url sqlite」。运行时 require 对 vite 不可见、node 原生可加载，绕过该坑（同 status.ts 用
-// createRequire 读 package.json 的先例）；类型仍走 `import type`（编译期擦除，vite 不处理）+ node-sqlite.d.ts。
-const nodeRequire = createRequire(import.meta.url);
-const { DatabaseSync: DatabaseSyncCtor } =
-  nodeRequire('node:sqlite') as typeof import('node:sqlite');
-
 /** SQLite schema 版本（PRAGMA user_version）。加表 / 改列语义时 +1 并补迁移分支（当前无历史版本需迁）。 */
 export const SQLITE_GOV_SCHEMA_VERSION = 1;
 
@@ -139,85 +130,36 @@ const ENTITY_TABLES = [
   'relay_handoffs',
 ] as const;
 
-type MetaRow = { value: string };
-type DataRow = { data: string };
-type IdRow = { id: string };
-type UserVersionRow = { user_version: number | bigint };
-
-/** 读 PRAGMA user_version（fresh DB = 0）。 */
-function readUserVersion(db: DatabaseSync): number {
-  const row = db.prepare('PRAGMA user_version').get() as UserVersionRow;
-  return Number(row.user_version);
-}
-
-/** 写 PRAGMA user_version（PRAGMA 不吃绑定参数，只内插自有整型常量，无注入面）。 */
-function setUserVersion(db: DatabaseSync, version: number): void {
-  db.exec(`PRAGMA user_version = ${version}`);
-}
-
-/** 建 schema（幂等，IF NOT EXISTS）：meta 标量键值表 + 全部域实体表。 */
-function createSchema(db: DatabaseSync): void {
-  db.exec('CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
-  for (const table of ENTITY_TABLES) {
-    db.exec(`CREATE TABLE IF NOT EXISTS "${table}" (id TEXT PRIMARY KEY, data TEXT NOT NULL)`);
-  }
-}
-
-function setMeta(db: DatabaseSync, key: string, value: string): void {
-  db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').run(key, value);
-}
-
-function bulkInsert(
-  db: DatabaseSync,
-  table: string,
-  items: ReadonlyArray<{ id: string }>,
-): void {
-  const stmt = db.prepare(`INSERT INTO "${table}" (id, data) VALUES (?, ?)`);
-  for (const item of items) stmt.run(item.id, JSON.stringify(item));
-}
-
-/**
- * fresh DB 首次落种子（镜像 InMemoryGovStore 构造）：GovernanceSnapshot 标量落 meta、11 数组字段各落其表；
- * schedule 域（resources/resourceSessions/relayHandoffs）**受 demoSeed 管**（K6 时钟与空板刀，与
- * InMemoryGovStore 同源、逐条镜像其构造）：demoSeed=true（默认）从 scheduleScenarioFixture seed，使
- * GET /api/schedule 首请求即有可派生场景；demoSeed=false（真实态）不落、schedule 三表空（真空板）。
- * 整个种子过程一个事务（要么全落要么全不落）。
- */
 function seedFreshDatabase(
-  db: DatabaseSync,
+  sdb: SqliteDatabase,
   seed: GovernanceSnapshot,
   demoSeed: boolean,
 ): void {
-  db.exec('BEGIN');
-  try {
-    setMeta(db, 'seasonId', seed.seasonId);
-    setMeta(db, 'projectId', seed.projectId);
-    setMeta(db, 'stage', seed.stage);
-    bulkInsert(db, 'seasons', seed.seasons ?? []);
-    bulkInsert(db, 'groups', seed.groups);
-    bulkInsert(db, 'members', seed.members);
-    bulkInsert(db, 'tasks', seed.tasks);
-    bulkInsert(db, 'dependencies', seed.dependencies);
-    bulkInsert(db, 'needs', seed.needs);
-    bulkInsert(db, 'knowledge_nodes', seed.knowledgeNodes);
-    bulkInsert(db, 'task_knowledge_tags', seed.taskKnowledgeTags);
-    bulkInsert(db, 'artifacts', seed.artifacts);
-    // schedule 域受 demoSeed 管（K6）：真实态不 seed 演示车/排班，schedule 三表空。
+  sdb.tx(() => {
+    sdb.setMeta('seasonId', seed.seasonId);
+    sdb.setMeta('projectId', seed.projectId);
+    sdb.setMeta('stage', seed.stage);
+    sdb.bulkInsert('seasons', seed.seasons ?? []);
+    sdb.bulkInsert('groups', seed.groups);
+    sdb.bulkInsert('members', seed.members);
+    sdb.bulkInsert('tasks', seed.tasks);
+    sdb.bulkInsert('dependencies', seed.dependencies);
+    sdb.bulkInsert('needs', seed.needs);
+    sdb.bulkInsert('knowledge_nodes', seed.knowledgeNodes);
+    sdb.bulkInsert('task_knowledge_tags', seed.taskKnowledgeTags);
+    sdb.bulkInsert('artifacts', seed.artifacts);
     if (demoSeed) {
-      bulkInsert(db, 'resources', scheduleScenarioFixture.resources);
-      bulkInsert(db, 'resource_sessions', scheduleScenarioFixture.resourceSessions);
-      bulkInsert(db, 'relay_handoffs', scheduleScenarioFixture.relayHandoffs);
+      sdb.bulkInsert('resources', scheduleScenarioFixture.resources);
+      sdb.bulkInsert('resource_sessions', scheduleScenarioFixture.resourceSessions);
+      sdb.bulkInsert('relay_handoffs', scheduleScenarioFixture.relayHandoffs);
     }
-    db.exec('COMMIT');
-  } catch (err) {
-    db.exec('ROLLBACK');
-    throw err;
-  }
+  });
 }
 
 export class SqliteGovStore implements GovStore {
-  private readonly db: DatabaseSync;
+  private readonly sdb: SqliteDatabase;
   private readonly clock: Clock;
+  private readonly ownsDb: boolean;
 
   // id 单调自增序列（复用 SS1 id-sequence.ts）：打开时从各表既有 id 的 `<prefix>-N` 最大后缀重建
   // （见 resyncSequences），首条 create 得 max+1、只增不减。
@@ -227,133 +169,99 @@ export class SqliteGovStore implements GovStore {
   private knowledgeNodeSeq!: IdSequence;
   private artifactSeq!: IdSequence;
   private seasonSeq!: IdSequence;
-  // 名册导入（ROSTER-IMPORT，K8）：从各表既有 `member-new-N` / `grp-new-N` 最大后缀重建（resyncSequences）。
   private memberSeq!: IdSequence;
   private groupSeq!: IdSequence;
   private resourceSeq!: IdSequence;
   private resourceSessionSeq!: IdSequence;
   private relayHandoffSeq!: IdSequence;
 
-  private constructor(db: DatabaseSync, clock?: Clock) {
-    this.db = db;
-    // 不传 clock 时沿用与 InMemoryGovStore/FileGovStore 相同的默认（FixedClock(GOVERNANCE_SCENARIO_NOW)），
-    // 与 real 路由同口径（行为参数化复跑时时间戳与 InMemory 一致）。
+  private constructor(sdb: SqliteDatabase, ownsDb: boolean, clock?: Clock) {
+    this.sdb = sdb;
+    this.ownsDb = ownsDb;
     this.clock = clock ?? new FixedClock(new Date(GOVERNANCE_SCENARIO_NOW));
     this.resyncSequences();
   }
 
-  /**
-   * 异步构造：打开（不存在则创建）SQLite 文件。
-   *  - user_version > 本代码支持版本 → **fail-closed 抛**（拒绝降级读写损坏更高版本数据）。
-   *  - user_version === 0（fresh 文件）→ 建 schema + 落种子（seed 快照 + schedule 锚点）+ 钉 user_version。
-   *  - user_version === 支持版本（迁移脚本产出 / 既有库）→ 幂等补建全表（迁移脚本可能只建了用到的表）。
-   * 打开后走 `GovernanceSnapshotSchema.parse(getSnapshot())` 做一次 fail-closed 校验（镜像 FileGovStore
-   * 加载即校验；旧库缺新增字段经 schema `.default([])` 兜底、不炸——D-080 向后兼容）。
-   */
   static async create(
     filePath: string,
     seed: GovernanceSnapshot = governanceScenarioFixture,
     clock?: Clock,
     demoSeed = true,
   ): Promise<SqliteGovStore> {
-    const db = new DatabaseSyncCtor(filePath);
-    const userVersion = readUserVersion(db);
+    const sdb = SqliteDatabase.open(filePath);
+    const userVersion = sdb.readUserVersion();
     if (userVersion > SQLITE_GOV_SCHEMA_VERSION) {
-      db.close();
+      sdb.close();
       throw new Error(
         `SqliteGovStore: 数据库 schema 版本 ${userVersion} 高于本代码支持的 ${SQLITE_GOV_SCHEMA_VERSION}` +
           '（fail-closed：拒绝以旧代码读写更高版本数据，避免静默损坏）',
       );
     }
     if (userVersion === 0) {
-      // fresh：先建表落种子，成功后才钉 user_version（种子失败则库仍是 0、可重试）。
-      // demoSeed 透传决定 schedule 域是否 seed 演示锚点（false=真空板，K6）；已迁移/既有库走 else 分支、不受影响。
-      createSchema(db);
-      seedFreshDatabase(db, seed, demoSeed);
-      setUserVersion(db, SQLITE_GOV_SCHEMA_VERSION);
+      sdb.ensureMetaTable();
+      sdb.ensureEntityTables(ENTITY_TABLES);
+      seedFreshDatabase(sdb, seed, demoSeed);
+      sdb.setUserVersion(SQLITE_GOV_SCHEMA_VERSION);
     } else {
-      createSchema(db);
+      sdb.ensureMetaTable();
+      sdb.ensureEntityTables(ENTITY_TABLES);
     }
 
-    const store = new SqliteGovStore(db, clock);
-    // fail-closed 加载校验（与 FileGovStore.create 的 GovernanceSnapshotSchema.parse 同纪律）。
+    const store = new SqliteGovStore(sdb, true, clock);
     GovernanceSnapshotSchema.parse(await store.getSnapshot());
     return store;
   }
 
-  /** 关闭底层 DB 句柄（测试模拟重启 / 进程退出前调用；main.ts 长驻进程不主动调）。 */
-  close(): void {
-    this.db.close();
+  static fromSharedDb(
+    sdb: SqliteDatabase,
+    seed: GovernanceSnapshot = governanceScenarioFixture,
+    clock?: Clock,
+    demoSeed = true,
+  ): SqliteGovStore {
+    sdb.ensureEntityTables(ENTITY_TABLES);
+    const existing = sdb.allRows('tasks');
+    if (existing.length === 0 && sdb.getMeta('seasonId') === undefined) {
+      seedFreshDatabase(sdb, seed, demoSeed);
+    }
+    return new SqliteGovStore(sdb, false, clock);
   }
 
-  // ── 低层行操作（文档式行存：整实体 JSON 落 data 列） ─────────────────────────────────
+  close(): void {
+    if (this.ownsDb) this.sdb.close();
+  }
+
+  // ── 低层行操作（委托 SqliteDatabase） ─────────────────────────────────
 
   private allRows<T>(table: string): T[] {
-    const rows = this.db
-      .prepare(`SELECT data FROM "${table}" ORDER BY rowid`)
-      .all() as DataRow[];
-    return rows.map((r) => JSON.parse(r.data) as T);
+    return this.sdb.allRows<T>(table);
   }
 
   private getRow<T>(table: string, id: string): T | undefined {
-    const row = this.db
-      .prepare(`SELECT data FROM "${table}" WHERE id = ?`)
-      .get(id) as DataRow | undefined;
-    return row ? (JSON.parse(row.data) as T) : undefined;
+    return this.sdb.getRow<T>(table, id);
   }
 
   private insertRow(table: string, id: string, value: unknown): void {
-    this.db
-      .prepare(`INSERT INTO "${table}" (id, data) VALUES (?, ?)`)
-      .run(id, JSON.stringify(value));
+    this.sdb.insertRow(table, id, value);
   }
 
-  /** 就地更新（不换 rowid、保插入序）；返回受影响行数（0 = id 不存在）。 */
   private updateRow(table: string, id: string, value: unknown): number {
-    return Number(
-      this.db
-        .prepare(`UPDATE "${table}" SET data = ? WHERE id = ?`)
-        .run(JSON.stringify(value), id).changes,
-    );
+    return this.sdb.updateRow(table, id, value);
   }
 
   private deleteRow(table: string, id: string): number {
-    return Number(this.db.prepare(`DELETE FROM "${table}" WHERE id = ?`).run(id).changes);
+    return this.sdb.deleteRow(table, id);
   }
 
   private getMeta(key: string): string | undefined {
-    const row = this.db
-      .prepare('SELECT value FROM meta WHERE key = ?')
-      .get(key) as MetaRow | undefined;
-    return row?.value;
+    return this.sdb.getMeta(key);
   }
 
-  /** 每个写方法把 DB 变更包进一个事务：异常回滚，保证多语句写（级联删/批量建/upsert）原子性。 */
   private tx<T>(fn: () => T): T {
-    this.db.exec('BEGIN');
-    try {
-      const result = fn();
-      this.db.exec('COMMIT');
-      return result;
-    } catch (err) {
-      this.db.exec('ROLLBACK');
-      throw err;
-    }
+    return this.sdb.tx(fn);
   }
 
-  /** 从某表既有 id 里扫 `<prefix>-N` 的最大 N（镜像 InMemoryGovStore.resyncResourceSeq）。 */
   private maxSuffix(table: string, prefix: string): number {
-    const rows = this.db.prepare(`SELECT id FROM "${table}"`).all() as IdRow[];
-    const re = new RegExp(`^${prefix}-(\\d+)$`);
-    let max = 0;
-    for (const { id } of rows) {
-      const m = re.exec(id);
-      if (m) {
-        const n = Number(m[1]);
-        if (n > max) max = n;
-      }
-    }
-    return max;
+    return this.sdb.maxSuffix(table, prefix);
   }
 
   /** 打开后重建全部 id 序列（从各表最大后缀起步，复用 SS1 createIdSequence 纯工厂）。 */

@@ -21,11 +21,14 @@ import {
   deriveScheduleSessionsFilePath,
 } from './store/file-gov-store.js';
 import { SqliteGovStore } from './store/sqlite-gov-store.js';
+import { openUnifiedDb, defaultSeeds } from './store/sqlite-unified.js';
 import { FileKbStore } from './store/file-kb-store.js';
 import { FileInvStore } from './store/file-inv-store.js';
 import { FileBaselineStore } from './store/file-baseline-store.js';
 import { FileChecklistStore } from './store/file-checklist-store.js';
-import type { GovStore } from './store/gov-store.js';
+import type { GovStore, KbStore, InvStore } from './store/gov-store.js';
+import type { BaselineStore } from './store/baseline-store.js';
+import type { ChecklistStore } from './store/checklist-store.js';
 import { getArtifactDir } from './artifact-storage.js';
 import { resolveBuildId } from './status.js';
 import { parseTenantConfigEnv } from './tenant-config-env.js';
@@ -136,8 +139,33 @@ async function main(): Promise<void> {
   // kb/baseline/checklist 三 store 本身不吃 clock（其 createdAt 由路由层 clock=buildHubServer options 注入），
   // 故只 gov/inv store 工厂 + server options 三处显式透传；逐个 grep 确认无遗漏（clock.ts 全仓消费点）。
   const clock: Clock | undefined = demoSeed ? undefined : new RealClock();
-  const govSeed = demoSeed ? governanceScenarioFixture : emptyGovSnapshot();
+
+  // ── 统一 SQLite 后端（TEAMHUB_BACKEND=sqlite）：五域共库，一个 TEAMHUB_DB_FILE 取代六条路径 ──────
+  const unifiedBackend = process.env.TEAMHUB_BACKEND === 'sqlite';
   let store: GovStore | undefined;
+  let kbStore: KbStore | undefined;
+  let invStore: InvStore | undefined;
+  let baselineStore: BaselineStore | undefined;
+  let checklistStore: ChecklistStore | undefined;
+  let unifiedClose: (() => void) | undefined;
+
+  if (unifiedBackend) {
+    const dbFile = process.env.TEAMHUB_DB_FILE;
+    if (!dbFile) {
+      throw new Error('TEAMHUB_BACKEND=sqlite 需同时设 TEAMHUB_DB_FILE（统一 SQLite 库文件路径）');
+    }
+    const seeds = defaultSeeds(demoSeed);
+    const unified = openUnifiedDb(dbFile, { seeds, clock });
+    store = unified.gov;
+    kbStore = unified.kb;
+    invStore = unified.inv;
+    baselineStore = unified.baseline;
+    checklistStore = unified.checklist;
+    unifiedClose = unified.close;
+    await store.ensureDefaultGroups();
+  } else {
+  // ── 旧路径：逐域 env 选 JSON / InMemory ──────────────────────────────────────────────────────
+  const govSeed = demoSeed ? governanceScenarioFixture : emptyGovSnapshot();
   if (govBackend === 'sqlite') {
     const sqliteFile = process.env.TEAMHUB_GOV_SQLITE_FILE;
     if (!sqliteFile) {
@@ -168,23 +196,20 @@ async function main(): Promise<void> {
   // 设了 TEAMHUB_KB_DATA_FILE → 知识库语料落盘（重启不丢、closeout 回灌累积）；
   // 未设则维持 InMemoryKbStore（mock-first 不变）。单一真相在服务器。
   const kbDataFile = process.env.TEAMHUB_KB_DATA_FILE;
-  const kbStore = kbDataFile
+  kbStore = kbDataFile
     ? await FileKbStore.create(
         kbDataFile,
         demoSeed ? kbScenarioFixture : emptyKbSnapshot(),
       )
     : undefined;
   if (!kbStore) {
-    // 内存模式无落盘：结案回灌的 KB 语料重启即丢。提示设 TEAMHUB_KB_DATA_FILE 落盘。
     console.warn(
       '[teamhub-hub-server] TEAMHUB_KB_DATA_FILE 未设：知识库语料走内存（InMemoryKbStore），重启丢失。设该环境变量落盘持久化。',
     );
   }
 
-  // 设了 TEAMHUB_INV_DATA_FILE → 库存 / BOM 落盘（重启不丢，盘点 / 拆装 / 一句话快记累积）；
-  // 未设则维持 InMemoryInvStore（mock-first 不变）。单一真相在服务器，与 Gov/KB 同一套落盘纪律。
   const invDataFile = process.env.TEAMHUB_INV_DATA_FILE;
-  const invStore = invDataFile
+  invStore = invDataFile
     ? await FileInvStore.create(
         invDataFile,
         demoSeed ? inventoryScenarioFixture : emptyInventorySnapshot(),
@@ -197,13 +222,8 @@ async function main(): Promise<void> {
     );
   }
 
-  // 设了 TEAMHUB_BASELINE_DATA_FILE → 倒排基准线落盘（重启不丢，队长手写覆盖 / 验证门过门留痕累积）；
-  // 独立文件 baseline.json（红线3：不进 TEAMHUB_GOV_DATA_FILE/GovernanceSnapshot）。未设则维持
-  // InMemoryBaselineStore（mock-first 不变）。新建落盘文件按 demoSeed 落三版车演示基准线（S6 接上，
-  // 同 gov/kb/inv 一套开关）：demoSeed → baselineScenarioFixture（首屏非空）；dataMode='real'
-  // → 空数组（真实团队首次 PATCH /api/baseline 生成自己的模板）。已有文件按原样加载、不受此 flag 影响。
   const baselineDataFile = process.env.TEAMHUB_BASELINE_DATA_FILE;
-  const baselineStore = baselineDataFile
+  baselineStore = baselineDataFile
     ? await FileBaselineStore.create(
         baselineDataFile,
         demoSeed ? baselineScenarioFixture : [],
@@ -215,13 +235,8 @@ async function main(): Promise<void> {
     );
   }
 
-  // 设了 TEAMHUB_CHECKLIST_DATA_FILE → 门检查单 / 欠条落盘（重启不丢，现场快记欠条 / 清偿 / 豁免留痕累积）；
-  // 独立文件 checklist.json（红线：轻量域不进 TEAMHUB_GOV_DATA_FILE/GovernanceSnapshot，照 baseline.json 先例）。
-  // 未设则维持 InMemoryChecklistStore（mock-first 不变）。新建落盘文件按 demoSeed 落两条演示欠条 + 空模板（同
-  // gov/kb/inv/baseline 一套开关）：demoSeed → checklistScenarioFixture（首屏门检查单卡 / 告警区非空）；
-  // dataMode='real' → 空（真实团队现场快记自己的欠条）。已有文件按原样加载、不受此 flag 影响。
   const checklistDataFile = process.env.TEAMHUB_CHECKLIST_DATA_FILE;
-  const checklistStore = checklistDataFile
+  checklistStore = checklistDataFile
     ? await FileChecklistStore.create(
         checklistDataFile,
         demoSeed ? checklistScenarioFixture : [],
@@ -232,6 +247,7 @@ async function main(): Promise<void> {
       '[teamhub-hub-server] TEAMHUB_CHECKLIST_DATA_FILE 未设：门检查单 / 欠条走内存（InMemoryChecklistStore），重启丢失。设该环境变量落盘持久化。',
     );
   }
+  } // end else (non-unified backend)
 
   // IDENTITY-LITE（D-083 §4.2）：轻身份登录双模式，来源 = config.identityMode（SETUP-WIZARD 刀①，模式类
   // env 已退役）。'anonymous' = 匿名模式（身份模块不启用、session 端点禁用、写路由信客户端自报 actor、写门
@@ -266,25 +282,33 @@ async function main(): Promise<void> {
   // 由 GET /api/system/status 回显。**只报后端类型与路径**（与真实落盘同源读同一批 env，故不会漂移），
   // **绝不含密钥**（writeToken 等一律不进 deployment）。每条 storage 直接读上面已创建的 store 变量派生：
   // store 存在 = 该域落盘（file/sqlite），undefined = 内存。
-  const storage: DeploymentInfo['storage'] = [
-    govBackend === 'sqlite'
-      ? { domain: 'gov', backend: 'sqlite', path: process.env.TEAMHUB_GOV_SQLITE_FILE }
-      : store
-        ? { domain: 'gov', backend: 'file', path: process.env.TEAMHUB_GOV_DATA_FILE }
-        : { domain: 'gov', backend: 'memory' },
-    kbStore
-      ? { domain: 'kb', backend: 'file', path: process.env.TEAMHUB_KB_DATA_FILE }
-      : { domain: 'kb', backend: 'memory' },
-    invStore
-      ? { domain: 'inv', backend: 'file', path: process.env.TEAMHUB_INV_DATA_FILE }
-      : { domain: 'inv', backend: 'memory' },
-    baselineStore
-      ? { domain: 'baseline', backend: 'file', path: process.env.TEAMHUB_BASELINE_DATA_FILE }
-      : { domain: 'baseline', backend: 'memory' },
-    checklistStore
-      ? { domain: 'checklist', backend: 'file', path: process.env.TEAMHUB_CHECKLIST_DATA_FILE }
-      : { domain: 'checklist', backend: 'memory' },
-  ];
+  const storage: DeploymentInfo['storage'] = unifiedBackend
+    ? [
+        { domain: 'gov', backend: 'sqlite', path: process.env.TEAMHUB_DB_FILE },
+        { domain: 'kb', backend: 'sqlite', path: process.env.TEAMHUB_DB_FILE },
+        { domain: 'inv', backend: 'sqlite', path: process.env.TEAMHUB_DB_FILE },
+        { domain: 'baseline', backend: 'sqlite', path: process.env.TEAMHUB_DB_FILE },
+        { domain: 'checklist', backend: 'sqlite', path: process.env.TEAMHUB_DB_FILE },
+      ]
+    : [
+        govBackend === 'sqlite'
+          ? { domain: 'gov', backend: 'sqlite', path: process.env.TEAMHUB_GOV_SQLITE_FILE }
+          : store
+            ? { domain: 'gov', backend: 'file', path: process.env.TEAMHUB_GOV_DATA_FILE }
+            : { domain: 'gov', backend: 'memory' },
+        kbStore
+          ? { domain: 'kb', backend: 'file', path: process.env.TEAMHUB_KB_DATA_FILE }
+          : { domain: 'kb', backend: 'memory' },
+        invStore
+          ? { domain: 'inv', backend: 'file', path: process.env.TEAMHUB_INV_DATA_FILE }
+          : { domain: 'inv', backend: 'memory' },
+        baselineStore
+          ? { domain: 'baseline', backend: 'file', path: process.env.TEAMHUB_BASELINE_DATA_FILE }
+          : { domain: 'baseline', backend: 'memory' },
+        checklistStore
+          ? { domain: 'checklist', backend: 'file', path: process.env.TEAMHUB_CHECKLIST_DATA_FILE }
+          : { domain: 'checklist', backend: 'memory' },
+      ];
   const deployment: DeploymentInfo = {
     // SETUP-WIZARD 刀③：数据形态回显——设置页「部署配置」据此决定是否显示「结束试驾，转正式」按钮（仅 demo）。
     dataMode: config.dataMode,
@@ -302,12 +326,13 @@ async function main(): Promise<void> {
   // 内存 / 未配落盘时天然缺席）。**gov 域 JSON 后端另有两份 sibling**（resources.json / schedule-sessions.json，
   // R3 车 + 排班占用/接力，与 gov.json 同目录）——不一并挪走，demo 车 / 排班在真空板重启后还在，故用 store 的
   // 派生函数同源补上（sqlite 后端整库一个文件、无 sibling）。
-  const govDataFileForArchive =
-    govBackend === 'sqlite'
+  const govDataFileForArchive = unifiedBackend
+    ? process.env.TEAMHUB_DB_FILE
+    : govBackend === 'sqlite'
       ? process.env.TEAMHUB_GOV_SQLITE_FILE
       : process.env.TEAMHUB_GOV_DATA_FILE;
   const govSiblingFiles =
-    govBackend === 'json' && govDataFileForArchive
+    !unifiedBackend && govBackend === 'json' && govDataFileForArchive
       ? [
           deriveResourcesFilePath(govDataFileForArchive),
           deriveScheduleSessionsFilePath(govDataFileForArchive),
