@@ -727,6 +727,9 @@ const zh = {
   // 加棒缺项两条可执行引导（§2，替原 addEmpty 死胡同）
   'schedule.relay.addEmptyRobot': '还没有可上场的机器人，先在上面新建一台。',
   'schedule.relay.addEmptyTask': '还没有任务可排，先去项目看板建一条任务。',
+  'schedule.relay.addTaskExisting': '选已有任务',
+  'schedule.relay.addTaskNew': '就地新建',
+  'schedule.relay.addTaskNewPlaceholder': '输入新任务标题…',
 
   // 表格⇄泳道图切换（D-082 §5）
   'schedule.view.switchLabel': '切换今日计划的看法',
@@ -2084,6 +2087,9 @@ const en: Record<TranslationKey, string> = {
   'schedule.relay.addEmptyRobot': 'No robot available yet — add one above first.',
   'schedule.relay.addEmptyTask':
     'No task to schedule yet — create one on the project board first.',
+  'schedule.relay.addTaskExisting': 'Pick existing',
+  'schedule.relay.addTaskNew': 'Create new',
+  'schedule.relay.addTaskNewPlaceholder': 'Enter new task title…',
 
   // Table <-> swimlane switch (D-082 §5)
   'schedule.view.switchLabel': "Switch how today's plan is shown",

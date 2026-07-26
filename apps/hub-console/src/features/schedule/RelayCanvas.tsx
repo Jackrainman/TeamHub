@@ -697,6 +697,7 @@ export function RelayCanvas({
 
   const addForm = showAddForm ? (
     <AddLegForm
+      client={client}
       resources={boardableResources}
       tasks={tasks}
       pending={createSessionMutation.isPending}
@@ -828,12 +829,14 @@ export function RelayCanvas({
  * **反监视红线**：表单只收机器人 / 任务，绝不收 / 显任何成员维度（memberId / 出勤）。
  */
 function AddLegForm({
+  client,
   resources,
   tasks,
   pending,
   onSubmit,
   onCancel,
 }: {
+  client: HubApiClient;
   resources: SharedResource[];
   tasks: Task[];
   pending: boolean;
@@ -848,22 +851,30 @@ function AddLegForm({
   const { t } = useI18n();
   const [resourceId, setResourceId] = useState(resources[0]?.id ?? '');
   const [taskId, setTaskId] = useState('');
+  const [newTaskMode, setNewTaskMode] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newGroupId, setNewGroupId] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // 冷启动：机器人列表初次为空 → 重填后同步缺省（不覆盖用户已选）。
   useEffect(() => {
     if (!resourceId && resources[0]) setResourceId(resources[0].id);
   }, [resources, resourceId]);
 
   const resource = resources.find((r) => r.id === resourceId);
-  // 任务候选按当前所选机器人过滤（同 today-plan.ts candidateTasksForResource 的 robotTarget 对齐规则），
-  // 不然下拉能选到别的车专属任务。
   const candidateTasks = useMemo(
     () => (resource ? candidateTasksForResource(tasks, resource) : []),
     [tasks, resource],
   );
 
-  // resourceId（连带候选集合）变化时：已选 taskId 若不在新候选里 → 清空，不留一个不属于当前车的选中值；
-  // 未选且候选非空 → 补默认第一项（对齐原「冷启动补缺省」行为）。
+  const groupOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const tk of tasks) {
+      if (!seen.has(tk.groupId)) seen.set(tk.groupId, tk.groupId);
+    }
+    return [...seen.entries()];
+  }, [tasks]);
+
   useEffect(() => {
     if (taskId && !candidateTasks.some((tk) => tk.id === taskId)) {
       setTaskId('');
@@ -872,13 +883,48 @@ function AddLegForm({
     }
   }, [candidateTasks, taskId]);
 
-  const task = candidateTasks.find((tk) => tk.id === taskId);
-  const valid = Boolean(resource) && Boolean(task);
-  const noOptions = resources.length === 0 || candidateTasks.length === 0;
+  useEffect(() => {
+    if (!newGroupId && groupOptions[0]) setNewGroupId(groupOptions[0][0]);
+  }, [groupOptions, newGroupId]);
 
-  function submit(event: FormEvent) {
+  const task = candidateTasks.find((tk) => tk.id === taskId);
+  const validExisting = Boolean(resource) && Boolean(task);
+  const validNew = Boolean(resource) && newTitle.trim().length > 0 && Boolean(newGroupId);
+  const valid = newTaskMode ? validNew : validExisting;
+  const noOptions = resources.length === 0;
+
+  async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!valid || !resource || !task) return;
+    if (!valid || !resource) return;
+    setError(null);
+
+    if (newTaskMode) {
+      setCreating(true);
+      try {
+        const res = await client.createTask({
+          projectId: resource.projectId,
+          groupId: newGroupId,
+          title: newTitle.trim(),
+          rawSummary: newTitle.trim(),
+          robotTarget: resource.robotTarget,
+          intrinsicComplexity: 'normal',
+          ownerId: null,
+          collaboratorIds: [],
+        });
+        onSubmit({
+          resourceId: resource.id,
+          projectId: resource.projectId,
+          taskId: res.task.id,
+          groupId: newGroupId,
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'failed');
+        setCreating(false);
+      }
+      return;
+    }
+
+    if (!task) return;
     onSubmit({
       resourceId: resource.id,
       projectId: resource.projectId,
@@ -886,6 +932,8 @@ function AddLegForm({
       groupId: task.groupId,
     });
   }
+
+  const busy = pending || creating;
 
   return (
     <section
@@ -907,15 +955,7 @@ function AddLegForm({
         </button>
       </header>
       {noOptions ? (
-        // 拆成两条可执行引导（替原 addEmpty 死胡同）：缺机器人 → 同页上方就地建；缺任务 → 去项目看板。
-        // 早退提示统一走 FormEmptyState（吐同款 p.form-hint）；双提示按缺哪类候选派生文案。
-        <FormEmptyState
-          message={
-            resources.length === 0
-              ? t('schedule.relay.addEmptyRobot')
-              : t('schedule.relay.addEmptyTask')
-          }
-        />
+        <FormEmptyState message={t('schedule.relay.addEmptyRobot')} />
       ) : (
         <form className="pm-form" onSubmit={submit}>
           <FormGrid>
@@ -932,22 +972,64 @@ function AddLegForm({
               </select>
             </Field>
             <Field label={t('schedule.relay.addTask')}>
-              <select value={taskId} onChange={(e) => setTaskId(e.target.value)}>
-                {candidateTasks.map((tk) => (
-                  <option value={tk.id} key={tk.id}>
-                    {tk.title}
-                  </option>
-                ))}
-              </select>
+              <div className="relay-add__task-toggle">
+                <button
+                  type="button"
+                  className={`btn btn--sm ${!newTaskMode ? 'btn--primary' : ''}`}
+                  onClick={() => setNewTaskMode(false)}
+                >
+                  {t('schedule.relay.addTaskExisting')}
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn--sm ${newTaskMode ? 'btn--primary' : ''}`}
+                  onClick={() => setNewTaskMode(true)}
+                >
+                  {t('schedule.relay.addTaskNew')}
+                </button>
+              </div>
+              {!newTaskMode ? (
+                candidateTasks.length > 0 ? (
+                  <select value={taskId} onChange={(e) => setTaskId(e.target.value)}>
+                    {candidateTasks.map((tk) => (
+                      <option value={tk.id} key={tk.id}>
+                        {tk.title}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="form-hint">{t('schedule.relay.addEmptyTask')}</p>
+                )
+              ) : (
+                <>
+                  <input
+                    className="input"
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    placeholder={t('schedule.relay.addTaskNewPlaceholder')}
+                  />
+                  <select
+                    value={newGroupId}
+                    onChange={(e) => setNewGroupId(e.target.value)}
+                  >
+                    {groupOptions.map(([gid]) => (
+                      <option value={gid} key={gid}>
+                        {gid}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
             </Field>
           </FormGrid>
+          {error && <p className="form-hint form-hint--warn">{error}</p>}
           <div className="pm-form__footer">
             <button
               className="btn btn--primary"
               type="submit"
-              disabled={!valid || pending}
+              disabled={!valid || busy}
             >
-              {pending
+              {busy
                 ? t('schedule.relay.addSubmitting')
                 : t('schedule.relay.addSubmit')}
             </button>
