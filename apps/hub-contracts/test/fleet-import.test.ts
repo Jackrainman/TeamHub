@@ -12,11 +12,11 @@ import {
  * 编码探测已抽 csv-core 两域共用（库存侧已钉消费点），这里不重复。
  */
 describe('buildFleetTemplateCsv', () => {
-  test('表头 + 提示行：BOM + 五列（名称/编号/赛季码/第几代/状态）+ CRLF', () => {
+  test('表头 + 示例行：BOM + 五列（名称/编号/赛季码/第几代/状态）+ CRLF', () => {
     const csv = buildFleetTemplateCsv();
     expect(csv.charCodeAt(0)).toBe(0xfeff);
     expect(csv).toContain('名称,编号,赛季码,第几代,状态');
-    expect(csv).toContain('# 编号可选：R1/R2/共用');
+    expect(csv).toContain('R1 比赛机器人,R1,27,1,能用');
   });
 });
 

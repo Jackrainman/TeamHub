@@ -917,12 +917,20 @@ function FleetStep({
                       </select>
                     </td>
                     <td>
-                      <input
+                      <select
                         value={row.season}
                         onChange={(e) => patchRow(idx, { season: e.target.value })}
-                        placeholder={suggestFleetSeasonCode(new Date())}
-                        size={4}
-                      />
+                      >
+                        <option value="">{t('gate.fleet.seasonNone')}</option>
+                        {seasonYearOptions(new Date()).years.map((y) => {
+                          const code = String(y).slice(-2);
+                          return (
+                            <option value={code} key={code}>
+                              {code}
+                            </option>
+                          );
+                        })}
+                      </select>
                     </td>
                     <td>
                       <input

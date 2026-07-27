@@ -23,9 +23,9 @@ import { RESOURCE_INIT_STATUSES } from './pm-requests.js';
 // 五列：名称 / 编号（R1·R2·共用）/ 赛季码（后两位，可空）/ 第几代（可空=默认 1）/ 状态（能用·在修·退役·停用，可空=能用）。
 export const FLEET_TEMPLATE_HEADERS = ['名称', '编号', '赛季码', '第几代', '状态'] as const;
 
-/** 构造车队导入 CSV 模板（表头 + 提示行，带 BOM + CRLF——Excel 友好）。GET /api/resources/template 直接回此串。 */
+/** 构造车队导入 CSV 模板（表头 + 示例行，带 BOM + CRLF——Excel 友好）。GET /api/resources/template 直接回此串。 */
 export function buildFleetTemplateCsv(): string {
-  return `${UTF8_BOM}${FLEET_TEMPLATE_HEADERS.join(',')}\r\n# 编号可选：R1/R2/共用,状态可选：能用/在修/退役/停用（空=能用）\r\n`;
+  return `${UTF8_BOM}${FLEET_TEMPLATE_HEADERS.join(',')}\r\nR1 比赛机器人,R1,27,1,能用\r\n共用备件车,共用,,2,在修\r\n`;
 }
 
 // ── 中文编号位 / 状态 → 枚举（照名册 GRADE_BY_LABEL 范式；非法值该行报错进报告、不中断整批）────────────

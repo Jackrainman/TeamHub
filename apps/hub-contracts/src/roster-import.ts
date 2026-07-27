@@ -28,9 +28,9 @@ export { decodeCsvBytes as decodeRosterBytes } from './csv-core.js';
 // （大三及以上，见 GATE_REVIEWER_DEFAULT_GRADES）。解析器不再产 role。
 export const ROSTER_TEMPLATE_HEADERS = ['姓名', '年级', '组'] as const;
 
-/** 构造名册导入 CSV 模板（表头 + 提示行，带 BOM + CRLF——Excel 友好）。GET /api/roster/template 直接回此串。 */
+/** 构造名册导入 CSV 模板（表头 + 示例行，带 BOM + CRLF——Excel 友好）。GET /api/roster/template 直接回此串。 */
 export function buildRosterTemplateCsv(): string {
-  return `${UTF8_BOM}${ROSTER_TEMPLATE_HEADERS.join(',')}\r\n# 年级可选：大一/大二/大三/大四/研一/研二/研三,组填中文组名（电控/视觉/机械/电路）\r\n`;
+  return `${UTF8_BOM}${ROSTER_TEMPLATE_HEADERS.join(',')}\r\n张三,大二,电控\r\n李四,研一,视觉\r\n`;
 }
 
 // ── 中文年级 → grade 枚举（K8 拍板③ + GRADE-7-TIERS 刀⑥）───────────────────────────────────────
