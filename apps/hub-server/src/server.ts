@@ -127,6 +127,8 @@ import {
   ReviewTaskResponseSchema,
   TasksQuerySchema,
   LarkConfigSaveRequestSchema,
+  LarkPushReminderResponseSchema,
+  deriveBaselineDrift,
 } from './contracts.js';
 import type {
   IssueCard,
@@ -213,6 +215,7 @@ import { SessionManager } from './identity/session-store.js';
 import { deriveErrorCode } from './kb/error-code.js';
 import { FixedClock } from './clock.js';
 import type { Clock } from './clock.js';
+import { sendLarkMessage } from './lark-client.js';
 import { InMemoryGovStore } from './store/mock-gov-store.js';
 import { InMemoryKbStore } from './store/mock-kb-store.js';
 import { InMemoryInvStore } from './store/mock-inv-store.js';
@@ -498,6 +501,7 @@ interface ModuleRouteCtx {
   // SETUP-WIZARD-ROSTER 刀②：内存会话表（匿名模式 null）——POST /api/setup/super-admin 的 bootstrap
   // 路径一笔落库后签发会话 cookie（建人+授旗+设 PIN+登录态），免操作者再登一次。
   sessions: SessionManager | null;
+  larkStore?: import('./store/lark-integration-store.js').LarkIntegrationStore;
 }
 
 // ============================================================================
@@ -1535,6 +1539,16 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     if (!claimed) {
       void reply.code(404).send({ detail: 'task not found' });
       return;
+    }
+    if (ctx.larkStore) {
+      const cfg = ctx.larkStore.getConfig();
+      if (cfg?.status === 'connected') {
+        const claimer = snapshot.members.find((m) => m.id === memberId);
+        const name = claimer?.displayName ?? memberId;
+        void sendLarkMessage(cfg.appId, cfg.appSecret, cfg.chatId,
+          `[认领] ${claimed.title} ← ${name}`,
+        ).catch(() => {});
+      }
     }
     return ClaimTaskResponseSchema.parse({ task: claimed });
   });
@@ -3330,6 +3344,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     identityMode,
     trustProxy,
     sessions,
+    larkStore: options.larkStore,
   };
   const moduleEnabled = (id: ModuleId): boolean => isModuleEnabled(tenantConfig, id);
 
@@ -3605,6 +3620,43 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
         return;
       }
       return { token: larkStore.getWriteToken() };
+    });
+
+    app.post('/api/integrations/lark/push-reminder', async (request, reply) => {
+      const cfg = larkStore.getConfig();
+      if (!cfg || cfg.status !== 'connected') {
+        void reply.code(400).send({ detail: '飞书未配置或未连接' });
+        return;
+      }
+      const snapshot = await store.getSnapshot();
+      const now = clock.now();
+      let redCount = 0;
+      let yellowCount = 0;
+      const lines: string[] = [];
+      for (const season of snapshot.seasons) {
+        const baseline = await baselineStore.getBaseline(season.id);
+        if (!baseline) continue;
+        const drifts = deriveBaselineDrift(baseline, snapshot.tasks, now);
+        for (const d of drifts) {
+          if (d.level === 'green') continue;
+          const ms = baseline.milestones.find((m) => m.id === d.milestoneId);
+          if (!ms) continue;
+          if (d.level === 'red') redCount++;
+          else yellowCount++;
+          const icon = d.level === 'red' ? '🔴' : '🟡';
+          lines.push(`${icon} ${ms.title}（挂接任务 ${d.attachedDone}/${d.attachedTotal} 完成）`);
+        }
+      }
+      if (lines.length === 0) {
+        return LarkPushReminderResponseSchema.parse({ ok: true, pushed: false, redCount: 0, yellowCount: 0 });
+      }
+      const text = `[里程碑提醒]\n${lines.join('\n')}`;
+      const result = await sendLarkMessage(cfg.appId, cfg.appSecret, cfg.chatId, text);
+      if (!result.ok) {
+        void reply.code(502).send({ detail: result.error ?? 'send failed' });
+        return;
+      }
+      return LarkPushReminderResponseSchema.parse({ ok: true, pushed: true, redCount, yellowCount });
     });
   }
 

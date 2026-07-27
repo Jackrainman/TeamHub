@@ -40,3 +40,14 @@ export const HermesCredentialResponseSchema = z.object({
   token: z.string().min(1),
 });
 export type HermesCredentialResponse = z.infer<typeof HermesCredentialResponseSchema>;
+
+// ─── 出站推送（LARK-OUTBOUND-PUSH）────────────────────────────────────────────
+
+export const LarkPushReminderResponseSchema = z.object({
+  ok: z.boolean(),
+  pushed: z.boolean(),
+  redCount: z.number(),
+  yellowCount: z.number(),
+  error: z.string().optional(),
+});
+export type LarkPushReminderResponse = z.infer<typeof LarkPushReminderResponseSchema>;
