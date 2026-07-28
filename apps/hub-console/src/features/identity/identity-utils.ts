@@ -1,4 +1,4 @@
-import type { IdentityMode, MemberPublic, SessionIdentity } from '@teamhub/hub-contracts';
+import type { ActorRef, IdentityMode, MemberPublic, SessionIdentity } from '@teamhub/hub-contracts';
 
 /**
  * 轻身份登录（IDENTITY-LITE，I2 console 接线）纯函数集——被 App.tsx / PmCreatePanel.tsx /
@@ -46,4 +46,8 @@ export function memberOptionLabel(
   id: string,
 ): string {
   return members.find((m) => m.id === id)?.displayName ?? id;
+}
+
+export function toActor(members: readonly MemberPublic[], id: string): ActorRef {
+  return { id, displayName: memberOptionLabel(members, id), source: 'console' };
 }

@@ -15,7 +15,7 @@ import { humanizeFormError } from '../../utils';
 import { Field } from '../../components/Field';
 import { Select } from '../../components/Select';
 import { FormBanner } from '../../components/FormBanner';
-import { memberOptionLabel } from '../identity/identity-utils';
+import { memberOptionLabel, toActor } from '../identity/identity-utils';
 import {
   POOL_STALE_DAYS,
   isStalePosted,
@@ -38,10 +38,6 @@ const STATUS_KEY: Record<TaskStatus, TranslationKey> = {
   done: 'pm.status.done',
   shelved: 'pm.status.shelved',
 };
-
-function toActor(members: readonly MemberPublic[], id: string): ActorRef {
-  return { id, displayName: memberOptionLabel(members, id), source: 'console' };
-}
 
 export function PoolPage({
   client,
@@ -310,6 +306,11 @@ function PoolCard({
                     {t('pool.cancel')}
                   </button>
                 </div>
+                {claimMutation.error ? (
+                  <p className="form-hint form-hint--warn">
+                    {humanizeFormError(claimMutation.error, t, 'pool.claim.error')}
+                  </p>
+                ) : null}
               </div>
             ) : (
               <button
@@ -380,6 +381,11 @@ function PoolCard({
                     {t('pool.cancel')}
                   </button>
                 </div>
+                {assignMutation.error ? (
+                  <p className="form-hint form-hint--warn">
+                    {humanizeFormError(assignMutation.error, t, 'pool.assign.error')}
+                  </p>
+                ) : null}
               </div>
             ) : (
               <button

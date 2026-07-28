@@ -15,7 +15,7 @@ import { humanizeFormError } from '../../utils';
 import { Field } from '../../components/Field';
 import { Select } from '../../components/Select';
 import { FormBanner } from '../../components/FormBanner';
-import { memberOptionLabel } from '../identity/identity-utils';
+import { memberOptionLabel, toActor } from '../identity/identity-utils';
 import { needsCrossClaimConfirm, needsPartner, ownerGroupOf } from '../pool/pool-utils';
 
 /**
@@ -40,11 +40,6 @@ const ACCEPTANCE_KEY: Record<TaskAcceptanceState, TranslationKey> = {
   awaitingReview: 'pool.acceptance.awaitingReview',
   accepted: 'pool.acceptance.accepted',
 };
-
-// 匿名模式选人 → ActorRef（source='console'，同 GateChecklistCard/DepGraphPage 的 confirmedBy 先例）。
-function toActor(members: readonly MemberPublic[], id: string): ActorRef {
-  return { id, displayName: memberOptionLabel(members, id), source: 'console' };
-}
 
 function formatDay(iso: string): string {
   const d = new Date(iso);
