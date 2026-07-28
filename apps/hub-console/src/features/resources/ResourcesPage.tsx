@@ -15,6 +15,8 @@ import {
 import type { Task } from '@teamhub/hub-contracts';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { humanizeFormError } from '../../utils';
+import { useForm } from '../../hooks/useForm';
+import { formActionsProps } from '../../hooks/useFormActions';
 import { SeasonSelect, guessSeason } from '../../components/SeasonSelect';
 import { Field } from '../../components/Field';
 import { FormActions } from '../../components/FormActions';
@@ -216,6 +218,14 @@ export function ResourcesPage({
 
 // --- 新建机器人 -------------------------------------------------------------
 
+interface ResourceFormFields {
+  season: string;
+  robotTarget: RobotTarget;
+  name: string;
+  kind: ResourceKind;
+  version: string;
+}
+
 function CreateResourceForm({
   client,
   onCreated,
@@ -225,42 +235,34 @@ function CreateResourceForm({
 }) {
   const { t } = useI18n();
   const now = useMemo(() => new Date(), []);
-  const [season, setSeason] = useState(() => guessSeason(now));
-  const [robotTarget, setRobotTarget] = useState<RobotTarget>('R1');
-  const [name, setName] = useState('');
-  const [kind, setKind] = useState<ResourceKind>('robot');
-  const [version, setVersion] = useState('1');
+
+  const form = useForm<ResourceFormFields>({
+    fields: {
+      season: { initial: guessSeason(now), sticky: true },
+      robotTarget: { initial: 'R1' as RobotTarget, sticky: true },
+      name: { initial: '' },
+      kind: { initial: 'robot' as ResourceKind, sticky: true },
+      version: { initial: '1', sticky: true },
+    },
+    valid: (v) => {
+      const versionNum = Number.parseInt(v.version, 10);
+      return Boolean(v.season.trim() && v.name.trim() && Number.isInteger(versionNum) && versionNum >= 1);
+    },
+  });
 
   const mutation = useMutation({
     mutationFn: (req: CreateResourceRequest) => client.createResource(req),
     onSuccess: () => {
-      setName('');
+      form.resetAfterSubmit();
       onCreated();
     },
   });
 
+  const { season, robotTarget, name, kind, version } = form.values;
   const versionNum = Number.parseInt(version, 10);
-  const versionValid = Number.isInteger(versionNum) && versionNum >= 1;
-  const valid = season.trim() && name.trim() && versionValid;
-
-  // 实时预览（禁手写）：server 端最终用同一 deriveDisplayCode 派生，前端只是给人看一眼将生成的机器人编号。
-  const preview = valid
+  const preview = form.valid
     ? deriveDisplayCode(season.trim(), robotTarget, versionNum)
     : '—';
-
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!valid) return;
-    mutation.mutate({
-      // projectId 固定 prj-robots（与种子整机同项目）：机器人归属机器人项目，新建表单不暴露项目维度。
-      projectId: 'prj-robots',
-      name: name.trim(),
-      kind,
-      robotTarget,
-      season: season.trim(),
-      version: versionNum,
-    });
-  }
 
   return (
     <section className="resources-create panel" aria-label={t('resources.create.title')}>
@@ -270,40 +272,47 @@ function CreateResourceForm({
           <p className="pm-create__note">{t('resources.create.subtitle')}</p>
         </div>
       </header>
-      <form className="pm-form" onSubmit={submit}>
-        {/* 第一行：赛季 / 编号位 / 第几代（三格），版本右侧内联预览徽章 */}
+      <form
+        className="pm-form"
+        onSubmit={form.handleSubmit(() => {
+          mutation.mutate({
+            projectId: 'prj-robots',
+            name: name.trim(),
+            kind,
+            robotTarget,
+            season: season.trim(),
+            version: versionNum,
+          });
+        })}
+      >
         <FormGrid cols={3}>
           <Field label={t('resources.field.season')} required>
             <SeasonSelect
               now={now}
               value={season}
-              onChange={setSeason}
+              onChange={(v) => form.set('season', v)}
               ariaLabelKey="resources.field.season"
             />
           </Field>
           <Field
             label={t('resources.field.robotTarget')}
             className="kb-field--narrow"
-            // 编号位直接出现在机器人编号中（如 R1→26R1）；hint 唯一承载说明，去掉 select 上的 title 双写。
             hint={t('resources.field.robotTargetHint')}
           >
             <Select
               value={robotTarget}
-              onChange={setRobotTarget}
+              onChange={(v) => form.set('robotTarget', v)}
               options={ROBOT_TARGETS}
               renderOption={(rt) => (rt === 'shared' ? t('resources.robot.shared') : rt)}
             />
           </Field>
           <Field label={t('resources.field.version')} required>
-            {/* 版本右侧内联只读预览徽章（Field 内联预览槽）；机器人编号由 deriveDisplayCode 派生，禁手写。
-                input + 徽章是单格内的横排（flex），非表单栅格——故保留 resources-version-row 内联壳，
-                用 FormGrid（grid）会把徽章挤到次列、破坏内联布局。 */}
             <span className="resources-version-row">
               <input
                 type="number"
                 min={1}
                 value={version}
-                onChange={(e) => setVersion(e.target.value)}
+                onChange={(e) => form.set('version', e.target.value)}
               />
               <span
                 className="resources-code-badge resources-preview-inline"
@@ -314,41 +323,36 @@ function CreateResourceForm({
             </span>
           </Field>
         </FormGrid>
-        {/* 第二行：名字 / 类型（两格） */}
         <FormGrid>
           <Field label={t('resources.field.name')} required>
             <input
               value={name}
               placeholder={t('resources.field.namePlaceholder')}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => form.set('name', e.target.value)}
             />
           </Field>
           <Field label={t('resources.field.kind')}>
             <Select
               value={kind}
-              onChange={setKind}
+              onChange={(v) => form.set('kind', v)}
               options={KINDS}
               renderOption={(k) => t(KIND_KEY[k])}
             />
           </Field>
         </FormGrid>
         <FormActions
-          submitLabel={t('resources.create.submit')}
-          submittingLabel={t('resources.create.submitting')}
-          submitting={mutation.isPending}
-          disabled={!valid}
-          error={
-            mutation.error
-              ? humanizeFormError(mutation.error, t, 'resources.create.error')
-              : null
-          }
-          success={
-            mutation.isSuccess
+          {...formActionsProps(mutation, {
+            submitLabel: t('resources.create.submit'),
+            submittingLabel: t('resources.create.submitting'),
+            valid: form.valid,
+            t,
+            errorFallbackKey: 'resources.create.error',
+            successMessage: mutation.isSuccess
               ? t('resources.create.success', {
                   code: mutation.data.resource.displayCode ?? mutation.data.resource.name,
                 })
-              : null
-          }
+              : null,
+          })}
         />
       </form>
     </section>

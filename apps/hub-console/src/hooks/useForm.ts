@@ -6,16 +6,16 @@ export interface FieldConfig<T> {
   validate?: (value: T, all: Record<string, unknown>) => string | null;
 }
 
-export type FieldsConfig<F extends Record<string, unknown>> = {
+export type FieldsConfig<F> = {
   [K in keyof F]: FieldConfig<F[K]>;
 };
 
-export interface UseFormOptions<F extends Record<string, unknown>> {
+export interface UseFormOptions<F> {
   fields: FieldsConfig<F>;
   valid: (values: F) => boolean;
 }
 
-export interface UseFormReturn<F extends Record<string, unknown>> {
+export interface UseFormReturn<F> {
   values: F;
   set: <K extends keyof F>(key: K, value: F[K]) => void;
   patch: (partial: Partial<F>) => void;
@@ -29,15 +29,15 @@ export interface UseFormReturn<F extends Record<string, unknown>> {
   handleSubmit: (onValid: (values: F) => void) => (e: FormEvent) => void;
 }
 
-function deriveInitials<F extends Record<string, unknown>>(fields: FieldsConfig<F>): F {
+function deriveInitials<F>(fields: FieldsConfig<F>): F {
   const out: Record<string, unknown> = {};
   for (const key of Object.keys(fields)) {
-    out[key] = fields[key as keyof F].initial;
+    out[key] = (fields as Record<string, FieldConfig<unknown>>)[key].initial;
   }
   return out as F;
 }
 
-export function useForm<F extends Record<string, unknown>>(
+export function useForm<F extends object>(
   opts: UseFormOptions<F>,
 ): UseFormReturn<F> {
   const { fields, valid: validFn } = opts;
@@ -58,7 +58,8 @@ export function useForm<F extends Record<string, unknown>>(
   const valid = useMemo(() => validFn(values), [validFn, values]);
 
   const dirty = useMemo(() => {
-    for (const key of Object.keys(fields) as (keyof F)[]) {
+    const keys = Object.keys(fields) as (keyof F)[];
+    for (const key of keys) {
       if (values[key] !== initials[key]) return true;
     }
     return false;
@@ -66,8 +67,9 @@ export function useForm<F extends Record<string, unknown>>(
 
   const errors = useMemo(() => {
     const out: Partial<Record<keyof F, string | null>> = {};
-    for (const key of Object.keys(fields) as (keyof F)[]) {
-      const cfg = fields[key];
+    const keys = Object.keys(fields) as (keyof F)[];
+    for (const key of keys) {
+      const cfg = (fields as Record<string, FieldConfig<unknown>>)[key as string];
       if (cfg.validate && touched.has(key)) {
         out[key] = cfg.validate(values[key], values as Record<string, unknown>);
       }
@@ -91,8 +93,10 @@ export function useForm<F extends Record<string, unknown>>(
   const resetAfterSubmit = useCallback(() => {
     setValues((prev) => {
       const next = { ...prev };
-      for (const key of Object.keys(fields) as (keyof F)[]) {
-        if (!fields[key].sticky) next[key] = fields[key].initial;
+      const keys = Object.keys(fields) as (keyof F)[];
+      for (const key of keys) {
+        const cfg = (fields as Record<string, FieldConfig<unknown>>)[key as string];
+        if (!cfg.sticky) (next as Record<string, unknown>)[key as string] = cfg.initial;
       }
       return next;
     });
