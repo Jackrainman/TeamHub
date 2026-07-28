@@ -19,3 +19,6 @@
 - 2026-07-25 feat(wizard): 向导赛季+比赛日步 v0.42.0 (42a0978)
 - 2026-07-27 feat(lark): 飞书出站推送——认领即时通知+里程碑提醒端点 v0.45.4 (fa2e13a)
 - 2026-07-28 fix(wizard): 向导三修复——上一步回退/roster导入后leads名册刷新/赛季下拉value匹配 v0.45.5
+- 2026-07-28 fix(wizard): 赛季步已有赛季时仍可创建新赛季 v0.45.6 (790ce7a)
+- 2026-07-28 feat(console): useForm hook 实现+库存快录首迁移 v0.45.7 (bc46f7d)
+- 2026-07-28 refactor(console): 全量迁移6表单到useForm v0.45.8 (4c43797)
