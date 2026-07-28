@@ -6,7 +6,7 @@ import {
   type RosterPreviewResponse,
 } from '@teamhub/hub-contracts';
 import { useI18n } from '../../i18n';
-import { GRADE_KEY } from './SettingsPage';
+import { GRADE_KEY } from '../../shared/roster';
 
 /**
  * 名册导入预览表（ROSTER-IMPORT-PREVIEW 刀⑦，onboarding-init-wizard-2026-07-25 §2 决策2）：

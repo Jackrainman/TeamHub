@@ -7,10 +7,8 @@ import {
   type BotChannel,
   type ConfigIdentityMode,
   type Group,
-  type MemberGrade,
   type MemberPublic,
   type MemberRole,
-  type RosterImportReport,
   type RosterImportRow,
   type RosterPreviewResponse,
   type Season,
@@ -23,6 +21,7 @@ import { Field } from '../../components/Field';
 import { FormActions } from '../../components/FormActions';
 import { FormGrid } from '../../components/FormGrid';
 import { MetaRow } from '../../components/MetaRow';
+import { GRADE_KEY, RosterReportView } from '../../shared/roster';
 import { SegToggle } from '../../components/SegToggle';
 import { Select } from '../../components/Select';
 import { GroupLeadConfirm } from './GroupLeadConfirm';
@@ -61,20 +60,6 @@ const LIFECYCLE_PILL_CLASS: Record<AgentBackend['status'], string> = {
   degraded: 'badge--amber',
   disabled: 'badge--red',
   unconfigured: '',
-};
-
-// 成员年级枚举 → 文案键（枚举变更会在此处编译报错）。验收人名单说明「豁免权属大三」，年级作辅助元信息。
-// GRADE-7-TIERS 刀⑥：扩研一/研二/研三三档；`graduate` 为 legacy 档（旧落盘数据仍可能带它，UI 只读显示）。
-// 导出供初始化门 WhoStep 年级下拉复用同一份文案（不另起 i18n 键）。
-export const GRADE_KEY: Record<MemberGrade, TranslationKey> = {
-  freshman: 'settings.reviewers.grade.freshman',
-  sophomore: 'settings.reviewers.grade.sophomore',
-  junior: 'settings.reviewers.grade.junior',
-  senior: 'settings.reviewers.grade.senior',
-  graduate: 'settings.reviewers.grade.graduate',
-  grad1: 'settings.reviewers.grade.grad1',
-  grad2: 'settings.reviewers.grade.grad2',
-  grad3: 'settings.reviewers.grade.grad3',
 };
 
 // 成员角色枚举 → 文案键（K1 权限地基 + MEMBER-PM-FLAG 刀②b 收窄两档；枚举变更会在此处编译报错）。
@@ -1135,64 +1120,6 @@ function RosterImportBlock({
             onImported();
           }}
         />
-      ) : null}
-    </div>
-  );
-}
-
-// 导入报告渲染（K8）：六段名单事实——failed（坏行=行号+原因，醒目告警底）+ created/updated/自动建组/
-// 自动验收人/库里有但表里没有（绝不删）。全是回显给操作者本人的名单事实（I0 无聚合统计）。
-// export：刀② 全屏初始化门第②步（BootstrapGate）复用同一渲染。
-export function RosterReportView({ report }: { report: RosterImportReport }) {
-  const { t } = useI18n();
-  const segs: Array<{ key: string; labelKey: TranslationKey; names: readonly string[] }> = [
-    { key: 'created', labelKey: 'settings.roster.report.created', names: report.created },
-    { key: 'updated', labelKey: 'settings.roster.report.updated', names: report.updated },
-    {
-      key: 'createdGroups',
-      labelKey: 'settings.roster.report.createdGroups',
-      names: report.createdGroups,
-    },
-    {
-      key: 'autoReviewers',
-      labelKey: 'settings.roster.report.autoReviewers',
-      names: report.autoReviewers,
-    },
-    {
-      key: 'missingFromSheet',
-      labelKey: 'settings.roster.report.missingFromSheet',
-      names: report.missingFromSheet,
-    },
-  ];
-  const anyContent = report.failed.length > 0 || segs.some((s) => s.names.length > 0);
-
-  return (
-    <div className="roster-report" role="status" aria-live="polite">
-      <p className="roster-report__title">{t('settings.roster.report.title')}</p>
-      {report.failed.length > 0 ? (
-        <div className="roster-report__fail">
-          <strong>
-            {t('settings.roster.report.failed', { count: report.failed.length })}
-          </strong>
-          <ul>
-            {report.failed.map((f, i) => (
-              <li key={i}>
-                {t('settings.roster.report.failedRow', { line: f.line, reason: f.reason })}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-      {segs.map((s) =>
-        s.names.length > 0 ? (
-          <p className="roster-report__seg" key={s.key}>
-            <span className="roster-report__label">{t(s.labelKey)}</span>
-            <span>{s.names.join('、')}</span>
-          </p>
-        ) : null,
-      )}
-      {!anyContent ? (
-        <p className="settings-desc">{t('settings.roster.report.empty')}</p>
       ) : null}
     </div>
   );

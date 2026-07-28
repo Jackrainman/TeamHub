@@ -29,7 +29,7 @@ import { GroupLeadConfirm } from '../settings/GroupLeadConfirm';
 import { RosterPreviewTable } from '../settings/RosterPreviewTable';
 import { InvPreviewTable, InvReportView } from '../inv/InvPreviewTable';
 import { FleetPreviewTable } from '../fleet/FleetPreviewTable';
-import { GRADE_KEY, RosterReportView } from '../settings/SettingsPage';
+import { GRADE_KEY, RosterReportView } from '../../shared/roster';
 
 /**
  * 全屏初始化门（SETUP-WIZARD-ROSTER 刀② v2「先问你是谁」，onboarding-pin-deadlock-2026-07-24 §3 刀②）。

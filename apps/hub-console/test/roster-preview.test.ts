@@ -6,7 +6,7 @@ import {
   setPreviewRowGrade,
   setPreviewRowGroup,
 } from '../src/features/settings/RosterPreviewTable';
-import { GRADE_KEY } from '../src/features/settings/SettingsPage';
+import { GRADE_KEY } from '../src/shared/roster';
 import { translations, type TranslationKey } from '../src/i18n/translations';
 
 /**

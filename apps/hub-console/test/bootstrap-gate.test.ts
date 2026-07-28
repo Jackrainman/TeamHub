@@ -6,7 +6,7 @@ import {
   WIZARD_STEP_ORDER,
   WIZARD_STEP_TOTAL,
 } from '../src/features/setup/BootstrapGate';
-import { GRADE_KEY } from '../src/features/settings/SettingsPage';
+import { GRADE_KEY } from '../src/shared/roster';
 import { translations } from '../src/i18n/translations';
 
 /**
