@@ -365,6 +365,45 @@ const INVENTORY_IMPORT_MAX_BYTES = 1024 * 1024;
 // 耗尽面）。由 POST /api/resources/preview 的 `request.file({ limits })` per-request 覆盖插件默认。
 const FLEET_IMPORT_MAX_BYTES = 1024 * 1024;
 
+async function readCsvUpload(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  opts: { maxBytes: number; decode: (buf: Buffer) => string | null },
+): Promise<string | null> {
+  let data;
+  try {
+    data = await request.file({ limits: { fileSize: opts.maxBytes, files: 1 } });
+  } catch {
+    void reply.code(400).send({ detail: '请求体不是 multipart 表单' });
+    return null;
+  }
+  if (!data) {
+    void reply.code(400).send({ detail: '未收到文件' });
+    return null;
+  }
+  let buf: Buffer;
+  try {
+    buf = await data.toBuffer();
+  } catch (err) {
+    if ((err as { code?: string })?.code === 'FST_REQ_FILE_TOO_LARGE') {
+      void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
+      return null;
+    }
+    void reply.code(400).send({ detail: '读取文件失败' });
+    return null;
+  }
+  if (data.file.truncated) {
+    void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
+    return null;
+  }
+  const text = opts.decode(buf);
+  if (text === null) {
+    void reply.code(400).send({ detail: '编码无法识别，请另存为 CSV UTF-8' });
+    return null;
+  }
+  return text;
+}
+
 // KB 批量 md 导入上限（KB-BULK-MD-IMPORT 打磨轮刀⑫）：单文件 1MB（纯文本 md 绰绰有余）+ 单批至多
 // 20 个（初始化向导「导入一堆文件」场景；整批峰值 20MB 内存，约束耗尽面）。
 // 由 POST /api/kb/import-docs 的 `request.files({ limits })` per-request 覆盖插件默认（files:1 宿主级默认）。
@@ -1069,47 +1108,8 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     return true;
   };
 
-  // 名册写口共用：multipart 读 CSV（单文件 1MB 上限，per-request limits 覆盖插件默认，照 artifact
-  // upload 先例）→ 编码探测（decodeRosterBytes：UTF-8 BOM / 无 BOM UTF-8 / 回退 gbk，都失败 → 400）。
-  // 成功返回文本；失败已回错误响应、返回 null。
-  const readRosterCsvText = async (
-    request: FastifyRequest,
-    reply: FastifyReply,
-  ): Promise<string | null> => {
-    let data;
-    try {
-      // per-request limits 覆盖插件默认（宿主级 multipart 插件默认 = 归档物上限），钉名册 1MB。
-      data = await request.file({ limits: { fileSize: ROSTER_MAX_BYTES, files: 1 } });
-    } catch {
-      void reply.code(400).send({ detail: '请求体不是 multipart 表单' });
-      return null;
-    }
-    if (!data) {
-      void reply.code(400).send({ detail: '未收到文件' });
-      return null;
-    }
-    let buf: Buffer;
-    try {
-      buf = await data.toBuffer();
-    } catch (err) {
-      if ((err as { code?: string })?.code === 'FST_REQ_FILE_TOO_LARGE') {
-        void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
-        return null;
-      }
-      void reply.code(400).send({ detail: '读取文件失败' });
-      return null;
-    }
-    if (data.file.truncated) {
-      void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
-      return null;
-    }
-    const text = decodeRosterBytes(buf);
-    if (text === null) {
-      void reply.code(400).send({ detail: '编码无法识别，请另存为 CSV UTF-8' });
-      return null;
-    }
-    return text;
-  };
+  const readRosterCsvText = (request: FastifyRequest, reply: FastifyReply) =>
+    readCsvUpload(request, reply, { maxBytes: ROSTER_MAX_BYTES, decode: decodeRosterBytes });
 
   // POST /api/roster/preview（ROSTER-IMPORT-PREVIEW 刀⑦）：**只解析不落库**——CSV 纯文本做不了下拉，
   // 前端拿解析结果做可编辑预览表（年级下拉 / 组 datalist），确认后走 JSON import。鉴权 / 上限 /
@@ -2441,46 +2441,8 @@ function registerLedgerRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     return true;
   };
 
-  // 库存导入写口共用：multipart 读 CSV（单文件 1MB 上限，per-request limits 覆盖插件默认，照名册先例）
-  // → 编码探测（decodeCsvBytes：UTF-8 BOM / 无 BOM UTF-8 / 回退 gbk，都失败 → 400）。
-  // 成功返回文本；失败已回错误响应、返回 null。
-  const readInventoryCsvText = async (
-    request: FastifyRequest,
-    reply: FastifyReply,
-  ): Promise<string | null> => {
-    let data;
-    try {
-      data = await request.file({ limits: { fileSize: INVENTORY_IMPORT_MAX_BYTES, files: 1 } });
-    } catch {
-      void reply.code(400).send({ detail: '请求体不是 multipart 表单' });
-      return null;
-    }
-    if (!data) {
-      void reply.code(400).send({ detail: '未收到文件' });
-      return null;
-    }
-    let buf: Buffer;
-    try {
-      buf = await data.toBuffer();
-    } catch (err) {
-      if ((err as { code?: string })?.code === 'FST_REQ_FILE_TOO_LARGE') {
-        void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
-        return null;
-      }
-      void reply.code(400).send({ detail: '读取文件失败' });
-      return null;
-    }
-    if (data.file.truncated) {
-      void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
-      return null;
-    }
-    const text = decodeCsvBytes(buf);
-    if (text === null) {
-      void reply.code(400).send({ detail: '编码无法识别，请另存为 CSV UTF-8' });
-      return null;
-    }
-    return text;
-  };
+  const readInventoryCsvText = (request: FastifyRequest, reply: FastifyReply) =>
+    readCsvUpload(request, reply, { maxBytes: INVENTORY_IMPORT_MAX_BYTES, decode: decodeCsvBytes });
 
   // POST /api/inventory/preview：**只解析不落库**——前端拿解析结果做可编辑预览表，确认后走 JSON import。
   // 鉴权 / 上限 / 编码探测 / 解析与 import 完全同律。响应 { rows, failed }（I0：库存事实回显，无人键）。
@@ -2718,6 +2680,7 @@ function registerLedgerRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
             text: `没找到叫「${to}」的机器人。`,
           });
         }
+        const transferNote = note ?? `Hermes 调拨 ${fromRes.displayCode ?? fromRes.name}→${toRes.displayCode ?? toRes.name}`;
         await invStore.recordPartAction({
           projectId: partType.projectId,
           partTypeId: partType.id,
@@ -2726,20 +2689,35 @@ function registerLedgerRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
           quantityDelta: -quantity,
           fromHolder: fromRes.id,
           toHolder: null,
-          note: note ?? `Hermes 调拨 ${fromRes.displayCode ?? fromRes.name}→${toRes.displayCode ?? toRes.name}`,
+          note: transferNote,
           source: 'hermes',
         });
-        await invStore.recordPartAction({
-          projectId: partType.projectId,
-          partTypeId: partType.id,
-          trackedPartId: null,
-          kind: 'mount',
-          quantityDelta: quantity,
-          fromHolder: null,
-          toHolder: toRes.id,
-          note: note ?? `Hermes 调拨 ${fromRes.displayCode ?? fromRes.name}→${toRes.displayCode ?? toRes.name}`,
-          source: 'hermes',
-        });
+        try {
+          await invStore.recordPartAction({
+            projectId: partType.projectId,
+            partTypeId: partType.id,
+            trackedPartId: null,
+            kind: 'mount',
+            quantityDelta: quantity,
+            fromHolder: null,
+            toHolder: toRes.id,
+            note: transferNote,
+            source: 'hermes',
+          });
+        } catch (mountErr) {
+          await invStore.recordPartAction({
+            projectId: partType.projectId,
+            partTypeId: partType.id,
+            trackedPartId: null,
+            kind: 'mount',
+            quantityDelta: quantity,
+            fromHolder: null,
+            toHolder: fromRes.id,
+            note: `补偿回滚：${transferNote}`,
+            source: 'hermes',
+          }).catch(() => {});
+          throw mountErr;
+        }
         return HermesInboundResponseSchema.parse({
           ok: true,
           text: `已记录：${partType.name} ×${quantity} 从 ${fromRes.displayCode ?? fromRes.name} 调到 ${toRes.displayCode ?? toRes.name}。`,
@@ -2840,46 +2818,8 @@ function registerPresenceScheduleRoutes(app: FastifyInstance, ctx: ModuleRouteCt
     return buildFleetTemplateCsv();
   });
 
-  // 车队预览写口：multipart 读 CSV（单文件 1MB 上限，per-request limits 覆盖插件默认，照库存/名册先例）
-  // → 编码探测（decodeCsvBytes：UTF-8 BOM / 无 BOM UTF-8 / 回退 gbk，都失败 → 400）。成功返回文本；失败已回
-  // 错误响应、返回 null。
-  const readFleetCsvText = async (
-    request: FastifyRequest,
-    reply: FastifyReply,
-  ): Promise<string | null> => {
-    let data;
-    try {
-      data = await request.file({ limits: { fileSize: FLEET_IMPORT_MAX_BYTES, files: 1 } });
-    } catch {
-      void reply.code(400).send({ detail: '请求体不是 multipart 表单' });
-      return null;
-    }
-    if (!data) {
-      void reply.code(400).send({ detail: '未收到文件' });
-      return null;
-    }
-    let buf: Buffer;
-    try {
-      buf = await data.toBuffer();
-    } catch (err) {
-      if ((err as { code?: string })?.code === 'FST_REQ_FILE_TOO_LARGE') {
-        void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
-        return null;
-      }
-      void reply.code(400).send({ detail: '读取文件失败' });
-      return null;
-    }
-    if (data.file.truncated) {
-      void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
-      return null;
-    }
-    const text = decodeCsvBytes(buf);
-    if (text === null) {
-      void reply.code(400).send({ detail: '编码无法识别，请另存为 CSV UTF-8' });
-      return null;
-    }
-    return text;
-  };
+  const readFleetCsvText = (request: FastifyRequest, reply: FastifyReply) =>
+    readCsvUpload(request, reply, { maxBytes: FLEET_IMPORT_MAX_BYTES, decode: decodeCsvBytes });
 
   // POST /api/resources/preview：**只解析不落库**——前端拿解析结果做可编辑预览表，确认后走既有批量端点。
   // 鉴权与 POST /api/resources/batch 完全同律（继承 H3 onRequest 写门 + 限流，无额外路由级门——预览是批量
@@ -3196,6 +3136,12 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     bodyLimit: 256 * 1024,
     trustProxy,
   });
+
+  app.setErrorHandler((error: Error & { statusCode?: number }, _request, reply) => {
+    const status = error.statusCode && error.statusCode >= 400 ? error.statusCode : 503;
+    void reply.code(status).send({ detail: error.message || 'internal error' });
+  });
+
   // 派生 / 时间戳求值时刻（先于默认 store 定义——默认内存 store 复用同一 clock，见下）。缺省钉在
   // fixture 场景时间 GOVERNANCE_SCENARIO_NOW（演示态冻结钟，与 hub-console mock 同口径）。
   const clock: Clock =
