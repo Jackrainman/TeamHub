@@ -618,6 +618,7 @@ function SeasonStep({
   const [created, setCreated] = useState<{ name: string; baselineGenerated: boolean } | null>(
     null,
   );
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   const submittable = seasonFormSubmittable(form);
 
@@ -641,14 +642,23 @@ function SeasonStep({
     <section className="setup-card setup-card--primary">
       <h2 className="setup-card__title">{t('gate.step.season')}</h2>
       <p className="setup-card__desc">{t('gate.season.desc')}</p>
-      {activeSeason ? (
+      {activeSeason && !showCreateForm ? (
         <>
           <p className="settings-desc">
             {t('gate.season.hasSeason', { name: activeSeason.name })}
           </p>
-          <button type="button" className="btn btn--primary" onClick={onNext}>
-            {t('gate.season.next')}
-          </button>
+          <div className="roster-import__actions">
+            <button type="button" className="btn btn--primary" onClick={onNext}>
+              {t('gate.season.next')}
+            </button>
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={() => setShowCreateForm(true)}
+            >
+              {t('gate.season.createNew')}
+            </button>
+          </div>
         </>
       ) : created ? (
         <>

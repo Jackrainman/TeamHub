@@ -1283,6 +1283,7 @@ const zh = {
   'gate.season.desc':
     '赛季是基准线和任务认领的时间容器。按今天日期预填了赛季名和学期开始，可改；比赛日选填——给了就顺手生成倒排基准线模板。',
   'gate.season.hasSeason': '已有当前赛季：{name}——可直接下一步。',
+  'gate.season.createNew': '创建新赛季',
   'gate.season.name': '赛季名',
   'gate.season.semesterStart': '学期开始',
   'gate.season.competitionDate': '比赛日（选填）',
@@ -2649,6 +2650,7 @@ const en: Record<TranslationKey, string> = {
   'gate.season.desc':
     'The season is the time container for the baseline and task claiming. Name and semester start are prefilled from today\'s date — edit as needed; the competition date is optional and triggers baseline template generation.',
   'gate.season.hasSeason': 'Current season already exists: {name} — continue directly.',
+  'gate.season.createNew': 'Create a new season',
   'gate.season.name': 'Season name',
   'gate.season.semesterStart': 'Semester start',
   'gate.season.competitionDate': 'Competition date (optional)',
