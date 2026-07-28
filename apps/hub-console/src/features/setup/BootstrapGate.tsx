@@ -58,6 +58,9 @@ import { GRADE_KEY, RosterReportView } from '../settings/SettingsPage';
  *    服务端按 title 幂等去重）→ 三段报告回显（导入/跳过/失败）；AI 分析不做；可跳过。
  *  ⑧ **进 app**（已登录、项目管理权限在手）。
  *
+ * 「上一步」（WIZARD-BACK 修复刀）：除首步外各步底部统一回退口；已访问步保持挂载（hidden 隐藏），
+ * 回退时已填表单态不丢，已提交数据由步内查询重取回显（known-bugs 2026-07-28 #1）。
+ *
  * 反监视 I0：门只收集操作者本人这一行事实 + 组长任命事实 + 车/零件/文档（无成员维度），不做任何按人聚合。
  */
 
@@ -94,6 +97,22 @@ export const WHO_GRADE_OPTIONS: readonly MemberGrade[] = [
   'grad3',
 ];
 
+/**
+ * 步骤顺序（WIZARD-BACK 修复刀）：「上一步」回退的唯一真源——下标即步序，与 WIZARD_STEP_META.n 一致
+ * （单测锚住）。回退实现 = 已访问步保持挂载（hidden 隐藏），已填表单态不丢；已提交数据本就在服务端，
+ * 回步后各步查询重取自然回显（赛季步「已有当前赛季」、车队步「已有 N 台车」先例）。
+ */
+export const WIZARD_STEP_ORDER: readonly Step[] = [
+  'who',
+  'roster',
+  'leads',
+  'season',
+  'fleet',
+  'inventory',
+  'kb',
+  'done',
+];
+
 export function BootstrapGate({
   client,
   onDone,
@@ -104,6 +123,18 @@ export function BootstrapGate({
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const [step, setStep] = useState<Step>('who');
+  // 已访问步集合（WIZARD-BACK 修复刀）：访问过的步保持挂载（hidden 隐藏而非卸载），
+  // 「上一步」回退时已填表单态不丢；步内查询（members/seasons/resources…）挂载时才发起，
+  // 不提前打未授权端点。
+  const [visited, setVisited] = useState<readonly Step[]>(['who']);
+  const goTo = (next: Step) => {
+    setVisited((prev) => (prev.includes(next) ? prev : [...prev, next]));
+    setStep(next);
+  };
+  const goBack = () => {
+    const idx = WIZARD_STEP_ORDER.indexOf(step);
+    if (idx > 0) setStep(WIZARD_STEP_ORDER[idx - 1]);
+  };
   const membersQuery = useQuery({
     queryKey: ['members', 'bootstrap-gate'],
     queryFn: () => client.getMembers(),
@@ -137,66 +168,92 @@ export function BootstrapGate({
             })}
           </p>
         </header>
-        {step === 'who' ? (
-          <WhoStep
-            client={client}
-            members={members}
-            groups={groups}
-            onDone={() => {
-              // ①完成 = 已持旗已登录：刷新会话与名册（会话 cookie 由服务端签进响应）。
-              void queryClient.invalidateQueries({ queryKey: ['session'] });
-              invalidateRoster();
-              setStep('roster');
-            }}
-          />
+        {visited.includes('who') ? (
+          <div hidden={step !== 'who'}>
+            <WhoStep
+              client={client}
+              members={members}
+              groups={groups}
+              onDone={() => {
+                // ①完成 = 已持旗已登录：刷新会话与名册（会话 cookie 由服务端签进响应）。
+                void queryClient.invalidateQueries({ queryKey: ['session'] });
+                invalidateRoster();
+                goTo('roster');
+              }}
+            />
+          </div>
         ) : null}
-        {step === 'roster' ? (
-          <RosterStep client={client} groups={groups} onNext={() => setStep('leads')} />
+        {visited.includes('roster') ? (
+          <div hidden={step !== 'roster'}>
+            <RosterStep client={client} groups={groups} onNext={() => goTo('leads')} />
+          </div>
         ) : null}
-        {step === 'leads' ? (
-          membersQuery.isLoading || groupsQuery.isLoading ? (
-            <p className="settings-desc" role="status" aria-live="polite">…</p>
-          ) : (
+        {visited.includes('leads') ? (
+          <div hidden={step !== 'leads'}>
+            {membersQuery.isLoading || groupsQuery.isLoading ? (
+              <p className="settings-desc" role="status" aria-live="polite">…</p>
+            ) : (
+              <section className="setup-card setup-card--primary">
+                <h2 className="setup-card__title">{t('gate.step.leads')}</h2>
+                {/* 空组/全空名册时 GroupLeadConfirm 自身 return null——给一个兜底「下一步」不卡死。 */}
+                <GroupLeadConfirm
+                  client={client}
+                  members={members}
+                  groups={groups}
+                  onConfirmed={() => {
+                    invalidateRoster();
+                    goTo('season');
+                  }}
+                />
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  onClick={() => goTo('season')}
+                >
+                  {t('gate.leads.skip')}
+                </button>
+              </section>
+            )}
+          </div>
+        ) : null}
+        {visited.includes('season') ? (
+          <div hidden={step !== 'season'}>
+            <SeasonStep client={client} onNext={() => goTo('fleet')} />
+          </div>
+        ) : null}
+        {visited.includes('fleet') ? (
+          <div hidden={step !== 'fleet'}>
+            <FleetStep client={client} onNext={() => goTo('inventory')} />
+          </div>
+        ) : null}
+        {visited.includes('inventory') ? (
+          <div hidden={step !== 'inventory'}>
+            <InventoryStep client={client} onNext={() => goTo('kb')} />
+          </div>
+        ) : null}
+        {visited.includes('kb') ? (
+          <div hidden={step !== 'kb'}>
+            <KbStep client={client} onNext={() => goTo('done')} />
+          </div>
+        ) : null}
+        {visited.includes('done') ? (
+          <div hidden={step !== 'done'}>
             <section className="setup-card setup-card--primary">
-              <h2 className="setup-card__title">{t('gate.step.leads')}</h2>
-              {/* 空组/全空名册时 GroupLeadConfirm 自身 return null——给一个兜底「下一步」不卡死。 */}
-              <GroupLeadConfirm
-                client={client}
-                members={members}
-                groups={groups}
-                onConfirmed={() => {
-                  invalidateRoster();
-                  setStep('season');
-                }}
-              />
-              <button
-                type="button"
-                className="btn btn--secondary"
-                onClick={() => setStep('season')}
-              >
-                {t('gate.leads.skip')}
+              <h2 className="setup-card__title">{t('gate.done.title')}</h2>
+              <p className="setup-card__desc">{t('gate.done.desc')}</p>
+              <button type="button" className="btn btn--primary" onClick={onDone}>
+                {t('gate.done.cta')}
               </button>
             </section>
-          )
+          </div>
         ) : null}
-        {step === 'season' ? (
-          <SeasonStep client={client} onNext={() => setStep('fleet')} />
-        ) : null}
-        {step === 'fleet' ? (
-          <FleetStep client={client} onNext={() => setStep('inventory')} />
-        ) : null}
-        {step === 'inventory' ? (
-          <InventoryStep client={client} onNext={() => setStep('kb')} />
-        ) : null}
-        {step === 'kb' ? <KbStep client={client} onNext={() => setStep('done')} /> : null}
-        {step === 'done' ? (
-          <section className="setup-card setup-card--primary">
-            <h2 className="setup-card__title">{t('gate.done.title')}</h2>
-            <p className="setup-card__desc">{t('gate.done.desc')}</p>
-            <button type="button" className="btn btn--primary" onClick={onDone}>
-              {t('gate.done.cta')}
+        {/* 「上一步」（WIZARD-BACK 修复刀）：首步（who）无回退；其余各步统一在卡片下方给回退口。 */}
+        {step !== 'who' ? (
+          <div className="setup-wizard__nav">
+            <button type="button" className="btn btn--secondary" onClick={goBack}>
+              {t('gate.back')}
             </button>
-          </section>
+          </div>
         ) : null}
       </div>
     </div>
@@ -362,6 +419,9 @@ function WhoStep({
 // ② 导入名册 CSV（刀⑦ 预览表可编辑）：上传 → preview 只解析不落库 → RosterPreviewTable 行内编辑
 // （年级下拉 / 组 datalist）→ 确认后 JSON 导入 → 报告回显；名册已就绪可直接下一步（死锁恢复场景
 // 成员早导入过）。
+// WIZARD-ROSTER-INVALIDATE 修复刀：确认导入后必须失效 ['members']/['groups']——门级 membersQuery/
+// groupsQuery 在「你是谁」步就取过数，导入不落缓存刷新，第③步（leads）拿到的就是旧空名册
+// （known-bugs 2026-07-28 #2「页2导入成员后页3不显示」根因）。
 function RosterStep({
   client,
   groups,
@@ -372,6 +432,7 @@ function RosterStep({
   onNext: () => void;
 }) {
   const { t } = useI18n();
+  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -401,6 +462,9 @@ function RosterStep({
     try {
       setReport(await client.importRosterRows(rows));
       setPreview(null);
+      // 导入落库了成员（可能还自动建了组）→ 失效门级缓存，leads 步才能看到新名册。
+      void queryClient.invalidateQueries({ queryKey: ['members'] });
+      void queryClient.invalidateQueries({ queryKey: ['groups'] });
     } catch (err) {
       setError(err);
     } finally {
@@ -494,6 +558,15 @@ export function seasonAnchorsComplete(
 export function seasonFormSubmittable(form: SeasonForm): boolean {
   if (form.name.trim().length === 0 || !form.semesterStart) return false;
   return !form.competitionDate || form.competitionDate > form.semesterStart;
+}
+
+/**
+ * 赛季名 → 年份（"2027赛季" → 2027）。年份下拉的 value 必须用本函数派生——option 的 value 是
+ * 年份数（seasonYearOptions.years），直接拿 form.name（带「赛季」后缀）做 value 匹配不到任何
+ * option，受控下拉恒显示空白（known-bugs 2026-07-28 #3「建赛季」缺陷的向导侧根因）。
+ */
+export function seasonNameYear(name: string): number {
+  return Number.parseInt(name, 10);
 }
 
 /** 本地表单 → createSeason 请求体：学期开始日期段 → ISO 零点（UTC，同 suggestSeason 边界钉法）。 */
@@ -593,7 +666,7 @@ function SeasonStep({
           <label className="gate-field">
             <span>{t('gate.season.name')}</span>
             <select
-              value={form.name}
+              value={seasonNameYear(form.name)}
               onChange={(e) => {
                 const year = Number(e.target.value);
                 const s = seasonForYear(year);

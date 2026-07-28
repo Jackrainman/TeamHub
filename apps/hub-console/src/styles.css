@@ -1653,6 +1653,11 @@ button,
   flex-direction: column;
   gap: 6px;
 }
+/* 向导底部导航行（「上一步」，WIZARD-BACK 修复刀）：左对齐，与卡片区间距由 inner 的 gap 提供。 */
+.setup-wizard__nav {
+  display: flex;
+  justify-content: flex-start;
+}
 .setup-wizard__title {
   margin: 0;
   font-size: var(--text-3xl);

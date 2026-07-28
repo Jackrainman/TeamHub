@@ -1259,6 +1259,7 @@ const zh = {
   'gate.stepName.inventory': '录入库存',
   'gate.stepName.kb': '导入排障档案',
   'gate.stepName.done': '完成',
+  'gate.back': '上一步',
   'gate.who.desc':
     '一笔完成：建你的成员行（或认领名册里已有的你）+ 授项目管理旗标 + 设 PIN + 登录。此后你就是本队第一个管理员。',
   'gate.who.name': '姓名',
@@ -2624,6 +2625,7 @@ const en: Record<TranslationKey, string> = {
   'gate.stepName.inventory': 'Load inventory',
   'gate.stepName.kb': 'Import debug archive',
   'gate.stepName.done': 'Done',
+  'gate.back': 'Back',
   'gate.who.desc':
     'One shot: create your member row (or claim the existing one) + grant the project-management flag + set a PIN + log you in. You become the team’s first admin.',
   'gate.who.name': 'Name',

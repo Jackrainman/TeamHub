@@ -10,6 +10,7 @@ import {
   buildSeasonCreateRequest,
   seasonAnchorsComplete,
   seasonFormSubmittable,
+  seasonNameYear,
   submitSeasonStep,
   suggestSeasonForm,
   type SeasonForm,
@@ -105,6 +106,20 @@ describe('season-step: 年份下拉选项', () => {
     const opts = seasonYearOptions(new Date(Date.UTC(2026, 8, 1))); // 2026-09
     expect(opts.suggested).toBe(2027);
     expect(opts.years).toEqual([2026, 2027, 2028]);
+  });
+});
+
+describe('season-step: seasonNameYear 下拉 value 派生', () => {
+  test('赛季名 → 年份数（"2027赛季" → 2027）', () => {
+    expect(seasonNameYear('2027赛季')).toBe(2027);
+    expect(seasonNameYear('2025赛季')).toBe(2025);
+  });
+
+  test('预填赛季名的派生年份必落在下拉选项内（known-bugs 2026-07-28 #3：value 须匹配 option）', () => {
+    const now = new Date(Date.UTC(2026, 8, 15)); // 2026-09
+    const form = suggestSeasonForm(now);
+    const { years } = seasonYearOptions(now);
+    expect(years).toContain(seasonNameYear(form.name));
   });
 });
 
