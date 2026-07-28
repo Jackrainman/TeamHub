@@ -9,6 +9,7 @@ import type {
   TaskWithMeta,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
+import { queryKeys } from '../../api/queryKeys';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { humanizeFormError } from '../../utils';
@@ -54,20 +55,20 @@ export function PoolPage({
   const q = search.trim();
 
   const tasksQuery = useQuery({
-    queryKey: ['tasks', source],
+    queryKey: queryKeys.tasks(source),
     queryFn: () => client.getTasks(),
   });
   const membersQuery = useQuery({
-    queryKey: ['members', 'pool'],
+    queryKey: [...queryKeys.members(), 'pool'],
     queryFn: () => client.getMembers(),
   });
   const groupsQuery = useQuery({
-    queryKey: ['groups', 'pool'],
+    queryKey: queryKeys.groups('pool'),
     queryFn: () => client.getGroups(),
   });
   // "看谁做过"子串搜索：仅在有关键词时发请求（enabled）；红线=只回任务列表、不聚合成花名册。
   const searchQuery = useQuery({
-    queryKey: ['tasks', source, 'search', q],
+    queryKey: queryKeys.tasksSearch(source, q),
     queryFn: () => client.getTasks({ q }),
     enabled: q.length > 0,
   });
@@ -196,8 +197,8 @@ function PoolCard({
   const [leadId, setLeadId] = useState('');
 
   const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ['tasks', source] });
-    void queryClient.invalidateQueries({ queryKey: ['dep-graph', source] });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.tasks(source) });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.depGraph(source) });
   };
 
   const claimMutation = useMutation({
