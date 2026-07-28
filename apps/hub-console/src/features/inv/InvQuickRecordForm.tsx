@@ -49,7 +49,7 @@ export interface HolderOption {
   label: string;
 }
 
-interface InvFormFields extends Record<string, unknown> {
+interface InvFormFields {
   partTypeId: string;
   kind: PartActionKind;
   quantity: string;
