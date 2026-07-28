@@ -67,3 +67,27 @@ exit code ≠ 0 一律失败。架构类任务必须有代码级+契约级验证
 - 产品单一版本 = 根 `VERSION`（SemVer）。只用 `scripts/bump-version.sh` 改版本，别手改 package.json。
 - 改 `apps/hub-*/src` 行为的 commit 必须 bump（fix=PATCH，feature=MINOR）。docs/planning 不 bump。
 - pre-commit hook 已自动检查（`scripts/install-hooks.sh` clone 后跑一次）。
+
+## 7. 接口与代码规范
+
+### 后端（hub-server）
+
+- **路由分域文件**：新路由放 `src/routes/<domain>.ts`（pm / kb / inv / baseline / search / schedule / system），导出 `registerXxxRoutes(fastify, deps)` 函数，由 `server.ts` 统一挂载。**不再往 server.ts 里直接加路由。**
+- **请求体校验**：用 `parseBody(Schema, request, reply)` 公共 helper（返回类型安全数据或自动 400），不手写 safeParse+if+reply 样板。
+- **CSV 上传**：用 `readCsvUpload(request, reply, { maxBytes, decode })` 公共 helper，不复制粘贴读取逻辑。
+- **鉴权**：写操作用 `requireAdmin(store, identityMode, request, reply)` 公共 helper；非 loopback 写端点必须校验 WRITE_TOKEN。
+- **Store 三实现**：每个域有 InMemory / File / Sqlite 三种 store，共享逻辑抽到 `base-<domain>-store.ts`，不跨实现复制。
+- **API 响应**：成功 200 + JSON body；错误 `{ detail: string }`；列表直接返回数组不包 `{ items: [] }`。
+
+### 前端（hub-console）
+
+- **Feature 文件夹**：`src/features/<domain>/`，含 Page 组件 + 域内子组件 + `xxx-utils.ts` 纯函数。超过 400 行的组件必须拆子组件。
+- **Domain hooks**：数据获取封装为 `useXxx()` hook（内含 queryKey + queryFn + invalidation），组件不直接写 useQuery/useMutation 样板。
+- **共享组件/常量**：跨 feature 复用的放 `src/shared/`（如 GRADE_KEY、PreviewTable、ReportView）。**不从 Page 组件导出公共符号。**
+- **API client**：`src/api/client.ts` 按域分段（// ── pm ── / // ── kb ──），新方法加在对应段内。
+
+### 契约（hub-contracts）
+
+- 新 schema 加在对应域的 `.ts` 文件（pm-core / kb-core / inv-core / baseline / schedule）。
+- 纯函数（derive/validate）放契约包，前后端共用，不各自实现。
+- 导出即公共 API，改动需三包 verify 全绿。

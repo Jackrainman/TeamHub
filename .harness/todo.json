@@ -1,11 +1,28 @@
 {
-  "focus": "飞书出站推送已落地 v0.45.4；下一步=UX B4/B5（用户已放行）",
+  "focus": "代码结构治理（快速修复批次）→ 任务 timeline → 时间线编辑器",
   "blocked": [
     {"id": "HERMES-LARK-SKILL", "reason": "卡飞书侧 skill 编写（用户侧）", "owner": "user"},
-    {"id": "REMOTE-ACCESS-DEPLOY", "reason": "远程部署需用户审批（SSH/systemd/80/443）", "owner": "user"},
     {"id": "LARK-BIN-PROBE", "reason": "需用户在 WSL2 实测 which lark / which lark-cli", "owner": "user"}
   ],
   "todo": [
+    {"id": "FIX-ERROR-HANDLER", "title": "Fastify 全局 setErrorHandler：store 错误→结构化 { detail } 503，不再裸 500", "tag": "code", "done": true},
+    {"id": "FIX-HERMES-TRANSFER", "title": "Hermes 调拨补偿：mount 失败时回滚 dismount，防零件消失", "tag": "code", "done": true},
+    {"id": "FIX-MUTATION-ERRORS", "title": "PoolPage/SettingsPage mutation 加 error 渲染（认领/指派/角色/PM 变更）", "tag": "code"},
+    {"id": "FIX-CSV-HELPER", "title": "CSV 读取抽 readCsvUpload 公共 helper，消除三复制", "tag": "code"},
+    {"id": "FIX-TOACTOR", "title": "toActor 移到 identity-utils，消除 2 处复制", "tag": "code"},
+    {"id": "FIX-INVFORM-TYPE", "title": "InvQuickRecordForm 去掉 extends Record<string, unknown>", "tag": "code"},
+    {"id": "FIX-SHARED-SYMBOLS", "title": "GRADE_KEY/RosterReportView 从 SettingsPage 移到 src/shared/", "tag": "code"},
+    {"id": "FIX-QUERYKEYS", "title": "queryKeys 工厂：收拢散落的 query key 字符串到 queryKeys.ts，防 invalidation 静默失效", "tag": "code"},
+    {"id": "FIX-DEAD-CODE", "title": "删除 import-debug-archive.ts + parse-debug-archive.ts（645 行零生产消费者）", "tag": "code"},
+    {"id": "FIX-PARSEBODY", "title": "parseBody helper：消 64 处 safeParse+400 样板，逐步替换", "tag": "code"},
+    {"id": "REFACTOR-BASELINE-ROUTES", "title": "server.ts 第一刀：baseline 路由抽到 routes/baseline.ts（为时间线编辑器铺路）", "tag": "code"},
+    {"id": "TASK-TIMELINE-CONTRACT", "title": "TASK-TIMELINE 契约层：Task schema 加 transitions[] + server updateStatus 追加记录", "tag": "code"},
+    {"id": "REFACTOR-SERVER-SPLIT", "title": "server.ts 拆分：新路由按域分文件（routes/pm.ts, routes/kb.ts 等），逐步迁出", "tag": "code"},
+    {"id": "TASK-TIMELINE", "title": "任务状态流转历史：Drawer 渲染时间线 UI（依赖 TASK-TIMELINE-CONTRACT）", "tag": "code"},
+    {"id": "GLOBAL-SEARCH", "title": "全局搜索：/api/search?q= 跨 PM/KB/INV 模糊匹配 + 顶栏搜索框", "tag": "code"},
+    {"id": "TIMELINE-EDITOR", "title": "时间线编辑器：全页路由，里程碑点击偏移(+n天/今天完成)，实时 pace 反馈，segment 低频调整", "tag": "code"},
+    {"id": "ACTIVITY-FEED", "title": "任务级动态流：基于 transitions 的'最近发生了什么'面板（依赖 TASK-TIMELINE）", "tag": "code"},
+    {"id": "DATA-EXPORT", "title": "数据导出 CSV：roster/tasks/inventory 三个 GET 端点 + 前端导出按钮", "tag": "code"},
     {"id": "UX-B4-B5", "title": "UX 批次 B4（卡片基类+空态）+ B5（图标+CSS治理）", "tag": "code"},
     {"id": "CHECKLIST-TPL-IMPORT", "title": "检查单模板最小导入通道（等复盘产出，先积累）", "tag": "code"},
     {"id": "KB-AI-STRUCT", "title": "知识库 AI 结构化（研究项，先积累导入语料再评估）", "tag": "research"}
@@ -13,10 +30,10 @@
   "directions": [
     {"id": "KB-LARK-DESIGN", "title": "飞书 wiki/drive → KB 摄入（卡 LARK-BIN-PROBE）"},
     {"id": "INV-BOM-DESIGN", "title": "库存/BOM 自保鲜（对话记账+盘点，排最后）"},
-    {"id": "HUB-GIT-FORGE", "title": "战队 Git 中枢（Forgejo/Gitea 取舍）"},
+    {"id": "HUB-GIT-FORGE", "title": "战队 Git 中枢（P2，无紧迫信号）"},
     {"id": "DEPGRAPH-AI-AUTODRAW", "title": "AI 自动画 DAG 草图+人微调（卡 Hermes 触点）"},
     {"id": "AXIS-TREE-VIZ", "title": "知识树展示（人的未来，后置）"},
-    {"id": "GOV-REPORT", "title": "给老师项目级汇报（不含个人比较）"},
+    {"id": "GOV-REPORT", "title": "给老师项目级汇报（数据已有，学期末前做）"},
     {"id": "SCHED-NARROW", "title": "排班收窄定位（退出日常动线，只服务关键窗口）"}
   ]
 }
