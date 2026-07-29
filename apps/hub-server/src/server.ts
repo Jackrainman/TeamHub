@@ -247,6 +247,7 @@ import { registerKnowledgeBaseRoutes } from './routes/kb.js';
 import { registerLedgerRoutes } from './routes/ledger.js';
 import { registerPresenceScheduleRoutes } from './routes/schedule.js';
 import { registerArchiveRoutes } from './routes/archive.js';
+import { registerSystemRoutes } from './routes/system.js';
 // SETUP-WIZARD 刀③：转正式演示数据归档 + exit 42 重启码（与 setup 模式 build-setup-server 同一约定）。
 import { archiveDemoData } from './demo-archive.js';
 import { RESTART_EXIT_CODE } from './build-setup-server.js';
@@ -563,95 +564,6 @@ interface ModuleRouteCtx {
   larkStore?: import('./store/lark-integration-store.js').LarkIntegrationStore;
 }
 
-// ============================================================================
-// system 模块（核心常装）：健康检查 / 系统状态 / BotChannel·AgentBackend·DataSource / 事件 / 桥接成员 / git repos。
-// 完全通用（§3.3），无机器人词汇，任何租户都保留。
-// ============================================================================
-function registerSystemRoutes(
-  app: FastifyInstance,
-  deployment?: DeploymentInfo,
-): void {
-  app.get('/health', async () => {
-    return HealthResponseSchema.parse(buildHealthResponse());
-  });
-
-  app.get('/api/system/status', async () => {
-    const agentBackends = listMockAgentBackends();
-    return SystemStatusResponseSchema.parse(
-      buildSystemStatusResponse(agentBackends, deployment),
-    );
-  });
-
-  // 集成模型三分（地基重建）：BotChannel / AgentBackend / DataSource 各自只读端点。
-  app.get('/api/bot-channels', async () => {
-    return BotChannelsResponseSchema.parse({
-      botChannels: listMockBotChannels(),
-    });
-  });
-
-  app.get('/api/agent-backends', async () => {
-    return AgentBackendsResponseSchema.parse({
-      agentBackends: listMockAgentBackends(),
-    });
-  });
-
-  app.get('/api/data-sources', async () => {
-    return DataSourcesResponseSchema.parse({
-      dataSources: listMockDataSources(),
-    });
-  });
-
-  // invoke/health/capabilities 是 Agent 后端**专属**契约（其余物种无此动词）。
-  app.get('/api/agent-backends/:backendId/health', async (request, reply) => {
-    const { backendId } = request.params as { backendId: string };
-    if (!isMockAgentBackendId(backendId)) {
-      void reply.code(404).send({ detail: 'Agent backend not found' });
-      return;
-    }
-    return AgentBackendHealthResponseSchema.parse(
-      getMockAgentBackendHealth(backendId),
-    );
-  });
-
-  app.get(
-    '/api/agent-backends/:backendId/capabilities',
-    async (request, reply) => {
-      const { backendId } = request.params as { backendId: string };
-      if (!isMockAgentBackendId(backendId)) {
-        void reply.code(404).send({ detail: 'Agent backend not found' });
-        return;
-      }
-      return AgentBackendCapabilitiesResponseSchema.parse(
-        getMockAgentBackendCapabilities(backendId),
-      );
-    },
-  );
-
-  app.post('/api/agent-backends/:backendId/invoke', async (request, reply) => {
-    const { backendId } = request.params as { backendId: string };
-    if (!isMockAgentBackendId(backendId)) {
-      void reply.code(404).send({ detail: 'Agent backend not found' });
-      return;
-    }
-    const data = parseBody(AgentBackendInvokeRequestSchema, request, reply);
-    if (!data) return;
-    return AgentBackendInvokeResponseSchema.parse(
-      invokeMockAgentBackend(backendId, data),
-    );
-  });
-
-  app.get('/api/events', async () => {
-    return HubEventsResponseSchema.parse(apiContractFixtures.events);
-  });
-
-  app.get('/api/bridge/members', async () => {
-    return BridgeMembersResponseSchema.parse(apiContractFixtures.bridgeMembers);
-  });
-
-  app.get('/api/git/repos', async () => {
-    return GitReposResponseSchema.parse(apiContractFixtures.gitRepos);
-  });
-}
 
 
 // ============================================================================

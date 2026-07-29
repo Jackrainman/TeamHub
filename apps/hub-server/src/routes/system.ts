@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import {
   AgentBackendCapabilitiesResponseSchema,
   AgentBackendHealthResponseSchema,
@@ -6,14 +6,14 @@ import {
   AgentBackendInvokeResponseSchema,
   AgentBackendsResponseSchema,
   BotChannelsResponseSchema,
-  BridgeMembersResponseSchema,
   DataSourcesResponseSchema,
+  BridgeMembersResponseSchema,
   GitReposResponseSchema,
   HealthResponseSchema,
   HubEventsResponseSchema,
   SystemStatusResponseSchema,
   apiContractFixtures,
-} from '../contracts.js';
+} from '@teamhub/hub-contracts';
 import type { DeploymentInfo } from '@teamhub/hub-contracts';
 import {
   listMockAgentBackends,
@@ -26,8 +26,27 @@ import {
   invokeMockAgentBackend,
   isMockAgentBackendId,
 } from '../mock-agent-backends.js';
-import { buildHealthResponse, buildSystemStatusResponse } from '../status.js';
-import { parseBody } from './helpers.js';
+import {
+  buildHealthResponse,
+  buildSystemStatusResponse,
+} from '../status.js';
+
+function firstZodMsg(err: import('zod').ZodError, fallback = 'invalid body'): string {
+  return err.issues[0]?.message ?? fallback;
+}
+
+function parseBody<T>(
+  schema: { safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: import('zod').ZodError } },
+  request: FastifyRequest,
+  reply: FastifyReply,
+): T | null {
+  const parsed = schema.safeParse(request.body ?? {});
+  if (!parsed.success) {
+    void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+    return null;
+  }
+  return parsed.data;
+}
 
 export function registerSystemRoutes(
   app: FastifyInstance,
@@ -39,27 +58,19 @@ export function registerSystemRoutes(
 
   app.get('/api/system/status', async () => {
     const agentBackends = listMockAgentBackends();
-    return SystemStatusResponseSchema.parse(
-      buildSystemStatusResponse(agentBackends, deployment),
-    );
+    return SystemStatusResponseSchema.parse(buildSystemStatusResponse(agentBackends, deployment));
   });
 
   app.get('/api/bot-channels', async () => {
-    return BotChannelsResponseSchema.parse({
-      botChannels: listMockBotChannels(),
-    });
+    return BotChannelsResponseSchema.parse({ botChannels: listMockBotChannels() });
   });
 
   app.get('/api/agent-backends', async () => {
-    return AgentBackendsResponseSchema.parse({
-      agentBackends: listMockAgentBackends(),
-    });
+    return AgentBackendsResponseSchema.parse({ agentBackends: listMockAgentBackends() });
   });
 
   app.get('/api/data-sources', async () => {
-    return DataSourcesResponseSchema.parse({
-      dataSources: listMockDataSources(),
-    });
+    return DataSourcesResponseSchema.parse({ dataSources: listMockDataSources() });
   });
 
   app.get('/api/agent-backends/:backendId/health', async (request, reply) => {
@@ -68,24 +79,17 @@ export function registerSystemRoutes(
       void reply.code(404).send({ detail: 'Agent backend not found' });
       return;
     }
-    return AgentBackendHealthResponseSchema.parse(
-      getMockAgentBackendHealth(backendId),
-    );
+    return AgentBackendHealthResponseSchema.parse(getMockAgentBackendHealth(backendId));
   });
 
-  app.get(
-    '/api/agent-backends/:backendId/capabilities',
-    async (request, reply) => {
-      const { backendId } = request.params as { backendId: string };
-      if (!isMockAgentBackendId(backendId)) {
-        void reply.code(404).send({ detail: 'Agent backend not found' });
-        return;
-      }
-      return AgentBackendCapabilitiesResponseSchema.parse(
-        getMockAgentBackendCapabilities(backendId),
-      );
-    },
-  );
+  app.get('/api/agent-backends/:backendId/capabilities', async (request, reply) => {
+    const { backendId } = request.params as { backendId: string };
+    if (!isMockAgentBackendId(backendId)) {
+      void reply.code(404).send({ detail: 'Agent backend not found' });
+      return;
+    }
+    return AgentBackendCapabilitiesResponseSchema.parse(getMockAgentBackendCapabilities(backendId));
+  });
 
   app.post('/api/agent-backends/:backendId/invoke', async (request, reply) => {
     const { backendId } = request.params as { backendId: string };
@@ -95,9 +99,7 @@ export function registerSystemRoutes(
     }
     const data = parseBody(AgentBackendInvokeRequestSchema, request, reply);
     if (!data) return;
-    return AgentBackendInvokeResponseSchema.parse(
-      invokeMockAgentBackend(backendId, data),
-    );
+    return AgentBackendInvokeResponseSchema.parse(invokeMockAgentBackend(backendId, data));
   });
 
   app.get('/api/events', async () => {
