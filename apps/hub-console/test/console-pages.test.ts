@@ -11,7 +11,7 @@ import { CONSOLE_PAGES, filterConsolePages } from '../src/console-pages';
 describe('console-pages: filterConsolePages', () => {
   const ALL_ENABLED: TenantConfig = { enabledModules: [...ALL_MODULE_IDS] };
 
-  test('全模块启用：9 页全在（含 MY-VIEW）、顺序不变', () => {
+  test('全模块启用：10 页全在（含 MY-VIEW）、顺序不变', () => {
     const pages = filterConsolePages(CONSOLE_PAGES, ALL_ENABLED);
     expect(pages.map((p) => p.key)).toEqual(CONSOLE_PAGES.map((p) => p.key));
     expect(pages.map((p) => p.key)).toEqual([
@@ -23,6 +23,7 @@ describe('console-pages: filterConsolePages', () => {
       'inv',
       'fleet',
       'direction',
+      'timeline',
       'settings',
     ]);
   });

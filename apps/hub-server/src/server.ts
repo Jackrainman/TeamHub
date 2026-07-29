@@ -1186,11 +1186,8 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   // POST /api/groups：新建叶子组（只有 name；id/seasonId/parentGroupId=null/kind 由 store 钉）。
   // 同名（含非叶子/哨兵组）→ 409（组名是 importRoster 的匹配键，重名会静默错挂）。
   app.post('/api/groups', async (request, reply) => {
-    const parsed = CreateGroupRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
+    const groupData = parseBody(CreateGroupRequestSchema, request, reply);
+    if (!groupData) return;
     if (identityMode === 'identity') {
       const snapshot = await store.getSnapshot();
       if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
@@ -1198,9 +1195,9 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
         return;
       }
     }
-    const result = await store.createGroup({ name: parsed.data.name.trim() });
+    const result = await store.createGroup({ name: groupData.name.trim() });
     if (!result.ok) {
-      void reply.code(409).send({ detail: `组「${parsed.data.name}」已存在` });
+      void reply.code(409).send({ detail: `组「${groupData.name}」已存在` });
       return;
     }
     void reply.code(201);
@@ -1211,11 +1208,8 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   // id 不存在 → 404。
   app.put<{ Params: { id: string } }>('/api/groups/:id', async (request, reply) => {
     const { id } = request.params;
-    const parsed = RenameGroupRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
+    const renameData = parseBody(RenameGroupRequestSchema, request, reply);
+    if (!renameData) return;
     if (identityMode === 'identity') {
       const snapshot = await store.getSnapshot();
       if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
@@ -1223,14 +1217,14 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
         return;
       }
     }
-    const result = await store.renameGroup(id, parsed.data.name.trim());
+    const result = await store.renameGroup(id, renameData.name.trim());
     if (!result.ok) {
       if (result.reason === 'not-found') {
         void reply.code(404).send({ detail: 'group not found' });
       } else if (result.reason === 'not-leaf') {
         void reply.code(409).send({ detail: '汇报视角组（含子组或是联调哨兵组）不可改名' });
       } else {
-        void reply.code(409).send({ detail: `组「${parsed.data.name}」已存在` });
+        void reply.code(409).send({ detail: `组「${renameData.name}」已存在` });
       }
       return;
     }
@@ -1282,11 +1276,8 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   // 语义=宣告新的当前赛季：status 恒由服务端钉 active，旧 active 由 store 同笔转 archived
   // （一届一个当前赛季）。同名拒绝（400）；endsAt 早于 startsAt 拒绝（400）。
   app.post('/api/seasons', async (request, reply) => {
-    const parsed = CreateSeasonRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
+    const seasonData = parseBody(CreateSeasonRequestSchema, request, reply);
+    if (!seasonData) return;
     const snapshot = await store.getSnapshot();
     // 敏感门收口（K1）：身份模式下建赛季须 superAdmin（fail-closed，另读实时名册）；匿名模式跳过（写门即可）。
     if (
@@ -1296,7 +1287,7 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
       return;
     }
-    const { name, startsAt, endsAt } = parsed.data;
+    const { name, startsAt, endsAt } = seasonData;
     if (endsAt && Date.parse(endsAt) <= Date.parse(startsAt)) {
       void reply.code(400).send({ detail: 'endsAt must be after startsAt' });
       return;
