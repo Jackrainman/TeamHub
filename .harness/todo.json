@@ -1,12 +1,10 @@
 {
-  "focus": "功能批次已完成（v0.45.22）；下一步=UX B4/B5 + server.ts 继续拆分",
+  "focus": "server.ts 拆分完成（v0.45.32, 3672→903行）；下一步=UX B4/B5",
   "blocked": [
     {"id": "HERMES-LARK-SKILL", "reason": "卡飞书侧 skill 编写（用户侧）", "owner": "user"},
     {"id": "LARK-BIN-PROBE", "reason": "需用户在 WSL2 实测 which lark / which lark-cli", "owner": "user"}
   ],
   "todo": [
-    {"id": "REFACTOR-SERVER-SPLIT", "title": "server.ts 继续拆分：pm/kb/inv/schedule 路由逐步迁出（baseline/search/export 已迁）", "tag": "code"},
-    {"id": "FIX-PARSEBODY-CONT", "title": "parseBody helper 继续替换剩余 ~60 处 safeParse+400 样板", "tag": "code"},
     {"id": "UX-B4-B5", "title": "UX 批次 B4（卡片基类+空态）+ B5（图标+CSS治理）", "tag": "code"},
     {"id": "CHECKLIST-TPL-IMPORT", "title": "检查单模板最小导入通道（等复盘产出，先积累）", "tag": "code"},
     {"id": "KB-AI-STRUCT", "title": "知识库 AI 结构化（研究项，先积累导入语料再评估）", "tag": "research"}
@@ -21,8 +19,8 @@
     "FIX-SHARED-SYMBOLS: GRADE_KEY/RosterReportView → src/shared/",
     "FIX-QUERYKEYS: queryKeys 工厂 + PoolPage 迁移",
     "FIX-DEAD-CODE: 删 645 行零消费者",
-    "FIX-PARSEBODY: helper 建立 + 3 处示范迁移",
-    "REFACTOR-BASELINE-ROUTES: baseline 路由抽文件",
+    "FIX-PARSEBODY: helper 建立 + 批量迁移",
+    "REFACTOR-SERVER-SPLIT: server.ts 3672→903行，全部路由迁出到 routes/（10个文件）",
     "TASK-TIMELINE-CONTRACT: transitions[] schema + store",
     "TASK-TIMELINE: Drawer 时间线 UI",
     "GLOBAL-SEARCH: /api/search + 侧栏搜索框",
