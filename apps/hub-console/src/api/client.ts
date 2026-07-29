@@ -236,6 +236,7 @@ export interface HubApiClient {
   // 体检 D5——前端直接用 task.isBig、不重算）。`query.q` = "看谁做过"子串搜 title/rawSummary（红线：
   // 只回任务列表，永不聚合成技能画像/花名册，也不按人筛选）。缺省 = 全量（现有行为不变）。
   getTasks(query?: { q?: string }): Promise<{ tasks: TaskWithMeta[] }>;
+  globalSearch(q: string): Promise<{ results: Array<{ type: string; id: string; title: string; snippet: string }> }>;
   // 赛季列表（S1）：总览「基准线 vs 实际」按 active 赛季查基准线。无人维度、只读元信息。
   getSeasons(): Promise<{ seasons: Season[] }>;
   // 赛季创建（SEASON-CREATE 补链路）：设置页「赛季」分区消费——新建=宣告新的当前赛季
@@ -577,6 +578,11 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
       const q = query?.q?.trim();
       const qs = q ? `?q=${encodeURIComponent(q)}` : '';
       return fetchJson(`${baseUrl}/api/tasks${qs}`, TasksResponseSchema, fetcher);
+    },
+    async globalSearch(q: string) {
+      const res = await fetcher(`${baseUrl}/api/search?q=${encodeURIComponent(q)}`);
+      if (!res.ok) throw new Error(`search ${res.status}`);
+      return res.json() as Promise<{ results: Array<{ type: string; id: string; title: string; snippet: string }> }>;
     },
     async getSeasons() {
       return fetchJson(`${baseUrl}/api/seasons`, SeasonsResponseSchema, fetcher);

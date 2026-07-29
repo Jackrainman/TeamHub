@@ -492,6 +492,8 @@ const zh = {
 
   // 无障碍 landmark 标签（aria-label）
   'layout.sidebar.nav': '控制台导航',
+  'layout.search.placeholder': '搜索任务、知识库、库存…',
+  'layout.search.empty': '无匹配结果',
   'overview.section.summary': '系统摘要',
   'depgraph.summary.aria': '依赖摘要',
   'pm.section.summary': '任务摘要',
@@ -1847,6 +1849,8 @@ const en: Record<TranslationKey, string> = {
   'overview.artifacts.toArchive': 'View artifact archive / register a new artifact →',
 
   'layout.sidebar.nav': 'Console navigation',
+  'layout.search.placeholder': 'Search tasks, KB, inventory…',
+  'layout.search.empty': 'No results',
   'overview.section.summary': 'System summary',
   'depgraph.summary.aria': 'Dependency summary',
   'pm.section.summary': 'Task summary',

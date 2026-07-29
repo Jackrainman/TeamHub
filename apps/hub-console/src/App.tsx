@@ -174,7 +174,7 @@ function ConsoleApp({ apiClient }: { apiClient: HubApiClient }) {
   };
 
   return (
-    <ConsoleLayout page={page} onNavigate={setPage} pages={ENABLED_PAGES}>
+    <ConsoleLayout page={page} onNavigate={setPage} pages={ENABLED_PAGES} client={apiClient}>
       <div className="console-toolbar">
         <div>
           <p className="eyebrow">{t('toolbar.eyebrow')}</p>

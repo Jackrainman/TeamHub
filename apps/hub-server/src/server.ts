@@ -241,6 +241,7 @@ import {
 } from './status.js';
 import { tryServeStaticConsole } from './static-console.js';
 import { registerBaselineRoutes } from './routes/baseline.js';
+import { registerSearchRoutes } from './routes/search.js';
 // SETUP-WIZARD 刀③：转正式演示数据归档 + exit 42 重启码（与 setup 模式 build-setup-server 同一约定）。
 import { archiveDemoData } from './demo-archive.js';
 import { RESTART_EXIT_CODE } from './build-setup-server.js';
@@ -3408,6 +3409,8 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   if (moduleEnabled('presence-schedule')) {
     registerPresenceScheduleRoutes(app, ctx);
   }
+
+  registerSearchRoutes(app, { store, kbStore, invStore });
 
   // ── 飞书集成配置（LARK-INTEG-CONFIG）────────────────────────────────────────────────────────────
   const larkStore = options.larkStore;
