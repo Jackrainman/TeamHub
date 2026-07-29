@@ -1270,12 +1270,6 @@ button,
   overflow: auto;
 }
 
-.detail-empty {
-  padding: 16px;
-  color: var(--muted);
-  font-size: var(--text-sm);
-  line-height: 1.5;
-}
 
 .detail-list {
   display: flex;
@@ -2658,12 +2652,6 @@ form .btn--primary {
   padding: 10px;
 }
 
-.pm-column__empty {
-  padding: 8px 4px;
-  color: var(--faint);
-  font-size: var(--text-sm);
-  text-align: center;
-}
 
 .pm-card {
   display: flex;
@@ -3275,10 +3263,6 @@ form .btn--primary {
   flex-direction: column;
   gap: 6px;
 }
-.inv-history-empty {
-  color: var(--muted);
-  margin: 0;
-}
 .inv-history__item {
   display: flex;
   align-items: center;
@@ -3340,10 +3324,6 @@ form .btn--primary {
   margin: 0 0 12px;
   font-size: var(--text-md);
   font-weight: var(--weight-bold);
-}
-.resources-empty {
-  color: var(--muted);
-  margin: 0;
 }
 /* 机器人多时横向滚动（行内改状态控件不被挤压）。 */
 .resources-table-wrap {
@@ -4880,20 +4860,6 @@ form .btn--primary {
 
 /* ⑦（B2 全局化后撤销特例）「未配置=中性」原是 tech 专属修正；徽章归并把 unconfigured
    直接映射到 .badge 中性基色（全主题生效），本特例不再需要。 */
-
-/* ⑧ 空态统一「虚线留位框」观感：空不是错误，是邀请（看板空列/详情空态/流水空态）。 */
-:root[data-theme='tech'] .pm-column__empty,
-:root[data-theme='tech'] .detail-empty,
-:root[data-theme='tech'] .inv-history-empty,
-:root[data-theme='tech'] .resources-empty {
-  border: 1px dashed rgba(44, 61, 95, 0.8);
-  border-radius: var(--radius-md);
-  background: rgba(13, 20, 33, 0.4);
-  color: var(--muted);
-}
-:root[data-theme='tech'] .pm-column__empty {
-  padding: 14px 8px;
-}
 
 /* ===== 学习方向星图（LEARN-DIRECTION 双 UI 之二，2026-07-12 实验性 3D 视图）=====
    星图按性质恒定深色（夜空即语义），不随主题走——固定色而非 var，在 light/warm 下呈现为
