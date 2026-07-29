@@ -829,6 +829,31 @@ button,
   background: var(--border);
 }
 
+.activity-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--card-bg);
+  font-size: var(--text-sm);
+}
+.activity-row__title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+.activity-row__change {
+  color: var(--accent);
+  white-space: nowrap;
+}
+.activity-row__meta {
+  color: var(--faint);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
 /* 事件行时间线化（VISUAL-VITALITY V1 §3.4）：语义 tone 圆点 + 主体 + mono 时间戳。
    偏离注记：设计稿的竖向连线在 1px 缝隙列表里视觉断裂，砍掉只留圆点（visual-vitality.md §6）。 */
 .data-row--event {

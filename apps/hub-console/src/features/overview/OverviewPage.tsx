@@ -10,6 +10,7 @@ import { CountUpNumber } from '../../components/viz/CountUpNumber';
 import { ProgressRing } from '../../components/viz/ProgressRing';
 import { StatusDot, type VizTone } from '../../components/viz/StatusDot';
 import { BaselineOverview } from './BaselineOverview';
+import { ActivityFeed } from './ActivityFeed';
 
 // 后端枚举 → 文案键（类型安全：枚举变更会在此处编译报错）。仅翻译状态/类型等「界面语义」，
 // 用户数据（displayName / uri / branch / capabilities 等）保持后端原样。
@@ -162,6 +163,8 @@ export function OverviewPage({
           ))}
         </div>
       </section>
+
+      <ActivityFeed client={client} source={source} />
 
       {/* 成员状态面板（逐人 空闲/在忙/被卡/离线）已隐藏（2026-06-18，用户决定，I0）：
           逐人状态广播给所有人 = 与「不抓摸鱼」原则冲突；属三支柱之前的旧脚手架、非主线。
