@@ -246,6 +246,7 @@ import { registerExportRoutes } from './routes/export.js';
 import { registerKnowledgeBaseRoutes } from './routes/kb.js';
 import { registerLedgerRoutes } from './routes/ledger.js';
 import { registerPresenceScheduleRoutes } from './routes/schedule.js';
+import { registerArchiveRoutes } from './routes/archive.js';
 // SETUP-WIZARD 刀③：转正式演示数据归档 + exit 42 重启码（与 setup 模式 build-setup-server 同一约定）。
 import { archiveDemoData } from './demo-archive.js';
 import { RESTART_EXIT_CODE } from './build-setup-server.js';
@@ -652,196 +653,6 @@ function registerSystemRoutes(
   });
 }
 
-// ============================================================================
-// archive 模块（可选）：图纸/归档物提交日志 + 版本时间线 + 文件上传下载。
-// ============================================================================
-function registerArchiveRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
-  const { store, clock } = ctx;
-
-  // 归档物（图纸）文件上传：multipart 流式，单文件。**multipart 插件已在 buildHubServer 宿主级注册一次**
-  // （见下方注册点——archive 图纸上传 + pm-core 名册导入共用，避免重复注册报错）；插件级 fileSize 默认 =
-  // 归档物上限（artifactMaxBytes），本模块 `request.file()` 不传 per-request limits 即沿用该默认。
-  // 全局 bodyLimit(256KB) 不约束 multipart，故上限靠插件 limits 钉；onRequest 鉴权/限流钩子先于 body 解析跑。
-
-  // 图纸提交日志 / 版本时间线（v1，A2）：从治理快照读 artifacts（持久化时由 FileGovStore 落盘累积），
-  // 不再读 apiContractFixtures.artifacts。无人维度——记录主键是机构 + 版本 + 归档物（I0/A4）。
-  app.get('/api/artifacts', async () => {
-    const snapshot = await store.getSnapshot();
-    return ArtifactsResponseSchema.parse({ artifacts: snapshot.artifacts });
-  });
-
-  // 归档物文件下载：把 txt/md/pdf 放进 TEAMHUB_ARTIFACT_FILES_DIR，文件名 `<artifactId>.<ext>`。
-  // GET（读端点，不过写鉴权钩子）。仅服务 snapshot 里真实存在的 artifact id 对应文件——id 先经
-  // snapshot 校验（无斜杠/穿越），再 relative 兜底，杜绝路径穿越。I0：文件名用归档物 name，无人维度。
-  app.get<{ Params: { id: string } }>(
-    '/api/artifacts/:id/download',
-    async (request, reply) => {
-      const dir = getArtifactDir();
-      if (!dir) {
-        void reply.code(404).send({ detail: '未配置归档物文件目录' });
-        return reply;
-      }
-      const { id } = request.params;
-      const snapshot = await store.getSnapshot();
-      const artifact = snapshot.artifacts.find((a) => a.id === id);
-      if (!artifact) {
-        void reply.code(404).send({ detail: '归档物不存在' });
-        return reply;
-      }
-      const entries = await readdir(dir).catch(() => [] as string[]);
-      const match = entries.find((f) => f === id || f.startsWith(`${id}.`));
-      if (!match) {
-        void reply.code(404).send({ detail: '该归档物暂无可下载文件' });
-        return reply;
-      }
-      const full = join(dir, match);
-      const rel = relative(dir, full);
-      if (rel.startsWith('..') || isAbsolute(rel)) {
-        void reply.code(400).send({ detail: '非法路径' });
-        return reply;
-      }
-      const ext = extname(match);
-      const downloadName = `${artifact.name}${ext}`;
-      const content = await readFile(full);
-      void reply.header(
-        'content-disposition',
-        `attachment; filename*=UTF-8''${encodeURIComponent(downloadName)}`,
-      );
-      void reply.type(
-        ext === '.md'
-          ? 'text/markdown; charset=utf-8'
-          : ext === '.txt'
-            ? 'text/plain; charset=utf-8'
-            : 'application/octet-stream',
-      );
-      return content;
-    },
-  );
-
-  // 图纸档案 v2 提交（HUB-ARTIFACT-ARCHIVE-V2，append-only）。机构经 UI 记一条新图纸：人填
-  // ownerGroup/season/robotCode/mechanism/name/uri（+ 电路 subType、驱动可选 relatedRepo/relatedCommit）。
-  // **路由 owns 派生（C5）**：versionNo 按四键 ownerGroup+season+robotCode+mechanism 在全量 snapshot 上自增、
-  // kind 由 ownerGroup+subType 派生、revision=`v${versionNo}`——客户端均不给（schema omit）；store 仍钉
-  // submittedVia=console、补 id/createdAt（body 不动）。机械时剥掉 subType（superRefine 已拦机械夹带 subType）。
-  // POST → 继承 H3 onRequest 鉴权+限流（不另写鉴权）。**I0**：无人维度——主键=组+赛季+车+机构+版本+归档物，无提交人字段。
-  // 并发 race（read-then-write 两并发 POST 可能都算同号）：小作坊可接受，append-only 容忍重复、最新即权威。
-  app.post('/api/artifacts', async (request, reply) => {
-    const data = parseBody(CreateArtifactRequestSchema, request, reply);
-    if (!data) return;
-    const { ownerGroup, season, mechanism, subType } = data;
-    const snapshot = await store.getSnapshot();
-    // 版本号按三键（组别+赛季+机构）自增——车(robotCode) 不进键，故跨车迭代连续编号。
-    const versionNo = nextArtifactVersionNo(snapshot.artifacts, {
-      ownerGroup,
-      season,
-      mechanism,
-    });
-    const kind = deriveArtifactKind(ownerGroup, subType);
-    const revision = `v${versionNo}`;
-    // 仅电路组带 subType；机械/电控/视觉剥掉（superRefine 已保证缺省，避免 undefined 落库噪声）。
-    const draft =
-      ownerGroup !== 'electrical'
-        ? (() => {
-            const { subType: _drop, ...rest } = data;
-            void _drop;
-            return { ...rest, kind, versionNo, revision };
-          })()
-        : { ...data, kind, versionNo, revision };
-    const artifact = await store.appendArtifact(draft);
-    void reply.code(201);
-    return CreateArtifactResponseSchema.parse({ artifact });
-  });
-
-  // 归档物（图纸）文件上传（HUB-ARTIFACT-STORE-MECH 本地卷版，两步式：先登记元数据再传文件 / 也可登记即传）。
-  // 字节落本地卷（artifact-storage 接缝，D-025：不进 git），storedFile 指针经 store.setArtifactFile 落库（覆盖=重传）。
-  // POST → 继承 H3 onRequest 鉴权+限流。**I0**：storedFile 无人维度。**安全**：先验归档物存在再写、避免孤儿；
-  // 后缀白名单（以后缀为准，CAD 的 MIME 不可信）；fileSize 上限由 multipart limits 钉（全局 bodyLimit 不管 multipart）。
-  app.post<{ Params: { id: string } }>(
-    '/api/artifacts/:id/upload',
-    async (request, reply) => {
-      const dir = getArtifactDir();
-      if (!dir) {
-        // 配置缺失（非 not-found）：用 400 与「归档物不存在」404 区分，便于运维定位。
-        void reply.code(400).send({ detail: '未配置归档物文件目录' });
-        return reply;
-      }
-      const { id } = request.params;
-      // 先验归档物存在——再消费流写盘，杜绝给不存在 id 留下孤儿文件。
-      const snapshot = await store.getSnapshot();
-      if (!snapshot.artifacts.some((a) => a.id === id)) {
-        void reply.code(404).send({ detail: '归档物不存在' });
-        return reply;
-      }
-      let data;
-      try {
-        data = await request.file();
-      } catch {
-        void reply.code(400).send({ detail: '请求体不是 multipart 表单' });
-        return reply;
-      }
-      if (!data) {
-        void reply.code(400).send({ detail: '未收到文件' });
-        return reply;
-      }
-      const ext = extname(data.filename ?? '').toLowerCase();
-      const contentType = ARTIFACT_ALLOWED_EXT.get(ext);
-      if (!contentType) {
-        await data.toBuffer().catch(() => {}); // 排空流，避免连接挂起
-        void reply.code(415).send({ detail: `不支持的文件类型：${ext || '（无后缀）'}` });
-        return reply;
-      }
-      let buf: Buffer;
-      try {
-        buf = await data.toBuffer();
-      } catch (err) {
-        if ((err as { code?: string })?.code === 'FST_REQ_FILE_TOO_LARGE') {
-          void reply.code(413).send({ detail: '文件过大（上限 50MB）' });
-          return reply;
-        }
-        void reply.code(400).send({ detail: '读取文件失败' });
-        return reply;
-      }
-      if (data.file.truncated) {
-        void reply.code(413).send({ detail: '文件过大（上限 50MB）' });
-        return reply;
-      }
-      const sha256 = sha256Of(buf);
-      const sizeBytes = buf.length;
-      let filename: string;
-      try {
-        filename = await writeArtifactFile(dir, id, ext, buf);
-      } catch {
-        void reply.code(500).send({ detail: '写入文件失败' });
-        return reply;
-      }
-      const meta = {
-        filename,
-        ext,
-        sizeBytes,
-        contentType,
-        sha256,
-        uploadedAt: clock.now().toISOString(),
-      };
-      let updated;
-      try {
-        updated = await store.setArtifactFile(id, meta);
-      } catch {
-        // 落盘指针失败：删刚写的字节，避免「有文件无指针」孤儿。
-        await deleteArtifactFile(dir, id).catch(() => {});
-        void reply.code(500).send({ detail: '保存文件指针失败' });
-        return reply;
-      }
-      if (!updated) {
-        // 竞态：写盘期间归档物消失（append-only 无 delete，理论不至）。清孤儿 + 404。
-        await deleteArtifactFile(dir, id).catch(() => {});
-        void reply.code(404).send({ detail: '归档物不存在' });
-        return reply;
-      }
-      void reply.code(200);
-      return UploadArtifactResponseSchema.parse({ artifact: updated });
-    },
-  );
-}
 
 // ============================================================================
 // pm-core 模块（核心必装）：DAG 归因读视图 + 方向缺口 + 任务/依赖/前置需求写侧。
@@ -2340,7 +2151,7 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     registerSystemRoutes(app, options.deployment);
   }
   if (moduleEnabled('archive')) {
-    registerArchiveRoutes(app, ctx);
+    registerArchiveRoutes(app, { store, clock });
   }
   if (moduleEnabled('pm-core')) {
     registerPmCoreRoutes(app, ctx);
