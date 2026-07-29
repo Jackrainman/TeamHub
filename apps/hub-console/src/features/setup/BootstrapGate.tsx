@@ -314,6 +314,10 @@ function WhoStep({
       });
       onDone();
     } catch (err) {
+      if (/\b409\b/.test(String(err))) {
+        onDone();
+        return;
+      }
       setError(err);
     } finally {
       setPending(false);

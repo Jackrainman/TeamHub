@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import {
   BaselineQuerySchema,
   BaselineResponseSchema,
@@ -12,14 +12,7 @@ import type { BaselineStore } from '../store/baseline-store.js';
 import type { ChecklistStore } from '../store/checklist-store.js';
 import type { GovStore } from '../store/gov-store.js';
 import type { SessionIdentity, ActorRef } from '@teamhub/hub-contracts';
-
-function firstZodMsg(err: import('zod').ZodError, fallback = 'invalid body'): string {
-  return err.issues[0]?.message ?? fallback;
-}
-
-function sessionActor(identity: SessionIdentity): ActorRef {
-  return { id: identity.memberId, displayName: identity.displayName, source: 'console' };
-}
+import { firstZodMsg, parseBody, sessionActor } from './helpers.js';
 
 export interface BaselineRouteDeps {
   store: GovStore;
@@ -46,12 +39,9 @@ export function registerBaselineRoutes(app: FastifyInstance, deps: BaselineRoute
       void reply.code(400).send({ detail: firstZodMsg(queryParsed.error, 'seasonId required') });
       return;
     }
-    const bodyParsed = UpdateBaselineRequestSchema.safeParse(request.body ?? {});
-    if (!bodyParsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(bodyParsed.error) });
-      return;
-    }
-    const baseline = await baselineStore.upsertBaseline(queryParsed.data.seasonId, bodyParsed.data);
+    const bodyParsed = parseBody(UpdateBaselineRequestSchema, request, reply);
+    if (!bodyParsed) return;
+    const baseline = await baselineStore.upsertBaseline(queryParsed.data.seasonId, bodyParsed);
     return UpdateBaselineResponseSchema.parse({ baseline });
   });
 
@@ -63,12 +53,9 @@ export function registerBaselineRoutes(app: FastifyInstance, deps: BaselineRoute
         void reply.code(400).send({ detail: firstZodMsg(queryParsed.error, 'seasonId required') });
         return;
       }
-      const bodyParsed = PassMilestoneRequestSchema.safeParse(request.body ?? {});
-      if (!bodyParsed.success) {
-        void reply.code(400).send({ detail: firstZodMsg(bodyParsed.error) });
-        return;
-      }
-      const { evidenceRefs } = bodyParsed.data;
+      const bodyParsed = parseBody(PassMilestoneRequestSchema, request, reply);
+      if (!bodyParsed) return;
+      const { evidenceRefs } = bodyParsed;
       if (evidenceRefs && evidenceRefs.length > 0) {
         const snapshot = await store.getSnapshot();
         const knownArtifactIds = new Set(snapshot.artifacts.map((a) => a.id));
@@ -79,7 +66,7 @@ export function registerBaselineRoutes(app: FastifyInstance, deps: BaselineRoute
         }
       }
       const { milestoneId } = request.params;
-      if (bodyParsed.data.status === 'passed') {
+      if (bodyParsed.status === 'passed') {
         const baseline = await baselineStore.getBaseline(queryParsed.data.seasonId);
         if (baseline) {
           const items = await checklistStore.listItems(baseline.id);
@@ -91,10 +78,9 @@ export function registerBaselineRoutes(app: FastifyInstance, deps: BaselineRoute
           }
         }
       }
-      const identity = (request as FastifyRequest & { identity: SessionIdentity | null }).identity;
-      const passData = identity
-        ? { ...bodyParsed.data, passedBy: sessionActor(identity) }
-        : bodyParsed.data;
+      const passData = request.identity
+        ? { ...bodyParsed, passedBy: sessionActor(request.identity) }
+        : bodyParsed;
       const baseline = await baselineStore.passMilestone(
         queryParsed.data.seasonId,
         milestoneId,

@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import {
   KB_TITLE_MAX,
   ArchiveDocumentSchema,
@@ -18,26 +18,10 @@ import type { GovStore, KbStore } from '../store/gov-store.js';
 import type { Clock } from '../clock.js';
 import { deriveErrorCode } from '../kb/error-code.js';
 import { isSuperAdmin } from '../authz.js';
+import { firstZodMsg, parseBody } from './helpers.js';
 
 const KB_IMPORT_DOC_MAX_BYTES = 1024 * 1024;
 const KB_IMPORT_DOCS_MAX_FILES = 20;
-
-function firstZodMsg(err: import('zod').ZodError, fallback = 'invalid body'): string {
-  return err.issues[0]?.message ?? fallback;
-}
-
-function parseBody<T>(
-  schema: { safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: import('zod').ZodError } },
-  request: FastifyRequest,
-  reply: FastifyReply,
-): T | null {
-  const parsed = schema.safeParse(request.body ?? {});
-  if (!parsed.success) {
-    void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-    return null;
-  }
-  return parsed.data;
-}
 
 function kbImportTitle(filename: string): string {
   const stripped = filename.replace(/\.(md|markdown)$/i, '').trim();

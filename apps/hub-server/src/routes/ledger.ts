@@ -24,64 +24,9 @@ import {
 import type { InventoryImportFailure, InventoryImportRow, IdentityMode, SessionIdentity } from '@teamhub/hub-contracts';
 import type { GovStore, InvStore } from '../store/gov-store.js';
 import { isSuperAdmin } from '../authz.js';
+import { firstZodMsg, parseBody, readCsvUpload } from './helpers.js';
 
 const INVENTORY_IMPORT_MAX_BYTES = 1024 * 1024;
-
-function firstZodMsg(err: import('zod').ZodError, fallback = 'invalid body'): string {
-  return err.issues[0]?.message ?? fallback;
-}
-
-function parseBody<T>(
-  schema: { safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: import('zod').ZodError } },
-  request: FastifyRequest,
-  reply: FastifyReply,
-): T | null {
-  const parsed = schema.safeParse(request.body ?? {});
-  if (!parsed.success) {
-    void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-    return null;
-  }
-  return parsed.data;
-}
-
-async function readCsvUpload(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  opts: { maxBytes: number; decode: (buf: Buffer) => string | null },
-): Promise<string | null> {
-  let data;
-  try {
-    data = await request.file({ limits: { fileSize: opts.maxBytes, files: 1 } });
-  } catch {
-    void reply.code(400).send({ detail: '请求体不是 multipart 表单' });
-    return null;
-  }
-  if (!data) {
-    void reply.code(400).send({ detail: '未收到文件' });
-    return null;
-  }
-  let buf: Buffer;
-  try {
-    buf = await data.toBuffer();
-  } catch (err) {
-    if ((err as { code?: string })?.code === 'FST_REQ_FILE_TOO_LARGE') {
-      void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
-      return null;
-    }
-    void reply.code(400).send({ detail: '读取文件失败' });
-    return null;
-  }
-  if (data.file.truncated) {
-    void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
-    return null;
-  }
-  const text = opts.decode(buf);
-  if (text === null) {
-    void reply.code(400).send({ detail: '编码无法识别，请另存为 CSV UTF-8' });
-    return null;
-  }
-  return text;
-}
 
 export interface LedgerRouteDeps {
   store: GovStore;
@@ -178,12 +123,9 @@ export function registerLedgerRoutes(app: FastifyInstance, deps: LedgerRouteDeps
     let rows: InventoryImportRow[];
     let parseErrors: InventoryImportFailure[] = [];
     if ((request.headers['content-type'] ?? '').includes('application/json')) {
-      const parsed = InventoryImportRowsRequestSchema.safeParse(request.body ?? {});
-      if (!parsed.success) {
-        void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-        return;
-      }
-      rows = parsed.data.rows;
+      const parsed = parseBody(InventoryImportRowsRequestSchema, request, reply);
+      if (!parsed) return;
+      rows = parsed.rows;
     } else {
       const text = await readInventoryCsvText(request, reply);
       if (text === null) return;
