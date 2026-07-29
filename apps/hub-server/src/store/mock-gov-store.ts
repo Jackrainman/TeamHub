@@ -588,11 +588,14 @@ export class InMemoryGovStore implements GovStore {
     const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
     if (idx === -1) return null;
     const now = this.clock.now().toISOString();
+    const prev = this.snapshot.tasks[idx];
+    const transition = { from: prev.status ?? null, to: status, at: now };
     const updated: Task = {
-      ...this.snapshot.tasks[idx],
+      ...prev,
       status,
       statusSource: MANUAL_TASK_STATUS_SOURCE,
       updatedAt: now,
+      transitions: [...(prev.transitions ?? []), transition],
     };
     this.snapshot.tasks[idx] = updated;
     return updated;

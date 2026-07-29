@@ -372,11 +372,14 @@ export class SqliteGovStore implements GovStore {
     return this.tx(() => {
       const prev = this.getRow<Task>('tasks', taskId);
       if (!prev) return null;
+      const now = this.clock.now().toISOString();
+      const transition = { from: prev.status ?? null, to: status, at: now };
       const updated: Task = {
         ...prev,
         status,
         statusSource: MANUAL_TASK_STATUS_SOURCE,
-        updatedAt: this.clock.now().toISOString(),
+        updatedAt: now,
+        transitions: [...(prev.transitions ?? []), transition],
       };
       this.updateRow('tasks', taskId, updated);
       return updated;

@@ -328,6 +328,15 @@ export const TaskSchema = z.object({
   reviewedBy: ActorRefSchema.optional(),
   // §5 验收备注 / 打回理由（reject 时写打回理由；accept 时可空或写抽查备注）。事实卡留名同处。
   reviewNote: z.string().min(1).optional(),
+  // ── 状态流转历史（TASK-TIMELINE）────────────────────────────────────────────────────────────
+  // 每次 updateTaskStatus 追加一条，记录"什么时候、从什么状态、变成什么状态、谁操作的"。
+  // 纯增量 optional：旧数据无此字段 → parse 为 undefined，向后兼容。
+  transitions: z.array(z.object({
+    from: TaskStatusSchema.nullable(),
+    to: TaskStatusSchema,
+    at: isoDateTimeSchema,
+    by: ActorRefSchema.optional(),
+  })).optional(),
 });
 
 // ---------------------------------------------------------------------------
