@@ -1,4 +1,5 @@
 import { useState, useRef, type FormEvent } from 'react';
+import { EmptyState } from '../../shared/EmptyState';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
 import type {
@@ -453,7 +454,7 @@ function ActionHistory({
     <section className="panel" aria-label={t('inv.history.title')}>
       <h2 className="inv-section-title">{t('inv.history.title')}</h2>
       {desc.length === 0 ? (
-        <p className="inv-history-empty">{t('inv.history.empty')}</p>
+        <EmptyState title={t('inv.history.empty')} />
       ) : (
         <ul className="inv-history">
           {desc.map((a) => (

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { EmptyState } from '../../shared/EmptyState';
 import { useTheme } from '../../theme';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dagre from '@dagrejs/dagre';
@@ -521,7 +522,7 @@ function DetailPanel({
           <h2>{t('depgraph.detail.title')}</h2>
           <span>{t('depgraph.detail.clickAny')}</span>
         </div>
-        <div className="detail-empty">{t('depgraph.detail.empty')}</div>
+        <EmptyState title={t('depgraph.detail.empty')} />
       </aside>
     );
   }

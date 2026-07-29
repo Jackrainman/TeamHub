@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { EmptyState } from '../../shared/EmptyState';
 import { useQuery } from '@tanstack/react-query';
 import { Network, Plus, PanelRightOpen } from 'lucide-react';
 import type {
@@ -150,7 +151,7 @@ export function PmBoardPage({
                 </header>
                 <div className="pm-column__body">
                   {columnTasks.length === 0 ? (
-                    <p className="pm-column__empty">{t('pm.col.empty')}</p>
+                    <EmptyState title={t('pm.col.empty')} />
                   ) : (
                     columnTasks.map((task) => (
                       <PmTaskCard

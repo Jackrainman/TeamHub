@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Plus, X } from 'lucide-react';
+import { EmptyState } from '../../shared/EmptyState';
 import type { HubApiClient } from '../../api/client';
 import {
   deriveDisplayCode,
@@ -182,7 +183,7 @@ export function ResourcesPage({
       <section className="panel" aria-label={t('resources.table.title')}>
         <h2 className="resources-section-title">{t('resources.table.title')}</h2>
         {resources.length === 0 ? (
-          <p className="resources-empty">{t('resources.empty')}</p>
+          <EmptyState title={t('resources.empty')} />
         ) : (
           <div className="resources-table-wrap">
             <table className="resources-table">
