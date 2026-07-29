@@ -242,8 +242,8 @@ import {
 import { tryServeStaticConsole } from './static-console.js';
 import { registerBaselineRoutes } from './routes/baseline.js';
 import { registerSearchRoutes } from './routes/search.js';
-import { registerKnowledgeBaseRoutes } from './routes/kb.js';
 import { registerExportRoutes } from './routes/export.js';
+import { registerKnowledgeBaseRoutes } from './routes/kb.js';
 // SETUP-WIZARD 刀③：转正式演示数据归档 + exit 42 重启码（与 setup 模式 build-setup-server 同一约定）。
 import { archiveDemoData } from './demo-archive.js';
 import { RESTART_EXIT_CODE } from './build-setup-server.js';
