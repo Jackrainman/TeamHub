@@ -22,3 +22,12 @@
 - 2026-07-28 fix(wizard): 赛季步已有赛季时仍可创建新赛季 v0.45.6 (790ce7a)
 - 2026-07-28 feat(console): useForm hook 实现+库存快录首迁移 v0.45.7 (bc46f7d)
 - 2026-07-28 refactor(console): 全量迁移6表单到useForm v0.45.8 (4c43797)
+- 2026-07-29 fix(server): 全局setErrorHandler+Hermes调拨补偿+CSV读取抽helper v0.45.9 (a6bb5e0)
+- 2026-07-29 refactor(console): toActor归位+PoolPage错误渲染+GRADE_KEY解耦 v0.45.10-11
+- 2026-07-29 chore(server): 删645行死代码(import-debug-archive) v0.45.13 (d8621c2)
+- 2026-07-29 refactor(console): queryKeys工厂+PoolPage迁移 v0.45.14 (9d8d0e3)
+- 2026-07-29 refactor(server): parseBody批量迁移~28处 v0.45.15 (dbe5f79)
+- 2026-07-29 refactor(server): server.ts拆分——baseline/kb/ledger/schedule/archive/system/pm全部迁出routes/ 3672→903行 v0.45.16-32
+- 2026-07-29 feat(contracts): Task transitions[]状态流转历史+Drawer时间线UI v0.45.18-19
+- 2026-07-29 feat: 全局搜索+动态流+CSV导出+时间线编辑器 v0.45.20-22
+- 2026-07-29 refactor(console): DESIGN-LANG B5图标三档归一+B4空态收口EmptyState v0.45.33-35
