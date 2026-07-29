@@ -90,7 +90,7 @@ export function PoolPage({
       {/* ── "看谁做过"搜索（设计 §3）───────────────────────────────────────────────── */}
       <section className="pool-search" aria-label={t('pool.search.aria')}>
         <div className="pool-search__box">
-          <Search size={15} aria-hidden="true" />
+          <Search size={16} aria-hidden="true" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -320,7 +320,7 @@ function PoolCard({
                 disabled={claimMutation.isPending}
                 onClick={onClaimClick}
               >
-                <Hand size={13} aria-hidden="true" /> {t('pool.claim.button')}
+                <Hand size={14} aria-hidden="true" /> {t('pool.claim.button')}
               </button>
             )}
 
@@ -399,7 +399,7 @@ function PoolCard({
                 }
                 onClick={() => setAssignOpen(true)}
               >
-                <UserPlus size={13} aria-hidden="true" /> {t('pool.assign.button')}
+                <UserPlus size={14} aria-hidden="true" /> {t('pool.assign.button')}
               </button>
             )}
 

@@ -38,3 +38,8 @@ export const ARTIFACT_KIND_KEY: Record<ArtifactRef['kind'], TranslationKey> = {
   report: 'enum.artifact.report',
   other: 'enum.artifact.other',
 };
+
+// B5 图标尺寸三档（design-language §6）：全站 lucide-react 统一用这三档，禁散落魔法数字。
+export const ICON_SM = 12;
+export const ICON_MD = 14;
+export const ICON_LG = 16;

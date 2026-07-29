@@ -96,7 +96,7 @@ export function IdentityBar({
         className="identity-bar__login-trigger"
         onClick={() => setOpen(true)}
       >
-        <LogIn aria-hidden="true" size={15} /> {t('identity.login.open')}
+        <LogIn aria-hidden="true" size={16} /> {t('identity.login.open')}
       </button>
     );
   }

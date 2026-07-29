@@ -645,7 +645,7 @@ function DefaultPresetEditor({
                 aria-label={t('resources.preset.removeRow')}
                 onClick={() => removeRow(row.key)}
               >
-                <X size={13} aria-hidden="true" />
+                <X size={14} aria-hidden="true" />
               </button>
             </li>
           ))}
@@ -659,7 +659,7 @@ function DefaultPresetEditor({
           aria-label={t('resources.preset.addRow')}
           onClick={addRow}
         >
-          <Plus size={13} aria-hidden="true" />
+          <Plus size={14} aria-hidden="true" />
         </button>
         <button
           type="button"

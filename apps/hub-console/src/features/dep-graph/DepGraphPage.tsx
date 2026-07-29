@@ -127,13 +127,13 @@ function DepNodeCard({ data, selected }: NodeProps<DepFlowNode>) {
         <span className={`dag-node__tag ${meta.pill}`}>{t(meta.labelKey)}</span>
         {n.isCritical ? (
           <span className="dag-node__tag dag-node__tag--critical">
-            <Zap size={10} aria-hidden="true" /> {t('depgraph.node.criticalChain')}
+            <Zap size={12} aria-hidden="true" /> {t('depgraph.node.criticalChain')}
           </span>
         ) : null}
         {/* 收敛任务（总联调）：全组各一人在场，非个人指派 → 显「全组」徽章。 */}
         {n.isConvergenceTask ? (
           <span className="dag-node__tag dag-node__tag--convergence">
-            <Users size={10} aria-hidden="true" /> {t('depgraph.node.convergence')}
+            <Users size={12} aria-hidden="true" /> {t('depgraph.node.convergence')}
           </span>
         ) : null}
       </div>
@@ -418,7 +418,7 @@ export function DepGraphPage({
                   disabled={waiveMutation.isPending}
                   onClick={() => waiveMutation.mutate(selectedEdgeId)}
                 >
-                  <Trash2 size={13} aria-hidden="true" /> {t('depgraph.edge.deleteConfirm')}
+                  <Trash2 size={14} aria-hidden="true" /> {t('depgraph.edge.deleteConfirm')}
                 </button>
                 <button
                   type="button"
@@ -624,7 +624,7 @@ function DetailPanel({
       {showLearn ? (
         <div className="learn-block">
           <h4>
-            <BookOpen size={13} aria-hidden="true" /> {t('depgraph.detail.learnTitle')}
+            <BookOpen size={14} aria-hidden="true" /> {t('depgraph.detail.learnTitle')}
           </h4>
           {/* TODO(backend): relatedKnowledge.uri 当前无真实可达资源（原为 preventDefault 死链）。
               暂降级为纯文本 + 即将上线小角标，去掉可点外观，避免「点了没反应」的死胡同；
@@ -645,7 +645,7 @@ function DetailPanel({
           title={t('nav.soon')}
         >
           {/* 「我的地图」后端未就绪：内联显示即将上线角标，不再只靠 hover title 暗示。 */}
-          <MapPin size={13} aria-hidden="true" /> {t('depgraph.detail.myMap')}
+          <MapPin size={14} aria-hidden="true" /> {t('depgraph.detail.myMap')}
           <span className="soon-badge">{t('nav.soon')}</span>
         </span>
       ) : null}

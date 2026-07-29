@@ -431,7 +431,7 @@ export function TodayPlanTable({
                         aria-label={t('schedule.table.addRow')}
                         onClick={() => handleAddRow(row.resourceId)}
                       >
-                        <Plus size={13} aria-hidden="true" />
+                        <Plus size={14} aria-hidden="true" />
                       </button>
                       <button
                         type="button"
@@ -440,7 +440,7 @@ export function TodayPlanTable({
                         aria-label={t('schedule.table.removeRow')}
                         onClick={() => handleRemoveRow(row.key)}
                       >
-                        <X size={13} aria-hidden="true" />
+                        <X size={14} aria-hidden="true" />
                       </button>
                     </td>
                   </tr>

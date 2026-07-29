@@ -230,7 +230,7 @@ export function KbCloseoutForm({
           t,
           errorFallbackKey: 'kb.closeout.error',
         })}
-        icon={<Archive size={15} aria-hidden="true" />}
+        icon={<Archive size={16} aria-hidden="true" />}
       />
 
       {mutation.isSuccess ? (

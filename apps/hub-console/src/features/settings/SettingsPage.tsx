@@ -25,6 +25,7 @@ import { GRADE_KEY, RosterReportView } from '../../shared/roster';
 import { SegToggle } from '../../components/SegToggle';
 import { Select } from '../../components/Select';
 import { GroupLeadConfirm } from './GroupLeadConfirm';
+import { canShowMemberPin } from './pin-visibility';
 import { RosterPreviewTable } from './RosterPreviewTable';
 import { APIBASE_KEY, WRITE_TOKEN_KEY } from '../../constants';
 import { humanizeFormError, seasonRangeLabel, suggestSeason } from '../../utils';
@@ -128,14 +129,6 @@ function sectionPermission(
       ? t('settings.permission.adminOnly')
       : null;
   return { writeLocked, adminLocked, lockHint };
-}
-
-// 「显示PIN」按钮可见性判定（打磨轮刀⑧②，纯数据导出供单测——「测逻辑不测 DOM」）：仅身份模式且
-// 已登录时，本人行 或 持旗管理员可见；匿名模式 / 未登录 / 普通成员看他人行 → 不渲染（服务端 403 兜底）。
-// I0：单条读取出口，无列表批量出口。
-export function canShowMemberPin(identity: PageIdentityCtx, memberId: string): boolean {
-  if (identity.mode !== 'identity' || !identity.session) return false;
-  return identity.session.memberId === memberId || identity.session.projectManager === true;
 }
 
 export function SettingsPage({

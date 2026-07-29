@@ -150,7 +150,7 @@ function WorkCard({
             disabled={!canMoveLeft}
             onClick={() => onMove(s.sessionId, -1)}
           >
-            <ChevronLeft size={13} aria-hidden="true" />
+            <ChevronLeft size={14} aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -160,7 +160,7 @@ function WorkCard({
             disabled={!canMoveRight}
             onClick={() => onMove(s.sessionId, 1)}
           >
-            <ChevronRight size={13} aria-hidden="true" />
+            <ChevronRight size={14} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -191,7 +191,7 @@ function WorkCard({
                 title={t('schedule.relay.handoffDelete')}
                 onClick={() => onDeleteHandoff(h.id)}
               >
-                <X size={11} aria-hidden="true" />
+                <X size={12} aria-hidden="true" />
               </button>
             </li>
           ))}
@@ -209,7 +209,7 @@ function WorkCard({
                 title={t('schedule.relay.handoffDelete')}
                 onClick={() => onDeleteHandoff(h.id)}
               >
-                <X size={11} aria-hidden="true" />
+                <X size={12} aria-hidden="true" />
               </button>
             </li>
           ))}

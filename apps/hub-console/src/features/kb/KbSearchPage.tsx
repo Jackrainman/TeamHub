@@ -181,7 +181,7 @@ function KbSearchPanel({
         <section className="kb-results">
           {/* A4 护栏：系统只列候选、不断言「同因」，由人按 reasons 自行判断后选用。 */}
           <div className="kb-note">
-            <Info size={15} aria-hidden="true" />
+            <Info size={16} aria-hidden="true" />
             <span>{query.data.note}</span>
           </div>
           {query.data.items.length === 0 ? (

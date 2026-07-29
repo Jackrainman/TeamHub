@@ -119,7 +119,7 @@ export function ChecklistQuickRecord({
         className="btn btn--secondary btn--sm checklist-quickrecord__trigger"
         onClick={() => setOpen(true)}
       >
-        <ClipboardList size={15} aria-hidden="true" /> {t('checklist.quick.open')}
+        <ClipboardList size={16} aria-hidden="true" /> {t('checklist.quick.open')}
       </button>
       <SideDrawer open={open} onClose={() => setOpen(false)} title={t('checklist.quick.title')}>
         <p className="settings-desc">{t('checklist.quick.desc')}</p>
