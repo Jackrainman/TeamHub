@@ -374,6 +374,13 @@ const zh = {
   // 组排序/高亮，只建议不指派（红线6）。
   'nav.direction': '学习方向',
   'toolbar.title.direction': '学习方向 · 跨工种学习地图',
+  'nav.timeline': '时间线',
+  'toolbar.title.timeline': '时间线 · 里程碑编排',
+  'timeline.title': '里程碑时间线',
+  'timeline.noSeason': '还没有赛季，先去设置页创建一个。',
+  'timeline.noBaseline': '该赛季还没有基准线，先去总览页生成。',
+  'timeline.pace': '剩余 {remaining} 个里程碑，距比赛 {weeks} 周，需每周推进 {perWeek} 个',
+  'timeline.competition': '比赛日期',
 
   // 差异化在场排班（D-029）：按组×窗口派生，I0 无人维度
   'schedule.loading': '正在算这天谁在场…',
@@ -1726,12 +1733,19 @@ const en: Record<TranslationKey, string> = {
   'toolbar.title.kb': 'Similar-bug Search · Cross-season Recall',
   'toolbar.title.archive': 'Drawing Archive · Version Timeline',
 
+  'nav.timeline': 'Timeline',
+  'toolbar.title.timeline': 'Timeline · Milestone Editor',
   // Learning direction (LEARN-DIRECTION-REDESIGN, product-redefine §5): reframes the old
   // group-level "direction gaps" page — a static cross-discipline learning map × live,
   // group-derived gaps (never tied to a person, A1/I0); in identity mode, sorted/highlighted
   // by the viewer's own group — suggestion only, never an assignment (guardrail 6).
   'nav.direction': 'Learning Direction',
   'toolbar.title.direction': 'Learning Direction · Cross-discipline Map',
+  'timeline.title': 'Milestone Timeline',
+  'timeline.noSeason': 'No season yet — create one in Settings first.',
+  'timeline.noBaseline': 'No baseline for this season — generate one from the Overview page.',
+  'timeline.pace': '{remaining} milestones left, {weeks} weeks to competition, need {perWeek}/week',
+  'timeline.competition': 'Competition date',
 
   // Differentiated presence schedule (D-029): per group×window, I0 no person dimension
   'schedule.loading': 'Working out who is in…',

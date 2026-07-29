@@ -3,6 +3,7 @@ import {
   BookOpen,
   Bot,
   Boxes,
+  Calendar,
   Compass,
   FileStack,
   Home,
@@ -22,6 +23,7 @@ import { ArchivePage } from './features/archive/ArchivePage';
 import { InvPage } from './features/inv/InvPage';
 import { FleetPage } from './features/fleet/FleetPage';
 import { DirectionPage } from './features/direction/DirectionPage';
+import { TimelineEditorPage } from './features/timeline/TimelineEditorPage';
 import { MyViewPage } from './features/myview/MyViewPage';
 import { SettingsPage } from './features/settings/SettingsPage';
 
@@ -57,6 +59,7 @@ export type ConsolePage =
   | 'inv'
   | 'fleet'
   | 'direction'
+  | 'timeline'
   | 'settings';
 
 /**
@@ -196,6 +199,16 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     moduleId: 'pm-core',
     render: (ctx) => (
       <DirectionPage client={ctx.apiClient} source={ctx.source} identity={ctx.identity} />
+    ),
+  },
+  {
+    key: 'timeline',
+    labelKey: 'nav.timeline',
+    titleKey: 'toolbar.title.timeline',
+    icon: Calendar,
+    moduleId: 'pm-core',
+    render: (ctx) => (
+      <TimelineEditorPage client={ctx.apiClient} source={ctx.source} />
     ),
   },
   {
