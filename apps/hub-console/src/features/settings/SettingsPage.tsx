@@ -202,6 +202,7 @@ export function SettingsPage({
       <ConnectionSection />
       <DeploymentSection client={client} source={source} />
       <DeploymentConfigSection client={client} source={source} identity={identity} />
+      <ExportSection />
       <AboutSection client={client} source={source} />
     </div>
   );
@@ -1829,6 +1830,21 @@ function humanizeUptime(
   if (days > 0) return t('settings.deployment.uptime.days', { d: days, h: hours });
   if (hours > 0) return t('settings.deployment.uptime.hours', { h: hours, m: mins });
   return t('settings.deployment.uptime.mins', { m: mins });
+}
+
+function ExportSection() {
+  const { t } = useI18n();
+  return (
+    <section className="settings-section">
+      <h2>{t('settings.export.title')}</h2>
+      <p className="settings-desc">{t('settings.export.desc')}</p>
+      <div className="settings-actions">
+        <a className="btn btn--secondary btn--sm" href="/api/export/roster" download>{t('settings.export.roster')}</a>
+        <a className="btn btn--secondary btn--sm" href="/api/export/tasks" download>{t('settings.export.tasks')}</a>
+        <a className="btn btn--secondary btn--sm" href="/api/export/inventory" download>{t('settings.export.inventory')}</a>
+      </div>
+    </section>
+  );
 }
 
 // 关于：service · version 取 /api/system/status（部署运维事实已上移「部署信息」分区，此处只留身份标识）。
