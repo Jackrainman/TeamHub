@@ -974,38 +974,35 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       void reply.code(404).send({ detail: '身份模式未启用' });
       return;
     }
-    const parsed = SetupSuperAdminRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
+    const parsed = parseBody(SetupSuperAdminRequestSchema, request, reply);
+    if (!parsed) return;
     const snapshot = await store.getSnapshot();
     if (snapshot.members.some((m) => memberHasPmFlag(m))) {
       void reply.code(409).send({ detail: '已存在管理员（项目管理旗标）' });
       return;
     }
     let memberId: string;
-    if (parsed.data.displayName) {
+    if (parsed.displayName) {
       // bootstrap 路径：按姓名认领既有成员（groupName 忽略），或新建成员行。
       const existing = snapshot.members.find(
-        (m) => m.displayName === parsed.data.displayName,
+        (m) => m.displayName === parsed.displayName,
       );
       if (existing) {
         memberId = existing.id;
       } else {
-        if (!parsed.data.groupName) {
+        if (!parsed.groupName) {
           void reply.code(400).send({ detail: '新建成员需提供所在组' });
           return;
         }
         // 复用 importRoster 单行（组按名 upsert + 建人 role=member）；验收人沿用年级默认派生（刀③ 同律，
         // 刀⑥ 起派生集合直接消费 contracts GATE_REVIEWER_DEFAULT_GRADES，不再手列枚举）。
-        const grade = parsed.data.grade ?? 'freshman';
+        const grade = parsed.grade ?? 'freshman';
         const reviewer = GATE_REVIEWER_DEFAULT_GRADES.has(grade);
         const importOutcome = await store.importRoster([
           {
-            displayName: parsed.data.displayName,
+            displayName: parsed.displayName,
             grade,
-            groupName: parsed.data.groupName,
+            groupName: parsed.groupName,
             gateReviewer: reviewer,
             gateReviewerAuto: reviewer,
           },
@@ -1018,7 +1015,7 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
         }
         const after = await store.getSnapshot();
         const created = after.members.find(
-          (m) => m.displayName === parsed.data.displayName,
+          (m) => m.displayName === parsed.displayName,
         );
         if (!created) {
           void reply.code(500).send({ detail: 'bootstrap 建成员失败' });
@@ -1026,7 +1023,7 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
         }
         memberId = created.id;
         // 组长申报：新建成员 role→groupAdmin（队长兼组长 = groupAdmin + 旗标，刀②b 正交）。
-        if (parsed.data.asGroupLead) {
+        if (parsed.asGroupLead) {
           await store.setMemberRole(memberId, 'groupAdmin');
         }
       }
@@ -1040,12 +1037,12 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       memberId = selfId;
     }
     // 先设 pin（防授旗后 pin 落库失败 → 无 PIN 管理员），再授旗（缺省 true）。pinPlaintext 同笔双写（刀⑧②）。
-    const pinned = await store.setMemberPin(memberId, hashPin(parsed.data.pin), parsed.data.pin);
+    const pinned = await store.setMemberPin(memberId, hashPin(parsed.pin), parsed.pin);
     if (!pinned) {
       void reply.code(404).send({ detail: 'member not found' });
       return;
     }
-    if (parsed.data.projectManager !== false) {
+    if (parsed.projectManager !== false) {
       // 授旗无并发收旗风险（初始化门前置=名册零持旗成员，本笔是造第一个），不传 guard。
       await store.setProjectManager(memberId, true);
     }
@@ -1334,20 +1331,17 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   // deriveLeafGroups 结构派生）→ 400——任务只能挂具体叶子组（汇报视角组不可领任务）；组表里**不存在**的
   // id 维持既有宽松（历史任务可引用未入表的组，PmCreatePanel 兜底合并同律）。
   app.post('/api/tasks', async (request, reply) => {
-    const parsed = CreateTaskRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
+    const parsed = parseBody(CreateTaskRequestSchema, request, reply);
+    if (!parsed) return;
     const snapshot = await store.getSnapshot();
-    const knownGroup = snapshot.groups.find((g) => g.id === parsed.data.groupId);
+    const knownGroup = snapshot.groups.find((g) => g.id === parsed.groupId);
     if (knownGroup && !deriveLeafGroups(snapshot.groups).includes(knownGroup.id)) {
       void reply
         .code(400)
         .send({ detail: `组「${knownGroup.name}」是汇报视角（含子组或是联调哨兵组），任务请挂到其下的具体小组` });
       return;
     }
-    const task = await store.createTask(parsed.data);
+    const task = await store.createTask(parsed);
     void reply.code(201);
     return CreateTaskResponseSchema.parse({ task });
   });
@@ -1387,12 +1381,9 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   // C5：server 钉 statusSource=console（请求不收 statusSource，结构上杜绝冒充 derived/git/lark）。
   app.post('/api/tasks/:taskId/status', async (request, reply) => {
     const { taskId } = request.params as { taskId: string };
-    const parsed = TransitionTaskStatusRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
-    const task = await store.updateTaskStatus(taskId, parsed.data.status);
+    const parsed = parseBody(TransitionTaskStatusRequestSchema, request, reply);
+    if (!parsed) return;
+    const task = await store.updateTaskStatus(taskId, parsed.status);
     if (!task) {
       void reply.code(404).send({ detail: 'task not found' });
       return;
@@ -1413,12 +1404,9 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   //（不覆盖他人的活）。store.claimTask 置 ownerId + claimedAt + pending→inProgress。
   app.post('/api/tasks/:taskId/claim', async (request, reply) => {
     const { taskId } = request.params as { taskId: string };
-    const parsed = ClaimTaskRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
-    const memberId = request.identity?.memberId ?? parsed.data.memberId;
+    const parsed = parseBody(ClaimTaskRequestSchema, request, reply);
+    if (!parsed) return;
+    const memberId = request.identity?.memberId ?? parsed.memberId;
     if (!memberId) {
       void reply.code(400).send({ detail: '认领必须留名（memberId）' });
       return;
@@ -1460,14 +1448,11 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   // store.assignTask 置 ownerId + assignReason + assignedBy，清 claimedAt / 搭档 / 跨组确认（换主失效）。
   app.post('/api/tasks/:taskId/assign', async (request, reply) => {
     const { taskId } = request.params as { taskId: string };
-    const parsed = AssignTaskRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
+    const parsed = parseBody(AssignTaskRequestSchema, request, reply);
+    if (!parsed) return;
     const actor: ActorRef | undefined = request.identity
       ? sessionActor(request.identity)
-      : parsed.data.assignedBy;
+      : parsed.assignedBy;
     if (!actor) {
       void reply.code(400).send({ detail: '指派必须留名（assignedBy）' });
       return;
@@ -1484,14 +1469,14 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     }
     // 防孤儿 ownerId（与 claim / partner 的名册校验对称）：组长虽已过 403 授权门，但指派对象
     // 若不在名册会落一个永远无人认账的 ownerId（复审 nit 收口）。
-    if (!snapshot.members.some((m) => m.id === parsed.data.ownerId)) {
+    if (!snapshot.members.some((m) => m.id === parsed.ownerId)) {
       void reply.code(400).send({ detail: '指派对象不在名册' });
       return;
     }
     const assigned = await store.assignTask(
       taskId,
-      parsed.data.ownerId,
-      parsed.data.reason,
+      parsed.ownerId,
+      parsed.reason,
       actor,
       clock.now().toISOString(),
     );
@@ -1507,18 +1492,15 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   // 写门即可——记 deviations）。显式缺口黄标，不硬阻塞（A1 先例）。
   app.post('/api/tasks/:taskId/partner', async (request, reply) => {
     const { taskId } = request.params as { taskId: string };
-    const parsed = SetTaskPartnerRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
+    const parsed = parseBody(SetTaskPartnerRequestSchema, request, reply);
+    if (!parsed) return;
     const snapshot = await store.getSnapshot();
     const task = snapshot.tasks.find((t) => t.id === taskId);
     if (!task) {
       void reply.code(404).send({ detail: 'task not found' });
       return;
     }
-    const partner = snapshot.members.find((m) => m.id === parsed.data.partnerMemberId);
+    const partner = snapshot.members.find((m) => m.id === parsed.partnerMemberId);
     if (!partner) {
       void reply.code(400).send({ detail: '搭档不在名册' });
       return;
@@ -1529,7 +1511,7 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     }
     const updated = await store.setTaskPartner(
       taskId,
-      parsed.data.partnerMemberId,
+      parsed.partnerMemberId,
       clock.now().toISOString(),
     );
     if (!updated) {
@@ -1544,14 +1526,11 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   // actor 注入同 assign（身份模式 sessionActor / 匿名模式 body.confirmedBy）。
   app.post('/api/tasks/:taskId/confirm-cross-claim', async (request, reply) => {
     const { taskId } = request.params as { taskId: string };
-    const parsed = ConfirmCrossClaimRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
+    const parsed = parseBody(ConfirmCrossClaimRequestSchema, request, reply);
+    if (!parsed) return;
     const actor: ActorRef | undefined = request.identity
       ? sessionActor(request.identity)
-      : parsed.data.confirmedBy;
+      : parsed.confirmedBy;
     if (!actor) {
       void reply.code(400).send({ detail: '确认必须留名（confirmedBy）' });
       return;
@@ -1579,14 +1558,11 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   // 写门即可）。actor = completedBy。
   app.post('/api/tasks/:taskId/complete', async (request, reply) => {
     const { taskId } = request.params as { taskId: string };
-    const parsed = CompleteTaskRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
+    const parsed = parseBody(CompleteTaskRequestSchema, request, reply);
+    if (!parsed) return;
     const actor: ActorRef | undefined = request.identity
       ? sessionActor(request.identity)
-      : parsed.data.completedBy;
+      : parsed.completedBy;
     if (!actor) {
       void reply.code(400).send({ detail: '完成必须留名（completedBy）' });
       return;
@@ -1605,14 +1581,11 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   // reviewNote 打回理由。actor 注入同 assign（身份模式 sessionActor / 匿名模式 body.reviewedBy）。
   app.post('/api/tasks/:taskId/review', async (request, reply) => {
     const { taskId } = request.params as { taskId: string };
-    const parsed = ReviewTaskRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
+    const parsed = parseBody(ReviewTaskRequestSchema, request, reply);
+    if (!parsed) return;
     const actor: ActorRef | undefined = request.identity
       ? sessionActor(request.identity)
-      : parsed.data.reviewedBy;
+      : parsed.reviewedBy;
     if (!actor) {
       void reply.code(400).send({ detail: '验收必须留名（reviewedBy）' });
       return;
@@ -1638,8 +1611,8 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     const updated = await store.reviewTask(
       taskId,
       actor,
-      parsed.data.outcome,
-      parsed.data.note,
+      parsed.outcome,
+      parsed.note,
       clock.now().toISOString(),
     );
     if (!updated) {
@@ -1652,15 +1625,12 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
 
   // PM 依赖边录入（人手建有向边）。server clamp status=active（D-042 初始态）；confirmedBy 内部凭证不经读视图暴露。
   app.post('/api/dependencies', async (request, reply) => {
-    const parsed = CreateDependencyRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
+    const parsed = parseBody(CreateDependencyRequestSchema, request, reply);
+    if (!parsed) return;
     // H1（AUDIT-FIXES 部署前必修）：落库前拒自环 / 成环。后端原零语义校验——一条成环边会让下次
     // GET /api/dep-graph 的 computeCriticalSet / toDepGraphView 派生死循环、卡死整个 server（单请求 DoS）。
     const snapshot = await store.getSnapshot();
-    const { fromTaskId, toTaskId } = parsed.data;
+    const { fromTaskId, toTaskId } = parsed;
     // 只滤 waived 边（已作废、从 dep-graph 隐藏、不构成真实阻塞路径）。否则 waive 一条 A→B 后想建反向
     // B→A 会被永久误拒——逆向边并不与一条已死的边成环。satisfied 边仍是真实历史路径、必须参与环检测。
     if (
@@ -1681,8 +1651,8 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     // IDENTITY-LITE actor 注入：身份模式下 confirmedBy 由 session 身份覆盖（不信客户端自报）；
     // 匿名模式 request.identity 恒 null → 沿用请求体 confirmedBy（现状）。
     const draft = request.identity
-      ? { ...parsed.data, confirmedBy: sessionActor(request.identity) }
-      : parsed.data;
+      ? { ...parsed, confirmedBy: sessionActor(request.identity) }
+      : parsed;
     const dependency = await store.createDependency(draft);
     void reply.code(201);
     return CreateDependencyResponseSchema.parse({ dependency });
@@ -1703,15 +1673,12 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
 
   // PM 前置需求录入（G3 一等公民）。server clamp status=open；A1 缺口归组不归人。
   app.post('/api/needs', async (request, reply) => {
-    const parsed = CreateNeedRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
+    const parsed = parseBody(CreateNeedRequestSchema, request, reply);
+    if (!parsed) return;
     // IDENTITY-LITE actor 注入：身份模式覆盖 confirmedBy 为 session 身份；匿名模式沿用请求体。
     const draft = request.identity
-      ? { ...parsed.data, confirmedBy: sessionActor(request.identity) }
-      : parsed.data;
+      ? { ...parsed, confirmedBy: sessionActor(request.identity) }
+      : parsed;
     const need = await store.createNeed(draft);
     void reply.code(201);
     return CreateNeedResponseSchema.parse({ need });
@@ -1769,11 +1736,9 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       void reply.code(400).send({ detail: firstZodMsg(queryParsed.error, 'seasonId required') });
       return;
     }
-    const bodyParsed = CreateChecklistItemRequestSchema.safeParse(request.body ?? {});
-    if (!bodyParsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(bodyParsed.error) });
-      return;
-    }
+    const bodyData = parseBody(CreateChecklistItemRequestSchema, request, reply);
+    if (!bodyData) return;
+
     const baseline = await baselineStore.getBaseline(queryParsed.data.seasonId);
     if (!baseline) {
       void reply.code(404).send({ detail: '该赛季无基准线，无法挂检查项 / 欠条' });
@@ -1781,7 +1746,7 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     }
     // 孤儿校验：挂门欠条须命中该 baseline 的真实里程碑 id（避孤儿引用，照 evidenceRefs 同形先例）。
     // 自选到期日欠条（anchorDueAt）不涉里程碑、跳过本校验。
-    const { anchorMilestoneId } = bodyParsed.data;
+    const { anchorMilestoneId } = bodyData;
     if (anchorMilestoneId !== undefined) {
       const knownMilestoneIds = new Set(baseline.milestones.map((m) => m.id));
       if (!knownMilestoneIds.has(anchorMilestoneId)) {
@@ -1792,11 +1757,11 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
     // draft：人填字段 + server 注入 seasonBaselineId（从 baseline.id）+ createdAt（clock）。store 补 id、钉 pending。
     const draft: ChecklistItemDraft = {
       seasonBaselineId: baseline.id,
-      title: bodyParsed.data.title,
-      anchorMilestoneId: bodyParsed.data.anchorMilestoneId,
-      anchorDueAt: bodyParsed.data.anchorDueAt,
-      origin: bodyParsed.data.origin,
-      note: bodyParsed.data.note,
+      title: bodyData.title,
+      anchorMilestoneId: bodyData.anchorMilestoneId,
+      anchorDueAt: bodyData.anchorDueAt,
+      origin: bodyData.origin,
+      note: bodyData.note,
       createdAt: clock.now().toISOString(),
     };
     try {
@@ -1823,14 +1788,11 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       void reply.code(400).send({ detail: firstZodMsg(queryParsed.error, 'seasonId required') });
       return;
     }
-    const bodyParsed = ClearChecklistItemRequestSchema.safeParse(request.body ?? {});
-    if (!bodyParsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(bodyParsed.error) });
-      return;
-    }
+    const clearData = parseBody(ClearChecklistItemRequestSchema, request, reply);
+    if (!clearData) return;
     const actor: ActorRef | undefined = request.identity
       ? sessionActor(request.identity)
-      : bodyParsed.data.clearedBy;
+      : clearData.clearedBy;
     if (!actor) {
       void reply.code(400).send({ detail: '清偿必须留名（clearedBy）' });
       return;
@@ -1855,14 +1817,11 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       void reply.code(400).send({ detail: firstZodMsg(queryParsed.error, 'seasonId required') });
       return;
     }
-    const bodyParsed = WaiveChecklistItemRequestSchema.safeParse(request.body ?? {});
-    if (!bodyParsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(bodyParsed.error) });
-      return;
-    }
+    const waiveData = parseBody(WaiveChecklistItemRequestSchema, request, reply);
+    if (!waiveData) return;
     const actor: ActorRef | undefined = request.identity
       ? sessionActor(request.identity)
-      : bodyParsed.data.waivedBy;
+      : waiveData.waivedBy;
     if (!actor) {
       void reply.code(400).send({ detail: '豁免必须留名（waivedBy）' });
       return;
@@ -1874,7 +1833,7 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       return;
     }
     const { id } = request.params;
-    const result = await checklistStore.waiveItem(id, actor, bodyParsed.data.waiveReason);
+    const result = await checklistStore.waiveItem(id, actor, waiveData.waiveReason);
     if (result) {
       // 带名不剥：直回完整 item（含 waivedBy/waiveReason）——事实层带名 + 书面豁免记录。
       return WaiveChecklistItemResponseSchema.parse({ item: result });
@@ -1894,11 +1853,8 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   // 管理员）。响应经 MemberPublicSchema 剥 pinHash（密钥纪律）。id 不存在 → 404。
   app.put<{ Params: { id: string } }>('/api/members/:id/gate-reviewer', async (request, reply) => {
     const { id } = request.params;
-    const parsed = SetGateReviewerRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
+    const parsed = parseBody(SetGateReviewerRequestSchema, request, reply);
+    if (!parsed) return;
     const snapshot = await store.getSnapshot();
     if (
       identityMode === 'identity' &&
@@ -1907,7 +1863,7 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
       return;
     }
-    const updated = await store.setMemberGateReviewer(id, parsed.data.gateReviewer);
+    const updated = await store.setMemberGateReviewer(id, parsed.gateReviewer);
     if (!updated) {
       void reply.code(404).send({ detail: 'member not found' });
       return;
@@ -1922,11 +1878,8 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   // 响应剥 pinHash。id 不存在 → 404。
   app.put<{ Params: { id: string } }>('/api/members/:id/role', async (request, reply) => {
     const { id } = request.params;
-    const parsed = SetMemberRoleRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
+    const parsed = parseBody(SetMemberRoleRequestSchema, request, reply);
+    if (!parsed) return;
     const snapshot = await store.getSnapshot();
     // 身份模式鉴权：仅持旗管理员可改角色（fail-closed，另读实时名册）；匿名模式跳过（写门即可）。
     if (
@@ -1936,7 +1889,7 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       void reply.code(403).send({ detail: '该操作需管理员（项目管理旗标）' });
       return;
     }
-    const updated = await store.setMemberRole(id, parsed.data.role);
+    const updated = await store.setMemberRole(id, parsed.role);
     if (!updated) {
       void reply.code(404).send({ detail: 'member not found' });
       return;
@@ -2075,13 +2028,10 @@ function registerKnowledgeBaseRoutes(app: FastifyInstance, ctx: ModuleRouteCtx):
   // KB-CORE：结案闭环（用着就沉淀）。结案输入 → 归档 + 错误表 + 已归档卡 + 结案派生 KnowledgeNode（持久到 store）。
   // I0：errorCode/id 由 clock + issue.id 确定性派生（不记结案人）；派生节点无人维度，来源凭证是结构。
   app.post('/api/kb/closeout', async (request, reply) => {
-    const parsed = KbCloseoutRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
+    const parsed = parseBody(KbCloseoutRequestSchema, request, reply);
+    if (!parsed) return;
     const { issue, records, category, rootCause, resolution, prevention, generatedBy } =
-      parsed.data;
+      parsed;
     const now = clock.now().toISOString();
     // M9（AUDIT-FIXES 部署前必修）：errorCode NNN 用「同日既有 ErrorEntry 数 + 1」的单调序号，
     // 避免哈希 mod 1000 在 ~38 次/日时生日碰撞 → 静默覆盖、污染 kb-similar 跨赛季查找。
@@ -2269,12 +2219,9 @@ function registerLedgerRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   // 库存零件录入 / 调整（POST /api/inventory/part-types，盘点建底 / 补料 / 调阈值）。带 id 命中即更新。
   // POST → 继承 H3 onRequest 鉴权 + 限流。store 补 lastCountedAt / updatedAt（C5 来源 seam server 钉）。
   app.post('/api/inventory/part-types', async (request, reply) => {
-    const parsed = CreatePartTypeRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
-    const partType = await invStore.upsertPartType(parsed.data);
+    const parsed = parseBody(CreatePartTypeRequestSchema, request, reply);
+    if (!parsed) return;
+    const partType = await invStore.upsertPartType(parsed);
     void reply.code(201);
     return CreatePartTypeResponseSchema.parse({ partType });
   });
@@ -2284,22 +2231,19 @@ function registerLedgerRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   // 校验两层：① 未知 resourceId（toHolder/fromHolder 不是 idle 也不在 listResources）→ 400；
   // ② 非法迁移（负库存 / used 超 total / 缺持有者）由 store 抛 InvalidPartActionError → 400（不静默吞）。
   app.post('/api/inventory/actions', async (request, reply) => {
-    const parsed = CreatePartActionRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
+    const parsed = parseBody(CreatePartActionRequestSchema, request, reply);
+    if (!parsed) return;
     const validResourceIds = new Set(
       (await store.listResources()).map((r) => r.id),
     );
-    for (const holder of [parsed.data.fromHolder, parsed.data.toHolder]) {
+    for (const holder of [parsed.fromHolder, parsed.toHolder]) {
       if (holder && holder !== IDLE_HOLDER && !validResourceIds.has(holder)) {
         void reply.code(400).send({ detail: `未知 resourceId: ${holder}` });
         return;
       }
     }
     try {
-      const action = await invStore.recordPartAction({ ...parsed.data, source: 'human' });
+      const action = await invStore.recordPartAction({ ...parsed, source: 'human' });
       void reply.code(201);
       return CreatePartActionResponseSchema.parse({ action });
     } catch (err) {
@@ -2393,28 +2337,25 @@ function registerLedgerRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
   // 执行 inv-query / inv-record，返回 {ok, text} 纯文本供飞书侧直接回复。
   // 鉴权 = 宿主级写门（Bearer WRITE_TOKEN / 会话），无额外 PM 旗标要求（Hermes 是受信服务端进程）。
   app.post('/api/hermes/inbound', async (request, reply) => {
-    const parsed = HermesInboundRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
+    const parsed = parseBody(HermesInboundRequestSchema, request, reply);
+    if (!parsed) return;
 
     let command: string;
     let args: Record<string, unknown>;
 
-    if ('text' in parsed.data) {
-      const result = parseHermesText(parsed.data.text);
+    if ('text' in parsed) {
+      const result = parseHermesText(parsed.text);
       if (!result) {
         return HermesInboundResponseSchema.parse({
           ok: false,
-          text: `没听懂「${parsed.data.text}」。试试：「3508还有几个」「新到了5个电容」「3508烧了一个」「把电容从R1拆到R2」`,
+          text: `没听懂「${parsed.text}」。试试：「3508还有几个」「新到了5个电容」「3508烧了一个」「把电容从R1拆到R2」`,
         });
       }
       command = result.command;
       args = result.args;
     } else {
-      command = parsed.data.command;
-      args = parsed.data.args;
+      command = parsed.command;
+      args = parsed.args;
     }
 
     const snapshot = await invStore.getInventorySnapshot();
@@ -2686,12 +2627,9 @@ function registerPresenceScheduleRoutes(app: FastifyInstance, ctx: ModuleRouteCt
   // status=available / statusReason=null / statusSource=console、补 id/updatedAt。POST /api/* → 继承 H3 onRequest
   // 鉴权 + 限流。**I0**：SharedResource 无成员维度。
   app.post('/api/resources', async (request, reply) => {
-    const parsed = CreateResourceRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
-    const { projectId, name, kind, robotTarget, season, version } = parsed.data;
+    const parsed = parseBody(CreateResourceRequestSchema, request, reply);
+    if (!parsed) return;
+    const { projectId, name, kind, robotTarget, season, version } = parsed;
     const resource = await store.createResource({
       projectId,
       name,
@@ -2782,12 +2720,9 @@ function registerPresenceScheduleRoutes(app: FastifyInstance, ctx: ModuleRouteCt
   // 非物删**（无 DELETE 路由——整车留展示，ResourceSession 仍引用 resourceId）。statusSource 由 store 钉 console（C5）。
   app.patch('/api/resources/:id/status', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const parsed = UpdateResourceStatusRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
-    const resource = await store.updateResourceStatus(id, parsed.data);
+    const parsed = parseBody(UpdateResourceStatusRequestSchema, request, reply);
+    if (!parsed) return;
+    const resource = await store.updateResourceStatus(id, parsed);
     if (!resource) {
       void reply.code(404).send({ detail: 'resource not found' });
       return;
@@ -2800,12 +2735,9 @@ function registerPresenceScheduleRoutes(app: FastifyInstance, ctx: ModuleRouteCt
   // （id 不存在）→ 404；否则 200 {resource}。`defaultPreset` 传对象=整体替换、传 `null`=清除该车预设。
   app.patch('/api/resources/:id/preset', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const parsed = UpdateResourceDefaultPresetRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
-    const resource = await store.setResourceDefaultPreset(id, parsed.data.defaultPreset);
+    const parsed = parseBody(UpdateResourceDefaultPresetRequestSchema, request, reply);
+    if (!parsed) return;
+    const resource = await store.setResourceDefaultPreset(id, parsed.defaultPreset);
     if (!resource) {
       void reply.code(404).send({ detail: 'resource not found' });
       return;
@@ -2817,15 +2749,12 @@ function registerPresenceScheduleRoutes(app: FastifyInstance, ctx: ModuleRouteCt
   // server 钉 source=human、补 id/createdAt；confirmedBy 随请求传入（录入即确认拍板）。
   // POST /api/* → 继承 H3 onRequest 鉴权+限流（不另写鉴权）。I0：响应剥 confirmedBy（ActorRef 永不过读边界）。
   app.post('/api/resource-sessions', async (request, reply) => {
-    const parsed = CreateResourceSessionRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
+    const parsed = parseBody(CreateResourceSessionRequestSchema, request, reply);
+    if (!parsed) return;
     // IDENTITY-LITE actor 注入：身份模式覆盖 confirmedBy 为 session 身份；匿名模式沿用请求体。
     const draft = request.identity
-      ? { ...parsed.data, confirmedBy: sessionActor(request.identity) }
-      : parsed.data;
+      ? { ...parsed, confirmedBy: sessionActor(request.identity) }
+      : parsed;
     const session = await store.createResourceSession(draft);
     void reply.code(201);
     return CreateResourceSessionResponseSchema.parse({ session });
@@ -2837,17 +2766,14 @@ function registerPresenceScheduleRoutes(app: FastifyInstance, ctx: ModuleRouteCt
   // createResourceSessionsBatch 注释）。confirmedBy 请求整体一层，落盘前逐条注入每条草稿；
   // invitedMemberIds 无论请求传什么，这里一律清空（I0 双保险，store 侧再清一次）。
   app.post('/api/resource-sessions/batch', async (request, reply) => {
-    const parsed = CreateResourceSessionsBatchRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
-    const { windowLabel, sessions } = parsed.data;
+    const parsed = parseBody(CreateResourceSessionsBatchRequestSchema, request, reply);
+    if (!parsed) return;
+    const { windowLabel, sessions } = parsed;
     // IDENTITY-LITE actor 注入：身份模式下整批 confirmedBy 由 session 身份覆盖（不信请求体自报）；
     // 匿名模式沿用请求体 confirmedBy。
     const confirmedBy = request.identity
       ? sessionActor(request.identity)
-      : parsed.data.confirmedBy;
+      : parsed.confirmedBy;
 
     const [snapshot, resources, existingSessions] = await Promise.all([
       store.getSnapshot(),
@@ -2918,12 +2844,9 @@ function registerPresenceScheduleRoutes(app: FastifyInstance, ctx: ModuleRouteCt
   // updateResourceSession 返回 null（id 不存在）→ 404；否则 200 {session}。I0：响应剥 confirmedBy。
   app.patch('/api/resource-sessions/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const parsed = UpdateResourceSessionRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
-    const session = await store.updateResourceSession(id, parsed.data);
+    const parsed = parseBody(UpdateResourceSessionRequestSchema, request, reply);
+    if (!parsed) return;
+    const session = await store.updateResourceSession(id, parsed);
     if (!session) {
       void reply.code(404).send({ detail: 'resource session not found' });
       return;
@@ -2967,12 +2890,9 @@ function registerPresenceScheduleRoutes(app: FastifyInstance, ctx: ModuleRouteCt
   // 把 relayHandoffs 当 fromSession→toSession 有向边）→ 400。server 钉 source=console、补 id/createdAt。
   // **接力交接 ≠ 任务依赖**：环检测只在本窗接力线集合内做，绝不掺 Dependency 边（井水不犯河水）。
   app.post('/api/relay-handoffs', async (request, reply) => {
-    const parsed = CreateRelayHandoffRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
-    const { fromSessionId, toSessionId, windowLabel } = parsed.data;
+    const parsed = parseBody(CreateRelayHandoffRequestSchema, request, reply);
+    if (!parsed) return;
+    const { fromSessionId, toSessionId, windowLabel } = parsed;
     const sessionsById = new Map(
       (await store.listResourceSessions()).map((s) => [s.id, s] as const),
     );
@@ -3003,11 +2923,11 @@ function registerPresenceScheduleRoutes(app: FastifyInstance, ctx: ModuleRouteCt
       });
       return;
     }
-    // windowLabel 由 schema .min(1) 校验、经上方 cross-window 检查后随 parsed.data 整体落 createRelayHandoff。
+    // windowLabel 由 schema .min(1) 校验、经上方 cross-window 检查后随 parsed 整体落 createRelayHandoff。
     // IDENTITY-LITE actor 注入：身份模式覆盖 confirmedBy 为 session 身份；匿名模式沿用请求体。
     const handoffDraft = request.identity
-      ? { ...parsed.data, confirmedBy: sessionActor(request.identity) }
-      : parsed.data;
+      ? { ...parsed, confirmedBy: sessionActor(request.identity) }
+      : parsed;
     const handoff = await store.createRelayHandoff(handoffDraft);
     void reply.code(201);
     return RelayHandoffResponseSchema.parse({ handoff });
@@ -3223,12 +3143,9 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
       void reply.code(404).send({ detail: '身份模式未启用' });
       return;
     }
-    const parsed = SessionRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
-    const { memberId, pin } = parsed.data;
+    const parsed = parseBody(SessionRequestSchema, request, reply);
+    if (!parsed) return;
+    const { memberId, pin } = parsed;
     const snapshot = await store.getSnapshot();
     const member = snapshot.members.find((m) => m.id === memberId);
     // 认证判定：无此人 → 失败；有 pinHash → 须给 pin 且 verifyPin 通过；无 pinHash → 免 PIN 直过。
