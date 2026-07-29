@@ -443,6 +443,19 @@ function firstZodMsg(err: import('zod').ZodError, fallback = 'invalid body'): st
   return err.issues[0]?.message ?? fallback;
 }
 
+function parseBody<T>(
+  schema: { safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: import('zod').ZodError } },
+  request: FastifyRequest,
+  reply: FastifyReply,
+): T | null {
+  const parsed = schema.safeParse(request.body ?? {});
+  if (!parsed.success) {
+    void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+    return null;
+  }
+  return parsed.data;
+}
+
 // ── 轻身份登录（IDENTITY-LITE，D-083 §4.2）宿主级横切基元 ─────────────────────────────────────
 // FastifyRequest.identity：由身份模式下的 onRequest 钩子从 cookie 解析注入（匿名模式恒 null）。
 // 写路由据此把客户端自报的 confirmedBy/passedBy 覆盖为 session 身份（服务端注入 actor，替代零校验自报）。
@@ -613,15 +626,10 @@ function registerSystemRoutes(
       void reply.code(404).send({ detail: 'Agent backend not found' });
       return;
     }
-    // 与其余写路由一致：坏 body 走 safeParse → 400（客户端输入错误），不让 ZodError 冒泡成 500
-    // （此前唯一仍用抛错 .parse 的 POST；correlationId:'' / 非串都会触发 500 泄漏 Zod 内部、破坏错误契约）。
-    const parsed = AgentBackendInvokeRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
+    const data = parseBody(AgentBackendInvokeRequestSchema, request, reply);
+    if (!data) return;
     return AgentBackendInvokeResponseSchema.parse(
-      invokeMockAgentBackend(backendId, parsed.data),
+      invokeMockAgentBackend(backendId, data),
     );
   });
 
@@ -712,12 +720,9 @@ function registerArchiveRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void 
   // POST → 继承 H3 onRequest 鉴权+限流（不另写鉴权）。**I0**：无人维度——主键=组+赛季+车+机构+版本+归档物，无提交人字段。
   // 并发 race（read-then-write 两并发 POST 可能都算同号）：小作坊可接受，append-only 容忍重复、最新即权威。
   app.post('/api/artifacts', async (request, reply) => {
-    const parsed = CreateArtifactRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
-    const { ownerGroup, season, mechanism, subType } = parsed.data;
+    const data = parseBody(CreateArtifactRequestSchema, request, reply);
+    if (!data) return;
+    const { ownerGroup, season, mechanism, subType } = data;
     const snapshot = await store.getSnapshot();
     // 版本号按三键（组别+赛季+机构）自增——车(robotCode) 不进键，故跨车迭代连续编号。
     const versionNo = nextArtifactVersionNo(snapshot.artifacts, {
@@ -731,11 +736,11 @@ function registerArchiveRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void 
     const draft =
       ownerGroup !== 'electrical'
         ? (() => {
-            const { subType: _drop, ...rest } = parsed.data;
+            const { subType: _drop, ...rest } = data;
             void _drop;
             return { ...rest, kind, versionNo, revision };
           })()
-        : { ...parsed.data, kind, versionNo, revision };
+        : { ...data, kind, versionNo, revision };
     const artifact = await store.appendArtifact(draft);
     void reply.code(201);
     return CreateArtifactResponseSchema.parse({ artifact });
@@ -856,11 +861,8 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       return;
     }
     const { id } = request.params;
-    const parsed = SetPinRequestSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-      return;
-    }
+    const pinData = parseBody(SetPinRequestSchema, request, reply);
+    if (!pinData) return;
     const snapshot = await store.getSnapshot();
     const target = snapshot.members.find((m) => m.id === id);
     if (!target) {
@@ -874,7 +876,7 @@ function registerPmCoreRoutes(app: FastifyInstance, ctx: ModuleRouteCtx): void {
       return;
     }
     // pinPlaintext 双写（刀⑧②）：明文副本随 hash 同笔落库（供 GET pin「显示PIN」），认证仍只走 scrypt。
-    const updated = await store.setMemberPin(id, hashPin(parsed.data.pin), parsed.data.pin);
+    const updated = await store.setMemberPin(id, hashPin(pinData.pin), pinData.pin);
     if (!updated) {
       void reply.code(404).send({ detail: 'member not found' });
       return;
