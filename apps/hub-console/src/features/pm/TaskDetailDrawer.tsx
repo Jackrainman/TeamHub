@@ -5,6 +5,7 @@ import type {
   Group,
   MemberPublic,
   TaskAcceptanceState,
+  TaskStatus,
   TaskWithMeta,
 } from '@teamhub/hub-contracts';
 import { deriveTaskAcceptance } from '@teamhub/hub-contracts';
@@ -27,6 +28,14 @@ import { needsCrossClaimConfirm, needsPartner, ownerGroupOf } from '../pool/pool
  * 两档验收（deriveTaskAcceptance）把"大活待学长验收"显式化。鉴权失败（组长确认 403 / 验收 403）以横幅
  * 如实告知（"权属该组组长 / 验收人名单"）。红线：本抽屉绝不做任何按人聚合/排行/按人筛选。
  */
+
+const STATUS_KEY: Record<TaskStatus, TranslationKey> = {
+  pending: 'pm.status.pending',
+  inProgress: 'pm.status.inProgress',
+  blocked: 'pm.status.blocked',
+  done: 'pm.status.done',
+  shelved: 'pm.status.shelved',
+};
 
 const ACCEPTANCE_TONE: Record<TaskAcceptanceState, string> = {
   notDone: 'badge--neutral',
@@ -267,6 +276,23 @@ export function TaskDetailDrawer({
           </div>
         ) : null}
       </dl>
+
+      {task.transitions && task.transitions.length > 0 ? (
+        <div className="tl-wrap">
+          <h4 className="tl-title">{t('pool.timeline.title')}</h4>
+          <ol className="tl-list">
+            {task.transitions.map((tr, i) => (
+              <li key={i} className="tl-item">
+                <span className="tl-status">
+                  {tr.from ? `${t(STATUS_KEY[tr.from])} → ` : ''}{t(STATUS_KEY[tr.to])}
+                </span>
+                <span className="tl-at">{formatDay(tr.at)}</span>
+                {tr.by ? <span className="tl-by">{tr.by.displayName}</span> : null}
+              </li>
+            ))}
+          </ol>
+        </div>
+      ) : null}
 
       {/* ── 动作区（事后留名 / 暴露缺口，不做启动闸）────────────────────────────────── */}
       <div className="task-detail__actions">

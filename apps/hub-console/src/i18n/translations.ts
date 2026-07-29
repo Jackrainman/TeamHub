@@ -1190,6 +1190,7 @@ const zh = {
   'pool.gate.confirmNeedsLead': '跨组确认权属该组组长，你不是这个组的组长。',
   'pool.gate.reviewNeedsReviewer': '验收权属验收人名单（大三），你不在名单里。',
   'pool.gate.noLead': '这个组还没有组长，先去设置页的成员与权限里任命一个。',
+  'pool.timeline.title': '状态流转',
   'pool.gate.noReviewer': '还没有验收人名单，先去设置页的成员与权限里指定。',
   // 挂单池列表
   'pool.list.aria': '挂单池',
@@ -2553,6 +2554,7 @@ const en: Record<TranslationKey, string> = {
   'pool.gate.confirmNeedsLead': 'Cross-group confirm is restricted to that group\'s lead — you are not this group\'s lead.',
   'pool.gate.reviewNeedsReviewer': 'Reviewing is restricted to the reviewer roster (juniors) — you are not on it.',
   'pool.gate.noLead': 'This group has no lead yet — appoint one under Members & permissions in Settings first.',
+  'pool.timeline.title': 'Status history',
   'pool.gate.noReviewer': 'No reviewer roster yet — set one under Members & permissions in Settings first.',
   'pool.list.aria': 'Task pool',
   'pool.list.intro': 'Task pool · ownerless open work (oldest first): {n}',
