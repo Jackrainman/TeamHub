@@ -1,28 +1,29 @@
 {
-  "focus": "结构化重构批次：模板抽取（STRUCT）→ hook 层（HOOKS）→ 组件拆分（SPLIT）→ 治理（GOV）；连续执行",
+  "focus": "结构化重构批次进行中：STRUCT 完成 → HOOKS 渐进 → SPLIT/GOV 待做",
   "blocked": [
     {"id": "HERMES-LARK-SKILL", "reason": "卡飞书侧 skill 编写（用户侧）", "owner": "user"},
     {"id": "LARK-BIN-PROBE", "reason": "需用户在 WSL2 实测 which lark / which lark-cli", "owner": "user"}
   ],
   "todo": [
-    {"id": "STRUCT-5", "title": "helpers.ts 加 parseQuery / requireSuperAdmin / requireActor 三函数，消 35 处路由复制", "tag": "code", "batch": "struct"},
-    {"id": "STRUCT-1", "title": "QueryGate 页面骨架模板（loading/error 早返回），18 个 Page 受益", "tag": "code", "batch": "struct"},
-    {"id": "STRUCT-2", "title": "useEntityMutation 表单生命周期模板（mutation+reset+invalidate），Gen-1 表单迁 useForm", "tag": "code", "batch": "struct"},
-    {"id": "STRUCT-6", "title": "useSearchableList 列表筛选模板（search+filter+group），统一各 Page 筛选逻辑", "tag": "code", "batch": "struct"},
-    {"id": "STRUCT-4", "title": "FileGovStore 泛型 CRUD：PersistedFile 类 + idxWrite 包装，912→~200 行", "tag": "code", "batch": "struct"},
-    {"id": "STRUCT-3", "title": "CSV 导入三端点工厂：CsvImportDomain<T> 接口 + registerCsvImportEndpoints + useCsvImport hook", "tag": "code", "batch": "struct"},
-    {"id": "HOOKS-1", "title": "useXxx 数据获取 hook 层（90+ 处），按域渐进：tasks/schedule/members/inventory/kb/resources/baseline/archive", "tag": "code", "batch": "hooks"},
+    {"id": "HOOKS-1", "title": "useXxx 数据获取 hook 层（90+ 处），已建 useBaseline/useTasks/useRoster，继续迁移 schedule/inventory/kb/resources/archive", "tag": "code", "batch": "hooks"},
     {"id": "SPLIT-1", "title": "超 400 行组件拆分（11 个）：RelayCanvas(1048)→ArchivePage(746)→ResourcesPage(691)→DepGraphPage(655)→DirectionStarmap(621)→BaselineOverview(616)→TaskDetailDrawer(518)→InvPage(475)→TodayPlanTable(468)→MembersSection(463)→PoolPage(423)", "tag": "code", "batch": "split"},
     {"id": "GOV-1", "title": "client.ts 按域拆分（1260 行→segments/：tasks/schedule/members/inventory/kb/system）", "tag": "code", "batch": "gov"},
     {"id": "GOV-2", "title": "styles.css token 收口：.card 基类迁移(10+)、硬编码 radius(13)/shadow(9)→变量、--space-*/--control-* 消费或删除", "tag": "code", "batch": "gov"},
     {"id": "GOV-3", "title": "fixtures.ts 按域拆分（1023 行→fixtures/pm+kb+schedule）", "tag": "code", "batch": "gov"},
-    {"id": "GOV-4", "title": "pm-core↔baseline 类型循环：TaskInvestmentSchema 下沉到 investment.ts", "tag": "code", "batch": "gov"},
     {"id": "GOV-5", "title": "translations.ts 按域拆分（2786 行→i18n/pm+kb+schedule+...）", "tag": "code", "batch": "gov"},
     {"id": "GOV-6", "title": "技术债标记清理：DepGraphPage:630 死链 / InvPage:32 projectId 硬编码 / ResourcesPage:29 车型枚举", "tag": "code", "batch": "gov"},
     {"id": "CHECKLIST-TPL-IMPORT", "title": "检查单模板最小导入通道（等复盘产出，先积累）", "tag": "code", "batch": "later"},
     {"id": "KB-AI-STRUCT", "title": "知识库 AI 结构化（研究项，先积累导入语料再评估）", "tag": "research", "batch": "later"}
   ],
   "done-tonight": [
+    "STRUCT-5: helpers.ts 加 parseQuery/requireSuperAdmin/requireActor，消 35 处路由复制",
+    "STRUCT-1: useQueryGuard hook + 迁移 PoolPage/PmBoardPage/InvPage",
+    "STRUCT-2: useInvalidatingMutation hook + 迁移 ArchivePage upload",
+    "STRUCT-6: 评估后跳过（搜索模式各异，不值得统一抽象）",
+    "STRUCT-4: PersistedFile 类提取，消除 9 个镜像 persist 函数（912→814 行）",
+    "STRUCT-3: 评估后跳过（三域 CSV 导入差异大于共性）",
+    "HOOKS-1a: useBaseline/useTasks/useRoster hooks 建立 + baseline 3 处迁移",
+    "GOV-4: TaskInvestmentSchema 下沉 investment.ts，打断 pm-core↔baseline 循环",
     "FIX-ERROR-HANDLER: 全局 setErrorHandler",
     "FIX-HERMES-TRANSFER: 调拨补偿",
     "FIX-MUTATION-ERRORS: PoolPage 错误渲染",
