@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { GovStore, KbStore } from '../store/gov-store.js';
 import type { InvStore } from '../store/gov-store.js';
+import { parseQuery } from './helpers.js';
 
 const SearchQuerySchema = z.object({
   q: z.string().min(1).max(100),
@@ -24,12 +25,9 @@ export function registerSearchRoutes(app: FastifyInstance, deps: SearchRouteDeps
   const { store, kbStore, invStore } = deps;
 
   app.get('/api/search', async (request, reply) => {
-    const parsed = SearchQuerySchema.safeParse(request.query ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: 'q parameter required (1-100 chars)' });
-      return;
-    }
-    const q = parsed.data.q.toLowerCase();
+    const query = parseQuery(SearchQuerySchema, request, reply, 'q parameter required (1-100 chars)');
+    if (!query) return;
+    const q = query.q.toLowerCase();
     const results: SearchResult[] = [];
 
     const snapshot = await store.getSnapshot();

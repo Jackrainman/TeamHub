@@ -11,13 +11,12 @@ import {
   WaiveChecklistItemResponseSchema,
   ChecklistTemplatesResponseSchema,
 } from '../contracts.js';
-import type { ActorRef } from '@teamhub/hub-contracts';
 import type { GovStore } from '../store/gov-store.js';
 import type { BaselineStore } from '../store/baseline-store.js';
 import type { ChecklistItemDraft, ChecklistStore } from '../store/checklist-store.js';
 import type { Clock } from '../clock.js';
 import { isGateReviewer } from '../authz.js';
-import { firstZodMsg, parseBody, sessionActor } from './helpers.js';
+import { firstZodMsg, parseBody, parseQuery, requireActor } from './helpers.js';
 
 export interface ChecklistRouteDeps {
   store: GovStore;
@@ -47,27 +46,21 @@ export function registerChecklistRoutes(app: FastifyInstance, deps: ChecklistRou
   };
 
   app.get('/api/checklist', async (request, reply) => {
-    const parsed = ChecklistQuerySchema.safeParse(request.query ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error, 'seasonId required') });
-      return;
-    }
-    const baseline = await baselineStore.getBaseline(parsed.data.seasonId);
+    const query = parseQuery(ChecklistQuerySchema, request, reply, 'seasonId required');
+    if (!query) return;
+    const baseline = await baselineStore.getBaseline(query.seasonId);
     if (!baseline) return ChecklistItemsResponseSchema.parse({ items: [] });
     const items = await checklistStore.listItems(baseline.id);
     return ChecklistItemsResponseSchema.parse({ items });
   });
 
   app.post('/api/checklist', async (request, reply) => {
-    const queryParsed = ChecklistQuerySchema.safeParse(request.query ?? {});
-    if (!queryParsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(queryParsed.error, 'seasonId required') });
-      return;
-    }
+    const query = parseQuery(ChecklistQuerySchema, request, reply, 'seasonId required');
+    if (!query) return;
     const bodyData = parseBody(CreateChecklistItemRequestSchema, request, reply);
     if (!bodyData) return;
 
-    const baseline = await baselineStore.getBaseline(queryParsed.data.seasonId);
+    const baseline = await baselineStore.getBaseline(query.seasonId);
     if (!baseline) {
       void reply.code(404).send({ detail: '该赛季无基准线，无法挂检查项 / 欠条' });
       return;
@@ -103,43 +96,27 @@ export function registerChecklistRoutes(app: FastifyInstance, deps: ChecklistRou
   });
 
   app.post<{ Params: { id: string } }>('/api/checklist/:id/clear', async (request, reply) => {
-    const queryParsed = ChecklistQuerySchema.safeParse(request.query ?? {});
-    if (!queryParsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(queryParsed.error, 'seasonId required') });
-      return;
-    }
+    const query = parseQuery(ChecklistQuerySchema, request, reply, 'seasonId required');
+    if (!query) return;
     const clearData = parseBody(ClearChecklistItemRequestSchema, request, reply);
     if (!clearData) return;
-    const actor: ActorRef | undefined = request.identity
-      ? sessionActor(request.identity)
-      : clearData.clearedBy;
-    if (!actor) {
-      void reply.code(400).send({ detail: '清偿必须留名（clearedBy）' });
-      return;
-    }
+    const actor = requireActor(request, reply, clearData.clearedBy, '清偿必须留名（clearedBy）');
+    if (!actor) return;
     const { id } = request.params;
     const result = await checklistStore.clearItem(id, actor);
     if (result) {
       return ClearChecklistItemResponseSchema.parse({ item: result });
     }
-    await replyClearWaiveNotApplied(reply, id, queryParsed.data.seasonId, '清偿');
+    await replyClearWaiveNotApplied(reply, id, query.seasonId, '清偿');
   });
 
   app.post<{ Params: { id: string } }>('/api/checklist/:id/waive', async (request, reply) => {
-    const queryParsed = ChecklistQuerySchema.safeParse(request.query ?? {});
-    if (!queryParsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(queryParsed.error, 'seasonId required') });
-      return;
-    }
+    const query = parseQuery(ChecklistQuerySchema, request, reply, 'seasonId required');
+    if (!query) return;
     const waiveData = parseBody(WaiveChecklistItemRequestSchema, request, reply);
     if (!waiveData) return;
-    const actor: ActorRef | undefined = request.identity
-      ? sessionActor(request.identity)
-      : waiveData.waivedBy;
-    if (!actor) {
-      void reply.code(400).send({ detail: '豁免必须留名（waivedBy）' });
-      return;
-    }
+    const actor = requireActor(request, reply, waiveData.waivedBy, '豁免必须留名（waivedBy）');
+    if (!actor) return;
     const snapshot = await store.getSnapshot();
     if (!isGateReviewer(snapshot.members, actor.id)) {
       void reply.code(403).send({ detail: '豁免权属验收人名单（大三）' });
@@ -150,7 +127,7 @@ export function registerChecklistRoutes(app: FastifyInstance, deps: ChecklistRou
     if (result) {
       return WaiveChecklistItemResponseSchema.parse({ item: result });
     }
-    await replyClearWaiveNotApplied(reply, id, queryParsed.data.seasonId, '豁免');
+    await replyClearWaiveNotApplied(reply, id, query.seasonId, '豁免');
   });
 
   app.get('/api/checklist/templates', async () => {

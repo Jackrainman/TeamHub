@@ -8,8 +8,7 @@ import {
 } from '@teamhub/hub-contracts';
 import type { IdentityMode } from '@teamhub/hub-contracts';
 import type { GovStore } from '../store/gov-store.js';
-import { isSuperAdmin } from '../authz.js';
-import { parseBody } from './helpers.js';
+import { parseBody, requireSuperAdmin } from './helpers.js';
 import { archiveDemoData } from '../demo-archive.js';
 import { RESTART_EXIT_CODE } from '../build-setup-server.js';
 import type { SetupControl } from '../server.js';
@@ -40,11 +39,7 @@ export function registerSetupRoutes(app: FastifyInstance, deps: SetupRouteDeps):
 
   app.put('/api/setup/config', async (request, reply) => {
     if (identityMode === 'identity') {
-      const snapshot = await store.getSnapshot();
-      if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
-        void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
-        return reply;
-      }
+      if (!(await requireSuperAdmin(store, request, reply))) return reply;
     }
     const parsed = parseBody(SetupConfigRequestSchema, request, reply);
     if (!parsed) return reply;
@@ -65,11 +60,7 @@ export function registerSetupRoutes(app: FastifyInstance, deps: SetupRouteDeps):
 
   app.post('/api/setup/graduate', async (request, reply) => {
     if (identityMode === 'identity') {
-      const snapshot = await store.getSnapshot();
-      if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
-        void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
-        return reply;
-      }
+      if (!(await requireSuperAdmin(store, request, reply))) return reply;
     }
     if (setupControl.config.dataMode !== 'demo') {
       void reply

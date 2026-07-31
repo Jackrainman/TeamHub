@@ -38,12 +38,12 @@ import {
   wouldCreateCycle,
   isBigTask,
 } from '../contracts.js';
-import type { ActorRef, IdentityMode } from '@teamhub/hub-contracts';
+import type { IdentityMode } from '@teamhub/hub-contracts';
 import type { GovStore } from '../store/gov-store.js';
 import type { Clock } from '../clock.js';
-import { isGateReviewer, isGroupLeadOf, isSuperAdmin } from '../authz.js';
+import { isGateReviewer, isGroupLeadOf } from '../authz.js';
 import { sendLarkMessage } from '../lark-client.js';
-import { firstZodMsg, parseBody, sessionActor } from './helpers.js';
+import { parseBody, parseQuery, requireActor, requireSuperAdmin, sessionActor } from './helpers.js';
 import type { LarkIntegrationStore } from '../store/lark-integration-store.js';
 
 export interface TaskRouteDeps {
@@ -70,11 +70,7 @@ export function registerTaskRoutes(app: FastifyInstance, deps: TaskRouteDeps): v
     const groupData = parseBody(CreateGroupRequestSchema, request, reply);
     if (!groupData) return;
     if (identityMode === 'identity') {
-      const snapshot = await store.getSnapshot();
-      if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
-        void reply.code(403).send({ detail: '该操作需管理员（项目管理旗标）' });
-        return;
-      }
+      if (!(await requireSuperAdmin(store, request, reply, '该操作需管理员（项目管理旗标）'))) return;
     }
     const result = await store.createGroup({ name: groupData.name.trim() });
     if (!result.ok) {
@@ -90,11 +86,7 @@ export function registerTaskRoutes(app: FastifyInstance, deps: TaskRouteDeps): v
     const renameData = parseBody(RenameGroupRequestSchema, request, reply);
     if (!renameData) return;
     if (identityMode === 'identity') {
-      const snapshot = await store.getSnapshot();
-      if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
-        void reply.code(403).send({ detail: '该操作需管理员（项目管理旗标）' });
-        return;
-      }
+      if (!(await requireSuperAdmin(store, request, reply, '该操作需管理员（项目管理旗标）'))) return;
     }
     const result = await store.renameGroup(id, renameData.name.trim());
     if (!result.ok) {
@@ -113,11 +105,7 @@ export function registerTaskRoutes(app: FastifyInstance, deps: TaskRouteDeps): v
   app.delete<{ Params: { id: string } }>('/api/groups/:id', async (request, reply) => {
     const { id } = request.params;
     if (identityMode === 'identity') {
-      const snapshot = await store.getSnapshot();
-      if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
-        void reply.code(403).send({ detail: '该操作需管理员（项目管理旗标）' });
-        return;
-      }
+      if (!(await requireSuperAdmin(store, request, reply, '该操作需管理员（项目管理旗标）'))) return;
     }
     const result = await store.deleteGroup(id);
     if (!result.ok) {
@@ -149,14 +137,10 @@ export function registerTaskRoutes(app: FastifyInstance, deps: TaskRouteDeps): v
   app.post('/api/seasons', async (request, reply) => {
     const seasonData = parseBody(CreateSeasonRequestSchema, request, reply);
     if (!seasonData) return;
-    const snapshot = await store.getSnapshot();
-    if (
-      identityMode === 'identity' &&
-      !isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')
-    ) {
-      void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
-      return;
+    if (identityMode === 'identity') {
+      if (!(await requireSuperAdmin(store, request, reply))) return;
     }
+    const snapshot = await store.getSnapshot();
     const { name, startsAt, endsAt } = seasonData;
     if (endsAt && Date.parse(endsAt) <= Date.parse(startsAt)) {
       void reply.code(400).send({ detail: 'endsAt must be after startsAt' });
@@ -206,13 +190,10 @@ export function registerTaskRoutes(app: FastifyInstance, deps: TaskRouteDeps): v
   });
 
   app.get('/api/tasks', async (request, reply) => {
-    const parsed = TasksQuerySchema.safeParse(request.query ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error, 'invalid query') });
-      return;
-    }
+    const query = parseQuery(TasksQuerySchema, request, reply);
+    if (!query) return;
     const snapshot = await store.getSnapshot();
-    const q = parsed.data.q?.toLowerCase();
+    const q = query.q?.toLowerCase();
     const matched = q
       ? snapshot.tasks.filter(
           (t) =>
@@ -286,13 +267,8 @@ export function registerTaskRoutes(app: FastifyInstance, deps: TaskRouteDeps): v
     const { taskId } = request.params as { taskId: string };
     const parsed = parseBody(AssignTaskRequestSchema, request, reply);
     if (!parsed) return;
-    const actor: ActorRef | undefined = request.identity
-      ? sessionActor(request.identity)
-      : parsed.assignedBy;
-    if (!actor) {
-      void reply.code(400).send({ detail: '指派必须留名（assignedBy）' });
-      return;
-    }
+    const actor = requireActor(request, reply, parsed.assignedBy, '指派必须留名（assignedBy）');
+    if (!actor) return;
     const snapshot = await store.getSnapshot();
     const task = snapshot.tasks.find((t) => t.id === taskId);
     if (!task) {
@@ -356,13 +332,8 @@ export function registerTaskRoutes(app: FastifyInstance, deps: TaskRouteDeps): v
     const { taskId } = request.params as { taskId: string };
     const parsed = parseBody(ConfirmCrossClaimRequestSchema, request, reply);
     if (!parsed) return;
-    const actor: ActorRef | undefined = request.identity
-      ? sessionActor(request.identity)
-      : parsed.confirmedBy;
-    if (!actor) {
-      void reply.code(400).send({ detail: '确认必须留名（confirmedBy）' });
-      return;
-    }
+    const actor = requireActor(request, reply, parsed.confirmedBy, '确认必须留名（confirmedBy）');
+    if (!actor) return;
     const snapshot = await store.getSnapshot();
     const task = snapshot.tasks.find((t) => t.id === taskId);
     if (!task) {
@@ -385,13 +356,8 @@ export function registerTaskRoutes(app: FastifyInstance, deps: TaskRouteDeps): v
     const { taskId } = request.params as { taskId: string };
     const parsed = parseBody(CompleteTaskRequestSchema, request, reply);
     if (!parsed) return;
-    const actor: ActorRef | undefined = request.identity
-      ? sessionActor(request.identity)
-      : parsed.completedBy;
-    if (!actor) {
-      void reply.code(400).send({ detail: '完成必须留名（completedBy）' });
-      return;
-    }
+    const actor = requireActor(request, reply, parsed.completedBy, '完成必须留名（completedBy）');
+    if (!actor) return;
     const updated = await store.completeTask(taskId, actor, clock.now().toISOString());
     if (!updated) {
       void reply.code(404).send({ detail: 'task not found' });
@@ -404,13 +370,8 @@ export function registerTaskRoutes(app: FastifyInstance, deps: TaskRouteDeps): v
     const { taskId } = request.params as { taskId: string };
     const parsed = parseBody(ReviewTaskRequestSchema, request, reply);
     if (!parsed) return;
-    const actor: ActorRef | undefined = request.identity
-      ? sessionActor(request.identity)
-      : parsed.reviewedBy;
-    if (!actor) {
-      void reply.code(400).send({ detail: '验收必须留名（reviewedBy）' });
-      return;
-    }
+    const actor = requireActor(request, reply, parsed.reviewedBy, '验收必须留名（reviewedBy）');
+    if (!actor) return;
     const snapshot = await store.getSnapshot();
     if (!isGateReviewer(snapshot.members, actor.id)) {
       void reply.code(403).send({ detail: '验收权属验收人名单（大三）' });

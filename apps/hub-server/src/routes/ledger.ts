@@ -23,8 +23,7 @@ import {
 } from '@teamhub/hub-contracts';
 import type { InventoryImportFailure, InventoryImportRow, IdentityMode, SessionIdentity } from '@teamhub/hub-contracts';
 import type { GovStore, InvStore } from '../store/gov-store.js';
-import { isSuperAdmin } from '../authz.js';
-import { firstZodMsg, parseBody, readCsvUpload } from './helpers.js';
+import { firstZodMsg, parseBody, readCsvUpload, requireSuperAdmin } from './helpers.js';
 
 const INVENTORY_IMPORT_MAX_BYTES = 1024 * 1024;
 
@@ -98,11 +97,7 @@ export function registerLedgerRoutes(app: FastifyInstance, deps: LedgerRouteDeps
     reply: FastifyReply,
   ): Promise<boolean> => {
     if (identityMode === 'identity') {
-      const snapshot = await store.getSnapshot();
-      if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
-        void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
-        return false;
-      }
+      return requireSuperAdmin(store, request, reply);
     }
     return true;
   };

@@ -1,6 +1,7 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { SessionIdentity, ActorRef, ScheduleSnapshot } from '@teamhub/hub-contracts';
 import type { GovStore } from '../store/gov-store.js';
+import { isSuperAdmin } from '../authz.js';
 
 export function firstZodMsg(err: import('zod').ZodError, fallback = 'invalid body'): string {
   return err.issues[0]?.message ?? fallback;
@@ -17,6 +18,48 @@ export function parseBody<T>(
     return null;
   }
   return parsed.data;
+}
+
+export function parseQuery<T>(
+  schema: { safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: import('zod').ZodError } },
+  request: FastifyRequest,
+  reply: FastifyReply,
+  fallback = 'invalid query',
+): T | null {
+  const parsed = schema.safeParse(request.query ?? {});
+  if (!parsed.success) {
+    void reply.code(400).send({ detail: firstZodMsg(parsed.error, fallback) });
+    return null;
+  }
+  return parsed.data;
+}
+
+export async function requireSuperAdmin(
+  store: GovStore,
+  request: FastifyRequest,
+  reply: FastifyReply,
+  detail = '该操作需管理员（superAdmin）',
+): Promise<boolean> {
+  const snapshot = await store.getSnapshot();
+  if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
+    void reply.code(403).send({ detail });
+    return false;
+  }
+  return true;
+}
+
+export function requireActor(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  fallback: ActorRef | undefined,
+  detail: string,
+): ActorRef | null {
+  const actor: ActorRef | undefined = request.identity ? sessionActor(request.identity) : fallback;
+  if (!actor) {
+    void reply.code(400).send({ detail });
+    return null;
+  }
+  return actor;
 }
 
 export function sessionActor(identity: SessionIdentity): ActorRef {

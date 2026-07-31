@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import {
   KB_TITLE_MAX,
   ArchiveDocumentSchema,
@@ -6,7 +6,7 @@ import {
   buildCloseoutFromIssue,
   rankSimilarIssues,
 } from '@teamhub/hub-contracts';
-import type { IssueCard, ArchiveDocument, KbImportDocIssue, IdentityMode, SessionIdentity } from '@teamhub/hub-contracts';
+import type { IssueCard, ArchiveDocument, KbImportDocIssue, IdentityMode } from '@teamhub/hub-contracts';
 import {
   KB_SIMILAR_NOTE,
   KbSimilarQuerySchema,
@@ -17,8 +17,7 @@ import {
 import type { GovStore, KbStore } from '../store/gov-store.js';
 import type { Clock } from '../clock.js';
 import { deriveErrorCode } from '../kb/error-code.js';
-import { isSuperAdmin } from '../authz.js';
-import { firstZodMsg, parseBody } from './helpers.js';
+import { firstZodMsg, parseBody, parseQuery, requireSuperAdmin } from './helpers.js';
 
 const KB_IMPORT_DOC_MAX_BYTES = 1024 * 1024;
 const KB_IMPORT_DOCS_MAX_FILES = 20;
@@ -56,12 +55,9 @@ export function registerKnowledgeBaseRoutes(app: FastifyInstance, deps: KbRouteD
   const { store, clock, kbStore, identityMode } = deps;
 
   app.get('/api/kb/similar', async (request, reply) => {
-    const parsed = KbSimilarQuerySchema.safeParse(request.query ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error, 'invalid query') });
-      return;
-    }
-    const { symptom, tags, projectId, limit, minScore } = parsed.data;
+    const query = parseQuery(KbSimilarQuerySchema, request, reply);
+    if (!query) return;
+    const { symptom, tags, projectId, limit, minScore } = query;
     const kb = await kbStore.getKbSnapshot();
     const now = clock.now().toISOString();
     const currentIssue: IssueCard = {
@@ -146,11 +142,7 @@ export function registerKnowledgeBaseRoutes(app: FastifyInstance, deps: KbRouteD
 
   app.post('/api/kb/import-docs', async (request, reply) => {
     if (identityMode === 'identity') {
-      const snapshot = await store.getSnapshot();
-      if (!isSuperAdmin(snapshot.members, (request as FastifyRequest & { identity: SessionIdentity | null }).identity?.memberId ?? '')) {
-        void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
-        return;
-      }
+      if (!(await requireSuperAdmin(store, request, reply))) return;
     }
     const projectId = (await kbStore.getKbSnapshot()).projectId;
     const now = clock.now().toISOString();

@@ -30,81 +30,12 @@ import {
   FleetPreviewResponseSchema,
 } from '@teamhub/hub-contracts';
 import { ScheduleQuerySchema } from '../contracts.js';
-import type { ScheduleSnapshot, SessionIdentity, ActorRef } from '@teamhub/hub-contracts';
+import type { SessionIdentity } from '@teamhub/hub-contracts';
 import type { GovStore } from '../store/gov-store.js';
 import type { Clock } from '../clock.js';
+import { firstZodMsg, parseBody, parseQuery, readCsvUpload, sessionActor, buildScheduleSnapshot } from './helpers.js';
 
 const FLEET_IMPORT_MAX_BYTES = 1024 * 1024;
-
-function firstZodMsg(err: import('zod').ZodError, fallback = 'invalid body'): string {
-  return err.issues[0]?.message ?? fallback;
-}
-
-function parseBody<T>(
-  schema: { safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: import('zod').ZodError } },
-  request: FastifyRequest,
-  reply: FastifyReply,
-): T | null {
-  const parsed = schema.safeParse(request.body ?? {});
-  if (!parsed.success) {
-    void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-    return null;
-  }
-  return parsed.data;
-}
-
-async function readCsvUpload(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  opts: { maxBytes: number; decode: (buf: Buffer) => string | null },
-): Promise<string | null> {
-  let data;
-  try {
-    data = await request.file({ limits: { fileSize: opts.maxBytes, files: 1 } });
-  } catch {
-    void reply.code(400).send({ detail: '请求体不是 multipart 表单' });
-    return null;
-  }
-  if (!data) {
-    void reply.code(400).send({ detail: '未收到文件' });
-    return null;
-  }
-  let buf: Buffer;
-  try {
-    buf = await data.toBuffer();
-  } catch (err) {
-    if ((err as { code?: string })?.code === 'FST_REQ_FILE_TOO_LARGE') {
-      void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
-      return null;
-    }
-    void reply.code(400).send({ detail: '读取文件失败' });
-    return null;
-  }
-  if (data.file.truncated) {
-    void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
-    return null;
-  }
-  const text = opts.decode(buf);
-  if (text === null) {
-    void reply.code(400).send({ detail: '编码无法识别，请另存为 CSV UTF-8' });
-    return null;
-  }
-  return text;
-}
-
-function sessionActor(identity: SessionIdentity): ActorRef {
-  return { id: identity.memberId, displayName: identity.displayName, source: 'console' };
-}
-
-async function buildScheduleSnapshot(store: GovStore): Promise<ScheduleSnapshot> {
-  const [snapshot, resources, resourceSessions, relayHandoffs] = await Promise.all([
-    store.getSnapshot(),
-    store.listResources(),
-    store.listResourceSessions(),
-    store.listRelayHandoffs(),
-  ]);
-  return { ...snapshot, resources, resourceSessions, relayHandoffs };
-}
 
 export interface ScheduleRouteDeps {
   store: GovStore;
@@ -115,12 +46,9 @@ export function registerPresenceScheduleRoutes(app: FastifyInstance, deps: Sched
   const { store, clock } = deps;
 
   app.get('/api/schedule', async (request, reply) => {
-    const parsed = ScheduleQuerySchema.safeParse(request.query ?? {});
-    if (!parsed.success) {
-      void reply.code(400).send({ detail: firstZodMsg(parsed.error, 'windowLabel required') });
-      return;
-    }
-    const { windowLabel } = parsed.data;
+    const query = parseQuery(ScheduleQuerySchema, request, reply, 'windowLabel required');
+    if (!query) return;
+    const { windowLabel } = query;
     const scheduleSnapshot = await buildScheduleSnapshot(store);
     const recommendations = derivePresenceSchedule(scheduleSnapshot, clock.now().toISOString(), windowLabel);
     return PresenceScheduleResponseSchema.parse({ windowLabel, recommendations });
@@ -255,9 +183,9 @@ export function registerPresenceScheduleRoutes(app: FastifyInstance, deps: Sched
   });
 
   app.get('/api/relay', async (request, reply) => {
-    const parsed = ScheduleQuerySchema.safeParse(request.query ?? {});
-    if (!parsed.success) { void reply.code(400).send({ detail: firstZodMsg(parsed.error, 'windowLabel required') }); return; }
-    const { windowLabel } = parsed.data;
+    const query = parseQuery(ScheduleQuerySchema, request, reply, 'windowLabel required');
+    if (!query) return;
+    const { windowLabel } = query;
     const scheduleSnapshot = await buildScheduleSnapshot(store);
     const board = deriveRelayBoard(scheduleSnapshot, windowLabel);
     return RelayBoardResponseSchema.parse(board);
