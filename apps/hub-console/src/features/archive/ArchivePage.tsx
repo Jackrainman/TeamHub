@@ -6,15 +6,13 @@ import {
   type FormEvent,
 } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useInvalidatingMutation } from '../../hooks/useInvalidatingMutation';
 import { FolderOpen, FilePlus } from 'lucide-react';
 import type { ArtifactRef } from '@teamhub/hub-contracts';
 import { nextArtifactVersionNo } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import type { CreateArtifactRequest } from '../../api/schemas/pm';
 import { useI18n, type TranslationKey } from '../../i18n';
-import { errorDetail, humanizeFormError, segClass } from '../../utils';
-import { MetaRow } from '../../components/MetaRow';
+import { humanizeFormError, segClass } from '../../utils';
 import { SeasonSelect, guessSeason } from '../../components/SeasonSelect';
 import { Combobox } from '../../components/Combobox';
 import { FormActions } from '../../components/FormActions';
@@ -28,6 +26,7 @@ import {
   GROUP_LABEL_KEY,
   ARTIFACT_ACCEPT_EXT,
 } from '../../verticals/robotics';
+import { ArtifactLogRow } from './ArtifactLogRow';
 
 // 上传文件后缀白名单（与 server ARTIFACT_ALLOWED_EXT 对齐）：CAD / 文档 / 图 / 包 / 固件。
 // 前端 accept 仅是提示，真正把关在 server（415）。
@@ -597,150 +596,4 @@ export function ArchivePage({
       )}
     </div>
   );
-}
-
-function ArtifactLogRow({
-  artifact,
-  lang,
-  client,
-  uploadDisabled,
-}: {
-  artifact: ArtifactRef;
-  lang: 'zh' | 'en';
-  client: HubApiClient;
-  // K3：服务器未配图纸文件目录时禁用上传按钮（deployment.artifactUploadEnabled===false）。
-  uploadDisabled?: boolean;
-}) {
-  const { t } = useI18n();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  // 行内上传/替换：给这条图纸补传或换本地文件（不新增版本行，覆盖 storedFile）。
-  const upload = useInvalidatingMutation({
-    mutationFn: (f: File) => client.uploadArtifactFile(artifact.id, f),
-    invalidateKeys: [['artifacts']],
-  });
-  // 单个版本徽章：优先 versionNo（v3），旧裸 seed 缺则用 revision 兜底。
-  const versionLabel =
-    artifact.versionNo != null
-      ? `v${artifact.versionNo}`
-      : (artifact.revision ?? null);
-  // 适配机器人徽章：遗留字面 universal → 「通用」；其余（含手填 26R1）原样显示。
-  const robotLabel = artifact.robotCode
-    ? artifact.robotCode === 'universal'
-      ? t('enum.robot.universal')
-      : artifact.robotCode
-    : null;
-  const hasFile = Boolean(artifact.storedFile);
-  return (
-    <article className="data-row archive-row">
-      <div className="archive-row__content">
-        <div className="archive-row__main">
-          <strong>{artifact.name}</strong>
-          <span className="archive-row__meta">
-            {versionLabel ? (
-              <span className="badge badge--blue badge--strong">{versionLabel}</span>
-            ) : null}
-            {robotLabel ? (
-              <span className="badge badge--outline">
-                {robotLabel}
-              </span>
-            ) : null}
-            <span>
-              {t('archive.meta.submittedAt')}{' '}
-              {formatDate(artifact.createdAt, lang)}
-            </span>
-          </span>
-        </div>
-        <dl className="archive-row__detail">
-          {artifact.relatedCommit ? (
-            <MetaRow
-              label={t('archive.meta.commit')}
-              value={artifact.relatedCommit}
-              mono
-              rowClass="archive-meta__row"
-            />
-          ) : null}
-          {artifact.uri ? (
-            <MetaRow
-              label={t('archive.meta.uri')}
-              value={artifact.uri}
-              mono
-              rowClass="archive-meta__row"
-            />
-          ) : null}
-        </dl>
-      </div>
-      {/* 文件来源「连在一起」：本地下载 + 云端打开两个动作并列、有谁显谁；都无则灰显。
-          再加行内上传/替换。下载直链命中 GET /api/artifacts/:id/download（读端点、无需令牌）。
-          FORM-UNIFY B3：行内上传 = 即时控件（§1.3.7）——按钮触发隐藏 file input、选中即 upload.mutate，
-          不套表单、无提交按钮；故不补 <form>。 */}
-      <div className="archive-row__actions">
-        {hasFile ? (
-          <a
-            className="archive-download"
-            href={`/api/artifacts/${encodeURIComponent(artifact.id)}/download`}
-            download
-          >
-            {t('archive.download')}
-          </a>
-        ) : null}
-        {artifact.uri ? (
-          <a
-            className="archive-download archive-openlink"
-            href={artifact.uri}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {t('archive.openLink')}
-          </a>
-        ) : null}
-        {!hasFile && !artifact.uri ? (
-          <span className="archive-nofile">{t('archive.noFile')}</span>
-        ) : null}
-        <button
-          type="button"
-          className="btn btn--dashed"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={upload.isPending || uploadDisabled}
-          title={uploadDisabled ? t('archive.uploadDisabled') : undefined}
-        >
-          {upload.isPending
-            ? t('archive.uploading')
-            : hasFile
-              ? t('archive.replaceFile')
-              : t('archive.uploadFile')}
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={ARTIFACT_ACCEPT}
-          style={{ display: 'none' }}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) upload.mutate(f);
-            e.target.value = ''; // 允许同名文件再次触发 change
-          }}
-        />
-        {/* archive-upload-err = 纯红字（color/font-size 11.5px/max-width 12rem，无背景/内边距/圆角），
-            与 FormBanner--err 的红底色块（red-soft 背景 + padding + radius + 600 字重）样式不同；
-            行内动作区窄列里塞 banner 会撑破布局 → 按像素规则保留原内联渲染，不换 FormBanner。 */}
-        {upload.error ? (
-          <span className="archive-upload-err">
-            {/401|unauthorized/i.test(errorDetail(upload.error))
-              ? t('archive.form.error401')
-              : t('archive.uploadError', { detail: errorDetail(upload.error) })}
-          </span>
-        ) : null}
-      </div>
-    </article>
-  );
-}
-
-function formatDate(iso: string, lang: 'zh' | 'en'): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
 }
