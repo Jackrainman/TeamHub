@@ -128,6 +128,11 @@ export * from './system-status.js';
 // 部署配置落盘层（SETUP-WIZARD 刀①，setup-wizard.md §2/§3）：config.json 契约 + setup 三端点请求/响应契约。
 export * from './deploy-config.js';
 export * from './pm-requests.js';
+// 写侧请求契约按域拆分（自 pm-requests.ts 析出 artifact/schedule/resource 三域，照 relay.ts 先例）；
+// 包入口 export * 保证 server/console 既有具名 import 零改动。
+export * from './artifact-requests.js';
+export * from './schedule-requests.js';
+export * from './resource-requests.js';
 // 名册导入（ROSTER-IMPORT，K8）：CSV 模板生成 + 编码探测 + 手写零依赖解析器 + 导入报告契约（纯，无状态）。
 export * from './roster-import.js';
 export * from './inventory-import.js';

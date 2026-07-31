@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { UTF8_BOM, tokenizeCsv } from './csv-core.js';
 import { RobotTargetSchema, type RobotTarget } from './pm-core.js';
-import { RESOURCE_INIT_STATUSES } from './pm-requests.js';
+import { RESOURCE_INIT_STATUSES } from './resource-requests.js';
 
 /**
  * 车队批量导入契约 + 纯解析器（FLEET-CSV-IMPORT，照库存导入 inventory-import.ts / 名册导入 roster-import.ts

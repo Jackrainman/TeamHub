@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { ArtifactRef } from '../schemas.js';
-import { buildCreateArtifactRequestSchema } from '../pm-requests.js';
+import { buildCreateArtifactRequestSchema } from '../artifact-requests.js';
 
 /**
  * robotics 垂直包（HUB-MODULARIZATION 第 6 步：词汇注入收口）。
