@@ -14,6 +14,7 @@ export function useSetupAdminMutation(
   onSuccess: () => void,
 ) {
   return useMutation({
+    meta: { silent: true },
     mutationFn: () => client.setupSuperAdmin({ pin }),
     onSuccess,
   });
@@ -24,6 +25,7 @@ export function useRosterPreviewMutation(
   onSuccess: (data: RosterPreviewResponse) => void,
 ) {
   return useMutation({
+    meta: { silent: true },
     mutationFn: (file: File) => client.previewRoster(file),
     onSuccess,
   });
@@ -34,6 +36,7 @@ export function useRosterImportMutation(
   onSuccess: () => void,
 ) {
   return useMutation({
+    meta: { silent: true },
     mutationFn: (rows: RosterImportRow[]) => client.importRosterRows(rows),
     onSuccess,
   });
@@ -46,6 +49,7 @@ export function useCreateSeasonMutation(
 ) {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { silent: true },
     mutationFn: () =>
       client.createSeason({
         name: opts.name.trim(),
@@ -68,6 +72,7 @@ export function useGroupMutations(
     void queryClient.invalidateQueries({ queryKey: queryKeys.groups() });
 
   const createMutation = useMutation({
+    meta: { silent: true },
     mutationFn: () => client.createGroup({ name: opts.createName.trim() }),
     onSuccess: () => {
       opts.onCreateSuccess();
@@ -75,11 +80,13 @@ export function useGroupMutations(
     },
   });
   const renameMutation = useMutation({
+    meta: { silent: true },
     mutationFn: (vars: { id: string; name: string }) =>
       client.renameGroup(vars.id, { name: vars.name }),
     onSuccess: invalidateGroups,
   });
   const deleteMutation = useMutation({
+    meta: { silent: true },
     mutationFn: (vars: { id: string }) => client.deleteGroup(vars.id),
     onSuccess: invalidateGroups,
   });
@@ -131,16 +138,19 @@ export function useMemberMutations(client: HubApiClient) {
     void queryClient.invalidateQueries({ queryKey: queryKeys.members() });
 
   const roleMutation = useMutation({
+    meta: { silent: true },
     mutationFn: (vars: { id: string; role: MemberRole }) =>
       client.setMemberRole(vars.id, { role: vars.role }),
     onSuccess: invalidateMembers,
   });
   const pmMutation = useMutation({
+    meta: { silent: true },
     mutationFn: (vars: { id: string; projectManager: boolean }) =>
       client.setMemberProjectManager(vars.id, { projectManager: vars.projectManager }),
     onSuccess: invalidateMembers,
   });
   const clearPinMutation = useMutation({
+    meta: { silent: true },
     mutationFn: (vars: { id: string }) => client.clearMemberPin(vars.id),
     onSuccess: invalidateMembers,
   });

@@ -63,6 +63,7 @@ export function PoolCard({
   };
 
   const claimMutation = useMutation({
+    meta: { silent: true },
     mutationFn: (memberId: string | undefined) =>
       client.claimTask(task.id, memberId ? { memberId } : {}),
     onSuccess: () => {
@@ -72,6 +73,7 @@ export function PoolCard({
     },
   });
   const assignMutation = useMutation({
+    meta: { silent: true },
     mutationFn: (vars: { ownerId: string; reason: string; assignedBy?: ActorRef }) =>
       client.assignTask(task.id, vars),
     onSuccess: () => {

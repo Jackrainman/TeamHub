@@ -97,6 +97,7 @@ export function ArtifactRegisterForm({
   } | null>(null);
 
   const mutation = useMutation({
+    meta: { silent: true },
     mutationFn: async (vars: { req: CreateArtifactRequest; file: File | null }) => {
       const reusable =
         pendingArtifact && JSON.stringify(pendingArtifact.req) === JSON.stringify(vars.req);

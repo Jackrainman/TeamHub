@@ -92,6 +92,7 @@ export function GateChecklistCard({
   };
 
   const clearMutation = useMutation({
+    meta: { silent: true },
     mutationFn: (vars: { id: string; actor?: ActorRef }) =>
       client.clearChecklistItem(vars.id, seasonId, vars.actor ? { clearedBy: vars.actor } : {}),
     onSuccess: () => {
@@ -100,6 +101,7 @@ export function GateChecklistCard({
     },
   });
   const waiveMutation = useMutation({
+    meta: { silent: true },
     mutationFn: (vars: { id: string; waiveReason: string; actor?: ActorRef }) =>
       client.waiveChecklistItem(vars.id, seasonId, {
         waivedBy: vars.actor,
@@ -111,6 +113,7 @@ export function GateChecklistCard({
     },
   });
   const addMutation = useMutation({
+    meta: { silent: true },
     mutationFn: (title: string) =>
       // anchor 预填本门（anchorMilestoneId=milestone.id）；门追加=自知的凑合，origin='iou'（欠条）。
       client.createChecklistItem(seasonId, {

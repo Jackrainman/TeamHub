@@ -47,6 +47,7 @@ export function CreatePartTypeForm({
   const [trackIndividually, setTrackIndividually] = useState(false);
 
   const mutation = useMutation({
+    meta: { silent: true },
     mutationFn: (req: CreatePartTypeRequest) => client.upsertPartType(req),
     onSuccess: () => {
       setPartNumber('');
