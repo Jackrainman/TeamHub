@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '../../i18n';
 import type { HubApiClient } from '../../api/client';
+import { useBaseline } from '../../hooks/useBaseline';
 import { queryKeys } from '../../api/queryKeys';
 import type { SeasonBaseline, BaselineMilestone } from '@teamhub/hub-contracts';
 
@@ -38,11 +39,7 @@ export function TimelineEditorPage({ client, source }: { client: HubApiClient; s
   const seasons = seasonsQuery.data?.seasons ?? [];
   const seasonId = seasons.find((s) => s.status === 'active')?.id ?? seasons[0]?.id ?? null;
 
-  const baselineQuery = useQuery({
-    queryKey: queryKeys.baseline(source, seasonId ?? ''),
-    queryFn: () => client.getBaseline(seasonId!),
-    enabled: !!seasonId,
-  });
+  const baselineQuery = useBaseline(client, source, seasonId ?? undefined);
 
   const baseline: SeasonBaseline | null = baselineQuery.data?.baseline ?? null;
 

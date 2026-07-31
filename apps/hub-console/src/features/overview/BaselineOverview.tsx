@@ -17,6 +17,7 @@ import {
   type Task,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
+import { useBaseline } from '../../hooks/useBaseline';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { humanizeFormError, seasonRangeLabel, suggestSeason } from '../../utils';
@@ -103,11 +104,7 @@ export function BaselineOverview({
   }, [seasonsQuery.data]);
   const seasonId = activeSeason?.id;
 
-  const baselineQuery = useQuery({
-    queryKey: ['baseline', source, seasonId],
-    queryFn: () => client.getBaseline(seasonId as string),
-    enabled: Boolean(seasonId),
-  });
+  const baselineQuery = useBaseline(client, source, seasonId);
   const tasksQuery = useQuery({
     queryKey: ['tasks', 'overview', source],
     queryFn: () => client.getTasks(),

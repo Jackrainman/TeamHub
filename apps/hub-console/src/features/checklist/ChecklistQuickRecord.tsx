@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ClipboardList } from 'lucide-react';
 import type { HubApiClient } from '../../api/client';
+import { useBaseline } from '../../hooks/useBaseline';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
 import { useForm } from '../../hooks/useForm';
@@ -57,11 +58,7 @@ export function ChecklistQuickRecord({
     return seasons.find((s) => s.status === 'active') ?? seasons[0];
   }, [seasonsQuery.data]);
   const seasonId = activeSeason?.id;
-  const baselineQuery = useQuery({
-    queryKey: ['baseline', source, seasonId],
-    queryFn: () => client.getBaseline(seasonId as string),
-    enabled: Boolean(seasonId),
-  });
+  const baselineQuery = useBaseline(client, source, seasonId);
   const baseline = baselineQuery.data?.baseline ?? null;
   const milestones = useMemo(() => baseline?.milestones ?? [], [baseline]);
 
