@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
 import {
@@ -29,6 +29,7 @@ import type {
 } from '@teamhub/hub-contracts';
 import type { Clock } from '../clock.js';
 import { cloneArrayFields } from './clone-snapshot.js';
+import { PersistedFile } from './persisted-file.js';
 import { InMemoryGovStore } from './mock-gov-store.js';
 import type {
   ArtifactDraft,
@@ -129,11 +130,10 @@ export class FileGovStore implements GovStore {
   // SCHEDULE-PERSIST：占用窗口 + 接力交接线独立落盘文件（schedule-sessions.json，与 gov.json 同目录，
   // 两块合一见 ScheduleSessionsFileSchema 注释）。
   private readonly scheduleSessionsFilePath: string;
-  // 串行化落盘：并发写不互相覆盖（H2 失败隔离）。governance.json / resources.json / schedule-sessions.json
-  // 各持一条独立写链（三文件内容不同、互不阻塞，且各自 H2 失败隔离）。
-  private writeChain: Promise<void> = Promise.resolve();
-  private resourcesWriteChain: Promise<void> = Promise.resolve();
-  private scheduleSessionsWriteChain: Promise<void> = Promise.resolve();
+  // 三份落盘文件各持一个 PersistedFile（串行写链 + 原子写 + H2 失败隔离）。
+  private readonly govFile: PersistedFile;
+  private readonly resourcesFile: PersistedFile;
+  private readonly scheduleFile: PersistedFile;
 
   private constructor(
     filePath: string,
@@ -144,12 +144,25 @@ export class FileGovStore implements GovStore {
     this.filePath = filePath;
     this.resourcesFilePath = deriveResourcesFilePath(filePath);
     this.scheduleSessionsFilePath = deriveScheduleSessionsFilePath(filePath);
-    // 组合内存实现复用写白名单的 id/时间戳/clamp 逻辑（零漂移）；它持有传入快照的可变副本。
-    // 不传 clock（undefined）时沿用 InMemoryGovStore 默认（FixedClock(GOVERNANCE_SCENARIO_NOW)），与 real
-    // 路由同口径；demoSeed 透传决定 resources/resourceSessions/relayHandoffs 锚点是否 seed（false=真空板，K6）。
-    // 新建落盘文件首启动落盘走 inner 的这批 seed（loadOrSeedResources/loadOrSeedScheduleSessions 见下）——
-    // demoSeed=false 即落一份空 resources.json/schedule-sessions.json；已有文件按原样加载覆盖、不受此 flag 影响。
     this.inner = new InMemoryGovStore(snapshot, clock, demoSeed);
+    this.govFile = new PersistedFile(
+      filePath,
+      () => JSON.stringify(this.inner.snapshotForRollback(), null, 2),
+    );
+    this.resourcesFile = new PersistedFile(
+      this.resourcesFilePath,
+      async () => JSON.stringify(await this.inner.listResources(), null, 2),
+    );
+    this.scheduleFile = new PersistedFile(
+      this.scheduleSessionsFilePath,
+      async () => {
+        const [resourceSessions, relayHandoffs] = await Promise.all([
+          this.inner.listResourceSessions(),
+          this.inner.listRelayHandoffs(),
+        ]);
+        return JSON.stringify({ resourceSessions, relayHandoffs }, null, 2);
+      },
+    );
   }
 
   /**
@@ -184,7 +197,7 @@ export class FileGovStore implements GovStore {
 
     if (raw === null) {
       // gov.json 不存在 → seed 起头 + 落一次盘（首启动落种子治理场景 + 图纸版本日志）。
-      await store.persist();
+      await store.govFile.persist();
     }
 
     await store.loadOrSeedResources();
@@ -208,7 +221,7 @@ export class FileGovStore implements GovStore {
 
     if (raw === null) {
       // resources.json 不存在 → 用 inner seed 落一份（首启动持久化锚点车）。
-      await this.persistResources();
+      await this.resourcesFile.persist();
       return;
     }
 
@@ -236,7 +249,7 @@ export class FileGovStore implements GovStore {
 
     if (raw === null) {
       // schedule-sessions.json 不存在 → 用 inner seed 落一份（首启动持久化锚点窗口）。
-      await this.persistScheduleSessions();
+      await this.scheduleFile.persist();
       return;
     }
 
@@ -263,19 +276,19 @@ export class FileGovStore implements GovStore {
 
   async createTask(draft: TaskDraft): Promise<Task> {
     const task = await this.inner.createTask(draft);
-    await this.persistOrRollback(() => this.removeById('tasks', task.id));
+    await this.govFile.persistOrRollback(() => this.removeById('tasks', task.id));
     return task;
   }
 
   async createDependency(draft: DependencyDraft): Promise<Dependency> {
     const dependency = await this.inner.createDependency(draft);
-    await this.persistOrRollback(() => this.removeById('dependencies', dependency.id));
+    await this.govFile.persistOrRollback(() => this.removeById('dependencies', dependency.id));
     return dependency;
   }
 
   async createNeed(draft: NeedDraft): Promise<Need> {
     const need = await this.inner.createNeed(draft);
-    await this.persistOrRollback(() => this.removeById('needs', need.id));
+    await this.govFile.persistOrRollback(() => this.removeById('needs', need.id));
     return need;
   }
 
@@ -284,7 +297,7 @@ export class FileGovStore implements GovStore {
     const snap = this.inner.snapshotForRollback();
     const priorByName = snap.knowledgeNodes.find((n) => n.name === draft.name);
     const node = await this.inner.closeoutKbNode(draft);
-    await this.persistOrRollback(() => {
+    await this.govFile.persistOrRollback(() => {
       const idx = snap.knowledgeNodes.findIndex((n) => n.id === node.id);
       if (idx < 0) return;
       if (priorByName) snap.knowledgeNodes[idx] = priorByName; // 覆盖 → 还原旧节点
@@ -296,7 +309,7 @@ export class FileGovStore implements GovStore {
   // 图纸提交日志追加（V1-FOLLOWUPS ④）：复用 inner 的 id/createdAt/submittedVia 逻辑 + 落盘累积。
   async appendArtifact(draft: ArtifactDraft): Promise<ArtifactRef> {
     const artifact = await this.inner.appendArtifact(draft);
-    await this.persistOrRollback(() => this.removeById('artifacts', artifact.id));
+    await this.govFile.persistOrRollback(() => this.removeById('artifacts', artifact.id));
     return artifact;
   }
 
@@ -311,7 +324,7 @@ export class FileGovStore implements GovStore {
     const prior = idx >= 0 ? snap.artifacts[idx] : undefined; // 写前整条（idx 类回滚需存旧值）
     const artifact = await this.inner.setArtifactFile(id, file);
     if (artifact) {
-      await this.persistOrRollback(() => {
+      await this.govFile.persistOrRollback(() => {
         if (prior) snap.artifacts[idx] = prior;
       });
     }
@@ -333,7 +346,7 @@ export class FileGovStore implements GovStore {
   // resources.json；persist 失败回滚刚追加 / 刚改的内存元素（镜像 governance.json 的 persistOrRollback）。
   async createResource(draft: ResourceDraft): Promise<SharedResource> {
     const resource = await this.inner.createResource(draft);
-    await this.persistResourcesOrRollback(() => this.removeResourceById(resource.id));
+    await this.resourcesFile.persistOrRollback(() => this.removeResourceById(resource.id));
     return resource;
   }
 
@@ -347,7 +360,7 @@ export class FileGovStore implements GovStore {
     const prior = idx >= 0 ? live[idx] : undefined;
     const resource = await this.inner.updateResourceStatus(id, patch);
     if (resource) {
-      await this.persistResourcesOrRollback(() => {
+      await this.resourcesFile.persistOrRollback(() => {
         if (prior) live[idx] = prior;
       });
     }
@@ -366,7 +379,7 @@ export class FileGovStore implements GovStore {
     const prior = idx >= 0 ? live[idx] : undefined;
     const resource = await this.inner.setResourceDefaultPreset(id, preset);
     if (resource) {
-      await this.persistResourcesOrRollback(() => {
+      await this.resourcesFile.persistOrRollback(() => {
         if (prior) live[idx] = prior;
       });
     }
@@ -386,7 +399,7 @@ export class FileGovStore implements GovStore {
     draft: ResourceSessionDraft,
   ): Promise<ResourceSession> {
     const session = await this.inner.createResourceSession(draft);
-    await this.persistScheduleSessionsOrRollback(() =>
+    await this.scheduleFile.persistOrRollback(() =>
       this.removeSessionById(session.id),
     );
     return session;
@@ -401,7 +414,7 @@ export class FileGovStore implements GovStore {
   ): Promise<ResourceSession[]> {
     const sessions = await this.inner.createResourceSessionsBatch(drafts);
     const ids = sessions.map((s) => s.id);
-    await this.persistScheduleSessionsOrRollback(() => {
+    await this.scheduleFile.persistOrRollback(() => {
       for (const id of ids) this.removeSessionById(id);
     });
     return sessions;
@@ -420,7 +433,7 @@ export class FileGovStore implements GovStore {
     const prior = idx >= 0 ? live[idx] : undefined;
     const session = await this.inner.updateResourceSession(id, patch);
     if (session) {
-      await this.persistScheduleSessionsOrRollback(() => {
+      await this.scheduleFile.persistOrRollback(() => {
         if (prior) live[idx] = prior;
       });
     }
@@ -442,7 +455,7 @@ export class FileGovStore implements GovStore {
     );
     const deleted = await this.inner.deleteResourceSession(id);
     if (deleted) {
-      await this.persistScheduleSessionsOrRollback(() => {
+      await this.scheduleFile.persistOrRollback(() => {
         if (priorSession) liveSessions.push(priorSession);
         liveHandoffs.push(...priorHandoffs);
       });
@@ -461,7 +474,7 @@ export class FileGovStore implements GovStore {
    */
   async createRelayHandoff(draft: RelayHandoffDraft): Promise<RelayHandoff> {
     const handoff = await this.inner.createRelayHandoff(draft);
-    await this.persistScheduleSessionsOrRollback(() =>
+    await this.scheduleFile.persistOrRollback(() =>
       this.removeHandoffById(handoff.id),
     );
     return handoff;
@@ -476,7 +489,7 @@ export class FileGovStore implements GovStore {
     const prior = liveHandoffs.find((h) => h.id === id);
     const deleted = await this.inner.deleteRelayHandoff(id);
     if (deleted) {
-      await this.persistScheduleSessionsOrRollback(() => {
+      await this.scheduleFile.persistOrRollback(() => {
         if (prior) liveHandoffs.push(prior);
       });
     }
@@ -490,7 +503,7 @@ export class FileGovStore implements GovStore {
     const task = await this.inner.updateTaskStatus(taskId, status);
     // 仅命中才落盘：未命中（null）不触发无谓写。
     if (task) {
-      await this.persistOrRollback(() => {
+      await this.govFile.persistOrRollback(() => {
         if (prior) snap.tasks[idx] = prior;
       });
     }
@@ -503,7 +516,7 @@ export class FileGovStore implements GovStore {
     const prior = idx >= 0 ? snap.dependencies[idx] : undefined; // 写前整条
     const dependency = await this.inner.waiveDependency(depId);
     if (dependency) {
-      await this.persistOrRollback(() => {
+      await this.govFile.persistOrRollback(() => {
         if (prior) snap.dependencies[idx] = prior;
       });
     }
@@ -526,7 +539,7 @@ export class FileGovStore implements GovStore {
     const prior = idx >= 0 ? snap.members[idx] : undefined;
     const member = await this.inner.setMemberPin(memberId, pinHash, pinPlaintext);
     if (member) {
-      await this.persistOrRollback(() => {
+      await this.govFile.persistOrRollback(() => {
         if (prior) snap.members[idx] = prior;
       });
     }
@@ -544,7 +557,7 @@ export class FileGovStore implements GovStore {
     const prior = idx >= 0 ? snap.members[idx] : undefined;
     const member = await this.inner.setMemberGateReviewer(memberId, gateReviewer);
     if (member) {
-      await this.persistOrRollback(() => {
+      await this.govFile.persistOrRollback(() => {
         if (prior) snap.members[idx] = prior;
       });
     }
@@ -559,7 +572,7 @@ export class FileGovStore implements GovStore {
     const prior = idx >= 0 ? snap.members[idx] : undefined;
     const member = await this.inner.setMemberRole(memberId, role);
     if (member) {
-      await this.persistOrRollback(() => {
+      await this.govFile.persistOrRollback(() => {
         if (prior) snap.members[idx] = prior;
       });
     }
@@ -579,7 +592,7 @@ export class FileGovStore implements GovStore {
     const prior = idx >= 0 ? snap.members[idx] : undefined;
     const result = await this.inner.setProjectManager(memberId, projectManager, opts);
     if (result.ok) {
-      await this.persistOrRollback(() => {
+      await this.govFile.persistOrRollback(() => {
         if (prior) snap.members[idx] = prior;
       });
     }
@@ -595,7 +608,7 @@ export class FileGovStore implements GovStore {
     const priorMembers = [...snap.members];
     const priorGroups = [...snap.groups];
     const outcome = await this.inner.importRoster(rows);
-    await this.persistOrRollback(() => {
+    await this.govFile.persistOrRollback(() => {
       snap.members.length = 0;
       snap.members.push(...priorMembers);
       snap.groups.length = 0;
@@ -612,7 +625,7 @@ export class FileGovStore implements GovStore {
   async createGroup(draft: GroupDraft): Promise<CreateGroupResult> {
     const result = await this.inner.createGroup(draft);
     if (result.ok) {
-      await this.persistOrRollback(() => this.removeById('groups', result.group.id));
+      await this.govFile.persistOrRollback(() => this.removeById('groups', result.group.id));
     }
     return result;
   }
@@ -623,7 +636,7 @@ export class FileGovStore implements GovStore {
     const prior = idx >= 0 ? snap.groups[idx] : undefined;
     const result = await this.inner.renameGroup(groupId, name);
     if (result.ok) {
-      await this.persistOrRollback(() => {
+      await this.govFile.persistOrRollback(() => {
         if (prior) snap.groups[idx] = prior;
       });
     }
@@ -636,7 +649,7 @@ export class FileGovStore implements GovStore {
     const prior: Group | undefined = idx >= 0 ? snap.groups[idx] : undefined;
     const result = await this.inner.deleteGroup(groupId);
     if (result.ok) {
-      await this.persistOrRollback(() => {
+      await this.govFile.persistOrRollback(() => {
         if (prior) snap.groups.splice(idx, 0, prior); // 原位插回（保持数组引用稳定）
       });
     }
@@ -651,7 +664,7 @@ export class FileGovStore implements GovStore {
     if (snap.groups.length > 0) return;
     const priorGroups = [...snap.groups];
     await this.inner.ensureDefaultGroups();
-    await this.persistOrRollback(() => {
+    await this.govFile.persistOrRollback(() => {
       snap.groups.length = 0;
       snap.groups.push(...priorGroups);
     });
@@ -667,7 +680,7 @@ export class FileGovStore implements GovStore {
     const prior = idx >= 0 ? snap.tasks[idx] : undefined;
     const task = await this.inner.claimTask(taskId, ownerId, claimedAt);
     if (task) {
-      await this.persistOrRollback(() => {
+      await this.govFile.persistOrRollback(() => {
         if (prior) snap.tasks[idx] = prior;
       });
     }
@@ -686,7 +699,7 @@ export class FileGovStore implements GovStore {
     const prior = idx >= 0 ? snap.tasks[idx] : undefined;
     const task = await this.inner.assignTask(taskId, ownerId, reason, assignedBy, at);
     if (task) {
-      await this.persistOrRollback(() => {
+      await this.govFile.persistOrRollback(() => {
         if (prior) snap.tasks[idx] = prior;
       });
     }
@@ -699,7 +712,7 @@ export class FileGovStore implements GovStore {
     const prior = idx >= 0 ? snap.tasks[idx] : undefined;
     const task = await this.inner.setTaskPartner(taskId, partnerMemberId, at);
     if (task) {
-      await this.persistOrRollback(() => {
+      await this.govFile.persistOrRollback(() => {
         if (prior) snap.tasks[idx] = prior;
       });
     }
@@ -712,7 +725,7 @@ export class FileGovStore implements GovStore {
     const prior = idx >= 0 ? snap.tasks[idx] : undefined;
     const task = await this.inner.confirmCrossClaim(taskId, confirmedBy, at);
     if (task) {
-      await this.persistOrRollback(() => {
+      await this.govFile.persistOrRollback(() => {
         if (prior) snap.tasks[idx] = prior;
       });
     }
@@ -725,7 +738,7 @@ export class FileGovStore implements GovStore {
     const prior = idx >= 0 ? snap.tasks[idx] : undefined;
     const task = await this.inner.completeTask(taskId, completedBy, at);
     if (task) {
-      await this.persistOrRollback(() => {
+      await this.govFile.persistOrRollback(() => {
         if (prior) snap.tasks[idx] = prior;
       });
     }
@@ -744,7 +757,7 @@ export class FileGovStore implements GovStore {
     const prior = idx >= 0 ? snap.tasks[idx] : undefined;
     const task = await this.inner.reviewTask(taskId, reviewedBy, outcome, note, at);
     if (task) {
-      await this.persistOrRollback(() => {
+      await this.govFile.persistOrRollback(() => {
         if (prior) snap.tasks[idx] = prior;
       });
     }
@@ -757,7 +770,7 @@ export class FileGovStore implements GovStore {
     const seasons = this.inner.snapshotForRollback().seasons;
     const prior = [...seasons];
     const season = await this.inner.createSeason(draft);
-    await this.persistOrRollback(() => {
+    await this.govFile.persistOrRollback(() => {
       seasons.length = 0;
       seasons.push(...prior);
     });
@@ -774,43 +787,7 @@ export class FileGovStore implements GovStore {
     if (idx >= 0) arr.splice(idx, 1);
   }
 
-  /** 落盘；失败则执行回滚句柄（撤回刚追加/刚改的内存元素）再把原错误抛给调用方（让客户端拿到真实失败）。 */
-  private async persistOrRollback(rollback: () => void): Promise<void> {
-    try {
-      await this.persist();
-    } catch (err) {
-      rollback();
-      throw err;
-    }
-  }
-
-  /** 原子写：写 tmp 再 rename，串行化避免并发覆盖。 */
-  private async persist(): Promise<void> {
-    const op = this.writeChain.then(() => this.writeOnce());
-    // H2（AUDIT-FIXES 部署前必修）：失败隔离。推进写链时**吞掉本次错误**（reset 为 resolved），
-    // 否则一次瞬时磁盘抖动（ENOSPC/EACCES）会让 writeChain 永久 rejected → 之后每次 persist 的
-    // .then 回调被静默跳过、内存与磁盘分叉、store 以为存了却再不落盘。调用方仍拿到本次真实错误（op）。
-    this.writeChain = op.catch(() => undefined);
-    return op;
-  }
-
-  private async writeOnce(): Promise<void> {
-    await mkdir(dirname(this.filePath), { recursive: true });
-    const tmp = `${this.filePath}.tmp`;
-    // 只读序列化，无需 getSnapshot 的数组克隆隔离（JSON 与 live 逐字相同，见 getSnapshot 注释）；
-    // JSON.stringify 同步读取、无 await 间隙，用 live 引用即可，省每次写的 8 数组克隆。
-    const snapshot = this.inner.snapshotForRollback();
-    try {
-      await writeFile(tmp, JSON.stringify(snapshot, null, 2), 'utf8');
-      await rename(tmp, this.filePath);
-    } catch (err) {
-      // L2：rename 后失败会漏 .tmp；写失败也清残留，避免孤儿临时文件堆积。
-      await unlink(tmp).catch(() => {});
-      throw err;
-    }
-  }
-
-  // --- R3 车独立落盘（resources.json）：与 governance.json persist 逐条镜像，仅写不同文件 + 独立写链 ---
+  // --- R3 车独立落盘（resources.json）---
 
   /** 回滚句柄：从 live resources 数组按 id 移除一条 append 的车（仅 createResource persist 失败时用）。 */
   private removeResourceById(id: string): void {
@@ -819,41 +796,7 @@ export class FileGovStore implements GovStore {
     if (idx >= 0) arr.splice(idx, 1);
   }
 
-  /** 写 resources.json；失败则回滚刚追加/刚改的内存车再把原错误抛给调用方。 */
-  private async persistResourcesOrRollback(rollback: () => void): Promise<void> {
-    try {
-      await this.persistResources();
-    } catch (err) {
-      rollback();
-      throw err;
-    }
-  }
-
-  /** 原子写 resources.json，独立写链串行化避免并发覆盖（H2 失败隔离，与 governance.json 同纪律）。 */
-  private async persistResources(): Promise<void> {
-    const op = this.resourcesWriteChain.then(() => this.writeResourcesOnce());
-    // H2：推进写链时吞掉本次错误（reset 为 resolved），否则一次瞬时磁盘抖动会让 resourcesWriteChain
-    // 永久 rejected → 之后每次 persistResources 的 .then 回调被静默跳过、内存与磁盘分叉。调用方仍拿到本次真实错误。
-    this.resourcesWriteChain = op.catch(() => undefined);
-    return op;
-  }
-
-  private async writeResourcesOnce(): Promise<void> {
-    await mkdir(dirname(this.resourcesFilePath), { recursive: true });
-    const tmp = `${this.resourcesFilePath}.tmp`;
-    const resources = await this.inner.listResources();
-    try {
-      await writeFile(tmp, JSON.stringify(resources, null, 2), 'utf8');
-      await rename(tmp, this.resourcesFilePath);
-    } catch (err) {
-      // L2：写失败 / rename 后失败都清残留 .tmp，避免孤儿临时文件堆积。
-      await unlink(tmp).catch(() => {});
-      throw err;
-    }
-  }
-
-  // --- SCHEDULE-PERSIST：占用窗口 + 接力交接线合一落盘（schedule-sessions.json）——与 governance.json/
-  // resources.json persist 逐条镜像，仅写不同文件 + 独立写链（两块合一见 ScheduleSessionsFileSchema 注释）。
+  // --- SCHEDULE-PERSIST：占用窗口 + 接力交接线合一落盘（schedule-sessions.json）---
 
   /** 回滚句柄：从 live resourceSessions 数组按 id 移除一条 append 的窗口（仅 create* persist 失败时用）。 */
   private removeSessionById(id: string): void {
@@ -867,46 +810,5 @@ export class FileGovStore implements GovStore {
     const arr = this.inner.handoffsForRollback();
     const idx = arr.findIndex((h) => h.id === id);
     if (idx >= 0) arr.splice(idx, 1);
-  }
-
-  /** 写 schedule-sessions.json；失败则回滚刚做的内存改动再把原错误抛给调用方。 */
-  private async persistScheduleSessionsOrRollback(
-    rollback: () => void,
-  ): Promise<void> {
-    try {
-      await this.persistScheduleSessions();
-    } catch (err) {
-      rollback();
-      throw err;
-    }
-  }
-
-  /** 原子写 schedule-sessions.json，独立写链串行化避免并发覆盖（H2 失败隔离，与 governance.json 同纪律）。 */
-  private async persistScheduleSessions(): Promise<void> {
-    const op = this.scheduleSessionsWriteChain.then(() =>
-      this.writeScheduleSessionsOnce(),
-    );
-    // H2：推进写链时吞掉本次错误（reset 为 resolved），否则一次瞬时磁盘抖动会让
-    // scheduleSessionsWriteChain 永久 rejected → 之后每次 persistScheduleSessions 的 .then 回调被静默
-    // 跳过、内存与磁盘分叉。调用方仍拿到本次真实错误。
-    this.scheduleSessionsWriteChain = op.catch(() => undefined);
-    return op;
-  }
-
-  private async writeScheduleSessionsOnce(): Promise<void> {
-    await mkdir(dirname(this.scheduleSessionsFilePath), { recursive: true });
-    const tmp = `${this.scheduleSessionsFilePath}.tmp`;
-    const payload = {
-      resourceSessions: await this.inner.listResourceSessions(),
-      relayHandoffs: await this.inner.listRelayHandoffs(),
-    };
-    try {
-      await writeFile(tmp, JSON.stringify(payload, null, 2), 'utf8');
-      await rename(tmp, this.scheduleSessionsFilePath);
-    } catch (err) {
-      // L2：写失败 / rename 后失败都清残留 .tmp，避免孤儿临时文件堆积。
-      await unlink(tmp).catch(() => {});
-      throw err;
-    }
   }
 }
