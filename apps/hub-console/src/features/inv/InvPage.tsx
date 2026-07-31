@@ -1,5 +1,6 @@
 import { useState, useRef, type FormEvent } from 'react';
 import { EmptyState } from '../../shared/EmptyState';
+import { useQueryGuard } from '../../shared/QueryGate';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
 import type {
@@ -99,22 +100,10 @@ export function InvPage({
     queryFn: () => client.getInventory(),
   });
 
-  if (query.isLoading) {
-    return (
-      <div className="state-band" role="status" aria-live="polite">
-        {t('inv.loading')}
-      </div>
-    );
-  }
-  if (query.error || !query.data) {
-    return (
-      <div className="state-band state-band-error" role="alert">
-        {t('inv.error')}
-      </div>
-    );
-  }
+  const gate = useQueryGuard(query, t('inv.loading'), t('inv.error'));
+  if (gate.guard) return gate.guard;
 
-  const { partTypes, ledger, shortfalls, trackedParts } = query.data;
+  const { partTypes, ledger, shortfalls, trackedParts } = gate.data;
   void trackedParts; // 个体件血缘当前不单列渲染（矩阵已含其计数）；保留读取以备后续血缘视图。
   const shortfallIds = new Set(shortfalls.map((p) => p.id));
 
@@ -164,7 +153,7 @@ export function InvPage({
       </section>
 
       <ActionHistory
-        actions={query.data.actions}
+        actions={gate.data.actions}
         partTypeName={nameLookup(partTypes)}
         kindKey={KIND_KEY}
       />

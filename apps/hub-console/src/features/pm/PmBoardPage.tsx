@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { EmptyState } from '../../shared/EmptyState';
+import { useQueryGuard } from '../../shared/QueryGate';
 import { useQuery } from '@tanstack/react-query';
 import { Network, Plus, PanelRightOpen } from 'lucide-react';
 import type {
@@ -86,14 +87,10 @@ export function PmBoardPage({
   // 详情抽屉选中任务（存 id、每帧从最新 query 数据反查——写动作后 invalidate 刷新即时反映到抽屉）。
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  if (query.isLoading) {
-    return <div className="state-band" role="status" aria-live="polite">{t('pm.loading')}</div>;
-  }
-  if (query.error || !query.data) {
-    return <div className="state-band state-band-error" role="alert">{t('pm.error')}</div>;
-  }
+  const gate = useQueryGuard(query, t('pm.loading'), t('pm.error'));
+  if (gate.guard) return gate.guard;
 
-  const tasks = query.data.tasks;
+  const tasks = gate.data.tasks;
   const members = membersQuery.data?.members ?? [];
   const groups = groupsQuery.data?.groups ?? [];
 

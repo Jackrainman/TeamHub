@@ -17,6 +17,7 @@ import { Field } from '../../components/Field';
 import { Select } from '../../components/Select';
 import { FormBanner } from '../../components/FormBanner';
 import { memberOptionLabel, toActor } from '../identity/identity-utils';
+import { useQueryGuard } from '../../shared/QueryGate';
 import {
   POOL_STALE_DAYS,
   isStalePosted,
@@ -76,14 +77,10 @@ export function PoolPage({
   const members = membersQuery.data?.members ?? [];
   const groups = groupsQuery.data?.groups ?? [];
 
-  if (tasksQuery.isLoading) {
-    return <div className="state-band" role="status" aria-live="polite">{t('pm.loading')}</div>;
-  }
-  if (tasksQuery.error || !tasksQuery.data) {
-    return <div className="state-band state-band-error" role="alert">{t('pm.error')}</div>;
-  }
+  const tasksGate = useQueryGuard(tasksQuery, t('pm.loading'), t('pm.error'));
+  if (tasksGate.guard) return tasksGate.guard;
 
-  const posted = sortedPostedTasks(tasksQuery.data.tasks);
+  const posted = sortedPostedTasks(tasksGate.data.tasks);
 
   return (
     <div className="pool-page">
