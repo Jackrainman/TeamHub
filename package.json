@@ -1,0 +1,19 @@
+{
+  "name": "teamhub",
+  "private": true,
+  "version": "0.45.40",
+  "workspaces": [
+    "apps/hub-contracts",
+    "apps/hub-server",
+    "apps/hub-console"
+  ],
+  "scripts": {
+    "verify": "npm run verify:all -w apps/hub-contracts && npm run verify:all -w apps/hub-server && npm run verify:all -w apps/hub-console",
+    "typecheck": "npm run typecheck -w apps/hub-console && npm run typecheck -w apps/hub-server",
+    "test": "npm run test -w apps/hub-server && npm run test -w apps/hub-console",
+    "build": "npm run build -w apps/hub-console && npm run build -w apps/hub-server"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}
