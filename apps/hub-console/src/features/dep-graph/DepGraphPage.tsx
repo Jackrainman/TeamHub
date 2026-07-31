@@ -38,6 +38,7 @@ import {
   type TaskStatus,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
+import { useTasks } from '../../hooks/useTasks';
 import type { CreateDependencyRequest } from '../../api/schemas/pm';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { MetricTile } from '../../components/MetricTile';
@@ -215,11 +216,7 @@ export function DepGraphPage({
     queryKey: ['dep-graph', source],
     queryFn: () => client.getDepGraph(),
   });
-  // 原始任务表（详情面板状态下拉回填当前值）；与看板同 queryKey，缓存共享。
-  const tasksQuery = useQuery({
-    queryKey: ['tasks', source],
-    queryFn: () => client.getTasks(),
-  });
+  const tasksQuery = useTasks(client, source);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // 选中的连线（与节点选中互斥）：用于「点选连线 → 确认删除」。
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);

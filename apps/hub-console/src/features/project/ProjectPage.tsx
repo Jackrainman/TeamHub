@@ -1,7 +1,8 @@
 import { lazy, Suspense, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Inbox, LayoutGrid, Network } from 'lucide-react';
 import type { HubApiClient } from '../../api/client';
+import { useTasks } from '../../hooks/useTasks';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
 import { segClass } from '../../utils';
@@ -56,11 +57,7 @@ export function ProjectPage({
   // 抽屉表单脏状态（FORM-GUARD）：由 PmCreatePanel 上抛，关闭前用它决定要不要弹确认。
   const [createFormDirty, setCreateFormDirty] = useState(false);
 
-  // 抽屉表单用的 tasks：与 board/graph 命中同一缓存，无额外网络。
-  const tasksQuery = useQuery({
-    queryKey: ['tasks', source],
-    queryFn: () => client.getTasks(),
-  });
+  const tasksQuery = useTasks(client, source);
 
   // 建成功后失效任务与依赖图两份查询 → 看板新增卡片、依赖图新增节点同步刷新。
   const onCreated = () => {
