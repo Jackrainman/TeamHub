@@ -1,36 +1,18 @@
-import { useState, useRef, type FormEvent } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { EmptyState } from '../../shared/EmptyState';
 import { useQueryGuard } from '../../shared/QueryGate';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useInventory } from '../../hooks/useInventory';
 import type { HubApiClient } from '../../api/client';
-import type {
-  PartAction,
-  PartActionKind,
-  PartCategory,
-  CreatePartTypeRequest,
-} from '../../api/schemas/inv';
-import type {
-  InventoryImportReport,
-  InventoryImportRow,
-  InventoryPreviewResponse,
-} from '@teamhub/hub-contracts';
+import type { PartAction, PartActionKind } from '../../api/schemas/inv';
 import { useI18n, type TranslationKey } from '../../i18n';
-import { humanizeFormError } from '../../utils';
-import { Field } from '../../components/Field';
-import { FormActions } from '../../components/FormActions';
-import { FormGrid } from '../../components/FormGrid';
-import { Select } from '../../components/Select';
-import { SegToggle } from '../../components/SegToggle';
 import { MetricTile } from '../../components/MetricTile';
 import { InvLedgerTable } from './InvLedgerTable';
-import { InvPreviewTable, InvReportView } from './InvPreviewTable';
 import { InvQuickRecordForm, type HolderOption } from './InvQuickRecordForm';
+import { CreatePartTypeForm } from './sub/CreatePartTypeForm';
+import { InvImportSection } from './sub/InvImportSection';
 
 const IDLE_HOLDER = 'idle';
 
-// 新建零件归属的项目：与种子整机 / 机器人队页（ResourcesPage）同口径用 prj-robots，
-// 库存录入不暴露项目维度。有既有零件时优先沿用其 projectId（同库同项目）。
-// TODO(backend): 理想是 server 端按当前队伍/默认项目兜底 projectId，console 不该硬编码常量。
 const DEFAULT_PROJECT_ID = 'prj-robots';
 
 const KIND_KEY: Record<PartActionKind, TranslationKey> = {
@@ -43,8 +25,6 @@ const KIND_KEY: Record<PartActionKind, TranslationKey> = {
   damage: 'inv.kind.damage',
 };
 
-/** 动作类别 → .badge tone（design-language.md §3）：色编类别、文字编方向——
-    mount/dismount 同绿轴（部件回流）、reserve/release 同琥珀轴（占用）。 */
 function kindTone(kind: PartActionKind): string {
   switch (kind) {
     case 'damage':
@@ -63,29 +43,46 @@ function kindTone(kind: PartActionKind): string {
   }
 }
 
-const CATEGORIES: PartCategory[] = [
-  'motor',
-  'esc',
-  'controller',
-  'mechanical',
-  'electronic',
-  'other',
-];
+function nameLookup(partTypes: { id: string; name: string }[]): (id: string) => string {
+  const map = new Map(partTypes.map((p) => [p.id, p.name]));
+  return (id: string) => map.get(id) ?? id;
+}
 
-// 类目下拉文案：带中文说明更可读（枚举值不变，仅 option 展示更自解）。
-const CATEGORY_OPTION_KEY: Record<PartCategory, TranslationKey> = {
-  motor: 'inv.catopt.motor',
-  esc: 'inv.catopt.esc',
-  controller: 'inv.catopt.controller',
-  mechanical: 'inv.catopt.mechanical',
-  electronic: 'inv.catopt.electronic',
-  other: 'inv.catopt.other',
-};
+function ActionHistory({
+  actions,
+  partTypeName,
+  kindKey,
+}: {
+  actions: PartAction[];
+  partTypeName: (id: string) => string;
+  kindKey: Record<PartActionKind, TranslationKey>;
+}) {
+  const { t } = useI18n();
+  const desc = [...actions].reverse();
+  return (
+    <section className="panel" aria-label={t('inv.history.title')}>
+      <h2 className="inv-section-title">{t('inv.history.title')}</h2>
+      {desc.length === 0 ? (
+        <EmptyState title={t('inv.history.empty')} />
+      ) : (
+        <ul className="inv-history">
+          {desc.map((a) => (
+            <li key={a.id} className="inv-history__item">
+              <span className={`badge badge--dense ${kindTone(a.kind)}`.trim()}>
+                {t(kindKey[a.kind])}
+              </span>
+              <span className="inv-history__part">{partTypeName(a.partTypeId)}</span>
+              <span className="inv-history__qty">×{Math.abs(a.quantityDelta)}</span>
+              {a.note ? <span className="inv-history__note">{a.note}</span> : null}
+              <span className="inv-history__src">{a.recordedBy.source}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
 
-/**
- * 库存 / BOM 第三支柱页（INV-BOM-CORE）。汇总 + 一句话快记 + 零件×机器人 矩阵 + 拆装记账历史。
- * 反监视纪律（I0）：全页主键是零件 / 机器人 / 动作，永不渲染 memberId / 按人聚合——动作只显来源（human/hermes…）。
- */
 export function InvPage({
   client,
   source,
@@ -95,19 +92,15 @@ export function InvPage({
 }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
-  const query = useQuery({
-    queryKey: ['inventory', source],
-    queryFn: () => client.getInventory(),
-  });
+  const query = useInventory(client, source);
 
   const gate = useQueryGuard(query, t('inv.loading'), t('inv.error'));
   if (gate.guard) return gate.guard;
 
   const { partTypes, ledger, shortfalls, trackedParts } = gate.data;
-  void trackedParts; // 个体件血缘当前不单列渲染（矩阵已含其计数）；保留读取以备后续血缘视图。
+  void trackedParts;
   const shortfallIds = new Set(shortfalls.map((p) => p.id));
 
-  // 机器人 / 货架选项：货架（idle）+ 矩阵任一行的机器人列（displayCode）。
   const holderOptions: HolderOption[] = [
     { id: IDLE_HOLDER, label: t('inv.holder.idle') },
     ...(ledger[0]?.perResource ?? []).map((c) => ({
@@ -158,307 +151,5 @@ export function InvPage({
         kindKey={KIND_KEY}
       />
     </div>
-  );
-}
-
-// --- 新增零件 --------------------------------------------------------------
-
-/**
- * 新增零件（建底前置）：填编号 / 名称 / 类目 / 单位 / 初始数量 / 缺料阈值 / 是否单件追踪
- * → POST /api/inventory/part-types（client.upsertPartType，无 id 即创建）。
- * 反监视纪律（I0）：零件维度本就无成员字段，表单不收集 / 不展示任何人维度。
- */
-function CreatePartTypeForm({
-  client,
-  defaultProjectId,
-  onCreated,
-}: {
-  client: HubApiClient;
-  defaultProjectId: string;
-  onCreated: () => void;
-}) {
-  const { t } = useI18n();
-  const [partNumber, setPartNumber] = useState('');
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState<PartCategory>('mechanical');
-  const [unit, setUnit] = useState('个');
-  const [totalQuantity, setTotalQuantity] = useState('0');
-  const [lowStockThreshold, setLowStockThreshold] = useState('0');
-  const [trackIndividually, setTrackIndividually] = useState(false);
-
-  const mutation = useMutation({
-    mutationFn: (req: CreatePartTypeRequest) => client.upsertPartType(req),
-    onSuccess: () => {
-      setPartNumber('');
-      setName('');
-      setTotalQuantity('0');
-      setLowStockThreshold('0');
-      setTrackIndividually(false);
-      onCreated();
-    },
-  });
-
-  const total = Number.parseInt(totalQuantity, 10);
-  const low = Number.parseInt(lowStockThreshold, 10);
-  const valid =
-    partNumber.trim().length > 0 &&
-    name.trim().length > 0 &&
-    unit.trim().length > 0 &&
-    Number.isInteger(total) &&
-    total >= 0 &&
-    Number.isInteger(low) &&
-    low >= 0;
-
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!valid) return;
-    mutation.mutate({
-      projectId: defaultProjectId,
-      partNumber: partNumber.trim(),
-      name: name.trim(),
-      category,
-      unit: unit.trim(),
-      trackIndividually,
-      totalQuantity: total,
-      allocations: [], // 新建零件无机器人占用，矩阵从空起；装机后由动作日志派生。
-      lowStockThreshold: low,
-    });
-  }
-
-  return (
-    <section className="inv-create panel" aria-label={t('inv.create.title')}>
-      <header className="pm-create__head">
-        <div>
-          <h2>{t('inv.create.title')}</h2>
-          <p className="pm-create__note">{t('inv.create.subtitle')}</p>
-        </div>
-      </header>
-      <form className="pm-form" onSubmit={submit}>
-        <FormGrid>
-          <Field label={t('inv.create.field.partNumber')} required>
-            <input
-              value={partNumber}
-              placeholder={t('inv.create.field.partNumberPlaceholder')}
-              onChange={(e) => setPartNumber(e.target.value)}
-            />
-          </Field>
-          <Field label={t('inv.create.field.name')} required>
-            <input
-              value={name}
-              placeholder={t('inv.create.field.namePlaceholder')}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </Field>
-        </FormGrid>
-        <FormGrid>
-          <Field label={t('inv.create.field.category')}>
-            <Select
-              value={category}
-              onChange={setCategory}
-              options={CATEGORIES}
-              renderOption={(c) => t(CATEGORY_OPTION_KEY[c])}
-            />
-          </Field>
-          <Field label={t('inv.create.field.unit')} className="kb-field--narrow" required>
-            <input
-              value={unit}
-              placeholder={t('inv.create.field.unitPlaceholder')}
-              onChange={(e) => setUnit(e.target.value)}
-            />
-          </Field>
-        </FormGrid>
-        <FormGrid>
-          <Field label={t('inv.create.field.totalQuantity')} required>
-            <input
-              type="number"
-              min={0}
-              value={totalQuantity}
-              onChange={(e) => setTotalQuantity(e.target.value)}
-            />
-          </Field>
-          <Field label={t('inv.create.field.lowStockThreshold')} required>
-            <input
-              type="number"
-              min={0}
-              value={lowStockThreshold}
-              onChange={(e) => setLowStockThreshold(e.target.value)}
-            />
-          </Field>
-        </FormGrid>
-        {/* 追踪粒度独占整行（FormGrid + span-all）。*/}
-        <FormGrid>
-          <Field label={t('inv.create.field.track')} className="span-all">
-            {/* 是否单件追踪：贵重件（电机/电调/主控）逐个体记血缘；琐碎件不建实例。
-                行为原样保留（陷阱 A）：默认 trackIndividually=false → bulk 高亮；
-                点 individual → true、individual 高亮。active 由 value===option.value 统一管，
-                不再各写镜像三元。 */}
-            <SegToggle<boolean>
-              value={trackIndividually}
-              onChange={setTrackIndividually}
-              ariaLabel={t('inv.create.field.track')}
-              options={[
-                { value: false, label: t('inv.create.track.bulk') },
-                { value: true, label: t('inv.create.track.individual') },
-              ]}
-            />
-          </Field>
-        </FormGrid>
-        <FormActions
-          submitLabel={t('inv.create.submit')}
-          submittingLabel={t('inv.create.submitting')}
-          submitting={mutation.isPending}
-          disabled={!valid}
-          error={
-            mutation.error
-              ? humanizeFormError(mutation.error, t, 'inv.create.error')
-              : null
-          }
-          success={
-            mutation.isSuccess
-              ? t('inv.create.success', { name: mutation.data.partType.name })
-              : null
-          }
-        />
-      </form>
-    </section>
-  );
-}
-
-// --- 批量导入（INV-BULK-IMPORT 刀⑪）---------------------------------------------
-
-/**
- * 批量导入分区：模板下载 + 上传 CSV → preview 只解析不落库 → InvPreviewTable 行内编辑 → 确认后
- * JSON 导入（partNumber 幂等 upsert、totalQuantity 覆盖、绝不删）→ 报告回显。与向导 InventoryStep
- * 共用同一预览确认流（InvPreviewTable / InvReportView）。I0：零件维度本就无成员字段。
- */
-function InvImportSection({
-  client,
-  onImported,
-}: {
-  client: HubApiClient;
-  onImported: () => void;
-}) {
-  const { t } = useI18n();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<unknown>(null);
-  const [preview, setPreview] = useState<InventoryPreviewResponse | null>(null);
-  const [report, setReport] = useState<InventoryImportReport | null>(null);
-
-  async function upload(file: File) {
-    setPending(true);
-    setError(null);
-    try {
-      setPreview(await client.previewInventory(file));
-      setReport(null); // 重新上传 → 清掉上一份报告，避免两态并存
-    } catch (err) {
-      setError(err);
-    } finally {
-      setPending(false);
-    }
-  }
-
-  async function confirm(rows: InventoryImportRow[]) {
-    setPending(true);
-    setError(null);
-    try {
-      setReport(await client.importInventoryRows(rows));
-      setPreview(null);
-      onImported();
-    } catch (err) {
-      setError(err);
-    } finally {
-      setPending(false);
-    }
-  }
-
-  return (
-    <section className="inv-create panel" aria-label={t('inv.import.title')}>
-      <header className="pm-create__head">
-        <div>
-          <h2>{t('inv.import.title')}</h2>
-          <p className="pm-create__note">{t('inv.import.desc')}</p>
-        </div>
-      </header>
-      <div className="roster-import__actions">
-        <a className="btn btn--secondary btn--sm" href={client.inventoryTemplateUrl()} download>
-          {t('inv.import.downloadTemplate')}
-        </a>
-        <button
-          type="button"
-          className="btn btn--secondary btn--sm"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={pending}
-        >
-          {pending && !preview ? t('inv.import.importing') : t('inv.import.upload')}
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".csv,text/csv"
-          style={{ display: 'none' }}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void upload(file);
-            e.target.value = '';
-          }}
-        />
-      </div>
-      {error ? (
-        <p className="form-hint form-hint--warn">
-          {humanizeFormError(error, t, 'inv.import.error')}
-        </p>
-      ) : null}
-      {preview ? (
-        <InvPreviewTable
-          preview={preview}
-          pending={pending}
-          onConfirm={(rows) => void confirm(rows)}
-          onCancel={() => setPreview(null)}
-        />
-      ) : null}
-      {report ? <InvReportView report={report} /> : null}
-    </section>
-  );
-}
-
-function nameLookup(  partTypes: { id: string; name: string }[],
-): (id: string) => string {
-  const map = new Map(partTypes.map((p) => [p.id, p.name]));
-  return (id: string) => map.get(id) ?? id;
-}
-
-function ActionHistory({
-  actions,
-  partTypeName,
-  kindKey,
-}: {
-  actions: PartAction[];
-  partTypeName: (id: string) => string;
-  kindKey: Record<PartActionKind, TranslationKey>;
-}) {
-  const { t } = useI18n();
-  const desc = [...actions].reverse();
-  return (
-    <section className="panel" aria-label={t('inv.history.title')}>
-      <h2 className="inv-section-title">{t('inv.history.title')}</h2>
-      {desc.length === 0 ? (
-        <EmptyState title={t('inv.history.empty')} />
-      ) : (
-        <ul className="inv-history">
-          {desc.map((a) => (
-            <li key={a.id} className="inv-history__item">
-              <span className={`badge badge--dense ${kindTone(a.kind)}`.trim()}>
-                {t(kindKey[a.kind])}
-              </span>
-              <span className="inv-history__part">{partTypeName(a.partTypeId)}</span>
-              <span className="inv-history__qty">×{Math.abs(a.quantityDelta)}</span>
-              {a.note ? <span className="inv-history__note">{a.note}</span> : null}
-              <span className="inv-history__src">{a.recordedBy.source}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
   );
 }
