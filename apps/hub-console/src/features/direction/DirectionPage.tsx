@@ -6,6 +6,7 @@ import {
   ROBOTICS_LEARNING_SEED_GAPS,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
+import { queryKeys } from '../../api/queryKeys';
 import { useGroups } from '../../hooks/useRoster';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n, type TranslationKey } from '../../i18n';
@@ -47,7 +48,7 @@ export function DirectionPage({
   const [viewMode, setViewMode] = useState<'guide' | 'starmap'>('guide');
   const groupsQuery = useGroups(client, source);
   const gapsQuery = useQuery({
-    queryKey: ['group-gaps', source],
+    queryKey: queryKeys.groupGaps(source),
     queryFn: () => client.getGroupGaps(),
   });
 

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { RefreshCw, X } from 'lucide-react';
 import { ROBOTICS_TENANT_CONFIG, type TenantConfig } from '@teamhub/hub-contracts';
 import { createHubApiClient, type HubApiClient } from './api/client';
+import { queryKeys } from './api/queryKeys';
 import { ConsoleLayout } from './components/layout/ConsoleLayout';
 import {
   CONSOLE_PAGES,
@@ -126,7 +127,7 @@ function ConsoleApp({ apiClient }: { apiClient: HubApiClient }) {
   // 'anon'）——身份切换后天然落进不同缓存桶，不会读到切换前那个人缓存下的数据。IdentityBar 登录/
   // 登出成功后另 invalidateQueries() 兜底刷新其它未按此维度分桶的查询（见该组件注释）。
   const overviewQuery = useQuery({
-    queryKey: ['hub-overview', SOURCE, identityCacheKey(identitySession)],
+    queryKey: queryKeys.hubOverview(SOURCE, identityCacheKey(identitySession)),
     queryFn: () => apiClient.getOverview(),
   });
 

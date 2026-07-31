@@ -18,7 +18,7 @@ export function useResources(client: HubApiClient, source?: string) {
 
 export function useRelay(client: HubApiClient, windowLabel: string) {
   return useQuery({
-    queryKey: [...queryKeys.relay(), windowLabel],
+    queryKey: queryKeys.relay(windowLabel),
     queryFn: () => client.getRelay(windowLabel),
     enabled: windowLabel.length > 0,
   });

@@ -5,6 +5,7 @@ import {
 } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
+import { queryKeys } from '../../api/queryKeys';
 import { useResources } from '../../hooks/useSchedule';
 import { useTasks } from '../../hooks/useTasks';
 import { canBoardResource } from '@teamhub/hub-contracts';
@@ -32,7 +33,7 @@ export function RelayCanvas({
 }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
-  const queryKey = useMemo(() => ['relay', windowLabel] as const, [windowLabel]);
+  const queryKey = useMemo(() => queryKeys.relay(windowLabel), [windowLabel]);
 
   const query = useQuery({
     queryKey,

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Info, Search, Archive } from 'lucide-react';
 import type { SimilarIssueMatch } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
+import { queryKeys } from '../../api/queryKeys';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { segClass } from '../../utils';
 import { Field } from '../../components/Field';
@@ -118,12 +119,11 @@ function KbSearchPanel({
   const [submitted, setSubmitted] = useState<SubmittedQuery | null>(null);
 
   const query = useQuery({
-    queryKey: [
-      'kb-similar',
+    queryKey: queryKeys.kbSimilar(
       source,
       submitted?.symptom ?? '',
       (submitted?.tags ?? []).join(','),
-    ],
+    ),
     queryFn: () =>
       client.getKbSimilar({
         symptom: submitted?.symptom ?? '',

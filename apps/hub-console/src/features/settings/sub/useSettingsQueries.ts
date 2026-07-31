@@ -11,7 +11,7 @@ export function useSystemStatus(client: HubApiClient, source: string) {
 
 export function useHubOverview(client: HubApiClient, source: string) {
   return useQuery({
-    queryKey: ['hub-overview', source],
+    queryKey: queryKeys.hubOverview(source),
     queryFn: () => client.getOverview(),
   });
 }

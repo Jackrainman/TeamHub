@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FolderOpen, FilePlus } from 'lucide-react';
 import type { HubApiClient } from '../../api/client';
+import { queryKeys } from '../../api/queryKeys';
 import { useI18n } from '../../i18n';
 import { segClass } from '../../utils';
 import { ArtifactRegisterForm } from './sub/ArtifactRegisterForm';
@@ -25,7 +26,7 @@ export function ArchivePage({
   const [tab, setTab] = useState<'view' | 'register'>('view');
 
   const query = useQuery({
-    queryKey: ['artifacts', source],
+    queryKey: queryKeys.artifacts(source),
     queryFn: () => client.getArtifacts(),
   });
 
@@ -33,7 +34,7 @@ export function ArchivePage({
   // 上传会裸报 400——据此禁用行内上传按钮 + title 说明。共享设置页同 query 缓存（['system-status', source]）。
   // 仅 ===false 才禁（旧后端不回 deployment 字段时保持可用，不误伤）。
   const statusQuery = useQuery({
-    queryKey: ['system-status', source],
+    queryKey: queryKeys.systemStatus(source),
     queryFn: () => client.getSystemStatus(),
   });
   const uploadDisabled =
@@ -41,7 +42,7 @@ export function ArchivePage({
 
   // 机器人台账（适配机器人组合框候选源）：复用 ResourcesPage 同 key 缓存，缺失则组合框退化为纯手填。
   const resourcesQuery = useQuery({
-    queryKey: ['resources', source],
+    queryKey: queryKeys.resources(source),
     queryFn: () => client.getResources(),
   });
 

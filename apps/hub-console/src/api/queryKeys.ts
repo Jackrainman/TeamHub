@@ -11,11 +11,18 @@ export const queryKeys = {
   members: () => ['members'] as const,
   resources: (source?: string) => (source ? ['resources', source] as const : ['resources'] as const),
   resourceSessions: () => ['resource-sessions'] as const,
-  relay: () => ['relay'] as const,
+  schedule: (source: string, windowLabel: string) => ['schedule', source, windowLabel] as const,
+  relay: (windowLabel?: string) =>
+    windowLabel ? ['relay', windowLabel] as const : ['relay'] as const,
   inventory: (source: string) => ['inventory', source] as const,
   baseline: (source: string, seasonId: string) => ['baseline', source, seasonId] as const,
   checklist: (source: string, seasonId: string) => ['checklist', source, seasonId] as const,
-  artifacts: () => ['artifacts'] as const,
+  artifacts: (source: string) => ['artifacts', source] as const,
+  groupGaps: (source: string) => ['group-gaps', source] as const,
+  kbSimilar: (source: string, symptom: string, tagsKey: string) =>
+    ['kb-similar', source, symptom, tagsKey] as const,
+  hubOverview: (source: string, cacheKey?: string) =>
+    cacheKey ? ['hub-overview', source, cacheKey] as const : ['hub-overview', source] as const,
   systemStatus: (source: string) => ['system-status', source] as const,
   larkConfig: () => ['lark-config'] as const,
   session: () => ['session'] as const,
