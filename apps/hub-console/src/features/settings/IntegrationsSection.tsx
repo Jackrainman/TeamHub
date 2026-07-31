@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { BotChannel } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n } from '../../i18n';
@@ -13,6 +12,8 @@ import {
   LIFECYCLE_STATUS_KEY,
   type IntegrationRow,
 } from './settings-constants';
+import { useHubOverview, useLarkConfig } from './sub/useSettingsQueries';
+import { useLarkMutations } from './sub/useSettingsMutations';
 
 // 集成（只读）：地基重建后按物种三分——BOT 渠道（飞书/微信/QQ）/ Agent 后端（Hermes/OpenClaw/
 // Claude Code）/ 数据源（Git/图纸库）。复用总览数据（同 queryKey 共享缓存），展示在设置页。
@@ -24,10 +25,7 @@ export function IntegrationsSection({
   source: string;
 }) {
   const { t } = useI18n();
-  const overviewQuery = useQuery({
-    queryKey: ['hub-overview', source],
-    queryFn: () => client.getOverview(),
-  });
+  const overviewQuery = useHubOverview(client, source);
   const data = overviewQuery.data;
 
   return (
@@ -130,34 +128,26 @@ function IntegrationGroup({
 
 export function LarkIntegrationSection({ client }: { client: HubApiClient }) {
   const { t } = useI18n();
-  const queryClient = useQueryClient();
   const [appId, setAppId] = useState('');
   const [appSecret, setAppSecret] = useState('');
   const [chatId, setChatId] = useState('');
   const [feedback, setFeedback] = useState<{ ok: boolean; msg: string } | null>(null);
 
-  const configQuery = useQuery({
-    queryKey: ['lark-config'],
-    queryFn: () => client.getLarkConfig(),
-  });
+  const configQuery = useLarkConfig(client);
 
-  const saveMutation = useMutation({
-    mutationFn: () => client.saveLarkConfig({ appId, appSecret, chatId }),
-    onSuccess: (res) => {
+  const { saveMutation, resetMutation } = useLarkMutations(client, {
+    appId,
+    appSecret,
+    chatId,
+    onSaveSuccess: (res) => {
       setFeedback(res.ok
         ? { ok: true, msg: t('settings.integrations.lark.saved') }
         : { ok: false, msg: res.error ?? t('settings.integrations.lark.error') });
-      void queryClient.invalidateQueries({ queryKey: ['lark-config'] });
     },
-    onError: (err: Error) => setFeedback({ ok: false, msg: err.message }),
-  });
-
-  const resetMutation = useMutation({
-    mutationFn: () => client.resetLarkConfig(),
-    onSuccess: () => {
+    onSaveError: (err: Error) => setFeedback({ ok: false, msg: err.message }),
+    onResetSuccess: () => {
       setFeedback(null);
       setAppId(''); setAppSecret(''); setChatId('');
-      void queryClient.invalidateQueries({ queryKey: ['lark-config'] });
     },
   });
 

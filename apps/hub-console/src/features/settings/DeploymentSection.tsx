@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import type { ConfigIdentityMode } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import type { PageIdentityCtx } from '../../console-pages';
@@ -7,6 +6,7 @@ import { useI18n, type TranslationKey } from '../../i18n';
 import { MetaRow } from '../../components/MetaRow';
 import { DEPLOY_BACKEND_KEY, DEPLOY_DOMAIN_KEY } from './settings-constants';
 import { sectionPermission } from './section-permission';
+import { useSystemStatus } from './sub/useSettingsQueries';
 
 // 部署信息（K3 部署信息刀）：只读展示这台服务器真实怎么跑的——五个数据域各走落盘 / 内存（内存态醒目
 // 警示「重启即丢」）、登录模式、启用模块、构建标识、运行时长（人话化）、图纸上传是否可用。数据取
@@ -20,10 +20,7 @@ export function DeploymentSection({
   source: string;
 }) {
   const { t } = useI18n();
-  const statusQuery = useQuery({
-    queryKey: ['system-status', source],
-    queryFn: () => client.getSystemStatus(),
-  });
+  const statusQuery = useSystemStatus(client, source);
   const deployment = statusQuery.data?.deployment;
 
   return (
@@ -147,10 +144,7 @@ export function DeploymentConfigSection({
 }) {
   const { t } = useI18n();
   const { writeLocked, lockHint } = sectionPermission(identity, t);
-  const statusQuery = useQuery({
-    queryKey: ['system-status', source],
-    queryFn: () => client.getSystemStatus(),
-  });
+  const statusQuery = useSystemStatus(client, source);
   const deployment = statusQuery.data?.deployment;
 
   // applying = 提交后到整页刷新之间的过渡态（轮询重启复活）；error = config 多半已写但复活超时 / 真失败，

@@ -1,10 +1,8 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import {
   deriveLeafGroups,
   type Group,
   type MemberPublic,
-  type RosterImportRow,
   type RosterPreviewResponse,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../../api/client';
@@ -15,6 +13,11 @@ import { RosterReportView } from '../../../shared/roster';
 import { GroupLeadConfirm } from '../GroupLeadConfirm';
 import { RosterPreviewTable } from '../RosterPreviewTable';
 import { humanizeFormError } from '../../../utils';
+import {
+  useSetupAdminMutation,
+  useRosterPreviewMutation,
+  useRosterImportMutation,
+} from './useSettingsMutations';
 
 export function MemberPinReveal({ client, memberId }: { client: HubApiClient; memberId: string }) {
   const { t } = useI18n();
@@ -77,12 +80,9 @@ export function SetupAdminCard({
 }) {
   const { t } = useI18n();
   const [pin, setPin] = useState('');
-  const mutation = useMutation({
-    mutationFn: () => client.setupSuperAdmin({ pin }),
-    onSuccess: () => {
-      setPin('');
-      onDone();
-    },
+  const mutation = useSetupAdminMutation(client, pin, () => {
+    setPin('');
+    onDone();
   });
   const valid = pin.trim().length >= 4 && !writeLocked;
 
@@ -145,17 +145,11 @@ export function RosterImportBlock({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [leadsDone, setLeadsDone] = useState(false);
   const [preview, setPreview] = useState<RosterPreviewResponse | null>(null);
-  const previewMutation = useMutation({
-    mutationFn: (file: File) => client.previewRoster(file),
-    onSuccess: (data) => setPreview(data),
-  });
-  const importMutation = useMutation({
-    mutationFn: (rows: RosterImportRow[]) => client.importRosterRows(rows),
-    onSuccess: () => {
-      setPreview(null);
-      setLeadsDone(false);
-      onImported();
-    },
+  const previewMutation = useRosterPreviewMutation(client, (data) => setPreview(data));
+  const importMutation = useRosterImportMutation(client, () => {
+    setPreview(null);
+    setLeadsDone(false);
+    onImported();
   });
   const uploadLocked = emptyRoster ? false : sectionWriteLocked;
   const leafGroupNames = useMemo(() => {

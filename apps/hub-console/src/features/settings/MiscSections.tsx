@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
 import { useI18n } from '../../i18n';
 import { MetaRow } from '../../components/MetaRow';
+import { useSystemStatus } from './sub/useSettingsQueries';
 
 export function ExportSection() {
   const { t } = useI18n();
@@ -27,10 +27,7 @@ export function AboutSection({
   source: string;
 }) {
   const { t } = useI18n();
-  const statusQuery = useQuery({
-    queryKey: ['system-status', source],
-    queryFn: () => client.getSystemStatus(),
-  });
+  const statusQuery = useSystemStatus(client, source);
 
   return (
     <section className="panel settings-panel">

@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Group } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useGroups } from '../../hooks/useRoster';
@@ -10,6 +9,7 @@ import { FormActions } from '../../components/FormActions';
 import { FormGrid } from '../../components/FormGrid';
 import { humanizeFormError } from '../../utils';
 import { sectionPermission } from './section-permission';
+import { useGroupMutations } from './sub/useSettingsMutations';
 
 // 组（PROGRAM-GROUP-ABSTRACT 刀④，D-072「设置页可增减组」前置缺口的最小版）：列**全量**组（组树展示
 // 需要非叶子/哨兵在场），用 server 派生位 `assignableGroupIds`（叶子组且非哨兵）分两类——叶子组=可选组
@@ -27,28 +27,12 @@ export function GroupsSection({
   const { t } = useI18n();
   // 写门锁 + 管理员前置资格判（照赛季/成员分区同律）：未登录 或 身份模式非持旗 → 写控件禁用 + 说明。
   const { writeLocked, lockHint } = sectionPermission(identity, t);
-  const queryClient = useQueryClient();
   const groupsQuery = useGroups(client, source);
-  // 前缀失效所有 groups 查询（本区 + 成员区组名映射 + PmCreatePanel 候选 + 初始化门），组改动处处同步。
-  const invalidateGroups = () =>
-    void queryClient.invalidateQueries({ queryKey: ['groups'] });
 
   const [name, setName] = useState('');
-  const createMutation = useMutation({
-    mutationFn: () => client.createGroup({ name: name.trim() }),
-    onSuccess: () => {
-      setName('');
-      invalidateGroups();
-    },
-  });
-  const renameMutation = useMutation({
-    mutationFn: (vars: { id: string; name: string }) =>
-      client.renameGroup(vars.id, { name: vars.name }),
-    onSuccess: invalidateGroups,
-  });
-  const deleteMutation = useMutation({
-    mutationFn: (vars: { id: string }) => client.deleteGroup(vars.id),
-    onSuccess: invalidateGroups,
+  const { createMutation, renameMutation, deleteMutation } = useGroupMutations(client, {
+    createName: name,
+    onCreateSuccess: () => setName(''),
   });
 
   const valid = Boolean(name.trim()) && !writeLocked;

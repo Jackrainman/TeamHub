@@ -1,5 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { MemberRole } from '@teamhub/hub-contracts';
+import { useQueryClient } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
 import { useMembers, useGroups } from '../../hooks/useRoster';
 import type { PageIdentityCtx } from '../../console-pages';
@@ -11,6 +10,7 @@ import { humanizeFormError } from '../../utils';
 import { MEMBER_ROLE_OPTIONS, ROLE_KEY } from './settings-constants';
 import { sectionPermission } from './section-permission';
 import { MemberPinReveal, SetupAdminCard, RosterImportBlock } from './sub/MembersSubComponents';
+import { useMemberMutations } from './sub/useSettingsMutations';
 
 export function MembersPermissionsSection({
   client,
@@ -34,20 +34,7 @@ export function MembersPermissionsSection({
     void queryClient.invalidateQueries({ queryKey: ['groups'] });
   };
 
-  const roleMutation = useMutation({
-    mutationFn: (vars: { id: string; role: MemberRole }) =>
-      client.setMemberRole(vars.id, { role: vars.role }),
-    onSuccess: invalidateMembers,
-  });
-  const pmMutation = useMutation({
-    mutationFn: (vars: { id: string; projectManager: boolean }) =>
-      client.setMemberProjectManager(vars.id, { projectManager: vars.projectManager }),
-    onSuccess: invalidateMembers,
-  });
-  const clearPinMutation = useMutation({
-    mutationFn: (vars: { id: string }) => client.clearMemberPin(vars.id),
-    onSuccess: invalidateMembers,
-  });
+  const { roleMutation, pmMutation, clearPinMutation } = useMemberMutations(client);
 
   const members = membersQuery.data?.members ?? [];
   const groups = groupsQuery.data?.groups ?? [];
