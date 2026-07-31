@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { useI18n } from '../../i18n';
 import type { HubApiClient } from '../../api/client';
-import { queryKeys } from '../../api/queryKeys';
+import { useTasks } from '../../hooks/useTasks';
 import type { TaskStatus } from '@teamhub/hub-contracts';
 
 const STATUS_LABEL: Record<TaskStatus, string> = {
@@ -24,10 +23,7 @@ interface FeedItem {
 
 export function ActivityFeed({ client, source }: { client: HubApiClient; source: string }) {
   const { t } = useI18n();
-  const tasksQuery = useQuery({
-    queryKey: queryKeys.tasks(source),
-    queryFn: () => client.getTasks(),
-  });
+  const tasksQuery = useTasks(client, source);
 
   const items = useMemo<FeedItem[]>(() => {
     const tasks = tasksQuery.data?.tasks ?? [];

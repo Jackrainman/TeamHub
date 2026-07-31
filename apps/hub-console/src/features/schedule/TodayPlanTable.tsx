@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Plus, X } from 'lucide-react';
 import type { HubApiClient } from '../../api/client';
+import { useResources, useResourceSessions } from '../../hooks/useSchedule';
+import { useTasks } from '../../hooks/useTasks';
+import { useGroups } from '../../hooks/useRoster';
 import type { CreateTaskRequest } from '../../api/schemas/pm';
 import { deriveTodayPlanFromPresets } from '../../api/schemas/schedule';
 import { useI18n } from '../../i18n';
@@ -43,26 +46,10 @@ export function TodayPlanTable({
   const { t } = useI18n();
   const queryClient = useQueryClient();
 
-  const resourcesQuery = useQuery({
-    queryKey: ['resources', 'todayPlan'],
-    queryFn: () => client.getResources(),
-  });
-  // 任务候选 + 组列表的数据源，各自独立查询、失败不阻塞表格本体（同 RelayCanvas 的加一棒表单）。
-  const tasksQuery = useQuery({
-    queryKey: ['tasks', 'todayPlan'],
-    queryFn: () => client.getTasks(),
-  });
-  // 组下拉数据源（PHASE2-CONSOLE-ASSEMBLY）：原借 GET /api/dep-graph 节点反查组名（节点集合=任务派生
-  // 视图，没任务的组不出现、下拉会漏项），改直读 GET /api/groups——server 补上该端点后不再需要这层绕。
-  const groupsQuery = useQuery({
-    queryKey: ['groups', 'todayPlan'],
-    queryFn: () => client.getGroups(),
-  });
-  // 与 SchedulePage 的空状态判定同一 queryKey（['resource-sessions']，无参数），react-query 天然去重。
-  const sessionsQuery = useQuery({
-    queryKey: ['resource-sessions'],
-    queryFn: () => client.getResourceSessions(),
-  });
+  const resourcesQuery = useResources(client, 'todayPlan');
+  const tasksQuery = useTasks(client, 'todayPlan');
+  const groupsQuery = useGroups(client, 'todayPlan');
+  const sessionsQuery = useResourceSessions(client);
 
   const resources = useMemo(() => resourcesQuery.data?.resources ?? [], [resourcesQuery.data]);
   const tasks = useMemo(() => tasksQuery.data?.tasks ?? [], [tasksQuery.data]);
