@@ -1,143 +1,12 @@
 import Fastify from 'fastify';
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import multipart from '@fastify/multipart';
-import { readFile, readdir, writeFile, mkdir } from 'node:fs/promises';
-import { dirname, extname, isAbsolute, join, relative } from 'node:path';
 import {
-  getArtifactDir,
-  sha256Of,
-  writeArtifactFile,
-  deleteArtifactFile,
-} from './artifact-storage.js';
-import {
-  AgentBackendCapabilitiesResponseSchema,
-  AgentBackendHealthResponseSchema,
-  AgentBackendInvokeRequestSchema,
-  AgentBackendInvokeResponseSchema,
-  AgentBackendsResponseSchema,
-  ArtifactsResponseSchema,
-  BotChannelsResponseSchema,
-  DataSourcesResponseSchema,
-  BridgeMembersResponseSchema,
-  DepGraphSchema,
-  GitReposResponseSchema,
   GOVERNANCE_SCENARIO_NOW,
-  HealthResponseSchema,
-  HubEventsResponseSchema,
-  KB_SIMILAR_NOTE,
-  KbCloseoutRequestSchema,
-  KbCloseoutResponseSchema,
-  KbSimilarQuerySchema,
-  KbSimilarResponseSchema,
-  CreateTaskRequestSchema,
-  CreateTaskResponseSchema,
-  CreateDependencyRequestSchema,
-  CreateDependencyResponseSchema,
-  CreateNeedRequestSchema,
-  CreateNeedResponseSchema,
-  TransitionTaskStatusRequestSchema,
-  TransitionTaskStatusResponseSchema,
-  WaiveDependencyResponseSchema,
-  CreateArtifactRequestSchema,
-  CreateArtifactResponseSchema,
-  UploadArtifactResponseSchema,
-  nextArtifactVersionNo,
-  deriveArtifactKind,
-  TasksResponseSchema,
-  isBigTask,
-  SystemStatusResponseSchema,
-  buildCloseoutFromIssue,
-  rankSimilarIssues,
-  toDepGraphView,
-  wouldCreateCycle,
-  GroupGapsResponseSchema,
-  deriveDirectionGaps,
-  GroupsResponseSchema,
-  SeasonsResponseSchema,
-  CreateGroupRequestSchema,
-  RenameGroupRequestSchema,
-  GroupResponseSchema,
-  deriveLeafGroups,
-  CreateSeasonRequestSchema,
-  CreateSeasonResponseSchema,
-  derivePresenceSchedule,
-  PresenceScheduleResponseSchema,
-  ResourceSessionsResponseSchema,
-  SharedResourcesResponseSchema,
-  CreateResourceSessionRequestSchema,
-  CreateResourceSessionResponseSchema,
-  deriveRelayBoard,
-  UpdateResourceSessionRequestSchema,
-  UpdateResourceSessionResponseSchema,
-  CreateRelayHandoffRequestSchema,
-  RelayHandoffResponseSchema,
-  RelayBoardResponseSchema,
-  CreateResourceRequestSchema,
-  CreateResourceResponseSchema,
-  CreateResourcesBatchRequestSchema,
-  CreateResourcesBatchResponseSchema,
-  UpdateResourceStatusRequestSchema,
-  UpdateResourceResponseSchema,
-  UpdateResourceDefaultPresetRequestSchema,
-  UpdateResourceDefaultPresetResponseSchema,
-  CreateResourceSessionsBatchRequestSchema,
-  CreateResourceSessionsBatchResponseSchema,
-  deriveInventoryLedger,
-  deriveShortfalls,
-  InvalidPartActionError,
-  IDLE_HOLDER,
-  InventoryResponseSchema,
-  CreatePartTypeRequestSchema,
-  CreatePartTypeResponseSchema,
-  CreatePartActionRequestSchema,
-  CreatePartActionResponseSchema,
-  ScheduleQuerySchema,
-  apiContractFixtures,
-  // 倒排基准线（BASELINE-CORE，S4 路由）：读/写契约 + querystring 契约。
-  BaselineResponseSchema,
-  UpdateBaselineRequestSchema,
-  UpdateBaselineResponseSchema,
-  PassMilestoneRequestSchema,
-  PassMilestoneResponseSchema,
-  BaselineQuerySchema,
-  // 门检查单 / 欠条（GATE-CHECKLIST-IOU，C3 路由）：读/写 + querystring 契约 + 过门硬闸判定核。
-  ChecklistQuerySchema,
-  ChecklistItemsResponseSchema,
-  CreateChecklistItemRequestSchema,
-  CreateChecklistItemResponseSchema,
-  ClearChecklistItemRequestSchema,
-  ClearChecklistItemResponseSchema,
-  WaiveChecklistItemRequestSchema,
-  WaiveChecklistItemResponseSchema,
-  ChecklistTemplatesResponseSchema,
-  listBlockingChecklistItems,
-  // 挂单认领制窄写动作契约（TASK-POST-CLAIM，D-088）：认领/指派/搭档/跨组确认/完成/验收六条 POST
-  // 子资源读写契约 + q= 子串搜历史任务的 querystring 契约（大任务判定 isBigTask 已在上方 import）。
-  ClaimTaskRequestSchema,
-  ClaimTaskResponseSchema,
-  AssignTaskRequestSchema,
-  AssignTaskResponseSchema,
-  SetTaskPartnerRequestSchema,
-  SetTaskPartnerResponseSchema,
-  ConfirmCrossClaimRequestSchema,
-  ConfirmCrossClaimResponseSchema,
-  CompleteTaskRequestSchema,
-  CompleteTaskResponseSchema,
-  ReviewTaskRequestSchema,
-  ReviewTaskResponseSchema,
-  TasksQuerySchema,
-  LarkConfigSaveRequestSchema,
-  LarkPushReminderResponseSchema,
-  deriveBaselineDrift,
 } from './contracts.js';
 import type {
-  IssueCard,
-  ArchiveDocument,
-  KbImportDocIssue,
-  ScheduleSnapshot,
   ModuleId,
   TenantConfig,
-  ActorRef,
   IdentityMode,
   SessionIdentity,
   DeploymentInfo,
@@ -146,76 +15,10 @@ import type {
 import {
   ROBOTICS_TENANT_CONFIG,
   isModuleEnabled,
-  MembersResponseSchema,
-  MemberPublicSchema,
-  SessionRequestSchema,
-  SessionResponseSchema,
-  SetPinRequestSchema,
-  SetPinResponseSchema,
-  ClearPinResponseSchema,
-  // 显示 PIN（打磨轮刀⑧② pinPlaintext 唯一透出口）：GET /api/members/:id/pin 响应契约。
-  MemberPinResponseSchema,
-  // 门验收人名单维护（GATE-CHECKLIST-IOU，D-087 拍板②）：PUT /api/members/:id/gate-reviewer 读/写契约。
-  SetGateReviewerRequestSchema,
-  SetGateReviewerResponseSchema,
-  // 成员角色维护 + 项目管理旗标授/收 + 初始化首个管理员（K1 权限地基 + MEMBER-PM-FLAG 刀②b）：
-  // PUT /api/members/:id/role + PUT /api/members/:id/project-manager + POST /api/setup/super-admin。
-  SetMemberRoleRequestSchema,
-  SetMemberRoleResponseSchema,
-  SetProjectManagerRequestSchema,
-  SetProjectManagerResponseSchema,
-  SetupSuperAdminRequestSchema,
-  SetupSuperAdminResponseSchema,
-  // 名册导入（ROSTER-IMPORT，K8）：CSV 模板生成 + 编码探测 + 手写零依赖解析器 + 导入报告契约。
-  buildRosterTemplateCsv,
-  decodeRosterBytes,
-  parseRosterCsv,
-  RosterImportReportSchema,
-  RosterImportRowsRequestSchema,
-  RosterPreviewResponseSchema,
-  type RosterImportFailure,
-  type RosterImportRow,
-  // 库存批量导入（INV-BULK-IMPORT 刀⑪）：模板生成 + 解析器 + preview/JSON 双收 + 报告契约；
-  // 编码探测复用 csv-core decodeCsvBytes（与名册 decodeRosterBytes 同一来源）。
-  buildInventoryTemplateCsv,
-  decodeCsvBytes,
-  parseInventoryCsv,
-  InventoryImportReportSchema,
-  InventoryImportRowsRequestSchema,
-  InventoryPreviewResponseSchema,
-  type InventoryImportFailure,
-  type InventoryImportRow,
-  // 车队批量导入（FLEET-CSV-IMPORT）：模板生成 + 解析器 + 预览契约；编码探测复用 csv-core decodeCsvBytes。
-  // 落库不新增语义——预览确认后前端拼 CreateResourcesBatchRequest 走既有 POST /api/resources/batch。
-  buildFleetTemplateCsv,
-  parseFleetCsv,
-  FleetPreviewResponseSchema,
-  // KB 批量 md 导入（KB-BULK-MD-IMPORT 打磨轮刀⑫）：报告契约 + 归档文档 schema（逐文件预验）+ 标题上限。
-  ArchiveDocumentSchema,
-  KbImportDocsReportSchema,
-  KB_TITLE_MAX,
-  // 验收人年级默认派生集合（GRADE-7-TIERS 刀⑥ 起由 contracts 导出，bootstrap 与 CSV 导入同源消费）。
-  GATE_REVIEWER_DEFAULT_GRADES,
-  // SETUP-WIZARD 刀①：正常模式 setup 状态回执（GET /api/setup/state → initialized:true）。
-  SetupStateResponseSchema,
-  // SETUP-WIZARD 刀③：部署配置写端点（PUT /api/setup/config 改 identityMode；graduate 转正式）。
-  DeployConfigSchema,
-  SetupConfigRequestSchema,
-  // Hermes 入站命令（HUB-HERMES-ADAPTER 最小链路）：请求/响应契约 + 原始文本规则匹配。
-  HermesInboundRequestSchema,
-  HermesInboundResponseSchema,
-  HermesInvQueryArgsSchema,
-  HermesInvRecordArgsSchema,
-  parseHermesText,
 } from '@teamhub/hub-contracts';
-import { ZodError } from 'zod';
-import { isGateReviewer, isGroupLeadOf, isSuperAdmin, memberHasPmFlag } from './authz.js';
-import { hashPin, verifyPin } from './identity/pin.js';
 import { SessionManager } from './identity/session-store.js';
-import { deriveErrorCode } from './kb/error-code.js';
 import { FixedClock } from './clock.js';
 import type { Clock } from './clock.js';
-import { sendLarkMessage } from './lark-client.js';
 import { InMemoryGovStore } from './store/mock-gov-store.js';
 import { InMemoryKbStore } from './store/mock-kb-store.js';
 import { InMemoryInvStore } from './store/mock-inv-store.js';
@@ -223,24 +26,8 @@ import { InMemoryBaselineStore } from './store/mock-baseline-store.js';
 import { InMemoryChecklistStore } from './store/mock-checklist-store.js';
 import type { GovStore, InvStore, KbStore } from './store/gov-store.js';
 import type { BaselineStore } from './store/baseline-store.js';
-import type { ChecklistItemDraft, ChecklistStore } from './store/checklist-store.js';
-import {
-  listMockAgentBackends,
-  listMockBotChannels,
-  listMockDataSources,
-} from './mock-integrations.js';
-import {
-  getMockAgentBackendCapabilities,
-  getMockAgentBackendHealth,
-  invokeMockAgentBackend,
-  isMockAgentBackendId,
-} from './mock-agent-backends.js';
-import {
-  buildHealthResponse,
-  buildSystemStatusResponse,
-} from './status.js';
+import type { ChecklistStore } from './store/checklist-store.js';
 import { tryServeStaticConsole } from './static-console.js';
-import { registerBaselineRoutes } from './routes/baseline.js';
 import { registerSearchRoutes } from './routes/search.js';
 import { registerExportRoutes } from './routes/export.js';
 import { registerKnowledgeBaseRoutes } from './routes/kb.js';
@@ -249,9 +36,14 @@ import { registerPresenceScheduleRoutes } from './routes/schedule.js';
 import { registerArchiveRoutes } from './routes/archive.js';
 import { registerSystemRoutes } from './routes/system.js';
 import { registerPmCoreRoutes } from './routes/pm.js';
-// SETUP-WIZARD 刀③：转正式演示数据归档 + exit 42 重启码（与 setup 模式 build-setup-server 同一约定）。
-import { archiveDemoData } from './demo-archive.js';
-import { RESTART_EXIT_CODE } from './build-setup-server.js';
+import { registerSessionRoutes } from './routes/session.js';
+import { registerSetupRoutes } from './routes/setup.js';
+import { registerLarkRoutes } from './routes/lark.js';
+import {
+  isLoopbackOperator,
+  SESSION_TTL_MS,
+  readSessionCookie,
+} from './routes/helpers.js';
 
 /**
  * 部署配置写通道运行时依赖（SETUP-WIZARD 刀③，setup-wizard.md §6）：设置页「部署配置」写区背后的
@@ -362,109 +154,6 @@ export interface BuildHubServerOptions {
 // 归档物文件上传上限（50MB）：覆盖机械 CAD（step/stp/sldprt）+ 电路 PDF + 固件，又约束资源耗尽面。
 const ARTIFACT_MAX_BYTES = 50 * 1024 * 1024;
 
-// 名册导入 CSV 上限（ROSTER-IMPORT，K8）：1MB——纯文本花名册（几十人）绰绰有余，又约束资源耗尽面。
-// 由 POST /api/roster/import 的 `request.file({ limits })` per-request 覆盖插件默认（插件默认 = 归档物上限）。
-const ROSTER_MAX_BYTES = 1024 * 1024;
-
-// 库存导入 CSV 上限（INV-BULK-IMPORT 刀⑪）：1MB——与名册同律（纯文本零件表绰绰有余，又约束资源
-// 耗尽面）。由 POST /api/inventory/{preview,import} 的 `request.file({ limits })` per-request 覆盖插件默认。
-const INVENTORY_IMPORT_MAX_BYTES = 1024 * 1024;
-
-// 车队导入 CSV 上限（FLEET-CSV-IMPORT）：1MB——与名册/库存同律（纯文本车队表绰绰有余，又约束资源
-// 耗尽面）。由 POST /api/resources/preview 的 `request.file({ limits })` per-request 覆盖插件默认。
-const FLEET_IMPORT_MAX_BYTES = 1024 * 1024;
-
-async function readCsvUpload(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  opts: { maxBytes: number; decode: (buf: Buffer) => string | null },
-): Promise<string | null> {
-  let data;
-  try {
-    data = await request.file({ limits: { fileSize: opts.maxBytes, files: 1 } });
-  } catch {
-    void reply.code(400).send({ detail: '请求体不是 multipart 表单' });
-    return null;
-  }
-  if (!data) {
-    void reply.code(400).send({ detail: '未收到文件' });
-    return null;
-  }
-  let buf: Buffer;
-  try {
-    buf = await data.toBuffer();
-  } catch (err) {
-    if ((err as { code?: string })?.code === 'FST_REQ_FILE_TOO_LARGE') {
-      void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
-      return null;
-    }
-    void reply.code(400).send({ detail: '读取文件失败' });
-    return null;
-  }
-  if (data.file.truncated) {
-    void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
-    return null;
-  }
-  const text = opts.decode(buf);
-  if (text === null) {
-    void reply.code(400).send({ detail: '编码无法识别，请另存为 CSV UTF-8' });
-    return null;
-  }
-  return text;
-}
-
-// KB 批量 md 导入上限（KB-BULK-MD-IMPORT 打磨轮刀⑫）：单文件 1MB（纯文本 md 绰绰有余）+ 单批至多
-// 20 个（初始化向导「导入一堆文件」场景；整批峰值 20MB 内存，约束耗尽面）。
-// 由 POST /api/kb/import-docs 的 `request.files({ limits })` per-request 覆盖插件默认（files:1 宿主级默认）。
-const KB_IMPORT_DOC_MAX_BYTES = 1024 * 1024;
-const KB_IMPORT_DOCS_MAX_FILES = 20;
-
-// 上传后缀白名单 → 规范 contentType。**以后缀为准**（CAD 的浏览器 MIME 多为 octet-stream，不可信）。
-// 战队格式：CAD（机械）/ 文档（图纸说明、电路 PDF）/ 图（截图）/ 包（多文件打包）/ 固件（电控/驱动）/
-// 视频（BASELINE-CORE 验证门证据：大二提交的整车试跑/破坏性测试视频，走本既有上传链路，不建新链路）。
-const ARTIFACT_ALLOWED_EXT = new Map<string, string>([
-  ['.step', 'application/step'],
-  ['.stp', 'application/step'],
-  ['.iges', 'model/iges'],
-  ['.igs', 'model/iges'],
-  ['.sldprt', 'application/octet-stream'],
-  ['.sldasm', 'application/octet-stream'],
-  ['.slddrw', 'application/octet-stream'],
-  ['.dwg', 'application/acad'],
-  ['.f3d', 'application/octet-stream'],
-  ['.pdf', 'application/pdf'],
-  ['.md', 'text/markdown'],
-  ['.txt', 'text/plain'],
-  ['.png', 'image/png'],
-  ['.jpg', 'image/jpeg'],
-  ['.jpeg', 'image/jpeg'],
-  ['.zip', 'application/zip'],
-  ['.bin', 'application/octet-stream'],
-  ['.hex', 'application/octet-stream'],
-  ['.mp4', 'video/mp4'],
-  ['.mov', 'video/quicktime'],
-  ['.webm', 'video/webm'],
-]);
-
-// 写路由 safeParse 失败 → 取首条 Zod issue message 作 400 detail（缺省回 fallback）。
-// 收口全表单路由重复的 `parsed.error.issues[0]?.message ?? <fallback>` 模式。
-function firstZodMsg(err: import('zod').ZodError, fallback = 'invalid body'): string {
-  return err.issues[0]?.message ?? fallback;
-}
-
-function parseBody<T>(
-  schema: { safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: import('zod').ZodError } },
-  request: FastifyRequest,
-  reply: FastifyReply,
-): T | null {
-  const parsed = schema.safeParse(request.body ?? {});
-  if (!parsed.success) {
-    void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-    return null;
-  }
-  return parsed.data;
-}
-
 // ── 轻身份登录（IDENTITY-LITE，D-083 §4.2）宿主级横切基元 ─────────────────────────────────────
 // FastifyRequest.identity：由身份模式下的 onRequest 钩子从 cookie 解析注入（匿名模式恒 null）。
 // 写路由据此把客户端自报的 confirmedBy/passedBy 覆盖为 session 身份（服务端注入 actor，替代零校验自报）。
@@ -472,70 +161,6 @@ declare module 'fastify' {
   interface FastifyRequest {
     identity: SessionIdentity | null;
   }
-}
-
-const SESSION_COOKIE = 'teamhub_session';
-// 会话 TTL（天级，家庭影院级）：重启 = 全员重登（内存态，见 SessionManager）。
-const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const SESSION_TTL_SECONDS = Math.floor(SESSION_TTL_MS / 1000);
-
-/** 从 Cookie 头解析 session token（无则 null）。手解析，不引 @fastify/cookie 依赖（单 cookie 足够）。 */
-function readSessionCookie(request: { headers: { cookie?: string } }): string | null {
-  const raw = request.headers.cookie;
-  if (!raw) return null;
-  for (const part of raw.split(';')) {
-    const eq = part.indexOf('=');
-    if (eq === -1) continue;
-    const key = part.slice(0, eq).trim();
-    if (key === SESSION_COOKIE) {
-      const val = part.slice(eq + 1).trim();
-      return val.length > 0 ? val : null;
-    }
-  }
-  return null;
-}
-
-/** 签发 cookie：httpOnly + SameSite=Lax + Path=/（http 内网/家庭影院级，不假定 TLS 故不加 Secure）。 */
-function buildSessionCookie(token: string): string {
-  return `${SESSION_COOKIE}=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${SESSION_TTL_SECONDS}`;
-}
-/** 清 cookie（登出）：Max-Age=0 立即过期。 */
-function clearSessionCookie(): string {
-  return `${SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0`;
-}
-
-/** session 身份 → ActorRef（写路由 actor 注入用）：留名归当前登录人，source=console。 */
-function sessionActor(identity: SessionIdentity): ActorRef {
-  return { id: identity.memberId, displayName: identity.displayName, source: 'console' };
-}
-
-// ── PIN-DEADLOCK-RECOVERY（公测补强刀①，2026-07-24）：loopback 操作员判定 ─────────────────────
-// 「唯一 superAdmin 忘 PIN = 完全死锁」（活体复现见 onboarding-pin-deadlock-2026-07-24.md §2 路径 A）的
-// 逃生门：DELETE /api/members/:id/pin 对来自 loopback 的请求豁免 superAdmin 判定。**威胁模型**：宿主
-// loopback 操作员本就能直接编辑 gov.json 清 pinHash（DEPLOY §7.1 手工兜底步骤），本豁免只是把手工编文件
-// 降级为一条 curl，不引入新权限面；非 loopback 请求行为零变化。
-// 判定规则：默认（trustProxy 未开）信**裸 socket 地址**——X-Forwarded-For 等转发头可伪造、坚决不吃；
-// trustProxy 开启时裸 socket 是反代地址不可信，退而看 request.ip（此时它解析自转发头，SSH 隧道场景仍可用）。
-const LOOPBACK_ADDRESSES = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
-function isLoopbackOperator(
-  request: { ip: string; socket: { remoteAddress?: string } },
-  trustProxy: boolean | string,
-): boolean {
-  const addr = trustProxy ? request.ip : request.socket.remoteAddress;
-  return addr !== undefined && LOOPBACK_ADDRESSES.has(addr);
-}
-
-// 把治理快照 + 共享资源 + 占用窗口 + 接力交接线拼成 ScheduleSnapshot（GET /api/schedule、/api/relay 共用装配）。
-// relayHandoffs 是 ScheduleSnapshot 必填字段（R1 接力画布并入）；在场建议派生不读它，仍带上以满足类型。
-// 四次读独立、无依赖 → Promise.all 并发取。
-async function buildScheduleSnapshot(store: GovStore): Promise<ScheduleSnapshot> {
-  const [snapshot, resources, resourceSessions, relayHandoffs] = await Promise.all([
-    store.getSnapshot(),
-    store.listResources(),
-    store.listResourceSessions(),
-    store.listRelayHandoffs(),
-  ]);
-  return { ...snapshot, resources, resourceSessions, relayHandoffs };
 }
 
 /**
@@ -743,176 +368,8 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     limits: { fileSize: ctx.artifactMaxBytes, files: 1 },
   });
 
-  // ── 会话端点（IDENTITY-LITE）：宿主级横切（非模块域），两模式均挂——GET 报模式+身份，
-  // POST/DELETE 在匿名模式 404（明确禁用态）、身份模式行使登录/登出。────────────────────────────
-  // GET /api/session：报当前部署模式 + 当前身份（未登录 / 匿名模式 → session:null）。读端点、不过写门。
-  app.get('/api/session', async (request) => {
-    return SessionResponseSchema.parse({
-      mode: identityMode,
-      session: request.identity ?? null,
-    });
-  });
-
-  // POST /api/session（登录）：选人 + 可选 PIN。有 pinHash 须验 PIN（常量时间）；无 pinHash 免 PIN。
-  // **防枚举**：人不存在 / PIN 错 / 该给 PIN 没给 → 统一 401「登录失败」，不区分原因。登录尝试受写门
-  // 限流（POST /api/* 已过限流桶）。成功 → 签发 httpOnly cookie + 回带身份。匿名模式 → 404。
-  app.post('/api/session', async (request, reply) => {
-    if (identityMode !== 'identity' || !sessions) {
-      void reply.code(404).send({ detail: '身份模式未启用' });
-      return;
-    }
-    const parsed = parseBody(SessionRequestSchema, request, reply);
-    if (!parsed) return;
-    const { memberId, pin } = parsed;
-    const snapshot = await store.getSnapshot();
-    const member = snapshot.members.find((m) => m.id === memberId);
-    // 认证判定：无此人 → 失败；有 pinHash → 须给 pin 且 verifyPin 通过；无 pinHash → 免 PIN 直过。
-    const authOk = member
-      ? member.pinHash
-        ? pin !== undefined && verifyPin(pin, member.pinHash)
-        : true
-      : false;
-    if (!authOk || !member) {
-      void reply.code(401).send({ detail: '登录失败' });
-      return;
-    }
-    // role/gateReviewer/projectManager 快照（K1 + MEMBER-PM-FLAG）：登录当刻定格，改角色/名单/旗标后须重登
-    // 才刷新（服务端敏感门另读实时名册）。
-    const identity: SessionIdentity = {
-      memberId: member.id,
-      displayName: member.displayName,
-      groupId: member.groupId,
-      role: member.role,
-      gateReviewer: member.gateReviewer,
-      projectManager: member.projectManager,
-    };
-    const token = sessions.create(identity);
-    void reply.header('set-cookie', buildSessionCookie(token));
-    return SessionResponseSchema.parse({ mode: 'identity', session: identity });
-  });
-
-  // DELETE /api/session（登出）：销毁会话 + 清 cookie（幂等，会话已过期也 200）。匿名模式 → 404。
-  app.delete('/api/session', async (request, reply) => {
-    if (identityMode !== 'identity' || !sessions) {
-      void reply.code(404).send({ detail: '身份模式未启用' });
-      return;
-    }
-    const token = readSessionCookie(request);
-    if (token) sessions.destroy(token);
-    void reply.header('set-cookie', clearSessionCookie());
-    return SessionResponseSchema.parse({ mode: 'identity', session: null });
-  });
-
-  // ── Setup 端点（SETUP-WIZARD 刀①，setup-wizard.md §3/§4）：宿主级横切，两模式都挂 ──────────────
-  // 正常模式（config.json 已存在，才走 buildHubServer）：GET 恒报 initialized:true（前端据此渲染正常 app
-  // 而非向导）；POST 恒 409（多标签页 / 重复提交幂等——不再接受初始化，改配置走设置页刀③的写 API）。
-  // dataDirHasData 在正常模式已无意义（仅升级迁移提示用），恒 true。setup 模式的 initialized:false 版本由
-  // build-setup-server.ts 提供（那条链根本不建 store / 不进本函数）。
-  app.get('/api/setup/state', async () => {
-    return SetupStateResponseSchema.parse({ initialized: true, dataDirHasData: true });
-  });
-  app.post('/api/setup/init', async (_request, reply) => {
-    void reply.code(409).send({ detail: '已初始化（config.json 已存在）' });
-    return reply;
-  });
-
-  // ── 部署配置写通道（SETUP-WIZARD 刀③，setup-wizard.md §6）：设置页「部署配置」写区背后的两写端点 ──────
-  // 仅当装配层给了 setupControl 才注册（缺省 → 404；setup 模式那条链不进本函数 → 也 404，满足「setup 模式
-  // 不注册」）。两端点都是写方法，天然被上面的写门 onRequest 钩子罩：匿名模式=宿主级写门即可（Bearer + 限流，
-  // 与现有敏感门非对称裁决一致，§10 拍板③）；身份模式=钩子先保证有会话（否则 401），路由内再判 superAdmin
-  // （否则 403，照 createSeason 敏感门先例、另读实时名册 fail-closed）。改配置后写 config.json → exit 42
-  // 自动重启（start 脚本循环 / compose restart:on-failure 拉起）→ 前端轮询复活刷新。
-  const setupControl = options.setupControl;
-  if (setupControl) {
-    const setupExit =
-      setupControl.exit ?? ((code: number) => process.exit(code));
-    const setupNow = setupControl.now ?? (() => new Date());
-    const setupRestartDelayMs = setupControl.restartDelayMs ?? 500;
-
-    // PUT /api/setup/config：改登录方式（identityMode）。保留 dataMode/initializedAt/schemaVersion，
-    // 落盘前 DeployConfigSchema.parse 自校验产物合法（对称 fail-closed，绝不落坏 config 让下次启动拒起）。
-    app.put('/api/setup/config', async (request, reply) => {
-      // 身份模式 superAdmin 门（匿名模式跳过，走写门即可）。
-      if (identityMode === 'identity') {
-        const snapshot = await store.getSnapshot();
-        if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
-          void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
-          return reply;
-        }
-      }
-      const parsed = SetupConfigRequestSchema.safeParse(request.body ?? {});
-      if (!parsed.success) {
-        void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-        return reply;
-      }
-      const next = DeployConfigSchema.parse({
-        ...setupControl.config,
-        identityMode: parsed.data.identityMode,
-      });
-      await mkdir(dirname(setupControl.configFile), { recursive: true });
-      await writeFile(
-        setupControl.configFile,
-        `${JSON.stringify(next, null, 2)}\n`,
-        'utf8',
-      );
-      setTimeout(() => setupExit(RESTART_EXIT_CODE), setupRestartDelayMs);
-      void reply.code(200).send({ restarting: true });
-      return reply;
-    });
-
-    // POST /api/setup/graduate：结束试驾转正式（单向门）。仅 dataMode==='demo' 可调（否则 409）。
-    // 先归档五域 JSON + 归档物目录内容到 <数据目录>/demo-archive-<时间戳>/（只挪不删、可手工找回）；
-    // 任一步失败即中止——不写 config、不重启（数据完好，报错给操作者，§6.2 / §9）；成功后写 dataMode=real
-    // → exit 42 重启进真空板。
-    app.post('/api/setup/graduate', async (request, reply) => {
-      if (identityMode === 'identity') {
-        const snapshot = await store.getSnapshot();
-        if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
-          void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
-          return reply;
-        }
-      }
-      // 前置：只有演示态可转正式（真空板已是正式，无反向门——防误触清库，§1 非目标）。
-      if (setupControl.config.dataMode !== 'demo') {
-        void reply
-          .code(409)
-          .send({ detail: '当前已是正式（real）部署，转正式门只在演示（demo）态可用' });
-        return reply;
-      }
-      // 归档目录时间戳（冒号 / 点在多数文件系统合法，仍规范成 `-` 求跨平台稳妥）。
-      const stamp = setupNow().toISOString().replace(/[:.]/g, '-');
-      const archiveDir = join(
-        dirname(setupControl.configFile),
-        `demo-archive-${stamp}`,
-      );
-      try {
-        await archiveDemoData({
-          archiveDir,
-          dataFiles: setupControl.dataFiles,
-          artifactDir: setupControl.artifactDir,
-        });
-      } catch (err) {
-        // 任一步失败即中止：不写 config、不重启。只移动不删除故数据完好（部分在归档、部分在原位，均可找回）。
-        void reply.code(500).send({
-          detail: `演示数据归档失败，已中止转正式（未改配置、未重启，数据完好）：${(err as Error).message}`,
-        });
-        return reply;
-      }
-      const next = DeployConfigSchema.parse({
-        ...setupControl.config,
-        dataMode: 'real',
-      });
-      await mkdir(dirname(setupControl.configFile), { recursive: true });
-      await writeFile(
-        setupControl.configFile,
-        `${JSON.stringify(next, null, 2)}\n`,
-        'utf8',
-      );
-      setTimeout(() => setupExit(RESTART_EXIT_CODE), setupRestartDelayMs);
-      void reply.code(200).send({ restarting: true });
-      return reply;
-    });
-  }
+  registerSessionRoutes(app, { store, identityMode, sessions });
+  registerSetupRoutes(app, { store, identityMode, setupControl: options.setupControl });
 
   // 装配外壳核心：遍历 enabledModules → 挂载各域路由。未启用模块的函数根本不被调用，端点整段不挂
   // （§3.4-A；游戏工作室等租户可省 presence-schedule，此步无需拆 ScheduleStore——GovStore 的 schedule
@@ -940,110 +397,8 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   registerSearchRoutes(app, { store, kbStore, invStore });
   registerExportRoutes(app, { store, invStore });
 
-  // ── 飞书集成配置（LARK-INTEG-CONFIG）────────────────────────────────────────────────────────────
-  const larkStore = options.larkStore;
-  if (larkStore) {
-    app.get('/api/integrations/lark', async () => {
-      const config = larkStore.getConfig();
-      if (!config || !config.appId) {
-        return { configured: false, status: 'unconfigured' };
-      }
-      const masked = config.appSecret
-        ? `****${config.appSecret.slice(-4)}`
-        : undefined;
-      return {
-        configured: true,
-        appId: config.appId,
-        appSecretMasked: masked,
-        chatId: config.chatId,
-        status: config.status,
-        lastCheckedAt: config.lastCheckedAt,
-        error: config.error,
-      };
-    });
-
-    app.put('/api/integrations/lark', async (request, reply) => {
-      const parsed = LarkConfigSaveRequestSchema.safeParse(request.body ?? {});
-      if (!parsed.success) {
-        void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-        return;
-      }
-      const { appId, appSecret, chatId } = parsed.data;
-      const checkedAt = new Date().toISOString();
-      try {
-        const tokenRes = await fetch(
-          'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal',
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ app_id: appId, app_secret: appSecret }),
-            signal: AbortSignal.timeout(10_000),
-          },
-        );
-        const tokenJson = (await tokenRes.json()) as { code?: number; msg?: string };
-        if (tokenJson.code !== 0) {
-          larkStore.saveConfig({ appId, appSecret, chatId, status: 'error', lastCheckedAt: checkedAt, error: tokenJson.msg ?? 'auth failed' });
-          return { ok: false, status: 'error' as const, error: tokenJson.msg ?? 'auth failed' };
-        }
-        larkStore.saveConfig({ appId, appSecret, chatId, status: 'connected', lastCheckedAt: checkedAt });
-        return { ok: true, status: 'connected' as const };
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'network error';
-        larkStore.saveConfig({ appId, appSecret, chatId, status: 'error', lastCheckedAt: checkedAt, error: msg });
-        return { ok: false, status: 'error' as const, error: msg };
-      }
-    });
-
-    app.delete('/api/integrations/lark', async () => {
-      larkStore.clearConfig();
-      larkStore.rotateWriteToken();
-      return { ok: true };
-    });
-
-    app.get('/api/hermes/credential', async (request, reply) => {
-      if (!isLoopbackOperator(request, trustProxy)) {
-        void reply.code(403).send({ detail: 'forbidden' });
-        return;
-      }
-      return { token: larkStore.getWriteToken() };
-    });
-
-    app.post('/api/integrations/lark/push-reminder', async (request, reply) => {
-      const cfg = larkStore.getConfig();
-      if (!cfg || cfg.status !== 'connected') {
-        void reply.code(400).send({ detail: '飞书未配置或未连接' });
-        return;
-      }
-      const snapshot = await store.getSnapshot();
-      const now = clock.now();
-      let redCount = 0;
-      let yellowCount = 0;
-      const lines: string[] = [];
-      for (const season of snapshot.seasons) {
-        const baseline = await baselineStore.getBaseline(season.id);
-        if (!baseline) continue;
-        const drifts = deriveBaselineDrift(baseline, snapshot.tasks, now);
-        for (const d of drifts) {
-          if (d.level === 'green') continue;
-          const ms = baseline.milestones.find((m) => m.id === d.milestoneId);
-          if (!ms) continue;
-          if (d.level === 'red') redCount++;
-          else yellowCount++;
-          const icon = d.level === 'red' ? '🔴' : '🟡';
-          lines.push(`${icon} ${ms.title}（挂接任务 ${d.attachedDone}/${d.attachedTotal} 完成）`);
-        }
-      }
-      if (lines.length === 0) {
-        return LarkPushReminderResponseSchema.parse({ ok: true, pushed: false, redCount: 0, yellowCount: 0 });
-      }
-      const text = `[里程碑提醒]\n${lines.join('\n')}`;
-      const result = await sendLarkMessage(cfg.appId, cfg.appSecret, cfg.chatId, text);
-      if (!result.ok) {
-        void reply.code(502).send({ detail: result.error ?? 'send failed' });
-        return;
-      }
-      return LarkPushReminderResponseSchema.parse({ ok: true, pushed: true, redCount, yellowCount });
-    });
+  if (options.larkStore) {
+    registerLarkRoutes(app, { store, clock, baselineStore, larkStore: options.larkStore, trustProxy });
   }
 
   app.setNotFoundHandler(async (request, reply) => {
