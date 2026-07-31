@@ -194,7 +194,17 @@ export const kbScenarioFixture: KbSnapshot = {
       updatedAt: '2025-06-16T09:00:00.000Z',
     },
   ],
-  archiveDocuments: [],
+  archiveDocuments: [
+    {
+      issueId: 'iss-can-2025',
+      projectId: 'prj-robots',
+      fileName: '2025-05-12_can-bus-packet-loss.md',
+      filePath: 'kb/archive/2025-05-12_can-bus-packet-loss.md',
+      markdownContent: '# CAN 总线丢包导致底盘电机失控\n\n结案归档：调整波特率至 1Mbps + 采样点 87.5%，加 120Ω 终端电阻。',
+      generatedBy: 'manual',
+      generatedAt: '2025-05-12T10:00:00.000Z',
+    },
+  ],
 };
 
 export interface LedgerAllocationRefs {
