@@ -1,7 +1,8 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Season } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
+import { useSeasons } from '../../hooks/useRoster';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
 import { Field } from '../../components/Field';
@@ -29,10 +30,7 @@ export function SeasonsSection({
   // 「是否管理员」，导致非管理员点了才撞服务端 403）。两者任一 → 写控件禁用 + 说明。
   const { writeLocked, lockHint } = sectionPermission(identity, t);
   const queryClient = useQueryClient();
-  const seasonsQuery = useQuery({
-    queryKey: ['seasons', source],
-    queryFn: () => client.getSeasons(),
-  });
+  const seasonsQuery = useSeasons(client);
 
   const [name, setName] = useState('');
   const [startsAt, setStartsAt] = useState('');

@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Group } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
+import { useGroups } from '../../hooks/useRoster';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
 import { Field } from '../../components/Field';
@@ -27,10 +28,7 @@ export function GroupsSection({
   // 写门锁 + 管理员前置资格判（照赛季/成员分区同律）：未登录 或 身份模式非持旗 → 写控件禁用 + 说明。
   const { writeLocked, lockHint } = sectionPermission(identity, t);
   const queryClient = useQueryClient();
-  const groupsQuery = useQuery({
-    queryKey: ['groups', source],
-    queryFn: () => client.getGroups(),
-  });
+  const groupsQuery = useGroups(client, source);
   // 前缀失效所有 groups 查询（本区 + 成员区组名映射 + PmCreatePanel 候选 + 初始化门），组改动处处同步。
   const invalidateGroups = () =>
     void queryClient.invalidateQueries({ queryKey: ['groups'] });
