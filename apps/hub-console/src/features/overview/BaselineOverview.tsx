@@ -18,6 +18,8 @@ import {
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useBaseline } from '../../hooks/useBaseline';
+import { useTasks } from '../../hooks/useTasks';
+import { useMembers, useGroups, useSeasons } from '../../hooks/useRoster';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { humanizeFormError, seasonRangeLabel, suggestSeason } from '../../utils';
@@ -94,10 +96,7 @@ export function BaselineOverview({
   // 单次求值的「现在」：drift 判定与 now 标记共用，同一渲染内稳定。
   const now = useMemo(() => new Date(), []);
 
-  const seasonsQuery = useQuery({
-    queryKey: ['seasons', source],
-    queryFn: () => client.getSeasons(),
-  });
+  const seasonsQuery = useSeasons(client);
   const activeSeason = useMemo(() => {
     const seasons = seasonsQuery.data?.seasons ?? [];
     return seasons.find((s) => s.status === 'active') ?? seasons[0];
@@ -105,14 +104,8 @@ export function BaselineOverview({
   const seasonId = activeSeason?.id;
 
   const baselineQuery = useBaseline(client, source, seasonId);
-  const tasksQuery = useQuery({
-    queryKey: ['tasks', 'overview', source],
-    queryFn: () => client.getTasks(),
-  });
-  const groupsQuery = useQuery({
-    queryKey: ['groups', 'overview', source],
-    queryFn: () => client.getGroups(),
-  });
+  const tasksQuery = useTasks(client, source);
+  const groupsQuery = useGroups(client, 'overview');
   // 门检查单 / 欠条（GATE-CHECKLIST-IOU，D-087）：与全局「快记欠条」共享同一 queryKey，任一处提交后
   // 都失效此键 → 门详情卡 + 告警区即时刷新。checklist / members 为次级数据，未就绪不阻塞基准线渲染。
   const checklistQuery = useQuery({
@@ -120,11 +113,7 @@ export function BaselineOverview({
     queryFn: () => client.getChecklist(seasonId as string),
     enabled: Boolean(seasonId),
   });
-  // 匿名模式清偿 / 豁免选人的候选（身份模式本人一键不用它）；名册读侧两模式均开（同 GET /api/groups 先例）。
-  const membersQuery = useQuery({
-    queryKey: ['members', 'checklist', source],
-    queryFn: () => client.getMembers(),
-  });
+  const membersQuery = useMembers(client, 'checklist');
 
   const baseline = baselineQuery.data?.baseline ?? null;
   const tasks = tasksQuery.data?.tasks ?? [];

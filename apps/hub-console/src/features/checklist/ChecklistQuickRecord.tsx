@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ClipboardList } from 'lucide-react';
 import type { HubApiClient } from '../../api/client';
 import { useBaseline } from '../../hooks/useBaseline';
+import { useSeasons } from '../../hooks/useRoster';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
 import { useForm } from '../../hooks/useForm';
@@ -49,10 +50,7 @@ export function ChecklistQuickRecord({
 
   const now = useMemo(() => new Date(), []);
 
-  const seasonsQuery = useQuery({
-    queryKey: ['seasons', source],
-    queryFn: () => client.getSeasons(),
-  });
+  const seasonsQuery = useSeasons(client);
   const activeSeason = useMemo(() => {
     const seasons = seasonsQuery.data?.seasons ?? [];
     return seasons.find((s) => s.status === 'active') ?? seasons[0];
