@@ -1,5 +1,5 @@
 import type { HubApiClient } from '../../api/client';
-import type { PageIdentityCtx } from '../../console-pages';
+import type { OverviewView, PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
 import { useTheme } from '../../theme';
 import { SegToggle } from '../../components/SegToggle';
@@ -20,10 +20,12 @@ export function SettingsPage({
   client,
   source,
   identity,
+  overview,
 }: {
   client: HubApiClient;
   source: string;
   identity: PageIdentityCtx;
+  overview: OverviewView;
 }) {
   const { t, lang, setLang } = useI18n();
   const { theme, setTheme } = useTheme();
@@ -75,7 +77,7 @@ export function SettingsPage({
       <SeasonsSection client={client} source={source} identity={identity} />
       <GroupsSection client={client} source={source} identity={identity} />
       <MembersPermissionsSection client={client} source={source} identity={identity} />
-      <IntegrationsSection client={client} source={source} />
+      <IntegrationsSection overview={overview} />
       <LarkIntegrationSection client={client} />
       <ConnectionSection />
       <DeploymentSection client={client} source={source} />

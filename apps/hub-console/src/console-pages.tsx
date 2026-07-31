@@ -76,20 +76,23 @@ export interface PageIdentityCtx {
   canWrite: boolean;
 }
 
+/** 总览只读视图形状：App 取好一份后透传给需要的页面复用，避免各页重复查 getOverview。 */
+export interface OverviewView {
+  isLoading: boolean;
+  error: unknown;
+  data: OverviewSnapshot | undefined;
+  // AUDIT-DEBT-2026-07 §9-④ 审计债⑤：工具条刷新按钮此前硬编码 `page === 'overview'`
+  // 特例——只有总览页能刷新是判断藏在 App.tsx 里，不是页面自己声明的能力。
+  // 补 refetch 到 ctx，供 ConsolePageDescriptor.onRefresh 通用消费。
+  refetch: () => void;
+}
+
 /** 页面渲染所需的共享上下文，由 App.tsx 按当前 apiClient/路由态组装。 */
 export interface PageRenderCtx {
   apiClient: HubApiClient;
   source: string;
   onNavigate: (page: ConsolePage) => void;
-  overview: {
-    isLoading: boolean;
-    error: unknown;
-    data: OverviewSnapshot | undefined;
-    // AUDIT-DEBT-2026-07 §9-④ 审计债⑤：工具条刷新按钮此前硬编码 `page === 'overview'`
-    // 特例——只有总览页能刷新是判断藏在 App.tsx 里，不是页面自己声明的能力。
-    // 补 refetch 到 ctx，供 ConsolePageDescriptor.onRefresh 通用消费。
-    refetch: () => void;
-  };
+  overview: OverviewView;
   identity: PageIdentityCtx;
 }
 
@@ -218,7 +221,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     icon: Settings,
     moduleId: 'system',
     render: (ctx) => (
-      <SettingsPage client={ctx.apiClient} source={ctx.source} identity={ctx.identity} />
+      <SettingsPage client={ctx.apiClient} source={ctx.source} identity={ctx.identity} overview={ctx.overview} />
     ),
   },
 ];

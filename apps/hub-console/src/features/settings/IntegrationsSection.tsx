@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import type { BotChannel } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
+import type { OverviewView } from '../../console-pages';
 import { useI18n } from '../../i18n';
 import { Field } from '../../components/Field';
 import { FormGrid } from '../../components/FormGrid';
@@ -12,21 +13,18 @@ import {
   LIFECYCLE_STATUS_KEY,
   type IntegrationRow,
 } from './settings-constants';
-import { useHubOverview, useLarkConfig } from './sub/useSettingsQueries';
+import { useLarkConfig } from './sub/useSettingsQueries';
 import { useLarkMutations } from './sub/useSettingsMutations';
 
 // 集成（只读）：地基重建后按物种三分——BOT 渠道（飞书/微信/QQ）/ Agent 后端（Hermes/OpenClaw/
-// Claude Code）/ 数据源（Git/图纸库）。复用总览数据（同 queryKey 共享缓存），展示在设置页。
+// Claude Code）/ 数据源（Git/图纸库）。复用 App 已取的总览（overview 透传，同份缓存），展示在设置页。
 export function IntegrationsSection({
-  client,
-  source,
+  overview,
 }: {
-  client: HubApiClient;
-  source: string;
+  overview: OverviewView;
 }) {
   const { t } = useI18n();
-  const overviewQuery = useHubOverview(client, source);
-  const data = overviewQuery.data;
+  const { isLoading, error, data } = overview;
 
   return (
     <section className="panel settings-panel">
@@ -35,9 +33,9 @@ export function IntegrationsSection({
       </div>
       <div className="settings-section">
         <p className="settings-desc">{t('settings.integrations.desc')}</p>
-        {overviewQuery.isLoading ? (
+        {isLoading ? (
           <p className="settings-desc" role="status" aria-live="polite">…</p>
-        ) : overviewQuery.error || !data ? (
+        ) : error || !data ? (
           <p className="form-hint form-hint--warn">
             {t('settings.integrations.unavailable')}
           </p>

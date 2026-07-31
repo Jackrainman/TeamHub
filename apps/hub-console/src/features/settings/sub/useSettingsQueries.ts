@@ -9,13 +9,6 @@ export function useSystemStatus(client: HubApiClient, source: string) {
   });
 }
 
-export function useHubOverview(client: HubApiClient, source: string) {
-  return useQuery({
-    queryKey: queryKeys.hubOverview(source),
-    queryFn: () => client.getOverview(),
-  });
-}
-
 export function useLarkConfig(client: HubApiClient) {
   return useQuery({
     queryKey: queryKeys.larkConfig(),
