@@ -415,7 +415,7 @@ button,
   align-items: center;
   gap: 6px;
   padding: 5px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--sidebar-bg-hover, rgba(255,255,255,0.06));
   border: 1px solid var(--border);
 }
@@ -451,7 +451,7 @@ button,
   margin-top: 4px;
   background: var(--card-bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   max-height: 320px;
   overflow-y: auto;
@@ -4899,7 +4899,7 @@ form .btn--primary {
   max-width: 300px;
   padding: 10px 12px;
   border: 1px solid #2c3d5f;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: rgba(13, 20, 33, 0.95);
   color: #e6edf7;
   font-size: var(--text-sm);
@@ -4979,7 +4979,7 @@ form .btn--primary {
   margin-left: auto;
   padding: 0;
   border: 1px solid #2c3d5f;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: #8fa3bf;
   font-size: 14px;
@@ -5085,7 +5085,7 @@ form .btn--primary {
   gap: 4px;
   padding: 8px 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--card-bg);
   cursor: pointer;
   min-width: 90px;
@@ -5133,7 +5133,7 @@ form .btn--primary {
   padding: 8px;
   background: var(--card-bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   z-index: 50;
   min-width: 160px;
