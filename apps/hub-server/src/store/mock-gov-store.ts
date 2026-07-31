@@ -3,7 +3,6 @@ import {
   GOVERNANCE_SNAPSHOT_ARRAY_KEYS,
   buildDefaultGroupTree,
   deriveDisplayCode,
-  deriveLeafGroups,
   governanceScenarioFixture,
   scheduleScenarioFixture,
 } from '@teamhub/hub-contracts';
@@ -46,6 +45,18 @@ import {
   TASK_DEFAULT_STATUS,
   TASK_DEFAULT_STATUS_SOURCE,
 } from './clamp-defaults.js';
+import {
+  resolveActiveSeasonId,
+  computeAbstractGroupIds,
+  validateGroupRename,
+  validateGroupDeletion,
+  validateLastProjectManagerGuard,
+  buildProjectManagerUpdate,
+  buildClaimedTask,
+  buildAssignedTask,
+  buildCompletedTask,
+  buildReviewedTask,
+} from './gov-store-logic.js';
 import { cloneArrayFields } from './clone-snapshot.js';
 import type {
   ArtifactDraft,
@@ -70,7 +81,6 @@ import type {
 } from './gov-store.js';
 import { createIdSequence, nextSequentialId } from './id-sequence.js';
 import type { IdSequence } from './id-sequence.js';
-import { memberHasPmFlag } from '../authz.js';
 
 /**
  * 治理快照全数组字段键（写方法可能 push/splice 的集合）——构造期克隆隔离 + getSnapshot 浅拷贝共用。
@@ -713,21 +723,9 @@ export class InMemoryGovStore implements GovStore {
     const idx = this.snapshot.members.findIndex((m) => m.id === memberId);
     if (idx === -1) return { ok: false, reason: 'not-found' };
     const prev = this.snapshot.members[idx];
-    if (
-      opts?.guardLastProjectManager &&
-      memberHasPmFlag(prev) &&
-      !projectManager &&
-      this.snapshot.members.filter((m) => memberHasPmFlag(m)).length <= 1
-    ) {
-      return { ok: false, reason: 'last-projectmanager' };
-    }
-    const now = this.clock.now().toISOString();
-    const updated: Member = {
-      ...prev,
-      projectManager,
-      updatedBy: MEMBER_ROLE_UPDATED_BY,
-      updatedAt: now,
-    };
+    const guardFail = validateLastProjectManagerGuard(prev, projectManager, this.snapshot.members, opts?.guardLastProjectManager);
+    if (guardFail) return { ok: false, reason: guardFail };
+    const updated = buildProjectManagerUpdate(prev, projectManager, this.clock.now().toISOString());
     this.snapshot.members[idx] = updated;
     return { ok: true, member: updated };
   }
@@ -752,14 +750,8 @@ export class InMemoryGovStore implements GovStore {
     const autoReviewers: string[] = [];
     // 建组用赛季：当前 active 赛季 ?? 顶层 seasonId（后者恒非空——GroupSchema.seasonId min1 满足；
     // 空板真实态 emptyGovSnapshot 仍保留 seasons/seasonId 赛季元信息，故这里恒解析到合法值）。
-    const seasonId =
-      this.snapshot.seasons.find((s) => s.status === 'active')?.id ?? this.snapshot.seasonId;
-    // 刀④：批前既有组中的非叶子/哨兵组 id 集（抽象汇报视角，不可挂人）。只算批前——本批新建组恒为
-    // 叶子，若把它们也算进来会误伤同批后续同名行（本批已建组走「既有组」分支解析）。
-    const leafBefore = new Set(deriveLeafGroups([...this.snapshot.groups]));
-    const abstractGroupIds = new Set(
-      this.snapshot.groups.filter((g) => !leafBefore.has(g.id)).map((g) => g.id),
-    );
+    const seasonId = resolveActiveSeasonId(this.snapshot.seasons, this.snapshot.seasonId);
+    const abstractGroupIds = computeAbstractGroupIds(this.snapshot.groups);
     // 组名 → id 解析（既有组 / 本批已建组）：同批同名组只建一次。
     const resolveGroupId = (name: string): string => {
       const existing = this.snapshot.groups.find((g) => g.name === name);
@@ -836,8 +828,7 @@ export class InMemoryGovStore implements GovStore {
     if (this.snapshot.groups.some((g) => g.name === draft.name)) {
       return { ok: false, reason: 'name-exists' };
     }
-    const seasonId =
-      this.snapshot.seasons.find((s) => s.status === 'active')?.id ?? this.snapshot.seasonId;
+    const seasonId = resolveActiveSeasonId(this.snapshot.seasons, this.snapshot.seasonId);
     const group: Group = {
       id: nextSequentialId('grp-new', this.groupSeq),
       seasonId,
@@ -854,14 +845,9 @@ export class InMemoryGovStore implements GovStore {
    * 同名 → name-exists；id 不存在 → not-found。
    */
   async renameGroup(groupId: string, name: string): Promise<RenameGroupResult> {
+    const fail = validateGroupRename(groupId, name, this.snapshot.groups);
+    if (fail) return fail;
     const idx = this.snapshot.groups.findIndex((g) => g.id === groupId);
-    if (idx === -1) return { ok: false, reason: 'not-found' };
-    if (!deriveLeafGroups([...this.snapshot.groups]).includes(groupId)) {
-      return { ok: false, reason: 'not-leaf' };
-    }
-    if (this.snapshot.groups.some((g) => g.id !== groupId && g.name === name)) {
-      return { ok: false, reason: 'name-exists' };
-    }
     const updated: Group = { ...this.snapshot.groups[idx], name };
     this.snapshot.groups[idx] = updated;
     return { ok: true, group: updated };
@@ -872,21 +858,9 @@ export class InMemoryGovStore implements GovStore {
    * 对应 reason（先迁走再删）。ok 时回带被删的组（路由响应投影）。
    */
   async deleteGroup(groupId: string): Promise<DeleteGroupResult> {
+    const fail = validateGroupDeletion(groupId, this.snapshot.groups, this.snapshot.members, this.snapshot.tasks);
+    if (fail) return fail;
     const idx = this.snapshot.groups.findIndex((g) => g.id === groupId);
-    if (idx === -1) return { ok: false, reason: 'not-found' };
-    if (!deriveLeafGroups([...this.snapshot.groups]).includes(groupId)) {
-      // 非叶子（含「程序」这类汇报视角）/ 哨兵（grp-convergence）→ 不可删。
-      return { ok: false, reason: 'not-leaf' };
-    }
-    if (this.snapshot.groups.some((g) => g.parentGroupId === groupId)) {
-      return { ok: false, reason: 'has-children' };
-    }
-    if (this.snapshot.members.some((m) => m.groupId === groupId)) {
-      return { ok: false, reason: 'has-members' };
-    }
-    if (this.snapshot.tasks.some((t) => t.groupId === groupId)) {
-      return { ok: false, reason: 'has-tasks' };
-    }
     const [removed] = this.snapshot.groups.splice(idx, 1);
     return { ok: true, group: removed };
   }
@@ -897,8 +871,7 @@ export class InMemoryGovStore implements GovStore {
    */
   async ensureDefaultGroups(): Promise<void> {
     if (this.snapshot.groups.length > 0) return;
-    const seasonId =
-      this.snapshot.seasons.find((s) => s.status === 'active')?.id ?? this.snapshot.seasonId;
+    const seasonId = resolveActiveSeasonId(this.snapshot.seasons, this.snapshot.seasonId);
     this.snapshot.groups.push(...buildDefaultGroupTree(seasonId));
   }
 
@@ -913,17 +886,8 @@ export class InMemoryGovStore implements GovStore {
   async claimTask(taskId: string, ownerId: string, claimedAt: string): Promise<Task | null> {
     const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
     if (idx === -1) return null;
-    const prev = this.snapshot.tasks[idx];
-    if (prev.ownerId !== null) return null; // 已有主：不覆盖（路由转 409）
-    const promoting = prev.status === 'pending';
-    const updated: Task = {
-      ...prev,
-      ownerId,
-      claimedAt,
-      status: promoting ? 'inProgress' : prev.status,
-      statusSource: promoting ? MANUAL_TASK_STATUS_SOURCE : prev.statusSource,
-      updatedAt: claimedAt,
-    };
+    const updated = buildClaimedTask(this.snapshot.tasks[idx], ownerId, claimedAt);
+    if (!updated) return null;
     this.snapshot.tasks[idx] = updated;
     return updated;
   }
@@ -941,20 +905,7 @@ export class InMemoryGovStore implements GovStore {
   ): Promise<Task | null> {
     const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
     if (idx === -1) return null;
-    // 换主：解构剔除 claimedAt/partnerMemberId/crossClaimConfirmedBy（不再回写 = 清空）。
-    const {
-      claimedAt: _claimedAt,
-      partnerMemberId: _partnerMemberId,
-      crossClaimConfirmedBy: _crossClaimConfirmedBy,
-      ...rest
-    } = this.snapshot.tasks[idx];
-    const updated: Task = {
-      ...rest,
-      ownerId,
-      assignReason: reason,
-      assignedBy,
-      updatedAt: at,
-    };
+    const updated = buildAssignedTask(this.snapshot.tasks[idx], ownerId, reason, assignedBy, at);
     this.snapshot.tasks[idx] = updated;
     return updated;
   }
@@ -988,14 +939,7 @@ export class InMemoryGovStore implements GovStore {
   async completeTask(taskId: string, completedBy: ActorRef, at: string): Promise<Task | null> {
     const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
     if (idx === -1) return null;
-    const { reviewedBy: _reviewedBy, reviewNote: _reviewNote, ...rest } = this.snapshot.tasks[idx];
-    const updated: Task = {
-      ...rest,
-      status: 'done',
-      statusSource: MANUAL_TASK_STATUS_SOURCE,
-      completedBy,
-      updatedAt: at,
-    };
+    const updated = buildCompletedTask(this.snapshot.tasks[idx], completedBy, at);
     this.snapshot.tasks[idx] = updated;
     return updated;
   }
@@ -1015,16 +959,7 @@ export class InMemoryGovStore implements GovStore {
   ): Promise<Task | null> {
     const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
     if (idx === -1) return null;
-    const { reviewNote: _prevNote, ...prev } = this.snapshot.tasks[idx];
-    const rejecting = outcome === 'reject';
-    const updated: Task = {
-      ...prev,
-      status: rejecting ? 'inProgress' : prev.status,
-      statusSource: rejecting ? MANUAL_TASK_STATUS_SOURCE : prev.statusSource,
-      reviewedBy,
-      ...(note !== undefined ? { reviewNote: note } : {}),
-      updatedAt: at,
-    };
+    const updated = buildReviewedTask(this.snapshot.tasks[idx], reviewedBy, outcome, note, at);
     this.snapshot.tasks[idx] = updated;
     return updated;
   }
