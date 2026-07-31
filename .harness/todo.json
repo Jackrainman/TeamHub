@@ -1,10 +1,11 @@
 {
-  "focus": "server.ts 拆分完成（v0.45.32, 3672→903行）；下一步=UX B4/B5",
+  "focus": "技术债批次完成（v0.45.40）：pm.ts/server.ts 拆分、GovStore 共享逻辑、SettingsPage/BootstrapGate 拆分、npm workspaces；下一步=USEXXX-HOOKS 渐进提取",
   "blocked": [
     {"id": "HERMES-LARK-SKILL", "reason": "卡飞书侧 skill 编写（用户侧）", "owner": "user"},
     {"id": "LARK-BIN-PROBE", "reason": "需用户在 WSL2 实测 which lark / which lark-cli", "owner": "user"}
   ],
   "todo": [
+    {"id": "USEXXX-HOOKS", "title": "数据获取 hook 层提取（90+ 处 useQuery/useMutation → useXxx 封装，按 feature 渐进）", "tag": "code"},
     {"id": "UX-B4-B5", "title": "UX 批次 B4（卡片基类+空态）+ B5（图标+CSS治理）", "tag": "code"},
     {"id": "CHECKLIST-TPL-IMPORT", "title": "检查单模板最小导入通道（等复盘产出，先积累）", "tag": "code"},
     {"id": "KB-AI-STRUCT", "title": "知识库 AI 结构化（研究项，先积累导入语料再评估）", "tag": "research"}
