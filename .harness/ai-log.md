@@ -37,3 +37,6 @@
 - 2026-07-31 refactor(console): SPLIT-2 拆 6 个超 400 行组件到 sub/ v0.45.69 (9e9df8f)
 - 2026-07-31 refactor(contracts): pm-requests 跨域写契约拆 artifact/schedule/resource 三域文件 v0.45.70 (797fb64)
 - 2026-07-31 refactor(console): HOOKS-2 settings 16 处裸 hook 封装 useSettingsQueries/Mutations v0.45.71 (c24dd21)
+- 2026-07-31 fix(console): 抽 schedule-invalidation 共享族失效，修复 RelayCanvas 写 session 只失效 relay 单 key 致父级 SchedulePage staleTime 内晾旧 v0.45.72 (57ce8e0)
+- 2026-07-31 feat(console): 全局 MutationCache.onError toast 兜底根治 mutation 静默吞 + 16 处内联渲染 mutation 标 meta.silent 去重 v0.45.73 (69b20c1)
+- 2026-07-31 refactor(console): queryKeys 工厂补四域 + 修正 artifacts/relay 形状，8 处查询点采用 v0.45.74 (1fe77b5)
