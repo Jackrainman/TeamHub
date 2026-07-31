@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { ActorRefSchema, isoDateTimeSchema } from './common.js';
-import { TaskInvestmentSchema } from './baseline.js';
+import { TaskInvestmentSchema } from './investment.js';
 
 /**
  * 治理数据真相层（D-026 第①层）+ 阻塞归因派生输出 + DepGraph 前端视图契约。

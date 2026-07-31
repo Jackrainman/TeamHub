@@ -43,22 +43,25 @@ export const MilestoneStatusSchema = z.enum(['pending', 'passed', 'missed']);
 export const MilestoneRobotVersionSchema = z.enum(['V1', 'V2', 'V3']);
 
 // ---------------------------------------------------------------------------
-// 投资类任务三维分类（baseline-design.md §1 细节4 / §3）：Task.investment 的形状定义
-// 留在本文件（基准线域概念的自然位置，供未来"正在砍未来"示警派生复用）；
-// pm-core.ts:TaskSchema 只 import 复用，不复制形状（避免两处定义漂移）。
+// 投资类任务三维分类（baseline-design.md §1 细节4 / §3）：已下沉到 investment.ts
+// 打断 pm-core ↔ baseline 循环引用。本文件 re-export 保持公共 API 不变。
 // ---------------------------------------------------------------------------
 
-/** 高时间积累=需要"感觉"的技术（调参手感/装配经验），突击无效、只能早开始摊。 */
-export const InvestmentTimeAccumulationSchema = z.enum(['high', 'low']);
-/** 未来赛季×高价值（如 sim2real）=最容易被砍、重点保护对象。 */
-export const InvestmentHorizonSchema = z.enum(['season', 'future']);
-export const InvestmentValueSchema = z.enum(['high', 'low']);
+import {
+  InvestmentTimeAccumulationSchema,
+  InvestmentHorizonSchema,
+  InvestmentValueSchema,
+  TaskInvestmentSchema,
+  type TaskInvestment,
+} from './investment.js';
 
-export const TaskInvestmentSchema = z.object({
-  horizon: InvestmentHorizonSchema,
-  value: InvestmentValueSchema,
-  timeAccumulation: InvestmentTimeAccumulationSchema,
-});
+export {
+  InvestmentTimeAccumulationSchema,
+  InvestmentHorizonSchema,
+  InvestmentValueSchema,
+  TaskInvestmentSchema,
+  type TaskInvestment,
+} from './investment.js';
 
 // ---------------------------------------------------------------------------
 // SeasonBaseline（战队级：赛季一条链，不按组各建一条——baseline-design.md §1 细节1）
@@ -173,7 +176,6 @@ export type MilestoneRobotVersion = z.infer<typeof MilestoneRobotVersionSchema>;
 export type InvestmentTimeAccumulation = z.infer<typeof InvestmentTimeAccumulationSchema>;
 export type InvestmentHorizon = z.infer<typeof InvestmentHorizonSchema>;
 export type InvestmentValue = z.infer<typeof InvestmentValueSchema>;
-export type TaskInvestment = z.infer<typeof TaskInvestmentSchema>;
 export type BaselineAnchors = z.infer<typeof BaselineAnchorsSchema>;
 export type BaselineSegment = z.infer<typeof BaselineSegmentSchema>;
 export type BaselinePhase = z.infer<typeof BaselinePhaseSchema>;
