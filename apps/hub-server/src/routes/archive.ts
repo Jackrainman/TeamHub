@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { extname, isAbsolute, join, relative } from 'node:path';
 import { readFile, readdir } from 'node:fs/promises';
 import {
@@ -17,6 +17,7 @@ import {
 } from '../artifact-storage.js';
 import type { GovStore } from '../store/gov-store.js';
 import type { Clock } from '../clock.js';
+import { parseBody } from './helpers.js';
 
 const ARTIFACT_ALLOWED_EXT = new Map<string, string>([
   ['.step', 'application/step'],
@@ -41,23 +42,6 @@ const ARTIFACT_ALLOWED_EXT = new Map<string, string>([
   ['.mov', 'video/quicktime'],
   ['.webm', 'video/webm'],
 ]);
-
-function firstZodMsg(err: import('zod').ZodError, fallback = 'invalid body'): string {
-  return err.issues[0]?.message ?? fallback;
-}
-
-function parseBody<T>(
-  schema: { safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: import('zod').ZodError } },
-  request: FastifyRequest,
-  reply: FastifyReply,
-): T | null {
-  const parsed = schema.safeParse(request.body ?? {});
-  if (!parsed.success) {
-    void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
-    return null;
-  }
-  return parsed.data;
-}
 
 export interface ArchiveRouteDeps {
   store: GovStore;
