@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { PageIdentityCtx } from '../src/console-pages';
-import { canShowMemberPin } from '../src/features/settings/SettingsPage';
+import { canShowMemberPin } from '../src/features/settings/pin-visibility';
 import { translations } from '../src/i18n/translations';
 
 /**

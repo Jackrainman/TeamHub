@@ -3,7 +3,7 @@ import { KbImportDocsReportSchema } from '../src/api/schemas/kb';
 import {
   KB_DOC_ACCEPT,
   kbImportReportCounts,
-} from '../src/features/setup/BootstrapGate';
+} from '../src/features/setup/setup-utils';
 import { translations } from '../src/i18n/translations';
 
 /**

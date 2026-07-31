@@ -9,7 +9,7 @@ import {
   newFleetRow,
   suggestFleetSeasonCode,
   type FleetRow,
-} from '../src/features/setup/BootstrapGate';
+} from '../src/features/setup/setup-utils';
 import { translations } from '../src/i18n/translations';
 
 /**

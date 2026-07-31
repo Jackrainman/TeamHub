@@ -14,7 +14,7 @@ import {
   submitSeasonStep,
   suggestSeasonForm,
   type SeasonForm,
-} from '../src/features/setup/BootstrapGate';
+} from '../src/features/setup/setup-utils';
 import { seasonForYear, seasonYearOptions } from '../src/utils';
 import { translations } from '../src/i18n/translations';
 
