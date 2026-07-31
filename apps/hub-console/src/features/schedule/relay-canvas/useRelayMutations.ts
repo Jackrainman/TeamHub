@@ -4,6 +4,10 @@ import type { QueryClient } from '@tanstack/react-query';
 import type { CreateResourceSessionRequest } from '../../../api/schemas/schedule';
 import type { HubApiClient } from '../../../api/client';
 import type { VocabularyKey } from '../../../i18n';
+import {
+  invalidateRelayOnly,
+  invalidateScheduleFamily,
+} from '../schedule-invalidation';
 
 export type BannerState = { kind: 'err' | 'ok'; text: string } | null;
 
@@ -12,20 +16,20 @@ export function useRelayMutations({
   windowLabel,
   t,
   queryClient,
-  queryKey,
   onSessionCreated,
 }: {
   client: HubApiClient;
   windowLabel: string;
   t: (key: VocabularyKey, params?: Record<string, string | number>) => string;
   queryClient: QueryClient;
-  queryKey: readonly string[];
   onSessionCreated: () => void;
 }) {
   const [banner, setBanner] = useState<BannerState>(null);
 
+  // session 类写动作（增/改/删 + carry-over 批量）整族失效——session 同被 SchedulePage/
+  // TodayPlanTable/relay 读取，只失效 relay 单 key 会让父级 schedule 视图在 staleTime 内晾旧。
   const refetch = () => {
-    void queryClient.invalidateQueries({ queryKey });
+    invalidateScheduleFamily(queryClient);
   };
 
   const updateMutation = useMutation({
@@ -65,7 +69,7 @@ export function useRelayMutations({
       }),
     onSuccess: () => {
       setBanner(null);
-      refetch();
+      invalidateRelayOnly(queryClient);
     },
     onError: (e) =>
       setBanner({
@@ -80,7 +84,7 @@ export function useRelayMutations({
     mutationFn: (id: string) => client.deleteRelayHandoff(id),
     onSuccess: () => {
       setBanner(null);
-      refetch();
+      invalidateRelayOnly(queryClient);
     },
     onError: (e) =>
       setBanner({

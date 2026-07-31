@@ -61,7 +61,6 @@ export function RelayCanvas({
     windowLabel,
     t,
     queryClient,
-    queryKey,
     onSessionCreated: () => setShowAddForm(false),
   });
 

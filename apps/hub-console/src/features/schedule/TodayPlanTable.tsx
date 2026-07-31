@@ -20,6 +20,7 @@ import {
   type DraftRow,
 } from './today-plan';
 import { PlanRow } from './sub/PlanRow';
+import { invalidateScheduleFamily } from './schedule-invalidation';
 
 /**
  * 今日计划表格（D-082 §5 空状态路由 + §6.D1 复用优先）：SchedulePage 在当日 session 数=0 时落到这页。
@@ -273,13 +274,8 @@ export function TodayPlanTable({
       });
 
       // 新建的任务 / 新落的 session 影响面：任务列表、这天的排班读视图、接力画布、原始 session 列表。
-      // 单元素 queryKey 前缀匹配（同 ResourcesPage 的 invalidateQueries(['resources']) 写法）——
-      // 一并打掉本组件 / RelayCanvas / SchedulePage 各自命名空间下的同族 query。
-      void queryClient.invalidateQueries({ queryKey: ['schedule'] });
-      void queryClient.invalidateQueries({ queryKey: ['relay'] });
-      void queryClient.invalidateQueries({ queryKey: ['resource-sessions'] });
-      void queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      void queryClient.invalidateQueries({ queryKey: ['dep-graph'] });
+      // 整族失效（与 RelayCanvas 共用 schedule-invalidation，前缀匹配打掉各命名空间同族 query）。
+      invalidateScheduleFamily(queryClient);
       onConfirmed();
     } catch (e) {
       // 走到这里时「建新任务」那步（2）可能已经成功——batch（4）才失败。不 invalidate 的话

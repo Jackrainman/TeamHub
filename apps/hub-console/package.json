@@ -1,7 +1,7 @@
 {
   "name": "@teamhub/hub-console",
   "private": true,
-  "version": "0.45.71",
+  "version": "0.45.72",
   "description": "Team Hub operations console shell",
   "type": "module",
   "scripts": {
