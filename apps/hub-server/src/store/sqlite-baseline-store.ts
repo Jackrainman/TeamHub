@@ -1,11 +1,11 @@
 import type {
-  BaselineMilestone,
   PassMilestoneRequest,
   SeasonBaseline,
   UpdateBaselineRequest,
 } from '@teamhub/hub-contracts';
 import { baselineScenarioFixture } from '@teamhub/hub-contracts';
 import type { SqliteDatabase } from './sqlite-db.js';
+import { applyMilestonePass, mergeBaseline } from './base-baseline-logic.js';
 import type { BaselineStore } from './baseline-store.js';
 
 const BASELINE_TABLES = ['baselines'] as const;
@@ -40,16 +40,7 @@ export class SqliteBaselineStore implements BaselineStore {
     return this.sdb.tx(() => {
       const all = this.sdb.allRows<SeasonBaseline>('baselines');
       const prior = all.find((b) => b.seasonId === seasonId);
-      const merged: SeasonBaseline = prior
-        ? { ...prior, ...patch, id: prior.id, seasonId }
-        : {
-            id: `baseline-${seasonId}`,
-            seasonId,
-            anchors: patch.anchors ?? {},
-            segments: patch.segments ?? [],
-            phases: patch.phases ?? [],
-            milestones: patch.milestones ?? [],
-          };
+      const merged = mergeBaseline(seasonId, patch, prior);
       if (prior) {
         this.sdb.updateRow('baselines', prior.id, merged);
       } else {
@@ -68,20 +59,8 @@ export class SqliteBaselineStore implements BaselineStore {
       const all = this.sdb.allRows<SeasonBaseline>('baselines');
       const baseline = all.find((b) => b.seasonId === seasonId);
       if (!baseline) return null;
-      const idx = baseline.milestones.findIndex((m) => m.id === milestoneId);
-      if (idx < 0) return null;
-
-      const prior = baseline.milestones[idx];
-      const updated: BaselineMilestone = {
-        ...prior,
-        status: input.status,
-        ...(input.passedBy !== undefined ? { passedBy: input.passedBy } : {}),
-        ...(input.evidenceRefs !== undefined ? { evidenceRefs: input.evidenceRefs } : {}),
-        ...(input.note !== undefined ? { note: input.note } : {}),
-      };
-      const milestones = [...baseline.milestones];
-      milestones[idx] = updated;
-      const next: SeasonBaseline = { ...baseline, milestones };
+      const next = applyMilestonePass(baseline, milestoneId, input);
+      if (!next) return null;
       this.sdb.updateRow('baselines', baseline.id, next);
       return next;
     });

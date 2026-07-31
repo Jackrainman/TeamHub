@@ -1,11 +1,11 @@
 import {
   baselineScenarioFixture,
-  type BaselineMilestone,
   type PassMilestoneRequest,
   type SeasonBaseline,
   type UpdateBaselineRequest,
 } from '@teamhub/hub-contracts';
 import { cloneArrayFields } from './clone-snapshot.js';
+import { applyMilestonePass, mergeBaseline } from './base-baseline-logic.js';
 import type { BaselineStore } from './baseline-store.js';
 
 /** 单条基准线的数组字段（写方法整体替换/追加的集合）——克隆隔离用（同 InvStore/KbStore 纪律）。 */
@@ -48,16 +48,7 @@ export class InMemoryBaselineStore implements BaselineStore {
     patch: UpdateBaselineRequest,
   ): Promise<SeasonBaseline> {
     const prior = this.baselines.get(seasonId);
-    const merged: SeasonBaseline = prior
-      ? { ...prior, ...patch, id: prior.id, seasonId }
-      : {
-          id: `baseline-${seasonId}`,
-          seasonId,
-          anchors: patch.anchors ?? {},
-          segments: patch.segments ?? [],
-          phases: patch.phases ?? [],
-          milestones: patch.milestones ?? [],
-        };
+    const merged = mergeBaseline(seasonId, patch, prior);
     this.baselines.set(seasonId, merged);
     return cloneBaseline(merged);
   }
@@ -69,21 +60,8 @@ export class InMemoryBaselineStore implements BaselineStore {
   ): Promise<SeasonBaseline | null> {
     const baseline = this.baselines.get(seasonId);
     if (!baseline) return null;
-    const idx = baseline.milestones.findIndex((m) => m.id === milestoneId);
-    if (idx < 0) return null;
-
-    const prior = baseline.milestones[idx];
-    const updated: BaselineMilestone = {
-      ...prior,
-      status: input.status,
-      // 未提供的可选字段维持原值（不覆空）——过门可能分两步补证据/留言，不该让后一步抹掉前一步。
-      ...(input.passedBy !== undefined ? { passedBy: input.passedBy } : {}),
-      ...(input.evidenceRefs !== undefined ? { evidenceRefs: input.evidenceRefs } : {}),
-      ...(input.note !== undefined ? { note: input.note } : {}),
-    };
-    const milestones = [...baseline.milestones];
-    milestones[idx] = updated;
-    const next: SeasonBaseline = { ...baseline, milestones };
+    const next = applyMilestonePass(baseline, milestoneId, input);
+    if (!next) return null;
     this.baselines.set(seasonId, next);
     return cloneBaseline(next);
   }

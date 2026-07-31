@@ -1,11 +1,13 @@
-import {
-  GateChecklistItemSchema,
-  checklistScenarioFixture,
-} from '@teamhub/hub-contracts';
+import { checklistScenarioFixture } from '@teamhub/hub-contracts';
 import type { ActorRef, ChecklistTemplate, GateChecklistItem } from '@teamhub/hub-contracts';
 import { createIdSequence, nextSequentialId } from './id-sequence.js';
 import type { IdSequence } from './id-sequence.js';
 import type { SqliteDatabase } from './sqlite-db.js';
+import {
+  applyChecklistClear,
+  applyChecklistWaive,
+  buildChecklistItem,
+} from './base-checklist-logic.js';
 import type { ChecklistItemDraft, ChecklistStore } from './checklist-store.js';
 
 const CHECKLIST_TABLES = ['checklist_items', 'checklist_templates'] as const;
@@ -44,24 +46,15 @@ export class SqliteChecklistStore implements ChecklistStore {
   }
 
   async createItem(draft: ChecklistItemDraft): Promise<GateChecklistItem> {
-    const item = GateChecklistItemSchema.parse({
-      ...draft,
-      id: nextSequentialId('chk-new', this.idSeq),
-      status: 'pending',
-    });
+    const item = buildChecklistItem(draft, nextSequentialId('chk-new', this.idSeq));
     this.sdb.tx(() => this.sdb.insertRow('checklist_items', item.id, item));
     return item;
   }
 
   async clearItem(id: string, clearedBy: ActorRef): Promise<GateChecklistItem | null> {
     return this.sdb.tx(() => {
-      const prior = this.sdb.getRow<GateChecklistItem>('checklist_items', id);
-      if (!prior || prior.status !== 'pending') return null;
-      const updated = GateChecklistItemSchema.parse({
-        ...prior,
-        status: 'passed',
-        clearedBy,
-      });
+      const updated = applyChecklistClear(this.sdb.getRow<GateChecklistItem>('checklist_items', id), clearedBy);
+      if (!updated) return null;
       this.sdb.updateRow('checklist_items', id, updated);
       return updated;
     });
@@ -73,14 +66,12 @@ export class SqliteChecklistStore implements ChecklistStore {
     waiveReason: string,
   ): Promise<GateChecklistItem | null> {
     return this.sdb.tx(() => {
-      const prior = this.sdb.getRow<GateChecklistItem>('checklist_items', id);
-      if (!prior || prior.status !== 'pending') return null;
-      const updated = GateChecklistItemSchema.parse({
-        ...prior,
-        status: 'waived',
+      const updated = applyChecklistWaive(
+        this.sdb.getRow<GateChecklistItem>('checklist_items', id),
         waivedBy,
         waiveReason,
-      });
+      );
+      if (!updated) return null;
       this.sdb.updateRow('checklist_items', id, updated);
       return updated;
     });

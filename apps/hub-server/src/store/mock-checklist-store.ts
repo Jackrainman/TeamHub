@@ -1,5 +1,4 @@
 import {
-  GateChecklistItemSchema,
   checklistScenarioFixture,
   type ActorRef,
   type ChecklistTemplate,
@@ -7,6 +6,11 @@ import {
 } from '@teamhub/hub-contracts';
 import { createIdSequence, nextSequentialId } from './id-sequence.js';
 import type { IdSequence } from './id-sequence.js';
+import {
+  applyChecklistClear,
+  applyChecklistWaive,
+  buildChecklistItem,
+} from './base-checklist-logic.js';
 import type { ChecklistItemDraft, ChecklistStore } from './checklist-store.js';
 
 /** 单条检查项浅克隆隔离（无数组字段，`{...it}` 即够——挡外部改回读到的对象绕过写白名单，同 baseline 纪律）。 */
@@ -50,26 +54,16 @@ export class InMemoryChecklistStore implements ChecklistStore {
   }
 
   async createItem(draft: ChecklistItemDraft): Promise<GateChecklistItem> {
-    // store 建普通对象后 .parse 校验（ZodEffects/superRefine 不可 .omit/.extend，见 checklist.ts C1 交接）：
-    // id 由 store 生成、status 钉 pending；坏 draft（如挂接二选一违规）在此抛，不落进 Map。
-    const item = GateChecklistItemSchema.parse({
-      ...draft,
-      id: nextSequentialId('chk-new', this.idSeq),
-      status: 'pending',
-    });
+    // id 由 store 生成、status 钉 pending；坏 draft（如挂接二选一违规）在 buildChecklistItem 内 parse 抛，不落进 Map。
+    const item = buildChecklistItem(draft, nextSequentialId('chk-new', this.idSeq));
     this.items.set(item.id, item);
     return cloneItem(item);
   }
 
   async clearItem(id: string, clearedBy: ActorRef): Promise<GateChecklistItem | null> {
-    const prior = this.items.get(id);
     // 状态机只许 pending 出发：不存在 / 已 passed / 已 waived → null（路由层区分 404 / 409）。
-    if (!prior || prior.status !== 'pending') return null;
-    const updated = GateChecklistItemSchema.parse({
-      ...prior,
-      status: 'passed',
-      clearedBy, // 清偿留名进事实卡（红线2，parse 校验 passed⇒clearedBy 非空）
-    });
+    const updated = applyChecklistClear(this.items.get(id), clearedBy);
+    if (!updated) return null;
     this.items.set(id, updated);
     return cloneItem(updated);
   }
@@ -79,14 +73,8 @@ export class InMemoryChecklistStore implements ChecklistStore {
     waivedBy: ActorRef,
     waiveReason: string,
   ): Promise<GateChecklistItem | null> {
-    const prior = this.items.get(id);
-    if (!prior || prior.status !== 'pending') return null;
-    const updated = GateChecklistItemSchema.parse({
-      ...prior,
-      status: 'waived',
-      waivedBy, // 豁免留名（红线3）
-      waiveReason, // 书面豁免强制非空（parse 校验 waived⇒waivedBy+waiveReason 非空）
-    });
+    const updated = applyChecklistWaive(this.items.get(id), waivedBy, waiveReason);
+    if (!updated) return null;
     this.items.set(id, updated);
     return cloneItem(updated);
   }
