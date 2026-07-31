@@ -19,6 +19,8 @@ import type {
   CreateResourceSessionRequest,
 } from '../../api/schemas/schedule';
 import type { HubApiClient } from '../../api/client';
+import { useResources } from '../../hooks/useSchedule';
+import { useTasks } from '../../hooks/useTasks';
 import { canBoardResource } from '@teamhub/hub-contracts';
 import type { SharedResource, Task } from '@teamhub/hub-contracts';
 import { useI18n } from '../../i18n';
@@ -305,12 +307,7 @@ export function RelayCanvas({
     queryKey,
     queryFn: () => client.getRelay(windowLabel),
   });
-  // 接力线 POST 需 projectId；RelayStage 读视图不回 projectId（无需），故从机器人（SharedResource.projectId）
-  // 按 resourceId 反查得到真实项目，而非占位。独立查询，失败不阻塞读视图（建线时回退首台机器人）。
-  const resourcesQuery = useQuery({
-    queryKey: ['resources', 'relay'],
-    queryFn: () => client.getResources(),
-  });
+  const resourcesQuery = useResources(client, 'relay');
 
   const [editingEtaId, setEditingEtaId] = useState<string | null>(null);
   const [banner, setBanner] = useState<{ kind: 'err' | 'ok'; text: string } | null>(
@@ -321,11 +318,7 @@ export function RelayCanvas({
   // 「沿用上一天计划」进行中开关（批量 POST 期间禁用按钮，防重复点叠加）。
   const [carrying, setCarrying] = useState(false);
 
-  // 加一项数据源：机器人（boardable 才可上场）+ 任务（自带 groupId）。独立查询，失败不阻塞读视图。
-  const tasksQuery = useQuery({
-    queryKey: ['tasks', 'relay'],
-    queryFn: () => client.getTasks(),
-  });
+  const tasksQuery = useTasks(client, 'relay');
 
   const refetch = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey });

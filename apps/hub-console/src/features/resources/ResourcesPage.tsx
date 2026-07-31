@@ -3,6 +3,8 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Plus, X } from 'lucide-react';
 import { EmptyState } from '../../shared/EmptyState';
 import type { HubApiClient } from '../../api/client';
+import { useResources } from '../../hooks/useSchedule';
+import { useTasks } from '../../hooks/useTasks';
 import {
   deriveDisplayCode,
   type CreateResourceRequest,
@@ -107,16 +109,8 @@ export function ResourcesPage({
 }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
-  const query = useQuery({
-    queryKey: ['resources', source],
-    queryFn: () => client.getResources(),
-  });
-  // 默认阵型编辑器（D-082）的候选数据源：该车候选任务 + 负责组下拉。两个查询各自独立、失败不阻塞主表
-  // （同今日计划表格 TodayPlanTable 的取数模式）。
-  const tasksQuery = useQuery({
-    queryKey: ['tasks', 'resourcesPreset'],
-    queryFn: () => client.getTasks(),
-  });
+  const query = useResources(client, source);
+  const tasksQuery = useTasks(client, 'resourcesPreset');
   const depGraphQuery = useQuery({
     queryKey: ['dep-graph', 'resourcesPreset'],
     queryFn: () => client.getDepGraph(),
