@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
+import { useMembers, useGroups } from '../../hooks/useRoster';
 import { useI18n } from '../../i18n';
 import { GroupLeadConfirm } from '../settings/GroupLeadConfirm';
 import { WIZARD_STEP_META, WIZARD_STEP_ORDER, WIZARD_STEP_TOTAL, type Step } from './setup-utils';
@@ -79,14 +80,8 @@ export function BootstrapGate({
     const idx = WIZARD_STEP_ORDER.indexOf(step);
     if (idx > 0) setStep(WIZARD_STEP_ORDER[idx - 1]);
   };
-  const membersQuery = useQuery({
-    queryKey: ['members', 'bootstrap-gate'],
-    queryFn: () => client.getMembers(),
-  });
-  const groupsQuery = useQuery({
-    queryKey: ['groups', 'bootstrap-gate'],
-    queryFn: () => client.getGroups(),
-  });
+  const membersQuery = useMembers(client, 'bootstrap-gate');
+  const groupsQuery = useGroups(client, 'bootstrap-gate');
   const members = useMemo(
     () => membersQuery.data?.members ?? [],
     [membersQuery.data],

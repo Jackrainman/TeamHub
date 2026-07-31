@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   RESOURCE_INIT_STATUSES,
   type FleetImportRow,
@@ -8,6 +8,7 @@ import {
   type SharedResource,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
+import { useResources } from '../../hooks/useSchedule';
 import { useI18n } from '../../i18n';
 import { humanizeFormError, seasonYearOptions } from '../../utils';
 import { FleetPreviewTable } from '../fleet/FleetPreviewTable';
@@ -38,10 +39,7 @@ export function FleetStep({
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const resourcesQuery = useQuery({
-    queryKey: ['resources', 'bootstrap-gate'],
-    queryFn: () => client.getResources(),
-  });
+  const resourcesQuery = useResources(client, 'bootstrap-gate');
   const existingCount = resourcesQuery.data?.resources.length ?? 0;
   const [rows, setRows] = useState<FleetRow[]>(() => [
     newFleetRow(suggestFleetSeasonCode(new Date())),

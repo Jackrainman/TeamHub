@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
+import { useSeasons } from '../../hooks/useRoster';
 import { useI18n } from '../../i18n';
 import { humanizeFormError, seasonForYear, seasonYearOptions } from '../../utils';
 import {
@@ -25,10 +26,7 @@ export function SeasonStep({
 }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
-  const seasonsQuery = useQuery({
-    queryKey: ['seasons', 'bootstrap-gate'],
-    queryFn: () => client.getSeasons(),
-  });
+  const seasonsQuery = useSeasons(client);
   const activeSeason =
     seasonsQuery.data?.seasons.find((s) => s.status === 'active') ?? null;
   const [form, setForm] = useState<SeasonForm>(() => suggestSeasonForm(new Date()));

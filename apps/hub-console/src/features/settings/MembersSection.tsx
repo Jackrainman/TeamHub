@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   deriveLeafGroups,
   type Group,
@@ -9,6 +9,7 @@ import {
   type RosterPreviewResponse,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
+import { useMembers, useGroups } from '../../hooks/useRoster';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
 import { Field } from '../../components/Field';
@@ -43,14 +44,8 @@ export function MembersPermissionsSection({
   // 写门锁 + 管理员前置资格判（复审留档 nit 收口，照 K2 前置资格判先例）：未登录 或 身份模式已登录但非
   // superAdmin → 写控件禁用 + 说明（此前只判「是否登录」、漏了「是否管理员」，非管理员点了才撞 403）。
   const { writeLocked, lockHint } = sectionPermission(identity, t);
-  const membersQuery = useQuery({
-    queryKey: ['members', 'settings-members', source],
-    queryFn: () => client.getMembers(),
-  });
-  const groupsQuery = useQuery({
-    queryKey: ['groups', source],
-    queryFn: () => client.getGroups(),
-  });
+  const membersQuery = useMembers(client, 'settings-members');
+  const groupsQuery = useGroups(client, source);
 
   const invalidateMembers = () =>
     // 前缀失效所有成员查询（本表 + 门检查单卡的匿名选人候选 + 其它页），名单改动处处同步。

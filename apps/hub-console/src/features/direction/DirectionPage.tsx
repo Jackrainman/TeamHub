@@ -6,6 +6,7 @@ import {
   ROBOTICS_LEARNING_SEED_GAPS,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
+import { useGroups } from '../../hooks/useRoster';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { GROUP_LABEL_KEY } from '../../verticals/robotics';
@@ -44,10 +45,7 @@ export function DirectionPage({
   const { t } = useI18n();
   // 双 UI（用户 2026-07-12 拍板）：指南=信息权威（列表语义、可访问性完整），星图=增强呈现。
   const [viewMode, setViewMode] = useState<'guide' | 'starmap'>('guide');
-  const groupsQuery = useQuery({
-    queryKey: ['groups', source],
-    queryFn: () => client.getGroups(),
-  });
+  const groupsQuery = useGroups(client, source);
   const gapsQuery = useQuery({
     queryKey: ['group-gaps', source],
     queryFn: () => client.getGroupGaps(),
