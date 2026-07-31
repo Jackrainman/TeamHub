@@ -6,6 +6,7 @@ import {
   type FormEvent,
 } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useInvalidatingMutation } from '../../hooks/useInvalidatingMutation';
 import { FolderOpen, FilePlus } from 'lucide-react';
 import type { ArtifactRef } from '@teamhub/hub-contracts';
 import { nextArtifactVersionNo } from '@teamhub/hub-contracts';
@@ -611,12 +612,11 @@ function ArtifactLogRow({
   uploadDisabled?: boolean;
 }) {
   const { t } = useI18n();
-  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   // 行内上传/替换：给这条图纸补传或换本地文件（不新增版本行，覆盖 storedFile）。
-  const upload = useMutation({
+  const upload = useInvalidatingMutation({
     mutationFn: (f: File) => client.uploadArtifactFile(artifact.id, f),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['artifacts'] }),
+    invalidateKeys: [['artifacts']],
   });
   // 单个版本徽章：优先 versionNo（v3），旧裸 seed 缺则用 revision 兜底。
   const versionLabel =
