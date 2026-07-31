@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { EmptyState } from '../../shared/EmptyState';
 import { useQueryGuard } from '../../shared/QueryGate';
-import { useQuery } from '@tanstack/react-query';
+import { useTasks } from '../../hooks/useTasks';
+import { useMembers, useGroups } from '../../hooks/useRoster';
 import { Network, Plus, PanelRightOpen } from 'lucide-react';
 import type {
   MemberPublic,
@@ -71,19 +72,9 @@ export function PmBoardPage({
   onOpenInDepGraph?: (taskId: string) => void;
 }) {
   const { t } = useI18n();
-  const query = useQuery({
-    queryKey: ['tasks', source],
-    queryFn: () => client.getTasks(),
-  });
-  // 徽章判定（搭档黄标 / 跨组确认）需成员组归属；详情抽屉写动作需成员 + 组名。两读侧全开、缓存共享。
-  const membersQuery = useQuery({
-    queryKey: ['members', 'pm-board'],
-    queryFn: () => client.getMembers(),
-  });
-  const groupsQuery = useQuery({
-    queryKey: ['groups', 'pm-board'],
-    queryFn: () => client.getGroups(),
-  });
+  const query = useTasks(client, source);
+  const membersQuery = useMembers(client, 'pm-board');
+  const groupsQuery = useGroups(client, 'pm-board');
   // 详情抽屉选中任务（存 id、每帧从最新 query 数据反查——写动作后 invalidate 刷新即时反映到抽屉）。
   const [selectedId, setSelectedId] = useState<string | null>(null);
 

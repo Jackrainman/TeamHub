@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Hand, Search, UserPlus } from 'lucide-react';
 import type {
   ActorRef,
@@ -18,6 +18,8 @@ import { Select } from '../../components/Select';
 import { FormBanner } from '../../components/FormBanner';
 import { memberOptionLabel, toActor } from '../identity/identity-utils';
 import { useQueryGuard } from '../../shared/QueryGate';
+import { useTasks, useTasksSearch } from '../../hooks/useTasks';
+import { useMembers, useGroups } from '../../hooks/useRoster';
 import {
   POOL_STALE_DAYS,
   isStalePosted,
@@ -55,24 +57,10 @@ export function PoolPage({
   const [search, setSearch] = useState('');
   const q = search.trim();
 
-  const tasksQuery = useQuery({
-    queryKey: queryKeys.tasks(source),
-    queryFn: () => client.getTasks(),
-  });
-  const membersQuery = useQuery({
-    queryKey: [...queryKeys.members(), 'pool'],
-    queryFn: () => client.getMembers(),
-  });
-  const groupsQuery = useQuery({
-    queryKey: queryKeys.groups('pool'),
-    queryFn: () => client.getGroups(),
-  });
-  // "看谁做过"子串搜索：仅在有关键词时发请求（enabled）；红线=只回任务列表、不聚合成花名册。
-  const searchQuery = useQuery({
-    queryKey: queryKeys.tasksSearch(source, q),
-    queryFn: () => client.getTasks({ q }),
-    enabled: q.length > 0,
-  });
+  const tasksQuery = useTasks(client, source);
+  const membersQuery = useMembers(client, 'pool');
+  const groupsQuery = useGroups(client, 'pool');
+  const searchQuery = useTasksSearch(client, source, q);
 
   const members = membersQuery.data?.members ?? [];
   const groups = groupsQuery.data?.groups ?? [];
