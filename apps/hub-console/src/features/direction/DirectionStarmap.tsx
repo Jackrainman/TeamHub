@@ -1,17 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RoboticsDiscipline } from '@teamhub/hub-contracts';
-import { AI_BOUNDARY_CROSSCUT } from '@teamhub/hub-contracts';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { GROUP_LABEL_KEY } from '../../verticals/robotics';
 import type { DirectionColumn } from './learning-direction-utils';
+import { buildStarmap, GAP_COLOR } from './starmap-data';
 import {
-  buildStarmap,
-  blendColors,
-  CROSSCUT_COLOR,
-  DISCIPLINE_COLORS,
-  GAP_COLOR,
-  type StarmapNode,
-} from './starmap-data';
+  BACKDROP_STARS,
+  CLICK_SLOP_PX,
+  CX,
+  CY,
+  FOCAL,
+  PITCH_LIMIT,
+  VB_H,
+  VB_W,
+  WORLD_SCALE,
+  normalizeAngle,
+  rotate,
+  unrotate,
+  type Projected,
+  type Vec3,
+} from './sub/constants';
+import { StarmapLegend } from './sub/StarmapLegend';
+import { StarmapPanel } from './sub/StarmapPanel';
+import { StarmapTooltip } from './sub/StarmapTooltip';
 
 /**
  * 学习方向「星图」视图：可拖动的 3D 知识地图（LEARN-DIRECTION 双 UI 之二，实验性）。
@@ -25,83 +36,6 @@ import {
  * 可访问性口径：完整信息始终在「指南」视图（列表语义），星图是同一数据的增强呈现，
  * 不承载独占内容；容器标 role="img" + 说明性 aria-label，详情面板标 role="dialog"。
  */
-
-const VB_W = 900;
-const VB_H = 560;
-const CX = VB_W / 2;
-const CY = VB_H / 2;
-const FOCAL = 520;
-const WORLD_SCALE = 1.18;
-/** 指针累计位移（客户端 px）低于此值的会话视为点击而非拖拽。 */
-const CLICK_SLOP_PX = 6;
-const PITCH_LIMIT = 1.25;
-
-type Vec3 = readonly [number, number, number];
-
-function rotate(p: Vec3, yaw: number, pitch: number): [number, number, number] {
-  const cy = Math.cos(yaw);
-  const sy = Math.sin(yaw);
-  const cp = Math.cos(pitch);
-  const sp = Math.sin(pitch);
-  const x1 = p[0] * cy + p[2] * sy;
-  const z1 = -p[0] * sy + p[2] * cy;
-  const y2 = p[1] * cp - z1 * sp;
-  const z2 = p[1] * sp + z1 * cp;
-  return [x1, y2, z2];
-}
-
-/** rotate 的逆（节点拖拽：把视平面位移换回基础坐标系）。 */
-function unrotate(v: Vec3, yaw: number, pitch: number): [number, number, number] {
-  const cy = Math.cos(-yaw);
-  const sy = Math.sin(-yaw);
-  const cp = Math.cos(-pitch);
-  const sp = Math.sin(-pitch);
-  const y1 = v[1] * cp - v[2] * sp;
-  const z1 = v[1] * sp + v[2] * cp;
-  const x2 = v[0] * cy + z1 * sy;
-  const z2 = -v[0] * sy + z1 * cy;
-  return [x2, y1, z2];
-}
-
-/** 角度差规范到 [-π, π)（相机缓动走最短弧；自转累计的大 yaw 也安全）。 */
-function normalizeAngle(a: number): number {
-  const twoPi = Math.PI * 2;
-  return ((((a + Math.PI) % twoPi) + twoPi) % twoPi) - Math.PI;
-}
-
-interface Projected {
-  node: StarmapNode;
-  sx: number;
-  sy: number;
-  k: number; // 透视比例（含 zoom），节点拖拽换算复用
-  depth: number; // 越大越靠近观察者
-}
-
-/** 背景静态星点（确定性伪随机，不随场景旋转——远景层）。 */
-const BACKDROP_STARS: { x: number; y: number; r: number; o: number }[] = (() => {
-  const stars = [];
-  let h = 41;
-  const next = () => {
-    h = (h * 48271) % 2147483647;
-    return h / 2147483647;
-  };
-  for (let i = 0; i < 46; i++) {
-    stars.push({
-      x: next() * VB_W,
-      y: next() * VB_H,
-      r: 0.6 + next() * 1.1,
-      o: 0.1 + next() * 0.22,
-    });
-  }
-  return stars;
-})();
-
-const KIND_KEY: Record<StarmapNode['kind'], TranslationKey> = {
-  hub: 'direction.starmap.panel.kind.hub',
-  skill: 'direction.starmap.panel.kind.skill',
-  gap: 'direction.starmap.panel.kind.gap',
-  crosscut: 'direction.starmap.panel.kind.crosscut',
-};
 
 export default function DirectionStarmap({
   columns,
@@ -436,186 +370,20 @@ export default function DirectionStarmap({
 
       {/* 悬停浮签只在无选中时出现——选中后详情面板是唯一详情面，避免双浮层打架。 */}
       {hovered && hovered.node.kind !== 'hub' && !selectedNode ? (
-        <div
-          className="direction-starmap__tooltip"
-          style={{
-            left: `${(hovered.sx / VB_W) * 100}%`,
-            top: `${(hovered.sy / VB_H) * 100}%`,
-          }}
-        >
-          {hovered.node.kind === 'gap' ? (
-            <span
-              className={`badge badge--tint${hovered.node.severity === 'emerging' ? '' : ' badge--red'}`}
-            >
-              {t(
-                hovered.node.severity === 'emerging'
-                  ? 'direction.severity.emerging'
-                  : 'direction.severity.pressing',
-              )}
-            </span>
-          ) : null}
-          <p className="direction-starmap__tooltip-text">{hovered.node.label}</p>
-          {hovered.node.detail ? (
-            <p className="direction-starmap__tooltip-detail">{hovered.node.detail}</p>
-          ) : null}
-          {hovered.node.disciplines.length > 0 ? (
-            <div className="direction-starmap__tooltip-chips">
-              {hovered.node.disciplines.map((d) => (
-                <span key={d} style={{ color: DISCIPLINE_COLORS[d] }}>
-                  ● {hubLabel(d)}
-                </span>
-              ))}
-            </div>
-          ) : null}
-        </div>
+        <StarmapTooltip hovered={hovered} hubLabel={hubLabel} />
       ) : null}
 
       {selectedNode ? (
-        <aside
-          aria-label={t(KIND_KEY[selectedNode.kind])}
-          className="direction-starmap__panel"
-          role="dialog"
-        >
-          <header className="direction-starmap__panel-head">
-            <span className="direction-starmap__panel-kind">{t(KIND_KEY[selectedNode.kind])}</span>
-            {selectedNode.kind === 'gap' ? (
-              <span
-                className={`badge badge--tint${selectedNode.severity === 'emerging' ? '' : ' badge--red'}`}
-              >
-                {t(
-                  selectedNode.severity === 'emerging'
-                    ? 'direction.severity.emerging'
-                    : 'direction.severity.pressing',
-                )}
-              </span>
-            ) : null}
-            <button
-              aria-label={t('direction.starmap.panel.close')}
-              className="direction-starmap__panel-close"
-              onClick={() => setSelectedId(null)}
-              type="button"
-            >
-              ×
-            </button>
-          </header>
-
-          <p className="direction-starmap__panel-title">
-            {selectedNode.kind === 'hub' ? hubLabel(selectedNode.disciplines[0]) : selectedNode.label}
-            {selectedNode.kind === 'hub' && selectedNode.isMine
-              ? ` · ${t('direction.starmap.mine')}`
-              : ''}
-          </p>
-
-          {selectedNode.kind === 'hub' ? (
-            <p className="direction-starmap__panel-detail">
-              {t('direction.starmap.panel.stats', {
-                skills: starmap.nodes.filter(
-                  (n) => n.kind === 'skill' && n.disciplines[0] === selectedNode.disciplines[0],
-                ).length,
-                gaps: starmap.nodes.filter(
-                  (n) => n.kind === 'gap' && n.disciplines[0] === selectedNode.disciplines[0],
-                ).length,
-              })}
-            </p>
-          ) : null}
-
-          {selectedNode.detail && selectedNode.kind !== 'gap' ? (
-            <p className="direction-starmap__panel-detail">{selectedNode.detail}</p>
-          ) : null}
-          {selectedNode.kind === 'crosscut' ? (
-            <p className="direction-starmap__panel-detail">{AI_BOUNDARY_CROSSCUT.example}</p>
-          ) : null}
-
-          {selectedNode.kind !== 'hub' && selectedNode.disciplines.length > 0 ? (
-            <div className="direction-starmap__panel-section">
-              <span className="direction-starmap__panel-label">
-                {t('direction.starmap.panel.disciplines')}
-              </span>
-              <div className="direction-starmap__tooltip-chips">
-                {selectedNode.disciplines.map((d) => (
-                  <span key={d} style={{ color: DISCIPLINE_COLORS[d] }}>
-                    ● {hubLabel(d)}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {selectedNode.kind === 'skill' || selectedNode.kind === 'crosscut' ? (
-            <div className="direction-starmap__panel-section">
-              <span className="direction-starmap__panel-label">
-                {t('direction.starmap.panel.links')}
-              </span>
-              <ul className="direction-starmap__panel-links">
-                {starmap.links
-                  .filter((l) => l.source === selectedNode.id)
-                  .map((l) => {
-                    const d = l.target.replace('hub-', '') as RoboticsDiscipline;
-                    return (
-                      <li key={l.target}>
-                        <i
-                          className="direction-starmap__swatch"
-                          style={{ background: DISCIPLINE_COLORS[d] }}
-                        />
-                        {hubLabel(d)}
-                        <span className="direction-starmap__panel-linkkind">
-                          {l.kind === 'own'
-                            ? t('direction.starmap.panel.linkOwn')
-                            : t('direction.starmap.panel.linkCross')}
-                        </span>
-                      </li>
-                    );
-                  })}
-              </ul>
-            </div>
-          ) : null}
-
-          {selectedNode.kind === 'gap' && selectedNode.skills && selectedNode.skills.length > 0 ? (
-            <div className="direction-starmap__panel-section">
-              <span className="direction-starmap__panel-label">{t('direction.card.skills')}</span>
-              <div className="direction-starmap__panel-chips">
-                {selectedNode.skills.map((skill) => (
-                  <span className="direction-starmap__panel-chip" key={skill}>
-                    {skill}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ) : null}
-        </aside>
+        <StarmapPanel
+          selectedNode={selectedNode}
+          nodes={starmap.nodes}
+          links={starmap.links}
+          hubLabel={hubLabel}
+          onClose={() => setSelectedId(null)}
+        />
       ) : null}
 
-      <div className="direction-starmap__legend">
-        {(Object.keys(DISCIPLINE_COLORS) as RoboticsDiscipline[]).map((d) => (
-          <span key={d}>
-            <i className="direction-starmap__swatch" style={{ background: DISCIPLINE_COLORS[d] }} />
-            {hubLabel(d)}
-          </span>
-        ))}
-        <span>
-          <i
-            className="direction-starmap__swatch"
-            style={{
-              background: `linear-gradient(90deg, ${DISCIPLINE_COLORS.ec}, ${blendColors([
-                DISCIPLINE_COLORS.ec,
-                DISCIPLINE_COLORS.mechanical,
-              ])}, ${DISCIPLINE_COLORS.mechanical})`,
-            }}
-          />
-          {t('direction.starmap.legend.cross')}
-        </span>
-        <span>
-          <i
-            className="direction-starmap__swatch direction-starmap__swatch--ring"
-            style={{ borderColor: GAP_COLOR }}
-          />
-          {t('direction.starmap.legend.gap')}
-        </span>
-        <span>
-          <i className="direction-starmap__swatch" style={{ background: CROSSCUT_COLOR }} />
-          {t('direction.starmap.legend.ai')}
-        </span>
-      </div>
+      <StarmapLegend hubLabel={hubLabel} />
     </div>
   );
 }

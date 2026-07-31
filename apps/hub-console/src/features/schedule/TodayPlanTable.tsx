@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Plus, X } from 'lucide-react';
 import type { HubApiClient } from '../../api/client';
 import { useResources, useResourceSessions } from '../../hooks/useSchedule';
 import { useTasks } from '../../hooks/useTasks';
@@ -10,18 +9,17 @@ import { deriveTodayPlanFromPresets } from '../../api/schemas/schedule';
 import { useI18n } from '../../i18n';
 import { errorDetail } from '../../utils';
 import { FormBanner } from '../../components/FormBanner';
-import { Combobox } from '../../components/Combobox';
 import { isoPrevDay } from './date-utils';
 import { buildCarryOverPlan } from './carry-over';
 import {
   buildBaselineRows,
-  candidateTasksForResource,
   draftsToRows,
   isBlankRow,
   matchTaskByTitle,
   rowsToSessionDrafts,
   type DraftRow,
 } from './today-plan';
+import { PlanRow } from './sub/PlanRow';
 
 /**
  * 今日计划表格（D-082 §5 空状态路由 + §6.D1 复用优先）：SchedulePage 在当日 session 数=0 时落到这页。
@@ -356,83 +354,18 @@ export function TodayPlanTable({
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => {
-                const resource = resourcesById.get(row.resourceId);
-                const candidates = resource ? candidateTasksForResource(tasks, resource) : [];
-                const matched = resource ? matchTaskByTitle(tasks, resource, row.taskTitle) : undefined;
-                const trimmedTitle = row.taskTitle.trim();
-                const needsConfirm = trimmedTitle !== '' && !matched;
-                return (
-                  <tr key={row.key}>
-                    <td className="today-plan-table__resource">
-                      {resource?.displayCode ?? resource?.name ?? row.resourceId}
-                    </td>
-                    <td>
-                      <select
-                        value={row.groupId}
-                        aria-label={t('schedule.table.colGroup')}
-                        onChange={(e) => updateRow(row.key, { groupId: e.target.value })}
-                      >
-                        <option value="">{t('schedule.table.groupPlaceholder')}</option>
-                        {rowGroupOptions.map((g) => (
-                          <option value={g.id} key={g.id}>
-                            {g.name}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="today-plan-table__taskCell">
-                      <Combobox
-                        value={row.taskTitle}
-                        onChange={(v) => updateRow(row.key, { taskTitle: v, confirmNewTask: false })}
-                        options={candidates.map((c) => c.title)}
-                        ariaLabel={t('schedule.table.colTask')}
-                        placeholder={t('schedule.table.taskPlaceholder')}
-                      />
-                      {needsConfirm ? (
-                        <label className="today-plan-table__confirmNew">
-                          <input
-                            type="checkbox"
-                            checked={row.confirmNewTask}
-                            onChange={(e) =>
-                              updateRow(row.key, { confirmNewTask: e.target.checked })
-                            }
-                          />
-                          {t('schedule.table.confirmNewTask', { title: trimmedTitle })}
-                        </label>
-                      ) : null}
-                    </td>
-                    <td>
-                      <input
-                        value={row.note}
-                        aria-label={t('schedule.table.colNote')}
-                        placeholder={t('schedule.table.notePlaceholder')}
-                        onChange={(e) => updateRow(row.key, { note: e.target.value })}
-                      />
-                    </td>
-                    <td className="today-plan-table__rowActions">
-                      <button
-                        type="button"
-                        className="today-plan-table__rowBtn"
-                        title={t('schedule.table.addRow')}
-                        aria-label={t('schedule.table.addRow')}
-                        onClick={() => handleAddRow(row.resourceId)}
-                      >
-                        <Plus size={14} aria-hidden="true" />
-                      </button>
-                      <button
-                        type="button"
-                        className="today-plan-table__rowBtn today-plan-table__rowBtn--danger"
-                        title={t('schedule.table.removeRow')}
-                        aria-label={t('schedule.table.removeRow')}
-                        onClick={() => handleRemoveRow(row.key)}
-                      >
-                        <X size={14} aria-hidden="true" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+              {rows.map((row) => (
+                <PlanRow
+                  key={row.key}
+                  row={row}
+                  resource={resourcesById.get(row.resourceId)}
+                  tasks={tasks}
+                  rowGroupOptions={rowGroupOptions}
+                  onUpdate={updateRow}
+                  onAdd={handleAddRow}
+                  onRemove={handleRemoveRow}
+                />
+              ))}
             </tbody>
           </table>
         </div>
