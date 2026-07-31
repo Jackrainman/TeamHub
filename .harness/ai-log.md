@@ -31,3 +31,9 @@
 - 2026-07-29 feat(contracts): Task transitions[]状态流转历史+Drawer时间线UI v0.45.18-19
 - 2026-07-29 feat: 全局搜索+动态流+CSV导出+时间线编辑器 v0.45.20-22
 - 2026-07-29 refactor(console): DESIGN-LANG B5图标三档归一+B4空态收口EmptyState v0.45.33-35
+- 2026-07-31 refactor(server): 架构审计修复——archive/system 去重 firstZodMsg+parseBody v0.45.66 (f1ac91a)
+- 2026-07-31 refactor(server): 抽 base-baseline-logic+base-checklist-logic 消三实现逐字重复 v0.45.67 (bb22223)
+- 2026-07-31 fix(contracts): kbScenarioFixture 补 archiveDocument 修复 closeout 测试 fixture v0.45.68 (4e62a69)
+- 2026-07-31 refactor(console): SPLIT-2 拆 6 个超 400 行组件到 sub/ v0.45.69 (9e9df8f)
+- 2026-07-31 refactor(contracts): pm-requests 跨域写契约拆 artifact/schedule/resource 三域文件 v0.45.70 (797fb64)
+- 2026-07-31 refactor(console): HOOKS-2 settings 16 处裸 hook 封装 useSettingsQueries/Mutations v0.45.71 (c24dd21)
