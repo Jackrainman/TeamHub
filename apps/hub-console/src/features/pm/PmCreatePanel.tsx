@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import type {
   Task,
   RobotTarget,
@@ -9,6 +9,7 @@ import type {
   InvestmentTimeAccumulation,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
+import { useMembers, useGroups } from '../../hooks/useRoster';
 import type { CreateTaskRequest } from '../../api/schemas/pm';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n, type TranslationKey } from '../../i18n';
@@ -80,10 +81,7 @@ export function PmCreatePanel({
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { t } = useI18n();
-  const groupsQuery = useQuery({
-    queryKey: ['groups', 'pm-create'],
-    queryFn: () => client.getGroups(),
-  });
+  const groupsQuery = useGroups(client, 'pm-create');
   const groups = useMemo(() => groupsQuery.data?.groups ?? [], [groupsQuery.data]);
   const idToName = useMemo(() => new Map(groups.map((g) => [g.id, g.name])), [groups]);
   const nameToId = useMemo(() => new Map(groups.map((g) => [g.name, g.id])), [groups]);
@@ -108,10 +106,7 @@ export function PmCreatePanel({
     }),
     [tasks, identity.mode, identity.session, idToName],
   );
-  const membersQuery = useQuery({
-    queryKey: ['members', 'pm-create'],
-    queryFn: () => client.getMembers(),
-  });
+  const membersQuery = useMembers(client, 'pm-create');
   const members = membersQuery.data?.members ?? [];
   const ownerOptions = useMemo(() => members.map((m) => m.id), [members]);
 
