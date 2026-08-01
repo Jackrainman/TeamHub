@@ -20,7 +20,7 @@ import {
   HubEventsResponseSchema,
   SeasonsResponseSchema,
   SystemStatusResponseSchema,
-} from '../src/contracts.js';
+} from '@teamhub/hub-contracts';
 
 const app = buildHubServer();
 

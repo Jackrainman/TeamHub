@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import multipart from '@fastify/multipart';
 import {
   GOVERNANCE_SCENARIO_NOW,
-} from './contracts.js';
+} from '@teamhub/hub-contracts';
 import type {
   ModuleId,
   TenantConfig,

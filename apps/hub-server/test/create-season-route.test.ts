@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import { buildHubServer } from '../src/server.js';
-import { CreateSeasonResponseSchema, SeasonsResponseSchema } from '../src/contracts.js';
+import { CreateSeasonResponseSchema, SeasonsResponseSchema } from '@teamhub/hub-contracts';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 import { FileGovStore } from '../src/store/file-gov-store.js';
 import { SqliteGovStore } from '../src/store/sqlite-gov-store.js';

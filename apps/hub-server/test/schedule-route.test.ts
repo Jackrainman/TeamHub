@@ -6,7 +6,7 @@ import {
   SharedResourcesResponseSchema,
   CreateResourceSessionResponseSchema,
   SCENARIO_WINDOW_WEEKDAY,
-} from '../src/contracts.js';
+} from '@teamhub/hub-contracts';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
 // SCHED-WIRE-EXISTING（D-029 差异化在场排班）：把已存在但零运行时引用的纯函数 derivePresenceSchedule

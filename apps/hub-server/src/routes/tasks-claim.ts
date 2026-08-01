@@ -12,7 +12,7 @@ import {
   CompleteTaskResponseSchema,
   ReviewTaskRequestSchema,
   ReviewTaskResponseSchema,
-} from '../contracts.js';
+} from '@teamhub/hub-contracts';
 import { isGateReviewer, isGroupLeadOf } from '../authz.js';
 import { sendLarkMessage } from '../lark-client.js';
 import { parseBody, requireActor } from './helpers.js';

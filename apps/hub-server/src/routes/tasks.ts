@@ -25,7 +25,7 @@ import {
   toDepGraphView,
   wouldCreateCycle,
   isBigTask,
-} from '../contracts.js';
+} from '@teamhub/hub-contracts';
 import type { IdentityMode } from '@teamhub/hub-contracts';
 import type { GovStore } from '../store/gov-store.js';
 import type { Clock } from '../clock.js';

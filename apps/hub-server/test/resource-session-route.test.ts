@@ -5,7 +5,7 @@ import {
   RelayBoardResponseSchema,
   RelayHandoffResponseSchema,
   SCENARIO_WINDOW_WEEKDAY,
-} from '../src/contracts.js';
+} from '@teamhub/hub-contracts';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
 // A2 接力画布「加/删一棒」后端：POST /api/resource-sessions（建一棒，R1 已存在，这里验「加」入口端到端）

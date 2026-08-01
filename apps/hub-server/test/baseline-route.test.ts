@@ -4,7 +4,7 @@ import {
   BaselineResponseSchema,
   UpdateBaselineResponseSchema,
   PassMilestoneResponseSchema,
-} from '../src/contracts.js';
+} from '@teamhub/hub-contracts';
 
 // governanceScenarioFixture 里真实存在的归档物 id（同 artifact-upload.test.ts）——用于
 // evidenceRefs「先验存在」校验测试的合法引用。

@@ -6,7 +6,7 @@ import {
   CreateNeedResponseSchema,
   TransitionTaskStatusResponseSchema,
   WaiveDependencyResponseSchema,
-} from '../src/contracts.js';
+} from '@teamhub/hub-contracts';
 import { TasksResponseSchema } from '@teamhub/hub-contracts';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 

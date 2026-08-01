@@ -1,4 +1,4 @@
-import type { AgentBackend, BotChannel, DataSource } from './contracts.js';
+import type { AgentBackend, BotChannel, DataSource } from '@teamhub/hub-contracts';
 import {
   agentBackendFixtures,
   botChannelFixtures,

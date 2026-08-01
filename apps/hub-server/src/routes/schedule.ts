@@ -29,7 +29,7 @@ import {
   parseFleetCsv,
   FleetPreviewResponseSchema,
 } from '@teamhub/hub-contracts';
-import { ScheduleQuerySchema } from '../contracts.js';
+import { ScheduleQuerySchema } from '../route-schemas.js';
 import type { SessionIdentity } from '@teamhub/hub-contracts';
 import type { GovStore } from '../store/gov-store.js';
 import type { Clock } from '../clock.js';

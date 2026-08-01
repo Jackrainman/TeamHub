@@ -7,7 +7,7 @@ import {
   CreateResourceResponseSchema,
   CreateResourcesBatchResponseSchema,
   UpdateResourceResponseSchema,
-} from '../src/contracts.js';
+} from '@teamhub/hub-contracts';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 import { FileGovStore } from '../src/store/file-gov-store.js';
 

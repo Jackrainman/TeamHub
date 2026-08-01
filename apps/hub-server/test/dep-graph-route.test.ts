@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'vitest';
 import { buildHubServer } from '../src/server.js';
-import { DepGraphSchema } from '../src/contracts.js';
+import { DepGraphSchema } from '@teamhub/hub-contracts';
 
 const app = buildHubServer();
 

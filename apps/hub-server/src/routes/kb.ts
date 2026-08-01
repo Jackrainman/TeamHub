@@ -8,12 +8,11 @@ import {
 } from '@teamhub/hub-contracts';
 import type { IssueCard, ArchiveDocument, KbImportDocIssue, IdentityMode } from '@teamhub/hub-contracts';
 import {
-  KB_SIMILAR_NOTE,
-  KbSimilarQuerySchema,
   KbSimilarResponseSchema,
   KbCloseoutRequestSchema,
   KbCloseoutResponseSchema,
-} from '../contracts.js';
+} from '@teamhub/hub-contracts';
+import { KB_SIMILAR_NOTE, KbSimilarQuerySchema } from '../route-schemas.js';
 import type { GovStore, KbStore } from '../store/gov-store.js';
 import type { Clock } from '../clock.js';
 import { deriveErrorCode } from '../kb/error-code.js';

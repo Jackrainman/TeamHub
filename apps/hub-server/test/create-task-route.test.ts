@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { buildHubServer } from '../src/server.js';
-import { CreateTaskResponseSchema } from '../src/contracts.js';
+import { CreateTaskResponseSchema } from '@teamhub/hub-contracts';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
 const validBody = {

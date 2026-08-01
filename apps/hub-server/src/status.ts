@@ -4,7 +4,7 @@ import type {
   DeploymentInfo,
   HealthResponse,
   SystemStatusResponse,
-} from './contracts.js';
+} from '@teamhub/hub-contracts';
 
 const SERVICE_NAME = 'teamhub-hub-server' as const;
 // 版本号跟随 package.json（单一源），避免手写常量长期停在 0.0.1。

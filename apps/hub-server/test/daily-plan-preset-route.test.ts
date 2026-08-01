@@ -4,7 +4,7 @@ import {
   CreateResourceSessionsBatchResponseSchema,
   SCENARIO_WINDOW_WEEKDAY,
   UpdateResourceDefaultPresetResponseSchema,
-} from '../src/contracts.js';
+} from '@teamhub/hub-contracts';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
 // 今日计划：每车预设写回（PATCH /api/resources/:id/preset）+ 表格页批量确认落盘

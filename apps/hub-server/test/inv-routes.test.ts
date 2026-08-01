@@ -4,7 +4,7 @@ import {
   InventoryResponseSchema,
   CreatePartTypeResponseSchema,
   CreatePartActionResponseSchema,
-} from '../src/contracts.js';
+} from '@teamhub/hub-contracts';
 import { InMemoryInvStore } from '../src/store/mock-inv-store.js';
 
 describe('库存 / BOM 路由（INV-BOM-CORE）', () => {

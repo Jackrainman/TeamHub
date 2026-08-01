@@ -4,12 +4,12 @@ import type {
   AgentBackendHealthResponse,
   AgentBackendInvokeRequest,
   AgentBackendInvokeResponse,
-} from './contracts.js';
+} from '@teamhub/hub-contracts';
 import {
   AgentBackendCapabilitiesResponseSchema,
   AgentBackendHealthResponseSchema,
   AgentBackendInvokeResponseSchema,
-} from './contracts.js';
+} from '@teamhub/hub-contracts';
 import { listMockAgentBackends } from './mock-integrations.js';
 
 // Agent 后端是唯一可 invoke 的物种。放行按 ID（mock-first 桩），真接入时此处注入 real provider。

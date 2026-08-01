@@ -6,7 +6,7 @@ import {
   ClearChecklistItemResponseSchema,
   WaiveChecklistItemResponseSchema,
   ChecklistTemplatesResponseSchema,
-} from '../src/contracts.js';
+} from '@teamhub/hub-contracts';
 import { SetGateReviewerResponseSchema } from '@teamhub/hub-contracts';
 
 // demo 基准线 baseline-season-robocon-2026 的 seasonId（fixtures.ts checklistScenarioFixture 挂它）：

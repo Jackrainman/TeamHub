@@ -1,13 +1,13 @@
 import type { FastifyInstance } from 'fastify';
 import {
-  BaselineQuerySchema,
   BaselineResponseSchema,
   UpdateBaselineRequestSchema,
   UpdateBaselineResponseSchema,
   PassMilestoneRequestSchema,
   PassMilestoneResponseSchema,
   listBlockingChecklistItems,
-} from '../contracts.js';
+} from '@teamhub/hub-contracts';
+import { BaselineQuerySchema } from '../route-schemas.js';
 import type { BaselineStore } from '../store/baseline-store.js';
 import type { ChecklistStore } from '../store/checklist-store.js';
 import type { GovStore } from '../store/gov-store.js';

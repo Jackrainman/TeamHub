@@ -6,7 +6,7 @@ import {
   UpdateResourceSessionResponseSchema,
   CreateResourceSessionResponseSchema,
   SCENARIO_WINDOW_WEEKDAY,
-} from '../src/contracts.js';
+} from '@teamhub/hub-contracts';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
 // R1 接力交接画布（队长可编辑）后端：PATCH 占用窗口（拖卡片排先后 orderInWindow / 选填 eta）+

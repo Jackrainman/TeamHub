@@ -3,7 +3,7 @@ import {
   LarkConfigSaveRequestSchema,
   LarkPushReminderResponseSchema,
   deriveBaselineDrift,
-} from '../contracts.js';
+} from '@teamhub/hub-contracts';
 import type { GovStore } from '../store/gov-store.js';
 import type { BaselineStore } from '../store/baseline-store.js';
 import type { Clock } from '../clock.js';

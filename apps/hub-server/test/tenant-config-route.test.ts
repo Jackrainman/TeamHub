@@ -6,7 +6,7 @@ import {
   KbSimilarResponseSchema,
   InventoryResponseSchema,
   CreatePartActionResponseSchema,
-} from '../src/contracts.js';
+} from '@teamhub/hub-contracts';
 import { ALL_MODULE_IDS } from '@teamhub/hub-contracts';
 import type { TenantConfig } from '@teamhub/hub-contracts';
 

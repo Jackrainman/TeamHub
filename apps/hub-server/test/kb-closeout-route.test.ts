@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { buildHubServer } from '../src/server.js';
-import { KbCloseoutResponseSchema } from '../src/contracts.js';
+import { KbCloseoutResponseSchema } from '@teamhub/hub-contracts';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 import { InMemoryKbStore } from '../src/store/mock-kb-store.js';
 

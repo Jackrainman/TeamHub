@@ -6,7 +6,7 @@ export {
   HealthResponseSchema,
   HubEventSchema,
   SystemStatusResponseSchema,
-} from './contracts.js';
+} from '@teamhub/hub-contracts';
 export type {
   ArtifactRef,
   BridgeMemberState,
@@ -14,4 +14,4 @@ export type {
   HealthResponse,
   HubEvent,
   SystemStatusResponse,
-} from './contracts.js';
+} from '@teamhub/hub-contracts';
