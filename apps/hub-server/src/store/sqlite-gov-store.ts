@@ -70,7 +70,17 @@ import type {
   SeasonDraft,
   TaskDraft,
 } from './gov-store.js';
-import { memberHasPmFlag } from '../authz.js';
+import {
+  buildAssignedTask,
+  buildClaimedTask,
+  buildCompletedTask,
+  buildReviewedTask,
+  resolveActiveSeasonId,
+  validateGroupDeletion,
+  validateGroupRename,
+  validateLastProjectManagerGuard,
+  buildProjectManagerUpdate,
+} from './gov-store-logic.js';
 import { SqliteDatabase } from './sqlite-db.js';
 
 /**
@@ -478,20 +488,10 @@ export class SqliteGovStore implements GovStore {
     return this.tx(() => {
       const prev = this.getRow<Member>('members', memberId);
       if (!prev) return { ok: false as const, reason: 'not-found' as const };
-      if (
-        opts?.guardLastProjectManager &&
-        memberHasPmFlag(prev) &&
-        !projectManager &&
-        this.allRows<Member>('members').filter((m) => memberHasPmFlag(m)).length <= 1
-      ) {
-        return { ok: false as const, reason: 'last-projectmanager' as const };
-      }
-      const updated: Member = {
-        ...prev,
-        projectManager,
-        updatedBy: MEMBER_ROLE_UPDATED_BY,
-        updatedAt: this.clock.now().toISOString(),
-      };
+      const allMembers = this.allRows<Member>('members');
+      const guardFailure = validateLastProjectManagerGuard(prev, projectManager, allMembers, opts?.guardLastProjectManager);
+      if (guardFailure) return { ok: false as const, reason: guardFailure };
+      const updated = buildProjectManagerUpdate(prev, projectManager, this.clock.now().toISOString());
       this.updateRow('members', memberId, updated);
       return { ok: true as const, member: updated };
     });
@@ -606,8 +606,7 @@ export class SqliteGovStore implements GovStore {
         return { ok: false as const, reason: 'name-exists' as const };
       }
       const seasons = this.allRows<Season>('seasons');
-      const seasonId =
-        seasons.find((s) => s.status === 'active')?.id ?? this.getMeta('seasonId') ?? '';
+      const seasonId = resolveActiveSeasonId(seasons, this.getMeta('seasonId') ?? '');
       const group: Group = {
         id: nextSequentialId('grp-new', this.groupSeq),
         seasonId,
@@ -624,14 +623,9 @@ export class SqliteGovStore implements GovStore {
   async renameGroup(groupId: string, name: string): Promise<RenameGroupResult> {
     return this.tx(() => {
       const groups = this.allRows<Group>('groups');
-      const prev = groups.find((g) => g.id === groupId);
-      if (!prev) return { ok: false as const, reason: 'not-found' as const };
-      if (!deriveLeafGroups(groups).includes(groupId)) {
-        return { ok: false as const, reason: 'not-leaf' as const };
-      }
-      if (groups.some((g) => g.id !== groupId && g.name === name)) {
-        return { ok: false as const, reason: 'name-exists' as const };
-      }
+      const failure = validateGroupRename(groupId, name, groups);
+      if (failure) return failure;
+      const prev = groups.find((g) => g.id === groupId)!;
       const updated: Group = { ...prev, name };
       this.updateRow('groups', groupId, updated);
       return { ok: true as const, group: updated };
@@ -642,21 +636,11 @@ export class SqliteGovStore implements GovStore {
   async deleteGroup(groupId: string): Promise<DeleteGroupResult> {
     return this.tx(() => {
       const groups = this.allRows<Group>('groups');
-      const prev = groups.find((g) => g.id === groupId);
-      if (!prev) return { ok: false as const, reason: 'not-found' as const };
-      if (!deriveLeafGroups(groups).includes(groupId)) {
-        // 非叶子（含「程序」这类汇报视角）/ 哨兵（grp-convergence）→ 不可删。
-        return { ok: false as const, reason: 'not-leaf' as const };
-      }
-      if (groups.some((g) => g.parentGroupId === groupId)) {
-        return { ok: false as const, reason: 'has-children' as const };
-      }
-      if (this.allRows<Member>('members').some((m) => m.groupId === groupId)) {
-        return { ok: false as const, reason: 'has-members' as const };
-      }
-      if (this.allRows<Task>('tasks').some((t) => t.groupId === groupId)) {
-        return { ok: false as const, reason: 'has-tasks' as const };
-      }
+      const members = this.allRows<Member>('members');
+      const tasks = this.allRows<Task>('tasks');
+      const failure = validateGroupDeletion(groupId, groups, members, tasks);
+      if (failure) return failure;
+      const prev = groups.find((g) => g.id === groupId)!;
       this.deleteRow('groups', groupId);
       return { ok: true as const, group: prev };
     });
@@ -668,8 +652,7 @@ export class SqliteGovStore implements GovStore {
     return this.tx(() => {
       if (this.allRows<Group>('groups').length > 0) return;
       const seasons = this.allRows<Season>('seasons');
-      const seasonId =
-        seasons.find((s) => s.status === 'active')?.id ?? this.getMeta('seasonId') ?? '';
+      const seasonId = resolveActiveSeasonId(seasons, this.getMeta('seasonId') ?? '');
       for (const group of buildDefaultGroupTree(seasonId)) {
         this.insertRow('groups', group.id, group);
       }
@@ -683,16 +666,8 @@ export class SqliteGovStore implements GovStore {
     return this.tx(() => {
       const prev = this.getRow<Task>('tasks', taskId);
       if (!prev) return null;
-      if (prev.ownerId !== null) return null; // 已有主：不覆盖（路由转 409）
-      const promoting = prev.status === 'pending';
-      const updated: Task = {
-        ...prev,
-        ownerId,
-        claimedAt,
-        status: promoting ? 'inProgress' : prev.status,
-        statusSource: promoting ? MANUAL_TASK_STATUS_SOURCE : prev.statusSource,
-        updatedAt: claimedAt,
-      };
+      const updated = buildClaimedTask(prev, ownerId, claimedAt);
+      if (!updated) return null;
       this.updateRow('tasks', taskId, updated);
       return updated;
     });
@@ -708,20 +683,7 @@ export class SqliteGovStore implements GovStore {
     return this.tx(() => {
       const prev = this.getRow<Task>('tasks', taskId);
       if (!prev) return null;
-      // 换主：解构剔除 claimedAt/partnerMemberId/crossClaimConfirmedBy（不再回写 = 清空）。
-      const {
-        claimedAt: _claimedAt,
-        partnerMemberId: _partnerMemberId,
-        crossClaimConfirmedBy: _crossClaimConfirmedBy,
-        ...rest
-      } = prev;
-      const updated: Task = {
-        ...rest,
-        ownerId,
-        assignReason: reason,
-        assignedBy,
-        updatedAt: at,
-      };
+      const updated = buildAssignedTask(prev, ownerId, reason, assignedBy, at);
       this.updateRow('tasks', taskId, updated);
       return updated;
     });
@@ -751,14 +713,7 @@ export class SqliteGovStore implements GovStore {
     return this.tx(() => {
       const prev = this.getRow<Task>('tasks', taskId);
       if (!prev) return null;
-      const { reviewedBy: _reviewedBy, reviewNote: _reviewNote, ...rest } = prev;
-      const updated: Task = {
-        ...rest,
-        status: 'done',
-        statusSource: MANUAL_TASK_STATUS_SOURCE,
-        completedBy,
-        updatedAt: at,
-      };
+      const updated = buildCompletedTask(prev, completedBy, at);
       this.updateRow('tasks', taskId, updated);
       return updated;
     });
@@ -772,19 +727,9 @@ export class SqliteGovStore implements GovStore {
     at: string,
   ): Promise<Task | null> {
     return this.tx(() => {
-      const row = this.getRow<Task>('tasks', taskId);
-      if (!row) return null;
-      // reviewNote 一律以本轮为准（镜像 InMemoryGovStore.reviewTask，复审 nit 收口）。
-      const { reviewNote: _prevNote, ...prev } = row;
-      const rejecting = outcome === 'reject';
-      const updated: Task = {
-        ...prev,
-        status: rejecting ? 'inProgress' : prev.status,
-        statusSource: rejecting ? MANUAL_TASK_STATUS_SOURCE : prev.statusSource,
-        reviewedBy,
-        ...(note !== undefined ? { reviewNote: note } : {}),
-        updatedAt: at,
-      };
+      const prev = this.getRow<Task>('tasks', taskId);
+      if (!prev) return null;
+      const updated = buildReviewedTask(prev, reviewedBy, outcome, note, at);
       this.updateRow('tasks', taskId, updated);
       return updated;
     });
