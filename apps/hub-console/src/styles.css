@@ -452,7 +452,7 @@ button,
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  box-shadow: var(--shadow-sm);
   max-height: 320px;
   overflow-y: auto;
   z-index: 100;
@@ -1260,7 +1260,7 @@ button,
   transform: translateX(-50%);
   z-index: 5;
   max-width: 80%;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
+  box-shadow: var(--shadow-sm);
 }
 
 .dep-graph-detail {
@@ -4872,7 +4872,7 @@ form .btn--primary {
 }
 :root[data-theme='tech'] ::-webkit-scrollbar-thumb {
   border: 2px solid #0a0f1a;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: #2c3d5f;
 }
 :root[data-theme='tech'] ::-webkit-scrollbar-thumb:hover {
@@ -4980,11 +4980,11 @@ form .btn--primary {
   overflow-y: auto;
   padding: 14px 16px;
   border: 1px solid #2c3d5f;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: rgba(13, 20, 33, 0.92);
   backdrop-filter: blur(6px);
   color: #e6edf7;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-md);
 }
 .direction-starmap__panel-head {
   display: flex;
@@ -5158,14 +5158,14 @@ form .btn--primary {
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  box-shadow: var(--shadow-sm);
   z-index: 50;
   min-width: 160px;
 }
 .timeline-editor__opt {
   padding: 4px 8px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text);
   font-size: var(--text-xs);
