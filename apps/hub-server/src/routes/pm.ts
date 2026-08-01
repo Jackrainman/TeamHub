@@ -10,6 +10,7 @@ import { registerBaselineRoutes } from './baseline.js';
 import { registerMemberRoutes } from './members.js';
 import { registerRosterRoutes } from './roster.js';
 import { registerTaskRoutes } from './tasks.js';
+import { registerTaskClaimRoutes } from './tasks-claim.js';
 import { registerChecklistRoutes } from './checklist.js';
 
 export interface PmCoreRouteDeps {
@@ -36,6 +37,13 @@ export function registerPmCoreRoutes(app: FastifyInstance, deps: PmCoreRouteDeps
   registerRosterRoutes(app, { store, identityMode });
 
   registerTaskRoutes(app, {
+    store,
+    clock,
+    identityMode,
+    larkStore: deps.larkStore,
+  });
+
+  registerTaskClaimRoutes(app, {
     store,
     clock,
     identityMode,
