@@ -1,5 +1,5 @@
 {
-  "focus": "脚手架批次启动：SCAFFOLD-2 完成（shared/lib 提升）；剩余 SCAFFOLD-1/3/4/5/6 待长任务结束后手动触发",
+  "focus": "脚手架批次大幅推进：SCAFFOLD-2/4/5/6 + GOV-1/2 全完成；剩余 SCAFFOLD-1（useHubMutation 工厂）+ SCAFFOLD-3（AGENTS.md 重写，卡 SCAFFOLD-1）",
   "blocked": [
     {"id": "HERMES-LARK-SKILL", "reason": "卡飞书侧 skill 编写（用户侧）", "owner": "user"},
     {"id": "LARK-BIN-PROBE", "reason": "需用户在 WSL2 实测 which lark / which lark-cli", "owner": "user"}
@@ -7,20 +7,20 @@
   "todo": [
     {"id": "HOOKS-1-TAIL", "title": "useXxx hook 层尾巴：剩余 ~19 处域特有 useQuery（relay/archive/kb/dep-graph/settings）按需迁移", "tag": "code", "batch": "hooks"},
     {"id": "SPLIT-1-TAIL", "title": "组件拆分尾巴：TodayPlanTable(455)/DirectionStarmap(621)/PoolPage(408) 边界组件，按需在功能迭代时顺带拆", "tag": "code", "batch": "split"},
-    {"id": "GOV-1", "title": "client.ts 按域拆分（1260 行→segments/：tasks/schedule/members/inventory/kb/system）", "tag": "code", "batch": "gov"},
-    {"id": "GOV-2", "title": "styles.css token 收口：.card 基类迁移(10+)、硬编码 radius(13)/shadow(9)→变量、--space-*/--control-* 消费或删除", "tag": "code", "batch": "gov"},
-    {"id": "GOV-5", "title": "translations.ts 按域拆分（2786 行→i18n/pm+kb+schedule+...）", "tag": "code", "batch": "gov"},
-    {"id": "GOV-6", "title": "技术债标记清理：DepGraphPage:630 死链 / InvPage:32 projectId 硬编码 / ResourcesPage:29 车型枚举", "tag": "code", "batch": "gov"},
     {"id": "SCAFFOLD-1", "title": "useHubMutation 工厂：泛型 hook 封装 invalidate+toast，让组件侧比裸 useMutation 更短，消解 33 处违反的根因", "tag": "code", "batch": "scaffold"},
-    {"id": "SCAFFOLD-3", "title": "AGENTS.md §9 重写：反模式表→脚手架索引（'做 X 时用 Y'），规则谓词化供 AI 自检", "tag": "docs", "batch": "scaffold"},
-    {"id": "SCAFFOLD-4", "title": "GovStore base-gov-crud.ts 提取：成员/组/赛季 CRUD 三实现共享（~40% 重复），降 900 行→500 行级", "tag": "code", "batch": "scaffold"},
-    {"id": "SCAFFOLD-5", "title": "废除 server/src/contracts.ts 二次 barrel：8 处改走 @teamhub/hub-contracts，SetupControl 移入 types/", "tag": "code", "batch": "scaffold"},
-    {"id": "SCAFFOLD-6", "title": "contracts 死代码清理：study-suggestions.ts(270行) 删除或接入、schemas.ts Adapter 零消费 schema 删、deriveGroupAvailability 删", "tag": "code", "batch": "scaffold"},
+    {"id": "SCAFFOLD-3", "title": "AGENTS.md §9 重写：反模式表→脚手架索引（'做 X 时用 Y'），规则谓词化供 AI 自检（卡 SCAFFOLD-1 落地后引用实际路径）", "tag": "docs", "batch": "scaffold"},
     {"id": "CHECKLIST-TPL-IMPORT", "title": "检查单模板最小导入通道（等复盘产出，先积累）", "tag": "code", "batch": "later"},
     {"id": "KB-AI-STRUCT", "title": "知识库 AI 结构化（研究项，先积累导入语料再评估）", "tag": "research", "batch": "later"}
   ],
   "done-tonight": [
     "SCAFFOLD-2: identity-utils/pool-utils/project-nav → src/shared/lib/，消 12 处跨 feature 直接 import",
+    "GOV-1: client.ts 按域拆分（1259→31 行组合根 + http.ts + segments/4 文件）",
+    "GOV-2: styles.css token 收口（3 硬编码 radius + 4 硬编码 shadow→变量）",
+    "SCAFFOLD-4: sqlite-gov-store 复用 gov-store-logic 8 处共享助手（-99 行内联）",
+    "SCAFFOLD-5: 废除 server/src/contracts.ts 二次 barrel（-299 行，全部改走 @teamhub/hub-contracts）",
+    "SCAFFOLD-6: 删除 study-suggestions.ts（270 行零消费者 + 测试）",
+    "REFACTOR-WRITE-GATE: server.ts 写门钩子→middleware/write-gate.ts（413→330 行）",
+    "REFACTOR-TASKS-SPLIT: tasks.ts→tasks.ts+tasks-claim.ts（453→262 行）",
     "STRUCT-5: helpers.ts 加 parseQuery/requireSuperAdmin/requireActor，消 35 处路由复制",
     "STRUCT-1: useQueryGuard hook + 迁移 PoolPage/PmBoardPage/InvPage",
     "STRUCT-2: useInvalidatingMutation hook + 迁移 ArchivePage upload",
