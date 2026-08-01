@@ -111,7 +111,6 @@ export * from './schedule-infra.js';
 export * from './growth.js';
 export * from './attribution.js';
 export * from './direction-gaps.js';
-export * from './study-suggestions.js';
 export * from './artifact-version.js';
 export * from './schedule.js';
 export * from './relay.js';
