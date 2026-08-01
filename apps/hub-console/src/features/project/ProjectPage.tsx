@@ -10,7 +10,7 @@ import { SideDrawer } from '../../components/SideDrawer';
 import { PmBoardPage } from '../pm/PmBoardPage';
 import { PmCreatePanel } from '../pm/PmCreatePanel';
 import { PoolPage } from '../pool/PoolPage';
-import { consumeProjectView, type ProjectView } from './project-nav';
+import { consumeProjectView, type ProjectView } from '../../shared/lib/project-nav';
 
 // 依赖图重依赖（@xyflow/react + @dagrejs/dagre）按需加载：拆成独立 chunk，
 // 只在打开依赖图视图时拉取，总览/知识库/库存首屏不再背这坨（修 build chunk>500kB 警告）。

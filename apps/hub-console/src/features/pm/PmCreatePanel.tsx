@@ -21,7 +21,7 @@ import { FormActions } from '../../components/FormActions';
 import { FormGrid } from '../../components/FormGrid';
 import { Select } from '../../components/Select';
 import { Combobox } from '../../components/Combobox';
-import { defaultOwnerId, memberOptionLabel } from '../identity/identity-utils';
+import { defaultOwnerId, memberOptionLabel } from '../../shared/lib/identity-utils';
 
 const ROBOT_TARGETS: RobotTarget[] = ['R1', 'R2', 'shared'];
 const ROBOT_TARGET_KEY: Record<RobotTarget, TranslationKey> = {

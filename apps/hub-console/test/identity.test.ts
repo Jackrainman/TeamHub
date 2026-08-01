@@ -5,7 +5,7 @@ import {
   defaultOwnerId,
   identityCacheKey,
   memberOptionLabel,
-} from '../src/features/identity/identity-utils';
+} from '../src/shared/lib/identity-utils';
 
 // 轻身份登录（IDENTITY-LITE，I2 console 接线）纯函数单测——不测 DOM/RTL（本仓无 jsdom/RTL 依赖，
 // 「测逻辑不测 DOM」风格同 theme.test.ts / console-pages.test.ts）。

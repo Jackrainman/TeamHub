@@ -4,7 +4,7 @@ import type {
   TaskWithMeta,
 } from '@teamhub/hub-contracts';
 import { useI18n } from '../../../i18n';
-import { memberOptionLabel } from '../../identity/identity-utils';
+import { memberOptionLabel } from '../../../shared/lib/identity-utils';
 import { formatDay } from './constants';
 
 export function TaskFacts({

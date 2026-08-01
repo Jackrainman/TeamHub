@@ -17,7 +17,7 @@ import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { MetricTile } from '../../components/MetricTile';
 import { SideDrawer } from '../../components/SideDrawer';
-import { needsCrossClaimConfirm, needsPartner } from '../pool/pool-utils';
+import { needsCrossClaimConfirm, needsPartner } from '../../shared/lib/pool-utils';
 import { TaskDetailDrawer } from './TaskDetailDrawer';
 
 // 看板列固定顺序（任务流向，不按人）。反排名（C2）：看板主键是 task/status，无 memberId 维度、

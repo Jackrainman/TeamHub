@@ -7,7 +7,7 @@ import { useI18n } from '../../i18n';
 import { useForm } from '../../hooks/useForm';
 import { Select } from '../../components/Select';
 import { FormBanner } from '../../components/FormBanner';
-import { memberOptionLabel } from './identity-utils';
+import { memberOptionLabel } from '../../shared/lib/identity-utils';
 
 interface LoginFormFields {
   memberId: string;

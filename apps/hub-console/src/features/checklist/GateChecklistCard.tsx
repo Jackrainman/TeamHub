@@ -15,7 +15,7 @@ import { humanizeFormError } from '../../utils';
 import { Field } from '../../components/Field';
 import { Select } from '../../components/Select';
 import { FormBanner } from '../../components/FormBanner';
-import { memberOptionLabel } from '../identity/identity-utils';
+import { memberOptionLabel } from '../../shared/lib/identity-utils';
 
 /**
  * 门详情检查单卡（GATE-CHECKLIST-IOU 设计 §6，D-087）：里程碑清单里每道**门**（kind==='gate'）挂一张

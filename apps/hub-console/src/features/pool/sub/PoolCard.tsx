@@ -15,8 +15,8 @@ import { humanizeFormError } from '../../../utils';
 import { Field } from '../../../components/Field';
 import { Select } from '../../../components/Select';
 import { FormBanner } from '../../../components/FormBanner';
-import { memberOptionLabel, toActor } from '../../identity/identity-utils';
-import { POOL_STALE_DAYS, isStalePosted, stalenessDays } from '../pool-utils';
+import { memberOptionLabel, toActor } from '../../../shared/lib/identity-utils';
+import { POOL_STALE_DAYS, isStalePosted, stalenessDays } from '../../../shared/lib/pool-utils';
 
 export function PoolCard({
   client,

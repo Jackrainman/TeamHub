@@ -5,7 +5,7 @@ import { useI18n } from '../../i18n';
 import { useQueryGuard } from '../../shared/QueryGate';
 import { useTasks } from '../../hooks/useTasks';
 import { useMembers, useGroups } from '../../hooks/useRoster';
-import { sortedPostedTasks } from './pool-utils';
+import { sortedPostedTasks } from '../../shared/lib/pool-utils';
 import { PoolSearch } from './sub/PoolSearch';
 import { PoolCard } from './sub/PoolCard';
 

@@ -8,8 +8,8 @@ import { humanizeFormError } from '../../../utils';
 import { Field } from '../../../components/Field';
 import { Select } from '../../../components/Select';
 import { FormBanner } from '../../../components/FormBanner';
-import { memberOptionLabel } from '../../identity/identity-utils';
-import { ownerGroupOf } from '../../pool/pool-utils';
+import { memberOptionLabel } from '../../../shared/lib/identity-utils';
+import { ownerGroupOf } from '../../../shared/lib/pool-utils';
 import type { useTaskActions } from './useTaskActions';
 
 export function TaskActionsPanel({

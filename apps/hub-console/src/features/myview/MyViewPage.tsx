@@ -3,9 +3,9 @@ import type { DepNode } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import type { ConsolePage, PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
-import { identityCacheKey } from '../identity/identity-utils';
-import { countPostedNodes } from '../pool/pool-utils';
-import { requestProjectView } from '../project/project-nav';
+import { identityCacheKey } from '../../shared/lib/identity-utils';
+import { countPostedNodes } from '../../shared/lib/pool-utils';
+import { requestProjectView } from '../../shared/lib/project-nav';
 import { myViewBlockReasonSource, splitMyTasks } from './myview-utils';
 
 /**

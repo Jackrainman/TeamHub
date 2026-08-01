@@ -19,7 +19,7 @@ import { IdentityBar } from './features/identity/IdentityBar';
 import { SetupWizard } from './features/setup/SetupWizard';
 import { BootstrapGate } from './features/setup/BootstrapGate';
 import { ChecklistQuickRecord } from './features/checklist/ChecklistQuickRecord';
-import { canWriteIdentity, identityCacheKey } from './features/identity/identity-utils';
+import { canWriteIdentity, identityCacheKey } from './shared/lib/identity-utils';
 // 单一真实后端：queryKey 维度保留稳定常量（曾区分 mock/real，现恒为 real），
 // 避免改动各页 queryKey 形状。
 const SOURCE = 'real';

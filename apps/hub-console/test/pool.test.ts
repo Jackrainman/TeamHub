@@ -10,7 +10,7 @@ import {
   ownerGroupOf,
   sortedPostedTasks,
   stalenessDays,
-} from '../src/features/pool/pool-utils';
+} from '../src/shared/lib/pool-utils';
 
 // 挂单池（TASK-POST-CLAIM，D-088）界面层纯函数单测——不测 DOM/RTL（本仓「测逻辑不测 DOM」风格，
 // 同 checklist-utils.ts / myview-utils.ts）。红线：本文件断言只涉及对事的派生，无任何按人聚合/排行。

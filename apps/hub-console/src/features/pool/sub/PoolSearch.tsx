@@ -3,7 +3,7 @@ import { Search } from 'lucide-react';
 import type { MemberPublic } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../../api/client';
 import { useI18n } from '../../../i18n';
-import { memberOptionLabel } from '../../identity/identity-utils';
+import { memberOptionLabel } from '../../../shared/lib/identity-utils';
 import { useTasksSearch } from '../../../hooks/useTasks';
 import { STATUS_KEY } from './constants';
 

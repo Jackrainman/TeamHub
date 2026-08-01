@@ -3,8 +3,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ActorRef, MemberPublic, TaskWithMeta } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../../api/client';
 import type { PageIdentityCtx } from '../../../console-pages';
-import { toActor } from '../../identity/identity-utils';
-import { needsCrossClaimConfirm, needsPartner } from '../../pool/pool-utils';
+import { toActor } from '../../../shared/lib/identity-utils';
+import { needsCrossClaimConfirm, needsPartner } from '../../../shared/lib/pool-utils';
 
 export function useTaskActions(
   client: HubApiClient,
