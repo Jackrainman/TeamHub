@@ -40,10 +40,10 @@ import { registerSessionRoutes } from './routes/session.js';
 import { registerSetupRoutes } from './routes/setup.js';
 import { registerLarkRoutes } from './routes/lark.js';
 import {
-  isLoopbackOperator,
   SESSION_TTL_MS,
   readSessionCookie,
 } from './routes/helpers.js';
+import { registerWriteGate } from './middleware/write-gate.js';
 
 /**
  * 部署配置写通道运行时依赖（SETUP-WIZARD 刀③，setup-wizard.md §6）：设置页「部署配置」写区背后的
@@ -254,94 +254,11 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     });
   }
 
-  // H3（AUDIT-FIXES 部署前必修）：写端点信任边界 = 共享密钥鉴权 + 每 IP 限流。
-  // 作用于全部**写方法** /api/*（POST/PATCH/PUT/DELETE；读路由 GET/HEAD / 静态站 / health 不受影响）。
-  // R1 接力画布引入 PATCH /api/resource-sessions/:id 与 DELETE /api/relay-handoffs/:id——若仍只认 POST，
-  // 这两条会绕过鉴权 + 限流（旧注释「用 PATCH/DELETE 会绕过鉴权」正是此缺口）。这是让 I0 泄漏 / 环卡死 /
-  // KB 撑爆被第三方真正触达的边界——未鉴权客户端不能刷爆全队要读的 dep-graph、不能猛打 closeout 撑爆 KB 文件。
-  // 该钩子是宿主级横切关切（鉴权/限流），对全部模块统一生效，不随 enabledModules 变化。
-  const writeToken = options.writeToken;
-  const rateLimit = options.writeRateLimit ?? { max: 120, windowMs: 60_000 };
-  const rateHits = new Map<string, { count: number; resetAt: number }>();
-  const WRITE_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
-  app.addHook('onRequest', async (request, reply) => {
-    if (!WRITE_METHODS.has(request.method) || !request.url.startsWith('/api/')) return;
-    // SETUP-WIZARD 刀①：正常模式 POST /api/setup/init 恒 409（多标签页幂等），不做任何写、无副作用，
-    // 故豁免写门（鉴权 / 限流）直达处理器——身份模式 / 配 token 下也稳定 409，不因缺会话 / 缺 Bearer 变 401。
-    if (request.url.split('?')[0] === '/api/setup/init') return;
-    const path = request.url.split('?')[0];
-    // 四条例外路径（对 Bearer 硬门与「须有会话」硬门同享，鉴权收敛在各路由一处判）：
-    //  - session 认证端点（POST/DELETE /api/session）：登录/登出入口，不能要求先有会话或令牌——
-    //    否则配了 writeToken 的部署里**登录本身**就被 401 锁死（令牌要进设置页，设置页要先登录）。
-    //  - 名册导入引导豁免（ROSTER-IMPORT，K8）：身份模式 + 空板 = 登录死锁。路由内自判：名册为空放行、
-    //    一旦有人即恢复须持旗管理员会话。刀⑦ preview（只解析不落库）同律——同一路由内鉴权、同一豁免面。
-    //  - 初始化 bootstrap 豁免（SETUP-WIZARD-ROSTER 刀②）：POST /api/setup/super-admin——名册无持旗成员时
-    //    无人能登录，向导第一步发生在任何会话/令牌配置之前。路由内自判：已有持旗成员 → 409；老路径
-    //    （无 displayName）→ 仍须会话 401。
-    //  - PIN 死锁恢复豁免（PIN-DEADLOCK-RECOVERY）：loopback 的 DELETE /api/members/:id/pin——唯一管理员
-    //    忘 PIN 时操作者只能在部署机上 curl，不会先持有令牌/会话。非 loopback 不在此列。
-    const isSessionAuthEndpoint =
-      path === '/api/session' &&
-      (request.method === 'POST' || request.method === 'DELETE');
-    const isRosterBootstrap =
-      (path === '/api/roster/import' || path === '/api/roster/preview') &&
-      request.method === 'POST';
-    const isSetupBootstrap =
-      path === '/api/setup/super-admin' && request.method === 'POST';
-    const isPinRecovery =
-      request.method === 'DELETE' &&
-      /^\/api\/members\/[^/]+\/pin$/.test(path) &&
-      isLoopbackOperator(request, trustProxy);
-    // 鉴权（配了 token 才强制 Bearer；未配=loopback dev 放行）。
-    // **身份模式下有效会话即已鉴权**（会话 = 本人 PIN 登录，httpOnly + SameSite=Lax，强度不低于共享令牌；
-    // main.ts 本就不要求身份模式配 writeToken 才能非 loopback 启动——令牌在此只是匿名客户端的写闸）。
-    // 否则配了令牌的部署里整个首启动向导（bootstrap → 导 CSV → 确认组长）与日常浏览器写操作全被 401 锁死。
-    // 匿名模式无会话概念、行为不变（仍只认 Bearer）。
-    const sessionAuthed = identityMode === 'identity' && request.identity != null;
-    if (
-      writeToken &&
-      !isSessionAuthEndpoint &&
-      !isRosterBootstrap &&
-      !isSetupBootstrap &&
-      !isPinRecovery &&
-      !sessionAuthed &&
-      request.headers.authorization !== `Bearer ${writeToken}`
-    ) {
-      void reply.code(401).send({ detail: 'unauthorized' });
-      return reply;
-    }
-    // IDENTITY-LITE：身份模式下，写方法一律须携有效会话（否则 401）——例外即上面四条例外路径。
-    // 匿名模式此段整段跳过。
-    if (identityMode === 'identity') {
-      if (
-        !isSessionAuthEndpoint &&
-        !isRosterBootstrap &&
-        !isSetupBootstrap &&
-        !isPinRecovery &&
-        !request.identity
-      ) {
-        void reply.code(401).send({ detail: 'login required' });
-        return reply;
-      }
-    }
-    // 限流（真实墙钟 Date.now，与派生用的 clock 解耦；每实例独立、重启即重置）。
-    // 分桶键 = request.ip：直连=源 IP；反代后须开 trustProxy（见上）才是真实客户端 IP，否则塌成全局单桶。
-    const ip = request.ip;
-    const nowMs = Date.now();
-    const hit = rateHits.get(ip);
-    if (!hit || nowMs >= hit.resetAt) {
-      // 懒驱逐：rateHits 无 TTL 清理、按 IP 无界增长（长跑 / IP 轮换 / 扫描会撑大内存）。
-      // 仅在 Map 超过阈值时一次性清掉已过窗口的死条目（O(n) 但极少触发），不引新依赖 / 不开后台定时器。
-      if (rateHits.size > 10_000) {
-        for (const [k, v] of rateHits) if (v.resetAt <= nowMs) rateHits.delete(k);
-      }
-      rateHits.set(ip, { count: 1, resetAt: nowMs + rateLimit.windowMs });
-    } else if (hit.count >= rateLimit.max) {
-      void reply.code(429).send({ detail: 'rate limit exceeded' });
-      return reply;
-    } else {
-      hit.count += 1;
-    }
+  registerWriteGate(app, {
+    writeToken: options.writeToken,
+    rateLimit: options.writeRateLimit ?? { max: 120, windowMs: 60_000 },
+    identityMode,
+    trustProxy,
   });
 
   const ctx: ModuleRouteCtx = {
