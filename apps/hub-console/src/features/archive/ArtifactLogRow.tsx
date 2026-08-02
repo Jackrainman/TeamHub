@@ -3,7 +3,7 @@ import type { ArtifactRef } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n } from '../../i18n';
 import { errorDetail } from '../../utils';
-import { useInvalidatingMutation } from '../../hooks/useInvalidatingMutation';
+import { useHubMutation } from '../../hooks/useHubMutation';
 import { MetaRow } from '../../components/MetaRow';
 import { ARTIFACT_ACCEPT_EXT } from '../../verticals/robotics';
 
@@ -32,7 +32,7 @@ export function ArtifactLogRow({
 }) {
   const { t } = useI18n();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const upload = useInvalidatingMutation({
+  const upload = useHubMutation({
     mutationFn: (f: File) => client.uploadArtifactFile(artifact.id, f),
     invalidateKeys: [['artifacts']],
   });

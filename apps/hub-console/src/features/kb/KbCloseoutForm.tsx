@@ -1,9 +1,9 @@
 import { useRef } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Archive, CheckCircle2 } from 'lucide-react';
 import type { IssueSeverity, ArchiveGeneratedBy } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import type { KbCloseoutRequest } from '../../api/schemas/kb';
+import { useHubMutation } from '../../hooks/useHubMutation';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { parseList } from '../../utils';
 import { useForm } from '../../hooks/useForm';
@@ -53,7 +53,6 @@ export function KbCloseoutForm({
 }) {
   const { t } = useI18n();
   const seqRef = useRef(0);
-  const queryClient = useQueryClient();
 
   const required = (v: string) => (v.trim() ? null : t('common.fieldRequired'));
 
@@ -73,12 +72,10 @@ export function KbCloseoutForm({
     valid: (v) => Boolean(v.title.trim() && v.projectId.trim() && v.symptom.trim() && v.rootCause.trim() && v.resolution.trim()),
   });
 
-  const mutation = useMutation({
+  const mutation = useHubMutation({
+    invalidateKeys: [['kb-similar', source]],
     mutationFn: (req: KbCloseoutRequest) => client.closeoutKb(req),
-    onSuccess: () => {
-      form.resetAfterSubmit();
-      void queryClient.invalidateQueries({ queryKey: ['kb-similar', source] });
-    },
+    onSuccess: () => form.resetAfterSubmit(),
   });
 
   const { title, projectId, symptom, severity, tags, category, rootCause, resolution, prevention, generatedBy } = form.values;

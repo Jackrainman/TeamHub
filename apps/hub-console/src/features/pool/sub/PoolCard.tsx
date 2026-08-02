@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Hand, UserPlus } from 'lucide-react';
 import type {
   ActorRef,
@@ -9,6 +8,7 @@ import type {
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../../api/client';
 import { queryKeys } from '../../../api/queryKeys';
+import { useHubMutation } from '../../../hooks/useHubMutation';
 import type { PageIdentityCtx } from '../../../console-pages';
 import { useI18n } from '../../../i18n';
 import { humanizeFormError } from '../../../utils';
@@ -36,7 +36,6 @@ export function PoolCard({
   now: Date;
 }) {
   const { t } = useI18n();
-  const queryClient = useQueryClient();
   const isIdentity = identity.mode === 'identity' && identity.session != null;
   const writeLocked = !identity.canWrite;
   // 指派权属该组组长（镜像服务端 isGroupLeadOf：role==='groupAdmin' && groupId===task.groupId；
@@ -57,23 +56,21 @@ export function PoolCard({
   const [reason, setReason] = useState('');
   const [leadId, setLeadId] = useState('');
 
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.tasks(source) });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.depGraph(source) });
-  };
+  const invalidateKeys = [queryKeys.tasks(source), queryKeys.depGraph(source)];
 
-  const claimMutation = useMutation({
+  const claimMutation = useHubMutation({
     meta: { silent: true },
+    invalidateKeys,
     mutationFn: (memberId: string | undefined) =>
       client.claimTask(task.id, memberId ? { memberId } : {}),
     onSuccess: () => {
       setClaimOpen(false);
       setClaimId('');
-      invalidate();
     },
   });
-  const assignMutation = useMutation({
+  const assignMutation = useHubMutation({
     meta: { silent: true },
+    invalidateKeys,
     mutationFn: (vars: { ownerId: string; reason: string; assignedBy?: ActorRef }) =>
       client.assignTask(task.id, vars),
     onSuccess: () => {
@@ -81,7 +78,6 @@ export function PoolCard({
       setOwnerId('');
       setReason('');
       setLeadId('');
-      invalidate();
     },
   });
 

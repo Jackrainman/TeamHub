@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '../../i18n';
 import type { HubApiClient } from '../../api/client';
 import { useBaseline } from '../../hooks/useBaseline';
 import { useSeasons } from '../../hooks/useRoster';
+import { useHubMutation } from '../../hooks/useHubMutation';
 import { queryKeys } from '../../api/queryKeys';
 import type { SeasonBaseline, BaselineMilestone } from '@teamhub/hub-contracts';
 
@@ -29,7 +29,6 @@ function addDays(iso: string, days: number): string {
 
 export function TimelineEditorPage({ client, source }: { client: HubApiClient; source: string }) {
   const { t } = useI18n();
-  const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const seasonsQuery = useSeasons(client);
@@ -41,7 +40,8 @@ export function TimelineEditorPage({ client, source }: { client: HubApiClient; s
 
   const baseline: SeasonBaseline | null = baselineQuery.data?.baseline ?? null;
 
-  const patchMutation = useMutation({
+  const patchMutation = useHubMutation({
+    invalidateKeys: [queryKeys.baseline(source, seasonId ?? '')],
     mutationFn: (updated: SeasonBaseline) =>
       client.updateBaseline(seasonId!, {
         anchors: updated.anchors,
@@ -49,10 +49,7 @@ export function TimelineEditorPage({ client, source }: { client: HubApiClient; s
         phases: updated.phases,
         milestones: updated.milestones,
       }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.baseline(source, seasonId ?? '') });
-      setSelectedId(null);
-    },
+    onSuccess: () => setSelectedId(null),
   });
 
   const applyOffset = (milestone: BaselineMilestone, days: number) => {

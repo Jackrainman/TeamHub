@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import type {
   MemberRole,
   RosterImportRow,
@@ -7,6 +7,7 @@ import type {
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../../api/client';
 import { queryKeys } from '../../../api/queryKeys';
+import { useHubMutation } from '../../../hooks/useHubMutation';
 
 export function useSetupAdminMutation(
   client: HubApiClient,
@@ -47,19 +48,16 @@ export function useCreateSeasonMutation(
   source: string,
   opts: { name: string; startsAt: string; endsAt: string; onSuccess: () => void },
 ) {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useHubMutation({
     meta: { silent: true },
+    invalidateKeys: [queryKeys.seasons(source)],
     mutationFn: () =>
       client.createSeason({
         name: opts.name.trim(),
         startsAt: `${opts.startsAt}T00:00:00.000Z`,
         endsAt: opts.endsAt ? `${opts.endsAt}T00:00:00.000Z` : null,
       }),
-    onSuccess: () => {
-      opts.onSuccess();
-      void queryClient.invalidateQueries({ queryKey: queryKeys.seasons(source) });
-    },
+    onSuccess: () => opts.onSuccess(),
   });
 }
 
@@ -67,28 +65,22 @@ export function useGroupMutations(
   client: HubApiClient,
   opts: { createName: string; onCreateSuccess: () => void },
 ) {
-  const queryClient = useQueryClient();
-  const invalidateGroups = () =>
-    void queryClient.invalidateQueries({ queryKey: queryKeys.groups() });
-
-  const createMutation = useMutation({
+  const createMutation = useHubMutation({
     meta: { silent: true },
+    invalidateKeys: [queryKeys.groups()],
     mutationFn: () => client.createGroup({ name: opts.createName.trim() }),
-    onSuccess: () => {
-      opts.onCreateSuccess();
-      invalidateGroups();
-    },
+    onSuccess: () => opts.onCreateSuccess(),
   });
-  const renameMutation = useMutation({
+  const renameMutation = useHubMutation({
     meta: { silent: true },
+    invalidateKeys: [queryKeys.groups()],
     mutationFn: (vars: { id: string; name: string }) =>
       client.renameGroup(vars.id, { name: vars.name }),
-    onSuccess: invalidateGroups,
   });
-  const deleteMutation = useMutation({
+  const deleteMutation = useHubMutation({
     meta: { silent: true },
+    invalidateKeys: [queryKeys.groups()],
     mutationFn: (vars: { id: string }) => client.deleteGroup(vars.id),
-    onSuccess: invalidateGroups,
   });
 
   return { createMutation, renameMutation, deleteMutation };
@@ -105,54 +97,44 @@ export function useLarkMutations(
     onResetSuccess: () => void;
   },
 ) {
-  const queryClient = useQueryClient();
-
-  const saveMutation = useMutation({
+  const saveMutation = useHubMutation({
+    invalidateKeys: [queryKeys.larkConfig()],
     mutationFn: () =>
       client.saveLarkConfig({
         appId: opts.appId,
         appSecret: opts.appSecret,
         chatId: opts.chatId,
       }),
-    onSuccess: (res) => {
-      opts.onSaveSuccess(res);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.larkConfig() });
-    },
+    onSuccess: (res) => opts.onSaveSuccess(res),
     onError: (err: Error) => opts.onSaveError(err),
   });
 
-  const resetMutation = useMutation({
+  const resetMutation = useHubMutation({
+    invalidateKeys: [queryKeys.larkConfig()],
     mutationFn: () => client.resetLarkConfig(),
-    onSuccess: () => {
-      opts.onResetSuccess();
-      void queryClient.invalidateQueries({ queryKey: queryKeys.larkConfig() });
-    },
+    onSuccess: () => opts.onResetSuccess(),
   });
 
   return { saveMutation, resetMutation };
 }
 
 export function useMemberMutations(client: HubApiClient) {
-  const queryClient = useQueryClient();
-  const invalidateMembers = () =>
-    void queryClient.invalidateQueries({ queryKey: queryKeys.members() });
-
-  const roleMutation = useMutation({
+  const roleMutation = useHubMutation({
     meta: { silent: true },
+    invalidateKeys: [queryKeys.members()],
     mutationFn: (vars: { id: string; role: MemberRole }) =>
       client.setMemberRole(vars.id, { role: vars.role }),
-    onSuccess: invalidateMembers,
   });
-  const pmMutation = useMutation({
+  const pmMutation = useHubMutation({
     meta: { silent: true },
+    invalidateKeys: [queryKeys.members()],
     mutationFn: (vars: { id: string; projectManager: boolean }) =>
       client.setMemberProjectManager(vars.id, { projectManager: vars.projectManager }),
-    onSuccess: invalidateMembers,
   });
-  const clearPinMutation = useMutation({
+  const clearPinMutation = useHubMutation({
     meta: { silent: true },
+    invalidateKeys: [queryKeys.members()],
     mutationFn: (vars: { id: string }) => client.clearMemberPin(vars.id),
-    onSuccess: invalidateMembers,
   });
 
   return { roleMutation, pmMutation, clearPinMutation };

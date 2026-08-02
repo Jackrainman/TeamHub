@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ActorRef, MemberPublic, TaskWithMeta } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../../api/client';
+import { queryKeys } from '../../../api/queryKeys';
 import type { PageIdentityCtx } from '../../../console-pages';
+import { useHubMutation } from '../../../hooks/useHubMutation';
 import { toActor } from '../../../shared/lib/identity-utils';
 import { needsCrossClaimConfirm, needsPartner } from '../../../shared/lib/pool-utils';
 
@@ -13,7 +14,6 @@ export function useTaskActions(
   members: MemberPublic[],
   identity: PageIdentityCtx,
 ) {
-  const queryClient = useQueryClient();
   const isIdentity = identity.mode === 'identity' && identity.session != null;
   const writeLocked = !identity.canWrite;
 
@@ -25,11 +25,7 @@ export function useTaskActions(
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectNote, setRejectNote] = useState('');
 
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ['tasks', source] });
-    void queryClient.invalidateQueries({ queryKey: ['dep-graph', source] });
-  };
-  const afterAction = () => {
+  const resetState = () => {
     setPartnerOpen(false);
     setPartnerId('');
     setRejectOpen(false);
@@ -37,32 +33,37 @@ export function useTaskActions(
     setConfirmActorId('');
     setCompleteActorId('');
     setReviewActorId('');
-    invalidate();
   };
 
-  const partnerMutation = useMutation({
+  const invalidateKeys = [queryKeys.tasks(source), queryKeys.depGraph(source)];
+
+  const partnerMutation = useHubMutation({
+    invalidateKeys,
     mutationFn: (memberId: string) =>
       client.setTaskPartner(task.id, { partnerMemberId: memberId }),
-    onSuccess: afterAction,
+    onSuccess: resetState,
   });
-  const confirmMutation = useMutation({
+  const confirmMutation = useHubMutation({
+    invalidateKeys,
     mutationFn: (actor: ActorRef | undefined) =>
       client.confirmCrossClaim(task.id, actor ? { confirmedBy: actor } : {}),
-    onSuccess: afterAction,
+    onSuccess: resetState,
   });
-  const completeMutation = useMutation({
+  const completeMutation = useHubMutation({
+    invalidateKeys,
     mutationFn: (actor: ActorRef | undefined) =>
       client.completeTask(task.id, actor ? { completedBy: actor } : {}),
-    onSuccess: afterAction,
+    onSuccess: resetState,
   });
-  const reviewMutation = useMutation({
+  const reviewMutation = useHubMutation({
+    invalidateKeys,
     mutationFn: (vars: { outcome: 'accept' | 'reject'; note?: string; actor?: ActorRef }) =>
       client.reviewTask(task.id, {
         outcome: vars.outcome,
         reviewedBy: vars.actor,
         note: vars.note,
       }),
-    onSuccess: afterAction,
+    onSuccess: resetState,
   });
 
   const actionError =

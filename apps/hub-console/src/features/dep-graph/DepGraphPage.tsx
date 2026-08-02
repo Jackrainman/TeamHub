@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from '../../theme';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import { useHubMutation } from '../../hooks/useHubMutation';
+import { queryKeys } from '../../api/queryKeys';
 import dagre from '@dagrejs/dagre';
 import {
   Background,
@@ -126,16 +128,15 @@ export function DepGraphPage({
     [tasksQuery.data],
   );
 
-  const queryClient = useQueryClient();
   const [rejectMsg, setRejectMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const connectMutation = useMutation({
+  const connectMutation = useHubMutation({
+    invalidateKeys: [queryKeys.depGraph(source)],
     mutationFn: (req: CreateDependencyRequest) => client.createDependency(req),
     onSuccess: () => {
       setRejectMsg(null);
       setSuccessMsg(t('depgraph.connect.success'));
-      void queryClient.invalidateQueries({ queryKey: ['dep-graph', source] });
     },
     onError: (e) =>
       setRejectMsg(
@@ -145,14 +146,13 @@ export function DepGraphPage({
       ),
   });
 
-  const statusMutation = useMutation({
+  const statusMutation = useHubMutation({
+    invalidateKeys: [queryKeys.depGraph(source), queryKeys.tasks(source)],
     mutationFn: (vars: { taskId: string; status: TaskStatus }) =>
       client.updateTaskStatus(vars.taskId, vars.status),
     onSuccess: () => {
       setRejectMsg(null);
       setSuccessMsg(t('depgraph.status.changeSuccess'));
-      void queryClient.invalidateQueries({ queryKey: ['dep-graph', source] });
-      void queryClient.invalidateQueries({ queryKey: ['tasks', source] });
     },
     onError: (e) =>
       setRejectMsg(
@@ -162,13 +162,13 @@ export function DepGraphPage({
       ),
   });
 
-  const waiveMutation = useMutation({
+  const waiveMutation = useHubMutation({
+    invalidateKeys: [queryKeys.depGraph(source)],
     mutationFn: (depId: string) => client.waiveDependency(depId),
     onSuccess: () => {
       setSelectedEdgeId(null);
       setRejectMsg(null);
       setSuccessMsg(t('depgraph.edge.deleteSuccess'));
-      void queryClient.invalidateQueries({ queryKey: ['dep-graph', source] });
     },
     onError: (e) =>
       setRejectMsg(

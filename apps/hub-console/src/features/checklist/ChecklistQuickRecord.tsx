@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ClipboardList } from 'lucide-react';
 import type { HubApiClient } from '../../api/client';
+import { queryKeys } from '../../api/queryKeys';
+import { useHubMutation } from '../../hooks/useHubMutation';
 import { useBaseline } from '../../hooks/useBaseline';
 import { useSeasons } from '../../hooks/useRoster';
 import type { PageIdentityCtx } from '../../console-pages';
@@ -32,7 +33,6 @@ export function ChecklistQuickRecord({
   identity: PageIdentityCtx;
 }) {
   const { t } = useI18n();
-  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
 
   const form = useForm<ChecklistFormFields>({
@@ -86,7 +86,8 @@ export function ChecklistQuickRecord({
 
   const writeLocked = !identity.canWrite;
 
-  const mutation = useMutation({
+  const mutation = useHubMutation({
+    invalidateKeys: seasonId ? [queryKeys.checklist(source, seasonId)] : [],
     mutationFn: () => {
       const { title, anchorMode, anchorMilestoneId, anchorDueAt } = form.values;
       const req =
@@ -95,10 +96,7 @@ export function ChecklistQuickRecord({
           : { title: title.trim(), anchorDueAt: `${anchorDueAt}T00:00:00.000Z`, origin: 'iou' as const };
       return client.createChecklistItem(seasonId as string, req);
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['checklist', source, seasonId] });
-      setOpen(false);
-    },
+    onSuccess: () => setOpen(false),
   });
 
   const valid = form.valid && Boolean(seasonId);

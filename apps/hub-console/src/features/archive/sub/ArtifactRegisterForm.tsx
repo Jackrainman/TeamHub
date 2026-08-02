@@ -5,11 +5,11 @@ import {
   useState,
   type FormEvent,
 } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ArtifactRef } from '@teamhub/hub-contracts';
 import { nextArtifactVersionNo } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../../api/client';
 import type { CreateArtifactRequest } from '../../../api/schemas/pm';
+import { useHubMutation } from '../../../hooks/useHubMutation';
 import { useI18n } from '../../../i18n';
 import { humanizeFormError } from '../../../utils';
 import { SeasonSelect, guessSeason } from '../../../components/SeasonSelect';
@@ -36,7 +36,6 @@ export function ArtifactRegisterForm({
   artifacts: ArtifactRef[];
 }) {
   const { t } = useI18n();
-  const queryClient = useQueryClient();
 
   // 登记表单状态 v2（I0：无提交人字段）
   const [ownerGroup, setOwnerGroup] = useState<OwnerGroup>('mechanical');
@@ -96,8 +95,9 @@ export function ArtifactRegisterForm({
     artifact: ArtifactRef;
   } | null>(null);
 
-  const mutation = useMutation({
+  const mutation = useHubMutation({
     meta: { silent: true },
+    invalidateKeys: [['artifacts']],
     mutationFn: async (vars: { req: CreateArtifactRequest; file: File | null }) => {
       const reusable =
         pendingArtifact && JSON.stringify(pendingArtifact.req) === JSON.stringify(vars.req);
@@ -108,7 +108,6 @@ export function ArtifactRegisterForm({
         try {
           await client.uploadArtifactFile(artifact.id, vars.file);
         } catch (err) {
-          // 元数据已落盘、仅文件失败：记住 artifactId+req，只清文件字段，其余表单值保留待重试。
           setPendingArtifact({ req: vars.req, artifact });
           setFile(null);
           if (fileInputRef.current) fileInputRef.current.value = '';
@@ -128,7 +127,6 @@ export function ArtifactRegisterForm({
       if (fileInputRef.current) fileInputRef.current.value = '';
       setRelatedCommit('');
       setRelatedRepo('');
-      void queryClient.invalidateQueries({ queryKey: ['artifacts'] });
     },
   });
 
