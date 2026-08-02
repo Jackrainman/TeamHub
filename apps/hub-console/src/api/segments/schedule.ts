@@ -2,11 +2,9 @@ import {
   PresenceScheduleResponseSchema,
   ResourceSessionsResponseSchema,
   SharedResourcesResponseSchema,
-  FleetPreviewResponseSchema,
   type PresenceScheduleResponse,
   type ResourceSessionsResponse,
   type SharedResourcesResponse,
-  type FleetPreviewResponse,
 } from '@teamhub/hub-contracts';
 import {
   RelayBoardResponseSchema,
@@ -39,7 +37,7 @@ import {
   type UpdateResourceResponse,
 } from '../schemas/resources';
 import type { HttpContext } from '../http';
-import { fetchJson, postJson, postFormData, sendJson, DeletedResponseSchema } from '../http';
+import { fetchJson, postJson, sendJson, DeletedResponseSchema } from '../http';
 
 export interface ScheduleSegment {
   getSchedule(windowLabel: string): Promise<PresenceScheduleResponse>;
@@ -47,8 +45,6 @@ export interface ScheduleSegment {
   getResources(): Promise<SharedResourcesResponse>;
   createResource(req: CreateResourceRequest): Promise<CreateResourceResponse>;
   createResourcesBatch(req: CreateResourcesBatchRequest): Promise<CreateResourcesBatchResponse>;
-  fleetTemplateUrl(): string;
-  previewFleet(file: File): Promise<FleetPreviewResponse>;
   updateResourceStatus(id: string, patch: UpdateResourceStatusRequest): Promise<UpdateResourceResponse>;
   getRelay(windowLabel: string): Promise<RelayBoardResponse>;
   updateResourceSession(id: string, patch: UpdateResourceSessionRequest): Promise<UpdateResourceSessionResponse>;
@@ -81,12 +77,6 @@ export function createScheduleSegment(ctx: HttpContext): ScheduleSegment {
     },
     async createResourcesBatch(req: CreateResourcesBatchRequest) {
       return postJson(`${baseUrl}/api/resources/batch`, req, CreateResourcesBatchResponseSchema, fetcher, writeToken);
-    },
-    fleetTemplateUrl() {
-      return `${baseUrl}/api/resources/template`;
-    },
-    async previewFleet(file: File) {
-      return postFormData(`${baseUrl}/api/resources/preview`, file, FleetPreviewResponseSchema, fetcher, writeToken);
     },
     async updateResourceStatus(id: string, patch: UpdateResourceStatusRequest) {
       return sendJson('PATCH', `${baseUrl}/api/resources/${encodeURIComponent(id)}/status`, patch, UpdateResourceResponseSchema, fetcher, writeToken);

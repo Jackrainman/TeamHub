@@ -2,6 +2,28 @@
 
 > 从 `docs/known-bugs.md` 移入的已修复条目。修复标注 `✅ 已修复 YYYY-MM-DD`。
 
+## 2026-08-03 — 用户反馈三条（CSV 卡顿 / 日期选择器 / 初始化动线） ✅ 已修复 2026-08-03（v0.46.1）
+
+### 1. 导入名册页 CSV 上传严重性能问题（卡死浏览器） ✅
+
+- **根因**：卡顿不在上传/解析（皆 server 侧、线性），而在 preview 响应到达后 `RosterPreviewTable` 全量 DOM 一次 commit（几千行 × select+7 option+input+button）+ 每次键程 `rows.map` 全量克隆整表重渲染；另 InMemory/File store `importRoster` 每行 `findIndex` 查重 O(rows×members) 二次。
+- **修复**：预览表渲染窗口分批（50 行 +「显示更多」）+ 行组件 memo + 函数式 setState（handler 引用稳定）；`importRoster` 组名/成员名 Map 索引线性化（保留 findIndex 首次出现语义）。
+- **验证**：`roster-preview.test.ts` 键齐全锚点更新；hub-console/hub-server `verify:all` 绿。
+
+### 2. 日期选择器深色主题下不可见 ✅
+
+- **根因**：全站缺 `color-scheme` 声明——dark/tech 主题 input 背景走深色 token，但浏览器仍按 light scheme 渲染原生日期控件（深色图标打深底不可见）。
+- **修复**：`styles/01-tokens.css` `:root { color-scheme: light }` + `:root[data-theme='dark'|'tech'] { color-scheme: dark }`，原生 date picker/滚动条/select 弹层随主题反转。
+- **验证**：hub-console `verify:all` 绿（构建含 CSS 产物）。
+
+### 3. 初始化动线缺失（教学动线·简版） ✅
+
+- **根因**：初始化向导八步含「录入车队」，进 app 后机器人页空态无引导，用户不知从哪开始。
+- **修复**（用户拍板的简版）：车队步移出初始化向导（8→7 步，FleetStep/FleetPreviewTable/fleet helper/i18n 键/客户端 previewFleet 全删，server 批量端点保留）；初始化一台车改在左侧「机器人队」页——空态加 Bot 图标 + 引导文案指向页面上方新建表单。
+- **验证**：`bootstrap-gate/season-step/kb-step/inv-preview` 测试步序与圈号锚点更新；hub-console `verify:all` 绿。深度教学动线另行讨论。
+
+---
+
 ## 2026-07-28 — 初始化向导（Setup Wizard）三处缺陷 ✅ 已修复 2026-07-28（v0.45.5）
 
 ### 1. 引导缺少「返回上一步」按钮 ✅

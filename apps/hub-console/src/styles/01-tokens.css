@@ -1,6 +1,10 @@
 :root {
   color: var(--text);
   background: var(--page-bg);
+  /* 原生控件主题信号（2026-08-03 bug 修复）：深色主题下日期选择器弹窗/日历图标按 light scheme
+     渲染，深色图标打在深色底上不可见——color-scheme 让浏览器把原生控件（date picker / 滚动条 /
+     select 弹层）按 scheme 反转。dark/tech 的 dark 声明见本文件下方合并规则。 */
+  color-scheme: light;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -190,6 +194,13 @@
   /* 等宽栈（约束1 mono 族，含 CJK 'Sarasa Mono SC'）——只在 tech 下用于「数据位」。 */
   --font-mono: ui-monospace, 'JetBrains Mono', 'Cascadia Mono', 'SFMono-Regular',
     'Sarasa Mono SC', Menlo, monospace;
+}
+
+/* 深色主题的原生控件 scheme（2026-08-03 bug 修复，背景见 :root 处注释）：日期选择器弹窗/日历指示
+   图标、滚动条、select 弹层按 dark scheme 渲染（浅色图标/深底），不再"太黑看不到"。 */
+:root[data-theme='dark'],
+:root[data-theme='tech'] {
+  color-scheme: dark;
 }
 
 /* 页面蓝图底纹（超低调 1px 双向网格，40px 格）——只叠在 body/page 层，卡片/面板/侧栏各有实底不受影响。

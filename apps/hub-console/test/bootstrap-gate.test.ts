@@ -52,13 +52,12 @@ describe('bootstrap-gate: WHO_GRADE_OPTIONS 年级下拉选项', () => {
  * WIZARD_STEP_META 的 n 序号一致（回退 = 下标 -1，错位则回错步）；gate.back 文案 zh/en 齐全。
  */
 describe('bootstrap-gate: WIZARD_STEP_ORDER 回退步序', () => {
-  test('八步有序：who → roster → leads → season → fleet → inventory → kb → done', () => {
+  test('七步有序：who → roster → leads → season → inventory → kb → done（车队步已移去机器人队页）', () => {
     expect(WIZARD_STEP_ORDER).toEqual([
       'who',
       'roster',
       'leads',
       'season',
-      'fleet',
       'inventory',
       'kb',
       'done',

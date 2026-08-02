@@ -8,7 +8,6 @@ import { WIZARD_STEP_META, WIZARD_STEP_ORDER, WIZARD_STEP_TOTAL, type Step } fro
 import { WhoStep } from './WhoStep';
 import { RosterStep } from './RosterStep';
 import { SeasonStep } from './SeasonStep';
-import { FleetStep } from './FleetStep';
 import { InventoryStep } from './InventoryStep';
 import { KbStep } from './KbStep';
 
@@ -18,8 +17,6 @@ export {
   WIZARD_STEP_META,
   WIZARD_STEP_ORDER,
   WHO_GRADE_OPTIONS,
-  FLEET_ROBOT_TARGETS,
-  FLEET_STATUS_KEY,
   KB_DOC_ACCEPT,
   suggestSeasonForm,
   seasonAnchorsComplete,
@@ -27,15 +24,9 @@ export {
   seasonNameYear,
   buildSeasonCreateRequest,
   submitSeasonStep,
-  suggestFleetSeasonCode,
-  newFleetRow,
-  isFleetRowBlank,
-  fleetRowsSubmittable,
-  buildFleetBatchRequest,
-  fleetImportRowsToBatch,
   kbImportReportCounts,
 } from './setup-utils';
-export type { SeasonForm, FleetInitStatus, FleetRow } from './setup-utils';
+export type { SeasonForm } from './setup-utils';
 
 /**
  * 全屏初始化门（SETUP-WIZARD-ROSTER 刀② v2「先问你是谁」，onboarding-pin-deadlock-2026-07-24 §3 刀②）。
@@ -48,10 +39,11 @@ export type { SeasonForm, FleetInitStatus, FleetRow } from './setup-utils';
  *  ② **导入名册 CSV**
  *  ③ **确认各组组长**
  *  ④ **建赛季**
- *  ⑤ **录入车队**
- *  ⑥ **录入库存**
- *  ⑦ **导入知识库**
- *  ⑧ **进 app**
+ *  ⑤ **录入库存**
+ *  ⑥ **导入知识库**
+ *  ⑦ **进 app**
+ *
+ * 车队初始化不在向导内（2026-08-03 教学动线）：进 app 后左侧「机器人队」页有建车表单与空态引导。
  *
  * 「上一步」（WIZARD-BACK 修复刀）：除首步外各步底部统一回退口；已访问步保持挂载（hidden 隐藏），
  * 回退时已填表单态不丢，已提交数据由步内查询重取回显（known-bugs 2026-07-28 #1）。
@@ -157,12 +149,7 @@ export function BootstrapGate({
         ) : null}
         {visited.includes('season') ? (
           <div hidden={step !== 'season'}>
-            <SeasonStep client={client} onNext={() => goTo('fleet')} />
-          </div>
-        ) : null}
-        {visited.includes('fleet') ? (
-          <div hidden={step !== 'fleet'}>
-            <FleetStep client={client} onNext={() => goTo('inventory')} />
+            <SeasonStep client={client} onNext={() => goTo('inventory')} />
           </div>
         ) : null}
         {visited.includes('inventory') ? (

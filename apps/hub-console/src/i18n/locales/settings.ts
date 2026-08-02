@@ -234,6 +234,7 @@ export const zhSettings = {
   'settings.roster.preview.confirm': '确认导入',
   'settings.roster.preview.cancel': '取消',
   'settings.roster.preview.empty': '没有可导入的行（全部删除或均无法解析）。',
+  'settings.roster.preview.showMore': '显示更多（还有 {count} 行）',
 };
 
 export const enSettings = {
@@ -479,4 +480,5 @@ export const enSettings = {
   'settings.roster.preview.confirm': 'Confirm import',
   'settings.roster.preview.cancel': 'Cancel',
   'settings.roster.preview.empty': 'No importable rows (all removed or unparseable).',
+  'settings.roster.preview.showMore': 'Show more ({count} remaining)',
 };

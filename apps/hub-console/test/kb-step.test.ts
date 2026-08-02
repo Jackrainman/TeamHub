@@ -56,10 +56,10 @@ describe('kb-step: accept 串与 i18n 双语键', () => {
     }
   });
 
-  test('步序号同步：subtitle 七步、done ⑧（kb 插在 inventory 与 done 之间，season ④ 见 season-step.test.ts）', () => {
+  test('步序号同步：subtitle 七步、done ⑦（kb 插在 inventory 与 done 之间，season ④ 见 season-step.test.ts）', () => {
     expect(translations.zh['gate.subtitle']).toContain('七步');
     expect(translations.en['gate.subtitle']).toContain('Seven steps');
-    expect(translations.zh['gate.done.title']).toBe('⑧ 完成');
-    expect(translations.en['gate.done.title']).toBe('(8) Done');
+    expect(translations.zh['gate.done.title']).toBe('⑦ 完成');
+    expect(translations.en['gate.done.title']).toBe('(7) Done');
   });
 });

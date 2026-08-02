@@ -253,14 +253,14 @@ describe('season-step: i18n 双语键与步序号锚点', () => {
     expect(translations.en['gate.season.error']).toContain('{detail}');
   });
 
-  test('步序号同步：subtitle 七步、season ④/(4) 插在 leads 与 fleet 之间、done ⑧/(8)', () => {
+  test('步序号同步：subtitle 七步、season ④/(4) 插在 leads 与 inventory 之间、done ⑦/(7)', () => {
     expect(translations.zh['gate.subtitle']).toContain('七步');
     expect(translations.en['gate.subtitle']).toContain('Seven steps');
     expect(translations.zh['gate.step.season']).toBe('④ 建赛季');
     expect(translations.en['gate.step.season']).toBe('(4) Create the season');
-    expect(translations.zh['gate.step.fleet']).toContain('⑤');
-    expect(translations.en['gate.step.fleet']).toContain('(5)');
-    expect(translations.zh['gate.done.title']).toBe('⑧ 完成');
-    expect(translations.en['gate.done.title']).toBe('(8) Done');
+    expect(translations.zh['gate.step.inventory']).toContain('⑤');
+    expect(translations.en['gate.step.inventory']).toContain('(5)');
+    expect(translations.zh['gate.done.title']).toBe('⑦ 完成');
+    expect(translations.en['gate.done.title']).toBe('(7) Done');
   });
 });

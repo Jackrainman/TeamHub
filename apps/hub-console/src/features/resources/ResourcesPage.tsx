@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Bot } from 'lucide-react';
 import { EmptyState } from '../../shared/EmptyState';
 import type { HubApiClient } from '../../api/client';
 import { useResources } from '../../hooks/useSchedule';
@@ -86,7 +87,11 @@ export function ResourcesPage({
       <section className="panel" aria-label={t('resources.table.title')}>
         <h2 className="resources-section-title">{t('resources.table.title')}</h2>
         {resources.length === 0 ? (
-          <EmptyState title={t('resources.empty')} />
+          <EmptyState
+            icon={Bot}
+            title={t('resources.empty')}
+            desc={t('resources.empty.desc')}
+          />
         ) : (
           <div className="resources-table-wrap">
             <table className="resources-table">

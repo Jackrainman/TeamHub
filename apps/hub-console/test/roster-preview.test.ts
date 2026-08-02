@@ -119,6 +119,7 @@ describe('roster-preview（刀⑦）：i18n 键 zh/en 双语齐全', () => {
       'settings.roster.preview.confirm',
       'settings.roster.preview.cancel',
       'settings.roster.preview.empty',
+      'settings.roster.preview.showMore',
     ];
     for (const key of keys) {
       expect(translations.zh[key]).toBeTruthy();

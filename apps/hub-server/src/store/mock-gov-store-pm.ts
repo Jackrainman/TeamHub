@@ -267,18 +267,26 @@ export function PmCoreMixin<T extends Base>(
       // 空板真实态 emptyGovSnapshot 仍保留 seasons/seasonId 赛季元信息，故这里恒解析到合法值）。
       const seasonId = resolveActiveSeasonId(this.snapshot.seasons, this.snapshot.seasonId);
       const abstractGroupIds = computeAbstractGroupIds(this.snapshot.groups);
-      // 组名 → id 解析（既有组 / 本批已建组）：同批同名组只建一次。
+      // 组名 → id 解析（既有组 / 本批已建组）：同批同名组只建一次。Map 索引线性查重
+      // （2026-08-03 性能修复：此前每行 find 全组列表 = O(rows×groups)，大表导入确认慢）。
+      const groupIdByName = new Map(this.snapshot.groups.map((g) => [g.name, g.id]));
       const resolveGroupId = (name: string): string => {
-        const existing = this.snapshot.groups.find((g) => g.name === name);
-        if (existing) return existing.id;
+        const existing = groupIdByName.get(name);
+        if (existing) return existing;
         const group = buildCreatedGroup(name, seasonId, nextSequentialId('grp-new', this.groupSeq));
         this.snapshot.groups.push(group);
+        groupIdByName.set(name, group.id);
         createdGroups.push(name);
         return group.id;
       };
       // 导入前名册（displayName 集）——用于 missingFromSheet（库里有但表里没有、绝不删）。
       const priorNames = this.snapshot.members.map((m) => m.displayName);
       const sheetNames = new Set(rows.map((r) => r.displayName));
+      // 成员 displayName → idx 索引（保留首次出现 = findIndex 语义；新建成员同笔补索引，线性查重）。
+      const memberIdxByName = new Map<string, number>();
+      this.snapshot.members.forEach((m, i) => {
+        if (!memberIdxByName.has(m.displayName)) memberIdxByName.set(m.displayName, i);
+      });
       for (const row of rows) {
         const groupId = resolveGroupId(row.groupName);
         // 刀④：命中抽象组（非叶子/哨兵）→ 拒该行（成员不建不改），failed 指回 CSV 原行说明原因。
@@ -289,7 +297,7 @@ export function PmCoreMixin<T extends Base>(
           });
           continue;
         }
-        const idx = this.snapshot.members.findIndex((m) => m.displayName === row.displayName);
+        const idx = memberIdxByName.get(row.displayName) ?? -1;
         if (idx === -1) {
           const member = buildRosterMemberCreate(
             row,
@@ -298,6 +306,7 @@ export function PmCoreMixin<T extends Base>(
             now,
           );
           this.snapshot.members.push(member);
+          memberIdxByName.set(row.displayName, this.snapshot.members.length - 1);
           created.push(row.displayName);
         } else {
           const prev = this.snapshot.members[idx];

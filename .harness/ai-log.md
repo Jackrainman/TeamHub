@@ -43,3 +43,6 @@
 - 2026-07-31 refactor(console): IntegrationsSection 复用 App 透传 overview（抽 OverviewView），删 useHubOverview 重复查询消除双缓存键 v0.45.75 (3c244cf)
 - 2026-08-03 feat(server): TASK-TIMELINE 补全——updateTaskStatus/claimTask 加 by/claimer 尾参，claim/complete/reject/人工流转四口追加 transitions，路由 sessionActor 注入 + task-timeline.test 8 条 + seed 种 demo 时间线 v0.46.0
 - 2026-08-03 feat(lark): 配置体验四件套——hint 引导步骤 zh/en、GET/POST /api/integrations/lark/chats（群下拉+建群自动入群）、PUT 保存真发测试消息验证 chat_id；lark-client 收敛 base URL + lark-outbound.test +5 v0.46.0
+- 2026-08-03 perf(console): 名册预览表分批渲染（50 行窗口）+行 memo+函数式更新 + server importRoster Map 线性化，根治 CSV 大表卡死 v0.46.1
+- 2026-08-03 fix(console): 01-tokens.css 补 color-scheme light/dark——深色主题原生日期选择器随主题反转 v0.46.1
+- 2026-08-03 refactor(console): 教学动线简版——车队步移出初始化向导（8→7 步，FleetStep 族全删），初始化车移去机器人队页空态引导 v0.46.1
