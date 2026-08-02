@@ -4,6 +4,7 @@ import {
   type Task,
   type TodayPlanSessionDraft,
 } from '@teamhub/hub-contracts';
+import { candidateTasksForResource } from '../../shared/lib/resource-tasks';
 
 // 今日计划表格（D-082 §5）纯函数层：草稿行 <-> TodayPlanSessionDraft[] <-> 落盘 batch body 的三段映射。
 // 全部零副作用（不发请求、不摸时钟），配单测；表格组件只负责编排 IO（拉数据 / 调 mutation）。
@@ -41,14 +42,6 @@ function blankRow(resourceId: string, slot = 0): DraftRow {
 /** 表格基线：每台可上场车一条空行（车列固定，其余待填）。不可上场（维修/退役/拆解）车不进表格。 */
 export function buildBaselineRows(resources: SharedResource[]): DraftRow[] {
   return resources.filter((r) => canBoardResource(r.status)).map((r) => blankRow(r.id));
-}
-
-/** 该车候选任务：robotTarget 对齐（未填 robotTarget 的任务 = 泛化租户任务，也算候选）+ shared 通用任务。 */
-export function candidateTasksForResource(tasks: Task[], resource: SharedResource): Task[] {
-  return tasks.filter(
-    (t) =>
-      t.robotTarget == null || t.robotTarget === resource.robotTarget || t.robotTarget === 'shared',
-  );
 }
 
 /** 按标题在该车候选任务里找精确匹配（trim + 大小写不敏感）；找不到返回 undefined。 */

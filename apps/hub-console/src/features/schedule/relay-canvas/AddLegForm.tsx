@@ -6,7 +6,7 @@ import { useI18n } from '../../../i18n';
 import { Field } from '../../../components/Field';
 import { FormGrid } from '../../../components/FormGrid';
 import { FormEmptyState } from '../../../components/FormEmptyState';
-import { candidateTasksForResource } from '../today-plan';
+import { candidateTasksForResource } from '../../../shared/lib/resource-tasks';
 
 export function AddLegForm({
   client,

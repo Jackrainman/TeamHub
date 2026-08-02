@@ -3,10 +3,10 @@ import type { SharedResource, Task } from '@teamhub/hub-contracts';
 import { useI18n } from '../../../i18n';
 import { Combobox } from '../../../components/Combobox';
 import {
-  candidateTasksForResource,
   matchTaskByTitle,
   type DraftRow,
 } from '../today-plan';
+import { candidateTasksForResource } from '../../../shared/lib/resource-tasks';
 
 export function PlanRow({
   row,

@@ -7,7 +7,6 @@ import type {
 } from '@teamhub/hub-contracts';
 import {
   buildBaselineRows,
-  candidateTasksForResource,
   draftsToRows,
   isBlankRow,
   makeRowKey,
@@ -15,6 +14,7 @@ import {
   rowsToSessionDrafts,
   type DraftRow,
 } from '../src/features/schedule/today-plan';
+import { candidateTasksForResource } from '../src/shared/lib/resource-tasks';
 import { buildCarryOverPlan } from '../src/features/schedule/carry-over';
 
 function resource(over: Partial<SharedResource> & Pick<SharedResource, 'id'>): SharedResource {

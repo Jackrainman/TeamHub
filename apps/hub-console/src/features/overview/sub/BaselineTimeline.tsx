@@ -16,7 +16,7 @@ import type { PageIdentityCtx } from '../../../console-pages';
 import { useI18n } from '../../../i18n';
 import { CountUpNumber } from '../../../components/viz/CountUpNumber';
 import { GateChecklistCard } from '../../checklist/GateChecklistCard';
-import { overdueDays } from '../../checklist/checklist-utils';
+import { overdueDays } from '../../../shared/lib/date-utils';
 import {
   bandOf,
   currentPhase,

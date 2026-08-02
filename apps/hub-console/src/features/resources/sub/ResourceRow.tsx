@@ -11,7 +11,7 @@ import type {
 import type { Task } from '@teamhub/hub-contracts';
 import { useI18n } from '../../../i18n';
 import { humanizeFormError } from '../../../utils';
-import { candidateTasksForResource } from '../../schedule/today-plan';
+import { candidateTasksForResource } from '../../../shared/lib/resource-tasks';
 import { STATUSES, STATUS_KEY, STATUS_OPTION_KEY, KIND_KEY, statusTone } from './constants';
 
 interface PresetLineupRow {

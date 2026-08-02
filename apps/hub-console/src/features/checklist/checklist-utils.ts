@@ -6,8 +6,6 @@ import type { BaselineMilestonePublic } from '@teamhub/hub-contracts';
  * 「测逻辑不测 DOM」风格，同 identity-utils.ts / myview-utils.ts）。本文件不含任何 React / fetch。
  */
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
 /**
  * 全局「快记欠条」的默认挂接锚点（设计 §3：默认值=下一道整车级门）。
  *
@@ -31,13 +29,4 @@ export function pickDefaultIouAnchor(
       (acc, m) => (acc == null || m.plannedAt < acc.plannedAt ? m : acc),
       null,
     );
-}
-
-/**
- * 自选到期日欠条的过期天数（告警区「过期时长」文案用）：`now - dueAt` 向下取整到天，最小 0。
- * 未过期（dueAt 在未来）返回 0——调用方只对红档（已过期）欠条调用，负值无意义故夹到 0。
- */
-export function overdueDays(dueAtIso: string, now: Date): number {
-  const diff = now.getTime() - new Date(dueAtIso).getTime();
-  return Math.max(0, Math.floor(diff / MS_PER_DAY));
 }
