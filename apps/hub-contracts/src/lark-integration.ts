@@ -34,6 +34,27 @@ export const LarkConfigSaveResponseSchema = z.object({
 });
 export type LarkConfigSaveResponse = z.infer<typeof LarkConfigSaveResponseSchema>;
 
+// ─── 群管理（LARK-CHATS：配置页群下拉 + 建群，docs/lark-integration-ux-issues.md）──────────────
+
+export const LarkChatSchema = z.object({
+  chatId: z.string().min(1),
+  name: z.string(),
+});
+export type LarkChat = z.infer<typeof LarkChatSchema>;
+
+export const LarkChatsResponseSchema = z.object({
+  chats: z.array(LarkChatSchema),
+});
+export type LarkChatsResponse = z.infer<typeof LarkChatsResponseSchema>;
+
+export const LarkCreateChatRequestSchema = z.object({
+  name: z.string().min(1).max(100),
+});
+export type LarkCreateChatRequest = z.infer<typeof LarkCreateChatRequestSchema>;
+
+export const LarkCreateChatResponseSchema = LarkChatSchema;
+export type LarkCreateChatResponse = z.infer<typeof LarkCreateChatResponseSchema>;
+
 // ─── Hermes credential（loopback-only）────────────────────────────────────────
 
 export const HermesCredentialResponseSchema = z.object({

@@ -146,11 +146,11 @@ export function PmCoreMixin<T extends Base>(
      * （含 inProgress→done 标真实完成）。**statusSource 钉 `console`**（C5：人工流转记最低优先源，将来 git/lark
      * 派生信号可覆盖）；lastProgressAt 不动（仅派生信号回填）。id 不存在 → null（路由转 404）。
      */
-    async updateTaskStatus(taskId: string, status: TaskStatus): Promise<Task | null> {
+    async updateTaskStatus(taskId: string, status: TaskStatus, by?: ActorRef): Promise<Task | null> {
       const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
       if (idx === -1) return null;
       const now = this.clock.now().toISOString();
-      const updated = applyTaskStatusTransition(this.snapshot.tasks[idx], status, now);
+      const updated = applyTaskStatusTransition(this.snapshot.tasks[idx], status, now, by);
       this.snapshot.tasks[idx] = updated;
       return updated;
     }
@@ -373,10 +373,10 @@ export function PmCoreMixin<T extends Base>(
      * 认领挂单（§3）。仅当现 ownerId===null 才写（已有主 → null，路由据快照转 409）；写 ownerId + claimedAt，
      * pending→inProgress 提升（有主即开工，非 pending 不动）。id 不存在 → null（路由转 404）。
      */
-    async claimTask(taskId: string, ownerId: string, claimedAt: string): Promise<Task | null> {
+    async claimTask(taskId: string, ownerId: string, claimedAt: string, claimer?: ActorRef): Promise<Task | null> {
       const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
       if (idx === -1) return null;
-      const updated = buildClaimedTask(this.snapshot.tasks[idx], ownerId, claimedAt);
+      const updated = buildClaimedTask(this.snapshot.tasks[idx], ownerId, claimedAt, claimer);
       if (!updated) return null;
       this.snapshot.tasks[idx] = updated;
       return updated;

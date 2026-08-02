@@ -150,7 +150,14 @@ export const zhSettings = {
   'settings.integrations.lark.unconfigured': '未配置',
   'settings.integrations.lark.saving': '正在测试连接…',
   'settings.integrations.lark.saved': '已保存，连接正常。',
-  'settings.integrations.lark.hint': '在飞书开发者后台创建企业自建应用后获取。',
+  'settings.integrations.lark.hint':
+    '步骤：① 在飞书开发者后台创建企业自建应用，取 App ID / App Secret；② 「应用能力」里启用机器人能力；③ 「权限管理」加 im:message:send_as_bot、im:chat 权限；④ 创建版本并发布；⑤ 把机器人拉进目标群（或直接在下拉里建群）。保存时会向所选群发一条测试消息验证 chat_id。',
+  'settings.integrations.lark.chats.placeholder': '选择目标群（机器人已加入的群）',
+  'settings.integrations.lark.chats.manual': '手动输入 chat_id…',
+  'settings.integrations.lark.chats.backToList': '返回群列表',
+  'settings.integrations.lark.chats.createPlaceholder': '新群名称（机器人自动入群）',
+  'settings.integrations.lark.chats.create': '建群',
+  'settings.integrations.lark.chats.created': '已建群',
   'settings.section.connection': '连接',
   'settings.section.members': '成员与权限',
   'settings.members.desc':
@@ -386,7 +393,14 @@ export const enSettings = {
   'settings.integrations.lark.unconfigured': 'Not configured',
   'settings.integrations.lark.saving': 'Testing connection…',
   'settings.integrations.lark.saved': 'Saved, connection OK.',
-  'settings.integrations.lark.hint': 'Get these from the Feishu developer console after creating a self-built app.',
+  'settings.integrations.lark.hint':
+    'Steps: 1) Create a self-built app in the Feishu developer console to get App ID / App Secret; 2) enable the Bot capability; 3) grant im:message:send_as_bot and im:chat permissions; 4) create a release and publish; 5) invite the bot into the target group (or create one from the dropdown). Saving sends a test message to the chosen group to verify chat_id.',
+  'settings.integrations.lark.chats.placeholder': 'Pick a target group (bot already joined)',
+  'settings.integrations.lark.chats.manual': 'Enter chat_id manually…',
+  'settings.integrations.lark.chats.backToList': 'Back to group list',
+  'settings.integrations.lark.chats.createPlaceholder': 'New group name (bot joins automatically)',
+  'settings.integrations.lark.chats.create': 'Create group',
+  'settings.integrations.lark.chats.created': 'Group created',
   'settings.section.connection': 'Connection',
   'settings.section.members': 'Members & permissions',
   'settings.members.desc':

@@ -21,6 +21,8 @@ import {
   RosterPreviewResponseSchema,
   LarkConfigResponseSchema,
   LarkConfigSaveResponseSchema,
+  LarkChatsResponseSchema,
+  LarkCreateChatResponseSchema,
   type MemberPublic,
   type SessionRequest,
   type SessionResponse,
@@ -56,6 +58,9 @@ import {
   type LarkConfigResponse,
   type LarkConfigSaveRequest,
   type LarkConfigSaveResponse,
+  type LarkChatsResponse,
+  type LarkCreateChatRequest,
+  type LarkCreateChatResponse,
 } from '@teamhub/hub-contracts';
 import { z } from 'zod';
 import type { HttpContext } from '../http';
@@ -89,6 +94,8 @@ export interface MembersSegment {
   getLarkConfig(): Promise<LarkConfigResponse>;
   saveLarkConfig(req: LarkConfigSaveRequest): Promise<LarkConfigSaveResponse>;
   resetLarkConfig(): Promise<{ ok: boolean }>;
+  getLarkChats(): Promise<LarkChatsResponse>;
+  createLarkChat(req: LarkCreateChatRequest): Promise<LarkCreateChatResponse>;
 }
 
 export function createMembersSegment(ctx: HttpContext): MembersSegment {
@@ -186,6 +193,12 @@ export function createMembersSegment(ctx: HttpContext): MembersSegment {
     },
     async resetLarkConfig() {
       return sendJson('DELETE', `${baseUrl}/api/integrations/lark`, undefined, z.object({ ok: z.boolean() }), fetcher, writeToken);
+    },
+    async getLarkChats() {
+      return fetchJson(`${baseUrl}/api/integrations/lark/chats`, LarkChatsResponseSchema, fetcher);
+    },
+    async createLarkChat(req: LarkCreateChatRequest) {
+      return postJson(`${baseUrl}/api/integrations/lark/chats`, req, LarkCreateChatResponseSchema, fetcher, writeToken);
     },
   };
 }

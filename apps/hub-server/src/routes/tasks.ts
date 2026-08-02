@@ -198,7 +198,9 @@ export function registerTaskRoutes(app: FastifyInstance, deps: TaskRouteDeps): v
     const { taskId } = request.params as { taskId: string };
     const parsed = parseBody(TransitionTaskStatusRequestSchema, request, reply);
     if (!parsed) return;
-    const task = await store.updateTaskStatus(taskId, parsed.status);
+    // TASK-TIMELINE 留名：身份模式服务端注入 sessionActor（防冒充）、匿名模式 body 供名、皆无则记无 by
+    const by = request.identity ? sessionActor(request.identity) : parsed.by;
+    const task = await store.updateTaskStatus(taskId, parsed.status, by);
     if (!task) {
       void reply.code(404).send({ detail: 'task not found' });
       return;

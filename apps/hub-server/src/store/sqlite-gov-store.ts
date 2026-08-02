@@ -358,12 +358,12 @@ export class SqliteGovStore implements GovStore {
     });
   }
 
-  async updateTaskStatus(taskId: string, status: TaskStatus): Promise<Task | null> {
+  async updateTaskStatus(taskId: string, status: TaskStatus, by?: ActorRef): Promise<Task | null> {
     return this.tx(() => {
       const prev = this.getRow<Task>('tasks', taskId);
       if (!prev) return null;
       const now = this.clock.now().toISOString();
-      const updated = applyTaskStatusTransition(prev, status, now);
+      const updated = applyTaskStatusTransition(prev, status, now, by);
       this.updateRow('tasks', taskId, updated);
       return updated;
     });
@@ -580,11 +580,11 @@ export class SqliteGovStore implements GovStore {
   // ── 挂单认领制窄写（TASK-POST-CLAIM，D-088）：字段簇构造单源 gov-store-logic.ts（buildClaimedTask/
   // AssignedTask/CompletedTask/ReviewedTask）；整实体 JSON 就地重写（文档式行存），一个事务读-判-写。
 
-  async claimTask(taskId: string, ownerId: string, claimedAt: string): Promise<Task | null> {
+  async claimTask(taskId: string, ownerId: string, claimedAt: string, claimer?: ActorRef): Promise<Task | null> {
     return this.tx(() => {
       const prev = this.getRow<Task>('tasks', taskId);
       if (!prev) return null;
-      const updated = buildClaimedTask(prev, ownerId, claimedAt);
+      const updated = buildClaimedTask(prev, ownerId, claimedAt, claimer);
       if (!updated) return null;
       this.updateRow('tasks', taskId, updated);
       return updated;

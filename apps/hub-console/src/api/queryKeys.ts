@@ -25,5 +25,6 @@ export const queryKeys = {
     cacheKey ? ['hub-overview', source, cacheKey] as const : ['hub-overview', source] as const,
   systemStatus: (source: string) => ['system-status', source] as const,
   larkConfig: () => ['lark-config'] as const,
+  larkChats: () => ['lark-chats'] as const,
   session: () => ['session'] as const,
 } as const;

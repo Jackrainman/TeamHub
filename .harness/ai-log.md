@@ -41,3 +41,5 @@
 - 2026-07-31 feat(console): 全局 MutationCache.onError toast 兜底根治 mutation 静默吞 + 16 处内联渲染 mutation 标 meta.silent 去重 v0.45.73 (69b20c1)
 - 2026-07-31 refactor(console): queryKeys 工厂补四域 + 修正 artifacts/relay 形状，8 处查询点采用 v0.45.74 (1fe77b5)
 - 2026-07-31 refactor(console): IntegrationsSection 复用 App 透传 overview（抽 OverviewView），删 useHubOverview 重复查询消除双缓存键 v0.45.75 (3c244cf)
+- 2026-08-03 feat(server): TASK-TIMELINE 补全——updateTaskStatus/claimTask 加 by/claimer 尾参，claim/complete/reject/人工流转四口追加 transitions，路由 sessionActor 注入 + task-timeline.test 8 条 + seed 种 demo 时间线 v0.46.0
+- 2026-08-03 feat(lark): 配置体验四件套——hint 引导步骤 zh/en、GET/POST /api/integrations/lark/chats（群下拉+建群自动入群）、PUT 保存真发测试消息验证 chat_id；lark-client 收敛 base URL + lark-outbound.test +5 v0.46.0

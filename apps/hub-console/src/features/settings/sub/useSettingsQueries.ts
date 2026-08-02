@@ -15,3 +15,12 @@ export function useLarkConfig(client: HubApiClient) {
     queryFn: () => client.getLarkConfig(),
   });
 }
+
+export function useLarkChats(client: HubApiClient, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.larkChats(),
+    queryFn: () => client.getLarkChats(),
+    enabled,
+    retry: false,
+  });
+}

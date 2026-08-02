@@ -36,7 +36,8 @@ export function registerTaskClaimRoutes(app: FastifyInstance, deps: TaskRouteDep
       void reply.code(404).send({ detail: 'task not found' });
       return;
     }
-    if (!snapshot.members.some((m) => m.id === memberId)) {
+    const claimer = snapshot.members.find((m) => m.id === memberId);
+    if (!claimer) {
       void reply.code(400).send({ detail: '认领人不在名册' });
       return;
     }
@@ -44,7 +45,12 @@ export function registerTaskClaimRoutes(app: FastifyInstance, deps: TaskRouteDep
       void reply.code(409).send({ detail: '任务已有负责人（挂单已被认领）' });
       return;
     }
-    const claimed = await store.claimTask(taskId, memberId, clock.now().toISOString());
+    const claimed = await store.claimTask(
+      taskId,
+      memberId,
+      clock.now().toISOString(),
+      { id: memberId, displayName: claimer.displayName, source: 'console' },
+    );
     if (!claimed) {
       void reply.code(404).send({ detail: 'task not found' });
       return;
@@ -52,8 +58,7 @@ export function registerTaskClaimRoutes(app: FastifyInstance, deps: TaskRouteDep
     if (deps.larkStore) {
       const cfg = deps.larkStore.getConfig();
       if (cfg?.status === 'connected') {
-        const claimer = snapshot.members.find((m) => m.id === memberId);
-        const name = claimer?.displayName ?? memberId;
+        const name = claimer.displayName;
         void sendLarkMessage(cfg.appId, cfg.appSecret, cfg.chatId,
           `[认领] ${claimed.title} ← ${name}`,
         ).catch(() => {});

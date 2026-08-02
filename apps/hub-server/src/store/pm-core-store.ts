@@ -159,9 +159,11 @@ export interface PmCoreStore {
   /**
    * 任务状态流转（POST /api/tasks/:id/status）。在既有 TaskStatus 枚举内迁移（含 done=标真实完成）。
    * **statusSource 由 Store 钉 `console`**（C5：人工流转是最低优先源，git/lark/derived 派生信号可覆盖）。
-   * bump updatedAt；lastProgressAt 不动（仅派生信号回填）。id 不存在 → 返回 null（路由层转 404）。
+   * bump updatedAt；lastProgressAt 不动（仅派生信号回填）。`by`（操作者留名，TASK-TIMELINE）给了则随
+   * transition 落卡（身份模式路由注入 sessionActor、匿名模式 body 供；不给也放行，transition 无 by）。
+   * id 不存在 → 返回 null（路由层转 404）。
    */
-  updateTaskStatus(taskId: string, status: TaskStatus): Promise<Task | null>;
+  updateTaskStatus(taskId: string, status: TaskStatus, by?: ActorRef): Promise<Task | null>;
   /**
    * 软删除依赖边（POST /api/dependencies/:id/waive）。转 status=`waived`（人工判定作废），bump updatedAt，
    * **保留** confirmedBy/createdAt（G2 单一真相可审计）。waived 边经 toDepGraphView 从图隐藏，但仍留库
@@ -289,9 +291,10 @@ export interface PmCoreStore {
   /**
    * 认领挂单（POST /api/tasks/:id/claim，§3）：登录本人一键领无主活，**即生效免确认**。**仅当现
    * ownerId===null 才写**——已有主返回 null（路由层据快照转 409；不覆盖他人的活）。写 ownerId +
-   * claimedAt；status `pending`→`inProgress`（有主即开工；非 pending 不动）。id 不存在 → null（→404）。
+   * claimedAt；status `pending`→`inProgress`（有主即开工；非 pending 不动）。`claimer`（TASK-TIMELINE）
+   * 给了则随状态提升追加 transition 留名（路由层从名册构造）。id 不存在 → null（→404）。
    */
-  claimTask(taskId: string, ownerId: string, claimedAt: string): Promise<Task | null>;
+  claimTask(taskId: string, ownerId: string, claimedAt: string, claimer?: ActorRef): Promise<Task | null>;
 
   /**
    * 指派 / 转派（POST /api/tasks/:id/assign，§3；**同方法**——有主改主 = 转派）：写 ownerId + assignReason +

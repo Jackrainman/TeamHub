@@ -84,9 +84,12 @@ export const CreateNeedResponseSchema = z.object({
  * 这里是既有任务的真实推进，故五态全允许（含 `done`=标真实完成 / `shelved`=搁置）。
  * **statusSource 不由客户端给**——server 一律钉 `console`（C5：人工流转是最低优先源，git/lark/derived 派生
  * 信号可覆盖；schema 不暴露 statusSource 字段 = 结构上杜绝冒充 derived/git/lark）。lastProgressAt 不动（仅派生回填）。
+ * `by`（操作者留名，TASK-TIMELINE）optional：身份模式服务端从 session 注入、匿名模式 body 供名；
+ * 两者皆无也放行（transition 记无 by），不硬绑留名以免卡死脚本侧推进。
  */
 export const TransitionTaskStatusRequestSchema = z.object({
   status: TaskStatusSchema,
+  by: ActorRefSchema.optional(),
 });
 export const TransitionTaskStatusResponseSchema = z.object({ task: TaskSchema });
 

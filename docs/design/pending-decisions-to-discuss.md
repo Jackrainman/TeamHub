@@ -14,6 +14,8 @@
 | 飞书出站推送 | v0.45.4 | 认领通知+里程碑提醒端点 |
 | 飞书集成配置 | v0.45.0 | appId/appSecret/chatId 可编辑 |
 | 远程部署 | 已部署 | redeploy 脚本已有 |
+| 任务状态流转历史 TASK-TIMELINE | v0.46.0 | transitions 沿用 {from,to,at,by} 形状；by 注入（session/body）+ claim/complete/reject 追加 + 前端 TaskTimeline 渲染 + 测试 |
+| 飞书配置体验四件套 | v0.46.0 | hint 步骤/群下拉/建群/保存时测试消息验证 chat_id（docs/lark-integration-ux-issues.md） |
 
 ---
 
@@ -25,11 +27,9 @@ server.ts 3672 行 92 路由、CSV 读取三复制、admin 鉴权两复制、saf
 
 策略：不专门停下来重构，新功能新文件，逐步迁出。
 
-### 2. 任务状态流转历史（TASK-TIMELINE）
+### 2. 任务状态流转历史（TASK-TIMELINE）— ✅ 已落地 v0.46.0
 
-Task 只有终态字段（claimedAt/completedBy），中间过程丢失。
-方案：Task 加 `transitions: {status, at, by}[]`，updateStatus 追加，Drawer 渲染时间线。
-工作量：~1.5 天
+Task 只有终态字段（claimedAt/completedBy），中间过程丢失。→ 已按既有 `transitions: {from,to,at,by}[]` 形状补齐 by 注入与 claim/complete/reject 追加，见上方已完成表。
 
 ### 3. 全局搜索（GLOBAL-SEARCH）
 

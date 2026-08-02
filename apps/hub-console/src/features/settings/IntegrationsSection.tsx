@@ -13,7 +13,7 @@ import {
   LIFECYCLE_STATUS_KEY,
   type IntegrationRow,
 } from './settings-constants';
-import { useLarkConfig } from './sub/useSettingsQueries';
+import { useLarkConfig, useLarkChats } from './sub/useSettingsQueries';
 import { useLarkMutations } from './sub/useSettingsMutations';
 
 // 集成（只读）：地基重建后按物种三分——BOT 渠道（飞书/微信/QQ）/ Agent 后端（Hermes/OpenClaw/
@@ -129,11 +129,16 @@ export function LarkIntegrationSection({ client }: { client: HubApiClient }) {
   const [appId, setAppId] = useState('');
   const [appSecret, setAppSecret] = useState('');
   const [chatId, setChatId] = useState('');
+  const [manualChat, setManualChat] = useState(false);
+  const [newChatName, setNewChatName] = useState('');
   const [feedback, setFeedback] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const configQuery = useLarkConfig(client);
+  const config = configQuery.data;
+  const chatsQuery = useLarkChats(client, Boolean(config?.configured));
+  const chats = chatsQuery.data?.chats ?? [];
 
-  const { saveMutation, resetMutation } = useLarkMutations(client, {
+  const { saveMutation, resetMutation, createChatMutation } = useLarkMutations(client, {
     appId,
     appSecret,
     chatId,
@@ -146,6 +151,12 @@ export function LarkIntegrationSection({ client }: { client: HubApiClient }) {
     onResetSuccess: () => {
       setFeedback(null);
       setAppId(''); setAppSecret(''); setChatId('');
+    },
+    onCreateChatSuccess: (chat) => {
+      setChatId(chat.chatId);
+      setManualChat(false);
+      setNewChatName('');
+      setFeedback({ ok: true, msg: `${t('settings.integrations.lark.chats.created')}：${chat.name}` });
     },
   });
 
@@ -160,7 +171,12 @@ export function LarkIntegrationSection({ client }: { client: HubApiClient }) {
     resetMutation.mutate();
   }
 
-  const config = configQuery.data;
+  function handleCreateChat() {
+    if (!newChatName.trim()) return;
+    setFeedback(null);
+    createChatMutation.mutate(newChatName);
+  }
+
   const statusLabel = config
     ? config.status === 'connected'
       ? t('settings.integrations.lark.connected')
@@ -173,6 +189,7 @@ export function LarkIntegrationSection({ client }: { client: HubApiClient }) {
     : config?.status === 'error'
       ? 'badge--red'
       : 'badge--amber';
+  const useSelect = !manualChat && chats.length > 0;
 
   return (
     <section className="panel settings-panel">
@@ -216,15 +233,74 @@ export function LarkIntegrationSection({ client }: { client: HubApiClient }) {
               />
             </Field>
             <Field label={t('settings.integrations.lark.chatId')}>
-              <input
-                className="input"
-                value={chatId}
-                onChange={(e) => setChatId(e.target.value)}
-                placeholder={config?.chatId ?? 'oc_xxxx'}
-                required
-              />
+              {useSelect ? (
+                <select
+                  className="input"
+                  value={chatId}
+                  onChange={(e) => {
+                    if (e.target.value === '__manual__') {
+                      setManualChat(true);
+                      return;
+                    }
+                    setChatId(e.target.value);
+                  }}
+                  required
+                >
+                  <option value="" disabled>
+                    {t('settings.integrations.lark.chats.placeholder')}
+                  </option>
+                  {chats.map((chat) => (
+                    <option key={chat.chatId} value={chat.chatId}>
+                      {chat.name || chat.chatId}
+                    </option>
+                  ))}
+                  {chatId && !chats.some((c) => c.chatId === chatId) && (
+                    <option value={chatId}>{chatId}</option>
+                  )}
+                  <option value="__manual__">
+                    {t('settings.integrations.lark.chats.manual')}
+                  </option>
+                </select>
+              ) : (
+                <>
+                  <input
+                    className="input"
+                    value={chatId}
+                    onChange={(e) => setChatId(e.target.value)}
+                    placeholder={config?.chatId ?? 'oc_xxxx'}
+                    required
+                  />
+                  {chats.length > 0 && (
+                    <button
+                      className="btn btn--ghost"
+                      type="button"
+                      onClick={() => setManualChat(false)}
+                    >
+                      {t('settings.integrations.lark.chats.backToList')}
+                    </button>
+                  )}
+                </>
+              )}
             </Field>
           </FormGrid>
+          {config?.configured && (
+            <div className="pm-form__footer">
+              <input
+                className="input"
+                value={newChatName}
+                onChange={(e) => setNewChatName(e.target.value)}
+                placeholder={t('settings.integrations.lark.chats.createPlaceholder')}
+              />
+              <button
+                className="btn"
+                type="button"
+                onClick={handleCreateChat}
+                disabled={createChatMutation.isPending || !newChatName.trim()}
+              >
+                {t('settings.integrations.lark.chats.create')}
+              </button>
+            </div>
+          )}
           <p className="form-hint">{t('settings.integrations.lark.hint')}</p>
           {feedback && (
             <p className={`form-hint ${feedback.ok ? 'form-hint--ok' : 'form-hint--warn'}`}>

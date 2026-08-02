@@ -496,11 +496,11 @@ export class FileGovStore implements GovStore {
     return deleted;
   }
 
-  async updateTaskStatus(taskId: string, status: TaskStatus): Promise<Task | null> {
+  async updateTaskStatus(taskId: string, status: TaskStatus, by?: ActorRef): Promise<Task | null> {
     const snap = this.inner.snapshotForRollback();
     const idx = snap.tasks.findIndex((t) => t.id === taskId);
     const prior = idx >= 0 ? snap.tasks[idx] : undefined; // 写前整条（idx 类回滚需存旧值）
-    const task = await this.inner.updateTaskStatus(taskId, status);
+    const task = await this.inner.updateTaskStatus(taskId, status, by);
     // 仅命中才落盘：未命中（null）不触发无谓写。
     if (task) {
       await this.govFile.persistOrRollback(() => {
@@ -674,11 +674,11 @@ export class FileGovStore implements GovStore {
   // 六方法全 idx 类回滚（写前存整条，persist 失败按 id 原地还原，镜像 updateTaskStatus）：委托 inner
   // 补留名 + clamp 逻辑（零漂移），仅命中（非 null）才落盘。claimTask 的"已有主"由 inner 返回 null，
   // 与"id 不存在"同走 null 分支、不触发无谓写。
-  async claimTask(taskId: string, ownerId: string, claimedAt: string): Promise<Task | null> {
+  async claimTask(taskId: string, ownerId: string, claimedAt: string, claimer?: ActorRef): Promise<Task | null> {
     const snap = this.inner.snapshotForRollback();
     const idx = snap.tasks.findIndex((t) => t.id === taskId);
     const prior = idx >= 0 ? snap.tasks[idx] : undefined;
-    const task = await this.inner.claimTask(taskId, ownerId, claimedAt);
+    const task = await this.inner.claimTask(taskId, ownerId, claimedAt, claimer);
     if (task) {
       await this.govFile.persistOrRollback(() => {
         if (prior) snap.tasks[idx] = prior;

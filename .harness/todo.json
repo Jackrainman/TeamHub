@@ -1,5 +1,5 @@
 {
-  "focus": "结构性三大拆分全部落地（CSS/GovStore/i18n）；剩余按需尾巴项",
+  "focus": "TASK-TIMELINE + 飞书配置体验四件套已落地 v0.46.0；剩余按需尾巴项",
   "blocked": [
     {"id": "HERMES-LARK-SKILL", "reason": "卡飞书侧 skill 编写（用户侧）", "owner": "user"},
     {"id": "LARK-BIN-PROBE", "reason": "需用户在 WSL2 实测 which lark / which lark-cli", "owner": "user"}
@@ -11,9 +11,14 @@
     {"id": "TESTS-PM-CORE", "title": "pm-core.ts derive 已有 task-post-claim.test 覆盖；如需 1:1 专属文件可再补", "tag": "code", "batch": "later"},
     {"id": "CHECKLIST-TPL-IMPORT", "title": "检查单模板最小导入通道（等复盘产出，先积累）", "tag": "code", "batch": "later"},
     {"id": "KB-AI-STRUCT", "title": "知识库 AI 结构化（研究项，先积累导入语料再评估）", "tag": "research", "batch": "later"},
-    {"id": "STORE-SQLITE-CONVERGE", "title": "[查明延后] SqliteGovStore.create() 承重 ~10 测试+迁移脚本，删旧路径需弃用周期", "tag": "code", "batch": "later"}
+    {"id": "STORE-SQLITE-CONVERGE", "title": "[查明延后] SqliteGovStore.create() 承重 ~10 测试+迁移脚本，删旧路径需弃用周期", "tag": "code", "batch": "later"},
+    {"id": "TIMELINE-EDITOR", "title": "基准线交互编排：/baseline/edit 全页路由，里程碑点击选偏移+实时 pace 反馈，segment 低频调整，不引拖拽库（~2.5 天，见 docs/design/pending-decisions-to-discuss.md §4）", "tag": "code", "batch": "later"},
+    {"id": "GOV-REPORT", "title": "给老师项目级汇报（数据已有，学期末前必做，勿拖）", "tag": "code", "batch": "later"},
+    {"id": "USER-FEEDBACK-2026-08-03", "title": "用户反馈三条（先不修，详见 docs/known-bugs.md 2026-08-03）：①名册 CSV 上传卡顿卡死浏览器 ②日期选择器深色主题不可见 ③主页初始化动线设计（强制上传一台车等）", "tag": "code", "batch": "later"}
   ],
   "done-tonight": [
+    "TASK-TIMELINE: 任务状态流转历史补全——by 注入（sessionActor/body）+ claim/complete/reject 四处 builder 追加 transitions + 路由测试 8 条 + seed 种 demo 时间线",
+    "LARK-CONFIG-UX: 飞书配置体验四件套——hint 引导步骤补全 / GET chats 群下拉（含手填逃生口）/ POST chats 建群自动入群 / PUT 保存真发测试消息验证 chat_id",
     "STORE-GOV-BASE: gov-store 对象构造单源化（create 族+更新族+builder 全抽入 gov-store-logic.ts 110→388 行）",
     "STORE-PERSIST-ROLL: PersistedFile 推广四 store，删 ~96 行手写原子写",
     "CONTRACTS-REQ-RULE: 写契约放置约定文档化（pm-requests.ts 头部）",
@@ -42,7 +47,6 @@
     {"id": "HUB-GIT-FORGE", "title": "战队 Git 中枢（P2，无紧迫信号）"},
     {"id": "DEPGRAPH-AI-AUTODRAW", "title": "AI 自动画 DAG 草图+人微调（卡 Hermes 触点）"},
     {"id": "AXIS-TREE-VIZ", "title": "知识树展示（人的未来，后置）"},
-    {"id": "GOV-REPORT", "title": "给老师项目级汇报（数据已有，学期末前做）"},
     {"id": "SCHED-NARROW", "title": "排班收窄定位（退出日常动线，只服务关键窗口）"}
   ]
 }

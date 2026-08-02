@@ -208,3 +208,118 @@ describe('LARK-OUTBOUND-PUSH：push-reminder', () => {
     }
   });
 });
+
+// LARK-CHATS（docs/lark-integration-ux-issues.md）：PUT 保存时真发测试消息验证 chat_id；
+// GET/POST /api/integrations/lark/chats 列群 / 建群。
+function mockFetchLarkApi(opts: { chats?: { chat_id: string; name: string }[]; messageOk?: boolean }) {
+  const calls: { url: string; method: string; body?: unknown }[] = [];
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+    const body = init?.body ? JSON.parse(init.body as string) : undefined;
+    calls.push({ url, method: init?.method ?? 'GET', body });
+    if (url.includes('tenant_access_token')) {
+      return new Response(JSON.stringify({ code: 0, tenant_access_token: 'fake-token' }), { status: 200 });
+    }
+    if (url.includes('im/v1/messages')) {
+      return new Response(JSON.stringify(opts.messageOk === false ? { code: 230002, msg: 'chat not found' } : { code: 0 }), { status: 200 });
+    }
+    if (url.includes('im/v1/chats')) {
+      if ((init?.method ?? 'GET') === 'POST') {
+        const name = (body as { name?: string })?.name ?? '';
+        return new Response(JSON.stringify({ code: 0, data: { chat_id: 'oc_new_1', name } }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ code: 0, data: { items: opts.chats ?? [] } }), { status: 200 });
+    }
+    return new Response(JSON.stringify({ code: 1, msg: 'unknown' }), { status: 400 });
+  }));
+  return calls;
+}
+
+describe('LARK-CHATS：保存配置时测试消息验证 chat_id', () => {
+  test('token + 测试消息都通过 → connected', async () => {
+    const calls = mockFetchLarkApi({ messageOk: true });
+    const { app, stores, larkStore } = buildAppWithLark({ appId: '', appSecret: '', chatId: '', status: 'unconfigured' });
+    try {
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/api/integrations/lark',
+        payload: { appId: 'app1', appSecret: 'sec1', chatId: 'oc_123' },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ ok: true, status: 'connected' });
+      expect(larkStore.getConfig()?.status).toBe('connected');
+      const msgCall = calls.find((c) => c.url.includes('im/v1/messages'));
+      expect(msgCall).toBeDefined(); // 保存时真发了测试消息
+    } finally {
+      stores.close();
+      await app.close();
+    }
+  });
+
+  test('测试消息失败（chat_id 无效）→ ok:false + status error，不再假报"连接正常"', async () => {
+    mockFetchLarkApi({ messageOk: false });
+    const { app, stores, larkStore } = buildAppWithLark({ appId: '', appSecret: '', chatId: '', status: 'unconfigured' });
+    try {
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/api/integrations/lark',
+        payload: { appId: 'app1', appSecret: 'sec1', chatId: 'oc_ghost' },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.ok).toBe(false);
+      expect(body.status).toBe('error');
+      expect(body.error).toContain('chat_id');
+      expect(larkStore.getConfig()?.status).toBe('error');
+    } finally {
+      stores.close();
+      await app.close();
+    }
+  });
+});
+
+describe('LARK-CHATS：列群 / 建群端点', () => {
+  test('GET chats → 机器人所在群列表', async () => {
+    mockFetchLarkApi({ chats: [{ chat_id: 'oc_123', name: '战队通知群' }] });
+    const { app, stores } = buildAppWithLark({ appId: 'app1', appSecret: 'sec1', chatId: 'oc_123', status: 'connected' });
+    try {
+      const res = await app.inject({ method: 'GET', url: '/api/integrations/lark/chats' });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ chats: [{ chatId: 'oc_123', name: '战队通知群' }] });
+    } finally {
+      stores.close();
+      await app.close();
+    }
+  });
+
+  test('POST chats → 建群返回 chatId（机器人自动入群）', async () => {
+    mockFetchLarkApi({});
+    const { app, stores } = buildAppWithLark({ appId: 'app1', appSecret: 'sec1', chatId: 'oc_123', status: 'connected' });
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/integrations/lark/chats',
+        payload: { name: 'R2 调试群' },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ chatId: 'oc_new_1', name: 'R2 调试群' });
+    } finally {
+      stores.close();
+      await app.close();
+    }
+  });
+
+  test('未配置 → GET/POST chats 皆 400', async () => {
+    mockFetchLarkApi({});
+    const { app, stores } = buildAppWithLark({ appId: '', appSecret: '', chatId: '', status: 'unconfigured' });
+    try {
+      expect((await app.inject({ method: 'GET', url: '/api/integrations/lark/chats' })).statusCode).toBe(400);
+      expect(
+        (await app.inject({ method: 'POST', url: '/api/integrations/lark/chats', payload: { name: 'x' } }))
+          .statusCode,
+      ).toBe(400);
+    } finally {
+      stores.close();
+      await app.close();
+    }
+  });
+});

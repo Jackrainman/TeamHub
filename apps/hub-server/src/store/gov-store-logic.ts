@@ -107,7 +107,12 @@ export function buildProjectManagerUpdate(prev: Member, projectManager: boolean,
   return { ...prev, projectManager, updatedBy: MEMBER_ROLE_UPDATED_BY, updatedAt: now };
 }
 
-export function buildClaimedTask(prev: Task, ownerId: string, claimedAt: string): Task | null {
+export function buildClaimedTask(
+  prev: Task,
+  ownerId: string,
+  claimedAt: string,
+  claimer?: ActorRef,
+): Task | null {
   if (prev.ownerId !== null) return null;
   const promoting = prev.status === 'pending';
   return {
@@ -117,6 +122,14 @@ export function buildClaimedTask(prev: Task, ownerId: string, claimedAt: string)
     status: promoting ? 'inProgress' : prev.status,
     statusSource: promoting ? MANUAL_TASK_STATUS_SOURCE : prev.statusSource,
     updatedAt: claimedAt,
+    ...(promoting
+      ? {
+          transitions: [
+            ...(prev.transitions ?? []),
+            { from: prev.status ?? null, to: 'inProgress' as const, at: claimedAt, ...(claimer ? { by: claimer } : {}) },
+          ],
+        }
+      : {}),
   };
 }
 
@@ -133,7 +146,17 @@ export function buildAssignedTask(
 
 export function buildCompletedTask(prev: Task, completedBy: ActorRef, at: string): Task {
   const { reviewedBy: _r, reviewNote: _n, ...rest } = prev;
-  return { ...rest, status: 'done', statusSource: MANUAL_TASK_STATUS_SOURCE, completedBy, updatedAt: at };
+  return {
+    ...rest,
+    status: 'done',
+    statusSource: MANUAL_TASK_STATUS_SOURCE,
+    completedBy,
+    updatedAt: at,
+    transitions: [
+      ...(prev.transitions ?? []),
+      { from: prev.status ?? null, to: 'done' as const, at, by: completedBy },
+    ],
+  };
 }
 
 export function buildReviewedTask(
@@ -152,6 +175,14 @@ export function buildReviewedTask(
     reviewedBy,
     ...(note !== undefined ? { reviewNote: note } : {}),
     updatedAt: at,
+    ...(rejecting
+      ? {
+          transitions: [
+            ...(prev.transitions ?? []),
+            { from: prev.status ?? null, to: 'inProgress' as const, at, by: reviewedBy },
+          ],
+        }
+      : {}),
   };
 }
 
@@ -331,8 +362,13 @@ export function applyDependencyWaive(prev: Dependency, now: string): Dependency 
 }
 
 /** 任务状态流转：受限状态机迁移，statusSource 钉 console + 追加一条 transition（lastProgressAt 不动）。 */
-export function applyTaskStatusTransition(prev: Task, status: TaskStatus, now: string): Task {
-  const transition = { from: prev.status ?? null, to: status, at: now };
+export function applyTaskStatusTransition(
+  prev: Task,
+  status: TaskStatus,
+  now: string,
+  by?: ActorRef,
+): Task {
+  const transition = { from: prev.status ?? null, to: status, at: now, ...(by ? { by } : {}) };
   return {
     ...prev,
     status,

@@ -2,13 +2,21 @@ import type { FastifyInstance } from 'fastify';
 import {
   LarkConfigSaveRequestSchema,
   LarkPushReminderResponseSchema,
+  LarkChatsResponseSchema,
+  LarkCreateChatRequestSchema,
+  LarkCreateChatResponseSchema,
   deriveBaselineDrift,
 } from '@teamhub/hub-contracts';
 import type { GovStore } from '../store/gov-store.js';
 import type { BaselineStore } from '../store/baseline-store.js';
 import type { Clock } from '../clock.js';
 import type { LarkIntegrationStore } from '../store/lark-integration-store.js';
-import { sendLarkMessage } from '../lark-client.js';
+import {
+  sendLarkMessage,
+  getTenantAccessToken,
+  listLarkChats,
+  createLarkChat,
+} from '../lark-client.js';
 import { parseBody, isLoopbackOperator } from './helpers.js';
 
 export interface LarkRouteDeps {
@@ -47,19 +55,18 @@ export function registerLarkRoutes(app: FastifyInstance, deps: LarkRouteDeps): v
     const { appId, appSecret, chatId } = parsed;
     const checkedAt = new Date().toISOString();
     try {
-      const tokenRes = await fetch(
-        'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ app_id: appId, app_secret: appSecret }),
-          signal: AbortSignal.timeout(10_000),
-        },
-      );
-      const tokenJson = (await tokenRes.json()) as { code?: number; msg?: string };
-      if (tokenJson.code !== 0) {
-        larkStore.saveConfig({ appId, appSecret, chatId, status: 'error', lastCheckedAt: checkedAt, error: tokenJson.msg ?? 'auth failed' });
-        return { ok: false, status: 'error' as const, error: tokenJson.msg ?? 'auth failed' };
+      const { token, error: tokenError } = await getTenantAccessToken(appId, appSecret);
+      if (!token) {
+        const error = tokenError ?? 'auth failed';
+        larkStore.saveConfig({ appId, appSecret, chatId, status: 'error', lastCheckedAt: checkedAt, error });
+        return { ok: false, status: 'error' as const, error };
+      }
+      // chat_id 实测：真发一条测试消息，无效群/机器人不在群立即暴露（此前只验 token，chat_id 无效也显示"连接正常"）
+      const probe = await sendLarkMessage(appId, appSecret, chatId, '[TeamHub] 飞书连接测试成功，此群已接通。');
+      if (!probe.ok) {
+        const error = `chat_id 验证失败：${probe.error ?? 'send failed'}`;
+        larkStore.saveConfig({ appId, appSecret, chatId, status: 'error', lastCheckedAt: checkedAt, error });
+        return { ok: false, status: 'error' as const, error };
       }
       larkStore.saveConfig({ appId, appSecret, chatId, status: 'connected', lastCheckedAt: checkedAt });
       return { ok: true, status: 'connected' as const };
@@ -74,6 +81,38 @@ export function registerLarkRoutes(app: FastifyInstance, deps: LarkRouteDeps): v
     larkStore.clearConfig();
     larkStore.rotateWriteToken();
     return { ok: true };
+  });
+
+  // 列机器人所在群（配置页 chat_id 下拉替代手填，docs/lark-integration-ux-issues.md ②）。
+  app.get('/api/integrations/lark/chats', async (_request, reply) => {
+    const cfg = larkStore.getConfig();
+    if (!cfg || !cfg.appId || !cfg.appSecret) {
+      void reply.code(400).send({ detail: '飞书未配置，先保存 App ID / App Secret' });
+      return;
+    }
+    const { chats, error } = await listLarkChats(cfg.appId, cfg.appSecret);
+    if (!chats) {
+      void reply.code(502).send({ detail: error ?? 'list chats failed' });
+      return;
+    }
+    return LarkChatsResponseSchema.parse({ chats });
+  });
+
+  // 建群 + 机器人自动入群（im/v1/chats 创建者即机器人，docs/lark-integration-ux-issues.md ③）。
+  app.post('/api/integrations/lark/chats', async (request, reply) => {
+    const parsed = parseBody(LarkCreateChatRequestSchema, request, reply);
+    if (!parsed) return;
+    const cfg = larkStore.getConfig();
+    if (!cfg || !cfg.appId || !cfg.appSecret) {
+      void reply.code(400).send({ detail: '飞书未配置，先保存 App ID / App Secret' });
+      return;
+    }
+    const { chat, error } = await createLarkChat(cfg.appId, cfg.appSecret, parsed.name);
+    if (!chat) {
+      void reply.code(502).send({ detail: error ?? 'create chat failed' });
+      return;
+    }
+    return LarkCreateChatResponseSchema.parse(chat);
   });
 
   app.get('/api/hermes/credential', async (request, reply) => {

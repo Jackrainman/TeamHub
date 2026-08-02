@@ -95,6 +95,7 @@ export function useLarkMutations(
     onSaveSuccess: (res: LarkConfigSaveResponse) => void;
     onSaveError: (err: Error) => void;
     onResetSuccess: () => void;
+    onCreateChatSuccess: (chat: { chatId: string; name: string }) => void;
   },
 ) {
   const saveMutation = useHubMutation({
@@ -115,7 +116,13 @@ export function useLarkMutations(
     onSuccess: () => opts.onResetSuccess(),
   });
 
-  return { saveMutation, resetMutation };
+  const createChatMutation = useHubMutation({
+    invalidateKeys: [queryKeys.larkChats()],
+    mutationFn: (name: string) => client.createLarkChat({ name: name.trim() }),
+    onSuccess: (chat) => opts.onCreateChatSuccess(chat),
+  });
+
+  return { saveMutation, resetMutation, createChatMutation };
 }
 
 export function useMemberMutations(client: HubApiClient) {
