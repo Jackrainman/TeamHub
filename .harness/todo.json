@@ -1,16 +1,14 @@
 {
-  "focus": "结构性债务排期（CSS 拆分 / GovStore 拆分 / i18n 拆分）+ contracts 测试补全",
+  "focus": "结构性三大拆分全部落地（CSS/GovStore/i18n）；剩余按需尾巴项",
   "blocked": [
     {"id": "HERMES-LARK-SKILL", "reason": "卡飞书侧 skill 编写（用户侧）", "owner": "user"},
     {"id": "LARK-BIN-PROBE", "reason": "需用户在 WSL2 实测 which lark / which lark-cli", "owner": "user"}
   ],
   "todo": [
-    {"id": "CSS-SPLIT", "title": "styles.css 5542 行拆分：tokens.css + base.css + 按 feature 拆组件样式，Vite 原生支持无框架", "tag": "code", "batch": "structural"},
-    {"id": "GOV-SPLIT", "title": "GovStore 三巨头（各 820-862 行）按子域拆：PmCore/Artifact/Schedule 三 mixin 组合，降认知负荷", "tag": "code", "batch": "structural"},
-    {"id": "I18N-SPLIT", "title": "translations.ts 2786 行按 feature namespace 拆分，index merge，降合并冲突", "tag": "code", "batch": "structural"},
     {"id": "HOOKS-1-TAIL", "title": "useXxx hook 层尾巴：剩余 ~19 处域特有 useQuery（relay/archive/kb/dep-graph/settings）按需迁移", "tag": "code", "batch": "hooks"},
     {"id": "SPLIT-1-TAIL", "title": "组件拆分尾巴：GateChecklistCard(396)/DirectionStarmap(389)/TodayPlanTable(384) 近线组件，功能迭代时顺带拆", "tag": "code", "batch": "split"},
-    {"id": "TESTS-CONTRACTS-GAP", "title": "contracts 13 个模块无专属测试（pm-core 774 行最大），补 derive 纯函数单测", "tag": "code", "batch": "quality"},
+    {"id": "GOV-SPLIT-SQLITE", "title": "[查明延后] SqliteGovStore mixin 化：承重 create() 路径（~10 测试+迁移脚本），风险高收益边际，InMemory 拆分已拿下主收益", "tag": "code", "batch": "later"},
+    {"id": "TESTS-PM-CORE", "title": "pm-core.ts derive 已有 task-post-claim.test 覆盖；如需 1:1 专属文件可再补", "tag": "code", "batch": "later"},
     {"id": "CHECKLIST-TPL-IMPORT", "title": "检查单模板最小导入通道（等复盘产出，先积累）", "tag": "code", "batch": "later"},
     {"id": "KB-AI-STRUCT", "title": "知识库 AI 结构化（研究项，先积累导入语料再评估）", "tag": "research", "batch": "later"},
     {"id": "STORE-SQLITE-CONVERGE", "title": "[查明延后] SqliteGovStore.create() 承重 ~10 测试+迁移脚本，删旧路径需弃用周期", "tag": "code", "batch": "later"}
@@ -32,7 +30,11 @@
     "SCAFFOLD-1: useHubMutation 工厂落地，9 文件 18 处 mutation 迁移，裸键归一 queryKeys",
     "AGENTS-REWRITE: 151→107 行，删腐烂清单/合并重叠/补六个漏加约定",
     "TYPES-NODE-FIX: @types/node ^20→^24 对齐 engines",
-    "EMPTY-IMPORT-DIR: 删 hub-server/src/import/ 空目录"
+    "EMPTY-IMPORT-DIR: 删 hub-server/src/import/ 空目录",
+    "TESTS-CONTRACTS-GAP: csv-core/schedule-infra/assembly/common 纯函数单测 +20",
+    "I18N-SPLIT: translations.ts 2786→40 行组合根，1176 key×2 拆入 locales/ 9 域",
+    "GOV-SPLIT: InMemoryGovStore mixin 拆分 862→5 文件（base+pm/artifact/schedule 三 mixin），494 测试绿",
+    "CSS-SPLIT: styles.css 5542 行按 feature 拆 21 文件 + 按序 import 保级联，concat 字节一致"
   ],
   "directions": [
     {"id": "KB-LARK-DESIGN", "title": "飞书 wiki/drive → KB 摄入（卡 LARK-BIN-PROBE）"},
