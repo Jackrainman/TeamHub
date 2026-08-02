@@ -1,5 +1,4 @@
-import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { readFile } from 'node:fs/promises';
 import {
   InventorySnapshotSchema,
   inventoryScenarioFixture,
@@ -13,6 +12,7 @@ import type {
 import type { Clock } from '../clock.js';
 import { cloneArrayFields } from './clone-snapshot.js';
 import { InMemoryInvStore } from './mock-inv-store.js';
+import { PersistedFile } from './persisted-file.js';
 import type {
   InvStore,
   InventoryImportOutcome,
@@ -24,8 +24,8 @@ import type {
  * 库存 / BOM JSON 落盘实现（INV-BOM-CORE 持久层）：进程重启不丢，盘点 / 拆装 / 一句话快记累积。
  *
  * 与 FileGovStore / FileKbStore 同一套纪律（结构逐条镜像）：
- *  - 单一真相在服务器：写入只落本 Store + 整文件原子落盘（写 tmp 再 rename）。
- *  - writeChain 串行化（H2 失败隔离）：并发写不互相覆盖，一次磁盘抖动不会让写链永久 rejected。
+ *  - 单一真相在服务器：写入只落本 Store + 整文件原子落盘（写 tmp 再 rename，经 PersistedFile）。
+ *  - 串行化 + H2 失败隔离由 PersistedFile 承载：并发写不互相覆盖，一次磁盘抖动不让写链永久 rejected。
  *  - 零额外依赖（只用 node:fs）。
  *  - 加载 fail-closed：文件不存在 → seed 起头并落一次盘；文件存在但解析/校验失败 → **抛**，不静默覆盖团队数据。
  *
@@ -50,18 +50,21 @@ interface SnapshotArrays {
 
 export class FileInvStore implements InvStore {
   private readonly inner: InMemoryInvStore;
-  private readonly filePath: string;
-  private writeChain: Promise<void> = Promise.resolve();
+  private readonly file: PersistedFile;
 
   private constructor(
     filePath: string,
     snapshot: InventorySnapshot,
     clock?: Clock,
   ) {
-    this.filePath = filePath;
     this.inner = clock
       ? new InMemoryInvStore(snapshot, clock)
       : new InMemoryInvStore(snapshot);
+    // 只读序列化：JSON.stringify 同步读取 live 引用（snapshotForRollback），与 live 逐字相同，
+    // 省每次写的数组克隆（原 writeOnce 注释同）。原子写/串行链/失败隔离由 PersistedFile 承载。
+    this.file = new PersistedFile(filePath, () =>
+      JSON.stringify(this.inner.snapshotForRollback(), null, 2),
+    );
   }
 
   /** 异步构造：从 dataFile 加载（不存在则 seed 起头并落盘）。 */
@@ -79,7 +82,7 @@ export class FileInvStore implements InvStore {
 
     if (raw === null) {
       const store = new FileInvStore(filePath, cloneSnapshot(seed), clock);
-      await store.persist();
+      await store.file.persist();
       return store;
     }
 
@@ -139,33 +142,6 @@ export class FileInvStore implements InvStore {
   }
 
   private async persistOrRollback(before: SnapshotArrays): Promise<void> {
-    try {
-      await this.persist();
-    } catch (err) {
-      this.restore(before);
-      throw err;
-    }
-  }
-
-  /** 原子写：写 tmp 再 rename，串行化避免并发覆盖（H2 失败隔离）。 */
-  private async persist(): Promise<void> {
-    const op = this.writeChain.then(() => this.writeOnce());
-    this.writeChain = op.catch(() => undefined);
-    return op;
-  }
-
-  private async writeOnce(): Promise<void> {
-    await mkdir(dirname(this.filePath), { recursive: true });
-    const tmp = `${this.filePath}.tmp`;
-    // 只读序列化，无需 getInventorySnapshot 的数组克隆隔离（JSON 与 live 逐字相同）；
-    // JSON.stringify 同步读取、无 await 间隙，用 live 引用即可，省每次写的数组克隆。
-    const snapshot = this.inner.snapshotForRollback();
-    try {
-      await writeFile(tmp, JSON.stringify(snapshot, null, 2), 'utf8');
-      await rename(tmp, this.filePath);
-    } catch (err) {
-      await unlink(tmp).catch(() => {});
-      throw err;
-    }
+    await this.file.persistOrRollback(() => this.restore(before));
   }
 }

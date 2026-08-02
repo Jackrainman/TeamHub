@@ -2,7 +2,6 @@ import {
   GOVERNANCE_SCENARIO_NOW,
   GOVERNANCE_SNAPSHOT_ARRAY_KEYS,
   buildDefaultGroupTree,
-  deriveDisplayCode,
   governanceScenarioFixture,
   scheduleScenarioFixture,
 } from '@teamhub/hub-contracts';
@@ -27,25 +26,6 @@ import type {
 import { FixedClock } from '../clock.js';
 import type { Clock } from '../clock.js';
 import {
-  ARTIFACT_SUBMITTED_VIA,
-  DEPENDENCY_INITIAL_STATUS,
-  DEPENDENCY_WAIVED_STATUS,
-  MANUAL_TASK_STATUS_SOURCE,
-  MEMBER_GATE_REVIEWER_UPDATED_BY,
-  MEMBER_PIN_UPDATED_BY,
-  MEMBER_ROLE_UPDATED_BY,
-  MEMBER_ROSTER_UPDATED_BY,
-  NEED_INITIAL_STATUS,
-  RELAY_HANDOFF_SOURCE,
-  RESOURCE_DEFAULT_STATUS,
-  RESOURCE_SESSION_SOURCE,
-  RESOURCE_STATUS_SOURCE,
-  ROSTER_IMPORT_GROUP_KIND,
-  ROSTER_IMPORT_MEMBER_STATUS,
-  TASK_DEFAULT_STATUS,
-  TASK_DEFAULT_STATUS_SOURCE,
-} from './clamp-defaults.js';
-import {
   resolveActiveSeasonId,
   computeAbstractGroupIds,
   validateGroupRename,
@@ -56,6 +36,27 @@ import {
   buildAssignedTask,
   buildCompletedTask,
   buildReviewedTask,
+  buildCreatedTask,
+  buildCreatedDependency,
+  buildCreatedNeed,
+  buildCreatedKbNode,
+  buildCreatedArtifact,
+  buildCreatedResource,
+  buildCreatedResourceSession,
+  buildCreatedResourceSessionsBatch,
+  buildCreatedRelayHandoff,
+  buildCreatedSeason,
+  applyMemberPin,
+  applyMemberGateReviewer,
+  applyMemberRole,
+  applyResourceStatus,
+  applyResourceDefaultPreset,
+  applyResourceSessionPatch,
+  applyDependencyWaive,
+  applyTaskStatusTransition,
+  buildRosterMemberCreate,
+  buildRosterMemberUpdate,
+  buildCreatedGroup,
 } from './gov-store-logic.js';
 import { cloneArrayFields } from './clone-snapshot.js';
 import type {
@@ -272,15 +273,7 @@ export class InMemoryGovStore implements GovStore {
    */
   async createTask(draft: TaskDraft): Promise<Task> {
     const now = this.clock.now().toISOString();
-    const task: Task = {
-      ...draft,
-      id: nextSequentialId('task-new', this.taskSeq),
-      status: draft.status ?? TASK_DEFAULT_STATUS,
-      statusSource: draft.statusSource ?? TASK_DEFAULT_STATUS_SOURCE,
-      lastProgressAt: null,
-      createdAt: now,
-      updatedAt: now,
-    };
+    const task = buildCreatedTask(draft, nextSequentialId('task-new', this.taskSeq), now);
     this.snapshot.tasks.push(task);
     return task;
   }
@@ -293,13 +286,11 @@ export class InMemoryGovStore implements GovStore {
    */
   async createDependency(draft: DependencyDraft): Promise<Dependency> {
     const now = this.clock.now().toISOString();
-    const dependency: Dependency = {
-      ...draft,
-      id: nextSequentialId('dep-new', this.dependencySeq),
-      status: DEPENDENCY_INITIAL_STATUS,
-      createdAt: now,
-      updatedAt: now,
-    };
+    const dependency = buildCreatedDependency(
+      draft,
+      nextSequentialId('dep-new', this.dependencySeq),
+      now,
+    );
     this.snapshot.dependencies.push(dependency);
     return dependency;
   }
@@ -311,14 +302,7 @@ export class InMemoryGovStore implements GovStore {
    */
   async createNeed(draft: NeedDraft): Promise<Need> {
     const now = this.clock.now().toISOString();
-    const need: Need = {
-      ...draft,
-      id: nextSequentialId('need-new', this.needSeq),
-      status: NEED_INITIAL_STATUS,
-      claimedByMemberId: null,
-      openedAt: now,
-      escalatedAt: null,
-    };
+    const need = buildCreatedNeed(draft, nextSequentialId('need-new', this.needSeq), now);
     this.snapshot.needs.push(need);
     return need;
   }
@@ -340,11 +324,7 @@ export class InMemoryGovStore implements GovStore {
       this.snapshot.knowledgeNodes[idx] = updated;
       return updated;
     }
-    const node: KnowledgeNode = {
-      ...draft,
-      id: nextSequentialId('kn-cl', this.knowledgeNodeSeq),
-      createdAt: now,
-    };
+    const node = buildCreatedKbNode(draft, nextSequentialId('kn-cl', this.knowledgeNodeSeq), now);
     this.snapshot.knowledgeNodes.push(node);
     return node;
   }
@@ -357,12 +337,11 @@ export class InMemoryGovStore implements GovStore {
    */
   async appendArtifact(draft: ArtifactDraft): Promise<ArtifactRef> {
     const now = this.clock.now().toISOString();
-    const artifact: ArtifactRef = {
-      ...draft,
-      id: nextSequentialId('artifact-new', this.artifactSeq),
-      submittedVia: ARTIFACT_SUBMITTED_VIA,
-      createdAt: now,
-    };
+    const artifact = buildCreatedArtifact(
+      draft,
+      nextSequentialId('artifact-new', this.artifactSeq),
+      now,
+    );
     this.snapshot.artifacts.push(artifact);
     return artifact;
   }
@@ -398,20 +377,11 @@ export class InMemoryGovStore implements GovStore {
    */
   async createResource(draft: ResourceDraft): Promise<SharedResource> {
     const now = this.clock.now().toISOString();
-    // displayCode 在 store 内派生（禁手写）：给了 season 才有 `赛季+位置(+vN)`，否则 undefined。
-    const displayCode =
-      draft.season !== undefined
-        ? deriveDisplayCode(draft.season, draft.robotTarget, draft.version ?? 1)
-        : undefined;
-    const resource: SharedResource = {
-      ...draft,
-      id: nextSequentialId('res-new', this.resourceSeq),
-      status: RESOURCE_DEFAULT_STATUS,
-      statusReason: null,
-      statusSource: RESOURCE_STATUS_SOURCE,
-      displayCode,
-      updatedAt: now,
-    };
+    const resource = buildCreatedResource(
+      draft,
+      nextSequentialId('res-new', this.resourceSeq),
+      now,
+    );
     this.resources.push(resource);
     return resource;
   }
@@ -429,15 +399,7 @@ export class InMemoryGovStore implements GovStore {
     const idx = this.resources.findIndex((r) => r.id === id);
     if (idx === -1) return null;
     const now = this.clock.now().toISOString();
-    const prev = this.resources[idx];
-    const updated: SharedResource = {
-      ...prev,
-      status: patch.status,
-      // statusReason 可空：显式 null 清空、给值改写、未传（undefined）保留旧值。
-      statusReason: patch.statusReason !== undefined ? patch.statusReason : prev.statusReason,
-      statusSource: RESOURCE_STATUS_SOURCE,
-      updatedAt: now,
-    };
+    const updated = applyResourceStatus(this.resources[idx], patch, now);
     this.resources[idx] = updated;
     return updated;
   }
@@ -455,16 +417,7 @@ export class InMemoryGovStore implements GovStore {
     const idx = this.resources.findIndex((r) => r.id === id);
     if (idx === -1) return null;
     const now = this.clock.now().toISOString();
-    const prev = this.resources[idx];
-    // preset===null → 整条不含 defaultPreset 键（DefaultPresetSchema 是 .optional() 非 .nullable()，
-    // 落盘/序列化层面等价「未设」；非 undefined 而是显式 omit，避免遗留 `defaultPreset: null` 与 schema 型不符）。
-    const updated: SharedResource =
-      preset === null
-        ? (() => {
-            const { defaultPreset: _drop, ...rest } = prev;
-            return { ...rest, updatedAt: now };
-          })()
-        : { ...prev, defaultPreset: preset, updatedAt: now };
+    const updated = applyResourceDefaultPreset(this.resources[idx], preset, now);
     this.resources[idx] = updated;
     return updated;
   }
@@ -485,12 +438,11 @@ export class InMemoryGovStore implements GovStore {
     draft: ResourceSessionDraft,
   ): Promise<ResourceSession> {
     const now = this.clock.now().toISOString();
-    const session: ResourceSession = {
-      ...draft,
-      id: nextSequentialId('sess-new', this.resourceSessionSeq),
-      source: RESOURCE_SESSION_SOURCE,
-      createdAt: now,
-    };
+    const session = buildCreatedResourceSession(
+      draft,
+      nextSequentialId('sess-new', this.resourceSessionSeq),
+      now,
+    );
     this.resourceSessions.push(session);
     return session;
   }
@@ -505,13 +457,11 @@ export class InMemoryGovStore implements GovStore {
     drafts: ResourceSessionDraft[],
   ): Promise<ResourceSession[]> {
     const now = this.clock.now().toISOString();
-    const sessions: ResourceSession[] = drafts.map((draft) => ({
-      ...draft,
-      id: nextSequentialId('sess-new', this.resourceSessionSeq),
-      source: RESOURCE_SESSION_SOURCE,
-      invitedMemberIds: [],
-      createdAt: now,
-    }));
+    const sessions = buildCreatedResourceSessionsBatch(
+      drafts,
+      () => nextSequentialId('sess-new', this.resourceSessionSeq),
+      now,
+    );
     this.resourceSessions.push(...sessions);
     return sessions;
   }
@@ -527,14 +477,7 @@ export class InMemoryGovStore implements GovStore {
   ): Promise<ResourceSession | null> {
     const idx = this.resourceSessions.findIndex((s) => s.id === id);
     if (idx === -1) return null;
-    const prev = this.resourceSessions[idx];
-    const updated: ResourceSession = {
-      ...prev,
-      orderInWindow:
-        patch.orderInWindow !== undefined ? patch.orderInWindow : prev.orderInWindow,
-      // eta 可空：显式 null 清空、给值更新、未传（undefined）保留旧值。
-      eta: patch.eta !== undefined ? patch.eta : prev.eta,
-    };
+    const updated = applyResourceSessionPatch(this.resourceSessions[idx], patch);
     this.resourceSessions[idx] = updated;
     return updated;
   }
@@ -571,12 +514,11 @@ export class InMemoryGovStore implements GovStore {
    */
   async createRelayHandoff(draft: RelayHandoffDraft): Promise<RelayHandoff> {
     const now = this.clock.now().toISOString();
-    const handoff: RelayHandoff = {
-      ...draft,
-      id: nextSequentialId('handoff-new', this.relayHandoffSeq),
-      source: RELAY_HANDOFF_SOURCE,
-      createdAt: now,
-    };
+    const handoff = buildCreatedRelayHandoff(
+      draft,
+      nextSequentialId('handoff-new', this.relayHandoffSeq),
+      now,
+    );
     this.relayHandoffs.push(handoff);
     return handoff;
   }
@@ -598,15 +540,7 @@ export class InMemoryGovStore implements GovStore {
     const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
     if (idx === -1) return null;
     const now = this.clock.now().toISOString();
-    const prev = this.snapshot.tasks[idx];
-    const transition = { from: prev.status ?? null, to: status, at: now };
-    const updated: Task = {
-      ...prev,
-      status,
-      statusSource: MANUAL_TASK_STATUS_SOURCE,
-      updatedAt: now,
-      transitions: [...(prev.transitions ?? []), transition],
-    };
+    const updated = applyTaskStatusTransition(this.snapshot.tasks[idx], status, now);
     this.snapshot.tasks[idx] = updated;
     return updated;
   }
@@ -620,11 +554,7 @@ export class InMemoryGovStore implements GovStore {
     const idx = this.snapshot.dependencies.findIndex((d) => d.id === depId);
     if (idx === -1) return null;
     const now = this.clock.now().toISOString();
-    const updated: Dependency = {
-      ...this.snapshot.dependencies[idx],
-      status: DEPENDENCY_WAIVED_STATUS,
-      updatedAt: now,
-    };
+    const updated = applyDependencyWaive(this.snapshot.dependencies[idx], now);
     this.snapshot.dependencies[idx] = updated;
     return updated;
   }
@@ -645,22 +575,7 @@ export class InMemoryGovStore implements GovStore {
     const idx = this.snapshot.members.findIndex((m) => m.id === memberId);
     if (idx === -1) return null;
     const now = this.clock.now().toISOString();
-    const updated: Member = {
-      ...this.snapshot.members[idx],
-      updatedBy: MEMBER_PIN_UPDATED_BY,
-      updatedAt: now,
-    };
-    if (pinHash === null) {
-      delete updated.pinHash;
-      delete updated.pinPlaintext;
-    } else {
-      updated.pinHash = pinHash;
-      if (pinPlaintext !== undefined) {
-        updated.pinPlaintext = pinPlaintext;
-      } else {
-        delete updated.pinPlaintext;
-      }
-    }
+    const updated = applyMemberPin(this.snapshot.members[idx], pinHash, pinPlaintext, now);
     this.snapshot.members[idx] = updated;
     return updated;
   }
@@ -677,12 +592,7 @@ export class InMemoryGovStore implements GovStore {
     const idx = this.snapshot.members.findIndex((m) => m.id === memberId);
     if (idx === -1) return null;
     const now = this.clock.now().toISOString();
-    const updated: Member = {
-      ...this.snapshot.members[idx],
-      gateReviewer,
-      updatedBy: MEMBER_GATE_REVIEWER_UPDATED_BY,
-      updatedAt: now,
-    };
+    const updated = applyMemberGateReviewer(this.snapshot.members[idx], gateReviewer, now);
     this.snapshot.members[idx] = updated;
     return updated;
   }
@@ -697,12 +607,7 @@ export class InMemoryGovStore implements GovStore {
     const idx = this.snapshot.members.findIndex((m) => m.id === memberId);
     if (idx === -1) return null;
     const now = this.clock.now().toISOString();
-    const updated: Member = {
-      ...this.snapshot.members[idx],
-      role,
-      updatedBy: MEMBER_ROLE_UPDATED_BY,
-      updatedAt: now,
-    };
+    const updated = applyMemberRole(this.snapshot.members[idx], role, now);
     this.snapshot.members[idx] = updated;
     return updated;
   }
@@ -756,13 +661,7 @@ export class InMemoryGovStore implements GovStore {
     const resolveGroupId = (name: string): string => {
       const existing = this.snapshot.groups.find((g) => g.name === name);
       if (existing) return existing.id;
-      const group: Group = {
-        id: nextSequentialId('grp-new', this.groupSeq),
-        seasonId,
-        parentGroupId: null,
-        name,
-        kind: ROSTER_IMPORT_GROUP_KIND,
-      };
+      const group = buildCreatedGroup(name, seasonId, nextSequentialId('grp-new', this.groupSeq));
       this.snapshot.groups.push(group);
       createdGroups.push(name);
       return group.id;
@@ -782,31 +681,18 @@ export class InMemoryGovStore implements GovStore {
       }
       const idx = this.snapshot.members.findIndex((m) => m.displayName === row.displayName);
       if (idx === -1) {
-        const member: Member = {
-          id: nextSequentialId('member-new', this.memberSeq),
-          displayName: row.displayName,
-          role: 'member', // 刀③：导入不写 role——组长走导入后确认页，新成员恒 member
-          grade: row.grade,
+        const member = buildRosterMemberCreate(
+          row,
           groupId,
-          status: ROSTER_IMPORT_MEMBER_STATUS,
-          currentTaskId: null,
-          updatedBy: MEMBER_ROSTER_UPDATED_BY,
-          updatedAt: now,
-          gateReviewer: row.gateReviewer,
-        };
+          nextSequentialId('member-new', this.memberSeq),
+          now,
+        );
         this.snapshot.members.push(member);
         created.push(row.displayName);
       } else {
         const prev = this.snapshot.members[idx];
         // role / pinHash / projectManager 旗标永不动（`...prev` 保留）——重导幂等不洗已任命组长。
-        const member: Member = {
-          ...prev,
-          grade: row.grade,
-          groupId,
-          gateReviewer: row.gateReviewer,
-          updatedBy: MEMBER_ROSTER_UPDATED_BY,
-          updatedAt: now,
-        };
+        const member = buildRosterMemberUpdate(prev, row, groupId, now);
         this.snapshot.members[idx] = member;
         updated.push(row.displayName);
       }
@@ -829,13 +715,7 @@ export class InMemoryGovStore implements GovStore {
       return { ok: false, reason: 'name-exists' };
     }
     const seasonId = resolveActiveSeasonId(this.snapshot.seasons, this.snapshot.seasonId);
-    const group: Group = {
-      id: nextSequentialId('grp-new', this.groupSeq),
-      seasonId,
-      parentGroupId: null,
-      name: draft.name,
-      kind: ROSTER_IMPORT_GROUP_KIND,
-    };
+    const group = buildCreatedGroup(draft.name, seasonId, nextSequentialId('grp-new', this.groupSeq));
     this.snapshot.groups.push(group);
     return { ok: true, group };
   }
@@ -975,11 +855,7 @@ export class InMemoryGovStore implements GovStore {
         this.snapshot.seasons[i] = { ...this.snapshot.seasons[i], status: 'archived' };
       }
     }
-    const season: Season = {
-      ...draft,
-      id: nextSequentialId('season-new', this.seasonSeq),
-      status: 'active',
-    };
+    const season = buildCreatedSeason(draft, nextSequentialId('season-new', this.seasonSeq));
     this.snapshot.seasons.push(season);
     return season;
   }

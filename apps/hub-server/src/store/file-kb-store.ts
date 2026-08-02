@@ -1,5 +1,4 @@
-import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
 import {
   ArchiveDocumentSchema,
@@ -10,6 +9,7 @@ import {
 import type { ArchiveDocument, KbSnapshot } from '@teamhub/hub-contracts';
 import { cloneArrayFields } from './clone-snapshot.js';
 import { addArchiveDocumentsInto, appendCloseoutInto } from './mock-kb-store.js';
+import { PersistedFile } from './persisted-file.js';
 import type {
   KbAddArchiveDocsResult,
   KbCloseoutAppend,
@@ -45,13 +45,13 @@ function cloneSnapshot(seed: KbSnapshot): KbSnapshot {
 
 export class FileKbStore implements KbStore {
   private readonly snapshot: KbSnapshot;
-  private readonly filePath: string;
-  // 串行化落盘：并发 appendCloseout 不互相覆盖。
-  private writeChain: Promise<void> = Promise.resolve();
+  private readonly file: PersistedFile;
 
   private constructor(filePath: string, snapshot: KbSnapshot) {
-    this.filePath = filePath;
     this.snapshot = snapshot;
+    // 只读序列化：JSON.stringify 读 live snapshot（与 getKbSnapshot 克隆隔离无关，落盘内容逐字相同）。
+    // 串行链/原子写/失败隔离由 PersistedFile 承载。
+    this.file = new PersistedFile(filePath, () => JSON.stringify(this.snapshot, null, 2));
   }
 
   /** 异步构造：从 dataFile 加载（不存在则 seed 起头并落盘）。 */
@@ -69,7 +69,7 @@ export class FileKbStore implements KbStore {
     if (raw === null) {
       // 文件不存在 → seed 起头 + 落一次盘（首启动落种子语料）。
       const store = new FileKbStore(filePath, cloneSnapshot(seed));
-      await store.persist();
+      await store.file.persist();
       return store;
     }
 
@@ -96,7 +96,7 @@ export class FileKbStore implements KbStore {
     };
     appendCloseoutInto(this.snapshot, input);
     try {
-      await this.persist();
+      await this.file.persist();
     } catch (err) {
       // 原地还原（保持 snapshot 引用不变，splice 回填写前内容）。
       this.snapshot.issueCards.splice(0, this.snapshot.issueCards.length, ...before.issueCards);
@@ -119,7 +119,7 @@ export class FileKbStore implements KbStore {
     const before = [...this.snapshot.archiveDocuments];
     const result = addArchiveDocumentsInto(this.snapshot, docs);
     try {
-      await this.persist();
+      await this.file.persist();
     } catch (err) {
       this.snapshot.archiveDocuments.splice(
         0,
@@ -129,28 +129,5 @@ export class FileKbStore implements KbStore {
       throw err;
     }
     return result;
-  }
-
-  /** 原子写：写 tmp 再 rename，串行化避免并发覆盖。 */
-  private async persist(): Promise<void> {
-    const op = this.writeChain.then(() => this.writeOnce());
-    // H2（AUDIT-FIXES 部署前必修）：失败隔离。推进写链时**吞掉本次错误**（reset 为 resolved），
-    // 否则一次瞬时磁盘抖动（ENOSPC/EACCES）会让 writeChain 永久 rejected → 之后每次 persist 的
-    // .then 回调被静默跳过、内存与磁盘分叉、store 以为存了却再不落盘。调用方仍拿到本次真实错误（op）。
-    this.writeChain = op.catch(() => undefined);
-    return op;
-  }
-
-  private async writeOnce(): Promise<void> {
-    await mkdir(dirname(this.filePath), { recursive: true });
-    const tmp = `${this.filePath}.tmp`;
-    try {
-      await writeFile(tmp, JSON.stringify(this.snapshot, null, 2), 'utf8');
-      await rename(tmp, this.filePath);
-    } catch (err) {
-      // L2：rename 后失败会漏 .tmp；写失败也清残留，避免孤儿临时文件堆积。
-      await unlink(tmp).catch(() => {});
-      throw err;
-    }
   }
 }

@@ -2,7 +2,6 @@ import {
   GOVERNANCE_SCENARIO_NOW,
   GovernanceSnapshotSchema,
   buildDefaultGroupTree,
-  deriveDisplayCode,
   deriveLeafGroups,
   governanceScenarioFixture,
   scheduleScenarioFixture,
@@ -28,25 +27,6 @@ import type {
 } from '@teamhub/hub-contracts';
 import { FixedClock } from '../clock.js';
 import type { Clock } from '../clock.js';
-import {
-  ARTIFACT_SUBMITTED_VIA,
-  DEPENDENCY_INITIAL_STATUS,
-  DEPENDENCY_WAIVED_STATUS,
-  MANUAL_TASK_STATUS_SOURCE,
-  MEMBER_GATE_REVIEWER_UPDATED_BY,
-  MEMBER_PIN_UPDATED_BY,
-  MEMBER_ROLE_UPDATED_BY,
-  MEMBER_ROSTER_UPDATED_BY,
-  NEED_INITIAL_STATUS,
-  RELAY_HANDOFF_SOURCE,
-  RESOURCE_DEFAULT_STATUS,
-  RESOURCE_SESSION_SOURCE,
-  RESOURCE_STATUS_SOURCE,
-  ROSTER_IMPORT_GROUP_KIND,
-  ROSTER_IMPORT_MEMBER_STATUS,
-  TASK_DEFAULT_STATUS,
-  TASK_DEFAULT_STATUS_SOURCE,
-} from './clamp-defaults.js';
 import { createIdSequence, nextSequentialId } from './id-sequence.js';
 import type { IdSequence } from './id-sequence.js';
 import type {
@@ -75,6 +55,27 @@ import {
   buildClaimedTask,
   buildCompletedTask,
   buildReviewedTask,
+  buildCreatedTask,
+  buildCreatedDependency,
+  buildCreatedNeed,
+  buildCreatedKbNode,
+  buildCreatedArtifact,
+  buildCreatedResource,
+  buildCreatedResourceSession,
+  buildCreatedResourceSessionsBatch,
+  buildCreatedRelayHandoff,
+  buildCreatedSeason,
+  applyMemberPin,
+  applyMemberGateReviewer,
+  applyMemberRole,
+  applyResourceStatus,
+  applyResourceDefaultPreset,
+  applyResourceSessionPatch,
+  applyDependencyWaive,
+  applyTaskStatusTransition,
+  buildRosterMemberCreate,
+  buildRosterMemberUpdate,
+  buildCreatedGroup,
   resolveActiveSeasonId,
   validateGroupDeletion,
   validateGroupRename,
@@ -312,53 +313,36 @@ export class SqliteGovStore implements GovStore {
     };
   }
 
-  // ── pm-core 域写（clamp 初始态 / 补 id·时间戳，逐字镜像 InMemoryGovStore） ─────────────
+  // ── pm-core 域写（对象构造单源 gov-store-logic.ts builder；本类只持 tx/insertRow 持久化外壳）─────
 
   async createTask(draft: TaskDraft): Promise<Task> {
     const now = this.clock.now().toISOString();
-    const task: Task = {
-      ...draft,
-      id: nextSequentialId('task-new', this.taskSeq),
-      status: draft.status ?? TASK_DEFAULT_STATUS,
-      statusSource: draft.statusSource ?? TASK_DEFAULT_STATUS_SOURCE,
-      lastProgressAt: null,
-      createdAt: now,
-      updatedAt: now,
-    };
+    const task = buildCreatedTask(draft, nextSequentialId('task-new', this.taskSeq), now);
     this.tx(() => this.insertRow('tasks', task.id, task));
     return task;
   }
 
   async createDependency(draft: DependencyDraft): Promise<Dependency> {
     const now = this.clock.now().toISOString();
-    const dependency: Dependency = {
-      ...draft,
-      id: nextSequentialId('dep-new', this.dependencySeq),
-      status: DEPENDENCY_INITIAL_STATUS,
-      createdAt: now,
-      updatedAt: now,
-    };
+    const dependency = buildCreatedDependency(
+      draft,
+      nextSequentialId('dep-new', this.dependencySeq),
+      now,
+    );
     this.tx(() => this.insertRow('dependencies', dependency.id, dependency));
     return dependency;
   }
 
   async createNeed(draft: NeedDraft): Promise<Need> {
     const now = this.clock.now().toISOString();
-    const need: Need = {
-      ...draft,
-      id: nextSequentialId('need-new', this.needSeq),
-      status: NEED_INITIAL_STATUS,
-      claimedByMemberId: null,
-      openedAt: now,
-      escalatedAt: null,
-    };
+    const need = buildCreatedNeed(draft, nextSequentialId('need-new', this.needSeq), now);
     this.tx(() => this.insertRow('needs', need.id, need));
     return need;
   }
 
   async closeoutKbNode(draft: KnowledgeNodeDraft): Promise<KnowledgeNode> {
     const now = this.clock.now().toISOString();
-    // 按 name upsert（镜像 InMemoryGovStore）：命中既有则原地覆盖、保留旧 id；否则新建。整个读-判-写一个事务。
+    // 按 name upsert：命中既有则原地覆盖、保留旧 id；否则新建（未命中支走共享 buildCreatedKbNode）。读-判-写一个事务。
     return this.tx(() => {
       const existing = this.allRows<KnowledgeNode>('knowledge_nodes').find(
         (n) => n.name === draft.name,
@@ -368,11 +352,7 @@ export class SqliteGovStore implements GovStore {
         this.updateRow('knowledge_nodes', existing.id, updated);
         return updated;
       }
-      const node: KnowledgeNode = {
-        ...draft,
-        id: nextSequentialId('kn-cl', this.knowledgeNodeSeq),
-        createdAt: now,
-      };
+      const node = buildCreatedKbNode(draft, nextSequentialId('kn-cl', this.knowledgeNodeSeq), now);
       this.insertRow('knowledge_nodes', node.id, node);
       return node;
     });
@@ -383,14 +363,7 @@ export class SqliteGovStore implements GovStore {
       const prev = this.getRow<Task>('tasks', taskId);
       if (!prev) return null;
       const now = this.clock.now().toISOString();
-      const transition = { from: prev.status ?? null, to: status, at: now };
-      const updated: Task = {
-        ...prev,
-        status,
-        statusSource: MANUAL_TASK_STATUS_SOURCE,
-        updatedAt: now,
-        transitions: [...(prev.transitions ?? []), transition],
-      };
+      const updated = applyTaskStatusTransition(prev, status, now);
       this.updateRow('tasks', taskId, updated);
       return updated;
     });
@@ -400,11 +373,7 @@ export class SqliteGovStore implements GovStore {
     return this.tx(() => {
       const prev = this.getRow<Dependency>('dependencies', depId);
       if (!prev) return null;
-      const updated: Dependency = {
-        ...prev,
-        status: DEPENDENCY_WAIVED_STATUS,
-        updatedAt: this.clock.now().toISOString(),
-      };
+      const updated = applyDependencyWaive(prev, this.clock.now().toISOString());
       this.updateRow('dependencies', depId, updated);
       return updated;
     });
@@ -418,30 +387,13 @@ export class SqliteGovStore implements GovStore {
     return this.tx(() => {
       const prev = this.getRow<Member>('members', memberId);
       if (!prev) return null;
-      const updated: Member = {
-        ...prev,
-        updatedBy: MEMBER_PIN_UPDATED_BY,
-        updatedAt: this.clock.now().toISOString(),
-      };
-      // `pinHash = null`（余项⑦ PIN-RESET）= 清除，成员回到免 PIN 态；明文副本（刀⑧②）同笔清。
-      if (pinHash === null) {
-        delete updated.pinHash;
-        delete updated.pinPlaintext;
-      } else {
-        updated.pinHash = pinHash;
-        // pinPlaintext 双写：未传则清旧副本（防 hash/明文错位）。
-        if (pinPlaintext !== undefined) {
-          updated.pinPlaintext = pinPlaintext;
-        } else {
-          delete updated.pinPlaintext;
-        }
-      }
+      const updated = applyMemberPin(prev, pinHash, pinPlaintext, this.clock.now().toISOString());
       this.updateRow('members', memberId, updated);
       return updated;
     });
   }
 
-  // 设 / 撤成员门验收人资格（GATE-CHECKLIST-IOU）：整实体 JSON 就地重写（文档式行存），镜像 setMemberPin。
+  // 设 / 撤成员门验收人资格（GATE-CHECKLIST-IOU）：对象构造单源 applyMemberGateReviewer；整实体 JSON 就地重写（文档式行存）。
   async setMemberGateReviewer(
     memberId: string,
     gateReviewer: boolean,
@@ -449,29 +401,19 @@ export class SqliteGovStore implements GovStore {
     return this.tx(() => {
       const prev = this.getRow<Member>('members', memberId);
       if (!prev) return null;
-      const updated: Member = {
-        ...prev,
-        gateReviewer,
-        updatedBy: MEMBER_GATE_REVIEWER_UPDATED_BY,
-        updatedAt: this.clock.now().toISOString(),
-      };
+      const updated = applyMemberGateReviewer(prev, gateReviewer, this.clock.now().toISOString());
       this.updateRow('members', memberId, updated);
       return updated;
     });
   }
 
-  // 设成员组织身份（K1 权限地基）：整实体 JSON 就地重写（文档式行存），镜像 setMemberGateReviewer。
+  // 设成员组织身份（K1 权限地基）：对象构造单源 applyMemberRole；整实体 JSON 就地重写（文档式行存）。
   // MEMBER-PM-FLAG 后 role 不再承载管理员权限，本写口无降级保护（已随权限移到 setProjectManager）。
   async setMemberRole(memberId: string, role: MemberRole): Promise<Member | null> {
     return this.tx(() => {
       const prev = this.getRow<Member>('members', memberId);
       if (!prev) return null;
-      const updated: Member = {
-        ...prev,
-        role,
-        updatedBy: MEMBER_ROLE_UPDATED_BY,
-        updatedAt: this.clock.now().toISOString(),
-      };
+      const updated = applyMemberRole(prev, role, this.clock.now().toISOString());
       this.updateRow('members', memberId, updated);
       return updated;
     });
@@ -499,7 +441,8 @@ export class SqliteGovStore implements GovStore {
 
   /**
    * 名册批量导入（ROSTER-IMPORT，K8 + 刀③ 不写 role + 刀④ 拒抽象组）：整批在一个事务里应用到
-   * members + groups（半程崩溃回滚，无「建了组没建人」中间态）。逐字镜像 InMemoryGovStore.importRoster——
+   * members + groups（半程崩溃回滚，无「建了组没建人」中间态）。成员/组对象构造单源 gov-store-logic.ts
+   *（buildRosterMemberCreate/Update、buildCreatedGroup），与 InMemoryGovStore 共享同一份字段语义；本类只持
    * 组按 name 匹配现有 / 本批已建、否则自动建（`grp-new-N` + kind 默认 + 当前赛季）；成员按 displayName
    * 幂等 upsert（新建 `member-new-N` role 恒 'member' / 命中更新 grade·groupId·gateReviewer，
    * role / pinHash / projectManager 旗标永不动——重导幂等不洗已任命组长）；**刀④**：组名命中批前既有的
@@ -518,7 +461,7 @@ export class SqliteGovStore implements GovStore {
       const seasonId =
         seasons.find((s) => s.status === 'active')?.id ?? this.getMeta('seasonId') ?? '';
       // 刀④：批前既有组中的非叶子/哨兵组 id 集（抽象汇报视角，不可挂人）。只算批前——本批新建组
-      // 恒为叶子，若算进来会误伤同批后续同名行（逐字镜像 InMemoryGovStore）。
+      // 恒为叶子，若算进来会误伤同批后续同名行（与 InMemoryGovStore 同一份只算批前既有组的口径）。
       const groupsBefore = this.allRows<Group>('groups');
       const leafBefore = new Set(deriveLeafGroups(groupsBefore));
       const abstractGroupIds = new Set(
@@ -530,13 +473,7 @@ export class SqliteGovStore implements GovStore {
       const resolveGroupId = (name: string): string => {
         const hit = groupIdByName.get(name);
         if (hit) return hit;
-        const group: Group = {
-          id: nextSequentialId('grp-new', this.groupSeq),
-          seasonId,
-          parentGroupId: null,
-          name,
-          kind: ROSTER_IMPORT_GROUP_KIND,
-        };
+        const group = buildCreatedGroup(name, seasonId, nextSequentialId('grp-new', this.groupSeq));
         this.insertRow('groups', group.id, group);
         groupIdByName.set(name, group.id);
         createdGroups.push(name);
@@ -560,30 +497,17 @@ export class SqliteGovStore implements GovStore {
         }
         const prev = memberByName.get(row.displayName);
         if (!prev) {
-          const member: Member = {
-            id: nextSequentialId('member-new', this.memberSeq),
-            displayName: row.displayName,
-            role: 'member', // 刀③：导入不写 role——组长走导入后确认页，新成员恒 member
-            grade: row.grade,
+          const member = buildRosterMemberCreate(
+            row,
             groupId,
-            status: ROSTER_IMPORT_MEMBER_STATUS,
-            currentTaskId: null,
-            updatedBy: MEMBER_ROSTER_UPDATED_BY,
-            updatedAt: now,
-            gateReviewer: row.gateReviewer,
-          };
+            nextSequentialId('member-new', this.memberSeq),
+            now,
+          );
           this.insertRow('members', member.id, member);
           memberByName.set(member.displayName, member);
           created.push(row.displayName);
         } else {
-          const member: Member = {
-            ...prev,
-            grade: row.grade,
-            groupId,
-            gateReviewer: row.gateReviewer,
-            updatedBy: MEMBER_ROSTER_UPDATED_BY,
-            updatedAt: now,
-          };
+          const member = buildRosterMemberUpdate(prev, row, groupId, now);
           this.updateRow('members', prev.id, member);
           memberByName.set(member.displayName, member);
           updated.push(row.displayName);
@@ -595,8 +519,8 @@ export class SqliteGovStore implements GovStore {
     });
   }
 
-  // ── 组管理最小版（PROGRAM-GROUP-ABSTRACT 刀④）：逐字镜像 InMemoryGovStore 三方法（守卫同临界区、
-  // 判据同 deriveLeafGroups 结构派生），一个事务读-判-写（半程崩溃回滚）。
+  // ── 组管理最小版（PROGRAM-GROUP-ABSTRACT 刀④）：守卫单源 gov-store-logic.ts（validateGroupRename/Deletion），
+  // 建组走共享 buildCreatedGroup；本类只持一个事务读-判-写（半程崩溃回滚）。
 
   /** 新建叶子组（POST /api/groups）：同名 → name-exists；其余字段钉法同 importRoster 自动建组。 */
   async createGroup(draft: GroupDraft): Promise<CreateGroupResult> {
@@ -607,13 +531,7 @@ export class SqliteGovStore implements GovStore {
       }
       const seasons = this.allRows<Season>('seasons');
       const seasonId = resolveActiveSeasonId(seasons, this.getMeta('seasonId') ?? '');
-      const group: Group = {
-        id: nextSequentialId('grp-new', this.groupSeq),
-        seasonId,
-        parentGroupId: null,
-        name: draft.name,
-        kind: ROSTER_IMPORT_GROUP_KIND,
-      };
+      const group = buildCreatedGroup(draft.name, seasonId, nextSequentialId('grp-new', this.groupSeq));
       this.insertRow('groups', group.id, group);
       return { ok: true as const, group };
     });
@@ -647,7 +565,7 @@ export class SqliteGovStore implements GovStore {
   }
 
   /** 空板默认组树（打磨轮刀⑤）：单事务读-判-写——groups 非空 → no-op（幂等）；空 → 整树插入
-   * （逐字镜像 InMemoryGovStore.ensureDefaultGroups，seasonId 钉法同 createGroup）。 */
+   *（seasonId 钉法同 createGroup，与 InMemoryGovStore 共享 buildDefaultGroupTree 口径）。 */
   async ensureDefaultGroups(): Promise<void> {
     return this.tx(() => {
       if (this.allRows<Group>('groups').length > 0) return;
@@ -659,8 +577,8 @@ export class SqliteGovStore implements GovStore {
     });
   }
 
-  // ── 挂单认领制窄写（TASK-POST-CLAIM，D-088）：整实体 JSON 就地重写（文档式行存），逐字镜像
-  // InMemoryGovStore 的字段簇 + clamp（「status 变则 statusSource 钉 console」C5）；一个事务读-判-写。
+  // ── 挂单认领制窄写（TASK-POST-CLAIM，D-088）：字段簇构造单源 gov-store-logic.ts（buildClaimedTask/
+  // AssignedTask/CompletedTask/ReviewedTask）；整实体 JSON 就地重写（文档式行存），一个事务读-判-写。
 
   async claimTask(taskId: string, ownerId: string, claimedAt: string): Promise<Task | null> {
     return this.tx(() => {
@@ -736,7 +654,7 @@ export class SqliteGovStore implements GovStore {
   }
 
   /**
-   * 新建赛季（SEASON-CREATE，镜像 InMemoryGovStore.createSeason）：归档旧 active + 插入新 active
+   * 新建赛季（SEASON-CREATE，新赛季对象走共享 buildCreatedSeason）：归档旧 active + 插入新 active
    * 一个事务（半程崩溃不会留下"双 active"或"全 archived 无当前赛季"的中间态）。
    */
   async createSeason(draft: SeasonDraft): Promise<Season> {
@@ -746,11 +664,7 @@ export class SqliteGovStore implements GovStore {
           this.updateRow('seasons', prev.id, { ...prev, status: 'archived' });
         }
       }
-      const season: Season = {
-        ...draft,
-        id: nextSequentialId('season-new', this.seasonSeq),
-        status: 'active',
-      };
+      const season = buildCreatedSeason(draft, nextSequentialId('season-new', this.seasonSeq));
       this.insertRow('seasons', season.id, season);
       return season;
     });
@@ -760,12 +674,11 @@ export class SqliteGovStore implements GovStore {
 
   async appendArtifact(draft: ArtifactDraft): Promise<ArtifactRef> {
     const now = this.clock.now().toISOString();
-    const artifact: ArtifactRef = {
-      ...draft,
-      id: nextSequentialId('artifact-new', this.artifactSeq),
-      submittedVia: ARTIFACT_SUBMITTED_VIA,
-      createdAt: now,
-    };
+    const artifact = buildCreatedArtifact(
+      draft,
+      nextSequentialId('artifact-new', this.artifactSeq),
+      now,
+    );
     this.tx(() => this.insertRow('artifacts', artifact.id, artifact));
     return artifact;
   }
@@ -791,19 +704,11 @@ export class SqliteGovStore implements GovStore {
 
   async createResource(draft: ResourceDraft): Promise<SharedResource> {
     const now = this.clock.now().toISOString();
-    const displayCode =
-      draft.season !== undefined
-        ? deriveDisplayCode(draft.season, draft.robotTarget, draft.version ?? 1)
-        : undefined;
-    const resource: SharedResource = {
-      ...draft,
-      id: nextSequentialId('res-new', this.resourceSeq),
-      status: RESOURCE_DEFAULT_STATUS,
-      statusReason: null,
-      statusSource: RESOURCE_STATUS_SOURCE,
-      displayCode,
-      updatedAt: now,
-    };
+    const resource = buildCreatedResource(
+      draft,
+      nextSequentialId('res-new', this.resourceSeq),
+      now,
+    );
     this.tx(() => this.insertRow('resources', resource.id, resource));
     return resource;
   }
@@ -815,14 +720,7 @@ export class SqliteGovStore implements GovStore {
     return this.tx(() => {
       const prev = this.getRow<SharedResource>('resources', id);
       if (!prev) return null;
-      const updated: SharedResource = {
-        ...prev,
-        status: patch.status,
-        statusReason:
-          patch.statusReason !== undefined ? patch.statusReason : prev.statusReason,
-        statusSource: RESOURCE_STATUS_SOURCE,
-        updatedAt: this.clock.now().toISOString(),
-      };
+      const updated = applyResourceStatus(prev, patch, this.clock.now().toISOString());
       this.updateRow('resources', id, updated);
       return updated;
     });
@@ -835,16 +733,7 @@ export class SqliteGovStore implements GovStore {
     return this.tx(() => {
       const prev = this.getRow<SharedResource>('resources', id);
       if (!prev) return null;
-      const now = this.clock.now().toISOString();
-      // preset===null → 整条不含 defaultPreset 键（与 InMemoryGovStore 同：DefaultPresetSchema 是
-      // .optional() 非 .nullable()，落盘等价「未设」）。
-      const updated: SharedResource =
-        preset === null
-          ? (() => {
-              const { defaultPreset: _drop, ...rest } = prev;
-              return { ...rest, updatedAt: now };
-            })()
-          : { ...prev, defaultPreset: preset, updatedAt: now };
+      const updated = applyResourceDefaultPreset(prev, preset, this.clock.now().toISOString());
       this.updateRow('resources', id, updated);
       return updated;
     });
@@ -858,12 +747,11 @@ export class SqliteGovStore implements GovStore {
     draft: ResourceSessionDraft,
   ): Promise<ResourceSession> {
     const now = this.clock.now().toISOString();
-    const session: ResourceSession = {
-      ...draft,
-      id: nextSequentialId('sess-new', this.resourceSessionSeq),
-      source: RESOURCE_SESSION_SOURCE,
-      createdAt: now,
-    };
+    const session = buildCreatedResourceSession(
+      draft,
+      nextSequentialId('sess-new', this.resourceSessionSeq),
+      now,
+    );
     this.tx(() => this.insertRow('resource_sessions', session.id, session));
     return session;
   }
@@ -873,13 +761,11 @@ export class SqliteGovStore implements GovStore {
   ): Promise<ResourceSession[]> {
     const now = this.clock.now().toISOString();
     return this.tx(() => {
-      const sessions: ResourceSession[] = drafts.map((draft) => ({
-        ...draft,
-        id: nextSequentialId('sess-new', this.resourceSessionSeq),
-        source: RESOURCE_SESSION_SOURCE,
-        invitedMemberIds: [],
-        createdAt: now,
-      }));
+      const sessions = buildCreatedResourceSessionsBatch(
+        drafts,
+        () => nextSequentialId('sess-new', this.resourceSessionSeq),
+        now,
+      );
       for (const session of sessions) {
         this.insertRow('resource_sessions', session.id, session);
       }
@@ -894,12 +780,7 @@ export class SqliteGovStore implements GovStore {
     return this.tx(() => {
       const prev = this.getRow<ResourceSession>('resource_sessions', id);
       if (!prev) return null;
-      const updated: ResourceSession = {
-        ...prev,
-        orderInWindow:
-          patch.orderInWindow !== undefined ? patch.orderInWindow : prev.orderInWindow,
-        eta: patch.eta !== undefined ? patch.eta : prev.eta,
-      };
+      const updated = applyResourceSessionPatch(prev, patch);
       this.updateRow('resource_sessions', id, updated);
       return updated;
     });
@@ -926,12 +807,11 @@ export class SqliteGovStore implements GovStore {
 
   async createRelayHandoff(draft: RelayHandoffDraft): Promise<RelayHandoff> {
     const now = this.clock.now().toISOString();
-    const handoff: RelayHandoff = {
-      ...draft,
-      id: nextSequentialId('handoff-new', this.relayHandoffSeq),
-      source: RELAY_HANDOFF_SOURCE,
-      createdAt: now,
-    };
+    const handoff = buildCreatedRelayHandoff(
+      draft,
+      nextSequentialId('handoff-new', this.relayHandoffSeq),
+      now,
+    );
     this.tx(() => this.insertRow('relay_handoffs', handoff.id, handoff));
     return handoff;
   }

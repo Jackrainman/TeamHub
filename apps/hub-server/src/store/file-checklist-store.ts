@@ -1,5 +1,4 @@
-import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
 import {
   ChecklistTemplateSchema,
@@ -9,6 +8,7 @@ import {
   type GateChecklistItem,
 } from '@teamhub/hub-contracts';
 import { InMemoryChecklistStore } from './mock-checklist-store.js';
+import { PersistedFile } from './persisted-file.js';
 import type { ChecklistItemDraft, ChecklistStore } from './checklist-store.js';
 
 /**
@@ -20,8 +20,8 @@ import type { ChecklistItemDraft, ChecklistStore } from './checklist-store.js';
  * templates=跨赛季模板）。
  *
  * 与 FileBaselineStore/FileInvStore 同一套纪律（结构逐条镜像）：
- *  - 单一真相在服务器：写入只落本 Store + 整文件原子落盘（写 tmp 再 rename）。
- *  - writeChain 串行化（H2 失败隔离）：并发写不互相覆盖，一次磁盘抖动不让写链永久 rejected。
+ *  - 单一真相在服务器：写入只落本 Store + 整文件原子落盘（写 tmp 再 rename，经 PersistedFile）。
+ *  - 串行化 + H2 失败隔离由 PersistedFile 承载：并发写不互相覆盖，一次磁盘抖动不让写链永久 rejected。
  *  - 零额外依赖（只用 node:fs）。
  *  - 加载 fail-closed：文件不存在 → seed 起头（本步默认空，main.ts 按 demoSeed 传 fixtures）并落一次盘；
  *    文件存在但解析/校验失败（`ChecklistFileSchema`）→ **抛**，绝不静默覆盖团队已写的欠条数据。
@@ -37,16 +37,25 @@ const ChecklistFileSchema = z.object({
 
 export class FileChecklistStore implements ChecklistStore {
   private readonly inner: InMemoryChecklistStore;
-  private readonly filePath: string;
-  private writeChain: Promise<void> = Promise.resolve();
+  private readonly file: PersistedFile;
 
   private constructor(
     filePath: string,
     seedItems: GateChecklistItem[],
     seedTemplates: ChecklistTemplate[],
   ) {
-    this.filePath = filePath;
     this.inner = new InMemoryChecklistStore(seedItems, seedTemplates);
+    // 落盘格式 = { items, templates }（读 live）。原子写/串行链/失败隔离由 PersistedFile 承载。
+    this.file = new PersistedFile(filePath, () =>
+      JSON.stringify(
+        {
+          items: this.inner.entriesItems(),
+          templates: this.inner.entriesTemplates(),
+        },
+        null,
+        2,
+      ),
+    );
   }
 
   /** 异步构造：从 dataFile 加载（不存在则 seed 起头并落盘）。 */
@@ -64,7 +73,7 @@ export class FileChecklistStore implements ChecklistStore {
 
     if (raw === null) {
       const store = new FileChecklistStore(filePath, seedItems, seedTemplates);
-      await store.persist();
+      await store.file.persist();
       return store;
     }
 
@@ -110,34 +119,6 @@ export class FileChecklistStore implements ChecklistStore {
     id: string,
     before: GateChecklistItem | undefined,
   ): Promise<void> {
-    try {
-      await this.persist();
-    } catch (err) {
-      this.inner.restore(id, before);
-      throw err;
-    }
-  }
-
-  /** 原子写：写 tmp 再 rename，串行化避免并发覆盖（H2 失败隔离）。 */
-  private async persist(): Promise<void> {
-    const op = this.writeChain.then(() => this.writeOnce());
-    this.writeChain = op.catch(() => undefined);
-    return op;
-  }
-
-  private async writeOnce(): Promise<void> {
-    await mkdir(dirname(this.filePath), { recursive: true });
-    const tmp = `${this.filePath}.tmp`;
-    const payload = {
-      items: this.inner.entriesItems(),
-      templates: this.inner.entriesTemplates(),
-    };
-    try {
-      await writeFile(tmp, JSON.stringify(payload, null, 2), 'utf8');
-      await rename(tmp, this.filePath);
-    } catch (err) {
-      await unlink(tmp).catch(() => {});
-      throw err;
-    }
+    await this.file.persistOrRollback(() => this.inner.restore(id, before));
   }
 }
