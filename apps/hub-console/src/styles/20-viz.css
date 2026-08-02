@@ -1,0 +1,127 @@
+/* ===== viz 原语（VISUAL-VITALITY V0，visual-vitality.md §2）=====
+   微仪表三件：状态灯 .viz-dot / 进度环 .viz-ring / 趋势线 .viz-spark + 动效 keyframes。
+   颜色只吃语义 var（四主题自动适配，§0 禁新 hex）；CSS 动效由全局 prefers-reduced-motion
+   规则冻结（本文件上方 * 规则），JS 侧数字滚动在 useCountUp 内自查。 */
+.viz-dot {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: currentColor;
+}
+/* 光环层：currentColor 低透明放大圈，呼吸只动这层（opacity/transform 便宜，不重排）。 */
+.viz-dot::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.16;
+}
+.viz-dot.is-live::after {
+  animation: vv-breathe var(--motion-breathe);
+}
+
+.viz-ring {
+  flex: none;
+}
+.viz-ring__track {
+  fill: none;
+  stroke: var(--border);
+}
+.viz-ring__arc {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  animation: vv-ring-in var(--motion-grow);
+}
+
+.viz-spark {
+  flex: none;
+}
+.viz-spark path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1; /* 配 SVG pathLength=1：dashoffset 1→0 即「画出来」 */
+  animation: vv-draw var(--motion-grow);
+}
+
+/* tone 轴（与 .badge 同一语义轴，design-language §3）：三件共用一组修饰符。 */
+.viz-dot--green,
+.viz-ring--green,
+.viz-spark--green {
+  color: var(--green);
+}
+.viz-dot--amber,
+.viz-ring--amber,
+.viz-spark--amber {
+  color: var(--amber);
+}
+.viz-dot--red,
+.viz-ring--red,
+.viz-spark--red {
+  color: var(--red);
+}
+.viz-dot--blue,
+.viz-ring--blue,
+.viz-spark--blue {
+  color: var(--blue);
+}
+.viz-dot--neutral,
+.viz-ring--neutral,
+.viz-spark--neutral {
+  color: var(--muted);
+}
+
+@keyframes vv-breathe {
+  0%,
+  100% {
+    opacity: 0.16;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.38;
+    transform: scale(1.3);
+  }
+}
+/* 入场生长两式：from 取满偏移（环=周长变量 / 线=归一化 1），to 省略 = 落到内联最终值。 */
+@keyframes vv-ring-in {
+  from {
+    stroke-dashoffset: var(--vv-ring-c);
+  }
+}
+@keyframes vv-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+/* 被卡红脉动（V2 依赖图消费；V0 先定义齐 keyframes 家族）。 */
+@keyframes vv-pulse-alert {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--red) 35%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--red) 12%, transparent);
+  }
+}
+
+/* tech 越界层：状态灯辉光（辉光预算「状态节点」类，与 baseline-dot 同族同强度）。 */
+:root[data-theme='tech'] .viz-dot {
+  box-shadow: 0 0 8px 1px color-mix(in srgb, currentColor 45%, transparent);
+}
+
+/* ===== VISUAL-VITALITY V2 §4.4：依赖图节点（tech 越界层）=====
+   深底上 surface 节点偏暗、与画布融在一起 → 提亮一档；被卡节点吃 vv-pulse-alert
+   红脉动（该页唯一常驻动效，把「谁被卡」从要找变成会跳）。 */
+:root[data-theme='tech'] .dag-node {
+  background-color: var(--surface-raised);
+}
+:root[data-theme='tech'] .dag-node--blocked-idle {
+  animation: vv-pulse-alert var(--motion-breathe);
+}

@@ -1,0 +1,265 @@
+/* ===== 设置页 ===== */
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 720px;
+}
+
+.settings-panel {
+  min-height: 0;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.settings-desc {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-base);
+  line-height: 1.6;
+}
+
+.settings-current {
+  margin: 0;
+  color: var(--faint);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 成员与权限行（K1 + 刀⑧）：角色下拉 + 项目管理开关 + 验收人只读徽标 + PIN 操作并排靠右
+   （adapter-row 第二列，不参与名字块的收缩）。 */
+.settings-member__controls {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+}
+.settings-member__controls select {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+
+/* 成员名单一行一人（打磨轮刀⑧③）：双列 adapter-grid 把名字列压到显示不下——单列给足宽度；
+   名字列不折行、给足 min-width，操作区（flex-shrink:0）不挤断。 */
+.adapter-grid--members {
+  grid-template-columns: minmax(0, 1fr);
+}
+.adapter-grid--members .adapter-row > div:first-child {
+  flex: 1 1 auto;
+  min-width: 10ch;
+  white-space: nowrap;
+}
+
+/* 「显示PIN」行内揭示（刀⑧②）：明文用等宽字体，与按钮/提示同行排列。 */
+.settings-member__pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.settings-member__pin code {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-sm);
+}
+
+/* 初始化管理员引导卡（K1 + MEMBER-PM-FLAG）：身份模式无持旗成员时的顶部说明 + PIN 输入 + 提交。 */
+.setup-admin-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.setup-admin-card > div strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text);
+  font-size: var(--text-base);
+}
+
+/* 名册导入块（ROSTER-IMPORT，K8）：说明 + 模板下载/上传按钮行 + 导入报告。复用 .btn / .form-hint 原语。 */
+.roster-import {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.roster-import__head strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text);
+  font-size: var(--text-base);
+}
+.roster-import__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+/* 模板下载是 <a>，套 .btn 皮肤时补去下划线 + 齐高（.btn 已给内边距/圆角/字重）。 */
+.roster-import__actions a.btn {
+  text-decoration: none;
+}
+
+/* 导入报告：六段名单事实。failed 段用告警底醒目，其余段行内标签 + 名单。 */
+.roster-report {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+.roster-report__title {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+}
+.roster-report__fail {
+  padding: 10px 12px;
+  border: 1px solid var(--amber);
+  border-radius: var(--radius-md);
+  background: var(--amber-soft);
+  color: var(--amber);
+  font-size: var(--text-sm);
+}
+.roster-report__fail strong {
+  display: block;
+  margin-bottom: 4px;
+}
+.roster-report__fail ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.roster-report__seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.roster-report__label {
+  flex-shrink: 0;
+  color: var(--faint);
+  font-weight: var(--weight-medium);
+}
+
+/* 名册导入预览表（ROSTER-IMPORT-PREVIEW 刀⑦）：行内编辑（年级下拉 / 组 input+datalist）+ 行尾删除。
+   坏行红标复用 .roster-report__fail；确认/取消按钮行复用 .roster-import__actions。 */
+.roster-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.roster-preview__table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+.roster-preview__table th {
+  padding: 4px 8px;
+  color: var(--faint);
+  font-weight: var(--weight-medium);
+  text-align: left;
+}
+.roster-preview__table td {
+  padding: 4px 8px;
+  border-top: 1px solid var(--border);
+}
+.roster-preview__table select,
+.roster-preview__table input {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+/* 确认组长块（ROSTER-CSV-3COL 刀③）：逐组一行「组名 + 成员下拉」。复用 .settings-desc / .btn / .form-hint。 */
+.lead-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.lead-confirm__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lead-confirm__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.lead-confirm__group {
+  flex-shrink: 0;
+  min-width: 72px;
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+.lead-confirm__actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* （B3 归并）原 .settings-btn → .btn.btn--secondary（禁用透明度 0.5→0.55 统一，容差内）。 */
+
+/* 初始化门表单字段（SETUP-WIZARD-ROSTER 刀② BootstrapGate）：竖排标签+输入，复用 setup-card 容器。 */
+.gate-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+.gate-field input,
+.gate-field select {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-base);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.gate-field input:hover:not(:focus),
+.gate-field select:hover:not(:focus) {
+  border-color: var(--text);
+}
+.gate-field input:focus,
+.gate-field select:focus {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}

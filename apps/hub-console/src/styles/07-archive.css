@@ -1,0 +1,249 @@
+/* ===== 图纸档案页（A8：提交日志 / 版本时间线） ===== */
+.archive-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 查看 tab：横向学科组 seg + 当前组段落，纵向堆叠。 */
+.archive-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 学科组横向切换 seg：左对齐、可换行，与读写 tab 区分（独立一行筛选器）。 */
+.archive-group-seg {
+  align-self: flex-start;
+  flex-wrap: wrap;
+}
+
+/* 登记表单「来源」合并组（云端链接 + 本地文件并排）：弱边框圈一组，减少独立行视觉噪声。 */
+.archive-source-group {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+}
+
+.archive-source-group > legend {
+  padding: 0 6px;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  color: var(--muted);
+}
+
+.archive-row {
+  align-items: center;
+  flex-direction: row;
+  gap: 12px;
+}
+
+/* 行主体（名称/徽章/提交时间 + 明细）占左侧，下载按钮贴右。 */
+.archive-row__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 每行右侧「下载」按钮（直链下载端点）。 */
+.archive-download {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 5px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--blue);
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.archive-download:hover {
+  background: var(--blue-soft);
+}
+
+/* 文件来源动作区：本地下载 + 云端打开 + 上传/替换 竖向堆叠（含错误条），并列同处一行右侧。 */
+.archive-row__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* 云端「打开链接」：与下载同形、中性字色以区分本地下载（蓝）。 */
+.archive-openlink {
+  color: var(--text);
+}
+
+.archive-nofile {
+  align-self: center;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+/* （B3 归并）原 .archive-upload-btn → .btn.btn--dashed（禁用透明度 0.6→0.55 统一，容差内）。 */
+
+.archive-upload-err {
+  color: var(--red);
+  font-size: var(--text-sm);
+  max-width: 12rem;
+}
+
+/* 登记表单里文件输入下方的小灰提示。 */
+.archive-file-hint {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-normal);
+}
+
+/* 收窄短内容控件（编号位 / 目标机器人等 2-3 字符 select）：按内容定宽、不撑满栅格半列；
+   只约束内层控件，外层 .pm-form__grid 仍响应式塌缩，不破栅格。 */
+.kb-field--narrow select,
+.kb-field--narrow input {
+  width: auto;
+  min-width: 7rem;
+  max-width: 10rem;
+}
+
+.archive-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
+}
+
+.archive-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  white-space: normal;
+}
+
+.archive-row__meta > span {
+  display: inline-flex;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+}
+
+/* （B2 归并）原 .archive-badge → .badge--blue.badge--strong；--robot 描边弱化版 →
+   .badge--outline（描边/中性，与蓝色版本徽章区分——语义保留于此修饰类）。 */
+.badge--outline {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--muted);
+  font-weight: var(--weight-bold);
+}
+
+/* 登记表单顶部一行：组别（自然宽）｜ 赛季（窄）｜ 适配机器人（自然宽），窄屏自动换行。 */
+.archive-top-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.archive-top-row .kb-field {
+  flex: 0 0 auto;
+}
+
+.archive-field--season {
+  width: 9rem;
+}
+
+.archive-field--robot {
+  width: 12rem;
+}
+
+/* 赛季 / 适配机器人组合框（Combobox：input + datalist）输入框填满字段宽；datalist 不占位。 */
+.archive-field--season input,
+.archive-field--robot input {
+  width: 100%;
+}
+
+.archive-row__detail {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  width: 100%;
+}
+
+.archive-meta__row {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.archive-meta__row dt {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+}
+
+.archive-meta__row dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: var(--text-base);
+  line-height: 1.5;
+}
+
+/* Archive mechanism row (extracted from inline styles) */
+.archive-mechanism-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.archive-mechanism-checkbox {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+  font-size: inherit;
+  /* 防止窄列里「新机构」被挤成竖排：整体不换行、不被压缩。 */
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.archive-mechanism-checkbox input {
+  /* 覆盖 .kb-field input{width:100%}：复选框须自然小尺寸，否则会撑满整条 label
+     盖住右侧「新机构」文字（flex 不收缩时尤甚）。 */
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.archive-mechanism-input {
+  flex: 1;
+  min-width: 8rem;
+}
+
+/* select 原仅 flex:1（无 min-width）；单列一个类保持与改造前一致。 */
+.archive-mechanism-select {
+  flex: 1;
+}
+
+/* Archive version preview label（2026-06-23 批次B：相对 em/opacity → 尺度 token + muted）。 */
+.archive-version-preview {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+/* 学科组小标题（原 ArchivePage h3 内联 style 0.95em/opacity，提取为 token 类）。 */
+.archive-mechanism-title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  color: var(--muted);
+}

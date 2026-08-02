@@ -1,0 +1,8 @@
+/* ===== 机器人队页（IA 阶段 1 / D-075）：机器人管理 + 在场排班，Tab 左右切换 ===== */
+/* 顶部 seg kb-tabs 切换「机器人清单 ⇄ 接力画布」，当前 tab 占满整宽（接力画布横向泳道需宽度）。
+   tab 样式复用 .seg / .seg__btn / .kb-tabs；本页只留容器纵向间距。 */
+.fleet-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}

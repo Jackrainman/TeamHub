@@ -1,0 +1,246 @@
+/* ===== 知识库相似检索页 ===== */
+.kb-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.kb-search-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  padding: 16px;
+}
+
+.kb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kb-field > span {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+}
+
+/* 必填标记：label 末尾的红 `*`（Field required）。aria-hidden，仅视觉提示。 */
+.kb-field__req {
+  color: var(--red);
+}
+
+/* 字段下方辅助说明（如编号位的"直接出现在机器人编号里"提示） */
+.kb-field__hint {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+.kb-field textarea,
+.kb-field input {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-base);
+  resize: vertical;
+}
+
+.kb-field textarea:focus,
+.kb-field input:focus {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+/* （B3 归并）原 .kb-submit → .btn.btn--primary（flex 列表单里的自收缩沿 align-self 留给
+   下面这条布局规则——primary 不该在 flex 列里被拉满宽）。 */
+form .btn--primary {
+  align-self: flex-start;
+}
+
+/* 零结果下「去归档」CTA：与上方提示拉开半行间距（取代旧内联 style）。 */
+.kb-noresults__action {
+  margin-top: 0.5rem;
+}
+
+.kb-results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kb-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 11px 13px;
+  border: 1px solid var(--amber);
+  border-radius: var(--radius-md);
+  background: var(--amber-soft);
+  color: var(--amber);
+  font-size: var(--text-base);
+  line-height: 1.5;
+}
+
+.kb-note svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.kb-result-count {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+}
+
+.kb-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kb-card {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.kb-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.kb-card__head h3 {
+  font-size: var(--text-md);
+  line-height: 1.35;
+}
+
+.kb-card__badges {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+}
+
+/* （B2 归并）原 .kb-card .status-pill 收窄规则删除：KB 卡改用 .badge（无 92px min），
+   颜色仍交给下方 .kb-status--* 语义类。 */
+.kb-status--open {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+.kb-status--investigating {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+.kb-status--resolved {
+  background: var(--green-soft);
+  color: var(--green);
+}
+.kb-status--archived {
+  background: var(--surface-muted);
+  color: var(--muted);
+}
+.kb-status--needsManualReview {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.kb-score {
+  padding: 5px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-heavy);
+  white-space: nowrap;
+}
+
+.kb-chips,
+.pm-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* kb-chips 现为 <ul>（语义列表）：清掉 UA 默认 margin/padding/list-style，视觉与原 <div> 一致。 */
+.kb-chips {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.kb-chip {
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.kb-reasons {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--green);
+  border-radius: var(--radius-sm);
+  background: var(--green-soft);
+}
+
+.kb-reasons__label {
+  color: var(--green);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-heavy);
+  letter-spacing: 0.02em;
+}
+
+.kb-reasons ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text);
+  font-size: var(--text-base);
+  line-height: 1.55;
+}
+
+.kb-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+}
+
+.kb-meta__row {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.kb-meta__row dt {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+}
+
+.kb-meta__row dd {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-base);
+  line-height: 1.5;
+}
+
+.kb-mono {
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: var(--text-sm);
+}

@@ -1,0 +1,15 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   我的视图（MY-VIEW，product-redefine §4.3）。复用 gaps-intro/gaps-list/gap-card 一档
+   （同 SchedulePage 复用 gap-card 的先例），只新增页容器 + 两个分组小标题。
+   ───────────────────────────────────────────────────────────────────────── */
+.myview-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 20px;
+}
+.myview-section-title {
+  margin: 0 0 10px;
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+}

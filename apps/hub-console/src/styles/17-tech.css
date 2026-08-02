@@ -1,0 +1,148 @@
+/* ===== 遥测轨道（tech 签名件，D1）——全页唯一高光集中处 =====
+   把「基准线 vs 实际」时间轴改造成遥测 HUD：轨道底垫低透明度蓝图网格 + 发光状态点 + 「今天」信号青扫描线。
+   仅在 [data-theme='tech'] 生效，light/warm/dark 三套此处渲染逐像素不变。 */
+/* 轨道底垫：更细的蓝图网格（20px 格）+ 收紧边框，一眼示波器/图纸质感。 */
+:root[data-theme='tech'] .baseline-track {
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+/* 里程碑/门节点=发光状态点（红黄绿 halo，约 25% 透明辉光；全页三处辉光之一）。 */
+:root[data-theme='tech'] .baseline-dot--red {
+  box-shadow:
+    0 0 0 3px rgba(248, 113, 113, 0.18),
+    0 0 12px 2px rgba(248, 113, 113, 0.42);
+}
+:root[data-theme='tech'] .baseline-dot--yellow {
+  box-shadow:
+    0 0 0 3px rgba(245, 166, 35, 0.18),
+    0 0 12px 2px rgba(245, 166, 35, 0.42);
+}
+:root[data-theme='tech'] .baseline-dot--green {
+  box-shadow:
+    0 0 0 3px rgba(52, 211, 153, 0.18),
+    0 0 12px 2px rgba(52, 211, 153, 0.42);
+}
+/* 「今天」=1px 信号青竖向扫描线（原 2px --text 深线 → 1px cyan 发光）+ 顶部小三角 + 3s 呼吸脉冲光晕。
+   脉冲在 @media (prefers-reduced-motion: reduce) 下由全局 * 规则冻结（既有先例，不另写停用规则）。 */
+:root[data-theme='tech'] .baseline-now {
+  width: 1px;
+  background: var(--blue);
+  animation: tech-scan-glow 3s ease-in-out infinite;
+}
+:root[data-theme='tech'] .baseline-now::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--blue);
+  filter: drop-shadow(0 0 3px rgba(34, 211, 238, 0.8));
+}
+@keyframes tech-scan-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 4px rgba(34, 211, 238, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 10px rgba(34, 211, 238, 0.85);
+  }
+}
+
+/* 投资标签勾选行（PmCreatePanel） */
+.pm-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.pm-check input {
+  width: auto;
+  margin: 0;
+}
+
+/* ===== tech 观感打磨（2026-07-12 批次 B，全部圈 [data-theme='tech']，旧主题零污染）=====
+   依据 tech-restyle 截图逐页评审出的真实弱点，逐条对应：① 侧栏 active 无存在感 ② 工具条与内容
+   粘连 ③ panel 标题层次弱 ④ 行 hover 不可感知 ⑤ seg 选中态弱 ⑥ 系统亮色滚动条刺眼
+   ⑦ 「未配置」误用主色青（tech 里青=活跃信号，闲置态应中性）⑧ 空态观感干瘪。
+   克制铁律不破：不新增辉光（全站仍只有状态节点/主按钮 hover/扫描线三处）。 */
+
+/* ① 侧栏 active：信号青左轨 + 青染渐变底，替换默认白色水洗；hover 提亮一档。 */
+:root[data-theme='tech'] .nav-item {
+  position: relative;
+}
+:root[data-theme='tech'] .nav-item-active {
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.14), rgba(34, 211, 238, 0.04));
+  color: var(--blue);
+}
+:root[data-theme='tech'] .nav-item-active::before {
+  content: '';
+  position: absolute;
+  top: 22%;
+  bottom: 22%;
+  left: 0;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--blue);
+}
+:root[data-theme='tech'] .nav-item:hover:not(.nav-item-active):not(:disabled) {
+  background: rgba(143, 163, 191, 0.1);
+  color: var(--sidebar-text);
+}
+
+/* ② 工具条（页头行）与内容之间加渐隐分隔线，拉开呼吸。 */
+:root[data-theme='tech'] .console-toolbar {
+  padding-bottom: 14px;
+  border-bottom: 1px solid;
+  border-image: linear-gradient(90deg, var(--border-strong), rgba(30, 42, 68, 0)) 1;
+}
+
+/* ③ panel 标题行：轻微字距 + 顶部渐变水洗，与内容区拉开层次。 */
+:root[data-theme='tech'] .panel-header {
+  letter-spacing: 0.03em;
+  background: linear-gradient(180deg, rgba(23, 34, 54, 0.5), rgba(23, 34, 54, 0));
+}
+
+/* ④ 列表行 hover 青染 4%（全局 hover 底子已有，tech 下补可感知的色相）。 */
+:root[data-theme='tech'] .data-row:hover,
+:root[data-theme='tech'] .adapter-row:hover {
+  background: rgba(34, 211, 238, 0.05);
+}
+
+/* ⑤ seg 选中态强化：青 soft 底 + 青字 + 1px 内描边（原 surface 底在深色下几乎不可辨）。 */
+:root[data-theme='tech'] .seg__btn--active,
+:root[data-theme='tech'] .schedule-date-seg__btn.is-active {
+  background: var(--blue-soft);
+  color: var(--blue);
+  box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.35);
+}
+
+/* ⑥ 滚动条：scrollbar-color/width 是继承属性，root 一处覆盖全站；webkit 另配。 */
+:root[data-theme='tech'] {
+  scrollbar-color: #2c3d5f #0a0f1a;
+  scrollbar-width: thin;
+}
+:root[data-theme='tech'] ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+:root[data-theme='tech'] ::-webkit-scrollbar-thumb {
+  border: 2px solid #0a0f1a;
+  border-radius: var(--radius-sm);
+  background: #2c3d5f;
+}
+:root[data-theme='tech'] ::-webkit-scrollbar-thumb:hover {
+  background: #3a4f7a;
+}
+:root[data-theme='tech'] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ⑦（B2 全局化后撤销特例）「未配置=中性」原是 tech 专属修正；徽章归并把 unconfigured
+   直接映射到 .badge 中性基色（全主题生效），本特例不再需要。 */

@@ -1,0 +1,190 @@
+/* ===== 学习方向星图（LEARN-DIRECTION 双 UI 之二，2026-07-12 实验性 3D 视图）=====
+   星图按性质恒定深色（夜空即语义），不随主题走——固定色而非 var，在 light/warm 下呈现为
+   一块自成一体的深色地图组件（刻意为之，同地图类 widget 惯例）。 */
+.direction-viewbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.direction-starmap__hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.direction-starmap {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #1e2a44;
+  border-radius: var(--radius-lg);
+  background: radial-gradient(ellipse 70% 55% at 50% 40%, #0d1526 0%, #0a0f1a 75%);
+}
+.direction-starmap svg {
+  display: block;
+  width: 100%;
+  height: 560px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.direction-starmap svg.is-dragging {
+  cursor: grabbing;
+}
+.direction-starmap__tooltip {
+  position: absolute;
+  z-index: 2;
+  max-width: 300px;
+  padding: 10px 12px;
+  border: 1px solid #2c3d5f;
+  border-radius: var(--radius-sm);
+  background: rgba(13, 20, 33, 0.95);
+  color: #e6edf7;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  transform: translate(-50%, calc(-100% - 14px));
+  pointer-events: none;
+}
+.direction-starmap__tooltip-text {
+  margin: 4px 0 0;
+}
+.direction-starmap__tooltip-detail {
+  margin: 4px 0 0;
+  color: #8fa3bf;
+}
+.direction-starmap__tooltip-chips {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  font-size: var(--text-xs);
+}
+.direction-starmap__legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 10px 14px;
+  border-top: 1px solid rgba(30, 42, 68, 0.8);
+  color: #8fa3bf;
+  font-size: var(--text-xs);
+}
+.direction-starmap__swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 5px;
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+.direction-starmap__swatch--ring {
+  background: transparent;
+  border: 2px solid;
+}
+/* 点击详情面板（2026-07-12 星图交互轮）：覆盖式贴容器右缘、不挤压 SVG——
+   投影换算依赖容器宽度，flex 挤压会让 3D 场景跳变；窄屏退化为 SVG 下方横条卡。
+   同星图口径恒定深色，不随主题走。 */
+.direction-starmap__panel {
+  position: absolute;
+  z-index: 3;
+  top: 12px;
+  right: 12px;
+  width: 280px;
+  max-height: calc(100% - 68px); /* 随内容收缩；上限给底部图例条留出空间 */
+  overflow-y: auto;
+  padding: 14px 16px;
+  border: 1px solid #2c3d5f;
+  border-radius: var(--radius-lg);
+  background: rgba(13, 20, 33, 0.92);
+  backdrop-filter: blur(6px);
+  color: #e6edf7;
+  box-shadow: var(--shadow-md);
+}
+.direction-starmap__panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.direction-starmap__panel-kind {
+  color: #8fa3bf;
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.direction-starmap__panel-close {
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  padding: 0;
+  border: 1px solid #2c3d5f;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: #8fa3bf;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.direction-starmap__panel-close:hover {
+  border-color: #8fa3bf;
+  color: #e6edf7;
+}
+.direction-starmap__panel-title {
+  margin: 10px 0 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+  line-height: 1.55;
+}
+.direction-starmap__panel-detail {
+  margin: 8px 0 0;
+  color: #8fa3bf;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+}
+.direction-starmap__panel-section {
+  margin-top: 14px;
+}
+.direction-starmap__panel-label {
+  display: block;
+  margin-bottom: 6px;
+  color: #8fa3bf;
+  font-size: var(--text-xs);
+}
+.direction-starmap__panel-links {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  font-size: var(--text-sm);
+  list-style: none;
+}
+.direction-starmap__panel-linkkind {
+  margin-left: 6px;
+  color: #8fa3bf;
+  font-size: var(--text-xs);
+}
+.direction-starmap__panel-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+/* 面板内 chips 不复用 .gap-chip：那套走主题变量，light/warm 下在恒定深色面板里会糊。 */
+.direction-starmap__panel-chip {
+  padding: 2px 8px;
+  border: 1px solid #2c3d5f;
+  border-radius: var(--radius-pill);
+  background: rgba(143, 163, 191, 0.12);
+  color: #cdd9ea;
+  font-size: var(--text-xs);
+}
+@media (max-width: 980px) {
+  .direction-starmap svg {
+    height: 420px;
+  }
+}
+@media (max-width: 720px) {
+  .direction-starmap__panel {
+    position: static;
+    width: auto;
+    max-height: 260px;
+    margin: 0 12px 12px;
+  }
+}

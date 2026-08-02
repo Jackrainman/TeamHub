@@ -1,0 +1,200 @@
+/* ===== 在场排班日期选择器（A1）：左=今天/明天/后天分段，右=查找特定日期 ===== */
+.schedule-date-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 12px 0 16px;
+}
+.schedule-date-seg {
+  display: inline-flex;
+  padding: 3px;
+  gap: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+}
+.schedule-date-seg__btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 7px 16px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1.2;
+}
+/* active 态与全站 .seg__btn--active 同色（蓝），原绿色自成一套已弃（审计 #9）。 */
+.schedule-date-seg__btn.is-active {
+  background: var(--surface);
+  color: var(--blue);
+  box-shadow: var(--shadow-xs);
+}
+.schedule-date-seg__name {
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+}
+.schedule-date-seg__md {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  opacity: 0.75;
+}
+.schedule-date-find {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.schedule-date-find__label {
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--muted);
+}
+.schedule-date-find__input {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-base);
+}
+/* 与全站输入框 focus 一致（原缺 focus 环，2026-06-23 批次B）。 */
+.schedule-date-find__input:focus {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+/* holderTaskLabel 次级事实行（原内联 style opacity/0.85em，提取为 token 类）。 */
+.gap-card__fact--sub {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.schedule-detail {
+  margin-top: 10px;
+}
+
+/* ===== 表格⇄泳道图切换（D-082 §5，SchedulePage） ===== */
+.schedule-view-toggle {
+  margin: 4px 0 14px;
+}
+
+/* ===== 今日计划表格（D-082 §5/§6.D1，TodayPlanTable） ===== */
+.today-plan-table-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.today-plan-table__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.today-plan-table__hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-base);
+}
+.today-plan-table__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.today-plan-table-scroll {
+  min-width: 0;
+  overflow-x: auto;
+}
+.today-plan-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-base);
+}
+.today-plan-table th,
+.today-plan-table td {
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+.today-plan-table thead th {
+  background: var(--surface-raised);
+  font-weight: var(--weight-medium);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.today-plan-table__resource {
+  font-weight: var(--weight-bold);
+  white-space: nowrap;
+}
+.today-plan-table input,
+.today-plan-table select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+.today-plan-table input:hover:not(:focus),
+.today-plan-table select:hover:not(:focus) {
+  border-color: var(--text);
+}
+.today-plan-table input:focus,
+.today-plan-table select:focus {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+.today-plan-table__taskCell {
+  min-width: 200px;
+}
+/* 「建新任务：xxx」显式确认项（§6.D1：无匹配不静默建任务）。 */
+.today-plan-table__confirmNew {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: var(--amber);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+.today-plan-table__confirmNew input {
+  width: auto;
+  margin: 0;
+}
+.today-plan-table__rowActions {
+  display: flex;
+  gap: 4px;
+  white-space: nowrap;
+}
+.today-plan-table__rowBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+}
+.today-plan-table__rowBtn:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+.today-plan-table__rowBtn--danger:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+.today-plan-table__footer {
+  display: flex;
+  justify-content: flex-end;
+}

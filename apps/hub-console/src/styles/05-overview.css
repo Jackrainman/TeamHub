@@ -1,0 +1,4 @@
+/* ===== 总览补色：绿色 metric（PM 已完成） ===== */
+.metric-tile--green strong {
+  color: var(--green);
+}

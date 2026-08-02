@@ -1,0 +1,198 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   机器人管理（R3，D-072 §3.2/§3.3）：新建 / 改状态 / 退役。复用 inv/pm 既有面板 + 表单类，
+   只新增机器人编号徽章 / 状态徽章 / 行内改状态控件。主键是机器人 / 机器人编号 / 状态——无人维度（I0）。
+   ───────────────────────────────────────────────────────────────────────── */
+.resources-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.resources-page .panel {
+  padding: 14px;
+  min-height: 0;
+  gap: 12px;
+}
+/* 汇总两指标（机器人总数 / 还能上场的）→ 2 列，对齐 inv-summary。 */
+.resources-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.resources-section-title {
+  margin: 0 0 12px;
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+}
+/* 机器人多时横向滚动（行内改状态控件不被挤压）。 */
+.resources-table-wrap {
+  min-width: 0;
+  overflow-x: auto;
+}
+.resources-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-base);
+}
+.resources-table th,
+.resources-table td {
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+.resources-table thead th {
+  background: var(--surface-raised);
+  font-weight: var(--weight-medium);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.resources-cell--name {
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}
+/* 机器人编号徽章（派生 displayCode，如 26R2）：等宽强调，新建预览与列表同形。 */
+.resources-code-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  color: var(--text);
+  font-family: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.02em;
+}
+.resources-preview {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+}
+/* version 字段内联预览：input + 徽章横排，紧凑内联 */
+.resources-version-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.resources-version-row input {
+  flex: 1;
+  min-width: 0;
+}
+/* 写入令牌：input + 显示/隐藏切换按钮横排，同 .resources-version-row 布局节奏 */
+.settings-token-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.settings-token-row input {
+  flex: 1;
+  min-width: 0;
+}
+.resources-preview-inline {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+/* 状态徽章：按状态分色（空着/在用=可上场绿系，在修/坏=红/琥珀，退役/拆解=灰）。 */
+/* （B2 归并）原 .resources-status-badge 家族 → .badge--dense + tone（映射在 ResourcesPage
+   toneFor：inUse→green · available→blue（U3 修复：原与在用同绿易看混，空着=可用信息态）·
+   repair/upgrading→amber · down→red · retired/disassembling→--faint 灰）。 */
+/* 中性事实注释（"撞坏底盘"）：徽章下方小灰字，非归咎于人。 */
+.resources-reason {
+  display: block;
+  margin-top: 4px;
+  font-size: var(--text-xs);
+  color: var(--faint);
+}
+/* 行内改状态：状态下拉 + 选填原因 + 改按钮，窄屏自动换行。 */
+.resources-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.resources-action select,
+.resources-reason-input {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+.resources-reason-input {
+  min-width: 140px;
+}
+.resources-apply {
+  padding: 5px 12px;
+  font-size: var(--text-sm);
+}
+.resources-row-error {
+  margin: 6px 0 0;
+  font-size: var(--text-xs);
+  color: var(--red);
+}
+
+/* 默认阵型（每车预设，D-082）：「预设」列的展开/收起按钮 + 展开行内编辑器。 */
+.resources-preset-toggle {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.resources-preset-toggle:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+.resources-preset-row td {
+  background: var(--surface-muted);
+}
+.resources-preset-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.resources-preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.resources-preset-list__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.resources-preset-list__row select {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-sm);
+  min-width: 160px;
+}
+.resources-preset-editor__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.resources-preset-editor__clear {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.resources-preset-editor__clear:hover {
+  border-color: var(--red);
+  color: var(--red);
+}

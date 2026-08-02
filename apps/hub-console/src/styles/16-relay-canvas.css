@@ -1,0 +1,902 @@
+/* ===== 接力交接画布（R1，可编辑 @xyflow 画布；参考 dep-graph 节点 + relay-* 类） ===== */
+.relay-canvas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.relay-canvas__hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-base);
+}
+/* 泳道板 v1（取代旧 @xyflow 自由画布）：每台机器人一条横泳道，纵向堆叠；泳道内卡片横向并排 = 并行。 */
+.relay-swimlane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.relay-lane {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-muted);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.relay-lane__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+.relay-lane__code {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--green-soft);
+  color: var(--green);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-heavy);
+}
+.relay-lane__count {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  color: var(--muted);
+}
+/* 泳道内的工作卡横排（并排=并行）；窄屏可横向滚动，不挤压换行破坏「同时干」语义。 */
+.relay-lane__cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+  padding: 12px;
+  list-style: none;
+}
+
+/* 工作卡：左侧绿条 = 可上场（boardable）；灰条 + 降透明 = 机器人今天停用。泳道板不再拖拽，无 grab 光标。 */
+.relay-card {
+  position: relative;
+  width: 220px;
+  min-height: 118px;
+  padding: 10px 12px 10px 15px;
+  border: 1px solid var(--border-strong);
+  border-left: 4px solid var(--green);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  list-style: none;
+}
+.relay-card--closed {
+  border-left-color: var(--border-strong);
+  opacity: 0.7;
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--surface-muted),
+    var(--surface-muted) 2px,
+    transparent 2px,
+    transparent 9px
+  );
+}
+.relay-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.relay-card__code {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--green-soft);
+  color: var(--green);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-heavy);
+}
+.relay-card--closed .relay-card__code {
+  background: var(--surface-muted);
+  color: var(--muted);
+}
+.relay-card__leg {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.relay-card__group {
+  margin-top: 6px;
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  color: var(--text);
+  line-height: 1.2;
+}
+.relay-card__task {
+  margin-top: 3px;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  line-height: 1.3;
+}
+.relay-card__closed-note {
+  margin-top: 5px;
+  font-size: var(--text-xs);
+  color: var(--red);
+  font-weight: var(--weight-bold);
+}
+.relay-card__eta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 7px;
+}
+.relay-card__eta-label {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-heavy);
+  color: var(--faint);
+  white-space: nowrap;
+}
+.relay-card__eta-value {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 2px 6px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: var(--text-xs);
+  cursor: text;
+}
+.relay-card__eta-value:hover {
+  border-color: var(--green);
+}
+.relay-card__eta-input {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-xs);
+}
+/* 绿框只用于 focus（原常态绿边与 focus/disabled 语义混淆，审计 #8）。 */
+.relay-card__eta-input:focus {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+/* 泳道内次序 ◄►（取代旧自由拖拽）：横排放在卡头右侧。 */
+.relay-card__reorder {
+  display: flex;
+  flex-direction: row;
+  gap: 3px;
+}
+.relay-card__move {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--muted);
+  cursor: pointer;
+}
+.relay-card__move:hover:not(:disabled) {
+  border-color: var(--green);
+  color: var(--green);
+}
+.relay-card__move:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+/* 接力关系标签（v1 不画箭头）：源卡「→ 然后」=绿、目标卡「↳ 接在…之后」=蓝，各带删除 ×。 */
+.relay-rels {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 7px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.relay-rel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 2px 7px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  line-height: 1.25;
+}
+.relay-rel--out {
+  background: var(--green-soft);
+  color: var(--green);
+}
+.relay-rel--in {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+.relay-rel__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.relay-rel__del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+}
+.relay-rel__del:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+/* 卡底动作行：「→ 然后接…」建接力 + 删一项。 */
+.relay-card__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.relay-card__then {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.relay-card__then-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+}
+.relay-card__then-btn:hover:not(:disabled) {
+  border-color: var(--green);
+  color: var(--green);
+}
+.relay-card__then-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.relay-card__then-select {
+  width: 100%;
+  padding: 3px 6px;
+  border: 1px solid var(--green);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-xs);
+}
+
+/* 删一项按钮（A2）：卡片底部窄文本按钮，红色语义（不可撤销 + 级联删交接线）。 */
+/* 批次C：删除是危险操作但原与「建接力」同级 → 降级（更小+半透明），仅 hover 显红，降误触。 */
+.relay-card__delete {
+  width: 100%;
+  padding: 3px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--muted);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  opacity: 0.6;
+  cursor: pointer;
+}
+.relay-card__delete:hover {
+  border-color: var(--red);
+  color: var(--red);
+  background: var(--red-soft);
+  opacity: 1;
+}
+
+/* A2 加一棒：顶部工具条 + 「+ 加一棒」按钮。 */
+.relay-canvas__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+/* （B3 归并）原 .relay-canvas__add（kb-submit 的逐字复制品）→ .btn.btn--primary。 */
+/* 「沿用上一天计划」次按钮（B3：皮肤走 .btn--secondary，此处留 8px 14px 紧凑 padding
+   与绿 hover 的画布特有反馈）。 */
+.relay-canvas__carry {
+  padding: 8px 14px;
+}
+.relay-canvas__carry:hover:not(:disabled) {
+  border-color: var(--green);
+  color: var(--green);
+}
+.relay-canvas__carry:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.relay-coldstart__cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+/* A2 加一棒浮层表单：复用 .panel + .pm-create / .pm-form 范式。 */
+.relay-add {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+}
+.relay-add__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--muted);
+  cursor: pointer;
+}
+.relay-add__close:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+.relay-add__cancel {
+  padding: 8px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+}
+.relay-add__cancel:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+/* 右锚定抽屉（SideDrawer）：全站首个 overlay。position:fixed 相对视口（layout 无 transform）。
+   入场 slide/fade 走 @keyframes（项目首次引入 transition，符合「从侧面弹出」诉求）。 */
+@keyframes drawer-slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes drawer-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.25);
+  animation: drawer-fade-in 0.15s ease;
+}
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 51;
+  display: flex;
+  flex-direction: column;
+  width: min(440px, 92vw);
+  height: 100vh;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  animation: drawer-slide-in 0.2s ease;
+}
+.drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.drawer__title {
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+}
+.drawer__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--muted);
+  cursor: pointer;
+}
+.drawer__close:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+.drawer__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+/* ── 倒排基准线「基准线 vs 实际」（BASELINE-CORE S6；VISUAL-VITALITY V1 战情屏化）──────
+   结构 = __head（标题 + T−N 倒计时双栏，替代通用 panel-header）+ __body（原内容，补回内边距
+   ——旧结构子元素全贴板边，是「没填完」观感的病灶之一）。 */
+.baseline-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.baseline-hero__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+.baseline-hero__title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.baseline-hero__title h2 {
+  margin: 0;
+  font-size: var(--text-md);
+}
+.baseline-hero__phase {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+/* 倒计时（signature，§3.1）：display 档大数字（每屏 display ≤2 处预算，本页仅此一处），
+   吃 --blue 语义槽（tech 自动 remap 信号青）；数字滚动由 CountUpNumber 承担。 */
+.baseline-countdown {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex: none;
+}
+.baseline-countdown__num {
+  color: var(--blue);
+  font-size: var(--text-display);
+  font-weight: var(--weight-heavy);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+.baseline-countdown__t {
+  margin-right: 2px;
+  color: var(--muted);
+  font-size: 0.45em;
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.02em;
+}
+.baseline-countdown__meta {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+.baseline-hero__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 18px;
+}
+.baseline-muted {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+/* 投资示警条（正在砍未来）：琥珀底、左侧强调条 */
+.baseline-warn {
+  border: 1px solid var(--amber);
+  border-left-width: 4px;
+  border-radius: var(--radius-md);
+  background: var(--amber-soft);
+  color: var(--text);
+  padding: 10px 12px;
+  font-size: var(--text-sm);
+}
+.baseline-warn strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--amber);
+}
+.baseline-warn ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+/* 时间轴：横向带 + 分段 + 里程碑节点 */
+.baseline-track-wrap {
+  overflow-x: auto;
+  padding: 22px 0 6px;
+}
+.baseline-track {
+  position: relative;
+  /* V1：560→480——__body 补 18px 内边距后，560 在总览左栏（~524 可用）必横滚、右缘看似被
+     裁断；480 桌面端完整呈现，窄屏仍兜底可滚。 */
+  min-width: 480px;
+  height: 64px; /* V1 §3.2：44→64，时间轴是战情屏主视觉，给节点与段标签呼吸空间 */
+}
+.baseline-seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.baseline-seg__label {
+  font-size: var(--text-2xs);
+  color: var(--faint);
+  white-space: nowrap;
+  padding: 0 6px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.baseline-seg--semester {
+  background: var(--surface-muted);
+}
+.baseline-seg--vacation {
+  background: var(--blue-soft);
+}
+/* 真空段显性：斜纹 + 红调，一眼看出「这段计划恒为零」 */
+.baseline-seg--vacuum {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--red-soft),
+    var(--red-soft) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+}
+.baseline-seg.is-current {
+  outline: 2px solid var(--green);
+  outline-offset: -2px;
+  z-index: 1;
+}
+.baseline-seg.is-current .baseline-seg__label {
+  color: var(--green);
+  font-weight: var(--weight-medium);
+}
+
+/* 现在标记：竖线 + 上方小标 */
+.baseline-now {
+  position: absolute;
+  top: -18px;
+  bottom: -4px;
+  width: 2px;
+  background: var(--text);
+  transform: translateX(-1px);
+  z-index: 3;
+}
+.baseline-now span {
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  color: var(--text);
+  background: var(--surface);
+  padding: 0 4px;
+  white-space: nowrap;
+}
+
+/* 里程碑/门节点：圆=里程碑、菱形=门；红黄绿来自 drift */
+.baseline-dot {
+  position: absolute;
+  top: 50%;
+  width: 16px; /* V1 §3.2：14→16，配 64px 高轨道 */
+  height: 16px;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--surface);
+  box-shadow: var(--shadow-xs);
+  z-index: 2;
+  transition: transform var(--transition);
+}
+.baseline-dot--milestone {
+  border-radius: var(--radius-pill);
+}
+.baseline-dot--milestone:hover {
+  transform: translate(-50%, -50%) scale(1.25);
+}
+.baseline-dot--gate {
+  border-radius: 2px;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.baseline-dot--gate:hover {
+  transform: translate(-50%, -50%) rotate(45deg) scale(1.25);
+}
+.baseline-dot--red {
+  background: var(--red);
+}
+.baseline-dot--yellow {
+  background: var(--amber);
+}
+.baseline-dot--green {
+  background: var(--green);
+}
+
+/* 图例 */
+.baseline-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+.baseline-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.baseline-swatch {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.baseline-swatch--red {
+  background: var(--red);
+}
+.baseline-swatch--yellow {
+  background: var(--amber);
+}
+.baseline-swatch--green {
+  background: var(--green);
+}
+.baseline-swatch--vacuum {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--red-soft),
+    var(--red-soft) 3px,
+    transparent 3px,
+    transparent 6px
+  );
+  border: 1px solid var(--border);
+}
+
+/* 里程碑清单（时间轴下方，可读版） */
+.baseline-milestones {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.baseline-ms {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 7px 10px; /* V1 §3.5：普通行收紧一档、退回 surface，把量感让给「下一站」 */
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+/* 下一个待过的里程碑/门（pending 中 plannedAt 最早者）：左侧主色竖条 + 浮起底。 */
+.baseline-ms--next {
+  padding: 9px 10px;
+  border-left: 3px solid var(--blue);
+  background: var(--surface-raised);
+}
+.baseline-ms--next .baseline-ms__body strong {
+  font-weight: var(--weight-bold);
+}
+.baseline-ms__body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.baseline-ms__body strong {
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+}
+.baseline-ms__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+.baseline-ms__note {
+  margin: 2px 0 0;
+  font-size: var(--text-xs);
+  color: var(--faint);
+}
+/* （B2 归并）原 .baseline-ms__badge 家族 → .badge--xs + tone（red→--red · yellow→--amber ·
+   green→--green，drift 红黄绿语义不变）。 */
+.baseline-chip {
+  font-size: var(--text-2xs);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  color: var(--faint);
+}
+.baseline-chip--gate {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+/* 门检查单 / 欠条卡（GATE-CHECKLIST-IOU，D-087）：门=检查项容器，挂在里程碑清单每道门行下。 */
+.checklist-card {
+  margin-top: var(--space-2);
+}
+.checklist-card__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.checklist-card__muted {
+  font-size: var(--text-xs);
+  color: var(--faint);
+}
+.checklist-card__body {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.checklist-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.checklist-item {
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.checklist-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.checklist-item__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.checklist-item__title {
+  font-size: var(--text-sm);
+}
+.checklist-item__note,
+.checklist-item__actor {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--faint);
+}
+.checklist-item__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-1);
+}
+.checklist-panel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+}
+.checklist-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.checklist-add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.checklist-quickrecord__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* 哪个组慢了 */
+.baseline-groups h3 {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  margin: 0 0 6px;
+}
+.baseline-groups ul {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.baseline-group-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+}
+
+/* 早开始摊、突击无效 标注 */
+.baseline-timeacc {
+  border-top: 1px dashed var(--border);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.baseline-timeacc p {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.baseline-timeacc__tag {
+  flex: none;
+  font-size: var(--text-2xs);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--amber-soft);
+  color: var(--amber);
+}

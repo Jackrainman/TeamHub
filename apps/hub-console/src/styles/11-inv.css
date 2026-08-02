@@ -1,0 +1,134 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   库存 / BOM 第三支柱（INV-BOM-CORE）。零件×机器人 矩阵 + 一句话快记 + 缺料告警 + 记账历史。
+   反监视：本块无任何「按人」样式——主键恒是零件 / 机器人 / 动作。
+   ───────────────────────────────────────────────────────────────────────── */
+.inv-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+/* INV 面板补内边距 + 行间距（对齐 overview/kb 的呼吸空间），去掉概览页 260px 最小高度避免空 panel；
+   矩阵在 overflow:hidden 的 .panel 内靠 .inv-table-wrap{min-width:0} 正常横向滚动，而非撑宽整页（修「歪」）。 */
+.inv-page .panel {
+  padding: 14px;
+  min-height: 0;
+  gap: 12px;
+}
+/* 汇总只有 2 个指标（零件种数 / 缺料数）→ 2 列，避免复用 PM 三列网格右侧空一格显歪。 */
+.inv-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.inv-section-title {
+  margin: 0 0 12px;
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+}
+/* 矩阵横向溢出时滚动（多机器人并排不挤压，呼应 presence §6 overflow-x:auto 纪律）。 */
+.inv-table-wrap {
+  min-width: 0;
+  overflow-x: auto;
+}
+.inv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-base);
+}
+.inv-table th,
+.inv-table td {
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  text-align: center;
+  white-space: nowrap;
+}
+.inv-table thead th {
+  background: var(--surface-raised);
+  font-weight: var(--weight-medium);
+  color: var(--muted);
+}
+.inv-table__part {
+  text-align: left;
+}
+.inv-table__idle {
+  background: var(--surface-muted);
+  font-weight: var(--weight-medium);
+}
+.inv-part-name {
+  display: block;
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}
+.inv-part-meta {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--faint);
+}
+.inv-idle-value {
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+}
+.inv-idle-total {
+  color: var(--faint);
+  font-size: var(--text-xs);
+}
+.inv-reserved {
+  color: var(--amber);
+  font-size: var(--text-xs);
+}
+.inv-cell--zero {
+  color: var(--faint);
+}
+/* 缺料行：整行淡红 + 闲置值标红。 */
+.inv-row--short td {
+  background: var(--red-soft);
+}
+.inv-row--short .inv-idle-value {
+  color: var(--red);
+}
+/* （B2 归并）原 .inv-short-badge → .badge--alert（红实底白字计数警报）。 */
+/* 记账历史 */
+.inv-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.inv-history__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font-size: var(--text-base);
+}
+.inv-history__part {
+  font-weight: var(--weight-medium);
+}
+.inv-history__qty {
+  color: var(--muted);
+}
+.inv-history__note {
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+}
+.inv-history__src {
+  margin-left: auto;
+  color: var(--faint);
+  font-size: var(--text-xs);
+}
+/* （B2 归并）原 .inv-kind-badge 家族 → .badge--dense + tone（映射在 InvPage toneFor：
+   damage→red · mount/dismount→green（部件回流同轴）· reserve/release→amber（占用同轴）·
+   stocktake/restock→blue · 其余→无 tone 灰。色编类别、文字编方向的口径不变）。 */
+/* 单件追踪标记（abbr，原无样式靠浏览器默认虚线下划线）。 */
+.inv-track-mark {
+  text-decoration: underline dotted var(--blue);
+  text-underline-offset: 2px;
+  color: var(--blue);
+  cursor: help;
+}
