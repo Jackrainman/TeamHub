@@ -1,20 +1,16 @@
 {
-  "focus": "AGENTS.md 重写 + 结构性债务排期（CSS 拆分 / GovStore 拆分 / i18n 拆分）",
+  "focus": "结构性债务排期（CSS 拆分 / GovStore 拆分 / i18n 拆分）+ contracts 测试补全",
   "blocked": [
     {"id": "HERMES-LARK-SKILL", "reason": "卡飞书侧 skill 编写（用户侧）", "owner": "user"},
     {"id": "LARK-BIN-PROBE", "reason": "需用户在 WSL2 实测 which lark / which lark-cli", "owner": "user"}
   ],
   "todo": [
-    {"id": "SCAFFOLD-1", "title": "useHubMutation 工厂：泛型 hook 封装 invalidate+toast，消解 33 处 raw useMutation 根因", "tag": "code", "batch": "scaffold"},
-    {"id": "AGENTS-REWRITE", "title": "AGENTS.md 重写：§8 腐烂文件清单删除、§9/§10 合并入 §7、补测试/i18n/CSS/Store 模式/queryKeys/MutationCache 约定", "tag": "docs", "batch": "scaffold"},
     {"id": "CSS-SPLIT", "title": "styles.css 5542 行拆分：tokens.css + base.css + 按 feature 拆组件样式，Vite 原生支持无框架", "tag": "code", "batch": "structural"},
     {"id": "GOV-SPLIT", "title": "GovStore 三巨头（各 820-862 行）按子域拆：PmCore/Artifact/Schedule 三 mixin 组合，降认知负荷", "tag": "code", "batch": "structural"},
     {"id": "I18N-SPLIT", "title": "translations.ts 2786 行按 feature namespace 拆分，index merge，降合并冲突", "tag": "code", "batch": "structural"},
     {"id": "HOOKS-1-TAIL", "title": "useXxx hook 层尾巴：剩余 ~19 处域特有 useQuery（relay/archive/kb/dep-graph/settings）按需迁移", "tag": "code", "batch": "hooks"},
     {"id": "SPLIT-1-TAIL", "title": "组件拆分尾巴：GateChecklistCard(396)/DirectionStarmap(389)/TodayPlanTable(384) 近线组件，功能迭代时顺带拆", "tag": "code", "batch": "split"},
     {"id": "TESTS-CONTRACTS-GAP", "title": "contracts 13 个模块无专属测试（pm-core 774 行最大），补 derive 纯函数单测", "tag": "code", "batch": "quality"},
-    {"id": "TYPES-NODE-FIX", "title": "@types/node ^20 → ^24 对齐 engines 要求", "tag": "code", "batch": "quality"},
-    {"id": "EMPTY-IMPORT-DIR", "title": "删除 hub-server/src/import/ 空目录残留", "tag": "code", "batch": "quality"},
     {"id": "CHECKLIST-TPL-IMPORT", "title": "检查单模板最小导入通道（等复盘产出，先积累）", "tag": "code", "batch": "later"},
     {"id": "KB-AI-STRUCT", "title": "知识库 AI 结构化（研究项，先积累导入语料再评估）", "tag": "research", "batch": "later"},
     {"id": "STORE-SQLITE-CONVERGE", "title": "[查明延后] SqliteGovStore.create() 承重 ~10 测试+迁移脚本，删旧路径需弃用周期", "tag": "code", "batch": "later"}
@@ -32,7 +28,11 @@
     "SCAFFOLD-4/5/6: sqlite 复用 logic / 废二次 barrel / 删死代码",
     "REFACTOR-SERVER-SPLIT: server.ts 3672→330 行，路由全迁出",
     "HOOKS-1a~j: 6 域 hooks + 迁移 20+ 文件",
-    "SPLIT-1a~h: 8 组件拆分（RelayCanvas/Archive/Resources/DepGraph/Baseline/TaskDrawer/Inv/Members）"
+    "SPLIT-1a~h: 8 组件拆分（RelayCanvas/Archive/Resources/DepGraph/Baseline/TaskDrawer/Inv/Members）",
+    "SCAFFOLD-1: useHubMutation 工厂落地，9 文件 18 处 mutation 迁移，裸键归一 queryKeys",
+    "AGENTS-REWRITE: 151→107 行，删腐烂清单/合并重叠/补六个漏加约定",
+    "TYPES-NODE-FIX: @types/node ^20→^24 对齐 engines",
+    "EMPTY-IMPORT-DIR: 删 hub-server/src/import/ 空目录"
   ],
   "directions": [
     {"id": "KB-LARK-DESIGN", "title": "飞书 wiki/drive → KB 摄入（卡 LARK-BIN-PROBE）"},
