@@ -12,6 +12,12 @@ import {
 // 派生一份同形 schema、字段表逐行重复；现下沉至此，两端 import 同一份，H4 clamp / 字段增删改一处即同步。
 // I0 读写边界：confirmedBy 随请求传入（建边/建需求本人凭证），但**任何读视图永不回此对象**——
 // 见 docs/design/pm-board.md §3。
+//
+// 写契约放置约定（CONTRACTS-REQ-RULE）：**新增写请求契约一律放按域的 `*-requests.ts` 家族**
+//（pm/artifact/schedule/resource-requests），由 `EntitySchema.omit/pick` 剥掉 server 独占字段派生，
+// 不在实体文件里内联。存量内联（baseline/checklist/inventory/identity）不强行搬迁，待各自域下次被触及时
+// 顺手迁入。理由：写契约集中使 I0 的 ActorRef 剥离（omit confirmedBy 等）单点可审计；放置一致性是
+// 可维护性纪律、非架构强制——真正的 I0 红线在**读侧**（person 键永不进派生输出，护栏见 attribution.test.ts）。
 
 /**
  * POST /api/tasks：人本字段；server 补 id/时间戳、默认 status=pending/statusSource=console。

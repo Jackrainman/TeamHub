@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ArtifactRefSchema } from './schemas.js';
+import { ArtifactRefSchema } from './artifact.js';
 
 // 图纸归档物「写侧请求契约」域文件（自 pm-requests.ts 拆出，照 RelayBoardResponseSchema 迁 relay.ts 先例）。
 // I0 图纸日志永无人维度：ArtifactRef 无 person 字段，写请求绝不收提交人/确认人。

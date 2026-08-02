@@ -11,8 +11,6 @@ export {
   AgentBackendInvokeRequestSchema,
   AgentBackendInvokeResponseSchema,
   AgentBackendsResponseSchema,
-  ArtifactRefSchema,
-  ArtifactsResponseSchema,
   BotChannelSchema,
   BotChannelsResponseSchema,
   BridgeMemberStateSchema,
@@ -40,8 +38,6 @@ export type {
   AgentBackendInvokeRequest,
   AgentBackendInvokeResponse,
   AgentBackendsResponse,
-  ArtifactRef,
-  ArtifactsResponse,
   BotChannel,
   BotChannelsResponse,
   BridgeMemberState,
@@ -56,6 +52,9 @@ export type {
   HubEventType,
   HubEventsResponse,
 } from './schemas.js';
+// 归档物实体契约（治理域，CONTRACTS-SCHEMAS 自 schemas.ts 析出）。
+export { ArtifactRefSchema, ArtifactsResponseSchema } from './artifact.js';
+export type { ArtifactRef, ArtifactsResponse } from './artifact.js';
 export {
   CONTRACT_FIXTURE_TIME,
   agentBackendCapabilitiesFixture,
@@ -110,10 +109,8 @@ export * from './identity.js';
 export * from './schedule-infra.js';
 export * from './growth.js';
 export * from './attribution.js';
-export * from './direction-gaps.js';
 export * from './artifact-version.js';
 export * from './schedule.js';
-export * from './relay.js';
 export * from './kb.js';
 export * from './kb-similar.js';
 export * from './kb-closeout.js';
@@ -121,8 +118,7 @@ export * from './inventory.js';
 // 门检查单与欠条（GATE-CHECKLIST-IOU，D-087）：独立轻量域，复用 baseline 的 drift 常量 / 档位类型，
 // 不进 GovernanceSnapshot、独立 store / 落盘（照 baseline / inventory 先例）。
 export * from './checklist.js';
-// 跨端单一源（D-052 重复真相收口）：errorCode 派生 / 系统状态契约 / PM 写请求契约
-export * from './error-code.js';
+// 跨端单一源（D-052 重复真相收口）：系统状态契约 / PM 写请求契约（errorCode 派生已并入 kb-closeout.ts）
 export * from './system-status.js';
 // 部署配置落盘层（SETUP-WIZARD 刀①，setup-wizard.md §2/§3）：config.json 契约 + setup 三端点请求/响应契约。
 export * from './deploy-config.js';

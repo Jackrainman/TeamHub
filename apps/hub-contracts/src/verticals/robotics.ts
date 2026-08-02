@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { ArtifactRef } from '../schemas.js';
+import type { ArtifactRef } from '../artifact.js';
 import { buildCreateArtifactRequestSchema } from '../artifact-requests.js';
 
 /**

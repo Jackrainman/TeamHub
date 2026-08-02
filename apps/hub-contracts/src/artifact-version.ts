@@ -1,4 +1,4 @@
-import type { ArtifactRef } from './schemas.js';
+import type { ArtifactRef } from './artifact.js';
 
 /**
  * 图纸档案 v2 版本派生（HUB-ARTIFACT-ARCHIVE-V2）——纯函数，无 IO，可单测。
