@@ -11,6 +11,7 @@
     {"id": "TESTS-PM-CORE", "title": "pm-core.ts derive 已有 task-post-claim.test 覆盖；如需 1:1 专属文件可再补", "tag": "code", "batch": "later"},
     {"id": "CHECKLIST-TPL-IMPORT", "title": "检查单模板最小导入通道（等复盘产出，先积累）", "tag": "code", "batch": "later"},
     {"id": "KB-AI-STRUCT", "title": "知识库 AI 结构化（研究项，先积累导入语料再评估）", "tag": "research", "batch": "later"},
+    {"id": "TIDOC-REIMBURSE", "title": "报账模块（分析 tidoc 后：数据模型/发票解析/审批流/飞书通知；TODO-tidoc.md 已删，此条即入口）", "tag": "code", "batch": "later"},
     {"id": "STORE-SQLITE-CONVERGE", "title": "[查明延后] SqliteGovStore.create() 承重 ~10 测试+迁移脚本，删旧路径需弃用周期", "tag": "code", "batch": "later"},
     {"id": "TIMELINE-EDITOR", "title": "基准线交互编排：/baseline/edit 全页路由，里程碑点击选偏移+实时 pace 反馈，segment 低频调整，不引拖拽库（~2.5 天，见 docs/design/pending-decisions-to-discuss.md §4）", "tag": "code", "batch": "later"},
     {"id": "GOV-REPORT", "title": "给老师项目级汇报（数据已有，学期末前必做，勿拖）", "tag": "code", "batch": "later"}
