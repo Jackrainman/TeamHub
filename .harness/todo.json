@@ -1,5 +1,5 @@
 {
-  "focus": "REIMBURSE-PROC 一期已落地（待补：真实数电票 PDF 拖入手测）；深度教学动线待讨论",
+  "focus": "REIMBURSE-PROC：真实票 PDF 解析已全绿（滴滴/铁路票 9/9）；项管导出+OFD 通道挂账；深度教学动线待讨论",
   "blocked": [
     {
       "id": "HERMES-LARK-SKILL",
@@ -14,8 +14,14 @@
   ],
   "todo": [
     {
-      "id": "REIMBURSE-PDF-PARSE-GAP",
-      "title": "发票 PDF 解析质量补课（真实票实测暴露）：①品名折行截断（*交通运输服务*客运服+务费→「客运服」，续名在数字行之后）②滴滴折扣行未并入上一条（86.00-17.20 成两条）③seller 识别不出（购买方/销售方同一行连写版式）④火车票 12306 电子客票 unrecognized（无「名称：税号」块）；tidoc 可借鉴：行尾倒推/金额闭合仲裁/税号36位切半",
+      "id": "REIMBURSE-PM-EXPORT",
+      "title": "项管视角全员发票查看+导出（用户拍板：报账是付费事实层不算监视；边界=名字只在报账域流通、永不进治理聚合/统计；组织维度参照 tidoc 抬头强隔离>批次>条目，人只作标注字段）",
+      "tag": "code",
+      "batch": "reimburse"
+    },
+    {
+      "id": "REIMBURSE-OFD-PARSE",
+      "title": "OFD 发票解析通道：OFD=zip+内嵌 XBRL XML（Doc_0/Attachs/*.xml，火车票实测字段全带标签），比 PDF 可靠；浏览器端需轻量 unzip（如 fflate，现无此依赖）；PDF 已为主通道，OFD/XML 作增强",
       "tag": "code",
       "batch": "reimburse"
     },

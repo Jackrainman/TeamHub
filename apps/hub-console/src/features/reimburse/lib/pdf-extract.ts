@@ -82,7 +82,15 @@ function loadPdfjs(): Promise<PdfjsModule> {
 export async function extractPdfTextLines(file: File): Promise<string[]> {
   const pdfjs = await loadPdfjs();
   const data = await file.arrayBuffer();
-  const doc = await pdfjs.getDocument({ data }).promise;
+  const doc = await pdfjs.getDocument({
+    data,
+    // 中文 CID 字体（12306 铁路电子客票等）缺 CMap/标准字体数据会整段丢字——
+    // 标签全灭只剩数字，下游 parser 只能靠 20 位长度盲猜发票号。资源由 vite
+    // pdfjs-assets 插件伺服在 /pdfjs/（dev 中间件直发、build 拷进 dist）。
+    cMapUrl: `${import.meta.env.BASE_URL}pdfjs/cmaps/`,
+    cMapPacked: true,
+    standardFontDataUrl: `${import.meta.env.BASE_URL}pdfjs/standard_fonts/`,
+  }).promise;
   try {
     const lines: string[] = [];
     for (let pageNo = 1; pageNo <= doc.numPages; pageNo += 1) {

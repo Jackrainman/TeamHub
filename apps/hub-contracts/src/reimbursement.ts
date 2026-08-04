@@ -364,13 +364,20 @@ function extractPdfInvoiceDate(text: string): string | null {
 }
 
 /**
- * 销售方抬头抽取（只覆盖三种主流版式，识别不出返回 null，不追识别率）：
- * 1. 购销同布局行「购 名称：X … 销 名称：Y」→ Y；
- * 2. 「销售方信息」角色块下的第一条「名称：…」；
- * 3. 裸「名称：X」候选 ≥2 时，剔除像学校抬头（大学/学院/学校/基金会）的购买方后取第一个。
+ * 销售方抬头抽取（只覆盖主流版式，识别不出返回 null，不追识别率）：
+ * 1. 数电票双栏版式同一行两个「名称：X 名称：Y」→ 左购右销，取 Y（滴滴票实测版式，
+ *    竖排「购/销」标签常与名称行分离，故不依赖购销锚字）；
+ * 2. 购销同布局行「购 名称：X … 销 名称：Y」→ Y；
+ * 3. 「销售方信息」角色块下的第一条「名称：…」；
+ * 4. 裸「名称：X」候选 ≥2 时，剔除像学校抬头（大学/学院/学校/基金会）的购买方后取第一个。
  */
 function extractPdfSeller(lines: string[]): string | null {
   for (const line of lines) {
+    const twoNames =
+      /名\s*称\s*[:：]\s*(.+?)\s+名\s*称\s*[:：]\s*(.+?)\s*$/.exec(line);
+    if (twoNames && twoNames[2] && !/^(购|销|买|售)$/.test(twoNames[2])) {
+      return twoNames[2].replace(/\s+/g, '');
+    }
     const direct = /购\s+名称\s*[:：]\s*(.*?)\s+销\s+名称\s*[:：]\s*(.*?)\s*$/.exec(
       line,
     );
@@ -482,7 +489,9 @@ function parsePdfItemLine(line: string, pendingName: string): PdfItemTail | null
           quantity: 1,
           unitPriceFen: null,
           amountFen: amountFen + taxFen,
-          discountOnly: false,
+          // 负金额折行星号行 = 折扣/红冲（滴滴「*交通…*客运服 -16.70 3% -0.50」实测版式，
+          // 金额在税率前，上面的 discount 正则锚不住）——并入上一条而非独立成行。
+          discountOnly: amountFen < 0,
         };
       }
     }
@@ -554,13 +563,28 @@ export function parseInvoicePdfText(textLines: string[]): ParsedInvoice | null {
   // 明细行：以 `*分类*品名` 起行，折行续名进 pending，命中数字尾列成行。
   const items: ReimburseItem[] = [];
   let pendingName = '';
+  // 品名列折行：数电票长品名常在列内折行，数字尾列跟在第一段同行（「*交通运输服务*客运服
+  // 83.50 1 83.50 3% 2.50」下一行才「务费」）。上一条明细的下一行若是纯中文短行则续接到
+  // 该条品名；续接只认紧跟的一行，且防重（endsWith）——折扣行的同名折行不会重复接尾。
+  let lastWasItemLine = false;
   for (const line of lines) {
     const norm = line.replace(/\s+/g, '').replace(/：/g, ':');
     if (PDF_ITEM_SKIP_PREFIXES.some((p) => norm.startsWith(p))) {
+      lastWasItemLine = false;
       continue;
     }
     const isStarLine = norm.startsWith('*');
     if (!isStarLine && !pendingName) {
+      const last = items[items.length - 1];
+      if (
+        lastWasItemLine &&
+        last &&
+        /^[一-鿿·()（）]{1,12}$/.test(norm) &&
+        !last.name.endsWith(norm)
+      ) {
+        last.name += norm;
+      }
+      lastWasItemLine = false;
       continue;
     }
     const parsed = parsePdfItemLine(line, pendingName);
@@ -569,13 +593,23 @@ export function parseInvoicePdfText(textLines: string[]): ParsedInvoice | null {
       if (!/\d+\.\d{2}|\d+%/.test(line)) {
         pendingName += norm;
       }
+      lastWasItemLine = false;
       continue;
     }
     const name = cleanInvoiceItemName(parsed.name || pendingName);
     pendingName = '';
     const last = items[items.length - 1];
-    if (parsed.discountOnly && last && name === last.name) {
+    // 折扣并入：同名直接并；品名折行截断会让折扣行名比上一条短一截（客运服 vs 客运服务费），
+    // 互为前缀也并（长度 ≥2 防「服务」之类过泛短名误并）。
+    const nameMatches =
+      last &&
+      (name === last.name ||
+        (name.length >= 2 &&
+          last.name.length >= 2 &&
+          (last.name.startsWith(name) || name.startsWith(last.name))));
+    if (parsed.discountOnly && nameMatches) {
       last.amountFen += parsed.amountFen; // 折扣行并入上一条（tidoc 同款）
+      lastWasItemLine = true; // 折扣行的品名同样可能下一行折行续名
       continue;
     }
     if (!parsed.discountOnly) {
@@ -586,7 +620,30 @@ export function parseInvoicePdfText(textLines: string[]): ParsedInvoice | null {
         unitPriceFen: parsed.unitPriceFen,
         amountFen: parsed.amountFen,
       });
+      lastWasItemLine = true;
+      continue;
     }
+    lastWasItemLine = false;
+  }
+
+  // 铁路电子客票：无 `*分类*` 明细段，票面只有「票价：￥x」——按票种合成一条明细，
+  // 车次/区间抓得到就带上，抓不到不硬凑（金额恒取价税合计，不另猜）。
+  if (items.length === 0 && totalAmountFen !== null && /铁路电子客票|电子客票号/.test(text)) {
+    // 车次：字母冠号（G/D/C/K/T/Z+数字）优先；纯数字车次只认带「次」的，防把日期年份当车次。
+    const trainNo =
+      /(?<![A-Za-z0-9])([GDCKTZ]\d{1,5})(?![A-Za-z0-9])/.exec(text)?.[1] ??
+      /(?<![A-Za-z0-9])(\d{1,4})次/.exec(text)?.[1];
+    const route = /([一-鿿]{2,8}站)\s+([一-鿿]{2,8}站)/.exec(text);
+    const detail = [trainNo, route ? `${route[1]}-${route[2]}` : null]
+      .filter(Boolean)
+      .join(' ');
+    items.push({
+      name: `铁路客运${detail ? `（${detail}）` : ''}`,
+      unit: null,
+      quantity: 1,
+      unitPriceFen: null,
+      amountFen: totalAmountFen,
+    });
   }
 
   if (!invoiceNo && totalAmountFen === null && items.length === 0) {
