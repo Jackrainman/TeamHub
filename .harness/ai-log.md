@@ -46,3 +46,4 @@
 - 2026-08-03 perf(console): 名册预览表分批渲染（50 行窗口）+行 memo+函数式更新 + server importRoster Map 线性化，根治 CSV 大表卡死 v0.46.1
 - 2026-08-03 fix(console): 01-tokens.css 补 color-scheme light/dark——深色主题原生日期选择器随主题反转 v0.46.1
 - 2026-08-03 refactor(console): 教学动线简版——车队步移出初始化向导（8→7 步，FleetStep 族全删），初始化车移去机器人队页空态引导 v0.46.1
+- 2026-08-04 feat: REIMBURSE-PROC 报账模块一期——contracts reimbursement 域（条目/批次 schema+状态/批次 derive+发票 XML/PDF 解析纯函数）+PartAction 来源字段；server ReimburseStore 三实现+路由（actor 过滤/发票号查重/stock-in 入库联动）；console 报账页+pdf.js 本地解析导入+入库确认对话框+库存来源展示；红线=发票文件永不上传、人键只回本人+超管；思路参照 tidoc(MIT) 无代码引入 v0.47.0 (f91962a)
