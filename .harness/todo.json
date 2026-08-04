@@ -1,21 +1,90 @@
 {
   "focus": "REIMBURSE-PROC 一期已落地（待补：真实数电票 PDF 拖入手测）；深度教学动线待讨论",
   "blocked": [
-    {"id": "HERMES-LARK-SKILL", "reason": "卡飞书侧 skill 编写（用户侧）", "owner": "user"},
-    {"id": "LARK-BIN-PROBE", "reason": "需用户在 WSL2 实测 which lark / which lark-cli", "owner": "user"}
+    {
+      "id": "HERMES-LARK-SKILL",
+      "reason": "卡飞书侧 skill 编写（用户侧）",
+      "owner": "user"
+    },
+    {
+      "id": "LARK-BIN-PROBE",
+      "reason": "需用户在 WSL2 实测 which lark / which lark-cli",
+      "owner": "user"
+    }
   ],
   "todo": [
-    {"id": "HOOKS-1-TAIL", "title": "useXxx hook 层尾巴：剩余 ~19 处域特有 useQuery（relay/archive/kb/dep-graph/settings）按需迁移", "tag": "code", "batch": "hooks"},
-    {"id": "SPLIT-1-TAIL", "title": "组件拆分尾巴：GateChecklistCard(396)/DirectionStarmap(389)/TodayPlanTable(384) 近线组件，功能迭代时顺带拆", "tag": "code", "batch": "split"},
-    {"id": "GOV-SPLIT-SQLITE", "title": "[查明延后] SqliteGovStore mixin 化：承重 create() 路径（~10 测试+迁移脚本），风险高收益边际，InMemory 拆分已拿下主收益", "tag": "code", "batch": "later"},
-    {"id": "TESTS-PM-CORE", "title": "pm-core.ts derive 已有 task-post-claim.test 覆盖；如需 1:1 专属文件可再补", "tag": "code", "batch": "later"},
-    {"id": "CHECKLIST-TPL-IMPORT", "title": "检查单模板最小导入通道（等复盘产出，先积累）", "tag": "code", "batch": "later"},
-    {"id": "KB-AI-STRUCT", "title": "知识库 AI 结构化（研究项，先积累导入语料再评估）", "tag": "research", "batch": "later"},
-    {"id": "STORE-SQLITE-CONVERGE", "title": "[查明延后] SqliteGovStore.create() 承重 ~10 测试+迁移脚本，删旧路径需弃用周期", "tag": "code", "batch": "later"},
-    {"id": "TIMELINE-EDITOR", "title": "基准线交互编排：/baseline/edit 全页路由，里程碑点击选偏移+实时 pace 反馈，segment 低频调整，不引拖拽库（~2.5 天，见 docs/design/pending-decisions-to-discuss.md §4）", "tag": "code", "batch": "later"},
-    {"id": "GOV-REPORT", "title": "给老师项目级汇报（数据已有，学期末前必做，勿拖）", "tag": "code", "batch": "later"},
-    {"id": "REIMBURSE-TIDOC-UX", "title": "报账页 UI/交互参照 tidoc web 前端打磨（github.com/totok22/tidoc 的 tidoc/web/，成熟产品可大幅参照：条目卡片材料快捷按钮、批次栏文件夹式入口、多栏列表+Shift范围选择、识别提醒视图）；REIMBURSE-PROC 一期落地后再做", "tag": "code", "batch": "later"},
-    {"id": "REIMBURSE-LARK-BITABLE", "title": "报账 × 飞书多维表格联动（双向绑定先做定时拉取元数据；不存文件这点不变）——用户说'再说了'，挂起", "tag": "code", "batch": "later"}
+    {
+      "id": "REIMBURSE-PDF-PARSE-GAP",
+      "title": "发票 PDF 解析质量补课（真实票实测暴露）：①品名折行截断（*交通运输服务*客运服+务费→「客运服」，续名在数字行之后）②滴滴折扣行未并入上一条（86.00-17.20 成两条）③seller 识别不出（购买方/销售方同一行连写版式）④火车票 12306 电子客票 unrecognized（无「名称：税号」块）；tidoc 可借鉴：行尾倒推/金额闭合仲裁/税号36位切半",
+      "tag": "code",
+      "batch": "reimburse"
+    },
+    {
+      "id": "HOOKS-1-TAIL",
+      "title": "useXxx hook 层尾巴：剩余 ~19 处域特有 useQuery（relay/archive/kb/dep-graph/settings）按需迁移",
+      "tag": "code",
+      "batch": "hooks"
+    },
+    {
+      "id": "SPLIT-1-TAIL",
+      "title": "组件拆分尾巴：GateChecklistCard(396)/DirectionStarmap(389)/TodayPlanTable(384) 近线组件，功能迭代时顺带拆",
+      "tag": "code",
+      "batch": "split"
+    },
+    {
+      "id": "GOV-SPLIT-SQLITE",
+      "title": "[查明延后] SqliteGovStore mixin 化：承重 create() 路径（~10 测试+迁移脚本），风险高收益边际，InMemory 拆分已拿下主收益",
+      "tag": "code",
+      "batch": "later"
+    },
+    {
+      "id": "TESTS-PM-CORE",
+      "title": "pm-core.ts derive 已有 task-post-claim.test 覆盖；如需 1:1 专属文件可再补",
+      "tag": "code",
+      "batch": "later"
+    },
+    {
+      "id": "CHECKLIST-TPL-IMPORT",
+      "title": "检查单模板最小导入通道（等复盘产出，先积累）",
+      "tag": "code",
+      "batch": "later"
+    },
+    {
+      "id": "KB-AI-STRUCT",
+      "title": "知识库 AI 结构化（研究项，先积累导入语料再评估）",
+      "tag": "research",
+      "batch": "later"
+    },
+    {
+      "id": "STORE-SQLITE-CONVERGE",
+      "title": "[查明延后] SqliteGovStore.create() 承重 ~10 测试+迁移脚本，删旧路径需弃用周期",
+      "tag": "code",
+      "batch": "later"
+    },
+    {
+      "id": "TIMELINE-EDITOR",
+      "title": "基准线交互编排：/baseline/edit 全页路由，里程碑点击选偏移+实时 pace 反馈，segment 低频调整，不引拖拽库（~2.5 天，见 docs/design/pending-decisions-to-discuss.md §4）",
+      "tag": "code",
+      "batch": "later"
+    },
+    {
+      "id": "GOV-REPORT",
+      "title": "给老师项目级汇报（数据已有，学期末前必做，勿拖）",
+      "tag": "code",
+      "batch": "later"
+    },
+    {
+      "id": "REIMBURSE-TIDOC-UX",
+      "title": "报账页 UI/交互参照 tidoc web 前端打磨（github.com/totok22/tidoc 的 tidoc/web/，成熟产品可大幅参照：条目卡片材料快捷按钮、批次栏文件夹式入口、多栏列表+Shift范围选择、识别提醒视图）；REIMBURSE-PROC 一期落地后再做",
+      "tag": "code",
+      "batch": "later"
+    },
+    {
+      "id": "REIMBURSE-LARK-BITABLE",
+      "title": "报账 × 飞书多维表格联动（双向绑定先做定时拉取元数据；不存文件这点不变）——用户说'再说了'，挂起",
+      "tag": "code",
+      "batch": "later"
+    }
   ],
   "done-tonight": [
     "REIMBURSE-PROC: 报账模块一期（采购-报账-入库联动）——contracts reimbursement 域（schema+状态/批次 derive+发票 XML/PDF 解析纯函数）+ PartAction 来源字段（自购/赞助+reimburseEntryId）；server ReimburseStore 三实现+路由（服务端按 actor 过滤/发票号查重 409/stock-in 入库联动）；console 报账页（手动录入+材料 checklist+批次区）+ pdf.js 本地解析三入口导入（文件永不上传）+ 入库确认对话框（suggestPartTypeMatch）+ 库存来源构成展示；e2e-pillars 绿",
@@ -47,12 +116,33 @@
     "CSS-SPLIT: styles.css 5542 行按 feature 拆 21 文件 + 按序 import 保级联，concat 字节一致"
   ],
   "directions": [
-    {"id": "KB-LARK-DESIGN", "title": "飞书 wiki/drive → KB 摄入（卡 LARK-BIN-PROBE）"},
-    {"id": "INV-BOM-DESIGN", "title": "库存/BOM 自保鲜（对话记账+盘点，排最后）"},
-    {"id": "HUB-GIT-FORGE", "title": "战队 Git 中枢（P2，无紧迫信号）"},
-    {"id": "DEPGRAPH-AI-AUTODRAW", "title": "AI 自动画 DAG 草图+人微调（卡 Hermes 触点）"},
-    {"id": "AXIS-TREE-VIZ", "title": "知识树展示（人的未来，后置）"},
-    {"id": "SCHED-NARROW", "title": "排班收窄定位（退出日常动线，只服务关键窗口）"},
-    {"id": "TEACHING-FLOW", "title": "深度教学动线设计（简版已落地 v0.46.1：车队初始化移去机器人队页）——主页信息分层/初始化顺序显性化，待与用户讨论"}
+    {
+      "id": "KB-LARK-DESIGN",
+      "title": "飞书 wiki/drive → KB 摄入（卡 LARK-BIN-PROBE）"
+    },
+    {
+      "id": "INV-BOM-DESIGN",
+      "title": "库存/BOM 自保鲜（对话记账+盘点，排最后）"
+    },
+    {
+      "id": "HUB-GIT-FORGE",
+      "title": "战队 Git 中枢（P2，无紧迫信号）"
+    },
+    {
+      "id": "DEPGRAPH-AI-AUTODRAW",
+      "title": "AI 自动画 DAG 草图+人微调（卡 Hermes 触点）"
+    },
+    {
+      "id": "AXIS-TREE-VIZ",
+      "title": "知识树展示（人的未来，后置）"
+    },
+    {
+      "id": "SCHED-NARROW",
+      "title": "排班收窄定位（退出日常动线，只服务关键窗口）"
+    },
+    {
+      "id": "TEACHING-FLOW",
+      "title": "深度教学动线设计（简版已落地 v0.46.1：车队初始化移去机器人队页）——主页信息分层/初始化顺序显性化，待与用户讨论"
+    }
   ]
 }
