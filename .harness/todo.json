@@ -1,5 +1,5 @@
 {
-  "focus": "用户反馈三条已修 v0.46.1（CSV 卡顿/color-scheme/车队步移出向导）；深度教学动线待讨论",
+  "focus": "REIMBURSE-PROC 一期已落地（待补：真实数电票 PDF 拖入手测）；深度教学动线待讨论",
   "blocked": [
     {"id": "HERMES-LARK-SKILL", "reason": "卡飞书侧 skill 编写（用户侧）", "owner": "user"},
     {"id": "LARK-BIN-PROBE", "reason": "需用户在 WSL2 实测 which lark / which lark-cli", "owner": "user"}
@@ -11,12 +11,14 @@
     {"id": "TESTS-PM-CORE", "title": "pm-core.ts derive 已有 task-post-claim.test 覆盖；如需 1:1 专属文件可再补", "tag": "code", "batch": "later"},
     {"id": "CHECKLIST-TPL-IMPORT", "title": "检查单模板最小导入通道（等复盘产出，先积累）", "tag": "code", "batch": "later"},
     {"id": "KB-AI-STRUCT", "title": "知识库 AI 结构化（研究项，先积累导入语料再评估）", "tag": "research", "batch": "later"},
-    {"id": "TIDOC-REIMBURSE", "title": "报账模块（分析 tidoc 后：数据模型/发票解析/审批流/飞书通知；TODO-tidoc.md 已删，此条即入口）", "tag": "code", "batch": "later"},
     {"id": "STORE-SQLITE-CONVERGE", "title": "[查明延后] SqliteGovStore.create() 承重 ~10 测试+迁移脚本，删旧路径需弃用周期", "tag": "code", "batch": "later"},
     {"id": "TIMELINE-EDITOR", "title": "基准线交互编排：/baseline/edit 全页路由，里程碑点击选偏移+实时 pace 反馈，segment 低频调整，不引拖拽库（~2.5 天，见 docs/design/pending-decisions-to-discuss.md §4）", "tag": "code", "batch": "later"},
-    {"id": "GOV-REPORT", "title": "给老师项目级汇报（数据已有，学期末前必做，勿拖）", "tag": "code", "batch": "later"}
+    {"id": "GOV-REPORT", "title": "给老师项目级汇报（数据已有，学期末前必做，勿拖）", "tag": "code", "batch": "later"},
+    {"id": "REIMBURSE-TIDOC-UX", "title": "报账页 UI/交互参照 tidoc web 前端打磨（github.com/totok22/tidoc 的 tidoc/web/，成熟产品可大幅参照：条目卡片材料快捷按钮、批次栏文件夹式入口、多栏列表+Shift范围选择、识别提醒视图）；REIMBURSE-PROC 一期落地后再做", "tag": "code", "batch": "later"},
+    {"id": "REIMBURSE-LARK-BITABLE", "title": "报账 × 飞书多维表格联动（双向绑定先做定时拉取元数据；不存文件这点不变）——用户说'再说了'，挂起", "tag": "code", "batch": "later"}
   ],
   "done-tonight": [
+    "REIMBURSE-PROC: 报账模块一期（采购-报账-入库联动）——contracts reimbursement 域（schema+状态/批次 derive+发票 XML/PDF 解析纯函数）+ PartAction 来源字段（自购/赞助+reimburseEntryId）；server ReimburseStore 三实现+路由（服务端按 actor 过滤/发票号查重 409/stock-in 入库联动）；console 报账页（手动录入+材料 checklist+批次区）+ pdf.js 本地解析三入口导入（文件永不上传）+ 入库确认对话框（suggestPartTypeMatch）+ 库存来源构成展示；e2e-pillars 绿",
     "USER-FEEDBACK-FIX: 名册预览表分批渲染+行 memo+importRoster Map 线性化（根治 CSV 大表卡死）",
     "THEME-SCHEME: 01-tokens.css 补 color-scheme light/dark——深色主题原生日期选择器/滚动条随主题反转",
     "ONBOARD-SIMPLE: 教学动线简版——车队步移出初始化向导（8→7 步），初始化一台车移去左侧机器人队页空态引导",

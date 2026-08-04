@@ -11,7 +11,7 @@ import { CONSOLE_PAGES, filterConsolePages } from '../src/console-pages';
 describe('console-pages: filterConsolePages', () => {
   const ALL_ENABLED: TenantConfig = { enabledModules: [...ALL_MODULE_IDS] };
 
-  test('全模块启用：10 页全在（含 MY-VIEW）、顺序不变', () => {
+  test('全模块启用：11 页全在（含 MY-VIEW / 报账）、顺序不变', () => {
     const pages = filterConsolePages(CONSOLE_PAGES, ALL_ENABLED);
     expect(pages.map((p) => p.key)).toEqual(CONSOLE_PAGES.map((p) => p.key));
     expect(pages.map((p) => p.key)).toEqual([
@@ -21,6 +21,7 @@ describe('console-pages: filterConsolePages', () => {
       'knowledge',
       'archive',
       'inv',
+      'reimburse',
       'fleet',
       'direction',
       'timeline',
@@ -28,7 +29,7 @@ describe('console-pages: filterConsolePages', () => {
     ]);
   });
 
-  test('关掉 presence-schedule：fleet 页消失，其余 7 页仍在', () => {
+  test('关掉 presence-schedule：fleet 页消失，其余页仍在', () => {
     const tenant: TenantConfig = {
       enabledModules: ALL_MODULE_IDS.filter((id) => id !== 'presence-schedule'),
     };

@@ -142,7 +142,7 @@ export function InvPage({
 
       <section className="panel" aria-label={t('inv.ledger.title')}>
         <h2 className="inv-section-title">{t('inv.ledger.title')}</h2>
-        <InvLedgerTable ledger={ledger} shortfallIds={shortfallIds} />
+        <InvLedgerTable ledger={ledger} shortfallIds={shortfallIds} actions={gate.data.actions} />
       </section>
 
       <ActionHistory

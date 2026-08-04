@@ -1,4 +1,5 @@
-import type { InventoryLedgerRow, PartCategory } from '../../api/schemas/inv';
+import type { InventoryLedgerRow, PartAction, PartCategory } from '../../api/schemas/inv';
+import { derivePartAcquisition } from '../../api/schemas/inv';
 import { useI18n, type TranslationKey } from '../../i18n';
 
 const CATEGORY_KEY: Record<PartCategory, TranslationKey> = {
@@ -13,13 +14,17 @@ const CATEGORY_KEY: Record<PartCategory, TranslationKey> = {
 /**
  * 库存总表：零件 × 机器人 矩阵（决定 F）。机器人列复用 SharedResource（显示 displayCode ?? name）。
  * 闲置列高亮；缺料行（idle < lowStockThreshold）标红 + 「缺料」徽章。**I0**：无任何人维度列。
+ * 来源构成（REIMBURSE-PROC 阶段 5）：derivePartAcquisition 从动作日志派生「自购 X / 赞助 Y」，
+ * 两桶都为 0（历史存量来源不可考）则不显示，不伪造。
  */
 export function InvLedgerTable({
   ledger,
   shortfallIds,
+  actions,
 }: {
   ledger: InventoryLedgerRow[];
   shortfallIds: Set<string>;
+  actions: PartAction[];
 }) {
   const { t } = useI18n();
 
@@ -50,12 +55,22 @@ export function InvLedgerTable({
         <tbody>
           {ledger.map((row) => {
             const short = shortfallIds.has(row.partType.id);
+            const acquisition = derivePartAcquisition(row.partType.id, actions);
+            const hasAcquisition = acquisition.selfPurchased > 0 || acquisition.sponsored > 0;
             return (
               <tr key={row.partType.id} className={short ? 'inv-row--short' : undefined}>
                 <td className="inv-table__part">
                   <span className="inv-part-name">{row.partType.name}</span>
                   <span className="inv-part-meta">
                     {row.partType.partNumber} · {t(CATEGORY_KEY[row.partType.category])}
+                    {hasAcquisition ? (
+                      <>
+                        {' · '}
+                        {t('inv.acquisition.selfPurchase')} {acquisition.selfPurchased}
+                        {' / '}
+                        {t('inv.acquisition.sponsored')} {acquisition.sponsored}
+                      </>
+                    ) : null}
                     {row.partType.trackIndividually ? (
                       <>
                         {' · '}

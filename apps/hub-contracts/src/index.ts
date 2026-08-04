@@ -115,6 +115,9 @@ export * from './kb.js';
 export * from './kb-similar.js';
 export * from './kb-closeout.js';
 export * from './inventory.js';
+// 采购-报账-入库联动（REIMBURSE-PROC）：报账条目/批次契约 + 发票 XML/PDF 文本解析纯函数（本地解析、
+// 文件本体永不上传）+ 写契约。依赖 inventory.js（PartAcquisitionSchema/PartType/PartAction），故其后导出。
+export * from './reimbursement.js';
 // 门检查单与欠条（GATE-CHECKLIST-IOU，D-087）：独立轻量域，复用 baseline 的 drift 常量 / 档位类型，
 // 不进 GovernanceSnapshot、独立 store / 落盘（照 baseline / inventory 先例）。
 export * from './checklist.js';

@@ -68,6 +68,7 @@ curl -s http://127.0.0.1:4177/health | grep buildId  # 活体
 - Store 三实现模式：InMemory（逻辑主体）→ File（decorator，wrap InMemory + PersistedFile 持久化）→ SQLite（独立实现，共享逻辑走 `gov-store-logic.ts` / `base-*-logic.ts`）。新增域照此三层。
 - API 响应：200+JSON；错误 `{ detail: string }`；列表直接数组。
 - 复用：`routes/helpers.ts` 提供 parseBody / parseQuery / readCsvUpload / sessionActor / requireSuperAdmin / requireActor / isLoopbackOperator / buildScheduleSnapshot / cookie 族。`authz.ts` 提供 isSuperAdmin / isGroupLeadOf / isGateReviewer / memberHasPmFlag。
+- 报账域（REIMBURSE-PROC）：`routes/reimburse.ts` + `store/reimburse-store.ts` 三实现（env `TEAMHUB_REIMBURSE_DATA_FILE`）。红线：发票/付款截图/查验单**文件本体永不上传**——服务器只存元数据，解析在前端本地（pdf.js）；条目人键只回本人+超管，批次聚合无按人明细；入库联动经 stock-in 端点服务端调 invStore（成员本无库存写权），已入量由 restock 动作日志派生。
 
 ### 前端（hub-console）
 
@@ -96,7 +97,7 @@ curl -s http://127.0.0.1:4177/health | grep buildId  # 活体
 
 ### CSS
 
-- 单文件 `src/styles.css`，四主题通过 `[data-theme]` + `:root` 变量切换。
+- 样式按 feature 分文件 `src/styles/NN-*.css`（`main.tsx` 按序 import 保级联），四主题通过 `[data-theme]` + `:root` 变量切换。
 - 新样式用 `:root` token（`--radius-*` / `--shadow-*` / `--space-*`），不硬编码。
 - 卡片/空态/表单字段等已有基类（见前端复用索引），不重复写 border/radius/bg/shadow。
 

@@ -26,6 +26,8 @@ import { FileKbStore } from './store/file-kb-store.js';
 import { FileInvStore } from './store/file-inv-store.js';
 import { FileBaselineStore } from './store/file-baseline-store.js';
 import { FileChecklistStore } from './store/file-checklist-store.js';
+import { FileReimburseStore } from './store/file-reimburse-store.js';
+import type { ReimburseStore } from './store/reimburse-store.js';
 import type { GovStore, KbStore, InvStore } from './store/gov-store.js';
 import type { BaselineStore } from './store/baseline-store.js';
 import type { ChecklistStore } from './store/checklist-store.js';
@@ -119,6 +121,7 @@ async function main(): Promise<void> {
       process.env.TEAMHUB_INV_DATA_FILE,
       process.env.TEAMHUB_BASELINE_DATA_FILE,
       process.env.TEAMHUB_CHECKLIST_DATA_FILE,
+      process.env.TEAMHUB_REIMBURSE_DATA_FILE,
     ].filter((p): p is string => Boolean(p));
     const setupApp = buildSetupServer({
       configFile,
@@ -148,6 +151,7 @@ async function main(): Promise<void> {
   let invStore: InvStore | undefined;
   let baselineStore: BaselineStore | undefined;
   let checklistStore: ChecklistStore | undefined;
+  let reimburseStore: ReimburseStore | undefined;
   let larkStore: LarkIntegrationStore | undefined;
   let unifiedClose: (() => void) | undefined;
 
@@ -163,6 +167,7 @@ async function main(): Promise<void> {
     invStore = unified.inv;
     baselineStore = unified.baseline;
     checklistStore = unified.checklist;
+    reimburseStore = unified.reimburse;
     larkStore = LarkIntegrationStore.fromSharedDb(unified.db);
     unifiedClose = unified.close;
     await store.ensureDefaultGroups();
@@ -250,6 +255,17 @@ async function main(): Promise<void> {
       '[teamhub-hub-server] TEAMHUB_CHECKLIST_DATA_FILE 未设：门检查单 / 欠条走内存（InMemoryChecklistStore），重启丢失。设该环境变量落盘持久化。',
     );
   }
+
+  // REIMBURSE-PROC：报账域落盘（无演示 fixture——demo/real 均空种子，真实垫付数据不伪造）。
+  const reimburseDataFile = process.env.TEAMHUB_REIMBURSE_DATA_FILE;
+  reimburseStore = reimburseDataFile
+    ? await FileReimburseStore.create(reimburseDataFile, undefined, clock)
+    : undefined;
+  if (!reimburseStore) {
+    console.warn(
+      '[teamhub-hub-server] TEAMHUB_REIMBURSE_DATA_FILE 未设：报账数据走内存（InMemoryReimburseStore），重启丢失。设该环境变量落盘持久化。',
+    );
+  }
   } // end else (non-unified backend)
 
   // IDENTITY-LITE（D-083 §4.2）：轻身份登录双模式，来源 = config.identityMode（SETUP-WIZARD 刀①，模式类
@@ -293,6 +309,7 @@ async function main(): Promise<void> {
         { domain: 'inv', backend: 'sqlite', path: process.env.TEAMHUB_DB_FILE },
         { domain: 'baseline', backend: 'sqlite', path: process.env.TEAMHUB_DB_FILE },
         { domain: 'checklist', backend: 'sqlite', path: process.env.TEAMHUB_DB_FILE },
+        { domain: 'reimburse', backend: 'sqlite', path: process.env.TEAMHUB_DB_FILE },
       ]
     : [
         govBackend === 'sqlite'
@@ -312,6 +329,9 @@ async function main(): Promise<void> {
         checklistStore
           ? { domain: 'checklist', backend: 'file', path: process.env.TEAMHUB_CHECKLIST_DATA_FILE }
           : { domain: 'checklist', backend: 'memory' },
+        reimburseStore
+          ? { domain: 'reimburse', backend: 'file', path: process.env.TEAMHUB_REIMBURSE_DATA_FILE }
+          : { domain: 'reimburse', backend: 'memory' },
       ];
   const deployment: DeploymentInfo = {
     // SETUP-WIZARD 刀③：数据形态回显——设置页「部署配置」据此决定是否显示「结束试驾，转正式」按钮（仅 demo）。
@@ -349,6 +369,7 @@ async function main(): Promise<void> {
     process.env.TEAMHUB_INV_DATA_FILE,
     process.env.TEAMHUB_BASELINE_DATA_FILE,
     process.env.TEAMHUB_CHECKLIST_DATA_FILE,
+    process.env.TEAMHUB_REIMBURSE_DATA_FILE,
   ].filter((p): p is string => Boolean(p));
 
   const app = buildHubServer({
@@ -361,6 +382,7 @@ async function main(): Promise<void> {
     invStore,
     baselineStore,
     checklistStore,
+    reimburseStore,
     writeToken: larkStore ? larkStore.getWriteToken() : writeToken,
     trustProxy,
     identityMode,

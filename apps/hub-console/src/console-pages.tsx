@@ -9,6 +9,7 @@ import {
   Home,
   LayoutGrid,
   ListChecks,
+  ReceiptText,
   Settings,
 } from 'lucide-react';
 import type { IdentityMode, ModuleId, SessionIdentity, TenantConfig } from '@teamhub/hub-contracts';
@@ -21,6 +22,7 @@ import { ProjectPage } from './features/project/ProjectPage';
 import { KbSearchPage } from './features/kb/KbSearchPage';
 import { ArchivePage } from './features/archive/ArchivePage';
 import { InvPage } from './features/inv/InvPage';
+import { ReimbursePage } from './features/reimburse/ReimbursePage';
 import { FleetPage } from './features/fleet/FleetPage';
 import { DirectionPage } from './features/direction/DirectionPage';
 import { TimelineEditorPage } from './features/timeline/TimelineEditorPage';
@@ -57,6 +59,7 @@ export type ConsolePage =
   | 'knowledge'
   | 'archive'
   | 'inv'
+  | 'reimburse'
   | 'fleet'
   | 'direction'
   | 'timeline'
@@ -112,8 +115,8 @@ export interface ConsolePageDescriptor {
   onRefresh?: (ctx: PageRenderCtx) => void;
 }
 
-// 顺序即导航顺序（IA D-077 定案，9 页顺序不变；MY-VIEW 新增插在总览之后）：
-// 总览 → 我的视图 → 项目 → 知识库 → 图纸档案 → 库存 → 机器人队 → 学习方向 → 设置。
+// 顺序即导航顺序（IA D-077 定案原 9 页顺序不变；MY-VIEW 插在总览之后，REIMBURSE-PROC 报账页插在库存之后）：
+// 总览 → 我的视图 → 项目 → 知识库 → 图纸档案 → 库存 → 报账 → 机器人队 → 学习方向 → 时间线 → 设置。
 export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
   {
     key: 'overview',
@@ -185,6 +188,17 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     icon: Boxes,
     moduleId: 'ledger',
     render: (ctx) => <InvPage client={ctx.apiClient} source={ctx.source} />,
+  },
+  {
+    key: 'reimburse',
+    labelKey: 'nav.reimburse',
+    titleKey: 'toolbar.title.reimburse',
+    icon: ReceiptText,
+    // 报账属「库存-BOM」支柱的采购-报账-入库联动（REIMBURSE-PROC），随 ledger 模块开关。
+    moduleId: 'ledger',
+    render: (ctx) => (
+      <ReimbursePage client={ctx.apiClient} source={ctx.source} identity={ctx.identity} />
+    ),
   },
   {
     key: 'fleet',

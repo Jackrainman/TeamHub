@@ -6,6 +6,8 @@ export {
   CreatePartTypeResponseSchema,
   CreatePartActionRequestSchema,
   CreatePartActionResponseSchema,
+  ROBOTICS_PART_CATEGORY_VALUES,
+  derivePartAcquisition,
 } from '@teamhub/hub-contracts';
 export type {
   InventoryResponse,
@@ -13,6 +15,8 @@ export type {
   PartType,
   PartAction,
   PartActionKind,
+  PartAcquisition,
+  PartAcquisitionSummary,
   PartCategory,
   TrackedPart,
   CreatePartTypeRequest,

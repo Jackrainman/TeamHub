@@ -13,6 +13,7 @@ import { SqliteKbStore } from './sqlite-kb-store.js';
 import { SqliteInvStore } from './sqlite-inv-store.js';
 import { SqliteBaselineStore } from './sqlite-baseline-store.js';
 import { SqliteChecklistStore } from './sqlite-checklist-store.js';
+import { SqliteReimburseStore } from './sqlite-reimburse-store.js';
 import type { GovStore } from './gov-store.js';
 import type { BaselineStore } from './baseline-store.js';
 import type { ChecklistStore } from './checklist-store.js';
@@ -25,6 +26,8 @@ export interface UnifiedStores {
   inv: SqliteInvStore;
   baseline: BaselineStore;
   checklist: ChecklistStore;
+  // REIMBURSE-PROC：报账域（reimburse_entries/reimburse_batches 两表，KV JSON 模式；空种子无演示 fixture）。
+  reimburse: SqliteReimburseStore;
   db: SqliteDatabase;
   close(): void;
 }
@@ -101,6 +104,7 @@ export function openUnifiedDb(
   const inv = SqliteInvStore.fromSharedDb(sdb, seeds.inv, opts.clock);
   const baseline = SqliteBaselineStore.fromSharedDb(sdb, seeds.baseline);
   const checklist = SqliteChecklistStore.fromSharedDb(sdb, seeds.checklist, seeds.checklistTemplates);
+  const reimburse = SqliteReimburseStore.fromSharedDb(sdb, undefined, opts.clock);
 
   return {
     gov,
@@ -108,6 +112,7 @@ export function openUnifiedDb(
     inv,
     baseline,
     checklist,
+    reimburse,
     db: sdb,
     close: () => sdb.close(),
   };

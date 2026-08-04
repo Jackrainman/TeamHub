@@ -18,6 +18,12 @@ import { isoDateTimeSchema } from './common.js';
  *  - **G2**：INV 自有真相、不回写飞书 Bitable。
  *  - **C3 / D-072 §3.4**：个体件拆装只移 `currentHolder`、**绝不删 TrackedPart**（保血缘）；
  *    写白名单仅 upsertPartType / recordPartAction，无通用 delete。
+ *
+ * REIMBURSE-PROC 扩展（报账联动一期）：`PartAction` 加 optional `acquisition`（入库来源：
+ * selfPurchase=垫付自购 / sponsored=赞助，仅 restock 有意义）+ `reimburseEntryId`（关联的
+ * 报账条目）。**PartType 不加来源/价格字段**——同件号可混合来源、不同批次不同价：来源在动作上，
+ * 价格在报账条目上；来源构成由 `derivePartAcquisition` 从动作日志派生。旧动作行无新字段 →
+ * optional parse 天然通过，三实现零迁移；无 acquisition 的老动作不计入任一来源桶（历史来源不可考，不伪造）。
  */
 
 // HUB-MODULARIZATION 第6步（词汇注入收口）：由闭集 z.enum 放宽为开放 string——BOM 类目是租户词汇
@@ -44,6 +50,12 @@ export const PartActionSourceSchema = z.enum([
   'hermes',
   'derived',
 ]);
+
+/**
+ * 入库来源（REIMBURSE-PROC，仅 kind='restock' 有意义）：selfPurchase=成员垫付自购（报账联动
+ * 落账）/ sponsored=赞助入库（不关联报账条目）。旧动作无此字段 → 来源未知，不计入任何桶。
+ */
+export const PartAcquisitionSchema = z.enum(['selfPurchase', 'sponsored']);
 
 /** 持有者引用：resourceId（某台机器人）或 'idle'（货架 / 闲置池）。 */
 export const IDLE_HOLDER = 'idle';
@@ -101,6 +113,9 @@ export const PartActionSchema = z.object({
   note: z.string().min(1).nullable(), // 一句话快记："坏了一个3508、烧了"
   recordedBy: PartActionRecordedBySchema, // I0：绝无 memberId
   recordedAt: isoDateTimeSchema,
+  // REIMBURSE-PROC：入库来源 + 关联报账条目（仅 restock 有意义；optional 向后兼容，见文件头）。
+  acquisition: PartAcquisitionSchema.optional(),
+  reimburseEntryId: z.string().optional(),
 });
 
 /** 库存读快照（与 GovernanceSnapshot / KbSnapshot 对称，独立于 GovernanceSnapshot）。 */
@@ -114,6 +129,7 @@ export const InventorySnapshotSchema = z.object({
 export type PartCategory = z.infer<typeof PartCategorySchema>;
 export type PartActionKind = z.infer<typeof PartActionKindSchema>;
 export type PartActionSource = z.infer<typeof PartActionSourceSchema>;
+export type PartAcquisition = z.infer<typeof PartAcquisitionSchema>;
 export type PartAllocation = z.infer<typeof PartAllocationSchema>;
 export type PartType = z.infer<typeof PartTypeSchema>;
 export type TrackedPart = z.infer<typeof TrackedPartSchema>;
@@ -197,6 +213,36 @@ export function deriveShortfalls(snapshot: InventorySnapshot): PartType[] {
   return snapshot.partTypes.filter(
     (pt) => pt.totalQuantity - sumAllocated(pt) < pt.lowStockThreshold,
   );
+}
+
+/** 来源构成（derivePartAcquisition 输出）：自购/赞助两桶各自累计入库数量。 */
+export interface PartAcquisitionSummary {
+  selfPurchased: number;
+  sponsored: number;
+}
+
+/**
+ * 某 PartType 的入库来源构成派生（REIMBURSE-PROC）：只统计 `kind='restock'` 且带 `acquisition`
+ * 的动作，按 quantityDelta 绝对值入桶；**无 acquisition 的老动作不计入任一桶**（历史存量来源
+ * 不可考，不伪造）。损坏/拆装等动作与来源无关，天然跳过。
+ */
+export function derivePartAcquisition(
+  partTypeId: string,
+  actions: PartAction[],
+): PartAcquisitionSummary {
+  const summary: PartAcquisitionSummary = { selfPurchased: 0, sponsored: 0 };
+  for (const action of actions) {
+    if (action.partTypeId !== partTypeId || action.kind !== 'restock') {
+      continue;
+    }
+    const qty = Math.abs(action.quantityDelta);
+    if (action.acquisition === 'selfPurchase') {
+      summary.selfPurchased += qty;
+    } else if (action.acquisition === 'sponsored') {
+      summary.sponsored += qty;
+    }
+  }
+  return summary;
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -389,6 +435,8 @@ export const CreatePartTypeResponseSchema = z.object({ partType: PartTypeSchema 
  * POST /api/inventory/actions（一句话快记=damage+partTypeId+quantityDelta+note；拆装=mount/dismount；
  * 预留=reserve/release）。**recordedBy 不由客户端给**——server 钉 source=human（C5 来源 seam；I0 绝无 memberId）。
  * Hermes 将来调同一接口自动填（源走 hermes，仍无 memberId）。
+ * REIMBURSE-PROC：`acquisition`/`reimburseEntryId` 随 PartActionSchema 自动带入写契约（不在 omit 列表），
+ * restock 时可钉来源；报账联动落账走 server 内部调用（acquisition='selfPurchase'）。
  */
 export const CreatePartActionRequestSchema = PartActionSchema.omit({
   id: true,

@@ -1,0 +1,308 @@
+/* 报账页（REIMBURSE-PROC 阶段 3）：卡片/空态/表单字段走 .card/.empty-state/.kb-field 基类与
+   .btn 族，本文件只补布局与少量无基类覆盖的控件（Field 外壳外的行内输入件，镜像
+   .kb-field input 的 token 写法，先例同 02-base 的 .detail-status-select select）。 */
+
+.reimb-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.reimb-entries,
+.reimb-batches {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.reimb-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reimb-entry__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reimb-entry__amount {
+  margin-left: auto;
+  font-size: var(--text-md);
+}
+
+.reimb-entry__meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.reimb-entry__meta dt {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.reimb-entry__meta dd {
+  margin: 2px 0 0;
+  font-size: var(--text-base);
+  word-break: break-all;
+}
+
+.reimb-entry__items {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.reimb-entry__items th,
+.reimb-entry__items td {
+  padding: 4px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.reimb-entry__items th {
+  color: var(--muted);
+  font-weight: var(--weight-medium);
+}
+
+.reimb-entry__materials {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  font-size: var(--text-base);
+}
+
+.reimb-entry__materials-title {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.reimb-entry__materials label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reimb-entry__edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reimb-entry__edit input {
+  flex: 1 1 220px;
+}
+
+.reimb-entry__batch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* Field 外壳外的行内输入件：镜像 .kb-field input 的 token 写法（见文件头注释）。 */
+.reimb-entry__edit input,
+.reimb-entry__batch select,
+.reimb-items-editor__row input,
+.reimb-batch-create input,
+.reimb-stockin input,
+.reimb-stockin select {
+  padding: 7px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-base);
+}
+
+.reimb-entry__edit input:focus,
+.reimb-entry__batch select:focus,
+.reimb-items-editor__row input:focus,
+.reimb-batch-create input:focus,
+.reimb-stockin input:focus,
+.reimb-stockin select:focus {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+/* 新建表单的明细行编辑器：名称自适应 + 四个窄列 + 删行钮。 */
+.reimb-items-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reimb-items-editor__title {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+}
+
+.reimb-items-editor__row {
+  display: grid;
+  grid-template-columns: 2fr repeat(4, minmax(72px, 1fr)) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.reimb-batch-create {
+  display: flex;
+}
+
+.reimb-batch-create input {
+  flex: 1;
+}
+
+.reimb-batch {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reimb-batch__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reimb-batch__summary {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-base);
+}
+
+.reimb-batch__flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* 发票导入区（阶段 4）：虚线投放框，三入口（点击/拖拽/粘贴）。token 与 .card 同源。 */
+.reimb-import {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.reimb-import:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+.reimb-import--dragover {
+  border-color: var(--blue);
+  border-style: solid;
+}
+
+.reimb-import__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+}
+
+.reimb-import__hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.reimb-import__notices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reimb-import__notices li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 入库确认（阶段 5）：明细行「已入 X/Y」角标 + 抽屉内逐行表单。 */
+.reimb-entry__stocked {
+  display: block;
+  color: var(--faint);
+  font-size: var(--text-xs);
+}
+
+.reimb-entry__stockin {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.reimb-stockin {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reimb-stockin__hint {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.reimb-stockin__row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.reimb-stockin__row--full {
+  color: var(--muted);
+}
+
+.reimb-stockin__row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.reimb-stockin__meta {
+  color: var(--faint);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.reimb-stockin__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.reimb-stockin__fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.reimb-stockin__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}

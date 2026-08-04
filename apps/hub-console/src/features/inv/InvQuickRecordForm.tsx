@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
 import type {
   CreatePartActionRequest,
+  PartAcquisition,
   PartActionKind,
   PartType,
 } from '../../api/schemas/inv';
@@ -13,6 +14,7 @@ import { Field } from '../../components/Field';
 import { FormActions } from '../../components/FormActions';
 import { FormGrid } from '../../components/FormGrid';
 import { Select } from '../../components/Select';
+import { SegToggle } from '../../components/SegToggle';
 
 const IDLE_HOLDER = 'idle';
 
@@ -55,6 +57,7 @@ interface InvFormFields {
   quantity: string;
   holder: string;
   note: string;
+  acquisition: PartAcquisition;
 }
 
 export function InvQuickRecordForm({
@@ -77,6 +80,8 @@ export function InvQuickRecordForm({
       quantity: { initial: '1' },
       holder: { initial: holderOptions[0]?.id ?? IDLE_HOLDER, sticky: true },
       note: { initial: '' },
+      // 入库来源（REIMBURSE-PROC 阶段 5）：仅 restock 有意义，默认自购；赞助入库不关联报账条目。
+      acquisition: { initial: 'selfPurchase' as PartAcquisition, sticky: true },
     },
     valid: (v) => {
       const qty = Number.parseInt(v.quantity, 10);
@@ -98,7 +103,7 @@ export function InvQuickRecordForm({
     },
   });
 
-  const { partTypeId, kind, quantity, holder, note } = form.values;
+  const { partTypeId, kind, quantity, holder, note, acquisition } = form.values;
   const project = partTypes.find((p) => p.id === partTypeId);
   const qty = Number.parseInt(quantity, 10);
 
@@ -142,6 +147,8 @@ export function InvQuickRecordForm({
             fromHolder,
             toHolder,
             note: note.trim() || null,
+            // 来源仅 restock 钉（schema optional；其他动作带来源无意义，不污染动作日志）。
+            ...(kind === 'restock' ? { acquisition } : {}),
           });
         })}
       >
@@ -195,6 +202,19 @@ export function InvQuickRecordForm({
         {needsHolder(kind) ? (
           <Field label={t('inv.record.field.note')}>
             <input value={note} onChange={(e) => form.set('note', e.target.value)} />
+          </Field>
+        ) : null}
+        {kind === 'restock' ? (
+          <Field label={t('inv.record.field.acquisition')} className="span-all">
+            <SegToggle<PartAcquisition>
+              value={acquisition}
+              onChange={(v) => form.set('acquisition', v)}
+              ariaLabel={t('inv.record.field.acquisition')}
+              options={[
+                { value: 'selfPurchase', label: t('inv.acquisition.selfPurchase') },
+                { value: 'sponsored', label: t('inv.acquisition.sponsored') },
+              ]}
+            />
           </Field>
         ) : null}
         <FormActions

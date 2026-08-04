@@ -24,6 +24,8 @@ import { InMemoryKbStore } from './store/mock-kb-store.js';
 import { InMemoryInvStore } from './store/mock-inv-store.js';
 import { InMemoryBaselineStore } from './store/mock-baseline-store.js';
 import { InMemoryChecklistStore } from './store/mock-checklist-store.js';
+import { InMemoryReimburseStore } from './store/reimburse-store.js';
+import type { ReimburseStore } from './store/reimburse-store.js';
 import type { GovStore, InvStore, KbStore } from './store/gov-store.js';
 import type { BaselineStore } from './store/baseline-store.js';
 import type { ChecklistStore } from './store/checklist-store.js';
@@ -32,6 +34,7 @@ import { registerSearchRoutes } from './routes/search.js';
 import { registerExportRoutes } from './routes/export.js';
 import { registerKnowledgeBaseRoutes } from './routes/kb.js';
 import { registerLedgerRoutes } from './routes/ledger.js';
+import { registerReimburseRoutes } from './routes/reimburse.js';
 import { registerPresenceScheduleRoutes } from './routes/schedule.js';
 import { registerArchiveRoutes } from './routes/archive.js';
 import { registerSystemRoutes } from './routes/system.js';
@@ -149,6 +152,12 @@ export interface BuildHubServerOptions {
   setupControl?: SetupControl;
   /** 飞书集成配置持久化（LARK-INTEG-CONFIG）。给了才注册 /api/integrations/lark + /api/hermes/credential。 */
   larkStore?: import('./store/lark-integration-store.js').LarkIntegrationStore;
+  /**
+   * 报账域读写出入口（REIMBURSE-PROC 一期）。独立于 `GovStore`（ReimburseEntry/ReimburseBatch 不进
+   * GovernanceSnapshot，同 InvStore 先例），缺省 `InMemoryReimburseStore`（空种子——报账无演示 fixture，
+   * 真实垫付数据不伪造）。由 `/api/reimburse/*` 消费（registerReimburseRoutes，挂 ledger 模块下）。
+   */
+  reimburseStore?: ReimburseStore;
 }
 
 // 归档物文件上传上限（50MB）：覆盖机械 CAD（step/stp/sldprt）+ 电路 PDF + 固件，又约束资源耗尽面。
@@ -236,6 +245,10 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   // GATE-CHECKLIST-IOU：门检查单 / 欠条读写出入口（缺省 InMemoryChecklistStore seed checklistScenarioFixture，
   // 同 InMemoryBaselineStore 先例——demo 首屏门检查单卡 / 告警区欠条非空）。本刀先钉字段、C3 挂路由消费。
   const checklistStore: ChecklistStore = options.checklistStore ?? new InMemoryChecklistStore();
+  // REIMBURSE-PROC：报账域读写出入口（缺省 InMemoryReimburseStore 空种子）。默认内存 store 同样复用
+  // 上面的 clock（K6，与 store/invStore 同理——真实态 createdAt/updatedAt 走真钟）。
+  const reimburseStore: ReimburseStore =
+    options.reimburseStore ?? new InMemoryReimburseStore(undefined, clock);
   // 装配外壳（HUB-MODULARIZATION 第2步）：租户模块开关，缺省 = 机器人战队全 6 模块启用（与拆分前等价）。
   const tenantConfig: TenantConfig = options.tenantConfig ?? ROBOTICS_TENANT_CONFIG;
 
@@ -306,6 +319,8 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
   }
   if (moduleEnabled('ledger')) {
     registerLedgerRoutes(app, { store, invStore, identityMode });
+    // REIMBURSE-PROC：报账域挂 ledger 模块下（采购-报账-入库联动，与库存同支柱同开关）。
+    registerReimburseRoutes(app, { store, invStore, reimburseStore, identityMode });
   }
   if (moduleEnabled('presence-schedule')) {
     registerPresenceScheduleRoutes(app, { store, clock });

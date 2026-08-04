@@ -15,6 +15,8 @@ export const queryKeys = {
   relay: (windowLabel?: string) =>
     windowLabel ? ['relay', windowLabel] as const : ['relay'] as const,
   inventory: (source: string) => ['inventory', source] as const,
+  reimburseEntries: (source: string) => ['reimburse-entries', source] as const,
+  reimburseBatches: (source: string) => ['reimburse-batches', source] as const,
   baseline: (source: string, seasonId: string) => ['baseline', source, seasonId] as const,
   checklist: (source: string, seasonId: string) => ['checklist', source, seasonId] as const,
   artifacts: (source: string) => ['artifacts', source] as const,

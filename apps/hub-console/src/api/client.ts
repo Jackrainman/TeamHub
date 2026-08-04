@@ -4,6 +4,7 @@ import { createSystemPmSegment, type SystemPmSegment } from './segments/system-p
 import { createScheduleSegment, type ScheduleSegment } from './segments/schedule';
 import { createMembersSegment, type MembersSegment } from './segments/members';
 import { createDomainSegment, type DomainSegment } from './segments/domain';
+import { createReimburseSegment, type ReimburseSegment } from './segments/reimburse';
 
 export interface HubApiClientOptions {
   baseUrl?: string;
@@ -11,7 +12,11 @@ export interface HubApiClientOptions {
   writeToken?: string;
 }
 
-export type HubApiClient = SystemPmSegment & ScheduleSegment & MembersSegment & DomainSegment;
+export type HubApiClient = SystemPmSegment &
+  ScheduleSegment &
+  MembersSegment &
+  DomainSegment &
+  ReimburseSegment;
 
 export function createHubApiClient(options: HubApiClientOptions = {}): HubApiClient {
   const ctx: HttpContext = {
@@ -24,5 +29,6 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
     ...createScheduleSegment(ctx),
     ...createMembersSegment(ctx),
     ...createDomainSegment(ctx),
+    ...createReimburseSegment(ctx),
   };
 }
