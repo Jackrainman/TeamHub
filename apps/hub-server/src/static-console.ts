@@ -6,6 +6,9 @@ const MIME_TYPES: Record<string, string> = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
+  // .mjs（如 pdf.worker.min-*.mjs）：浏览器对 module script 强制 MIME 检查，
+  // 错给 octet-stream 会让 pdf.js worker 加载失败、fake worker 兜底也走同一 URL 同样被拒。
+  '.mjs': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.map': 'application/json; charset=utf-8',
   '.png': 'image/png',

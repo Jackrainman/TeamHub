@@ -493,6 +493,10 @@ describe('hub-server static console', () => {
       path.join(consoleDistDir, 'assets', 'index.js'),
       'console.log("teamhub");',
     );
+    await writeFile(
+      path.join(consoleDistDir, 'assets', 'pdf.worker.min.mjs'),
+      'self.postMessage("worker");',
+    );
 
     const staticApp = buildHubServer({ consoleDistDir });
     try {
@@ -508,6 +512,15 @@ describe('hub-server static console', () => {
       expect(asset.statusCode).toBe(200);
       expect(asset.headers['cache-control']).toContain('immutable');
       expect(asset.body).toContain('teamhub');
+
+      // .mjs worker 必须以 JS MIME 伺服——浏览器对 module script 强制 MIME 检查，
+      // octet-stream 会让 pdf.js worker 加载失败（发票 PDF 本地解析全灭的直接原因）。
+      const mjsWorker = await staticApp.inject({
+        method: 'GET',
+        url: '/assets/pdf.worker.min.mjs',
+      });
+      expect(mjsWorker.statusCode).toBe(200);
+      expect(mjsWorker.headers['content-type']).toContain('text/javascript');
 
       const spaFallback = await staticApp.inject({
         method: 'GET',

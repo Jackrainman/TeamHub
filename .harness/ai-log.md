@@ -47,3 +47,4 @@
 - 2026-08-03 fix(console): 01-tokens.css 补 color-scheme light/dark——深色主题原生日期选择器随主题反转 v0.46.1
 - 2026-08-03 refactor(console): 教学动线简版——车队步移出初始化向导（8→7 步，FleetStep 族全删），初始化车移去机器人队页空态引导 v0.46.1
 - 2026-08-04 feat: REIMBURSE-PROC 报账模块一期——contracts reimbursement 域（条目/批次 schema+状态/批次 derive+发票 XML/PDF 解析纯函数）+PartAction 来源字段；server ReimburseStore 三实现+路由（actor 过滤/发票号查重/stock-in 入库联动）；console 报账页+pdf.js 本地解析导入+入库确认对话框+库存来源展示；红线=发票文件永不上传、人键只回本人+超管；思路参照 tidoc(MIT) 无代码引入 v0.47.0 (f91962a)
+- 2026-08-04 fix(server): static-console MIME 表补 .mjs——pdf.worker.min-*.mjs 被伺服为 octet-stream，浏览器 module script MIME 强检拒载、fake worker 兜底走同 URL 同拒，pdf.js getDocument 必 reject → 所有发票 PDF 报「读取或解析失败」；routes.test 补 .mjs content-type 断言；node 复现链路（pdf.js 抽取+parseInvoicePdfText）证明解析纯函数本身无恙 v0.47.1
