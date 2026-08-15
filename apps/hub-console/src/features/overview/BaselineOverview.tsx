@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
 import { useBaseline } from '../../hooks/useBaseline';
 import { useTasks } from '../../hooks/useTasks';
@@ -8,6 +8,7 @@ import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
 import { BaselineTimeline } from './sub/BaselineTimeline';
 import { NoSeasonState, BaselineEmptyState } from './sub/BaselineStates';
+import { useChecklist } from '../checklist';
 
 /**
  * 总览首屏「基准线 vs 实际」（BASELINE-CORE S6，baseline-design.md §4）：一张横向时间轴 + 里程碑/门
@@ -37,11 +38,7 @@ export function BaselineOverview({
   const baselineQuery = useBaseline(client, source, seasonId);
   const tasksQuery = useTasks(client, source);
   const groupsQuery = useGroups(client, 'overview');
-  const checklistQuery = useQuery({
-    queryKey: ['checklist', source, seasonId],
-    queryFn: () => client.getChecklist(seasonId as string),
-    enabled: Boolean(seasonId),
-  });
+  const checklistQuery = useChecklist(client, source, seasonId);
   const membersQuery = useMembers(client, 'checklist');
 
   const baseline = baselineQuery.data?.baseline ?? null;
@@ -111,12 +108,10 @@ export function BaselineOverview({
       seasonName={activeSeason?.name}
       client={client}
       seasonId={seasonId}
+      source={source}
       identity={identity}
       checklistItems={checklistItems}
       members={members}
-      onChecklistChanged={() =>
-        queryClient.invalidateQueries({ queryKey: ['checklist', source, seasonId] })
-      }
     />
   );
 }

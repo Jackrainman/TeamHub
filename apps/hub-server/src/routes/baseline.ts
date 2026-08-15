@@ -5,22 +5,21 @@ import {
   UpdateBaselineResponseSchema,
   PassMilestoneRequestSchema,
   PassMilestoneResponseSchema,
-  listBlockingChecklistItems,
 } from '@teamhub/hub-contracts';
 import { BaselineQuerySchema } from '../route-schemas.js';
 import type { BaselineStore } from '../store/baseline-store.js';
-import type { ChecklistStore } from '../store/checklist-store.js';
+import type { GateChecklistPort } from '../modules/checklist/repository.js';
 import type { GovStore } from '../store/gov-store.js';
 import { parseBody, parseQuery, sessionActor } from './helpers.js';
 
 export interface BaselineRouteDeps {
   store: GovStore;
   baselineStore: BaselineStore;
-  checklistStore: ChecklistStore;
+  gateChecklist: GateChecklistPort;
 }
 
 export function registerBaselineRoutes(app: FastifyInstance, deps: BaselineRouteDeps): void {
-  const { store, baselineStore, checklistStore } = deps;
+  const { store, baselineStore, gateChecklist } = deps;
 
   app.get('/api/baseline', async (request, reply) => {
     const query = parseQuery(BaselineQuerySchema, request, reply, 'seasonId required');
@@ -59,8 +58,7 @@ export function registerBaselineRoutes(app: FastifyInstance, deps: BaselineRoute
       if (bodyParsed.status === 'passed') {
         const baseline = await baselineStore.getBaseline(query.seasonId);
         if (baseline) {
-          const items = await checklistStore.listItems(baseline.id);
-          const blocking = listBlockingChecklistItems(items, milestoneId);
+          const blocking = await gateChecklist.listBlockingItems(baseline.id, milestoneId);
           if (blocking.length > 0) {
             const titles = blocking.map((it) => it.title).join('、');
             void reply.code(400).send({ detail: `检查项未清：${titles}` });

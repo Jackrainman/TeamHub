@@ -11,12 +11,11 @@ const SOURCE_EXTENSIONS = new Set(['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx',
 // 命中数减少或文件消失时检查会失败，要求在同一批次收缩/删除对应条目。
 export const ARCHITECTURE_BASELINE = Object.freeze([
   ['multi-domain-client-segment', 'apps/hub-console/src/api/segments/domain.ts', 3],
-  ['multi-domain-client-segment', 'apps/hub-console/src/api/segments/members.ts', 4],
+  ['multi-domain-client-segment', 'apps/hub-console/src/api/segments/members.ts', 3],
   ['multi-domain-client-segment', 'apps/hub-console/src/api/segments/schedule.ts', 2],
   ['multi-domain-client-segment', 'apps/hub-console/src/api/segments/system-pm.ts', 3],
   ['raw-react-query', 'apps/hub-console/src/App.tsx', 4],
   ['raw-react-query', 'apps/hub-console/src/features/archive/ArchivePage.tsx', 3],
-  ['raw-react-query', 'apps/hub-console/src/features/checklist/GateChecklistCard.tsx', 3],
   ['raw-react-query', 'apps/hub-console/src/features/dep-graph/DepGraphPage.tsx', 1],
   ['raw-react-query', 'apps/hub-console/src/features/direction/DirectionPage.tsx', 1],
   ['raw-react-query', 'apps/hub-console/src/features/identity/IdentityBar.tsx', 3],
@@ -24,7 +23,6 @@ export const ARCHITECTURE_BASELINE = Object.freeze([
   ['raw-react-query', 'apps/hub-console/src/features/inv/sub/CreatePartTypeForm.tsx', 1],
   ['raw-react-query', 'apps/hub-console/src/features/kb/KbSearchPage.tsx', 1],
   ['raw-react-query', 'apps/hub-console/src/features/myview/MyViewPage.tsx', 1],
-  ['raw-react-query', 'apps/hub-console/src/features/overview/BaselineOverview.tsx', 1],
   ['raw-react-query', 'apps/hub-console/src/features/overview/sub/BaselineStates.tsx', 2],
   ['raw-react-query', 'apps/hub-console/src/features/pm/PmCreatePanel.tsx', 1],
   ['raw-react-query', 'apps/hub-console/src/features/resources/ResourcesPage.tsx', 1],
@@ -250,11 +248,22 @@ function compareBaseline(actual, baseline, errors) {
   }
 }
 
-function verifyReimburseTemplate(repoRoot, errors) {
-  const marker = 'apps/hub-contracts/src/domains/reimburse/index.ts';
-  if (!fs.existsSync(path.join(repoRoot, marker))) return;
+function verifyMigratedDomainTemplates(repoRoot, errors) {
+  const verifyTemplate = (domain, marker, required, forbidden) => {
+    if (!fs.existsSync(path.join(repoRoot, marker))) return;
+    for (const relativePath of required) {
+      if (!fs.existsSync(path.join(repoRoot, relativePath))) {
+        errors.push(`${relativePath}: ${domain} 模板缺少必需边界`);
+      }
+    }
+    for (const relativePath of forbidden) {
+      if (fs.existsSync(path.join(repoRoot, relativePath))) {
+        errors.push(`${relativePath}: ${domain} 已迁移，禁止恢复旧路径或兼容 alias`);
+      }
+    }
+  };
 
-  const required = [
+  verifyTemplate('reimburse', 'apps/hub-contracts/src/domains/reimburse/index.ts', [
     'apps/hub-contracts/src/domains/reimburse/model.ts',
     'apps/hub-contracts/src/domains/reimburse/requests.ts',
     'apps/hub-contracts/src/domains/reimburse/policies.ts',
@@ -270,8 +279,7 @@ function verifyReimburseTemplate(repoRoot, errors) {
     'apps/hub-console/src/features/reimburse/hooks.ts',
     'apps/hub-console/src/features/reimburse/ReimbursePage.tsx',
     'apps/hub-console/src/features/reimburse/components',
-  ];
-  const forbidden = [
+  ], [
     'apps/hub-contracts/src/reimbursement.ts',
     'apps/hub-server/src/routes/reimburse.ts',
     'apps/hub-server/src/store/reimburse-store.ts',
@@ -280,17 +288,30 @@ function verifyReimburseTemplate(repoRoot, errors) {
     'apps/hub-console/src/api/segments/reimburse.ts',
     'apps/hub-console/src/hooks/useReimburse.ts',
     'apps/hub-console/src/features/reimburse/sub',
-  ];
-  for (const relativePath of required) {
-    if (!fs.existsSync(path.join(repoRoot, relativePath))) {
-      errors.push(`${relativePath}: reimburse 模板缺少必需边界`);
-    }
-  }
-  for (const relativePath of forbidden) {
-    if (fs.existsSync(path.join(repoRoot, relativePath))) {
-      errors.push(`${relativePath}: reimburse 已迁移，禁止恢复旧路径或兼容 alias`);
-    }
-  }
+  ]);
+
+  verifyTemplate('checklist', 'apps/hub-contracts/src/domains/checklist/index.ts', [
+    'apps/hub-contracts/src/domains/checklist/model.ts',
+    'apps/hub-contracts/src/domains/checklist/requests.ts',
+    'apps/hub-contracts/src/domains/checklist/policies.ts',
+    'apps/hub-server/src/modules/checklist/index.ts',
+    'apps/hub-server/src/modules/checklist/routes.ts',
+    'apps/hub-server/src/modules/checklist/service.ts',
+    'apps/hub-server/src/modules/checklist/repository.ts',
+    'apps/hub-server/src/modules/checklist/sqlite-repository.ts',
+    'apps/hub-console/src/features/checklist/index.ts',
+    'apps/hub-console/src/features/checklist/api.ts',
+    'apps/hub-console/src/features/checklist/hooks.ts',
+    'apps/hub-console/src/features/checklist/components',
+  ], [
+    'apps/hub-contracts/src/checklist.ts',
+    'apps/hub-server/src/routes/checklist.ts',
+    'apps/hub-server/src/store/checklist-store.ts',
+    'apps/hub-server/src/store/sqlite-checklist-store.ts',
+    'apps/hub-console/src/features/checklist/GateChecklistCard.tsx',
+    'apps/hub-console/src/features/checklist/ChecklistQuickRecord.tsx',
+    'apps/hub-console/src/features/checklist/sub',
+  ]);
 }
 
 export function verifyArchitecture(repoRoot = process.cwd(), options = {}) {
@@ -406,7 +427,7 @@ export function verifyArchitecture(repoRoot = process.cwd(), options = {}) {
 
   const violations = collectMigrationViolations(root);
   compareBaseline(violations, options.baseline ?? ARCHITECTURE_BASELINE, errors);
-  verifyReimburseTemplate(root, errors);
+  verifyMigratedDomainTemplates(root, errors);
   return { errors, violations, summary: { packages: packages.length, baseline: violations.length } };
 }
 

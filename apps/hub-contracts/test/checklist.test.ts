@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
-  BASELINE_DRIFT_LOOKAHEAD_WEEKS,
+  CHECKLIST_DRIFT_LOOKAHEAD_WEEKS,
+  ChecklistDriftLevelSchema,
   CreateChecklistItemRequestSchema,
   GateChecklistItemSchema,
   deriveChecklistDrift,
@@ -162,10 +163,10 @@ describe('deriveChecklistDrift — 自选日期欠条周粒度红黄绿', () => 
 
   test('黄：距 anchorDueAt ≤ N 周（含边界）', () => {
     const withinDueAt = new Date(
-      NOW.getTime() + (BASELINE_DRIFT_LOOKAHEAD_WEEKS - 1) * MS_PER_WEEK,
+      NOW.getTime() + (CHECKLIST_DRIFT_LOOKAHEAD_WEEKS - 1) * MS_PER_WEEK,
     ).toISOString();
     const boundaryDueAt = new Date(
-      NOW.getTime() + BASELINE_DRIFT_LOOKAHEAD_WEEKS * MS_PER_WEEK,
+      NOW.getTime() + CHECKLIST_DRIFT_LOOKAHEAD_WEEKS * MS_PER_WEEK,
     ).toISOString();
     const within = parsedItem({ id: 'chk-y1', anchorDueAt: withinDueAt });
     const boundary = parsedItem({ id: 'chk-y2', anchorDueAt: boundaryDueAt });
@@ -178,7 +179,7 @@ describe('deriveChecklistDrift — 自选日期欠条周粒度红黄绿', () => 
 
   test('绿：远期（> N 周）', () => {
     const farDueAt = new Date(
-      NOW.getTime() + (BASELINE_DRIFT_LOOKAHEAD_WEEKS + 3) * MS_PER_WEEK,
+      NOW.getTime() + (CHECKLIST_DRIFT_LOOKAHEAD_WEEKS + 3) * MS_PER_WEEK,
     ).toISOString();
     const drift = deriveChecklistDrift([parsedItem({ id: 'chk-g', anchorDueAt: farDueAt })], NOW);
     expect(drift).toEqual([{ itemId: 'chk-g', level: 'green' }]);
@@ -213,6 +214,11 @@ describe('deriveChecklistDrift — 自选日期欠条周粒度红黄绿', () => 
 
   test('空数组：输出空数组，不抛异常', () => {
     expect(deriveChecklistDrift([], NOW)).toEqual([]);
+  });
+
+  test('drift 档位是 checklist 自有窄值对象，不依赖 baseline 类型', () => {
+    expect(ChecklistDriftLevelSchema.options).toEqual(['red', 'yellow', 'green']);
+    expect(CHECKLIST_DRIFT_LOOKAHEAD_WEEKS).toBe(2);
   });
 });
 

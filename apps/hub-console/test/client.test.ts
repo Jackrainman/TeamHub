@@ -756,6 +756,57 @@ describe('hub console API client', () => {
     ]);
     expect(fetcher.mock.calls[2]?.[1]?.method).toBe('PUT');
   });
+
+  test('检查单 API 由独立 segment 组合并保持原端点', async () => {
+    const actor = { id: 'member-1', displayName: '测试成员', source: 'console' as const };
+    const pendingItem = {
+      id: 'check-1',
+      seasonBaselineId: 'baseline-1',
+      title: '确认急停可用',
+      anchorMilestoneId: 'gate-1',
+      origin: 'iou' as const,
+      status: 'pending' as const,
+      createdAt: '2026-08-15T00:00:00.000Z',
+    };
+    const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+      const path = new URL(url).pathname;
+      const item = path.endsWith('/clear')
+        ? { ...pendingItem, status: 'passed' as const, clearedBy: actor }
+        : path.endsWith('/waive')
+          ? {
+              ...pendingItem,
+              status: 'waived' as const,
+              waivedBy: actor,
+              waiveReason: '书面豁免',
+            }
+          : pendingItem;
+      const body = init?.method === undefined ? { items: [pendingItem] } : { item };
+      return { ok: true, status: 200, json: async () => body } as Response;
+    });
+    const client = createHubApiClient({
+      baseUrl: 'http://127.0.0.1:4177',
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+
+    await expect(client.getChecklist('season 1')).resolves.toEqual({ items: [pendingItem] });
+    await client.createChecklistItem('season 1', {
+      title: pendingItem.title,
+      anchorMilestoneId: 'gate-1',
+      origin: 'iou',
+    });
+    await client.clearChecklistItem('check/1', 'season 1', { clearedBy: actor });
+    await client.waiveChecklistItem('check/1', 'season 1', {
+      waivedBy: actor,
+      waiveReason: '书面豁免',
+    });
+
+    expect(fetcher.mock.calls.map(([url]) => String(url))).toEqual([
+      'http://127.0.0.1:4177/api/checklist?seasonId=season%201',
+      'http://127.0.0.1:4177/api/checklist?seasonId=season%201',
+      'http://127.0.0.1:4177/api/checklist/check%2F1/clear?seasonId=season%201',
+      'http://127.0.0.1:4177/api/checklist/check%2F1/waive?seasonId=season%201',
+    ]);
+  });
 });
 
 // R1 接力画布：GET 空板；PATCH/POST 回完整 session/handoff（schema parse 时自动剥 confirmedBy）。

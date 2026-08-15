@@ -113,3 +113,14 @@ test('freezes the completed reimburse vertical slice and rejects old aliases', (
   assert.match(messages, /reimburse 模板缺少必需边界/);
   assert.match(messages, /禁止恢复旧路径或兼容 alias/);
 });
+
+test('freezes the completed checklist vertical slice', (context) => {
+  const root = fixture();
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  write(root, 'apps/hub-contracts/src/domains/checklist/index.ts', 'export {}\n');
+  write(root, 'apps/hub-server/src/routes/checklist.ts', 'export {}\n');
+
+  const messages = verifyArchitecture(root, { baseline: [] }).errors.join('\n');
+  assert.match(messages, /checklist 模板缺少必需边界/);
+  assert.match(messages, /checklist 已迁移，禁止恢复旧路径或兼容 alias/);
+});

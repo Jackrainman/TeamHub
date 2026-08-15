@@ -10,8 +10,11 @@ import {
   applyChecklistClear,
   applyChecklistWaive,
   buildChecklistItem,
-} from '../../src/store/base-checklist-logic.js';
-import type { ChecklistItemDraft, ChecklistStore } from '../../src/store/checklist-store.js';
+} from '../../src/modules/checklist/repository.js';
+import type {
+  ChecklistItemDraft,
+  ChecklistRepository,
+} from '../../src/modules/checklist/repository.js';
 
 /** 单条检查项浅克隆隔离（无数组字段，`{...it}` 即够——挡外部改回读到的对象绕过写白名单，同 baseline 纪律）。 */
 function cloneItem(item: GateChecklistItem): GateChecklistItem {
@@ -23,14 +26,14 @@ function cloneItem(item: GateChecklistItem): GateChecklistItem {
  *
  * 默认 seed = `checklistScenarioFixture`（demo 首屏「门详情检查单卡」+「总览告警区欠条未清」非空——同
  * InMemoryBaselineStore 缺省 seed `baselineScenarioFixture` 先例）；模板 seed 空（等复盘导入）。真实团队走
- * `POST /api/checklist` 现场快记覆盖之。进程重启丢失为预期；落盘持久层见 `旧生产 Store`。
+ * `POST /api/checklist` 现场快记覆盖之。该 fake 只服务测试，生产组合根不会引用。
  *
  * 写方法（`createItem`/`clearItem`/`waiveItem`）**不原地 mutate** 已存条目——每次改动都经
  * `GateChecklistItemSchema.parse` 产出**新对象**整体替换 Map 条目（fail-closed：挂接二选一 + 状态不变式
  * 校验不过即抛、不落副作用，同 InMemoryBaselineStore「先算后写、非法即抛」纪律）。
  * id 单调自增（`chk-new-N`，L1 纪律，见 id-sequence.ts）。
  */
-export class InMemoryChecklistStore implements ChecklistStore {
+export class InMemoryChecklistStore implements ChecklistRepository {
   private readonly items: Map<string, GateChecklistItem>;
   private readonly templates: ChecklistTemplate[];
   private readonly idSeq: IdSequence;
@@ -81,35 +84,5 @@ export class InMemoryChecklistStore implements ChecklistStore {
 
   async listTemplates(): Promise<ChecklistTemplate[]> {
     return this.templates.map((t) => ({ ...t }));
-  }
-
-  /**
-   * @internal 持久层回滚专用（旧生产 Store）：读某条目 live 引用（可能不存在）。
-   * 不做克隆——调用方只用于捕获写前状态以便 persist() 失败时精确还原，不对外暴露给业务读路径。
-   */
-  peek(id: string): GateChecklistItem | undefined {
-    return this.items.get(id);
-  }
-
-  /**
-   * @internal 持久层回滚专用：整体替换或删除（`value===undefined`）某条目，供 persist() 失败时
-   * 把内存精确还原到写前状态（含「写前本不存在、写后需撤销新建」的情形）。
-   */
-  restore(id: string, value: GateChecklistItem | undefined): void {
-    if (value === undefined) {
-      this.items.delete(id);
-    } else {
-      this.items.set(id, value);
-    }
-  }
-
-  /** @internal 落盘专用：所有检查项（只读遍历序列化，无需克隆——JSON 与 live 逐字相同）。 */
-  entriesItems(): GateChecklistItem[] {
-    return Array.from(this.items.values());
-  }
-
-  /** @internal 落盘专用：所有模板。 */
-  entriesTemplates(): ChecklistTemplate[] {
-    return this.templates;
   }
 }

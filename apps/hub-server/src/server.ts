@@ -18,7 +18,11 @@ import type { Clock } from './clock.js';
 import type { ReimburseRepository } from './modules/reimburse/repository.js';
 import type { GovStore, InvStore, KbStore } from './store/gov-store.js';
 import type { BaselineStore } from './store/baseline-store.js';
-import type { ChecklistStore } from './store/checklist-store.js';
+import { ChecklistService } from './modules/checklist/service.js';
+import type {
+  ChecklistRepository,
+  GateChecklistPort,
+} from './modules/checklist/repository.js';
 import { tryServeStaticConsole } from './static-console.js';
 import { registerSearchRoutes } from './routes/search.js';
 import { registerExportRoutes } from './routes/export.js';
@@ -93,11 +97,11 @@ export interface BuildHubServerOptions {
   baselineStore: BaselineStore;
   /**
    * 门检查单 / 欠条读写出入口（GATE-CHECKLIST-IOU，D-087；本刀 C2 落地、C3 挂路由）。独立于 `GovStore`
-   * （`GateChecklistItem` 不进 `GovernanceSnapshot`，checklist.ts 头部红线），故走独立 `ChecklistStore`。
+   * （`GateChecklistItem` 不进 `GovernanceSnapshot`），故走独立 `ChecklistRepository`。
    * 由组合根显式注入；C3 由 `GET/POST /api/checklist` +
    * `POST /api/checklist/:id/{clear,waive}` + `GET /api/checklist/templates` 消费。
    */
-  checklistStore: ChecklistStore;
+  checklistRepository: ChecklistRepository;
   /**
    * H3（AUDIT-FIXES 部署前必修）：写端点共享密钥。配了则所有 `POST /api/*` 须带 `Authorization: Bearer <token>`；
    * 未配则放行（loopback dev 默认）。非 loopback 暴露**必须**配（main.ts 拒绝裸暴露）。
@@ -175,7 +179,8 @@ interface ModuleRouteCtx {
   // BASELINE-CORE：S4 起由 registerPmCoreRoutes 的 GET/PATCH /api/baseline + 过门路由消费。
   baselineStore: BaselineStore;
   // GATE-CHECKLIST-IOU：C3 起由 registerPmCoreRoutes 的 /api/checklist 系列 + 过门硬闸消费（本刀先钉字段）。
-  checklistStore: ChecklistStore;
+  checklistService: ChecklistService;
+  gateChecklist: GateChecklistPort;
   artifactMaxBytes: number;
   // IDENTITY-LITE：部署身份模式。pm-core 的 PUT /api/members/:id/pin 据此在匿名模式 404、身份模式行使
   // 「本人会话 / 首次设置」授权。写路由的 actor 注入不看它、只看 request.identity（匿名模式恒 null）。
@@ -216,7 +221,13 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
   const kbStore = options.kbStore;
   const invStore = options.invStore;
   const baselineStore = options.baselineStore;
-  const checklistStore = options.checklistStore;
+  const checklistRepository = options.checklistRepository;
+  const checklistService = new ChecklistService(
+    checklistRepository,
+    options.baselineStore,
+    store,
+    clock,
+  );
   const reimburseStore = options.reimburseStore;
   const reimburseService = new ReimburseService(
     reimburseStore,
@@ -256,7 +267,8 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
     kbStore,
     invStore,
     baselineStore,
-    checklistStore,
+    checklistService,
+    gateChecklist: checklistService,
     artifactMaxBytes: options.artifactMaxBytes ?? ARTIFACT_MAX_BYTES,
     identityMode,
     trustProxy,

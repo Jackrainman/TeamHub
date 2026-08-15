@@ -11,11 +11,11 @@ import {
   type SeasonBaselinePublic,
   type Task,
 } from '@teamhub/hub-contracts';
-import type { HubApiClient } from '../../../api/client';
+import type { ChecklistSegment } from '../../checklist';
 import type { PageIdentityCtx } from '../../../console-pages';
 import { useI18n } from '../../../i18n';
 import { CountUpNumber } from '../../../components/viz/CountUpNumber';
-import { GateChecklistCard } from '../../checklist/GateChecklistCard';
+import { GateChecklistCard } from '../../checklist';
 import { overdueDays } from '../../../shared/lib/date-utils';
 import {
   bandOf,
@@ -36,10 +36,10 @@ export function BaselineTimeline({
   seasonName,
   client,
   seasonId,
+  source,
   identity,
   checklistItems,
   members,
-  onChecklistChanged,
 }: {
   baseline: SeasonBaselinePublic;
   tasks: Task[];
@@ -47,12 +47,12 @@ export function BaselineTimeline({
   groupName: (id: string) => string;
   taskTitle: (id: string) => string;
   seasonName?: string;
-  client: HubApiClient;
+  client: ChecklistSegment;
   seasonId: string;
+  source: string;
   identity: PageIdentityCtx;
   checklistItems: GateChecklistItem[];
   members: MemberPublic[];
-  onChecklistChanged: () => void;
 }) {
   const { t } = useI18n();
   const nowMs = now.getTime();
@@ -240,12 +240,12 @@ export function BaselineTimeline({
                 {m.kind === 'gate' ? (
                   <GateChecklistCard
                     client={client}
+                    source={source}
                     seasonId={seasonId}
                     milestone={m}
                     items={itemsByMilestone.get(m.id) ?? []}
                     identity={identity}
                     members={members}
-                    onChanged={onChecklistChanged}
                   />
                 ) : null}
               </div>

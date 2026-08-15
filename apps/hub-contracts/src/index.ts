@@ -198,9 +198,44 @@ export type {
   UpdateReimburseProfileRequest,
   UpdateReimburseProfileResponse,
 } from './domains/reimburse/index.js';
-// 门检查单与欠条（GATE-CHECKLIST-IOU，D-087）：独立轻量域，复用 baseline 的 drift 常量 / 档位类型，
-// 不进 GovernanceSnapshot、独立 store / 落盘（照 baseline / inventory 先例）。
-export * from './checklist.js';
+// 门检查单标准纵切：显式导出正式 domain API；checklist 不再反向 import baseline 整域。
+export {
+  CHECKLIST_DRIFT_LOOKAHEAD_WEEKS,
+  ChecklistDriftLevelSchema,
+  ChecklistItemDriftSchema,
+  ChecklistItemStatusSchema,
+  ChecklistItemsResponseSchema,
+  ChecklistOriginSchema,
+  ChecklistQuerySchema,
+  ChecklistTemplateSchema,
+  ChecklistTemplatesResponseSchema,
+  ClearChecklistItemRequestSchema,
+  ClearChecklistItemResponseSchema,
+  CreateChecklistItemRequestSchema,
+  CreateChecklistItemResponseSchema,
+  GateChecklistItemSchema,
+  WaiveChecklistItemRequestSchema,
+  WaiveChecklistItemResponseSchema,
+  deriveChecklistDrift,
+  listBlockingChecklistItems,
+} from './domains/checklist/index.js';
+export type {
+  ChecklistDriftLevel,
+  ChecklistItemDrift,
+  ChecklistItemStatus,
+  ChecklistItemsResponse,
+  ChecklistOrigin,
+  ChecklistQuery,
+  ChecklistTemplate,
+  ChecklistTemplatesResponse,
+  ClearChecklistItemRequest,
+  ClearChecklistItemResponse,
+  CreateChecklistItemRequest,
+  CreateChecklistItemResponse,
+  GateChecklistItem,
+  WaiveChecklistItemRequest,
+  WaiveChecklistItemResponse,
+} from './domains/checklist/index.js';
 // 跨端单一源（D-052 重复真相收口）：系统状态契约 / PM 写请求契约（errorCode 派生已并入 kb-closeout.ts）
 export * from './system-status.js';
 // SQLite app_settings + setup 端点契约：显式列出公共 API，禁止旧 DeployConfig 兼容出口回流。

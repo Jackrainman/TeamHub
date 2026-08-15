@@ -88,7 +88,7 @@ async function main(): Promise<void> {
     kbStore: stores.kb,
     invStore: stores.inv,
     baselineStore: stores.baseline,
-    checklistStore: stores.checklist,
+    checklistRepository: stores.checklist,
     reimburseStore: stores.reimburse,
     inventoryStockInPort: stores.inv,
     reimburseStockInPort: stores.reimburse,

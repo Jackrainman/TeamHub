@@ -390,7 +390,7 @@ AI 不得以“兼容旧代码”为默认理由保留双轨。用户已明确�
 | `mock-*store.ts` / 默认 InMemory 装配 | 生产删除；必要 fake 移 `test/support` | `src/` 无生产内存 repository |
 | `sqlite-unified.ts` | 保留思想，改成唯一生产 composition | main 只有这一条 DB 路径 |
 | `sqlite-gov-repository.ts` / `GovStore` | 按域拆 repository，最后删除 god interface | 无跨域万能 snapshot API |
-| `routes/*.ts` | 逐域迁到 `modules/<domain>/routes.ts` 并变薄；reimburse 已完成并冻结旧路径 | route 不含业务编排，跨库存写走 UoW |
+| `routes/*.ts` | 逐域迁到 `modules/<domain>/routes.ts` 并变薄；reimburse/checklist 已完成并冻结旧路径 | route 不含业务编排，跨域只走窄 port/UoW |
 | `config.json` / tenant env /代码默认 | 已删除并合入 SQLite `app_settings` | 产品配置只有一个读写源 |
 | `api/segments/domain.ts`、`system-pm.ts` | 拆成一域一个 segment | segment 名与 module id 对齐 |
 | 页面/组件裸 Query hooks | 迁到 feature hooks | 架构脚本零白名单 |

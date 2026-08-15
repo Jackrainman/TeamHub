@@ -3,7 +3,7 @@ import type { ScheduleSnapshot } from '../schedule.js';
 import { deriveDisplayCode } from '../verticals/robotics.js';
 import { generateRoboconBaselineTemplate } from '../baseline.js';
 import type { SeasonBaseline } from '../baseline.js';
-import type { GateChecklistItem } from '../checklist.js';
+import type { GateChecklistItem } from '../domains/checklist/index.js';
 import type { MemberKnowledge } from '../growth.js';
 import type { KbSnapshot } from '../kb.js';
 import type { InventorySnapshot, TrackedPart } from '../inventory.js';

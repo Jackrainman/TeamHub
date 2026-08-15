@@ -18,7 +18,7 @@ import { APIBASE_KEY, SETUP_LANDING_KEY, WRITE_TOKEN_KEY } from './constants';
 import { IdentityBar } from './features/identity/IdentityBar';
 import { SetupWizard } from './features/setup/SetupWizard';
 import { BootstrapGate } from './features/setup/BootstrapGate';
-import { ChecklistQuickRecord } from './features/checklist/ChecklistQuickRecord';
+import { ChecklistQuickRecord } from './features/checklist';
 import { canWriteIdentity, identityCacheKey } from './shared/lib/identity-utils';
 // 单一真实后端：queryKey 维度保留稳定常量（曾区分 mock/real，现恒为 real），
 // 避免改动各页 queryKey 形状。
@@ -205,7 +205,12 @@ function ConsoleApp({ apiClient, settings }: { apiClient: HubApiClient; settings
         <div className="console-toolbar__actions">
           {/* 全局「快记欠条」入口（GATE-CHECKLIST-IOU 设计 §3，D-087）：任何人一句话贴条，默认挂下一道
               整车级门。无基准线时组件自身 return null（IdentityBar 同位先例）。 */}
-          <ChecklistQuickRecord client={apiClient} source={SOURCE} identity={identity} />
+          <ChecklistQuickRecord
+            client={apiClient}
+            contextClient={apiClient}
+            source={SOURCE}
+            identity={identity}
+          />
           {/* 匿名模式（缺省）下本组件零 UI（return null），界面与今天逐字一致。 */}
           <IdentityBar client={apiClient} mode={identity.mode} session={identity.session} />
           {/* 刷新按钮归一进正常注册机制（AUDIT-DEBT-2026-07 §9-④ 审计债⑤）：不再按 page key

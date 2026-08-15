@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import type {
   ActorRef,
   BaselineMilestonePublic,
@@ -8,14 +7,19 @@ import type {
   GateChecklistItem,
   MemberPublic,
 } from '@teamhub/hub-contracts';
-import type { HubApiClient } from '../../api/client';
-import type { PageIdentityCtx } from '../../console-pages';
-import { useI18n, type TranslationKey } from '../../i18n';
-import { humanizeFormError } from '../../utils';
-import { Field } from '../../components/Field';
-import { Select } from '../../components/Select';
-import { FormBanner } from '../../components/FormBanner';
-import { memberOptionLabel } from '../../shared/lib/identity-utils';
+import type { ChecklistSegment } from '../api';
+import {
+  useClearChecklistItem,
+  useCreateChecklistItem,
+  useWaiveChecklistItem,
+} from '../hooks';
+import type { PageIdentityCtx } from '../../../console-pages';
+import { useI18n, type TranslationKey } from '../../../i18n';
+import { humanizeFormError } from '../../../utils';
+import { Field } from '../../../components/Field';
+import { Select } from '../../../components/Select';
+import { FormBanner } from '../../../components/FormBanner';
+import { memberOptionLabel } from '../../../shared/lib/identity-utils';
 
 /**
  * 门详情检查单卡（GATE-CHECKLIST-IOU 设计 §6，D-087）：里程碑清单里每道**门**（kind==='gate'）挂一张
@@ -52,14 +56,15 @@ function toActor(members: readonly MemberPublic[], id: string): ActorRef {
 
 export function GateChecklistCard({
   client,
+  source,
   seasonId,
   milestone,
   items,
   identity,
   members,
-  onChanged,
 }: {
-  client: HubApiClient;
+  client: ChecklistSegment;
+  source: string;
   seasonId: string;
   milestone: BaselineMilestonePublic;
   // 已按 anchorMilestoneId===milestone.id 过滤的检查项（含 pending/passed/waived 全状态，供事实回看）。
@@ -67,7 +72,6 @@ export function GateChecklistCard({
   identity: PageIdentityCtx;
   // 匿名模式清偿/豁免选人的候选来源（身份模式本人一键、不用它）。
   members: MemberPublic[];
-  onChanged: () => void;
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -91,40 +95,17 @@ export function GateChecklistCard({
     setReason('');
   };
 
-  const clearMutation = useMutation({
-    meta: { silent: true },
-    mutationFn: (vars: { id: string; actor?: ActorRef }) =>
-      client.clearChecklistItem(vars.id, seasonId, vars.actor ? { clearedBy: vars.actor } : {}),
-    onSuccess: () => {
-      resetPanels();
-      onChanged();
-    },
+  const clearMutation = useClearChecklistItem(client, source, seasonId, () => {
+    resetPanels();
   });
-  const waiveMutation = useMutation({
-    meta: { silent: true },
-    mutationFn: (vars: { id: string; waiveReason: string; actor?: ActorRef }) =>
-      client.waiveChecklistItem(vars.id, seasonId, {
-        waivedBy: vars.actor,
-        waiveReason: vars.waiveReason,
-      }),
-    onSuccess: () => {
-      resetPanels();
-      onChanged();
-    },
+  const waiveMutation = useWaiveChecklistItem(client, source, seasonId, () => {
+    resetPanels();
   });
-  const addMutation = useMutation({
-    meta: { silent: true },
-    mutationFn: (title: string) =>
-      // anchor 预填本门（anchorMilestoneId=milestone.id）；门追加=自知的凑合，origin='iou'（欠条）。
-      client.createChecklistItem(seasonId, {
-        title,
-        anchorMilestoneId: milestone.id,
-        origin: 'iou',
-      }),
+  const addMutation = useCreateChecklistItem(client, source, seasonId, {
+    silent: true,
     onSuccess: () => {
       setAddTitle('');
       setAddOpen(false);
-      onChanged();
     },
   });
 
@@ -132,7 +113,7 @@ export function GateChecklistCard({
   const onClearClick = (id: string) => {
     if (writeLocked) return;
     if (isIdentity) {
-      clearMutation.mutate({ id });
+      clearMutation.mutate({ id, req: {} });
     } else {
       setAction({ id, kind: 'clear' });
       setActorId('');
@@ -147,21 +128,27 @@ export function GateChecklistCard({
 
   const submitClear = (id: string) => {
     if (!actorId) return;
-    clearMutation.mutate({ id, actor: toActor(members, actorId) });
+    clearMutation.mutate({ id, req: { clearedBy: toActor(members, actorId) } });
   };
   const submitWaive = (id: string) => {
     if (!reason.trim()) return;
     if (!isIdentity && !actorId) return;
     waiveMutation.mutate({
       id,
-      waiveReason: reason.trim(),
-      actor: isIdentity ? undefined : toActor(members, actorId),
+      req: {
+        waiveReason: reason.trim(),
+        waivedBy: isIdentity ? undefined : toActor(members, actorId),
+      },
     });
   };
   const submitAdd = (event: FormEvent) => {
     event.preventDefault();
     if (writeLocked || !addTitle.trim()) return;
-    addMutation.mutate(addTitle.trim());
+    addMutation.mutate({
+      title: addTitle.trim(),
+      anchorMilestoneId: milestone.id,
+      origin: 'iou',
+    });
   };
 
   return (

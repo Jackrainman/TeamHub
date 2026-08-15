@@ -8,6 +8,10 @@ import {
   createReimburseSegment,
   type ReimburseSegment,
 } from '../features/reimburse/api';
+import {
+  createChecklistSegment,
+  type ChecklistSegment,
+} from '../features/checklist/api';
 
 export interface HubApiClientOptions {
   baseUrl?: string;
@@ -19,7 +23,8 @@ export type HubApiClient = SystemPmSegment &
   ScheduleSegment &
   MembersSegment &
   DomainSegment &
-  ReimburseSegment;
+  ReimburseSegment &
+  ChecklistSegment;
 
 export function createHubApiClient(options: HubApiClientOptions = {}): HubApiClient {
   const ctx: HttpContext = {
@@ -33,5 +38,6 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
     ...createMembersSegment(ctx),
     ...createDomainSegment(ctx),
     ...createReimburseSegment(ctx),
+    ...createChecklistSegment(ctx),
   };
 }

@@ -3,10 +3,6 @@ import {
   SessionResponseSchema,
   BaselineResponseSchema,
   UpdateBaselineResponseSchema,
-  ChecklistItemsResponseSchema,
-  CreateChecklistItemResponseSchema,
-  ClearChecklistItemResponseSchema,
-  WaiveChecklistItemResponseSchema,
   SetGateReviewerResponseSchema,
   SetMemberRoleResponseSchema,
   SetProjectManagerResponseSchema,
@@ -29,13 +25,6 @@ import {
   type BaselineResponse,
   type UpdateBaselineRequest,
   type UpdateBaselineResponse,
-  type ChecklistItemsResponse,
-  type CreateChecklistItemRequest,
-  type CreateChecklistItemResponse,
-  type ClearChecklistItemRequest,
-  type ClearChecklistItemResponse,
-  type WaiveChecklistItemRequest,
-  type WaiveChecklistItemResponse,
   type SetGateReviewerRequest,
   type SetGateReviewerResponse,
   type SetMemberRoleRequest,
@@ -83,10 +72,6 @@ export interface MembersSegment {
   importRosterRows(rows: RosterImportRow[]): Promise<RosterImportReport>;
   getBaseline(seasonId: string): Promise<BaselineResponse>;
   updateBaseline(seasonId: string, req: UpdateBaselineRequest): Promise<UpdateBaselineResponse>;
-  getChecklist(seasonId: string): Promise<ChecklistItemsResponse>;
-  createChecklistItem(seasonId: string, req: CreateChecklistItemRequest): Promise<CreateChecklistItemResponse>;
-  clearChecklistItem(id: string, seasonId: string, req: ClearChecklistItemRequest): Promise<ClearChecklistItemResponse>;
-  waiveChecklistItem(id: string, seasonId: string, req: WaiveChecklistItemRequest): Promise<WaiveChecklistItemResponse>;
   getSetupState(): Promise<SetupStateResponse>;
   initSetup(req: SetupInitRequest): Promise<SetupInitResponse>;
   setConfig(req: SetupConfigRequest): Promise<SetupConfigResponse>;
@@ -148,30 +133,6 @@ export function createMembersSegment(ctx: HttpContext): MembersSegment {
     },
     async updateBaseline(seasonId: string, req: UpdateBaselineRequest) {
       return sendJson('PATCH', `${baseUrl}/api/baseline?seasonId=${encodeURIComponent(seasonId)}`, req, UpdateBaselineResponseSchema, fetcher, writeToken);
-    },
-    async getChecklist(seasonId: string) {
-      return fetchJson(`${baseUrl}/api/checklist?seasonId=${encodeURIComponent(seasonId)}`, ChecklistItemsResponseSchema, fetcher);
-    },
-    async createChecklistItem(seasonId: string, req: CreateChecklistItemRequest) {
-      return postJson(`${baseUrl}/api/checklist?seasonId=${encodeURIComponent(seasonId)}`, req, CreateChecklistItemResponseSchema, fetcher, writeToken);
-    },
-    async clearChecklistItem(id: string, seasonId: string, req: ClearChecklistItemRequest) {
-      return postJson(
-        `${baseUrl}/api/checklist/${encodeURIComponent(id)}/clear?seasonId=${encodeURIComponent(seasonId)}`,
-        req,
-        ClearChecklistItemResponseSchema,
-        fetcher,
-        writeToken,
-      );
-    },
-    async waiveChecklistItem(id: string, seasonId: string, req: WaiveChecklistItemRequest) {
-      return postJson(
-        `${baseUrl}/api/checklist/${encodeURIComponent(id)}/waive?seasonId=${encodeURIComponent(seasonId)}`,
-        req,
-        WaiveChecklistItemResponseSchema,
-        fetcher,
-        writeToken,
-      );
     },
     async getSetupState() {
       return fetchJson(`${baseUrl}/api/setup/state`, SetupStateResponseSchema, fetcher);

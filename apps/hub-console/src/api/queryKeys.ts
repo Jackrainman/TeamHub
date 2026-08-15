@@ -23,7 +23,10 @@ export const queryKeys = {
     stockInContext: (source: string) => ['reimburse', source, 'stock-in-context'] as const,
   },
   baseline: (source: string, seasonId: string) => ['baseline', source, seasonId] as const,
-  checklist: (source: string, seasonId: string) => ['checklist', source, seasonId] as const,
+  checklist: {
+    all: (source: string) => ['checklist', source] as const,
+    season: (source: string, seasonId: string) => ['checklist', source, seasonId] as const,
+  },
   artifacts: (source: string) => ['artifacts', source] as const,
   groupGaps: (source: string) => ['group-gaps', source] as const,
   kbSimilar: (source: string, symptom: string, tagsKey: string) =>

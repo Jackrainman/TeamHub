@@ -1,20 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ClipboardList } from 'lucide-react';
-import type { HubApiClient } from '../../api/client';
-import { queryKeys } from '../../api/queryKeys';
-import { useHubMutation } from '../../hooks/useHubMutation';
-import { useBaseline } from '../../hooks/useBaseline';
-import { useSeasons } from '../../hooks/useRoster';
-import type { PageIdentityCtx } from '../../console-pages';
-import { useI18n } from '../../i18n';
-import { useForm } from '../../hooks/useForm';
-import { formActionsProps } from '../../hooks/useFormActions';
-import { SideDrawer } from '../../components/SideDrawer';
-import { SegToggle } from '../../components/SegToggle';
-import { Field } from '../../components/Field';
-import { Select } from '../../components/Select';
-import { FormActions } from '../../components/FormActions';
-import { pickDefaultIouAnchor } from './checklist-utils';
+import type { ChecklistSegment } from '../api';
+import { useCreateChecklistItem } from '../hooks';
+import { pickDefaultIouAnchor } from '../checklist-utils';
+import { useBaseline, type BaselineClient } from '../../../hooks/useBaseline';
+import { useSeasons, type SeasonsClient } from '../../../hooks/useRoster';
+import type { PageIdentityCtx } from '../../../console-pages';
+import { useI18n } from '../../../i18n';
+import { useForm } from '../../../hooks/useForm';
+import { formActionsProps } from '../../../hooks/useFormActions';
+import { SideDrawer } from '../../../components/SideDrawer';
+import { SegToggle } from '../../../components/SegToggle';
+import { Field } from '../../../components/Field';
+import { Select } from '../../../components/Select';
+import { FormActions } from '../../../components/FormActions';
 
 interface ChecklistFormFields {
   title: string;
@@ -25,10 +24,12 @@ interface ChecklistFormFields {
 
 export function ChecklistQuickRecord({
   client,
+  contextClient,
   source,
   identity,
 }: {
-  client: HubApiClient;
+  client: ChecklistSegment;
+  contextClient: BaselineClient & SeasonsClient;
   source: string;
   identity: PageIdentityCtx;
 }) {
@@ -50,13 +51,13 @@ export function ChecklistQuickRecord({
 
   const now = useMemo(() => new Date(), []);
 
-  const seasonsQuery = useSeasons(client);
+  const seasonsQuery = useSeasons(contextClient);
   const activeSeason = useMemo(() => {
     const seasons = seasonsQuery.data?.seasons ?? [];
     return seasons.find((s) => s.status === 'active') ?? seasons[0];
   }, [seasonsQuery.data]);
   const seasonId = activeSeason?.id;
-  const baselineQuery = useBaseline(client, source, seasonId);
+  const baselineQuery = useBaseline(contextClient, source, seasonId);
   const baseline = baselineQuery.data?.baseline ?? null;
   const milestones = useMemo(() => baseline?.milestones ?? [], [baseline]);
 
@@ -86,16 +87,7 @@ export function ChecklistQuickRecord({
 
   const writeLocked = !identity.canWrite;
 
-  const mutation = useHubMutation({
-    invalidateKeys: seasonId ? [queryKeys.checklist(source, seasonId)] : [],
-    mutationFn: () => {
-      const { title, anchorMode, anchorMilestoneId, anchorDueAt } = form.values;
-      const req =
-        anchorMode === 'gate'
-          ? { title: title.trim(), anchorMilestoneId, origin: 'iou' as const }
-          : { title: title.trim(), anchorDueAt: `${anchorDueAt}T00:00:00.000Z`, origin: 'iou' as const };
-      return client.createChecklistItem(seasonId as string, req);
-    },
+  const mutation = useCreateChecklistItem(client, source, seasonId, {
     onSuccess: () => setOpen(false),
   });
 
@@ -120,7 +112,15 @@ export function ChecklistQuickRecord({
           className="pm-form"
           onSubmit={form.handleSubmit(() => {
             if (writeLocked) return;
-            mutation.mutate();
+            const req =
+              anchorMode === 'gate'
+                ? { title: title.trim(), anchorMilestoneId, origin: 'iou' as const }
+                : {
+                    title: title.trim(),
+                    anchorDueAt: `${anchorDueAt}T00:00:00.000Z`,
+                    origin: 'iou' as const,
+                  };
+            mutation.mutate(req);
           })}
         >
           <Field label={t('checklist.add.title')} required>

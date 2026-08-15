@@ -137,6 +137,14 @@ describe('门检查单 / 欠条路由（GATE-CHECKLIST-IOU，C3）', () => {
       });
       expect(noName.statusCode).toBe(400);
 
+      // season 只是作用域，不得拿错误 season 跨赛季修改同 id 条目。
+      const wrongSeason = await app.inject({
+        method: 'POST',
+        url: '/api/checklist/chk-demo-1/clear?seasonId=season-no-baseline',
+        payload: { clearedBy: REVIEWER },
+      });
+      expect(wrongSeason.statusCode).toBe(404);
+
       // 留名 → 200，事实卡带 clearedBy
       const ok = await app.inject({
         method: 'POST',

@@ -61,7 +61,7 @@ function buildAppWithLark(cfg: { appId: string; appSecret: string; chatId: strin
     kbStore: stores.kb,
     invStore: stores.inv,
     baselineStore: stores.baseline,
-    checklistStore: stores.checklist,
+    checklistRepository: stores.checklist,
     larkStore,
   });
   return { app, stores, larkStore };
