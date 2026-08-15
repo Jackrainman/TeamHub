@@ -14,16 +14,28 @@
   ],
   "todo": [
     {
+      "id": "REIMBURSE-PURCHASER-CHECK",
+      "title": "报账购买方质量门：持久化 purchaserName/purchaserTaxNo/recognitionSource，部署级期望抬头配置，contracts 派生 match/mismatch/missing/skipped；错误抬头阻止批次提交，汇总显式 gross/eligible/blocked/review 双口径；见 docs/design/reimburse-invoice-quality.md §3-4",
+      "tag": "code",
+      "batch": "reimburse"
+    },
+    {
       "id": "REIMBURSE-PM-EXPORT",
-      "title": "项管视角全员发票查看+导出（用户拍板：报账是付费事实层不算监视；边界=名字只在报账域流通、永不进治理聚合/统计；组织维度参照 tidoc 抬头强隔离>批次>条目，人只作标注字段）",
+      "title": "项管视角全员发票查看+导出：筛选/选择、建议文件名、购买方校验状态与核对原因、gross/eligible 双金额；名字只在报账事实层流通，永不进治理聚合/统计；见 docs/design/reimburse-invoice-quality.md §6",
       "tag": "code",
       "batch": "reimburse"
     },
     {
       "id": "REIMBURSE-OFD-PARSE",
-      "title": "OFD 发票解析通道：OFD=zip+内嵌 XBRL XML（Doc_0/Attachs/*.xml，火车票实测字段全带标签），比 PDF 可靠；浏览器端需轻量 unzip（如 fflate，现无此依赖）；PDF 已为主通道，OFD/XML 作增强",
+      "title": "ZIP/OFD 共用归档导入：引 fflate 单一解包底座，ZIP 展开 PDF/XML/OFD 队列，OFD 读内嵌 XBRL XML；加文件数/解压总量/递归容器安全门，逐文件失败不拖垮整包；见 docs/design/reimburse-invoice-quality.md §5",
       "tag": "code",
       "batch": "reimburse"
+    },
+    {
+      "id": "REIMBURSE-OCR-PROBE",
+      "title": "扫描票本地 OCR 技术验证：真实样本测 tesseract.js 资源体积、单页耗时、低性能设备内存与核心字段识别率；达标后才评估接主流程，结果必须人工确认且原件不上传；见 docs/design/reimburse-invoice-quality.md §7",
+      "tag": "research",
+      "batch": "later"
     },
     {
       "id": "HOOKS-1-TAIL",
