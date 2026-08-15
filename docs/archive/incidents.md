@@ -71,7 +71,7 @@ last_reviewed: 2026-08-15
 - 根因：仓库实际有六个包，但 root workspace 和发布脚本只承认三个；子包各自持锁。
 - 当时错误假设：用根 VERSION 同步三个主包就等于整个仓库版本单源，外围包可永久独立。
 - 修复原则：仓库包清单、依赖图、lock、版本和构建编排必须来自同一 workspace 真相。
-- 当前防线：VERSION bump 哨兵只能防 Hub 三包局部漂移；完整防线须由 D-090 仓库统一批次完成。
+- 当前防线：A0 已删除游离包、删除子 lock、让根 workspace/lock/version/bump/Docker 使用同一包清单；架构门同时检查漂移。
 - original_path: `docs/archive/known-bugs-fixed.md`, `docs/archive/audits/rot-audit-2026-07-12.md`
 - source_sha: e0761d1c25c2f13306ef55e8afdaea9c4d12ec43
 

@@ -13,7 +13,7 @@ last_reviewed: 2026-08-15
 - 根 `VERSION` 是产品 SemVer 唯一来源，版本只能通过 `scripts/bump-version.sh` 修改。
 - 修改 `apps/hub-*/src` 行为：修复 bump PATCH，新增能力 bump MINOR；纯文档不 bump。
 - trunk-based，每个可独立验证单元单独 commit；push 前 fetch 检查分叉。
-- 当前根 package 与旧飞书三包仍有版本/lock 漂移，属于 `ARCH-UNIFY` 待清理，不得以它们作为发布版本来源。
+- A0 已删除旧飞书三包，并收成三个 Hub workspace、单根 lock 和与 VERSION 对齐的产品版本。
 
 ## 2. 发布门
 
@@ -52,6 +52,6 @@ last_reviewed: 2026-08-15
 
 ## 7. PLANNED
 
-- `ARCH-UNIFY` 完成单 workspace/lock/version 和统一 SQLite 后，再实现稳定离线打包脚本。
+- A0 的 workspace/lock/version 已完成；统一 SQLite 收口后再实现稳定离线打包脚本。
 - 1.0 gate 由真实战队部署和恢复演练决定，不由功能数量或文档数量决定。
 - CHANGELOG/Release notes 只保留版本结果；实现过程仍由 commit 历史承载。

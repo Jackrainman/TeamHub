@@ -94,23 +94,19 @@ require_tool() {
 require_tool node
 require_tool npm
 
-# 非 npm workspaces：console / server 各自 node_modules，缺则提示安装
-for dir in "${CONSOLE_DIR}" "${SERVER_DIR}"; do
-  if [[ ! -d "${dir}/node_modules" ]]; then
-    echo "缺少依赖：先在 ${dir#"${ROOT_DIR}/"} 跑 npm install" >&2
-    exit 1
-  fi
-done
+# npm workspace 依赖统一安装在仓库根目录；禁止在子包各自维护 node_modules/lock。
+if [[ ! -d "${ROOT_DIR}/node_modules" ]]; then
+  echo "缺少依赖：先在仓库根目录跑 npm ci" >&2
+  exit 1
+fi
 
 # 语料 / 治理 / 库存 / 基准线 / 归档物落盘目录就位（server 启动即读：KB 召回 + PM 录入 + 库存盘点 +
 # 倒排基准线 + 图纸文件上传下载，重启不丢）
 mkdir -p "$(dirname "${TEAMHUB_CONFIG_FILE}")" "$(dirname "${TEAMHUB_KB_DATA_FILE}")" "$(dirname "${TEAMHUB_GOV_DATA_FILE}")" "$(dirname "${TEAMHUB_GOV_SQLITE_FILE}")" "$(dirname "${TEAMHUB_DB_FILE}")" "$(dirname "${TEAMHUB_INV_DATA_FILE}")" "$(dirname "${TEAMHUB_BASELINE_DATA_FILE}")" "$(dirname "${TEAMHUB_CHECKLIST_DATA_FILE}")" "${TEAMHUB_ARTIFACT_FILES_DIR}"
 
 if [[ "${SKIP_BUILD}" != "1" ]]; then
-  echo "[1/2] 构建 console（产出静态站 dist/）…"
-  npm --prefix "${CONSOLE_DIR}" run build
-  echo "[2/2] 构建 server…"
-  npm --prefix "${SERVER_DIR}" run build
+  echo "构建 TeamHub workspaces（contracts → console → server）…"
+  npm --prefix "${ROOT_DIR}" run build
 fi
 
 # console 静态产物交给 server 单端口托管

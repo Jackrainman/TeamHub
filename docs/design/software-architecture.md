@@ -20,7 +20,7 @@ TeamHub 已从单一机器人协作工具长成知识库、项目管理、库存
 - contracts 既有按域文件，也有历史 god 文件和跨域 re-export；
 - console 既有 feature hook，也有页面直接 `useQuery/useMutation`；API segment 粒度不一致；
 - 导入、CSV、文件资源、错误映射等基础能力在局部实现，容易被下一个功能再造一套；
-- `apps/` 下存在未纳入根 workspace 验证的旧飞书三包，主仓验证无法证明整个仓库可构建。
+- A0 前 `apps/` 下曾有未纳入根 workspace 的旧飞书三包；现已删除并收成三个 Hub workspace。
 
 继续局部优化会把“能改”变成“只有记住全部历史的人或 AI 才敢改”。本总纲的目标是削减合法
 路径数量：**每类问题只有一个标准落点，新增功能只能沿同一个模块模板生长。**
@@ -93,8 +93,8 @@ TeamHub/
 - 未被根 `npm run verify` 覆盖的 `apps/*` 不允许长期存在。
 - ProbeFlash 时期的 `apps/lark-gateway`、`apps/lark-toolkit`、`apps/pf-skills` 已因无真实运行链删除；
   未来需要独立长连接时，只能新建 `integrations/lark` 一个 workspace，禁止恢复三个源码岛。
-- 根目录只保留一个 `package-lock.json`；三个 hub 子包的 lock 文件删除。
-- 根 `package.json`、三个 hub 包与 `VERSION` 同步同一版本。
+- 当前根目录只保留一个 `package-lock.json`；三个 hub 子包 lock 已删除。
+- 根 `package.json`、三个 hub 包与 `VERSION` 已同步同一版本，bump 从 workspace 清单动态发现目标。
 
 ## 4. 三包依赖与层次
 

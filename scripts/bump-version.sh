@@ -3,7 +3,7 @@
 # 产品版本号一键 bump（D-074 版本号纪律）。
 #
 # 单一真相 = 根 VERSION 文件（SemVer MAJOR.MINOR.PATCH）。三支柱同端口 4177 同发布 =
-# 一个产品一个版本号。本脚本把 VERSION 同步进 hub-* 三包 package.json，使
+# 一个产品一个版本号。本脚本从根 workspace 清单发现三包，并把 VERSION 同步进根/三包 package.json，使
 # /api/system/status·/health 立刻报告新版本（status.ts 读 hub-server/package.json）。
 # **只用本脚本改版本，别手改 package.json**——手改会让 VERSION 与三包漂移（正是历史 bug 根因）。
 #
@@ -33,35 +33,34 @@ esac
 next="${MA}.${MI}.${PA}"
 printf '%s\n' "$next" > VERSION
 
-# 只替换顶层 "version" 字段那一行（依赖项的键是包名、不是 "version"，不会误伤）。
-for pkg in hub-contracts hub-server hub-console; do
-  f="apps/$pkg/package.json"
-  sed -i -E 's/("version"[[:space:]]*:[[:space:]]*")[^"]+(")/\1'"$next"'\2/' "$f"
-  echo "  $f -> $next"
-done
-
-# package-lock.json 同步（历史漂移根因：旧脚本只同步 package.json，lock 顶层/工作区自指版本仍停在 0.0.1）。
-# 只改 @teamhub 自身/跨链工作区条目的 version（按 name 前缀 @teamhub/ + 顶层 + packages[""] 精准命中，
-# 绝不碰第三方依赖版本）。JSON 往返已实测保留 npm 格式（零无关 diff）。node 失败则 set -e 中止。
+# 根 package.json 是 workspace 清单的唯一来源；只同步根 package-lock.json 中对应的自指版本，
+# 绝不碰第三方依赖版本。node 失败则由 set -e 中止，不留下半套版本文件。
 node -e '
   const fs = require("fs");
   const v = process.argv[1];
-  for (const f of process.argv.slice(2)) {
-    if (!fs.existsSync(f)) continue;
-    const j = JSON.parse(fs.readFileSync(f, "utf8"));
-    if (typeof j.version === "string") j.version = v;
-    if (j.packages) {
-      for (const [k, p] of Object.entries(j.packages)) {
-        if (!p || typeof p.version !== "string") continue;
-        if (k === "" || (typeof p.name === "string" && p.name.startsWith("@teamhub/"))) {
-          p.version = v;
-        }
-      }
-    }
-    fs.writeFileSync(f, JSON.stringify(j, null, 2) + "\n");
-    console.log("  " + f + " -> " + v);
+  const rootPath = "package.json";
+  const root = JSON.parse(fs.readFileSync(rootPath, "utf8"));
+  const workspaces = root.workspaces;
+  if (!Array.isArray(workspaces) || workspaces.length === 0) {
+    throw new Error("根 package.json 缺少 workspaces 清单");
   }
-' "$next" apps/hub-contracts/package-lock.json apps/hub-server/package-lock.json apps/hub-console/package-lock.json
+  for (const file of [rootPath, ...workspaces.map((dir) => `${dir}/package.json`)]) {
+    const pkg = JSON.parse(fs.readFileSync(file, "utf8"));
+    pkg.version = v;
+    fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + "\n");
+    console.log("  " + file + " -> " + v);
+  }
 
-echo "产品版本 $cur -> $next（VERSION + 三包 package.json + 三包 package-lock.json 已同步）"
-echo "下一步：git add VERSION apps/hub-*/package.json apps/hub-*/package-lock.json，并入本次 commit；commit message 体现版本（如 'feat(x): … v$next'）。"
+  const lockPath = "package-lock.json";
+  const lock = JSON.parse(fs.readFileSync(lockPath, "utf8"));
+  lock.version = v;
+  for (const key of ["", ...workspaces]) {
+    if (!lock.packages?.[key]) throw new Error(`根 lock 缺少 workspace 条目：${key || "<root>"}`);
+    lock.packages[key].version = v;
+  }
+  fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2) + "\n");
+  console.log("  " + lockPath + " -> " + v);
+' "$next"
+
+echo "产品版本 $cur -> $next（VERSION + 根/三包 package.json + 根 package-lock.json 已同步）"
+echo "下一步：将 VERSION、根/三包 package.json 与根 package-lock.json 并入本次 commit；commit message 体现版本（如 'feat(x): … v$next'）。"

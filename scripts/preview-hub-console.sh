@@ -18,10 +18,10 @@ require_tool() {
 
 require_tool npm
 
-cd "${CONSOLE_DIR}"
+cd "${ROOT_DIR}"
 
 if [[ ! -d node_modules ]]; then
-  echo "missing dependencies: run 'cd apps/hub-console && npm install' first" >&2
+  echo "missing dependencies: run 'npm ci' at the repository root first" >&2
   exit 1
 fi
 
@@ -34,7 +34,7 @@ else
 fi
 
 if [[ "${SKIP_BUILD}" != "1" ]]; then
-  npm run build
+  npm run build --workspace @teamhub/hub-console
 fi
 
-exec npm run preview -- --host "${HOST}" --port "${PORT}" --strictPort
+exec npm run preview --workspace @teamhub/hub-console -- --host "${HOST}" --port "${PORT}" --strictPort
