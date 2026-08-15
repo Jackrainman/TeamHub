@@ -351,42 +351,14 @@ fallback、旧 env 和旧文档必须一起删除。暂时无法删除时任务�
 
 功能开发暂缓，先完成 `ARCH-UNIFY`。每刀保持 verify 绿，但允许 API/schema 破坏性变化并 bump minor。
 
-### A0：设计与护栏
-
-- 本文 + D-090/D-091 生效；旧设计蒸馏进活文档或五份精简 archive 后删除。
-- `docs/README.md` 成为文档唯一入口；功能计划不再产生永久设计稿。
-- 建 `verify-architecture.mjs`，先记录现存违规白名单，禁止新增。
-- 根版本和单 lockfile 收口。
-
-### A1：仓库与运行时单一化
-
-- 审计并删除/合并游离飞书三包，所有保留包纳入 root verify。
-- 生产启动强制 `TEAMHUB_DB_FILE`，统一 SQLite 成为唯一 backend。
-- 删除分域 JSON、gov-only SQLite、生产 InMemory fallback 和对应 env/compose/docs/scripts。
-- 因无旧数据，不写双读/迁移器；重建前执行备份并显式确认删除目标。
-
-### A2：配置与平台基础设施
-
-- SQLite `app_settings` 接管产品配置；删除 `config.json` 与 `TEAMHUB_TENANT_MODULES` 双轨。
-- 统一错误 envelope、CSV export、文件 intake/container、Clock/Actor 注入。
-- 建 application transaction API 与 service 错误模型。
-
-### A3：模块模板试点
-
-- 以 `reimburse` 为第一条完整纵切：contracts domain、server module/service/repository、console feature/hooks。
-- 同时实现已设计的购买方校验，证明新模板能承载真实跨域“报账→库存入库”事务。
-- 试点完成后冻结模板，再迁其它域；不允许边迁边产生第二套模板。
-
-### A4：全域迁移
-
-推荐顺序：checklist → baseline → inventory → knowledge-base → archive → schedule → pm-core/system。
-先迁独立域，再拆最重的 GovernanceSnapshot/GovStore，降低同时变更面。
-
-### A5：删除旧骨架与全仓验证
-
-- 删除 god files、旧 Store、旧 client segments、裸 hooks 白名单、旧配置和被取代文档。
-- 架构白名单归零；根 verify、真实 SQLite e2e、重启存活和 compose verify 全绿。
-- 此后恢复功能 TODO，报账质量门从 A3 试点继续，不重新走旧架构。
+| 阶段 | 原子目标 | 完成标志 |
+|---|---|---|
+| A0 文档与护栏 | D-090/D-091 生效；旧稿蒸馏删除；单版本/lock；架构门先禁新增违规 | `docs/README.md` 为唯一入口，仓库依赖图单一 |
+| A1 仓库与运行时 | 删除旧飞书三包；生产强制统一 SQLite；删除 JSON、gov-only、生产 InMemory 及旧 env | main 只有一个 DB 装配路径，不写旧数据双读迁移 |
+| A2 平台设施 | `app_settings` 接管产品配置；统一错误、导出、文件 intake、Clock/Actor 和事务 API | 配置单源，跨域写具有显式事务 |
+| A3 模板试点 | reimburse 三包纵切并实现购买方质量门和“报账→库存”事务 | 模板承载真实业务后冻结，不再产生第二套模板 |
+| A4 全域迁移 | checklist → baseline → inventory → knowledge → artifacts → schedule → PM/system | 独立域先迁，最后拆 GovernanceSnapshot/GovStore |
+| A5 归零 | 删除 god files、旧 Store/client/hook/config/文档，架构白名单归零 | 根验证、SQLite 重启、compose 行为均满足目标 |
 
 ## 17. 完成定义
 

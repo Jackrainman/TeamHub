@@ -209,7 +209,7 @@ describe('LARK-OUTBOUND-PUSH：push-reminder', () => {
   });
 });
 
-// LARK-CHATS（docs/lark-integration-ux-issues.md）：PUT 保存时真发测试消息验证 chat_id；
+// LARK-CHATS（docs/domains/integrations.md）：PUT 保存时真发测试消息验证 chat_id；
 // GET/POST /api/integrations/lark/chats 列群 / 建群。
 function mockFetchLarkApi(opts: { chats?: { chat_id: string; name: string }[]; messageOk?: boolean }) {
   const calls: { url: string; method: string; body?: unknown }[] = [];

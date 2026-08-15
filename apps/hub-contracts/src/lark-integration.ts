@@ -34,7 +34,7 @@ export const LarkConfigSaveResponseSchema = z.object({
 });
 export type LarkConfigSaveResponse = z.infer<typeof LarkConfigSaveResponseSchema>;
 
-// ─── 群管理（LARK-CHATS：配置页群下拉 + 建群，docs/lark-integration-ux-issues.md）──────────────
+// ─── 群管理（LARK-CHATS：配置页群下拉 + 建群，docs/domains/integrations.md）──────────────
 
 export const LarkChatSchema = z.object({
   chatId: z.string().min(1),

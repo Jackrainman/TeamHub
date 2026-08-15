@@ -83,7 +83,7 @@ export function registerLarkRoutes(app: FastifyInstance, deps: LarkRouteDeps): v
     return { ok: true };
   });
 
-  // 列机器人所在群（配置页 chat_id 下拉替代手填，docs/lark-integration-ux-issues.md ②）。
+  // 列机器人所在群（配置页 chat_id 下拉替代手填，docs/domains/integrations.md）。
   app.get('/api/integrations/lark/chats', async (_request, reply) => {
     const cfg = larkStore.getConfig();
     if (!cfg || !cfg.appId || !cfg.appSecret) {
@@ -98,7 +98,7 @@ export function registerLarkRoutes(app: FastifyInstance, deps: LarkRouteDeps): v
     return LarkChatsResponseSchema.parse({ chats });
   });
 
-  // 建群 + 机器人自动入群（im/v1/chats 创建者即机器人，docs/lark-integration-ux-issues.md ③）。
+  // 建群 + 机器人自动入群（im/v1/chats 创建者即机器人，docs/domains/integrations.md）。
   app.post('/api/integrations/lark/chats', async (request, reply) => {
     const parsed = parseBody(LarkCreateChatRequestSchema, request, reply);
     if (!parsed) return;
