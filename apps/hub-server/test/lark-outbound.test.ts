@@ -60,7 +60,7 @@ function buildAppWithLark(cfg: { appId: string; appSecret: string; chatId: strin
     store: stores.gov,
     kbStore: stores.kb,
     invStore: stores.inv,
-    baselineStore: stores.baseline,
+    baselineRepository: stores.baseline,
     checklistRepository: stores.checklist,
     larkStore,
   });

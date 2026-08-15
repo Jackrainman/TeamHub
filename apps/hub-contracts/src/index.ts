@@ -100,9 +100,71 @@ export type {
 // 共享基元（ActorRef / isoDateTime）+ 治理主轴域（D-028，拆 pm-core/schedule-infra 两文件）
 // + 成长轴 + 派生算法 + 在场排班（D-029）+ 知识库（KB-CORE）
 export * from './common.js';
-// 倒排基准线（BASELINE-CORE，D-083 §4.1）：独立域文件，先于 pm-core 导出——
-// pm-core.ts:TaskSchema.investment 复用本文件 TaskInvestmentSchema（红线3：不塞 pm-core 本体形状）。
-export * from './baseline.js';
+// 倒排基准线标准纵切：显式导出正式 domain API；投资值对象仍由共享 investment 单源提供。
+export {
+  BASELINE_DRIFT_ATTACHED_DONE_THRESHOLD,
+  BASELINE_DRIFT_LOOKAHEAD_WEEKS,
+  BaselineAnchorsSchema,
+  BaselineMilestonePublicSchema,
+  BaselineMilestoneSchema,
+  BaselinePhaseSchema,
+  BaselinePhaseTypeSchema,
+  BaselineResponseSchema,
+  BaselineSegmentKindSchema,
+  BaselineSegmentSchema,
+  INVESTMENT_STALL_WEEKS,
+  InvestmentHorizonSchema,
+  InvestmentTimeAccumulationSchema,
+  InvestmentValueSchema,
+  MilestoneKindSchema,
+  MilestoneRobotVersionSchema,
+  MilestoneStatusSchema,
+  PassMilestoneRequestSchema,
+  PassMilestoneResponseSchema,
+  SeasonBaselinePublicSchema,
+  SeasonBaselineSchema,
+  TEMPLATE_NOTE_G1,
+  TEMPLATE_NOTE_M1,
+  TEMPLATE_NOTE_M2,
+  TIME_ACCUMULATION_LABEL,
+  TaskInvestmentSchema,
+  UpdateBaselineRequestSchema,
+  UpdateBaselineResponseSchema,
+  deriveBaselineDrift,
+  deriveGroupsBehind,
+  deriveInvestmentWarnings,
+  deriveTimeAccumulationFlags,
+  generateRoboconBaselineTemplate,
+} from './domains/baseline/index.js';
+export type {
+  BaselineAnchors,
+  BaselineMilestone,
+  BaselineMilestonePublic,
+  BaselinePhase,
+  BaselinePhaseType,
+  BaselineResponse,
+  BaselineSegment,
+  BaselineSegmentKind,
+  GroupBehindSummary,
+  InvestmentHorizon,
+  InvestmentTimeAccumulation,
+  InvestmentValue,
+  InvestmentWarning,
+  MilestoneDrift,
+  MilestoneDriftLevel,
+  MilestoneKind,
+  MilestoneRobotVersion,
+  MilestoneStatus,
+  PassMilestoneRequest,
+  PassMilestoneResponse,
+  RoboconBaselineTemplate,
+  SeasonBaseline,
+  SeasonBaselinePublic,
+  TaskInvestment,
+  TimeAccumulationFlag,
+  UpdateBaselineRequest,
+  UpdateBaselineResponse,
+} from './domains/baseline/index.js';
 export * from './pm-core.js';
 // 轻身份登录契约（IDENTITY-LITE，D-083 §4.2）：session / setPin，依赖 pm-core 的 MemberPublicSchema，故其后导出。
 export * from './identity.js';

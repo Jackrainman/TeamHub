@@ -1,13 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import type { IdentityMode } from '@teamhub/hub-contracts';
 import type { GovStore } from '../store/gov-store.js';
-import type { BaselineStore } from '../store/baseline-store.js';
+import type { BaselineService } from '../modules/baseline/service.js';
 import type { ChecklistService } from '../modules/checklist/service.js';
-import type { GateChecklistPort } from '../modules/checklist/repository.js';
 import type { Clock } from '../clock.js';
 import type { SessionManager } from '../identity/session-store.js';
 import type { LarkIntegrationStore } from '../store/lark-integration-store.js';
-import { registerBaselineRoutes } from './baseline.js';
+import { registerBaselineRoutes } from '../modules/baseline/routes.js';
 import { registerMemberRoutes } from './members.js';
 import { registerRosterRoutes } from './roster.js';
 import { registerTaskRoutes } from './tasks.js';
@@ -17,9 +16,8 @@ import { registerChecklistRoutes } from '../modules/checklist/routes.js';
 export interface PmCoreRouteDeps {
   store: GovStore;
   clock: Clock;
-  baselineStore: BaselineStore;
+  baselineService: BaselineService;
   checklistService: ChecklistService;
-  gateChecklist: GateChecklistPort;
   identityMode: IdentityMode;
   trustProxy: boolean | string;
   sessions: SessionManager | null;
@@ -27,7 +25,7 @@ export interface PmCoreRouteDeps {
 }
 
 export function registerPmCoreRoutes(app: FastifyInstance, deps: PmCoreRouteDeps): void {
-  const { store, clock, baselineStore, checklistService, gateChecklist, identityMode } = deps;
+  const { store, clock, baselineService, checklistService, identityMode } = deps;
 
   registerMemberRoutes(app, {
     store,
@@ -52,7 +50,7 @@ export function registerPmCoreRoutes(app: FastifyInstance, deps: PmCoreRouteDeps
     larkStore: deps.larkStore,
   });
 
-  registerBaselineRoutes(app, { store, baselineStore, gateChecklist });
+  registerBaselineRoutes(app, baselineService);
 
   registerChecklistRoutes(app, checklistService);
 }

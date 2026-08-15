@@ -232,7 +232,11 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     icon: Calendar,
     moduleId: 'pm-core',
     render: (ctx) => (
-      <TimelineEditorPage client={ctx.apiClient} source={ctx.source} />
+      <TimelineEditorPage
+        client={ctx.apiClient}
+        seasonsClient={ctx.apiClient}
+        source={ctx.source}
+      />
     ),
   },
   {

@@ -1,10 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useI18n } from '../../i18n';
-import type { HubApiClient } from '../../api/client';
-import { useBaseline } from '../../hooks/useBaseline';
-import { useSeasons } from '../../hooks/useRoster';
-import { useHubMutation } from '../../hooks/useHubMutation';
-import { queryKeys } from '../../api/queryKeys';
+import { useBaseline, useUpdateBaseline, type BaselineSegment } from '../baseline';
+import { useSeasons, type SeasonsClient } from '../../hooks/useRoster';
 import type { SeasonBaseline, BaselineMilestone } from '@teamhub/hub-contracts';
 
 const OFFSET_OPTIONS = [
@@ -27,11 +24,19 @@ function addDays(iso: string, days: number): string {
   return d.toISOString();
 }
 
-export function TimelineEditorPage({ client, source }: { client: HubApiClient; source: string }) {
+export function TimelineEditorPage({
+  client,
+  seasonsClient,
+  source,
+}: {
+  client: BaselineSegment;
+  seasonsClient: SeasonsClient;
+  source: string;
+}) {
   const { t } = useI18n();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const seasonsQuery = useSeasons(client);
+  const seasonsQuery = useSeasons(seasonsClient);
 
   const seasons = seasonsQuery.data?.seasons ?? [];
   const seasonId = seasons.find((s) => s.status === 'active')?.id ?? seasons[0]?.id ?? null;
@@ -40,17 +45,9 @@ export function TimelineEditorPage({ client, source }: { client: HubApiClient; s
 
   const baseline: SeasonBaseline | null = baselineQuery.data?.baseline ?? null;
 
-  const patchMutation = useHubMutation({
-    invalidateKeys: [queryKeys.baseline(source, seasonId ?? '')],
-    mutationFn: (updated: SeasonBaseline) =>
-      client.updateBaseline(seasonId!, {
-        anchors: updated.anchors,
-        segments: updated.segments,
-        phases: updated.phases,
-        milestones: updated.milestones,
-      }),
-    onSuccess: () => setSelectedId(null),
-  });
+  const patchMutation = useUpdateBaseline(client, source, seasonId ?? undefined, () =>
+    setSelectedId(null),
+  );
 
   const applyOffset = (milestone: BaselineMilestone, days: number) => {
     if (!baseline) return;
@@ -58,7 +55,12 @@ export function TimelineEditorPage({ client, source }: { client: HubApiClient; s
     const updatedMilestones = baseline.milestones.map((m) =>
       m.id === milestone.id ? { ...m, plannedAt: newPlannedAt } : m,
     );
-    patchMutation.mutate({ ...baseline, milestones: updatedMilestones });
+    patchMutation.mutate({
+      anchors: baseline.anchors,
+      segments: baseline.segments,
+      phases: baseline.phases,
+      milestones: updatedMilestones,
+    });
   };
 
   const paceInfo = useMemo(() => {

@@ -16,7 +16,7 @@ type StoreOptionKey =
   | 'store'
   | 'kbStore'
   | 'invStore'
-  | 'baselineStore'
+  | 'baselineRepository'
   | 'checklistRepository'
   | 'reimburseStore'
   | 'inventoryStockInPort'
@@ -47,7 +47,8 @@ export function buildTestHubServer(options: BuildTestHubServerOptions = {}) {
     store: options.store ?? new InMemoryGovStore(undefined, clock),
     kbStore: options.kbStore ?? new InMemoryKbStore(),
     invStore,
-    baselineStore: options.baselineStore ?? new InMemoryBaselineStore(),
+    baselineRepository:
+      options.baselineRepository ?? new InMemoryBaselineStore(),
     checklistRepository:
       options.checklistRepository ?? new InMemoryChecklistStore(),
     reimburseStore,

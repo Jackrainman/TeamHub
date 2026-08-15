@@ -807,6 +807,36 @@ describe('hub console API client', () => {
       'http://127.0.0.1:4177/api/checklist/check%2F1/waive?seasonId=season%201',
     ]);
   });
+
+  test('基准线 API 由独立 segment 组合并保持 GET/PATCH 契约', async () => {
+    const baseline = {
+      id: 'baseline-1',
+      seasonId: 'season 1',
+      anchors: {},
+      segments: [],
+      phases: [],
+      milestones: [],
+    };
+    const fetcher = vi.fn(async (_url: string, _init?: RequestInit) => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ baseline }),
+    }) as Response);
+    const client = createHubApiClient({
+      baseUrl: 'http://127.0.0.1:4177',
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+
+    await expect(client.getBaseline('season 1')).resolves.toEqual({ baseline });
+    await expect(client.updateBaseline('season 1', { milestones: [] })).resolves.toEqual({
+      baseline,
+    });
+    expect(fetcher.mock.calls.map(([url]) => String(url))).toEqual([
+      'http://127.0.0.1:4177/api/baseline?seasonId=season%201',
+      'http://127.0.0.1:4177/api/baseline?seasonId=season%201',
+    ]);
+    expect(fetcher.mock.calls[1]?.[1]?.method).toBe('PATCH');
+  });
 });
 
 // R1 接力画布：GET 空板；PATCH/POST 回完整 session/handoff（schema parse 时自动剥 confirmedBy）。

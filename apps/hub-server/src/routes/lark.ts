@@ -8,7 +8,7 @@ import {
   deriveBaselineDrift,
 } from '@teamhub/hub-contracts';
 import type { GovStore } from '../store/gov-store.js';
-import type { BaselineStore } from '../store/baseline-store.js';
+import type { BaselineRepository } from '../modules/baseline/repository.js';
 import type { Clock } from '../clock.js';
 import type { LarkIntegrationStore } from '../store/lark-integration-store.js';
 import {
@@ -22,13 +22,13 @@ import { parseBody, isLoopbackOperator } from './helpers.js';
 export interface LarkRouteDeps {
   store: GovStore;
   clock: Clock;
-  baselineStore: BaselineStore;
+  baselineRepository: Pick<BaselineRepository, 'getBaseline'>;
   larkStore: LarkIntegrationStore;
   trustProxy: boolean | string;
 }
 
 export function registerLarkRoutes(app: FastifyInstance, deps: LarkRouteDeps): void {
-  const { store, clock, baselineStore, larkStore, trustProxy } = deps;
+  const { store, clock, baselineRepository, larkStore, trustProxy } = deps;
 
   app.get('/api/integrations/lark', async () => {
     const config = larkStore.getConfig();
@@ -135,7 +135,7 @@ export function registerLarkRoutes(app: FastifyInstance, deps: LarkRouteDeps): v
     let yellowCount = 0;
     const lines: string[] = [];
     for (const season of snapshot.seasons) {
-      const baseline = await baselineStore.getBaseline(season.id);
+      const baseline = await baselineRepository.getBaseline(season.id);
       if (!baseline) continue;
       const drifts = deriveBaselineDrift(baseline, snapshot.tasks, now);
       for (const d of drifts) {

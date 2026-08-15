@@ -207,6 +207,7 @@ function ConsoleApp({ apiClient, settings }: { apiClient: HubApiClient; settings
               整车级门。无基准线时组件自身 return null（IdentityBar 同位先例）。 */}
           <ChecklistQuickRecord
             client={apiClient}
+            baselineClient={apiClient}
             contextClient={apiClient}
             source={SOURCE}
             identity={identity}

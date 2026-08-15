@@ -1,8 +1,8 @@
 import type { GovernanceSnapshot } from '../attribution.js';
 import type { ScheduleSnapshot } from '../schedule.js';
 import { deriveDisplayCode } from '../verticals/robotics.js';
-import { generateRoboconBaselineTemplate } from '../baseline.js';
-import type { SeasonBaseline } from '../baseline.js';
+import { generateRoboconBaselineTemplate } from '../domains/baseline/index.js';
+import type { SeasonBaseline } from '../domains/baseline/index.js';
 import type { GateChecklistItem } from '../domains/checklist/index.js';
 import type { MemberKnowledge } from '../growth.js';
 import type { KbSnapshot } from '../kb.js';

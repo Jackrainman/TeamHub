@@ -79,7 +79,14 @@ export function OverviewPage({
 
   // 首屏第一眼 = 倒排基准线「基准线 vs 实际」（BASELINE-CORE S6）：自带 season/baseline/tasks 查询与
   // 加载/空态，独立于下方运维快照（snapshot）——即便快照未就绪，基准线仍先渲染，反之亦然。
-  const baselineHero = <BaselineOverview client={client} source={source} identity={identity} />;
+  const baselineHero = (
+    <BaselineOverview
+      client={client}
+      baselineClient={client}
+      source={source}
+      identity={identity}
+    />
+  );
 
   if (isLoading) {
     return (

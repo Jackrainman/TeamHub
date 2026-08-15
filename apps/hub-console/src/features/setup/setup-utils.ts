@@ -10,6 +10,7 @@ import {
   type Season,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
+import type { BaselineSegment } from '../baseline';
 import type { TranslationKey } from '../../i18n';
 import { suggestSeason } from '../../utils';
 
@@ -123,7 +124,7 @@ export function buildSeasonCreateRequest(form: SeasonForm): CreateSeasonRequest 
  * 比赛日空只建赛季。抽成纯数据 helper 供单测 mock client 断言顺序与参数形状。
  */
 export async function submitSeasonStep(
-  client: Pick<HubApiClient, 'createSeason' | 'updateBaseline'>,
+  client: Pick<HubApiClient, 'createSeason'> & Pick<BaselineSegment, 'updateBaseline'>,
   form: SeasonForm,
 ): Promise<{ season: Season; baselineGenerated: boolean }> {
   const { season } = await client.createSeason(buildSeasonCreateRequest(form));

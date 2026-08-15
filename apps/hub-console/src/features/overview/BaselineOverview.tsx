@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
-import { useBaseline } from '../../hooks/useBaseline';
+import { useBaseline, type BaselineSegment } from '../baseline';
 import { useTasks } from '../../hooks/useTasks';
 import { useMembers, useGroups, useSeasons } from '../../hooks/useRoster';
 import type { PageIdentityCtx } from '../../console-pages';
@@ -17,10 +17,12 @@ import { useChecklist } from '../checklist';
  */
 export function BaselineOverview({
   client,
+  baselineClient,
   source,
   identity,
 }: {
   client: HubApiClient;
+  baselineClient: BaselineSegment;
   source: string;
   identity: PageIdentityCtx;
 }) {
@@ -35,7 +37,7 @@ export function BaselineOverview({
   }, [seasonsQuery.data]);
   const seasonId = activeSeason?.id;
 
-  const baselineQuery = useBaseline(client, source, seasonId);
+  const baselineQuery = useBaseline(baselineClient, source, seasonId);
   const tasksQuery = useTasks(client, source);
   const groupsQuery = useGroups(client, 'overview');
   const checklistQuery = useChecklist(client, source, seasonId);
@@ -81,7 +83,7 @@ export function BaselineOverview({
   if (!seasonId) {
     return (
       <NoSeasonState
-        client={client}
+        client={baselineClient}
         onCreated={() =>
           queryClient.invalidateQueries({ queryKey: ['seasons', source] })
         }
@@ -92,8 +94,8 @@ export function BaselineOverview({
     return (
       <BaselineEmptyState
         client={client}
+        source={source}
         seasonId={seasonId}
-        onSaved={() => queryClient.invalidateQueries({ queryKey: ['baseline', source, seasonId] })}
       />
     );
   }

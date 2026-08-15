@@ -3,7 +3,7 @@ import { ClipboardList } from 'lucide-react';
 import type { ChecklistSegment } from '../api';
 import { useCreateChecklistItem } from '../hooks';
 import { pickDefaultIouAnchor } from '../checklist-utils';
-import { useBaseline, type BaselineClient } from '../../../hooks/useBaseline';
+import { useBaseline, type BaselineSegment } from '../../baseline';
 import { useSeasons, type SeasonsClient } from '../../../hooks/useRoster';
 import type { PageIdentityCtx } from '../../../console-pages';
 import { useI18n } from '../../../i18n';
@@ -24,12 +24,14 @@ interface ChecklistFormFields {
 
 export function ChecklistQuickRecord({
   client,
+  baselineClient,
   contextClient,
   source,
   identity,
 }: {
   client: ChecklistSegment;
-  contextClient: BaselineClient & SeasonsClient;
+  baselineClient: BaselineSegment;
+  contextClient: SeasonsClient;
   source: string;
   identity: PageIdentityCtx;
 }) {
@@ -57,7 +59,7 @@ export function ChecklistQuickRecord({
     return seasons.find((s) => s.status === 'active') ?? seasons[0];
   }, [seasonsQuery.data]);
   const seasonId = activeSeason?.id;
-  const baselineQuery = useBaseline(contextClient, source, seasonId);
+  const baselineQuery = useBaseline(baselineClient, source, seasonId);
   const baseline = baselineQuery.data?.baseline ?? null;
   const milestones = useMemo(() => baseline?.milestones ?? [], [baseline]);
 

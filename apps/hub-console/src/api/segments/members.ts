@@ -1,8 +1,6 @@
 import {
   MembersResponseSchema,
   SessionResponseSchema,
-  BaselineResponseSchema,
-  UpdateBaselineResponseSchema,
   SetGateReviewerResponseSchema,
   SetMemberRoleResponseSchema,
   SetProjectManagerResponseSchema,
@@ -22,9 +20,6 @@ import {
   type MemberPublic,
   type SessionRequest,
   type SessionResponse,
-  type BaselineResponse,
-  type UpdateBaselineRequest,
-  type UpdateBaselineResponse,
   type SetGateReviewerRequest,
   type SetGateReviewerResponse,
   type SetMemberRoleRequest,
@@ -70,8 +65,6 @@ export interface MembersSegment {
   importRoster(file: File): Promise<RosterImportReport>;
   previewRoster(file: File): Promise<RosterPreviewResponse>;
   importRosterRows(rows: RosterImportRow[]): Promise<RosterImportReport>;
-  getBaseline(seasonId: string): Promise<BaselineResponse>;
-  updateBaseline(seasonId: string, req: UpdateBaselineRequest): Promise<UpdateBaselineResponse>;
   getSetupState(): Promise<SetupStateResponse>;
   initSetup(req: SetupInitRequest): Promise<SetupInitResponse>;
   setConfig(req: SetupConfigRequest): Promise<SetupConfigResponse>;
@@ -127,12 +120,6 @@ export function createMembersSegment(ctx: HttpContext): MembersSegment {
     },
     async importRosterRows(rows: RosterImportRow[]) {
       return postJson(`${baseUrl}/api/roster/import`, { rows }, RosterImportReportSchema, fetcher, writeToken);
-    },
-    async getBaseline(seasonId: string) {
-      return fetchJson(`${baseUrl}/api/baseline?seasonId=${encodeURIComponent(seasonId)}`, BaselineResponseSchema, fetcher);
-    },
-    async updateBaseline(seasonId: string, req: UpdateBaselineRequest) {
-      return sendJson('PATCH', `${baseUrl}/api/baseline?seasonId=${encodeURIComponent(seasonId)}`, req, UpdateBaselineResponseSchema, fetcher, writeToken);
     },
     async getSetupState() {
       return fetchJson(`${baseUrl}/api/setup/state`, SetupStateResponseSchema, fetcher);

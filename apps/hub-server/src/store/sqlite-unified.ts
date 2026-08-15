@@ -19,10 +19,10 @@ import type {
   SetupInitRequest,
 } from '@teamhub/hub-contracts';
 import type { Clock } from '../clock.js';
-import type { BaselineStore } from './baseline-store.js';
+import type { BaselineRepository } from '../modules/baseline/repository.js';
 import type { ChecklistRepository } from '../modules/checklist/repository.js';
 import type { GovStore } from './gov-store.js';
-import { SqliteBaselineStore } from './sqlite-baseline-store.js';
+import { SqliteBaselineRepository } from '../modules/baseline/sqlite-repository.js';
 import { SqliteChecklistRepository } from '../modules/checklist/sqlite-repository.js';
 import { SqliteDatabase } from './sqlite-db.js';
 import { SqliteGovRepository } from './sqlite-gov-repository.js';
@@ -79,7 +79,7 @@ export interface UnifiedStores {
   gov: GovStore;
   kb: SqliteKbStore;
   inv: SqliteInvStore;
-  baseline: BaselineStore;
+  baseline: BaselineRepository;
   checklist: ChecklistRepository;
   reimburse: SqliteReimburseRepository;
   db: SqliteDatabase;
@@ -186,7 +186,7 @@ function assembleStores(
     gov: SqliteGovRepository.fromSharedDb(db, seeds.gov, clock, seeds.demoSeed),
     kb: SqliteKbStore.fromSharedDb(db, seeds.kb),
     inv: SqliteInvStore.fromSharedDb(db, seeds.inv, clock),
-    baseline: SqliteBaselineStore.fromSharedDb(db, seeds.baseline),
+    baseline: SqliteBaselineRepository.fromSharedDb(db, seeds.baseline),
     checklist: SqliteChecklistRepository.fromSharedDb(
       db,
       seeds.checklist,

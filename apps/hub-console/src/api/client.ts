@@ -12,6 +12,10 @@ import {
   createChecklistSegment,
   type ChecklistSegment,
 } from '../features/checklist/api';
+import {
+  createBaselineSegment,
+  type BaselineSegment,
+} from '../features/baseline/api';
 
 export interface HubApiClientOptions {
   baseUrl?: string;
@@ -24,7 +28,8 @@ export type HubApiClient = SystemPmSegment &
   MembersSegment &
   DomainSegment &
   ReimburseSegment &
-  ChecklistSegment;
+  ChecklistSegment &
+  BaselineSegment;
 
 export function createHubApiClient(options: HubApiClientOptions = {}): HubApiClient {
   const ctx: HttpContext = {
@@ -39,5 +44,6 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
     ...createDomainSegment(ctx),
     ...createReimburseSegment(ctx),
     ...createChecklistSegment(ctx),
+    ...createBaselineSegment(ctx),
   };
 }

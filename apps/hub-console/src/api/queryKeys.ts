@@ -22,7 +22,10 @@ export const queryKeys = {
     profile: (source: string) => ['reimburse', source, 'profile'] as const,
     stockInContext: (source: string) => ['reimburse', source, 'stock-in-context'] as const,
   },
-  baseline: (source: string, seasonId: string) => ['baseline', source, seasonId] as const,
+  baseline: {
+    all: (source: string) => ['baseline', source] as const,
+    season: (source: string, seasonId: string) => ['baseline', source, seasonId] as const,
+  },
   checklist: {
     all: (source: string) => ['checklist', source] as const,
     season: (source: string, seasonId: string) => ['checklist', source, seasonId] as const,

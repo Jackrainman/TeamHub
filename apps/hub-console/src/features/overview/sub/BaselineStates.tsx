@@ -1,18 +1,26 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { generateRoboconBaselineTemplate } from '@teamhub/hub-contracts';
-import type { HubApiClient } from '../../../api/client';
+import {
+  generateRoboconBaselineTemplate,
+  type CreateSeasonRequest,
+} from '@teamhub/hub-contracts';
+import type { BaselineSegment } from '../../baseline';
+import { useUpdateBaseline } from '../../baseline';
 import { useI18n } from '../../../i18n';
 import { humanizeFormError, seasonRangeLabel, suggestSeason } from '../../../utils';
 import { Field } from '../../../components/Field';
 import { FormGrid } from '../../../components/FormGrid';
 import { FormActions } from '../../../components/FormActions';
 
+interface SeasonCreateClient {
+  createSeason(req: CreateSeasonRequest): Promise<unknown>;
+}
+
 export function NoSeasonState({
   client,
   onCreated,
 }: {
-  client: HubApiClient;
+  client: SeasonCreateClient;
   onCreated: () => void;
 }) {
   const { t } = useI18n();
@@ -56,27 +64,18 @@ export function NoSeasonState({
 
 export function BaselineEmptyState({
   client,
+  source,
   seasonId,
-  onSaved,
 }: {
-  client: HubApiClient;
+  client: BaselineSegment;
+  source: string;
   seasonId: string;
-  onSaved: () => void;
 }) {
   const { t } = useI18n();
   const [semesterStart, setSemesterStart] = useState('');
   const [competitionDate, setCompetitionDate] = useState('');
 
-  const mutation = useMutation({
-    mutationFn: () => {
-      const template = generateRoboconBaselineTemplate({
-        semesterStart: `${semesterStart}T00:00:00.000Z`,
-        competitionDate: `${competitionDate}T00:00:00.000Z`,
-      });
-      return client.updateBaseline(seasonId, template);
-    },
-    onSuccess: () => onSaved(),
-  });
+  const mutation = useUpdateBaseline(client, source, seasonId);
 
   const orderOk =
     !semesterStart || !competitionDate || competitionDate > semesterStart;
@@ -85,7 +84,12 @@ export function BaselineEmptyState({
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!valid) return;
-    mutation.mutate();
+    mutation.mutate(
+      generateRoboconBaselineTemplate({
+        semesterStart: `${semesterStart}T00:00:00.000Z`,
+        competitionDate: `${competitionDate}T00:00:00.000Z`,
+      }),
+    );
   }
 
   return (

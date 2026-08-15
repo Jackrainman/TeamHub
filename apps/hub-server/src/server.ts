@@ -17,11 +17,11 @@ import { FixedClock } from './clock.js';
 import type { Clock } from './clock.js';
 import type { ReimburseRepository } from './modules/reimburse/repository.js';
 import type { GovStore, InvStore, KbStore } from './store/gov-store.js';
-import type { BaselineStore } from './store/baseline-store.js';
+import { BaselineService } from './modules/baseline/service.js';
+import type { BaselineRepository } from './modules/baseline/repository.js';
 import { ChecklistService } from './modules/checklist/service.js';
 import type {
   ChecklistRepository,
-  GateChecklistPort,
 } from './modules/checklist/repository.js';
 import { tryServeStaticConsole } from './static-console.js';
 import { registerSearchRoutes } from './routes/search.js';
@@ -90,11 +90,11 @@ export interface BuildHubServerOptions {
   invStore: InvStore;
   /**
    * 倒排基准线读写出入口（BASELINE-CORE，S3 落地/S4 挂路由）。独立于 `GovStore`（`SeasonBaseline`
-   * 不进 `GovernanceSnapshot`，baseline-design.md §5 红线3），故走独立 `BaselineStore` 而非扩 GovStore。
+   * 不进 `GovernanceSnapshot`），故走独立 `BaselineRepository` 而非扩 GovStore。
    * 由 `GET/PATCH /api/baseline` + `POST /api/baseline/milestones/:milestoneId/pass` 消费
    * （registerPmCoreRoutes，与 seasonId 同域）。
    */
-  baselineStore: BaselineStore;
+  baselineRepository: BaselineRepository;
   /**
    * 门检查单 / 欠条读写出入口（GATE-CHECKLIST-IOU，D-087；本刀 C2 落地、C3 挂路由）。独立于 `GovStore`
    * （`GateChecklistItem` 不进 `GovernanceSnapshot`），故走独立 `ChecklistRepository`。
@@ -177,10 +177,9 @@ interface ModuleRouteCtx {
   kbStore: KbStore;
   invStore: InvStore;
   // BASELINE-CORE：S4 起由 registerPmCoreRoutes 的 GET/PATCH /api/baseline + 过门路由消费。
-  baselineStore: BaselineStore;
+  baselineService: BaselineService;
   // GATE-CHECKLIST-IOU：C3 起由 registerPmCoreRoutes 的 /api/checklist 系列 + 过门硬闸消费（本刀先钉字段）。
   checklistService: ChecklistService;
-  gateChecklist: GateChecklistPort;
   artifactMaxBytes: number;
   // IDENTITY-LITE：部署身份模式。pm-core 的 PUT /api/members/:id/pin 据此在匿名模式 404、身份模式行使
   // 「本人会话 / 首次设置」授权。写路由的 actor 注入不看它、只看 request.identity（匿名模式恒 null）。
@@ -220,13 +219,23 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
   void store.ensureDefaultGroups();
   const kbStore = options.kbStore;
   const invStore = options.invStore;
-  const baselineStore = options.baselineStore;
+  const baselineRepository = options.baselineRepository;
   const checklistRepository = options.checklistRepository;
   const checklistService = new ChecklistService(
     checklistRepository,
-    options.baselineStore,
+    baselineRepository,
     store,
     clock,
+  );
+  const baselineService = new BaselineService(
+    baselineRepository,
+    checklistService,
+    {
+      findMissingArtifactId: async (ids) => {
+        const known = new Set((await store.getSnapshot()).artifacts.map((artifact) => artifact.id));
+        return ids.find((id) => !known.has(id));
+      },
+    },
   );
   const reimburseStore = options.reimburseStore;
   const reimburseService = new ReimburseService(
@@ -266,9 +275,8 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
     clock,
     kbStore,
     invStore,
-    baselineStore,
+    baselineService,
     checklistService,
-    gateChecklist: checklistService,
     artifactMaxBytes: options.artifactMaxBytes ?? ARTIFACT_MAX_BYTES,
     identityMode,
     trustProxy,
@@ -320,7 +328,7 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
   registerExportRoutes(app, { store, invStore });
 
   if (options.larkStore) {
-    registerLarkRoutes(app, { store, clock, baselineStore, larkStore: options.larkStore, trustProxy });
+    registerLarkRoutes(app, { store, clock, baselineRepository, larkStore: options.larkStore, trustProxy });
   }
 
   app.setNotFoundHandler(async (request, reply) => {
