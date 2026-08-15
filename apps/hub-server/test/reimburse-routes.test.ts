@@ -434,6 +434,7 @@ describe('POST /api/reimburse/entries/:id/stock-in — 入库联动', () => {
       });
       expect(over.statusCode).toBe(400);
       expect(over.json().detail).toContain('防重复入库');
+      expect(over.json().code).toBe('REIMBURSE_STOCK_QUANTITY_EXCEEDED');
 
       // 恰好入满剩余 10 → 201；再入 1 → 400
       const fill = await app.inject({
@@ -501,6 +502,7 @@ describe('POST /api/reimburse/entries/:id/stock-in — 入库联动', () => {
         },
       });
       expect(unknownPart.statusCode).toBe(400);
+      expect(unknownPart.json().code).toBe('INVENTORY_PART_NOT_FOUND');
 
       const dupPartNumber = await app.inject({
         method: 'POST',

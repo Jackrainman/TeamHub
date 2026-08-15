@@ -1,5 +1,5 @@
 {
-  "focus": "ARCH-UNIFY：A0-A1 与 A2 配置单源已收口；现完成 application UoW/Actor/Clock/错误等平台端口，再进入 reimburse 模板试点",
+  "focus": "ARCH-UNIFY：A0-A2 已收口；正在以 reimburse 完成首个三包同构模块、票据质量门与结构化入库投影",
   "blocked": [
     {
       "id": "HERMES-LARK-SKILL",
@@ -10,7 +10,7 @@
   "todo": [
     {
       "id": "ARCH-UNIFY",
-      "title": "仓库级软件架构统一：A0-A1 已完成；A2 app_settings+同步 SQLite 事务已完成，继续平台端口 → A3 reimburse 模块模板试点 → A4 全域迁移 → A5 旧骨架归零；不考虑旧数据兼容，见 docs/design/software-architecture.md",
+      "title": "仓库级软件架构统一：A0-A2（单仓库图/统一 SQLite/app_settings/ApplicationUnitOfWork）已完成；继续 A3 reimburse 模块模板试点 → A4 全域迁移 → A5 旧骨架归零；不考虑旧数据兼容，见 docs/design/software-architecture.md",
       "tag": "code",
       "batch": "architecture"
     },

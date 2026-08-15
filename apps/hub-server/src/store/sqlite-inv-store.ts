@@ -14,6 +14,11 @@ import type {
 } from '@teamhub/hub-contracts';
 import { FixedClock } from '../clock.js';
 import type { Clock } from '../clock.js';
+import type {
+  InventoryStockInActionDraft,
+  InventoryStockInPartDraft,
+  InventoryStockInPort,
+} from '../application/reimburse-stock-in-service.js';
 import { createIdSequence, nextSequentialId } from './id-sequence.js';
 import type { IdSequence } from './id-sequence.js';
 import type { SqliteDatabase } from './sqlite-db.js';
@@ -21,7 +26,7 @@ import type { InvStore, InventoryImportOutcome, PartActionDraft, PartTypeDraft }
 
 const INV_TABLES = ['inv_part_types', 'inv_tracked_parts', 'inv_actions'] as const;
 
-export class SqliteInvStore implements InvStore {
+export class SqliteInvStore implements InvStore, InventoryStockInPort {
   private readonly sdb: SqliteDatabase;
   private readonly clock: Clock;
   private partTypeSeq!: IdSequence;
@@ -56,6 +61,10 @@ export class SqliteInvStore implements InvStore {
   }
 
   async getInventorySnapshot(): Promise<InventorySnapshot> {
+    return this.readStockInSnapshot();
+  }
+
+  readStockInSnapshot(): InventorySnapshot {
     return {
       projectId: this.sdb.getMeta('inv_projectId') ?? '',
       partTypes: this.sdb.allRows('inv_part_types'),
@@ -65,7 +74,14 @@ export class SqliteInvStore implements InvStore {
   }
 
   async upsertPartType(draft: PartTypeDraft): Promise<PartType> {
-    const now = this.clock.now().toISOString();
+    return this.upsertStockInPartType(draft, this.clock.now());
+  }
+
+  upsertStockInPartType(
+    draft: InventoryStockInPartDraft,
+    occurredAt: Date,
+  ): PartType {
+    const now = occurredAt.toISOString();
     if (draft.id) {
       const prior = this.sdb.getRow<PartType>('inv_part_types', draft.id);
       if (prior) {
@@ -145,7 +161,14 @@ export class SqliteInvStore implements InvStore {
   }
 
   async recordPartAction(draft: PartActionDraft): Promise<PartAction> {
-    const now = this.clock.now().toISOString();
+    return this.recordStockInAction(draft, this.clock.now());
+  }
+
+  recordStockInAction(
+    draft: InventoryStockInActionDraft,
+    occurredAt: Date,
+  ): PartAction {
+    const now = occurredAt.toISOString();
     const partType = this.sdb.getRow<PartType>('inv_part_types', draft.partTypeId);
     if (!partType) {
       throw new InvalidPartActionError(`未知零件类型: ${draft.partTypeId}`);

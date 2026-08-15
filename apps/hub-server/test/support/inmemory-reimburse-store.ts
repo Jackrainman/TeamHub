@@ -2,6 +2,7 @@ import { GOVERNANCE_SCENARIO_NOW } from '@teamhub/hub-contracts';
 import type { ReimburseBatch, ReimburseEntry } from '@teamhub/hub-contracts';
 import { FixedClock } from '../../src/clock.js';
 import type { Clock } from '../../src/clock.js';
+import type { ReimburseStockInPort } from '../../src/application/reimburse-stock-in-service.js';
 import { cloneArrayFields } from '../../src/store/clone-snapshot.js';
 import {
   emptyReimburseSnapshot,
@@ -15,7 +16,7 @@ import {
 
 const REIMBURSE_ARRAY_FIELDS: (keyof ReimburseSnapshot)[] = ['entries', 'batches'];
 
-export class InMemoryReimburseStore implements ReimburseStore {
+export class InMemoryReimburseStore implements ReimburseStore, ReimburseStockInPort {
   private readonly snapshot: ReimburseSnapshot;
   private readonly clock: Clock;
   private entrySeq: number;
@@ -36,6 +37,10 @@ export class InMemoryReimburseStore implements ReimburseStore {
   }
 
   async getEntry(id: string): Promise<ReimburseEntry | undefined> {
+    return this.readEntryForStockIn(id);
+  }
+
+  readEntryForStockIn(id: string): ReimburseEntry | undefined {
     return this.snapshot.entries.find((entry) => entry.id === id);
   }
 

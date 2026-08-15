@@ -2,6 +2,25 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { SessionIdentity, ActorRef, ScheduleSnapshot } from '@teamhub/hub-contracts';
 import type { GovStore } from '../store/gov-store.js';
 import { isSuperAdmin } from '../authz.js';
+import { isApplicationError } from '../application/application-error.js';
+
+const APPLICATION_ERROR_STATUS = {
+  validation: 400,
+  not_found: 404,
+  forbidden: 403,
+  conflict: 409,
+} as const;
+
+export function sendApplicationError(error: unknown, reply: FastifyReply): boolean {
+  if (!isApplicationError(error)) return false;
+  const body: { code: string; detail: string; fields?: Readonly<Record<string, unknown>> } = {
+    code: error.code,
+    detail: error.detail,
+  };
+  if (error.fields) body.fields = error.fields;
+  void reply.code(APPLICATION_ERROR_STATUS[error.kind]).send(body);
+  return true;
+}
 
 export function firstZodMsg(err: import('zod').ZodError, fallback = 'invalid body'): string {
   return err.issues[0]?.message ?? fallback;

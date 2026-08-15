@@ -10,6 +10,7 @@ import { InMemoryGovStore } from './inmemory-gov-store.js';
 import { InMemoryInvStore } from './inmemory-inv-store.js';
 import { InMemoryKbStore } from './inmemory-kb-store.js';
 import { InMemoryReimburseStore } from './inmemory-reimburse-store.js';
+import { TestApplicationUnitOfWork } from './test-application-unit-of-work.js';
 
 type StoreOptionKey =
   | 'store'
@@ -18,6 +19,9 @@ type StoreOptionKey =
   | 'baselineStore'
   | 'checklistStore'
   | 'reimburseStore'
+  | 'inventoryStockInPort'
+  | 'reimburseStockInPort'
+  | 'unitOfWork'
   | 'tenantConfig'
   | 'identityMode';
 
@@ -31,6 +35,9 @@ export type BuildTestHubServerOptions =
  */
 export function buildTestHubServer(options: BuildTestHubServerOptions = {}) {
   const clock = options.clock ?? new FixedClock(new Date(GOVERNANCE_SCENARIO_NOW));
+  const invStore = options.invStore ?? new InMemoryInvStore(undefined, clock);
+  const reimburseStore =
+    options.reimburseStore ?? new InMemoryReimburseStore(undefined, clock);
 
   return buildHubServer({
     ...options,
@@ -39,9 +46,12 @@ export function buildTestHubServer(options: BuildTestHubServerOptions = {}) {
     identityMode: options.identityMode ?? 'anonymous',
     store: options.store ?? new InMemoryGovStore(undefined, clock),
     kbStore: options.kbStore ?? new InMemoryKbStore(),
-    invStore: options.invStore ?? new InMemoryInvStore(undefined, clock),
+    invStore,
     baselineStore: options.baselineStore ?? new InMemoryBaselineStore(),
     checklistStore: options.checklistStore ?? new InMemoryChecklistStore(),
-    reimburseStore: options.reimburseStore ?? new InMemoryReimburseStore(undefined, clock),
+    reimburseStore,
+    inventoryStockInPort: options.inventoryStockInPort ?? invStore,
+    reimburseStockInPort: options.reimburseStockInPort ?? reimburseStore,
+    unitOfWork: options.unitOfWork ?? new TestApplicationUnitOfWork(clock),
   });
 }

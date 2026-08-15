@@ -56,3 +56,4 @@
 - 2026-08-15 refactor(server): ARCH-UNIFY A1 前半——生产 builder 六域 repository 改为必传，测试 fake 统一归入 test/support；正常启动唯一 TEAMHUB_DB_FILE→统一 SQLite，六域状态同源并在 Fastify 关闭时释放数据库；真进程 E2E 改为 SQLite 跨重启读回 v0.49.0
 - 2026-08-15 refactor(storage): ARCH-UNIFY A1 收口——删除六套 File Store、PersistedFile、gov-only SQLite 入口与三份旧迁移器；InMemory fake 全移 test/support，统一 SQLite 六域关闭重开契约生效；Compose/启动/备份收成单 DB 卷 + artifact，smoke 验证写入重启读回
 - 2026-08-15 refactor(settings): ARCH-UNIFY A2 配置单源——严格 AppSettings 契约与 SQLite 单例取代 config.json/tenant env/代码默认；首启区分 empty/unclaimed，初始化 seed+settings 同事务；demo→real 同库清业务事实并保留平台 meta，console 只信服务端模块配置
+- 2026-08-15 refactor(transaction): ARCH-UNIFY A2 收口——新增同步 ApplicationUnitOfWork/Actor/Clock/error 平台端口；报账条目读取与库存多写进入同一 SQLite 事务，第二条写故障时整批 durable rollback，route 退化为单 service 调用（ARC-INC-002）

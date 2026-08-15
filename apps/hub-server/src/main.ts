@@ -1,12 +1,14 @@
+import { GOVERNANCE_SCENARIO_NOW } from '@teamhub/hub-contracts';
 import type { DeploymentInfo, TenantConfig } from '@teamhub/hub-contracts';
 import { getArtifactDir } from './artifact-storage.js';
 import { buildSetupServer } from './build-setup-server.js';
-import { RealClock } from './clock.js';
+import { FixedClock, RealClock } from './clock.js';
 import type { Clock } from './clock.js';
 import { buildHubServer } from './server.js';
 import { LarkIntegrationStore } from './store/lark-integration-store.js';
 import { openUnifiedDb } from './store/sqlite-unified.js';
 import { resolveBuildId } from './status.js';
+import { SqliteApplicationUnitOfWork } from './infrastructure/sqlite-application-unit-of-work.js';
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 4177;
@@ -45,9 +47,12 @@ async function main(): Promise<void> {
     throw new Error('数据库状态为 initialized，但 app_settings 单例不存在');
   }
 
-  const clock: Clock | undefined =
-    settings.dataMode === 'demo' ? undefined : new RealClock();
+  const clock: Clock =
+    settings.dataMode === 'demo'
+      ? new FixedClock(new Date(GOVERNANCE_SCENARIO_NOW))
+      : new RealClock();
   const stores = database.openStores(clock);
+  const unitOfWork = new SqliteApplicationUnitOfWork(database.db, clock);
   const larkStore = LarkIntegrationStore.fromSharedDb(database.db);
   await stores.gov.ensureDefaultGroups();
 
@@ -85,6 +90,9 @@ async function main(): Promise<void> {
     baselineStore: stores.baseline,
     checklistStore: stores.checklist,
     reimburseStore: stores.reimburse,
+    inventoryStockInPort: stores.inv,
+    reimburseStockInPort: stores.reimburse,
+    unitOfWork,
     writeToken,
     trustProxy,
     identityMode,

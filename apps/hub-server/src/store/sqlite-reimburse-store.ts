@@ -2,6 +2,7 @@ import type { ReimburseBatch, ReimburseEntry } from '@teamhub/hub-contracts';
 import { GOVERNANCE_SCENARIO_NOW } from '@teamhub/hub-contracts';
 import { FixedClock } from '../clock.js';
 import type { Clock } from '../clock.js';
+import type { ReimburseStockInPort } from '../application/reimburse-stock-in-service.js';
 import { createIdSequence, nextSequentialId } from './id-sequence.js';
 import type { IdSequence } from './id-sequence.js';
 import type { SqliteDatabase } from './sqlite-db.js';
@@ -26,7 +27,7 @@ import type {
  */
 const REIMBURSE_TABLES = ['reimburse_entries', 'reimburse_batches'] as const;
 
-export class SqliteReimburseStore implements ReimburseStore {
+export class SqliteReimburseStore implements ReimburseStore, ReimburseStockInPort {
   private readonly sdb: SqliteDatabase;
   private readonly clock: Clock;
   private entrySeq!: IdSequence;
@@ -64,6 +65,10 @@ export class SqliteReimburseStore implements ReimburseStore {
   }
 
   async getEntry(id: string): Promise<ReimburseEntry | undefined> {
+    return this.readEntryForStockIn(id);
+  }
+
+  readEntryForStockIn(id: string): ReimburseEntry | undefined {
     return this.sdb.getRow<ReimburseEntry>('reimburse_entries', id);
   }
 

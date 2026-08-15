@@ -14,6 +14,11 @@ import type {
 } from '@teamhub/hub-contracts';
 import { FixedClock } from '../../src/clock.js';
 import type { Clock } from '../../src/clock.js';
+import type {
+  InventoryStockInActionDraft,
+  InventoryStockInPartDraft,
+  InventoryStockInPort,
+} from '../../src/application/reimburse-stock-in-service.js';
 import { cloneArrayFields } from '../../src/store/clone-snapshot.js';
 import type {
   InvStore,
@@ -38,7 +43,7 @@ const INVENTORY_ARRAY_FIELDS: (keyof InventorySnapshot)[] = [
  * （组合复用、零漂移，等同 旧生产 Store 复用 InMemoryGovStore）。非法迁移由 applyPartAction 抛
  * InvalidPartActionError，路由捕获后转 400。
  */
-export class InMemoryInvStore implements InvStore {
+export class InMemoryInvStore implements InvStore, InventoryStockInPort {
   private readonly snapshot: InventorySnapshot;
   private readonly clock: Clock;
   // 单调自增计数器（构造期 = seed 数组 length）：createX 用 `++seq` 生成 id，永不回退。
@@ -56,6 +61,10 @@ export class InMemoryInvStore implements InvStore {
   }
 
   async getInventorySnapshot(): Promise<InventorySnapshot> {
+    return this.readStockInSnapshot();
+  }
+
+  readStockInSnapshot(): InventorySnapshot {
     // M7：返回浅拷贝（顶层 + 三数组克隆，与构造期同一份克隆纪律），防外部 push/splice 绕过白名单 mutate live。
     return cloneArrayFields(this.snapshot, INVENTORY_ARRAY_FIELDS);
   }
@@ -73,7 +82,14 @@ export class InMemoryInvStore implements InvStore {
    * 否则创建（id=`parttype-new-N`，lastCountedAt=now=盘点建底首次计数）。
    */
   async upsertPartType(draft: PartTypeDraft): Promise<PartType> {
-    const now = this.clock.now().toISOString();
+    return this.upsertStockInPartType(draft, this.clock.now());
+  }
+
+  upsertStockInPartType(
+    draft: InventoryStockInPartDraft,
+    occurredAt: Date,
+  ): PartType {
+    const now = occurredAt.toISOString();
     if (draft.id) {
       const idx = this.snapshot.partTypes.findIndex((p) => p.id === draft.id);
       if (idx >= 0) {
@@ -163,7 +179,14 @@ export class InMemoryInvStore implements InvStore {
    * 非法迁移（未知 partType / 未知个体件 / 负库存 / used 超 total / 缺持有者）抛 InvalidPartActionError。
    */
   async recordPartAction(draft: PartActionDraft): Promise<PartAction> {
-    const now = this.clock.now().toISOString();
+    return this.recordStockInAction(draft, this.clock.now());
+  }
+
+  recordStockInAction(
+    draft: InventoryStockInActionDraft,
+    occurredAt: Date,
+  ): PartAction {
+    const now = occurredAt.toISOString();
     const ptIdx = this.snapshot.partTypes.findIndex((p) => p.id === draft.partTypeId);
     if (ptIdx < 0) {
       throw new InvalidPartActionError(`未知零件类型: ${draft.partTypeId}`);

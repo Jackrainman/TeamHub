@@ -38,6 +38,12 @@ import {
 } from './routes/helpers.js';
 import { registerWriteGate } from './middleware/write-gate.js';
 import type { AppSettingsService } from './store/sqlite-unified.js';
+import { ReimburseStockInService } from './application/reimburse-stock-in-service.js';
+import type {
+  InventoryStockInPort,
+  ReimburseStockInPort,
+} from './application/reimburse-stock-in-service.js';
+import type { ApplicationUnitOfWork } from './application/unit-of-work.js';
 
 /**
  * 部署配置写通道运行时依赖（SETUP-WIZARD 刀③，setup-wizard.md §6）：设置页「部署配置」写区背后的
@@ -137,6 +143,12 @@ export interface BuildHubServerOptions {
    * （registerReimburseRoutes，挂 ledger 模块下）。
    */
   reimburseStore: ReimburseStore;
+  /** 跨 repository 写的唯一事务边界；生产必须是 SQLite UoW。 */
+  unitOfWork: ApplicationUnitOfWork;
+  /** 报账只依赖库存域的窄同步入库 port，不拿完整 repository 做跨域编排。 */
+  inventoryStockInPort: InventoryStockInPort;
+  /** 报账条目同步读取窄 port，与库存写共享同一 UoW。 */
+  reimburseStockInPort: ReimburseStockInPort;
 }
 
 // 归档物文件上传上限（50MB）：覆盖机械 CAD（step/stp/sldprt）+ 电路 PDF + 固件，又约束资源耗尽面。
@@ -207,6 +219,11 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
   const baselineStore = options.baselineStore;
   const checklistStore = options.checklistStore;
   const reimburseStore = options.reimburseStore;
+  const reimburseStockInService = new ReimburseStockInService(
+    options.reimburseStockInPort,
+    options.inventoryStockInPort,
+    options.unitOfWork,
+  );
   const tenantConfig = options.tenantConfig;
 
   // ── 轻身份登录（IDENTITY-LITE，D-083 §4.2）─────────────────────────────────────────────────
@@ -277,7 +294,12 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
   if (moduleEnabled('ledger')) {
     registerLedgerRoutes(app, { store, invStore, identityMode });
     // REIMBURSE-PROC：报账域挂 ledger 模块下（采购-报账-入库联动，与库存同支柱同开关）。
-    registerReimburseRoutes(app, { store, invStore, reimburseStore, identityMode });
+    registerReimburseRoutes(app, {
+      store,
+      reimburseStore,
+      reimburseStockInService,
+      identityMode,
+    });
   }
   if (moduleEnabled('presence-schedule')) {
     registerPresenceScheduleRoutes(app, { store, clock });
