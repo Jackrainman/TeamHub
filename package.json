@@ -12,10 +12,10 @@
     "verify:architecture": "node scripts/verify-architecture.mjs",
     "test:docs": "node --test scripts/test/verify-docs-architecture.test.mjs",
     "test:architecture": "node --test scripts/test/verify-architecture.test.mjs",
-    "verify": "npm run verify:docs && npm run verify:architecture && npm run test:docs && npm run test:architecture && npm run verify:all -w apps/hub-contracts && npm run verify:all -w apps/hub-server && npm run verify:all -w apps/hub-console",
-    "typecheck": "npm run typecheck -w apps/hub-console && npm run typecheck -w apps/hub-server",
-    "test": "npm run test -w apps/hub-server && npm run test -w apps/hub-console",
-    "build": "npm run build -w apps/hub-console && npm run build -w apps/hub-server"
+    "verify": "npm run verify:docs && npm run verify:architecture && npm run test:docs && npm run test:architecture && npm run verify:all -w apps/hub-contracts && npm run verify:local -w apps/hub-server && npm run verify:local -w apps/hub-console",
+    "typecheck": "npm run typecheck -w apps/hub-contracts && npm run build -w apps/hub-contracts && npm run typecheck:local -w apps/hub-server && npm run typecheck:local -w apps/hub-console",
+    "test": "npm run build -w apps/hub-contracts && npm run test -w apps/hub-contracts && npm run test:local -w apps/hub-server && npm run test:local -w apps/hub-console",
+    "build": "npm run build -w apps/hub-contracts && npm run build:local -w apps/hub-console && npm run build:local -w apps/hub-server"
   },
   "engines": {
     "node": ">=24"

@@ -6,16 +6,20 @@
   "type": "module",
   "scripts": {
     "dev": "npm run build:contracts && vite",
-    "build": "npm run build:contracts && tsc -b && vite build",
+    "build": "npm run build:contracts && npm run build:local",
+    "build:local": "tsc -b && vite build",
     "preview": "vite preview",
     "preview:local": "../../scripts/preview-hub-console.sh",
     "build:contracts": "tsc -p ../hub-contracts/tsconfig.json",
-    "typecheck": "npm run build:contracts && tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json",
-    "test": "npm run build:contracts && vitest run",
+    "typecheck": "npm run build:contracts && npm run typecheck:local",
+    "typecheck:local": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json",
+    "test": "npm run build:contracts && npm run test:local",
+    "test:local": "vitest run",
     "test:watch": "vitest",
     "health-check": "node e2e/health-check.cjs",
     "e2e:smoke": "node e2e/runner.cjs",
-    "verify:all": "npm run typecheck && npm run test && npm run build"
+    "verify:local": "npm run typecheck:local && npm run test:local && npm run build:local",
+    "verify:all": "npm run build:contracts && npm run verify:local"
   },
   "engines": {
     "node": ">=24"

@@ -24,6 +24,7 @@
     "test": "npm run build:contracts && npm run test:local",
     "test:local": "vitest run",
     "test:watch": "vitest",
+    "verify:local": "npm run typecheck:local && npm run test:local && npm run build:local",
     "verify:all": "npm run build:contracts && npm run typecheck:local && npm run test:local && npm run build:local"
   },
   "engines": {
