@@ -13,15 +13,14 @@ import {
   type Member,
 } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
-import { InMemoryKbStore } from '../src/store/mock-kb-store.js';
-import { FileKbStore } from '../src/store/file-kb-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryKbStore } from './support/inmemory-kb-store.js';
 
 /**
  * KB 批量 md 导入端到端（KB-BULK-MD-IMPORT 打磨轮刀⑫）：POST /api/kb/import-docs——
  * 多文件 multipart 导入落库（generatedBy='manual' 钉住 / 只进 archiveDocuments 不碰 issueCards·errorEntries）/
  * 同 title 重导 skipped（幂等不翻倍）/ 非 md skipped / 鉴权（身份非持旗 403、无会话 401、匿名 Bearer 双轨）/
- * FileKbStore 落盘读回。
+ * 持久化契约由 sqlite-unified.test.ts 统一覆盖。
  */
 
 // 构造多文件 multipart 请求体（同名字段 'files'，与 console postMultiFormData 对齐；
@@ -299,52 +298,6 @@ describe('写门 × writeToken（匿名模式走 Bearer，照名册/库存双轨
       expect(withAuth.statusCode).toBe(200);
     } finally {
       await app.close();
-    }
-  });
-});
-
-describe('FileKbStore.addArchiveDocuments 持久化（整批一次落盘，照 appendCloseout 范式）', () => {
-  function doc(issueId: string, content: string): ArchiveDocument {
-    return {
-      issueId,
-      projectId: 'prj-robots',
-      fileName: `2026-07-25_${issueId}.md`,
-      filePath: `.debug_workspace/archive/2026-07-25_${issueId}.md`,
-      markdownContent: content,
-      generatedBy: 'manual',
-      generatedAt: '2026-07-25T00:00:00.000Z',
-    };
-  }
-
-  test('落盘后可从文件读回；重启等价路径重建仍在；同 issueId 幂等 skipped', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'kb-import-docs-'));
-    try {
-      const file = join(dir, 'kb.json');
-      const seed = emptyKb();
-      const store = await FileKbStore.create(file, seed);
-      const outcome = await store.addArchiveDocuments([
-        doc('iss-md-a-deadbeef', '# A'),
-        doc('iss-md-b-cafebabe', '# B'),
-      ]);
-      expect(outcome.added).toHaveLength(2);
-      expect(outcome.skippedIssueIds).toEqual([]);
-      // 落盘读回：文件本身含导入文档。
-      const onDisk = JSON.parse(await readFile(file, 'utf8')) as KbSnapshot;
-      expect(onDisk.archiveDocuments).toHaveLength(2);
-      expect(onDisk.issueCards).toEqual([]);
-      expect(onDisk.errorEntries).toEqual([]);
-      // 重启等价路径：从同一文件重建 store，导入文档仍在。
-      const reopened = await FileKbStore.create(file, seed);
-      expect((await reopened.getKbSnapshot()).archiveDocuments).toHaveLength(2);
-      // 幂等：同 issueId 再导 → skipped 不翻倍、不覆盖。
-      const again = await reopened.addArchiveDocuments([doc('iss-md-a-deadbeef', '# A 改')]);
-      expect(again.added).toEqual([]);
-      expect(again.skippedIssueIds).toEqual(['iss-md-a-deadbeef']);
-      const snap = await reopened.getKbSnapshot();
-      expect(snap.archiveDocuments).toHaveLength(2);
-      expect(snap.archiveDocuments.find((d) => d.issueId === 'iss-md-a-deadbeef')!.markdownContent).toBe('# A');
-    } finally {
-      await rm(dir, { recursive: true, force: true });
     }
   });
 });

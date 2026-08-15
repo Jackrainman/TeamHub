@@ -81,7 +81,7 @@ curl -s http://127.0.0.1:4177/health | grep buildId  # 活体
 - D-090 目标路由放 `src/modules/<domain>/routes.ts`，同域配 `service/repository/sqlite-repository`；server.ts 只遍历模块注册。
 - 请求体校验用 `parseBody(Schema, request, reply)`；查询参数用 `parseQuery`；鉴权用 `requireSuperAdmin`/`requireActor`（均在 helpers.ts）。
 - CSV 上传用 `readCsvUpload(request, reply, { maxBytes, decode })`。
-- D-090 目标：生产只保留统一 SQLite repository；InMemory 仅作 `test/support` fake，File Store 与生产内存 fallback 待迁移删除。新增域禁止再建三实现。
+- 生产只保留统一 SQLite repository；InMemory 仅作 `test/support` fake，File Store 与生产内存 fallback 已删除。新增域禁止再建三实现。
 - API 响应：200+JSON；目标错误 envelope `{ code: string, detail: string, fields?: object }`；列表直接数组。
 - 复用：`routes/helpers.ts` 提供 parseBody / parseQuery / readCsvUpload / sessionActor / requireSuperAdmin / requireActor / isLoopbackOperator / buildScheduleSnapshot / cookie 族。`authz.ts` 提供 isSuperAdmin / isGroupLeadOf / isGateReviewer / memberHasPmFlag。
 - 报账域是 D-090 首个模块模板试点，目标见 `docs/domains/reimburse.md`。红线：发票/付款截图/查验单**文件本体永不上传**；条目人键只回本人+超管，批次聚合无按人明细；跨域入库改由 application service + 事务编排，route 不直调两个 repository。

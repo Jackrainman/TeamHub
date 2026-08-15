@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 
 // AUDIT-FIXES 部署前必修的路由层回归（H1 / M6 / H4 / H3）。
-// H2（FileKbStore 写链失败隔离）见 kb-store-persist.test.ts；M9（errorCode 单调）见 kb-closeout-route.test.ts。
+// H2 旧 JSON 写链事故已随生产 File Store 删除；M9（errorCode 单调）见 kb-closeout-route.test.ts。
 
 const taskBody = {
   projectId: 'prj-robots',

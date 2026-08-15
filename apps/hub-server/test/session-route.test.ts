@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 
 // IDENTITY-LITE（D-083 §4.2）会话 + 服务端 actor 注入端到端。红线：pinHash 永不出响应；防枚举失败不区分；
 // 匿名模式（默认）现状零变化。

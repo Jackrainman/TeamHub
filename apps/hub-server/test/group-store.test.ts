@@ -2,9 +2,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { FileGovStore } from '../src/store/file-gov-store.js';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
-import { SqliteGovStore } from '../src/store/sqlite-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 
 /**
  * GovStore 组管理最小版（PROGRAM-GROUP-ABSTRACT，公测补强刀④）：三实现（mock/file/sqlite）同语义——
@@ -85,63 +83,5 @@ describe('GovStore 组管理 — InMemory 守卫', () => {
     expect(removed.ok).toBe(true);
     const snap = await store.getSnapshot();
     expect(snap.groups.some((g) => g.id === empty.group.id)).toBe(false);
-  });
-});
-
-describe('GovStore 组管理 — 落盘（file / sqlite）', () => {
-  let dir = '';
-  afterEach(async () => {
-    if (dir) await rm(dir, { recursive: true, force: true });
-    dir = '';
-  });
-
-  test('File：建组/改名/删组落 governance.json，重启（新实例）仍在', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'gov-groups-'));
-    const file = join(dir, 'gov.json');
-    const store = await FileGovStore.create(file);
-    const created = await store.createGroup({ name: '运营' });
-    if (!created.ok) throw new Error('unreachable');
-    await store.renameGroup(created.group.id, '运营宣传');
-    const onDisk = JSON.parse(await readFile(file, 'utf8'));
-    expect(
-      onDisk.groups.find((g: { id: string }) => g.id === created.group.id)?.name,
-    ).toBe('运营宣传');
-
-    const reloaded = await FileGovStore.create(file);
-    const snap = await reloaded.getSnapshot();
-    expect(snap.groups.find((g) => g.id === created.group.id)?.name).toBe('运营宣传');
-    // 重开后删组也落盘；id 序列从磁盘续接不撞（再建组不复用已删 id）。
-    const removed = await reloaded.deleteGroup(created.group.id);
-    expect(removed.ok).toBe(true);
-    const again = await reloaded.createGroup({ name: '二组' });
-    if (!again.ok) throw new Error('unreachable');
-    expect(again.group.id).not.toBe(created.group.id);
-    const onDisk2 = JSON.parse(await readFile(file, 'utf8'));
-    expect(onDisk2.groups.some((g: { id: string }) => g.id === created.group.id)).toBe(false);
-  });
-
-  test('Sqlite：建组/改名/删组落库，重开仍在；守卫镜像（非叶子 not-leaf）', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'gov-groups-sqlite-'));
-    const file = join(dir, 'gov.sqlite');
-    const store = await SqliteGovStore.create(file);
-    const created = await store.createGroup({ name: '运营' });
-    if (!created.ok) throw new Error('unreachable');
-    await store.renameGroup(created.group.id, '运营宣传');
-    expect(await store.renameGroup('grp-program', '新名')).toEqual({
-      ok: false,
-      reason: 'not-leaf',
-    });
-    store.close();
-
-    const reopened = await SqliteGovStore.create(file);
-    const snap = await reopened.getSnapshot();
-    expect(snap.groups.find((g) => g.id === created.group.id)?.name).toBe('运营宣传');
-    const removed = await reopened.deleteGroup(created.group.id);
-    expect(removed.ok).toBe(true);
-    reopened.close();
-
-    const again = await SqliteGovStore.create(file);
-    expect((await again.getSnapshot()).groups.some((g) => g.id === created.group.id)).toBe(false);
-    again.close();
   });
 });

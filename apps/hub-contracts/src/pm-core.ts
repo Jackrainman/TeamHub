@@ -61,8 +61,7 @@ export const ProjectSchema = z.object({
   // HUB-MODULARIZATION 第4步：改 optional——无机器人租户的 Project 不必填此机器人枚举数组
   // （Project 目前未进 GovernanceSnapshot/落盘，属尚未接线的 scaffolding 类型，改动零消费点回归面）。
   robotTargets: z.array(RobotTargetSchema).min(1).optional(),
-  // 中性泛化槽，与 Task.targetLabel 对称（数组形态承接 robotTargets 复数）；同样尚无消费点，
-  // 迁移脚本 scripts/migrate-robottarget.mjs 预留回填逻辑，供未来 Project 真正接入落盘时使用。
+  // 中性泛化槽，与 Task.targetLabel 对称（数组形态承接 robotTargets 复数）；同样尚无消费点。
   targetLabels: z.array(z.string().min(1)).optional(),
   status: z.enum(['active', 'archived']),
   createdAt: isoDateTimeSchema,
@@ -162,9 +161,8 @@ export const MemberObjectSchema = z.object({
   gateReviewer: z.boolean().optional(),
   // ── 项目管理旗标（MEMBER-PM-FLAG，公测补强刀②b）──────────────────────────────────────────
   // **optional 布尔位，缺省 false**：`true` = 该成员持「项目管理」旗标——原 superAdmin 角色的正交化，
-  // 与组长身份不冲突（队长兼组长 = role:groupAdmin + projectManager:true）。旧 gov.json 无此字段
-  // optional 兜底、照常加载；旧数据 `role:'superAdmin'` 由下方 MemberSchema 的 preprocess 加载归一
-  // （flag=true + role:'member'），FileGovStore/SqliteGovStore 无需迁移脚本、fail-closed 校验不误杀。
+  // 与组长身份不冲突（队长兼组长 = role:groupAdmin + projectManager:true）。缺省 false；历史
+  // `role:'superAdmin'` 输入由下方 MemberSchema preprocess 归一为 flag=true + role:'member'。
   // **I0**：权限布尔而已，绝不做按人聚合/排行。
   projectManager: z.boolean().optional(),
 });

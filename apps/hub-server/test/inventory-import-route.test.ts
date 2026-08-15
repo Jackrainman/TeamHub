@@ -15,14 +15,13 @@ import {
   type Member,
 } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
-import { InMemoryInvStore } from '../src/store/mock-inv-store.js';
-import { FileInvStore } from '../src/store/file-inv-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryInvStore } from './support/inmemory-inv-store.js';
 
 /**
  * 库存批量导入端到端（INV-BULK-IMPORT 刀⑪）：GET 模板 + POST preview（只解析不落库）+
  * POST import 双收（multipart / JSON 等价）+ partNumber 幂等 upsert（重导不翻倍、totalQuantity 覆盖、
- * trackIndividually/allocations 不动）+ GBK 编码 + 鉴权（身份非持旗 403 / 写门 Bearer）+ FileInvStore 落盘。
+ * trackIndividually/allocations 不动）+ GBK 编码 + 鉴权（身份非持旗 403 / 写门 Bearer）。
  */
 
 // 构造单文件 multipart 请求体（照 roster-import-route.test.ts 先例）。
@@ -429,38 +428,6 @@ describe('写门 × writeToken（匿名模式走 Bearer，照名册双轨范式�
       expect(withAuth.statusCode).toBe(200);
     } finally {
       await app.close();
-    }
-  });
-});
-
-describe('FileInvStore 持久化（整批一次落盘，照 upsertPartType 范式）', () => {
-  test('importPartTypes 落盘后可从文件读回（partTypes 含导入行）', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'inv-import-'));
-    try {
-      const file = join(dir, 'inventory.json');
-      const store = await FileInvStore.create(file, emptyInv());
-      const outcome = await store.importPartTypes([
-        {
-          partNumber: 'GM6020',
-          name: '6020 电机',
-          category: 'motor',
-          unit: '个',
-          totalQuantity: 6,
-          lowStockThreshold: 2,
-          line: 2,
-        },
-      ]);
-      expect(outcome.created).toEqual(['GM6020']);
-      // 落盘读回：文件本身是合法 InventorySnapshot，且含导入行。
-      const raw = JSON.parse(await readFile(file, 'utf8'));
-      const disk = InventorySnapshotSchema.parse(raw);
-      expect(disk.partTypes).toHaveLength(1);
-      expect(disk.partTypes[0].partNumber).toBe('GM6020');
-      // 重启等价路径：从同一文件重建 store，导入行仍在。
-      const reopened = await FileInvStore.create(file, emptyInv());
-      expect((await reopened.getInventorySnapshot()).partTypes).toHaveLength(1);
-    } finally {
-      await rm(dir, { recursive: true, force: true });
     }
   });
 });

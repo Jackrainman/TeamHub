@@ -128,7 +128,7 @@ export type SeasonDraft = Omit<Season, 'id' | 'status'>;
 /**
  * 战队项目计划表核心读写出入口（pm-core 域；D-040/D-042/D-041）。
  *
- * 写（白名单，实现见 InMemoryGovStore / FileGovStore / SqliteGovStore）：
+ * 写（白名单，实现见 测试 fake / 旧 JSON decorator / SqliteGovRepository）：
  *   - `createTask` / `createDependency` / `createNeed`：PM 项目计划表 C1 兜底录入（任务、依赖图人手建边、缺口暴露）。
  *   - `closeoutKbNode`：KB-CORE 结案派生 `KnowledgeNode`（POST /api/kb/closeout 消费）。**D-042 决策 1**：
  *     结案派生 + `knowledgeNodes/taskKnowledgeTags` 读路径复用同一 `GovernanceSnapshot`（不必扩本 interface）——
@@ -175,7 +175,7 @@ export interface PmCoreStore {
    * 设 / 改成员登录 PIN 散列（PUT /api/members/:id/pin，IDENTITY-LITE，D-083 §4.2）。就地改 members[idx]
    * 的 `pinHash`（scrypt 格式串，**由路由层散列后传入**）+ bump updatedAt、钉 updatedBy=`console`。
    * id 不存在 → 返回 null（路由层转 404）。**密钥纪律**：pinHash 只落盘、绝不经读视图外露（路由层回带
-   * 走 MemberPublicSchema 剥离）。FileGovStore 落 governance.json（members 是 GovernanceSnapshot 字段，
+   * 走 MemberPublicSchema 剥离）。旧 JSON decorator 落 governance.json（members 是 GovernanceSnapshot 字段，
    * persist 失败按 idx 原地还原，镜像 updateTaskStatus）。
    * **`pinHash = null`（公测余项⑦ PIN-RESET）= 清除 pinHash**（DELETE /api/members/:id/pin 消费）：
    * 成员回到「无 pinHash 免 PIN」态，下次登录后经 firstSetup 流程自行重设。授权（须 superAdmin）在路由层判。
@@ -194,7 +194,7 @@ export interface PmCoreStore {
    * 就地改 members[idx] 的 `gateReviewer` 布尔位（照 setMemberPin 范式）+ bump updatedAt、钉 updatedBy=`console`。
    * **每年换届更新**（验收人=大三，换届交接门的一项，gate-checklist-iou.md §3）。授权（须现任验收人 /
    * 管理员）在路由层判。id 不存在 → 返回 null（路由层转 404）。**I0**：资格布尔而已，绝不做按人聚合/排行。
-   * FileGovStore 落 governance.json（members 是 GovernanceSnapshot 字段，persist 失败按 idx 原地还原，
+   * 旧 JSON decorator 落 governance.json（members 是 GovernanceSnapshot 字段，persist 失败按 idx 原地还原，
    * 镜像 setMemberPin）。响应回带走 MemberPublicSchema 剥 pinHash（路由层，密钥纪律）。
    */
   setMemberGateReviewer(
@@ -208,7 +208,7 @@ export interface PmCoreStore {
    * 授权（匿名=写门即可 / 身份=须持旗管理员）在**路由层**判。MEMBER-PM-FLAG 后 role 不再承载管理员权限
    * （原 superAdmin 档 → projectManager 旗标），故本写口无降级保护——降级保护随权限移到 setProjectManager。
    * id 不存在 → 返回 null（路由层转 404）。**I0**：只改一个枚举位，绝不做按人聚合/排行。
-   * FileGovStore 落 governance.json（members 是 GovernanceSnapshot 字段，persist 失败按 idx 原地还原，
+   * 旧 JSON decorator 落 governance.json（members 是 GovernanceSnapshot 字段，persist 失败按 idx 原地还原，
    * 镜像 setMemberGateReviewer）。响应回带走 MemberPublicSchema 剥 pinHash（路由层，密钥纪律）。
    */
   setMemberRole(memberId: string, role: MemberRole): Promise<Member | null>;
@@ -221,7 +221,7 @@ export interface PmCoreStore {
    * `opts.guardLastProjectManager` 开启时，判「至多 1 个持旗成员」与写在同一 store 调用内完成，堵住路由层
    * 先读后写的并发窗口）。结果走 `SetProjectManagerResult` 判别联合（ok / not-found /
    * last-projectmanager），路由层映射 200 / 404 / 409。**I0**：只改一个布尔位，绝不做按人聚合/排行。
-   * FileGovStore 落 governance.json（persist 失败按 idx 原地还原，镜像 setMemberRole）。响应回带走
+   * 旧 JSON decorator 落 governance.json（persist 失败按 idx 原地还原，镜像 setMemberRole）。响应回带走
    * MemberPublicSchema 剥 pinHash（路由层，密钥纪律）。
    */
   setProjectManager(
@@ -252,7 +252,7 @@ export interface PmCoreStore {
   // ── 组管理最小版（PROGRAM-GROUP-ABSTRACT 刀④，D-072「设置页可增减组」前置缺口）─────────────────
   // 「可选组 = 叶子组且非哨兵」由 `deriveLeafGroups` 结构派生（parentGroupId 链，零 Group schema 改动）；
   // 授权（匿名=写门即可 / 身份=须持旗管理员）在**路由层**判，守卫全收进本方法同一临界区（照
-  // setProjectManager TOCTOU 先例）。FileGovStore 落 governance.json（groups 是 GovernanceSnapshot
+  // setProjectManager TOCTOU 先例）。旧 JSON decorator 落 governance.json（groups 是 GovernanceSnapshot
   // 字段；create=append 类回滚、rename=idx 类、delete=写前存整条失败时原位插回）。
 
   /**
@@ -277,8 +277,8 @@ export interface PmCoreStore {
    * 正常模式启动装配（main.ts）调用本方法预建 contracts `buildDefaultGroupTree` 的默认树
    * （四组 + 程序母组，**不含 grp-convergence 哨兵组**）。**临界区内判空幂等**：groups 已非空
    * （demo seed / 既有数据）→ 什么都不做；空 → 一次性插入整棵树（seasonId 取当前 active ?? 顶层，
-   * 照 createGroup 钉法）。FileGovStore 落 governance.json（groups 是 GovernanceSnapshot 字段，
-   * persist 失败整组还原，镜像 importRoster）；SqliteGovStore 单事务读-判-写。
+   * 照 createGroup 钉法）。旧 JSON decorator 落 governance.json（groups 是 GovernanceSnapshot 字段，
+   * persist 失败整组还原，镜像 importRoster）；SqliteGovRepository 单事务读-判-写。
    */
   ensureDefaultGroups(): Promise<void>;
 

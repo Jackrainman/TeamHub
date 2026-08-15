@@ -12,13 +12,13 @@ import type {
  * 拆出的第三个域接口，经交叉类型复合回 `GovStore`（见 gov-store.ts）。**8 个排班方法**
  * （createResourceSession/createResourceSessionsBatch/updateResourceSession/deleteResourceSession/
  * listResourceSessions/createRelayHandoff/deleteRelayHandoff/listRelayHandoffs）此前**连 JSON 落盘先例
- * 都没有**（仅走内存，D-029 粗粒度临时、重启回 seed）——**SCHEDULE-PERSIST 已补齐**：FileGovStore 落盘到
- * 独立 schedule-sessions.json（resourceSessions + relayHandoffs 合一，见 file-gov-store.ts
- * ScheduleSessionsFileSchema 注释）；InMemoryGovStore 仍仅走内存（进程重启回 seed，符合 D-029 粗粒度临时
+ * 都没有**（仅走内存，D-029 粗粒度临时、重启回 seed）——**SCHEDULE-PERSIST 已补齐**：旧 JSON decorator 落盘到
+ * 独立 schedule-sessions.json（resourceSessions + relayHandoffs 合一，见 旧 JSON decorator
+ * ScheduleSessionsFileSchema 注释）；测试 fake 仍仅走内存（进程重启回 seed，符合 D-029 粗粒度临时
  * 语义）。SS3 迁 SQLite 时本域接口签名不变，只换第三实现。
  *
  * **为何独立读口**：SharedResource / ResourceSession 不在 GovernanceSnapshot 内（GovernanceSnapshot 是
- * 11 字段、无这两块）、且**不扩**它（扩会牵动 file-gov-store 的 GovernanceSnapshotSchema +
+ * 11 字段、无这两块）、且**不扩**它（扩会牵动 GovernanceSnapshotSchema +
  * GOVERNANCE_ARRAY_FIELDS + clone 列表 + 已落盘 JSON 格式兼容）——故走独立读口，路由层把
  * `{...snapshot, resources, resourceSessions}` 拼成 ScheduleSnapshot 喂纯函数。
  */
@@ -74,8 +74,8 @@ export type ResourceSessionDraft = Omit<
  * updateResourceSession 入参（R1 接力画布编辑）：队长拖卡片排先后 / 选填预估完成时间。
  * 只两字段可改——`orderInWindow`（画布内拖动排序）+ `eta`（可空预估完成时间，nullable）；
  * 都 optional（拖卡只动 order、改 eta 只动 eta）。其余字段不开 update 口子（C3 受限编辑）。
- * FileGovStore 落盘到 schedule-sessions.json（SCHEDULE-PERSIST，与 resourceSessions 同落）；
- * InMemoryGovStore 仅改内存数组（D-029：占用窗口粗粒度临时，重启回 seed）。
+ * 旧 JSON decorator 落盘到 schedule-sessions.json（SCHEDULE-PERSIST，与 resourceSessions 同落）；
+ * 测试 fake 仅改内存数组（D-029：占用窗口粗粒度临时，重启回 seed）。
  */
 export type ResourceSessionPatch = Partial<
   Pick<ResourceSession, 'orderInWindow' | 'eta'>
@@ -85,7 +85,7 @@ export type ResourceSessionPatch = Partial<
  * createRelayHandoff 入参（R1 接力画布拉线）：队长在两卡间拉「接力交接线」——先后交接、**非**任务依赖。
  * Store 补 id/createdAt、钉 `source='console'`（C5 来源 seam server 钉），故 draft 仅 Omit id/source/createdAt。
  * `confirmedBy` 随请求传入（拉线即确认拍板，类比 ResourceSession/Dependency 内部凭证），保留在 draft。
- * FileGovStore 落盘到 schedule-sessions.json（SCHEDULE-PERSIST，与 session 同落）；InMemoryGovStore
+ * 旧 JSON decorator 落盘到 schedule-sessions.json（SCHEDULE-PERSIST，与 session 同落）；测试 fake
  * 仅改内存数组（D-029）。**反监视红线**：主键只 session/资源/组，永无 memberId。
  */
 export type RelayHandoffDraft = Omit<
@@ -111,8 +111,8 @@ export interface ScheduleStore {
    * 建一台共享资源（POST /api/resources，R3 车管理 / D-072 §3.2）。Store 补 id + updatedAt、
    * **钉 status=`available` / statusReason=null / statusSource=`console`**（C5 来源 seam）。
    * displayCode 由 **Store 内部**经 deriveDisplayCode 派生（**禁手写**，调用方绝不传，D-072 §3.2 决定 K）。
-   * **持久化（R3 核心）**：FileGovStore 落盘到独立 resources.json（不入 GovernanceSnapshot）；
-   * InMemoryGovStore 仅改内存数组。**I0**：SharedResource 无成员维度，绝不引入 memberId / 出勤。
+   * **持久化（R3 核心）**：旧 JSON decorator 落盘到独立 resources.json（不入 GovernanceSnapshot）；
+   * 测试 fake 仅改内存数组。**I0**：SharedResource 无成员维度，绝不引入 memberId / 出勤。
    */
   createResource(resource: ResourceDraft): Promise<SharedResource>;
   /**
@@ -120,7 +120,7 @@ export interface ScheduleStore {
    * 流转（维修 / 退役 / 拆解 / 回 available）。**退役 = 改 status→retired、非物删**（整车留展示，
    * ResourceSession 仍引用 resourceId；故无 delete 口子）。statusReason optional+nullable（省略=不动、
    * 显式 null=清空、非空串=改写）；Store 钉 statusSource=`console`（C5）、bump updatedAt。
-   * id 不存在 → 返回 null（路由层转 404）。FileGovStore 改 inner 后原子写 resources.json。
+   * id 不存在 → 返回 null（路由层转 404）。旧 JSON decorator 改 inner 后原子写 resources.json。
    */
   updateResourceStatus(
     id: string,
@@ -129,7 +129,7 @@ export interface ScheduleStore {
   /**
    * 既有车默认阵型写回（PATCH /api/resources/:id/preset，D-082 §6 D2「使用预设」铺底基线）。
    * 整体替换 `defaultPreset`（传对象=设/改，传 `null`=清除）；不开局部 lineup 增量合并口子（C3）。
-   * id 不存在 → 返回 null（路由层转 404）。FileGovStore 与 status 同落 resources.json（同一持久化面）。
+   * id 不存在 → 返回 null（路由层转 404）。旧 JSON decorator 与 status 同落 resources.json（同一持久化面）。
    */
   setResourceDefaultPreset(
     id: string,
@@ -156,8 +156,8 @@ export interface ScheduleStore {
   ): Promise<ResourceSession[]>;
   /**
    * 占用窗口受限编辑（PATCH /api/resource-sessions/:id，R1 接力画布）。只改 orderInWindow / eta
-   * （C3 受限编辑、非通用字段 update）。id 不存在 → null（路由层转 404）。FileGovStore 落盘到
-   * schedule-sessions.json（SCHEDULE-PERSIST）；InMemoryGovStore 仅改内存数组。
+   * （C3 受限编辑、非通用字段 update）。id 不存在 → null（路由层转 404）。旧 JSON decorator 落盘到
+   * schedule-sessions.json（SCHEDULE-PERSIST）；测试 fake 仅改内存数组。
    */
   updateResourceSession(
     id: string,
@@ -166,8 +166,8 @@ export interface ScheduleStore {
   /**
    * 删一棒（DELETE /api/resource-sessions/:id，A2 接力画布「删除一棒」）。删该 session 本体，并**级联删除
    * 引用它的接力交接线**（relayHandoffs 中 fromSessionId===id 或 toSessionId===id 的边——避免删卡后悬空箭头）。
-   * 命中（删了 session）返回 true、不存在 false（路由转 404）。FileGovStore 把 session + 级联删除的
-   * handoffs 一并落盘到 schedule-sessions.json（SCHEDULE-PERSIST，同一次原子写）；InMemoryGovStore 仅改
+   * 命中（删了 session）返回 true、不存在 false（路由转 404）。旧 JSON decorator 把 session + 级联删除的
+   * handoffs 一并落盘到 schedule-sessions.json（SCHEDULE-PERSIST，同一次原子写）；测试 fake 仅改
    * 内存数组（重启回 seed）。**注意**与 deleteResource 不同：ResourceSession 是粗粒度临时占用窗口、可物删；
    * SharedResource 因被 session 引用故只退役不物删（见 updateResourceStatus 注释）。
    */
@@ -177,7 +177,7 @@ export interface ScheduleStore {
   /**
    * 接力交接线录入（POST /api/relay-handoffs，R1 画布拉线）。Store 补 id + createdAt、**钉 source=`console`**
    * （C5：来源 seam server 钉，请求不收）。confirmedBy 随 draft 传入（拉线即确认拍板）。自环/成环校验在路由层。
-   * FileGovStore 落盘到 schedule-sessions.json（SCHEDULE-PERSIST）；InMemoryGovStore 仅改内存数组
+   * 旧 JSON decorator 落盘到 schedule-sessions.json（SCHEDULE-PERSIST）；测试 fake 仅改内存数组
    * （D-029，重启回 seed=空）。
    */
   createRelayHandoff(draft: RelayHandoffDraft): Promise<RelayHandoff>;

@@ -16,9 +16,9 @@ import type {
   Member,
 } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
-import { InMemoryInvStore } from '../src/store/mock-inv-store.js';
-import { InMemoryReimburseStore } from '../src/store/reimburse-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryInvStore } from './support/inmemory-inv-store.js';
+import { InMemoryReimburseStore } from './support/inmemory-reimburse-store.js';
 
 /**
  * 报账域路由端到端（REIMBURSE-PROC 一期，计划 taskmaster-impulse-steel 阶段 2）：

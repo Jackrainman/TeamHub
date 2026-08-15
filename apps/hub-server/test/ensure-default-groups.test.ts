@@ -4,9 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { governanceScenarioFixture } from '@teamhub/hub-contracts';
 import type { GovernanceSnapshot } from '@teamhub/hub-contracts';
-import { FileGovStore } from '../src/store/file-gov-store.js';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
-import { SqliteGovStore } from '../src/store/sqlite-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 
 /**
  * 空板默认组树（打磨轮刀⑤，onboarding-init-wizard-2026-07-25 §4）：real 真空板（groups 空）→
@@ -75,44 +73,5 @@ describe('ensureDefaultGroups — InMemory', () => {
     const before = (await store.getSnapshot()).groups;
     await store.ensureDefaultGroups();
     expect((await store.getSnapshot()).groups).toEqual(before);
-  });
-});
-
-describe('ensureDefaultGroups — 落盘（file / sqlite）', () => {
-  let dir = '';
-  afterEach(async () => {
-    if (dir) await rm(dir, { recursive: true, force: true });
-    dir = '';
-  });
-
-  test('File：空板首启动建默认树落 governance.json，重启（新实例）仍在；二次调用不落重复', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'gov-default-groups-'));
-    const file = join(dir, 'gov.json');
-    const store = await FileGovStore.create(file, EMPTY_SEED);
-    await store.ensureDefaultGroups();
-    const onDisk = JSON.parse(await readFile(file, 'utf8'));
-    expectDefaultTree(onDisk.groups);
-
-    // 跨真实 reload：既有文件按原样加载 → 默认树仍在；再调 ensureDefaultGroups 幂等（数量不变）。
-    const reloaded = await FileGovStore.create(file, EMPTY_SEED);
-    await reloaded.ensureDefaultGroups();
-    const groups = (await reloaded.getSnapshot()).groups;
-    expectDefaultTree(groups);
-    expect(groups).toHaveLength(DEFAULT_GROUP_IDS.length);
-  });
-
-  test('Sqlite：空板 fresh 库建默认树落库，重开仍在；幂等', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'gov-default-groups-sqlite-'));
-    const file = join(dir, 'gov.sqlite');
-    const store = await SqliteGovStore.create(file, EMPTY_SEED);
-    await store.ensureDefaultGroups();
-    store.close();
-
-    const reopened = await SqliteGovStore.create(file, EMPTY_SEED);
-    await reopened.ensureDefaultGroups();
-    const groups = (await reopened.getSnapshot()).groups;
-    expectDefaultTree(groups);
-    expect(groups).toHaveLength(DEFAULT_GROUP_IDS.length);
-    reopened.close();
   });
 });

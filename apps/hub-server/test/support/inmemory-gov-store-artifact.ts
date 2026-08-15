@@ -1,8 +1,8 @@
 import type { ArtifactRef } from '@teamhub/hub-contracts';
-import { buildCreatedArtifact } from './gov-store-logic.js';
-import type { ArtifactDraft, ArtifactStore } from './gov-store.js';
-import { nextSequentialId } from './id-sequence.js';
-import type { InMemoryGovStoreBase } from './mock-gov-store-base.js';
+import { buildCreatedArtifact } from '../../src/store/gov-store-logic.js';
+import type { ArtifactDraft, ArtifactStore } from '../../src/store/gov-store.js';
+import { nextSequentialId } from '../../src/store/id-sequence.js';
+import type { InMemoryGovStoreBase } from './inmemory-gov-store-base.js';
 
 /**
  * artifact 域方法 mixin（GOV-SPLIT）：ArtifactStore 两条写方法（appendArtifact / setArtifactFile）

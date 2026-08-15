@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 
 /**
  * PIN 明文副本 + 显示端点（打磨轮刀⑧② pinPlaintext，2026-07-25 用户拍板的密钥纪律例外）端到端：

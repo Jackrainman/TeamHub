@@ -8,7 +8,7 @@ import {
   WaiveDependencyResponseSchema,
 } from '@teamhub/hub-contracts';
 import { TasksResponseSchema } from '@teamhub/hub-contracts';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 
 describe('PM 读视图 + 依赖/缺口录入', () => {
   test('GET /api/tasks → 任务列表（I0 安全：Task 无 confirmedBy / 无完成量维度）', async () => {

@@ -71,7 +71,7 @@ export interface GovernanceSnapshot {
 }
 
 /**
- * `GovernanceSnapshot` 的 fail-closed 解析 schema（**单一真相**，hub-server `file-gov-store.ts` import 之）。
+ * `GovernanceSnapshot` 的 fail-closed 解析 schema（**单一真相**，统一 SQLite repository 消费）。
  * 各实体 schema 拼合而成（GovernanceSnapshot 本身手写 interface、无 z.infer，D-051）；字段集与映射须与上方
  * interface 逐字一致。`.passthrough()` 是关键：interface 加了字段却漏加这里时，load 阶段保留未知键而非静默丢，
  * drift-canary 测试（test/attribution.test.ts）会断言 parse 结果 key 集 == fixture key 集、漏加即失败。
@@ -79,9 +79,7 @@ export interface GovernanceSnapshot {
 export const GovernanceSnapshotSchema = z
   .object({
     seasonId: z.string().min(1),
-    // .default([])：旧 gov.json（S1 之前落盘、无 seasons 字段）向后兼容硬要求（D-080 部署地雷教训）——
-    // 缺字段时兜底空数组而非抛，FileGovStore fail-closed 加载旧落盘文件不炸（见
-    // apps/hub-server/test/gov-store-persist.test.ts「旧 gov.json（无 seasons）仍可加载」）。
+    // seasons 缺省为空，供创建真空板和局部 fixture；统一 SQLite 读取后仍由完整 schema 校验。
     seasons: z.array(SeasonSchema).default([]),
     projectId: z.string().min(1),
     stage: z.string().min(1),

@@ -3,9 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
-import { FileGovStore } from '../src/store/file-gov-store.js';
-import { SqliteGovStore } from '../src/store/sqlite-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 import {
   ClaimTaskResponseSchema,
   CompleteTaskResponseSchema,
@@ -206,56 +204,5 @@ describe('TASK-TIMELINE 路由：四写口追加 transitions', () => {
     } finally {
       await app.close();
     }
-  });
-});
-
-describe('TASK-TIMELINE store 三实现：File/Sqlite 落盘重启不丢', () => {
-  let dir = '';
-  afterEach(async () => {
-    if (dir) await rm(dir, { recursive: true, force: true });
-    dir = '';
-  });
-
-  test('FileGovStore：updateTaskStatus(by) 落盘 → 重启 transitions 仍在', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'gov-timeline-'));
-    const file = join(dir, 'gov.json');
-    const store = await FileGovStore.create(file);
-
-    const updated = await store.updateTaskStatus('t-r1-dataset', 'blocked', OWNER);
-    expect(updated?.transitions?.at(-1)?.by?.id).toBe('m-progB');
-
-    const onDisk = JSON.parse(await readFile(file, 'utf8'));
-    expect(
-      onDisk.tasks.find((x: { id: string }) => x.id === 't-r1-dataset').transitions.at(-1).to,
-    ).toBe('blocked');
-
-    const reloaded = await FileGovStore.create(file);
-    const snap = await reloaded.getSnapshot();
-    expect(snap.tasks.find((t) => t.id === 't-r1-dataset')?.transitions?.at(-1)?.by?.id).toBe(
-      'm-progB',
-    );
-  });
-
-  test('SqliteGovStore：claim(claimer) + updateTaskStatus(by) 落库读回', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'gov-timeline-sqlite-'));
-    const store = await SqliteGovStore.create(join(dir, 'gov.sqlite'));
-
-    const posted = await store.createTask({
-      projectId: 'prj-robots',
-      groupId: 'grp-mech',
-      title: '挂单：整理线束',
-      rawSummary: '无主的活',
-      ownerId: null,
-      collaboratorIds: [],
-      intrinsicComplexity: 'trivial',
-    });
-    const claimed = await store.claimTask(posted.id, 'm-mechD', '2026-06-11T00:00:00.000Z', CLAIMER);
-    expect(claimed?.transitions?.at(-1)?.by?.id).toBe('m-mechD');
-
-    await store.updateTaskStatus(posted.id, 'done', OWNER);
-    const snap = await store.getSnapshot();
-    const task = snap.tasks.find((t) => t.id === posted.id);
-    expect(task?.transitions?.map((tr) => tr.to)).toEqual(['inProgress', 'done']);
-    expect(task?.transitions?.at(-1)?.by?.id).toBe('m-progB');
   });
 });

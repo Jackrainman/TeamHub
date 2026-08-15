@@ -4,14 +4,14 @@ import {
   type ChecklistTemplate,
   type GateChecklistItem,
 } from '@teamhub/hub-contracts';
-import { createIdSequence, nextSequentialId } from './id-sequence.js';
-import type { IdSequence } from './id-sequence.js';
+import { createIdSequence, nextSequentialId } from '../../src/store/id-sequence.js';
+import type { IdSequence } from '../../src/store/id-sequence.js';
 import {
   applyChecklistClear,
   applyChecklistWaive,
   buildChecklistItem,
-} from './base-checklist-logic.js';
-import type { ChecklistItemDraft, ChecklistStore } from './checklist-store.js';
+} from '../../src/store/base-checklist-logic.js';
+import type { ChecklistItemDraft, ChecklistStore } from '../../src/store/checklist-store.js';
 
 /** 单条检查项浅克隆隔离（无数组字段，`{...it}` 即够——挡外部改回读到的对象绕过写白名单，同 baseline 纪律）。 */
 function cloneItem(item: GateChecklistItem): GateChecklistItem {
@@ -23,7 +23,7 @@ function cloneItem(item: GateChecklistItem): GateChecklistItem {
  *
  * 默认 seed = `checklistScenarioFixture`（demo 首屏「门详情检查单卡」+「总览告警区欠条未清」非空——同
  * InMemoryBaselineStore 缺省 seed `baselineScenarioFixture` 先例）；模板 seed 空（等复盘导入）。真实团队走
- * `POST /api/checklist` 现场快记覆盖之。进程重启丢失为预期；落盘持久层见 `FileChecklistStore`。
+ * `POST /api/checklist` 现场快记覆盖之。进程重启丢失为预期；落盘持久层见 `旧生产 Store`。
  *
  * 写方法（`createItem`/`clearItem`/`waiveItem`）**不原地 mutate** 已存条目——每次改动都经
  * `GateChecklistItemSchema.parse` 产出**新对象**整体替换 Map 条目（fail-closed：挂接二选一 + 状态不变式
@@ -84,7 +84,7 @@ export class InMemoryChecklistStore implements ChecklistStore {
   }
 
   /**
-   * @internal 持久层回滚专用（FileChecklistStore）：读某条目 live 引用（可能不存在）。
+   * @internal 持久层回滚专用（旧生产 Store）：读某条目 live 引用（可能不存在）。
    * 不做克隆——调用方只用于捕获写前状态以便 persist() 失败时精确还原，不对外暴露给业务读路径。
    */
   peek(id: string): GateChecklistItem | undefined {

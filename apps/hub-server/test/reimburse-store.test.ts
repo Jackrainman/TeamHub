@@ -2,22 +2,15 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import {
-  InMemoryReimburseStore,
-} from '../src/store/reimburse-store.js';
+import { InMemoryReimburseStore } from './support/inmemory-reimburse-store.js';
 import type {
   ReimburseEntryDraft,
   ReimburseStore,
 } from '../src/store/reimburse-store.js';
-import { FileReimburseStore } from '../src/store/file-reimburse-store.js';
-import { SqliteReimburseStore } from '../src/store/sqlite-reimburse-store.js';
-import { SqliteDatabase } from '../src/store/sqlite-db.js';
+import { defaultSeeds, openUnifiedDb } from '../src/store/sqlite-unified.js';
 
 /**
- * 报账域 store 三实现一致性（REIMBURSE-PROC，照 gov-store-scaffold.test.ts 模式）：
- * InMemory（逻辑主体）/ File（decorator + PersistedFile）/ SQLite（独立实现 fromSharedDb，KV JSON 表）
- * 跑同一条操作序列，行为逐字一致——id 形态（reimb-new-N / rbatch-new-N）、clamp collecting、
- * 白名单 PATCH、未知 id → undefined、发票号查重。File 实现另验重启存活（重开同文件数据还在）。
+ * 测试 fake 与生产统一 SQLite 复跑同一条报账 Store 行为契约。
  */
 
 function entryDraft(over: Partial<ReimburseEntryDraft> = {}): ReimburseEntryDraft {
@@ -89,7 +82,7 @@ async function expectConsistentBehavior(store: ReimburseStore): Promise<void> {
   expect((await store.listEntries()).find((e) => e.id === e1.id)?.batchId).toBe(b1.id);
 }
 
-describe('ReimburseStore 三实现一致性', () => {
+describe('ReimburseStore fake / 统一 SQLite 一致性', () => {
   let dir = '';
   afterEach(async () => {
     if (dir) await rm(dir, { recursive: true, force: true });
@@ -100,49 +93,22 @@ describe('ReimburseStore 三实现一致性', () => {
     await expectConsistentBehavior(new InMemoryReimburseStore());
   });
 
-  test('FileReimburseStore（decorator）：同一行为 + 重启存活（重开同文件数据还在）', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'reimburse-file-'));
-    const file = join(dir, 'reimburse.json');
-    const store = await FileReimburseStore.create(file);
-    await expectConsistentBehavior(store);
+  test('openUnifiedDb：同一行为 + 关闭重开后数据和 id 序列存活', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'reimburse-unified-'));
+    const dbFile = join(dir, 'teamhub.sqlite');
+    const unified = openUnifiedDb(dbFile, { seeds: defaultSeeds(false) });
+    await expectConsistentBehavior(unified.reimburse);
+    unified.close();
 
-    // 重启存活：同文件重开（模拟进程重启），条目/批次/装批关系全在
-    const reopened = await FileReimburseStore.create(file);
-    expect(await reopened.listEntries()).toHaveLength(2);
-    expect(await reopened.listBatches()).toHaveLength(1);
-    expect((await reopened.getEntry('reimb-new-1'))?.batchId).toBe('rbatch-new-1');
-    // id 序列不回退：重开后再建不撞既有 id
-    const e3 = await reopened.createEntry(entryDraft({ invoiceNo: null }));
-    expect(e3.id).toBe('reimb-new-3');
-  });
-
-  test('FileReimburseStore：坏文件 fail-closed（抛，不静默覆盖团队数据）', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'reimburse-file-bad-'));
-    const file = join(dir, 'reimburse.json');
-    const store = await FileReimburseStore.create(file);
-    await store.createEntry(entryDraft());
-    // 篡改落盘文件为非法 JSON → 重开必抛（不静默 seed 覆盖）
-    const { writeFile } = await import('node:fs/promises');
-    await writeFile(file, '{ broken json', 'utf8');
-    await expect(FileReimburseStore.create(file)).rejects.toThrow();
-  });
-
-  test('SqliteReimburseStore（独立实现，KV JSON 表）：同一行为 + 重开同库数据还在', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'reimburse-sqlite-'));
-    const dbFile = join(dir, 'reimburse.sqlite');
-    const sdb = SqliteDatabase.open(dbFile);
-    sdb.ensureMetaTable();
-    const store = SqliteReimburseStore.fromSharedDb(sdb);
-    await expectConsistentBehavior(store);
-
-    // 重开同库（模拟进程重启）：数据还在 + id 序列经 maxSuffix 对齐不回退
-    const sdb2 = SqliteDatabase.open(dbFile);
-    sdb2.ensureMetaTable();
-    const reopened = SqliteReimburseStore.fromSharedDb(sdb2);
-    expect(await reopened.listEntries()).toHaveLength(2);
-    const e3 = await reopened.createEntry(entryDraft({ invoiceNo: null }));
-    expect(e3.id).toBe('reimb-new-3');
-    sdb.close();
-    sdb2.close();
+    const reopened = openUnifiedDb(dbFile, { seeds: defaultSeeds(false) });
+    try {
+      expect(await reopened.reimburse.listEntries()).toHaveLength(2);
+      expect(await reopened.reimburse.listBatches()).toHaveLength(1);
+      expect((await reopened.reimburse.getEntry('reimb-new-1'))?.batchId).toBe('rbatch-new-1');
+      const next = await reopened.reimburse.createEntry(entryDraft({ invoiceNo: null }));
+      expect(next.id).toBe('reimb-new-3');
+    } finally {
+      reopened.close();
+    }
   });
 });

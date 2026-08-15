@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 import { governanceScenarioFixture } from '@teamhub/hub-contracts';
 import type { GovernanceSnapshot } from '@teamhub/hub-contracts';
 import {

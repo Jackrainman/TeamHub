@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 
 /**
  * 权限地基路由端到端（K1 + MEMBER-PM-FLAG 公测补强刀②b）：

@@ -18,7 +18,7 @@ import type {
 } from './reimburse-store.js';
 
 /**
- * 报账域 SQLite 实现（REIMBURSE-PROC，统一库后端 `TEAMHUB_BACKEND=sqlite` 时经 sqlite-unified 挂载）：
+ * 报账域 SQLite repository（REIMBURSE-PROC，由 sqlite-unified 挂载）：
  * 独立实现（非组合 InMemory），与 SqliteInvStore 同一套纪律——
  * 表 `reimburse_entries` / `reimburse_batches` 走 `ensureEntityTables` 的 KV JSON 模式（整行 JSON、
  * 与 File 同一份序列化真相，schema 加 optional 字段天然向后兼容、零迁移）；

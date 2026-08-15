@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import FormData from 'form-data';
 import { FleetPreviewResponseSchema } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 
 /**
  * 车队批量导入端到端（FLEET-CSV-IMPORT）：GET 模板 + POST preview（只解析不落库）+ 中文编号/状态映射 +

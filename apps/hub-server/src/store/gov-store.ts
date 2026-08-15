@@ -16,7 +16,7 @@ import type { ScheduleStore } from './schedule-store.js';
 
 // 域接口 + 其 Draft/Patch 类型的定义已按语义拆到独立文件（STORE-SPLIT-SQLITE，
 // product-redefine-2026-07 §4.4 / §9-③）；本文件 `export *` 全量转发，
-// 消费点（mock-gov-store.ts / file-gov-store.ts / sqlite-gov-store.ts / server.ts）
+// 消费点（test/support fake / 旧 JSON decorator / sqlite-gov-repository.ts / server.ts）
 // 继续从 './gov-store.js' 导入、**零 import 路径改动**。
 export * from './pm-core-store.js';
 export * from './artifact-store.js';
@@ -29,7 +29,7 @@ export * from './schedule-store.js';
  *
  * **拆分前史**：本类型此前是单一 21+ 方法的 god-interface（混 6 域，见 §9-③ 审计账单）；
  * 拆分「纯重构」——GovStore 的方法签名集合逐字不变（仍是三个域接口方法的并集），
- * 三实现（`InMemoryGovStore` / `FileGovStore` / `SqliteGovStore` stub）与 `server.ts` 消费点
+ * 三实现（`测试 fake` / `旧 JSON decorator` / `SqliteGovRepository` stub）与 `server.ts` 消费点
  * 继续 `implements GovStore` / `import type { GovStore }`，**零行为变化**。
  *
  * 各域接口的写白名单护栏（C2 反排名 / G2 不双写 / I0 confirmedBy 不外露 / C1 派生优先 / C3 小作坊
@@ -127,7 +127,7 @@ export interface InventoryImportOutcome {
  * 库存 / BOM 读写出入口契约（INV-BOM-CORE，D-042 决策 4 / D-072 §3.4）。
  *
  * INV 是三支柱里**唯一需要扩 schema 的根**——`InventorySnapshot` 不在 `GovernanceSnapshot` 内，故 INV 不复用
- * `GovStore`，走本独立扩展点（BuildHubServerOptions.invStore?，缺省 InMemoryInvStore seed inventoryScenarioFixture）。
+ * `GovStore`，走本独立扩展点（BuildHubServerOptions.invStore?，缺省 测试 fake seed inventoryScenarioFixture）。
  *
  * 写白名单仅 `upsertPartType / recordPartAction / importPartTypes`（C3：无通用 delete / list 全家桶）。**红线**：
  *  - **I0**：recordPartAction 的 recordedBy 永无 memberId（只 source）；无按人聚合视图。
@@ -135,8 +135,8 @@ export interface InventoryImportOutcome {
  *  - **C3 / D-072 §3.4**：个体件拆装只移 currentHolder、绝不删 TrackedPart（保血缘）。
  *  - 非法迁移（负库存 / used 超 total / 缺持有者）→ recordPartAction 抛 InvalidPartActionError（路由转 400）。
  *
- * **实现面（刀⑪ 核实）**：INV 只有两实现——`InMemoryInvStore`（mock）+ `FileInvStore`（JSON 落盘）；
- * **无 sqlite inv 实现**（SqliteGovStore 只管 GovernanceSnapshot，InventorySnapshot 独立），
+ * **实现面（刀⑪ 核实）**：INV 只有两实现——`测试 fake`（mock）+ `旧 JSON decorator`（JSON 落盘）；
+ * **无 sqlite inv 实现**（SqliteGovRepository 只管 GovernanceSnapshot，InventorySnapshot 独立），
  * importPartTypes 亦只落这两实现。
  */
 export interface InvStore {

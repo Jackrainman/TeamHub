@@ -7,9 +7,7 @@ import {
   governanceScenarioFixture,
 } from '@teamhub/hub-contracts';
 import type { GovernanceSnapshot } from '@teamhub/hub-contracts';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
-import { FileGovStore } from '../src/store/file-gov-store.js';
-import { SqliteGovStore } from '../src/store/sqlite-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 import { FixedClock } from '../src/clock.js';
 import type { Clock } from '../src/clock.js';
 import type { TaskDraft } from '../src/store/gov-store.js';
@@ -92,42 +90,5 @@ describe('K6 真实态：真实时钟 + 真空板（demoSeed=false）', () => {
     expect(task.createdAt).toBe(REAL_NOW_ISO);
     expect(task.createdAt).not.toBe(GOVERNANCE_SCENARIO_NOW);
     expect(task.createdAt.startsWith('2026-06-11')).toBe(false);
-  });
-
-  test('File: 首启动落空板 + 落盘 resources.json 为空数组 + 跨 reload 仍空；createTask 走注入 clock', async () => {
-    const dir = await makeTmpDir();
-    const govFile = join(dir, 'gov.json');
-    const store = await FileGovStore.create(govFile, EMPTY_SEED, realStandInClock, false);
-    expect(await store.listResources()).toEqual([]);
-    expect(await store.listResourceSessions()).toEqual([]);
-
-    // 首启动落盘的 resources.json = 空数组（真空板持久化，不落演示车）。
-    const resourcesJson = await readFile(join(dirname(govFile), 'resources.json'), 'utf8');
-    expect(JSON.parse(resourcesJson)).toEqual([]);
-
-    const task = await store.createTask(taskDraft('File 真实态任务'));
-    expect(task.createdAt).toBe(REAL_NOW_ISO);
-
-    // 跨真实 reload（同落盘目录）：既有空 resources.json 按原样加载 → 仍空。
-    const reloaded = await FileGovStore.create(govFile, EMPTY_SEED, realStandInClock, false);
-    expect(await reloaded.listResources()).toEqual([]);
-  });
-
-  test('Sqlite: fresh 库 schedule 三表空 + createTask 走注入 clock', async () => {
-    const dir = await makeTmpDir();
-    const store = await SqliteGovStore.create(
-      join(dir, 'gov.sqlite'),
-      EMPTY_SEED,
-      realStandInClock,
-      false,
-    );
-    expect(await store.listResources()).toEqual([]);
-    expect(await store.listResourceSessions()).toEqual([]);
-    expect(await store.listRelayHandoffs()).toEqual([]);
-
-    const task = await store.createTask(taskDraft('Sqlite 真实态任务'));
-    expect(task.createdAt).toBe(REAL_NOW_ISO);
-    expect(task.createdAt).not.toBe(GOVERNANCE_SCENARIO_NOW);
-    store.close();
   });
 });

@@ -7,7 +7,7 @@ import {
   CreateResourceSessionResponseSchema,
   SCENARIO_WINDOW_WEEKDAY,
 } from '@teamhub/hub-contracts';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 
 // SCHED-WIRE-EXISTING（D-029 差异化在场排班）：把已存在但零运行时引用的纯函数 derivePresenceSchedule
 // 接出成真实 API。验证：seed 锚点（scheduleScenarioFixture）→ GET /api/schedule?windowLabel=今晚 出非空建议、

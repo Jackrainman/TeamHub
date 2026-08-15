@@ -5,7 +5,7 @@ import {
   CreatePartTypeResponseSchema,
   CreatePartActionResponseSchema,
 } from '@teamhub/hub-contracts';
-import { InMemoryInvStore } from '../src/store/mock-inv-store.js';
+import { InMemoryInvStore } from './support/inmemory-inv-store.js';
 
 describe('库存 / BOM 路由（INV-BOM-CORE）', () => {
   test('GET /api/inventory → 矩阵 + 缺料告警；I0：返回体无 memberId', async () => {

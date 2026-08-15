@@ -15,7 +15,7 @@ import type {
  * server 钉，product-redefine-2026-07 §4.4 / §9-③）。
  *
  * **为何抽出**：这些字面量（`'pending'`/`'console'`/`'active'`/`'open'`/`'available'`/`'human'`）此前
- * 各在 `InMemoryGovStore`（mock-gov-store.ts:160 一带）每个 create/update 方法内联出现——三实现
+ * 各在 `测试 fake`（test/support fake:160 一带）每个 create/update 方法内联出现——三实现
  * （mock/file/sqlite）里只有 mock 真正定义，file 靠组合 mock 才没漂移，sqlite stub 未接线。
  * 集中到本文件后，SQLite 实现（SS3 后续刀）接线时直接复用同一份策略常量，杜绝「同一默认值
  * 三处各写一份、迁移时漏抄或悄悄改动」。

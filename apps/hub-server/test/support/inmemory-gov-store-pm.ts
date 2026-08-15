@@ -37,8 +37,8 @@ import {
   buildRosterMemberCreate,
   buildRosterMemberUpdate,
   buildCreatedGroup,
-} from './gov-store-logic.js';
-import { cloneArrayFields } from './clone-snapshot.js';
+} from '../../src/store/gov-store-logic.js';
+import { cloneArrayFields } from '../../src/store/clone-snapshot.js';
 import type {
   CreateGroupResult,
   DeleteGroupResult,
@@ -52,10 +52,10 @@ import type {
   SetProjectManagerResult,
   SeasonDraft,
   TaskDraft,
-} from './gov-store.js';
-import { nextSequentialId } from './id-sequence.js';
-import { GOVERNANCE_ARRAY_FIELDS } from './mock-gov-store-base.js';
-import type { InMemoryGovStoreBase } from './mock-gov-store-base.js';
+} from '../../src/store/gov-store.js';
+import { nextSequentialId } from '../../src/store/id-sequence.js';
+import { GOVERNANCE_ARRAY_FIELDS } from './inmemory-gov-store-base.js';
+import type { InMemoryGovStoreBase } from './inmemory-gov-store-base.js';
 
 /**
  * pm-core 域方法 mixin（GOV-SPLIT）：PmCoreStore 全部方法（getSnapshot + PM 录入簇 + KB 结案 +
@@ -72,7 +72,7 @@ export function PmCoreMixin<T extends Base>(
       // M7：返回浅拷贝（顶层对象 + 全 8 数组字段克隆，与构造期同一份克隆纪律），
       // 防外部读到 live 引用后 push/splice 绕过写白名单 mutate live store。
       // 标量字段沿用浅拷贝引用、数组逐字克隆——JSON 序列化与 live 快照逐字相同，
-      // 故 FileGovStore.writeOnce() 落盘内容不变（无落盘回归）。
+      // 故 旧生产 Store.writeOnce() 落盘内容不变（无落盘回归）。
       // **不影响回滚链**：snapshotForRollback() 仍返回 live 引用，回滚走那条句柄。
       return cloneArrayFields(this.snapshot, GOVERNANCE_ARRAY_FIELDS);
     }
@@ -466,7 +466,7 @@ export function PmCoreMixin<T extends Base>(
     /**
      * 新建赛季（POST /api/seasons，SEASON-CREATE）：新赛季钉 status=`active`，同笔把既有 active
      * 赛季原地转 `archived`（一届一个当前赛季，见 PmCoreStore.createSeason 注释）。原地替换保持
-     * seasons 数组引用稳定（FileGovStore 回滚按引用整体还原）。
+     * seasons 数组引用稳定（旧生产 Store 回滚按引用整体还原）。
      */
     async createSeason(draft: SeasonDraft): Promise<Season> {
       for (let i = 0; i < this.snapshot.seasons.length; i++) {

@@ -3,8 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ActorRef, GateChecklistItem } from '@teamhub/hub-contracts';
-import { InMemoryChecklistStore } from '../src/store/mock-checklist-store.js';
-import { FileChecklistStore } from '../src/store/file-checklist-store.js';
+import { InMemoryChecklistStore } from './support/inmemory-checklist-store.js';
 
 const seasonBaselineId = 'baseline-season-test-1';
 const otherBaselineId = 'baseline-season-test-2';
@@ -111,127 +110,5 @@ describe('InMemoryChecklistStore', () => {
   test('listTemplates：seed 空 → 空数组（等复盘导入）', async () => {
     const store = new InMemoryChecklistStore([seedItem], []);
     expect(await store.listTemplates()).toEqual([]);
-  });
-});
-
-describe('FileChecklistStore 落盘', () => {
-  let dir = '';
-  afterEach(async () => {
-    if (dir) await rm(dir, { recursive: true, force: true });
-  });
-
-  test('文件不存在 → seed 起头（默认空）并落一次盘（{items,templates} 两键）', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'checklist-'));
-    const file = join(dir, 'seed.json');
-
-    const store = await FileChecklistStore.create(file);
-    expect(await store.listItems(seasonBaselineId)).toEqual([]);
-
-    const onDisk = JSON.parse(await readFile(file, 'utf8'));
-    expect(onDisk).toEqual({ items: [], templates: [] });
-  });
-
-  test('createItem/clearItem 落盘 + 新实例从同文件加载（重启不丢）', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'checklist-'));
-    const file = join(dir, 'checklist.json');
-
-    const store = await FileChecklistStore.create(file, [seedItem], []);
-    const created = await store.createItem({
-      seasonBaselineId,
-      title: '现场快记欠条',
-      anchorDueAt: '2026-07-01T00:00:00.000Z',
-      origin: 'iou',
-      createdAt: '2026-06-20T00:00:00.000Z',
-    });
-    await store.clearItem('chk-demo-1', reviewer);
-
-    // 模拟重启：新实例从同一文件加载，写入的欠条 + 清偿留痕仍在
-    const reloaded = await FileChecklistStore.create(file);
-    const items = await reloaded.listItems(seasonBaselineId);
-    const demo1 = items.find((i) => i.id === 'chk-demo-1');
-    expect(demo1?.status).toBe('passed');
-    expect(demo1?.clearedBy).toEqual(reviewer); // 事实卡留名落盘可读回（不剥离）
-    expect(items.some((i) => i.id === created.id)).toBe(true);
-  });
-
-  test('文件存在但损坏 → 抛（fail-closed，不静默用 seed 覆盖团队欠条数据）', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'checklist-corrupt-'));
-    const file = join(dir, 'checklist.json');
-    // 缺 origin/status 必填字段的非法 GateChecklistItem
-    await writeFile(
-      file,
-      JSON.stringify({
-        items: [{ id: 'x', seasonBaselineId, title: 't', anchorDueAt: '2026-07-01T00:00:00.000Z', createdAt: '2026-06-20T00:00:00.000Z' }],
-        templates: [],
-      }),
-    );
-    await expect(FileChecklistStore.create(file)).rejects.toThrow();
-  });
-
-  test('缺顶层键（非 {items,templates}）→ 抛（fail-closed）', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'checklist-shape-'));
-    const file = join(dir, 'checklist.json');
-    await writeFile(file, JSON.stringify([])); // 旧格式裸数组，非两键对象
-    await expect(FileChecklistStore.create(file)).rejects.toThrow();
-  });
-
-  // 同 FileBaselineStore 修复 #3 纪律：persist 失败 → 内存精确回滚（撤销刚新建），不留幽灵欠条。
-  test('createItem persist 失败 → 内存回滚（不留幽灵欠条）', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'checklist-rollback-'));
-    const sub = join(dir, 'basedir');
-    await mkdir(sub);
-    const file = join(sub, 'checklist.json');
-    const store = await FileChecklistStore.create(file);
-    expect(await store.listItems(seasonBaselineId)).toEqual([]);
-
-    await rm(sub, { recursive: true, force: true });
-    await writeFile(sub, 'blocker'); // 让下次 persist 的 mkdir(sub) 失败
-
-    await expect(
-      store.createItem({
-        seasonBaselineId,
-        title: '写失败应回滚',
-        anchorDueAt: '2026-07-01T00:00:00.000Z',
-        origin: 'iou',
-        createdAt: '2026-06-20T00:00:00.000Z',
-      }),
-    ).rejects.toThrow();
-
-    // 写前无欠条，失败后必须回到"空"（不留没落盘的幽灵记录）
-    expect(await store.listItems(seasonBaselineId)).toEqual([]);
-  });
-
-  // H2 同纪律：一次写失败不能永久毒化写链，修复目录后下一次写仍需真正落盘。
-  test('写失败后写链不中毒：恢复后下一次 createItem 仍能落盘', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'checklist-h2-'));
-    const sub = join(dir, 'basedir');
-    await mkdir(sub);
-    const file = join(sub, 'checklist.json');
-    const store = await FileChecklistStore.create(file);
-
-    await rm(sub, { recursive: true, force: true });
-    await writeFile(sub, 'blocker');
-    await expect(
-      store.createItem({
-        seasonBaselineId,
-        title: '第一次写失败',
-        anchorDueAt: '2026-07-01T00:00:00.000Z',
-        origin: 'iou',
-        createdAt: '2026-06-20T00:00:00.000Z',
-      }),
-    ).rejects.toThrow();
-
-    await rm(sub);
-    await mkdir(sub);
-    await store.createItem({
-      seasonBaselineId,
-      title: '恢复后再写',
-      anchorDueAt: '2026-07-02T00:00:00.000Z',
-      origin: 'iou',
-      createdAt: '2026-06-21T00:00:00.000Z',
-    });
-
-    const onDisk = JSON.parse(await readFile(file, 'utf8'));
-    expect(onDisk.items.some((i: { title: string }) => i.title === '恢复后再写')).toBe(true);
   });
 });

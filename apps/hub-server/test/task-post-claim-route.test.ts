@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 import {
   governanceScenarioFixture,
   ClaimTaskResponseSchema,

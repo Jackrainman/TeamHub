@@ -12,15 +12,15 @@ import type {
   PartType,
   TrackedPart,
 } from '@teamhub/hub-contracts';
-import { FixedClock } from '../clock.js';
-import type { Clock } from '../clock.js';
-import { cloneArrayFields } from './clone-snapshot.js';
+import { FixedClock } from '../../src/clock.js';
+import type { Clock } from '../../src/clock.js';
+import { cloneArrayFields } from '../../src/store/clone-snapshot.js';
 import type {
   InvStore,
   InventoryImportOutcome,
   PartActionDraft,
   PartTypeDraft,
-} from './gov-store.js';
+} from '../../src/store/gov-store.js';
 
 /** 库存快照的三数组字段（写方法可能 push/replace 的集合）——构造期克隆隔离 + getInventorySnapshot 浅拷贝共用。 */
 const INVENTORY_ARRAY_FIELDS: (keyof InventorySnapshot)[] = [
@@ -32,10 +32,10 @@ const INVENTORY_ARRAY_FIELDS: (keyof InventorySnapshot)[] = [
 /**
  * 库存 / BOM 内存参考实现（INV-BOM-CORE）：默认 seed `inventoryScenarioFixture`（GM6020/C620/主控/M4 +
  * 个体实例 + 一句话快记历史），让 `GET /api/inventory` 第一请求即有可派生矩阵（与 InMemoryGovStore/KbStore 对称）。
- * 进程重启丢失为预期；持久层见 `FileInvStore`（注入 options.invStore）。
+ * 进程重启丢失为预期；持久层见 `旧生产 Store`（注入 options.invStore）。
  *
  * 动作语义委托纯函数 `applyPartAction`（hub-contracts），本类只负责 id / 时间戳 / recordedBy 包装 + 落数组
- * （组合复用、零漂移，等同 FileGovStore 复用 InMemoryGovStore）。非法迁移由 applyPartAction 抛
+ * （组合复用、零漂移，等同 旧生产 Store 复用 InMemoryGovStore）。非法迁移由 applyPartAction 抛
  * InvalidPartActionError，路由捕获后转 400。
  */
 export class InMemoryInvStore implements InvStore {
@@ -62,7 +62,7 @@ export class InMemoryInvStore implements InvStore {
 
   /**
    * @internal 持久层回滚专用：返回**可变的** live 快照引用（写方法 replace/push 的同一对象），
-   * 让 FileInvStore 在 persist() 失败时撤回刚写的内存元素（不对外公开，正常读走 getInventorySnapshot）。
+   * 让 旧生产 Store 在 persist() 失败时撤回刚写的内存元素（不对外公开，正常读走 getInventorySnapshot）。
    */
   snapshotForRollback(): InventorySnapshot {
     return this.snapshot;

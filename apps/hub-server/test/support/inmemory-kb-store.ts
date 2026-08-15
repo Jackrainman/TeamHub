@@ -1,11 +1,11 @@
 import { kbScenarioFixture } from '@teamhub/hub-contracts';
 import type { ArchiveDocument, KbSnapshot } from '@teamhub/hub-contracts';
-import { cloneArrayFields } from './clone-snapshot.js';
+import { cloneArrayFields } from '../../src/store/clone-snapshot.js';
 import type {
   KbAddArchiveDocsResult,
   KbCloseoutAppend,
   KbStore,
-} from './gov-store.js';
+} from '../../src/store/gov-store.js';
 
 /** 语料快照的三数组字段（appendCloseout upsert 触及的集合）——构造期克隆隔离 + getKbSnapshot 浅拷贝共用。 */
 const KB_ARRAY_FIELDS: (keyof KbSnapshot)[] = [
@@ -17,7 +17,7 @@ const KB_ARRAY_FIELDS: (keyof KbSnapshot)[] = [
 /**
  * 知识库读语料内存实现（KB-CORE）：默认 seed `kbScenarioFixture`（跨赛季 CAN/3508/MicroROS 历史 bug），
  * 让 `GET /api/kb/similar` 从第一个请求起就能演示同类 bug 召回（与 InMemoryGovStore seed 治理 fixture 对称）。
- * 进程重启丢失为预期；持久层见 `FileKbStore`（注入 `options.kbStore`），SQLite 随部署审批后接（AGENTS §8）。
+ * 进程重启丢失为预期；持久层见 `旧生产 Store`（注入 `options.kbStore`），SQLite 随部署审批后接（AGENTS §8）。
  *
  * 写：`appendCloseout` 回灌结案派生物（AI+知识库闭环），让 closeout 上传后下次 similar 可召回。
  */

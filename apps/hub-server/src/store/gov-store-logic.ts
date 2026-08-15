@@ -186,7 +186,7 @@ export function buildReviewedTask(
   };
 }
 
-// ── create 族对象构造（STORE-GOV-BASE：自 mock/sqlite-gov-store 逐字抽出共享，三实现复用）──────────
+// ── create 族对象构造（STORE-GOV-BASE：领域构造规则单源）────────────────────────────
 // 纯对象构造（补 id/时间戳 + clamp 初始态 + 派生默认），不含任何持久化语义——push/splice vs insertRow
 // 仍由各 store 自持。id 由调用方经 nextSequentialId 生成后传入（序列起点各实现自管）。
 

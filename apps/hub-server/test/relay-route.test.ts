@@ -7,7 +7,7 @@ import {
   CreateResourceSessionResponseSchema,
   SCENARIO_WINDOW_WEEKDAY,
 } from '@teamhub/hub-contracts';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 
 // R1 接力交接画布（队长可编辑）后端：PATCH 占用窗口（拖卡片排先后 orderInWindow / 选填 eta）+
 // GET /api/relay 富集读视图（接力站 + 站间交接线，**无成员维度**）+ POST/DELETE 接力交接线

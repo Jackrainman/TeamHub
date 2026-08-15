@@ -8,7 +8,7 @@ import type { DeployConfig } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
 import type { SetupControl } from '../src/server.js';
 import { buildSetupServer, RESTART_EXIT_CODE } from '../src/build-setup-server.js';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 
 /**
  * SETUP-WIZARD 刀③：部署配置写通道两端点（PUT /api/setup/config 改 identityMode + POST /api/setup/graduate

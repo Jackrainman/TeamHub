@@ -4,9 +4,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { CreateSeasonResponseSchema, SeasonsResponseSchema } from '@teamhub/hub-contracts';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
-import { FileGovStore } from '../src/store/file-gov-store.js';
-import { SqliteGovStore } from '../src/store/sqlite-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 
 /**
  * SEASON-CREATE 补链路（POST /api/seasons）：总览页空态文案"先在设置里建一个赛季"此前指向
@@ -90,43 +88,5 @@ describe('POST /api/seasons', () => {
     } finally {
       await app.close();
     }
-  });
-});
-
-describe('createSeason 落盘持久（File / Sqlite 两实现与 InMemory 同语义）', () => {
-  let dir: string | undefined;
-  afterEach(async () => {
-    if (dir) await rm(dir, { recursive: true, force: true });
-    dir = undefined;
-  });
-
-  test('FileGovStore：新建赛季 + 旧 active 归档一并落盘，重开可见', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'season-create-file-'));
-    const file = join(dir, 'gov.json');
-    const store = await FileGovStore.create(file);
-    const created = await store.createSeason({
-      name: validBody.name,
-      startsAt: validBody.startsAt,
-      endsAt: null,
-    });
-    const reloaded = await FileGovStore.create(file);
-    const seasons = (await reloaded.getSnapshot()).seasons;
-    expect(seasons.filter((s) => s.status === 'active')).toEqual([created]);
-  });
-
-  test('SqliteGovStore：归档旧 active + 插入新 active 同事务，重开可见', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'season-create-sqlite-'));
-    const file = join(dir, 'gov.sqlite');
-    const store = await SqliteGovStore.create(file);
-    const created = await store.createSeason({
-      name: validBody.name,
-      startsAt: validBody.startsAt,
-      endsAt: null,
-    });
-    store.close();
-    const reopened = await SqliteGovStore.create(file);
-    const seasons = (await reopened.getSnapshot()).seasons;
-    expect(seasons.filter((s) => s.status === 'active')).toEqual([created]);
-    reopened.close();
   });
 });

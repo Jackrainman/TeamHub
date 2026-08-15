@@ -3,9 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { RosterImportRow } from '@teamhub/hub-contracts';
-import { FileGovStore } from '../src/store/file-gov-store.js';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
-import { SqliteGovStore } from '../src/store/sqlite-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 
 /**
  * GovStore.importRoster（ROSTER-IMPORT，K8 持久层）：三实现（mock/file/sqlite）同语义——
@@ -63,49 +61,7 @@ describe('GovStore.importRoster', () => {
     expect(snap.members.find((m) => m.displayName === '电控B')).toBeDefined();
   });
 
-  test('File：members + groups 落盘、重启（新实例）仍在；再导入 id 不撞', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'gov-roster-'));
-    const file = join(dir, 'gov.json');
-    const store = await FileGovStore.create(file);
-    const before = (await store.getSnapshot()).members.length;
 
-    await store.importRoster([row({ displayName: '导入甲', groupName: '新组X', grade: 'junior' })]);
-    const onDisk = JSON.parse(await readFile(file, 'utf8'));
-    expect(onDisk.members.find((m: { displayName: string }) => m.displayName === '导入甲')).toBeDefined();
-    expect(onDisk.groups.find((g: { name: string }) => g.name === '新组X')).toBeDefined();
-
-    const reloaded = await FileGovStore.create(file);
-    expect((await reloaded.getSnapshot()).members.length).toBe(before + 1);
-    // 重开后再导入一人：member-new id 从磁盘既有长度续接、不撞已落盘的那条。
-    const out2 = await reloaded.importRoster([row({ displayName: '导入乙', groupName: '新组X' })]);
-    expect(out2.created).toEqual(['导入乙']);
-    expect(out2.createdGroups).toEqual([]); // 新组X 已存在、不重复建
-    const snap = await reloaded.getSnapshot();
-    const ids = snap.members.filter((m) => m.id.startsWith('member-new-')).map((m) => m.id);
-    expect(new Set(ids).size).toBe(ids.length); // 无重复 id
-  });
-
-  test('Sqlite：批量导入落库且重开仍在；同批同名组只建一次', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'gov-roster-sqlite-'));
-    const file = join(dir, 'gov.sqlite');
-    const store = await SqliteGovStore.create(file);
-    const out = await store.importRoster([
-      row({ displayName: '甲', groupName: '同组' }),
-      row({ displayName: '乙', groupName: '同组' }), // 同批同名组
-    ]);
-    expect(out.created).toEqual(['甲', '乙']);
-    expect(out.createdGroups).toEqual(['同组']); // 只建一次
-    store.close();
-
-    const reopened = await SqliteGovStore.create(file);
-    const snap = await reopened.getSnapshot();
-    expect(snap.members.filter((m) => ['甲', '乙'].includes(m.displayName))).toHaveLength(2);
-    expect(snap.groups.filter((g) => g.name === '同组')).toHaveLength(1);
-    // 甲乙同挂新建的「同组」。
-    const tongzu = snap.groups.find((g) => g.name === '同组')!;
-    expect(snap.members.find((m) => m.displayName === '甲')?.groupId).toBe(tongzu.id);
-    reopened.close();
-  });
 
   // 刀④ PROGRAM-GROUP-ABSTRACT：组名命中批前既有的非叶子/哨兵组（fixture 的 grp-program /
   // grp-convergence）→ 该行拒绝进 failed（行号随行指回 CSV 原行），成员不建不改；叶子组正常。
@@ -127,19 +83,4 @@ describe('GovStore.importRoster', () => {
     expect(snap.members.find((m) => m.displayName === '视丙')?.groupId).toBe('grp-vision');
   });
 
-  test('刀④：Sqlite 镜像同语义——抽象组拒行不落库', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'gov-roster-sqlite-abstract-'));
-    const file = join(dir, 'gov.sqlite');
-    const store = await SqliteGovStore.create(file);
-    const out = await store.importRoster([
-      row({ displayName: '程甲', groupName: '程序', line: 2 }),
-      row({ displayName: '视丙', groupName: '视觉', line: 3 }),
-    ]);
-    expect(out.failed).toHaveLength(1);
-    expect(out.failed[0].line).toBe(2);
-    expect(out.created).toEqual(['视丙']);
-    const snap = await store.getSnapshot();
-    expect(snap.members.find((m) => m.displayName === '程甲')).toBeUndefined();
-    store.close();
-  });
 });

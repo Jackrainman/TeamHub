@@ -354,7 +354,7 @@ AI 不得以“兼容旧代码”为默认理由保留双轨。用户已明确�
 | 阶段 | 原子目标 | 完成标志 |
 |---|---|---|
 | A0 文档与护栏 | D-090/D-091 生效；旧稿蒸馏删除；单版本/lock；架构门先禁新增违规 | `docs/README.md` 为唯一入口，仓库依赖图单一 |
-| A1 仓库与运行时 | 删除旧飞书三包；生产强制统一 SQLite；删除 JSON、gov-only、生产 InMemory 及旧 env | main 只有一个 DB 装配路径，不写旧数据双读迁移 |
+| A1 仓库与运行时（完成） | 旧飞书三包、JSON/gov-only/生产 InMemory/旧 env 已删除；生产强制统一 SQLite | main 只有一个 DB 装配路径，不写旧数据双读迁移 |
 | A2 平台设施 | `app_settings` 接管产品配置；统一错误、导出、文件 intake、Clock/Actor 和事务 API | 配置单源，跨域写具有显式事务 |
 | A3 模板试点 | reimburse 三包纵切并实现购买方质量门和“报账→库存”事务 | 模板承载真实业务后冻结，不再产生第二套模板 |
 | A4 全域迁移 | checklist → baseline → inventory → knowledge → artifacts → schedule → PM/system | 独立域先迁，最后拆 GovernanceSnapshot/GovStore |
@@ -389,7 +389,7 @@ AI 不得以“兼容旧代码”为默认理由保留双轨。用户已明确�
 | `file-*-store.ts` / `PersistedFile` | 删除 | 生产与测试均无 import |
 | `mock-*store.ts` / 默认 InMemory 装配 | 生产删除；必要 fake 移 `test/support` | `src/` 无生产内存 repository |
 | `sqlite-unified.ts` | 保留思想，改成唯一生产 composition | main 只有这一条 DB 路径 |
-| `sqlite-gov-store.ts` / `GovStore` | 按域拆 repository，最后删除 god interface | 无跨域万能 snapshot API |
+| `sqlite-gov-repository.ts` / `GovStore` | 按域拆 repository，最后删除 god interface | 无跨域万能 snapshot API |
 | `routes/*.ts` | 逐域迁到 `modules/<domain>/routes.ts` 并变薄 | route 不含业务编排 |
 | `config.json` / tenant env /代码默认 | 合并进 SQLite `app_settings` | 产品配置只有一个读写源 |
 | `api/segments/domain.ts`、`system-pm.ts` | 拆成一域一个 segment | segment 名与 module id 对齐 |

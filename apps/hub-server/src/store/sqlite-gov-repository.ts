@@ -1,6 +1,5 @@
 import {
   GOVERNANCE_SCENARIO_NOW,
-  GovernanceSnapshotSchema,
   buildDefaultGroupTree,
   deriveLeafGroups,
   governanceScenarioFixture,
@@ -85,9 +84,8 @@ import {
 import { SqliteDatabase } from './sqlite-db.js';
 
 /**
- * SQLite 落盘实现（SS3 SQLite，product-redefine-2026-07 §4.4 / §9-③ + D-083 刀④）：与
- * `InMemoryGovStore`（重启丢失）/ `FileGovStore`（整文件 JSON）并列的第三个 `GovStore` 实现，
- * **同一域接口签名集合、零行为变化**（三实现可互换注入 buildHubServer，见 gov-store-scaffold.test）。
+ * 统一 SQLite 内部的治理域 repository。数据库生命周期、schema kind 与版本由 sqlite-unified.ts 独占；
+ * 本类只在已打开的共享连接上建治理域表、播种并实现 GovStore。
  *
  * **注释勾销（D-083 刀④拍板）**：本文件此前头注释「待部署审批后接 better-sqlite3/drizzle」是 D-042
  * 时代旧口径——彼时把「持久层实现」等同「真实服务器写入需白天审批」（AGENTS §8）。D-083 刀④重新
@@ -107,21 +105,15 @@ import { SqliteDatabase } from './sqlite-db.js';
  *    （拒绝降级读写损坏更高版本数据）；每个写方法的 DB 变更包在 `BEGIN/COMMIT`（异常 `ROLLBACK`）里保证原子性。
  *
  * **复用 SS1 纯函数**：id 生成走 `id-sequence.ts`（打开时从各表既有 `<prefix>-N` id 扫最大后缀重建序列，
- * 镜像 InMemoryGovStore.resyncResourceSeq——比按行数起步更稳，delete 后不复用已删 id）；clamp 初始态 /
+ * 镜像 测试 fake.resyncResourceSeq——比按行数起步更稳，delete 后不复用已删 id）；clamp 初始态 /
  * 来源 seam 走 `clamp-defaults.ts`（与 mock/file 同一份常量，零漂移）。
  *
- * **增量迁移边界**（本刀既定，收口写进 now.md）：默认后端仍 JSON（main.ts 未设 TEAMHUB_GOV_BACKEND 时
- * 走 FileGovStore/InMemoryGovStore，现状零变化）；SQLite opt-in（TEAMHUB_GOV_BACKEND=sqlite +
- * TEAMHUB_GOV_SQLITE_FILE）。kb/inv/baseline 三 store 本刀仍 JSON（不在本刀范围）。
+ * 不提供独立打开、版本管理或 close 入口，避免重新产生 gov-only SQLite 运行路径。
  */
-
-/** SQLite schema 版本（PRAGMA user_version）。加表 / 改列语义时 +1 并补迁移分支（当前无历史版本需迁）。 */
-export const SQLITE_GOV_SCHEMA_VERSION = 1;
 
 /**
  * 域实体表清单（每张 `(id TEXT PRIMARY KEY, data TEXT NOT NULL)`，整实体 JSON 落 data 列）。
- * **SYNC**：scripts/migrate-gov-to-sqlite.mjs 内联同一份表名/建表 DDL（.mjs 独立运行、不 import 编译产物），
- * 二者结构必须一致——迁移往返测试（sqlite-gov-store.test.ts）是漂移哨兵：任一处表名/列漂移即测试红。
+ * 表由统一库在首次打开时确保存在；实体 JSON 形状仍由 contracts schema 与 repository 行为测试约束。
  */
 const ENTITY_TABLES = [
   // pm-core 域
@@ -167,10 +159,9 @@ function seedFreshDatabase(
   });
 }
 
-export class SqliteGovStore implements GovStore {
+export class SqliteGovRepository implements GovStore {
   private readonly sdb: SqliteDatabase;
   private readonly clock: Clock;
-  private readonly ownsDb: boolean;
 
   // id 单调自增序列（复用 SS1 id-sequence.ts）：打开时从各表既有 id 的 `<prefix>-N` 最大后缀重建
   // （见 resyncSequences），首条 create 得 max+1、只增不减。
@@ -186,41 +177,10 @@ export class SqliteGovStore implements GovStore {
   private resourceSessionSeq!: IdSequence;
   private relayHandoffSeq!: IdSequence;
 
-  private constructor(sdb: SqliteDatabase, ownsDb: boolean, clock?: Clock) {
+  private constructor(sdb: SqliteDatabase, clock?: Clock) {
     this.sdb = sdb;
-    this.ownsDb = ownsDb;
     this.clock = clock ?? new FixedClock(new Date(GOVERNANCE_SCENARIO_NOW));
     this.resyncSequences();
-  }
-
-  static async create(
-    filePath: string,
-    seed: GovernanceSnapshot = governanceScenarioFixture,
-    clock?: Clock,
-    demoSeed = true,
-  ): Promise<SqliteGovStore> {
-    const sdb = SqliteDatabase.open(filePath);
-    const userVersion = sdb.readUserVersion();
-    if (userVersion > SQLITE_GOV_SCHEMA_VERSION) {
-      sdb.close();
-      throw new Error(
-        `SqliteGovStore: 数据库 schema 版本 ${userVersion} 高于本代码支持的 ${SQLITE_GOV_SCHEMA_VERSION}` +
-          '（fail-closed：拒绝以旧代码读写更高版本数据，避免静默损坏）',
-      );
-    }
-    if (userVersion === 0) {
-      sdb.ensureMetaTable();
-      sdb.ensureEntityTables(ENTITY_TABLES);
-      seedFreshDatabase(sdb, seed, demoSeed);
-      sdb.setUserVersion(SQLITE_GOV_SCHEMA_VERSION);
-    } else {
-      sdb.ensureMetaTable();
-      sdb.ensureEntityTables(ENTITY_TABLES);
-    }
-
-    const store = new SqliteGovStore(sdb, true, clock);
-    GovernanceSnapshotSchema.parse(await store.getSnapshot());
-    return store;
   }
 
   static fromSharedDb(
@@ -228,17 +188,13 @@ export class SqliteGovStore implements GovStore {
     seed: GovernanceSnapshot = governanceScenarioFixture,
     clock?: Clock,
     demoSeed = true,
-  ): SqliteGovStore {
+  ): SqliteGovRepository {
     sdb.ensureEntityTables(ENTITY_TABLES);
     const existing = sdb.allRows('tasks');
     if (existing.length === 0 && sdb.getMeta('seasonId') === undefined) {
       seedFreshDatabase(sdb, seed, demoSeed);
     }
-    return new SqliteGovStore(sdb, false, clock);
-  }
-
-  close(): void {
-    if (this.ownsDb) this.sdb.close();
+    return new SqliteGovRepository(sdb, clock);
   }
 
   // ── 低层行操作（委托 SqliteDatabase） ─────────────────────────────────
@@ -442,7 +398,7 @@ export class SqliteGovStore implements GovStore {
   /**
    * 名册批量导入（ROSTER-IMPORT，K8 + 刀③ 不写 role + 刀④ 拒抽象组）：整批在一个事务里应用到
    * members + groups（半程崩溃回滚，无「建了组没建人」中间态）。成员/组对象构造单源 gov-store-logic.ts
-   *（buildRosterMemberCreate/Update、buildCreatedGroup），与 InMemoryGovStore 共享同一份字段语义；本类只持
+   *（buildRosterMemberCreate/Update、buildCreatedGroup），与 测试 fake 共享同一份字段语义；本类只持
    * 组按 name 匹配现有 / 本批已建、否则自动建（`grp-new-N` + kind 默认 + 当前赛季）；成员按 displayName
    * 幂等 upsert（新建 `member-new-N` role 恒 'member' / 命中更新 grade·groupId·gateReviewer，
    * role / pinHash / projectManager 旗标永不动——重导幂等不洗已任命组长）；**刀④**：组名命中批前既有的
@@ -461,7 +417,7 @@ export class SqliteGovStore implements GovStore {
       const seasonId =
         seasons.find((s) => s.status === 'active')?.id ?? this.getMeta('seasonId') ?? '';
       // 刀④：批前既有组中的非叶子/哨兵组 id 集（抽象汇报视角，不可挂人）。只算批前——本批新建组
-      // 恒为叶子，若算进来会误伤同批后续同名行（与 InMemoryGovStore 同一份只算批前既有组的口径）。
+      // 恒为叶子，若算进来会误伤同批后续同名行（与 测试 fake 同一份只算批前既有组的口径）。
       const groupsBefore = this.allRows<Group>('groups');
       const leafBefore = new Set(deriveLeafGroups(groupsBefore));
       const abstractGroupIds = new Set(
@@ -565,7 +521,7 @@ export class SqliteGovStore implements GovStore {
   }
 
   /** 空板默认组树（打磨轮刀⑤）：单事务读-判-写——groups 非空 → no-op（幂等）；空 → 整树插入
-   *（seasonId 钉法同 createGroup，与 InMemoryGovStore 共享 buildDefaultGroupTree 口径）。 */
+   *（seasonId 钉法同 createGroup，与 测试 fake 共享 buildDefaultGroupTree 口径）。 */
   async ensureDefaultGroups(): Promise<void> {
     return this.tx(() => {
       if (this.allRows<Group>('groups').length > 0) return;

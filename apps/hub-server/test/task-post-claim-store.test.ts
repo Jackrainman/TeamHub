@@ -2,9 +2,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
-import { FileGovStore } from '../src/store/file-gov-store.js';
-import { SqliteGovStore } from '../src/store/sqlite-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 import type { ActorRef } from '@teamhub/hub-contracts';
 
 // 挂单认领制窄写方法三实现对称（TASK-POST-CLAIM，D-088）：claimTask/assignTask/setTaskPartner/
@@ -95,64 +93,5 @@ describe('InMemoryGovStore: 挂单认领制窄写字段簇 + 清空语义', () =
     expect(await store.confirmCrossClaim('t-nope', LEAD, 'x')).toBeNull();
     expect(await store.completeTask('t-nope', LEAD, 'x')).toBeNull();
     expect(await store.reviewTask('t-nope', REVIEWER, 'accept', undefined, 'x')).toBeNull();
-  });
-});
-
-describe('FileGovStore: 认领 / 指派落盘 governance.json + 重启不丢 + 清字段消失', () => {
-  let dir = '';
-  afterEach(async () => {
-    if (dir) await rm(dir, { recursive: true, force: true });
-    dir = '';
-  });
-
-  test('claim 落盘 → 重启仍在；assign 清 claimedAt 后该键从磁盘消失', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'gov-claim-'));
-    const file = join(dir, 'gov.json');
-    const store = await FileGovStore.create(file);
-
-    await store.claimTask(POSTED_ID, 'm-mechD', '2026-06-11T00:00:00.000Z');
-    const onDisk = JSON.parse(await readFile(file, 'utf8'));
-    const t = onDisk.tasks.find((x: { id: string }) => x.id === POSTED_ID);
-    expect(t.ownerId).toBe('m-mechD');
-    expect(t.claimedAt).toBe('2026-06-11T00:00:00.000Z');
-
-    // 模拟重启：新实例从同文件加载，认领仍在
-    const reloaded = await FileGovStore.create(file);
-    const snap = await reloaded.getSnapshot();
-    expect(snap.tasks.find((x) => x.id === POSTED_ID)?.ownerId).toBe('m-mechD');
-
-    // assign 换主清 claimedAt → 磁盘上该键消失（不再回写 = 清空）
-    await store.assignTask(POSTED_ID, 'm-progB', '转派理由', LEAD, 't');
-    const onDisk2 = JSON.parse(await readFile(file, 'utf8'));
-    const t2 = onDisk2.tasks.find((x: { id: string }) => x.id === POSTED_ID);
-    expect(t2.ownerId).toBe('m-progB');
-    expect(t2.assignReason).toBe('转派理由');
-    expect(t2.claimedAt).toBeUndefined();
-  });
-});
-
-describe('SqliteGovStore: 认领 / 指派真落 SQLite + 清字段消失', () => {
-  let sqliteDir = '';
-  afterEach(async () => {
-    if (sqliteDir) await rm(sqliteDir, { recursive: true, force: true });
-    sqliteDir = '';
-  });
-
-  test('claim 落库读回；assign 清 claimedAt；未知 id → null', async () => {
-    sqliteDir = await mkdtemp(join(tmpdir(), 'gov-claim-sqlite-'));
-    const store = await SqliteGovStore.create(join(sqliteDir, 'gov.sqlite'));
-
-    const claimed = await store.claimTask(POSTED_ID, 'm-mechD', '2026-06-11T00:00:00.000Z');
-    expect(claimed?.ownerId).toBe('m-mechD');
-    expect(claimed?.claimedAt).toBe('2026-06-11T00:00:00.000Z');
-    const snap = await store.getSnapshot();
-    expect(snap.tasks.find((x) => x.id === POSTED_ID)?.ownerId).toBe('m-mechD');
-
-    const assigned = await store.assignTask(POSTED_ID, 'm-progB', '转派', LEAD, 't');
-    expect(assigned?.claimedAt).toBeUndefined();
-    const snap2 = await store.getSnapshot();
-    expect(snap2.tasks.find((x) => x.id === POSTED_ID)?.claimedAt).toBeUndefined();
-
-    expect(await store.claimTask('t-nope', 'm-x', 'x')).toBeNull();
   });
 });

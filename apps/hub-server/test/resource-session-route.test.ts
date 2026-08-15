@@ -6,7 +6,7 @@ import {
   RelayHandoffResponseSchema,
   SCENARIO_WINDOW_WEEKDAY,
 } from '@teamhub/hub-contracts';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 
 // A2 接力画布「加/删一棒」后端：POST /api/resource-sessions（建一棒，R1 已存在，这里验「加」入口端到端）
 // + DELETE /api/resource-sessions/:id（删一棒 + **级联删引用它的接力交接线**，避免删卡后箭头悬空）。

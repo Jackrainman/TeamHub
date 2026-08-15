@@ -4,12 +4,12 @@ import {
   buildHubServer,
   type BuildHubServerOptions,
 } from '../../src/server.js';
-import { InMemoryBaselineStore } from '../../src/store/mock-baseline-store.js';
-import { InMemoryChecklistStore } from '../../src/store/mock-checklist-store.js';
-import { InMemoryGovStore } from '../../src/store/mock-gov-store.js';
-import { InMemoryInvStore } from '../../src/store/mock-inv-store.js';
-import { InMemoryKbStore } from '../../src/store/mock-kb-store.js';
-import { InMemoryReimburseStore } from '../../src/store/reimburse-store.js';
+import { InMemoryBaselineStore } from './inmemory-baseline-store.js';
+import { InMemoryChecklistStore } from './inmemory-checklist-store.js';
+import { InMemoryGovStore } from './inmemory-gov-store.js';
+import { InMemoryInvStore } from './inmemory-inv-store.js';
+import { InMemoryKbStore } from './inmemory-kb-store.js';
+import { InMemoryReimburseStore } from './inmemory-reimburse-store.js';
 
 type StoreOptionKey =
   | 'store'

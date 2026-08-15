@@ -2,9 +2,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { FileGovStore } from '../src/store/file-gov-store.js';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
-import { SqliteGovStore } from '../src/store/sqlite-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 
 // setMemberRole + setProjectManager（K1 权限地基持久层 + MEMBER-PM-FLAG 公测补强刀②b）：role 枚举位
 // （groupAdmin/member 两档，不再承载管理员权限）与 projectManager 旗标（原 superAdmin 的正交化）就地改
@@ -40,33 +38,7 @@ describe('GovStore.setMemberRole', () => {
     expect(missing).toBeNull();
   });
 
-  test('File：role 落盘 governance.json 且重启（新实例）仍在', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'gov-role-'));
-    const file = join(dir, 'gov.json');
-    const store = await FileGovStore.create(file);
-    await store.setMemberRole('m-visionA', 'groupAdmin');
 
-    const onDisk = JSON.parse(await readFile(file, 'utf8'));
-    expect(onDisk.members.find((m: { id: string }) => m.id === 'm-visionA').role).toBe('groupAdmin');
-
-    const reloaded = await FileGovStore.create(file);
-    const snap = await reloaded.getSnapshot();
-    expect(snap.members.find((m) => m.id === 'm-visionA')?.role).toBe('groupAdmin');
-  });
-
-  test('Sqlite：role 落库且重开仍在；未知 id → null', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'gov-role-sqlite-'));
-    const file = join(dir, 'gov.sqlite');
-    const store = await SqliteGovStore.create(file);
-    expect(await store.setMemberRole('m-nope', 'groupAdmin')).toBeNull();
-    await store.setMemberRole('m-mechC', 'groupAdmin');
-    store.close();
-
-    const reopened = await SqliteGovStore.create(file);
-    const snap = await reopened.getSnapshot();
-    expect(snap.members.find((m) => m.id === 'm-mechC')?.role).toBe('groupAdmin');
-    reopened.close();
-  });
 });
 
 describe('GovStore.setProjectManager', () => {
@@ -131,57 +103,5 @@ describe('GovStore.setProjectManager', () => {
     expect(missing).toEqual({ ok: false, reason: 'not-found' });
   });
 
-  test('File：旗标落盘 governance.json 且重启（新实例）仍在；guard 拦截不落盘', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'gov-pm-'));
-    const file = join(dir, 'gov.json');
-    const store = await FileGovStore.create(file);
-    await store.setProjectManager('m-visionA', true);
 
-    const onDisk = JSON.parse(await readFile(file, 'utf8'));
-    expect(onDisk.members.find((m: { id: string }) => m.id === 'm-visionA').projectManager).toBe(
-      true,
-    );
-
-    const reloaded = await FileGovStore.create(file);
-    const snap = await reloaded.getSnapshot();
-    expect(snap.members.find((m) => m.id === 'm-visionA')?.projectManager).toBe(true);
-
-    // guard 拦截（m-progA 收旗后 m-visionA 是唯一持旗成员）→ 不落盘
-    await reloaded.setProjectManager('m-progA', false);
-    const blocked = await reloaded.setProjectManager('m-visionA', false, {
-      guardLastProjectManager: true,
-    });
-    expect(blocked).toEqual({ ok: false, reason: 'last-projectmanager' });
-    const onDiskAfter = JSON.parse(await readFile(file, 'utf8'));
-    expect(onDiskAfter.members.find((m: { id: string }) => m.id === 'm-visionA').projectManager).toBe(
-      true,
-    );
-  });
-
-  test('Sqlite：旗标落库且重开仍在；未知 id → not-found；guard 拦截同事务', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'gov-pm-sqlite-'));
-    const file = join(dir, 'gov.sqlite');
-    const store = await SqliteGovStore.create(file);
-    expect(await store.setProjectManager('m-nope', true)).toEqual({
-      ok: false,
-      reason: 'not-found',
-    });
-    await store.setProjectManager('m-mechC', true);
-    store.close();
-
-    const reopened = await SqliteGovStore.create(file);
-    const snap = await reopened.getSnapshot();
-    expect(snap.members.find((m) => m.id === 'm-mechC')?.projectManager).toBe(true);
-
-    // guard：m-progA 收旗后 m-mechC 是唯一持旗成员，再收被拦
-    await reopened.setProjectManager('m-progA', false);
-    const blocked = await reopened.setProjectManager('m-mechC', false, {
-      guardLastProjectManager: true,
-    });
-    expect(blocked).toEqual({ ok: false, reason: 'last-projectmanager' });
-    expect(
-      (await reopened.getSnapshot()).members.find((m) => m.id === 'm-mechC')?.projectManager,
-    ).toBe(true);
-    reopened.close();
-  });
 });

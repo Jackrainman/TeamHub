@@ -8,7 +8,7 @@ import {
 } from '@teamhub/hub-contracts';
 import type { Clock } from '../clock.js';
 import { SqliteDatabase } from './sqlite-db.js';
-import { SqliteGovStore } from './sqlite-gov-store.js';
+import { SqliteGovRepository } from './sqlite-gov-repository.js';
 import { SqliteKbStore } from './sqlite-kb-store.js';
 import { SqliteInvStore } from './sqlite-inv-store.js';
 import { SqliteBaselineStore } from './sqlite-baseline-store.js';
@@ -99,7 +99,7 @@ export function openUnifiedDb(
     }
   }
 
-  const gov = SqliteGovStore.fromSharedDb(sdb, seeds.gov, opts.clock, seeds.demoSeed);
+  const gov = SqliteGovRepository.fromSharedDb(sdb, seeds.gov, opts.clock, seeds.demoSeed);
   const kb = SqliteKbStore.fromSharedDb(sdb, seeds.kb);
   const inv = SqliteInvStore.fromSharedDb(sdb, seeds.inv, opts.clock);
   const baseline = SqliteBaselineStore.fromSharedDb(sdb, seeds.baseline);

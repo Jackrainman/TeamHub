@@ -9,7 +9,7 @@ import {
   type Member,
 } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 
 /**
  * 名册导入端到端（ROSTER-IMPORT，K8）：GET 模板 + POST 导入（匿名成功 / 身份空板豁免 / 身份非管理员

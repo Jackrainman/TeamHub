@@ -7,7 +7,7 @@ import {
   type Member,
 } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 
 /**
  * 组端点（PROGRAM-GROUP-ABSTRACT，公测补强刀④）：

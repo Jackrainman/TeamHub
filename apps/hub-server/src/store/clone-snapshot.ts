@@ -1,7 +1,7 @@
 /**
  * 快照浅克隆共享辅助：浅拷贝对象 + spread 指定的每个数组字段，使写方法 push/splice 时不污染共享 fixture。
  *
- * 收口 file-gov-store / file-kb-store / mock-gov-store / mock-kb-store 此前各自内联的同形克隆逻辑
+ * 收口旧 Store 实现此前各自内联的同形克隆逻辑
  * （`{ ...seed, arr: [...seed.arr], ... }`）——逻辑镜像、易随快照增字段漂移，提取为单一泛型实现。
  * 仅克隆**被写方法触及**的数组字段；标量与未列出的字段沿用浅拷贝引用（与原内联行为逐字等价）。
  */

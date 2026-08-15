@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'vitest';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryInvStore } from '../src/store/mock-inv-store.js';
+import { InMemoryInvStore } from './support/inmemory-inv-store.js';
 import {
   inventoryScenarioFixture,
   HermesInboundResponseSchema,

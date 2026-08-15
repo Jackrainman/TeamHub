@@ -11,7 +11,7 @@ import {
   applyResourceStatus,
   applyResourceDefaultPreset,
   applyResourceSessionPatch,
-} from './gov-store-logic.js';
+} from '../../src/store/gov-store-logic.js';
 import type {
   RelayHandoffDraft,
   ResourceDefaultPresetPatch,
@@ -20,9 +20,9 @@ import type {
   ResourceSessionPatch,
   ResourceStatusPatch,
   ScheduleStore,
-} from './gov-store.js';
-import { nextSequentialId } from './id-sequence.js';
-import type { InMemoryGovStoreBase } from './mock-gov-store-base.js';
+} from '../../src/store/gov-store.js';
+import { nextSequentialId } from '../../src/store/id-sequence.js';
+import type { InMemoryGovStoreBase } from './inmemory-gov-store-base.js';
 
 /**
  * schedule 域方法 mixin（GOV-SPLIT）：ScheduleStore 全部 12 条方法（资源车读写 + 占用窗口 +
@@ -45,7 +45,7 @@ export function ScheduleMixin<T extends Base>(
      * **钉 status=`available` / statusReason=null / statusSource=`console`**（C5：来源 seam server 钉，建车一律空闲可用）。
      * displayCode **禁手写**（D-072 §3.2 决定 K）——**store 内派生**（与 status/statusSource 同列由 server 钉）：
      * 给了 season 才经 deriveDisplayCode(season, robotTarget, version ?? 1) 派生，否则 undefined（读视图回退 name）。
-     * 调用方（路由 / FileGovStore 委托）绝不传 displayCode（ResourceDraft 已 Omit 之）。
+     * 调用方（路由 / 旧生产 Store 委托）绝不传 displayCode（ResourceDraft 已 Omit 之）。
      * **I0**：SharedResource 无 person 字段，draft 也不含——车是中性对象，绝无 memberId / 出勤。
      */
     async createResource(draft: ResourceDraft): Promise<SharedResource> {

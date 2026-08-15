@@ -18,7 +18,7 @@ describe('sqlite-unified', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  it('fresh open seeds all five domains (demo)', () => {
+  it('fresh open assembles all six domains (demo)', () => {
     const stores = openUnifiedDb(dbPath, { seeds: defaultSeeds(true) });
     try {
       expect(stores.gov).toBeDefined();
@@ -26,6 +26,7 @@ describe('sqlite-unified', () => {
       expect(stores.inv).toBeDefined();
       expect(stores.baseline).toBeDefined();
       expect(stores.checklist).toBeDefined();
+      expect(stores.reimburse).toBeDefined();
     } finally {
       stores.close();
     }
@@ -97,7 +98,7 @@ describe('sqlite-unified', () => {
     }
   });
 
-  it('persistence across close/reopen', async () => {
+  it('six domain writes survive close/reopen through one unified database', async () => {
     const stores = openUnifiedDb(dbPath, { seeds: defaultSeeds(true) });
     const task = await stores.gov.createTask({
       projectId: 'p',
@@ -108,12 +109,38 @@ describe('sqlite-unified', () => {
       collaboratorIds: [],
       intrinsicComplexity: 'normal',
     });
+    await stores.kb.appendCloseout({
+      issueCard: { id: 'iss-persist', projectId: 'p', title: 't', rawInput: '', normalizedSummary: '', symptomSummary: '', suspectedDirections: [], suggestedActions: [], status: 'archived', severity: 'medium', tags: [], relatedFiles: [], relatedCommits: [], relatedHistoricalIssueIds: [], createdAt: '2026-01-01', updatedAt: '2026-01-01' },
+      errorEntry: { id: 'err-persist', projectId: 'p', sourceIssueId: 'iss-persist', errorCode: 'DBG-20260101-002', title: 't', category: 'c', symptom: 's', rootCause: 'r', resolution: 'res', prevention: 'p', relatedFiles: [], relatedCommits: [], archiveFilePath: '', createdAt: '2026-01-01', updatedAt: '2026-01-01' },
+      archiveDocument: { issueId: 'iss-persist', projectId: 'p', fileName: 'persist.md', filePath: '/persist.md', markdownContent: '# persist', generatedBy: 'manual', generatedAt: '2026-01-01' },
+    });
+    const part = await stores.inv.upsertPartType({
+      projectId: 'p', partNumber: 'PERSIST-1', name: '持久件', category: 'other', unit: '个',
+      trackIndividually: false, totalQuantity: 3, allocations: [], lowStockThreshold: 1,
+    });
+    const baseline = await stores.baseline.upsertBaseline('season-persist', {
+      anchors: { semesterStart: '2026-09-01T00:00:00.000Z' },
+      milestones: [],
+    });
+    const checklist = await stores.checklist.createItem({
+      seasonBaselineId: baseline.id,
+      title: '持久欠条',
+      anchorDueAt: '2026-10-01T00:00:00.000Z',
+      origin: 'iou',
+      createdAt: '2026-08-15T00:00:00.000Z',
+    });
+    const batch = await stores.reimburse.createBatch({ projectId: 'p', name: '持久批次' });
     stores.close();
 
     const reopened = openUnifiedDb(dbPath, { seeds: defaultSeeds(true) });
     try {
       const snap = await reopened.gov.getSnapshot();
       expect(snap.tasks.some((t) => t.id === task.id)).toBe(true);
+      expect((await reopened.kb.getKbSnapshot()).issueCards.some((item) => item.id === 'iss-persist')).toBe(true);
+      expect((await reopened.inv.getInventorySnapshot()).partTypes.some((item) => item.id === part.id)).toBe(true);
+      expect((await reopened.baseline.getBaseline('season-persist'))?.id).toBe(baseline.id);
+      expect((await reopened.checklist.listItems(baseline.id)).some((item) => item.id === checklist.id)).toBe(true);
+      expect((await reopened.reimburse.getBatch(batch.id))?.name).toBe('持久批次');
     } finally {
       reopened.close();
     }

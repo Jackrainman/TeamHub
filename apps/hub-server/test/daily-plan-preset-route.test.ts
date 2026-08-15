@@ -5,7 +5,7 @@ import {
   SCENARIO_WINDOW_WEEKDAY,
   UpdateResourceDefaultPresetResponseSchema,
 } from '@teamhub/hub-contracts';
-import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
+import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 
 // 今日计划：每车预设写回（PATCH /api/resources/:id/preset）+ 表格页批量确认落盘
 // （POST /api/resource-sessions/batch，D-082 daily-plan-presets）。res-r1/res-r2 defaultPreset seed
