@@ -132,7 +132,7 @@ export function SchedulePage({
       ) : (
         // 接力画布**永远渲染**（含「+加一棒」工具条与空态引导卡）——不再被 recommendations.length
         // 短路。否则新一天 0 建议时整块画布连同加棒入口被吞掉成一张没有按钮的死卡
-        // （SCHEDULE-DESIGN-LOCK 根因，见 docs/design/schedule-ux-lock.md §0.0）。
+        // （SCHEDULE-DESIGN-LOCK 根因，见 docs/domains/schedule.md）。
         // 空与非空的分支判断全部下沉到 RelayCanvas 内部。
         <RelayCanvas client={client} windowLabel={windowLabel} />
       )}

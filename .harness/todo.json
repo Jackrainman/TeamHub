@@ -1,5 +1,5 @@
 {
-  "focus": "ARCH-UNIFY：暂停功能增长，先按 D-090/software-architecture.md 统一仓库、生产 SQLite、配置、模块模板与自动架构门；reimburse 作为首个纵切试点",
+  "focus": "DOC-GOV → ARCH-UNIFY：先按 D-091 收敛活文档与精简 archive，再按 D-090 统一仓库、生产 SQLite、配置、模块模板与自动架构门；reimburse 作为首个纵切试点",
   "blocked": [
     {
       "id": "HERMES-LARK-SKILL",
@@ -14,6 +14,12 @@
   ],
   "todo": [
     {
+      "id": "DOC-GOV",
+      "title": "文档治理：总纲+每领域一份活文档，archive 蒸馏为五份可按 Git SHA 回查的历史诊断库，删除状态稿/实施稿/截图并增加增长门；见 docs/README.md 与 D-091",
+      "tag": "docs",
+      "batch": "architecture"
+    },
+    {
       "id": "ARCH-UNIFY",
       "title": "仓库级软件架构统一：A0 架构门+单 lock/版本 → A1 workspace/统一 SQLite/删 File+生产 InMemory 双轨 → A2 app_settings+平台基础设施 → A3 reimburse 模块模板试点 → A4 全域迁移 → A5 旧骨架归零；不考虑旧数据兼容，见 docs/design/software-architecture.md",
       "tag": "code",
@@ -21,25 +27,25 @@
     },
     {
       "id": "REIMBURSE-PURCHASER-CHECK",
-      "title": "报账购买方质量门：持久化 purchaserName/purchaserTaxNo/recognitionSource，部署级期望抬头配置，contracts 派生 match/mismatch/missing/skipped；错误抬头阻止批次提交，汇总显式 gross/eligible/blocked/review 双口径；见 docs/design/reimburse-invoice-quality.md §3-4",
+      "title": "报账购买方质量门：持久化 purchaserName/purchaserTaxNo/recognitionSource，部署级期望抬头配置，contracts 派生 match/mismatch/missing/skipped；错误抬头阻止批次提交，汇总显式 gross/eligible/blocked/review 双口径；见 docs/domains/reimburse.md",
       "tag": "code",
       "batch": "reimburse"
     },
     {
       "id": "REIMBURSE-PM-EXPORT",
-      "title": "项管视角全员发票查看+导出：筛选/选择、建议文件名、购买方校验状态与核对原因、gross/eligible 双金额；名字只在报账事实层流通，永不进治理聚合/统计；见 docs/design/reimburse-invoice-quality.md §6",
+      "title": "项管视角全员发票查看+导出：筛选/选择、建议文件名、购买方校验状态与核对原因、gross/eligible 双金额；名字只在报账事实层流通，永不进治理聚合/统计；见 docs/domains/reimburse.md",
       "tag": "code",
       "batch": "reimburse"
     },
     {
       "id": "REIMBURSE-OFD-PARSE",
-      "title": "ZIP/OFD 共用归档导入：引 fflate 单一解包底座，ZIP 展开 PDF/XML/OFD 队列，OFD 读内嵌 XBRL XML；加文件数/解压总量/递归容器安全门，逐文件失败不拖垮整包；见 docs/design/reimburse-invoice-quality.md §5",
+      "title": "ZIP/OFD 共用归档导入：引 fflate 单一解包底座，ZIP 展开 PDF/XML/OFD 队列，OFD 读内嵌 XBRL XML；加文件数/解压总量/递归容器安全门，逐文件失败不拖垮整包；见 docs/domains/reimburse.md",
       "tag": "code",
       "batch": "reimburse"
     },
     {
       "id": "REIMBURSE-OCR-PROBE",
-      "title": "扫描票本地 OCR 技术验证：真实样本测 tesseract.js 资源体积、单页耗时、低性能设备内存与核心字段识别率；达标后才评估接主流程，结果必须人工确认且原件不上传；见 docs/design/reimburse-invoice-quality.md §7",
+      "title": "扫描票本地 OCR 技术验证：真实样本测 tesseract.js 资源体积、单页耗时、低性能设备内存与核心字段识别率；达标后才评估接主流程，结果必须人工确认且原件不上传；见 docs/domains/reimburse.md",
       "tag": "research",
       "batch": "later"
     },
@@ -87,7 +93,7 @@
     },
     {
       "id": "TIMELINE-EDITOR",
-      "title": "基准线交互编排：/baseline/edit 全页路由，里程碑点击选偏移+实时 pace 反馈，segment 低频调整，不引拖拽库（~2.5 天，见 docs/design/pending-decisions-to-discuss.md §4）",
+      "title": "基准线交互编排：/baseline/edit 全页路由，里程碑点击选偏移+实时 pace 反馈，segment 低频调整，不引拖拽库（~2.5 天，见 docs/domains/baseline.md）",
       "tag": "code",
       "batch": "later"
     },

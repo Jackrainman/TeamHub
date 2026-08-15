@@ -1,0 +1,6 @@
+# 精简历史库默认不进入全文搜索。命中 AGENTS.md 的历史回查条件后，
+# 先直读 docs/archive/README.md，再用明确路径或 rg --no-ignore 定向读取。
+docs/archive/milestones.md
+docs/archive/decisions.md
+docs/archive/incidents.md
+docs/archive/deferred.md

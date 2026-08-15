@@ -33,7 +33,7 @@ import { SettingsPage } from './features/settings/SettingsPage';
  * 页面注册表（HUB-MODULARIZATION 第2步，装配外壳）。
  *
  * 把原 App.tsx 的 if-else 渲染分支 + ConsoleLayout 的 ConsolePage 联合类型 + navItems 静态数组 +
- * TITLE_KEY（4 处"加一页要改 4 处"的同改点，见 docs/design/modularization-feasibility.md §2.2⑥ / §3.4-A）
+ * TITLE_KEY（存量 4 处同改点；目标 registry 见 docs/design/software-architecture.md）
  * 收成本文件一处定义：加一页只改 `CONSOLE_PAGES` 这一个数组。
  *
  * 装配契约对照：本文件是 hub-console 对 `ModuleDescriptor.pages`（`@teamhub/hub-contracts` 的

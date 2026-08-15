@@ -9,7 +9,7 @@ import type { VocabularyOverrides } from '../i18n/vocabulary-overrides';
  * 除了调用这里的注入值外不再直接内嵌机器人词汇。游戏工作室等其它垂直包应在自己的
  * `verticals/*.ts` 平行放一份同形文件，不改动本文件、不改动核心组件。
  *
- * 见 docs/design/modularization-feasibility.md §3.4-B + §4 词汇替换表 + §5 第6步；
+ * 当前边界见 docs/design/software-architecture.md 与 docs/domains/system.md；
  * 对应契约层参考表见 `@teamhub/hub-contracts` 的 `verticals/robotics.ts`。
  */
 

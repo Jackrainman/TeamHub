@@ -46,9 +46,9 @@ npm --prefix apps/hub-console install
 
 第一次启动怎么导入队员名册（设置页下载 CSV 模板 → Excel 填好 → 上传）、怎么初始化管理员、什么时候才暴露到内网，都在部署指南里：
 
-- 📦 **[部署指南](docs/deploy/DEPLOY.md)** —— 从零到全队可用，含环境变量速查表和 Docker 路径。
-- 🤖 **[给 AI 助手的部署提示词](docs/deploy/ai-agent-deploy-prompt.md)** —— 服务器上有 Hermes / Claude 这类能执行命令的助手？把提示词粘给它，让它替你部署。
-- 🔧 **[运维 Runbook](docs/deploy/RUNBOOK.md)** —— 备份、回滚、升级纪律。
+- 📦 **[部署指南](docs/operations/deploy.md)** —— 从零到全队可用，含环境变量速查表和 Docker 路径。
+- 🤖 **[给 AI 助手的部署提示词](docs/operations/agent-deploy.md)** —— 服务器上有 Hermes / Claude 这类能执行命令的助手？把提示词粘给它，让它替你部署。
+- 🔧 **[运维 Runbook](docs/operations/runbook.md)** —— 备份、回滚、升级纪律。
 
 ## 队员第一次用
 
@@ -74,8 +74,8 @@ npm --prefix apps/hub-console install
 
 ## 更多文档
 
-- 设计文档：[`docs/design/`](docs/design/) · 设计约束：[`.harness/decisions.md`](.harness/decisions.md)
-- 项目缘起、痛点叙事、设计底线全文与 v0.3 历史：**[原版 README 归档](docs/archive/readme-pre-beta-2026-07.md)**
+- 文档唯一入口：[`docs/README.md`](docs/README.md) · 设计约束：[`.harness/decisions.md`](.harness/decisions.md)
+- 历史诊断库：[`docs/archive/README.md`](docs/archive/README.md)（仅按 `AGENTS.md` 的触发条件定向回查）
 - 内部操作手册以 [`AGENTS.md`](AGENTS.md) 为准，待办见 [`.harness/todo.json`](.harness/todo.json)
 
 ---

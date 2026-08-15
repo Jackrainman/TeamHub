@@ -27,6 +27,9 @@ apps/hub-contracts/dist/
 apps/hub-console/dist/
 apps/hub-server/dist/
 tmp/
+.artifacts/
+test-results/
+playwright-report/
 *.sqlite
 *.sqlite-*
 

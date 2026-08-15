@@ -80,8 +80,8 @@ TeamHub/
 ├─ integrations/         # 可选外部进程；纳入根 workspace 与根 verify
 │  └─ lark/              # 若保留飞书长连接，收成一个边界清楚的进程
 ├─ scripts/              # 构建、验证、备份、一次性重建工具
-├─ docs/design/          # 活跃设计真相
-├─ docs/archive/         # 被取代的历史设计
+├─ docs/                 # README 路由到总纲、每领域一份活文档和使用/运维文档
+│  └─ archive/           # 五份精简历史诊断文档；按稳定 ID + Git SHA 定向回查
 ├─ package.json
 ├─ package-lock.json
 └─ VERSION
@@ -353,7 +353,8 @@ fallback、旧 env 和旧文档必须一起删除。暂时无法删除时任务�
 
 ### A0：设计与护栏
 
-- 本文 + D-090 生效；旧模块化文档标 superseded。
+- 本文 + D-090/D-091 生效；旧设计蒸馏进活文档或五份精简 archive 后删除。
+- `docs/README.md` 成为文档唯一入口；功能计划不再产生永久设计稿。
 - 建 `verify-architecture.mjs`，先记录现存违规白名单，禁止新增。
 - 根版本和单 lockfile 收口。
 

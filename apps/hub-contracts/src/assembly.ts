@@ -1,7 +1,7 @@
 /**
  * 装配契约（HUB-MODULARIZATION 第 2 步）。
  *
- * 只定接口 + 一份默认租户配置，不含任何实现/逻辑（见 docs/design/modularization-feasibility.md §5 第2步）。
+ * 只定接口 + 一份默认租户配置，不含任何实现/逻辑（见 docs/domains/system.md）。
  * 核心宿主（hub-server 的 buildHubServer / hub-console 的 App 壳）据此遍历 `TenantConfig.enabledModules`
  * 挂载各模块的路由 / 页面 / i18n / 词汇——装配层本身不判断"该启用什么"，enabledModules 永远是人填的
  * 租户配置（AI 只转译不下判断红线，见 §6.2）。

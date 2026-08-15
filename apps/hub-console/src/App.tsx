@@ -26,7 +26,7 @@ const SOURCE = 'real';
 
 /**
  * 装配点（PHASE2-CONSOLE-ASSEMBLY，D-081 已知延后项①②收口）：租户配置目前是编译期常量注入，
- * 不做运行期远程拉取（见 docs/design/modularization-feasibility.md §3.4-A「装配层必须极薄」+
+ * 不做运行期远程拉取（见 docs/design/software-architecture.md「装配层必须极薄」+
  * §6.1「不引入 IoC 容器/插件市场/动态加载」）。robotics 默认 = 全 6 模块启用，与 hub-server
  * `buildHubServer` 的缺省 `tenantConfig ?? ROBOTICS_TENANT_CONFIG` 同一份常量、同口径。
  * 换租户（如游戏工作室）目前 = 换这一行常量，是本步刻意留的清晰接缝。

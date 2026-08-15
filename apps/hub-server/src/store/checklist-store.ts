@@ -6,7 +6,7 @@ import type {
 
 /**
  * 门检查单 / 欠条读写出入口契约（GATE-CHECKLIST-IOU 持久层；D-087 /
- * `docs/design/gate-checklist-iou.md` §2/§3，S-store 落地）。
+ * `docs/domains/checklist.md`，S-store 落地）。
  *
  * **独立文件、独立 store、独立落盘**（照 `BaselineStore`/`InvStore`/`KbStore` 先例）：
  * `GateChecklistItem` 不进 `GovernanceSnapshot`（红线：轻量域不塞治理快照，见 checklist.ts 头部注释 +

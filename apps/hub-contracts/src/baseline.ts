@@ -7,7 +7,7 @@ import { ActorRefSchema, isoDateTimeSchema } from './common.js';
 import type { Task } from './pm-core.js';
 
 /**
- * 倒排基准线（BASELINE-CORE，D-083 §4.1 / `docs/design/baseline-design.md` §3）。
+ * 倒排基准线（BASELINE-CORE，D-083 / `docs/domains/baseline.md`）。
  *
  * **独立域文件**：不塞 `pm-core.ts` / `attribution.ts` / `GovernanceSnapshot`（红线3，
  * baseline-design.md §5）——`GovernanceSnapshot` 三处手写同步已是既有雷区

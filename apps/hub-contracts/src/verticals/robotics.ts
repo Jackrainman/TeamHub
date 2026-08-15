@@ -10,7 +10,7 @@ import { buildCreateArtifactRequestSchema } from '../artifact-requests.js';
  * `z.string()`，本文件是"今天唯一已注册的垂直包"往这些开放槽位灌的具体值 + 一次性派生函数。
  * 游戏工作室等其它垂直包应在自己的 `verticals/*.ts` 平行放一份同形文件，不改动本文件、不改动核心。
  *
- * 见 docs/design/modularization-feasibility.md §3.4-B（词汇注入三通道）+ §4（词汇替换表）+ §5 第6步。
+ * 当前边界见 docs/design/software-architecture.md 与 docs/domains/system.md。
  * 装配层尚未接线消费本文件（ModuleDescriptor.domainVocab 仍是占位接口，见 assembly.ts）——
  * 本步只做"核心开放 + 垂直包收纳具体值"的静态搬移，运行期真正按租户切换词汇留待 registerRoutes/
  * console 装配层落地时再接（不在本步范围，避免无法编译验证的连锁改动）。

@@ -282,7 +282,7 @@ export interface PmCoreStore {
    */
   ensureDefaultGroups(): Promise<void>;
 
-  // ── 挂单认领制窄写方法（TASK-POST-CLAIM，D-088 / docs/design/task-post-claim.md）─────────────────
+  // ── 挂单认领制窄写方法（TASK-POST-CLAIM，D-088 / docs/domains/pm.md）─────────────────
   // 全部照 updateTaskStatus/setMemberPin 受限迁移先例：就地改 tasks[idx] 的**自己那簇留名字段** + bump
   // updatedAt，id 不存在 → null（路由层转 404）。**红线**：留名只落单条任务卡（事实层，D-085），本域绝不
   // 派生任何按人聚合/排行/按人筛选。**无 dueDate**（D-083 G4）。「status 变则 statusSource 钉 console」

@@ -12,7 +12,7 @@ import {
 import type { ActorRef } from '../src/index.js';
 
 /**
- * 挂单认领制契约单测（TASK-POST-CLAIM，D-088 / docs/design/task-post-claim.md §3–§5）：
+ * 挂单认领制契约单测（TASK-POST-CLAIM，D-088 / docs/domains/pm.md）：
  * 结构尺（isBigTask）+ 验收态派生（deriveTaskAcceptance）+ 挂单态派生（isPostedTask）
  * + 留名字段向后兼容 + 写侧动作契约（Assign 理由强制 / Review reject 带 note）。
  */

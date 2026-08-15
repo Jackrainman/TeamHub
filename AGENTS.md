@@ -2,7 +2,7 @@
 
 ## 1. 产品
 
-TeamHub = 机器人战队协作中枢（CASE + 交流 + 数据库）。三支柱：① 知识库 ② 项管看板 ③ 库存-BOM。垂直包 = Robocon。设计 `docs/design/`，约束 `.harness/decisions.md`。
+TeamHub = 机器人战队协作中枢（CASE + 交流 + 数据库）。三支柱：① 知识库 ② 项管看板 ③ 库存-BOM。垂直包 = Robocon。文档入口 `docs/README.md`，约束 `.harness/decisions.md`。
 
 **不变式**（约束一切代码）：
 - **I0**：对准事不对准人；人键只回本人，第三方只见结构键（task/group/resource）；名字只在事实卡片，永不进聚合/统计。
@@ -13,7 +13,7 @@ TeamHub = 机器人战队协作中枢（CASE + 交流 + 数据库）。三支柱
 ## 2. 工作流
 
 ```
-开局：读本文件 + .harness/todo.json + git status --short
+开局：读本文件 + .harness/todo.json + git status --short；再按 docs/README.md 只读本任务对应活文档
 做事：从 todo 取一条
 收尾：verify（§4）→ bump（§6）→ commit+push → 删 todo → append .harness/ai-log.md
 ```
@@ -21,6 +21,19 @@ TeamHub = 机器人战队协作中枢（CASE + 交流 + 数据库）。三支柱
 - trunk-based，commit+push 默认不问；push 前 fetch 查分叉。
 - 原子单元 = 可独立验证 + 单独 commit。DoD 必含工程谓词。
 - 不伪造完成、exit code 必查、失败不静默吞。连续两次失败升级人工。
+
+### 2.1 文档与历史回查
+
+- 活文档只有 `docs/README.md` 登记的总纲、领域文档、指南、运维与限时研究；任务只进 `.harness/todo.json`，仍生效决策只进 `.harness/decisions.md`，普通完成记录只进 commit。
+- `docs/archive/` 是精简历史诊断库，不是当前事实源。普通任务禁止遍历 archive；命中下列触发条件时必须回查：
+  1. 用户或 Agent 的方案与 I0、D-090、数据边界冲突；
+  2. 准备恢复被删除、否决或替换过的设计；
+  3. 执行出现非预期的数据、权限、事务、配置或跨域问题；
+  4. 同一修复方向连续失败两次，或代码与活文档矛盾；
+  5. 用户追问“以前为什么这样做 / 是否踩过这个坑 / 恢复旧方案”；
+  6. 大改存储、身份、权限、飞书、Harness 或产品定位。
+- 回查顺序固定：先确认活文档 → 打开 `docs/archive/README.md` 按关键词找稳定 ID → 只读命中条目 → 必要时按条目 SHA 与原路径 `git show <sha>:<path>`。结论注明归档 ID；若旧坑已有防线，先解释防线为何失效。
+- 归档只允许五份 Markdown。ADR 被取代补 `decisions.md`；阶段结束补 `milestones.md`；可复用严重故障补 `incidents.md`；有明确复活条件的暂缓方案补 `deferred.md`；删除大型旧稿在 archive README 登记路径和 SHA。常规功能、普通 bug、临时计划、AI 日志和截图不归档。
 
 ## 3. 命令
 
@@ -68,7 +81,7 @@ curl -s http://127.0.0.1:4177/health | grep buildId  # 活体
 - D-090 目标：生产只保留统一 SQLite repository；InMemory 仅作 `test/support` fake，File Store 与生产内存 fallback 待迁移删除。新增域禁止再建三实现。
 - API 响应：200+JSON；目标错误 envelope `{ code: string, detail: string, fields?: object }`；列表直接数组。
 - 复用：`routes/helpers.ts` 提供 parseBody / parseQuery / readCsvUpload / sessionActor / requireSuperAdmin / requireActor / isLoopbackOperator / buildScheduleSnapshot / cookie 族。`authz.ts` 提供 isSuperAdmin / isGroupLeadOf / isGateReviewer / memberHasPmFlag。
-- 报账域是 D-090 首个模块模板试点，目标见 `docs/design/reimburse-invoice-quality.md`。红线：发票/付款截图/查验单**文件本体永不上传**；条目人键只回本人+超管，批次聚合无按人明细；跨域入库改由 application service + 事务编排，route 不直调两个 repository。
+- 报账域是 D-090 首个模块模板试点，目标见 `docs/domains/reimburse.md`。红线：发票/付款截图/查验单**文件本体永不上传**；条目人键只回本人+超管，批次聚合无按人明细；跨域入库改由 application service + 事务编排，route 不直调两个 repository。
 
 ### 前端（hub-console）
 

@@ -12,7 +12,7 @@ export const ArtifactRefSchema = z.object({
   // HUB-MODULARIZATION 第6步（词汇注入收口）：由闭集 z.enum 放宽为开放 string——归档物种类是
   // 租户词汇，非核心结构。机器人租户已知值（含 firmware/rosbag）见
   // `verticals/robotics.ts:ROBOTICS_ARTIFACT_KIND_VALUES`；闭集校验（如需要）下沉到路由层
-  // VocabularyRegistry 校验器（尚未实现，见 docs/design/modularization-feasibility.md §3.4-A①），
+  // VocabularyRegistry 校验器（尚未实现，见 docs/domains/system.md），
   // 在该校验器补齐前对非法值不做闭集校验，只能靠测试兜底（放弃编译期枚举安全换运行期可注入）。
   kind: z.string().min(1),
   name: z.string().min(1),

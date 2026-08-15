@@ -5,7 +5,7 @@ import { BASELINE_DRIFT_LOOKAHEAD_WEEKS } from './baseline.js';
 import type { MilestoneDriftLevel } from './baseline.js';
 
 /**
- * 门检查单与欠条（GATE-CHECKLIST-IOU，D-087 / `docs/design/gate-checklist-iou.md`）。
+ * 门检查单与欠条（GATE-CHECKLIST-IOU，D-087 / `docs/domains/checklist.md`）。
  *
  * 一句话定位：凑合不禁止，但凑合必须贴条；条子有到期点；到期要么还、要么签字认账。
  * 门从"证据+验收"的原子点升级为**检查项的容器**；欠条 = 一种动态追加的检查项——一个机制

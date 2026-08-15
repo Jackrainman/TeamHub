@@ -2,7 +2,7 @@ import type { Lang, TranslationKey } from './translations';
 
 /**
  * 租户词汇覆盖层（HUB-MODULARIZATION 第 6 步 i18n 通道，见
- * docs/design/modularization-feasibility.md §3.4-B-3）。
+ * docs/domains/system.md）。
  *
  * `translations.ts` 巨表是核心默认词汇（今天 = 机器人战队租户）；本层允许垂直包 / 租户配置在
  * **不修改巨表、不拆 per-module 文件**的前提下覆盖个别词条的显示文案（例：把

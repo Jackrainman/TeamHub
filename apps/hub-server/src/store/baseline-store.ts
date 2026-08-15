@@ -6,7 +6,7 @@ import type {
 
 /**
  * 倒排基准线读写出入口契约（BASELINE-CORE 持久层；`product-redefine-2026-07.md` §4.1 /
- * `docs/design/baseline-design.md` §3/§5，S3 落地）。
+ * `docs/domains/baseline.md`，S3 落地）。
  *
  * **独立文件，不塞进 `gov-store.ts`**：`KbStore`/`InvStore` 接口历史上共居 `gov-store.ts`
  * 是既有事实、不是应当延续的规范——`product-redefine-2026-07.md` §4.4/§9-③ 已把 `GovStore`

@@ -4,7 +4,7 @@ import { isoDateTimeSchema } from './common.js';
 
 /**
  * 库存 / BOM 第三支柱 buildable-now 内核（INV-BOM-CORE，D-042 决策 4 / D-072 §3.4）。
- * 权威实现规格见 `docs/design/inv-bom-core.md`（schema / 动作语义 / API / UI / seed 已全锁）。
+ * 当前领域规格见 `docs/domains/inventory.md`。
  *
  * 两实体 + 一条统一动作日志：
  *  - `PartType`  — 按数量件（绝大多数）：存总数 + 各机器人占用（allocations）。
@@ -28,7 +28,7 @@ import { isoDateTimeSchema } from './common.js';
 
 // HUB-MODULARIZATION 第6步（词汇注入收口）：由闭集 z.enum 放宽为开放 string——BOM 类目是租户词汇
 // （机器人 motor/esc/controller vs 游戏工作室 GPU/CPU/devkit/license/consumable，见
-// docs/design/modularization-feasibility.md §4 词汇替换表），非核心结构。机器人租户已知值见
+// docs/domains/system.md 的词汇覆盖），非核心结构。机器人租户已知值见
 // `verticals/robotics.ts:ROBOTICS_PART_CATEGORY_VALUES`；闭集校验（如需要）下沉到路由层
 // VocabularyRegistry 校验器（尚未实现，同 schemas.ts:ArtifactRefSchema.kind 过渡态）。
 export const PartCategorySchema = z.string().min(1);

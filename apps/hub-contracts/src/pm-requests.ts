@@ -11,7 +11,7 @@ import {
 // 此前 hub-server/src/contracts.ts 与 hub-console/src/api/schemas/pm.ts 各从 hub-contracts
 // 派生一份同形 schema、字段表逐行重复；现下沉至此，两端 import 同一份，H4 clamp / 字段增删改一处即同步。
 // I0 读写边界：confirmedBy 随请求传入（建边/建需求本人凭证），但**任何读视图永不回此对象**——
-// 见 docs/design/pm-board.md §3。
+// 见 docs/domains/pm.md。
 //
 // 写契约放置约定（CONTRACTS-REQ-RULE）：**新增写请求契约一律放按域的 `*-requests.ts` 家族**
 //（pm/artifact/schedule/resource-requests），由 `EntitySchema.omit/pick` 剥掉 server 独占字段派生，
@@ -94,7 +94,7 @@ export const TransitionTaskStatusRequestSchema = z.object({
 export const TransitionTaskStatusResponseSchema = z.object({ task: TaskSchema });
 
 // ---------------------------------------------------------------------------
-// 挂单认领制写侧动作契约（TASK-POST-CLAIM，D-088 / docs/design/task-post-claim.md）。
+// 挂单认领制写侧动作契约（TASK-POST-CLAIM，D-088 / docs/domains/pm.md）。
 // 全部写 Task 本体的留名字段簇（pm-core.ts），无新实体、无 dueDate。actor（认领人/指派人/确认人/
 // 完成人/验收人）注入沿 IDENTITY-LITE：身份模式服务端从 session 取、匿名模式 body 供名，路由层
 // 强制其一（照 baseline 过门 passedBy 的 sessionActor 注入范式）。响应统一 `{ task: TaskSchema }`

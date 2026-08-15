@@ -1,7 +1,7 @@
 import type { BaselineMilestonePublic } from '@teamhub/hub-contracts';
 
 /**
- * 门检查单 / 欠条（GATE-CHECKLIST-IOU，D-087 / `docs/design/gate-checklist-iou.md`）界面层纯函数集。
+ * 门检查单 / 欠条（GATE-CHECKLIST-IOU，D-087 / `docs/domains/checklist.md`）界面层纯函数集。
  * 被 ChecklistQuickRecord.tsx / GateChecklistCard.tsx 共用，抽出来单测（不测 DOM/RTL，符合本仓
  * 「测逻辑不测 DOM」风格，同 identity-utils.ts / myview-utils.ts）。本文件不含任何 React / fetch。
  */

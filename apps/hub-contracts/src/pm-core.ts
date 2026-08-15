@@ -22,7 +22,7 @@ import { TaskInvestmentSchema } from './investment.js';
  * 由 step6 词汇注入层把 `targetLabel` 收紧回 `RobotTargetSchema` 三值枚举；本步 UI/表单暂留
  * `robotTarget` 硬编码下拉作为 fallback，不等 step6）。**放弃的编译期保证**：`robotTarget` 曾是
  * `z.enum` 强校验，非法值在 schema parse 阶段就被拒；改 optional 后，闭集校验下沉到"路由层
- * VocabularyRegistry 校验器"（尚未实现，见 docs/design/modularization-feasibility.md §3.4 A①），
+ * VocabularyRegistry 校验器"（尚未实现，见 docs/domains/system.md），
  * 在该校验器补齐前，服务器对 `targetLabel` 自由字符串**不做闭集校验**，只能靠测试兜底。
  */
 

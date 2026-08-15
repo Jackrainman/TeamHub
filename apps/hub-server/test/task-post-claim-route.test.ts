@@ -14,7 +14,7 @@ import {
 } from '@teamhub/hub-contracts';
 import type { GovernanceSnapshot } from '@teamhub/hub-contracts';
 
-// 挂单认领制窄写路由（TASK-POST-CLAIM，D-088 / docs/design/task-post-claim.md）：认领即生效免确认（唯一硬
+// 挂单认领制窄写路由（TASK-POST-CLAIM，D-088 / docs/domains/pm.md）：认领即生效免确认（唯一硬
 // 闸在门上）；指派/跨组确认走组长鉴权（isGroupLeadOf）；验收走验收人名单（isGateReviewer，与欠条豁免同名
 // 册）。红线：留名只落单卡，本簇不聚合/不按人筛。fixture 无任何 groupAdmin，故组长 200 用例注入 groupAdmin。
 

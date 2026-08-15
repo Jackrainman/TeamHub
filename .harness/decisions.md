@@ -1,6 +1,6 @@
 # 设计约束（Active Decisions）
 
-> 仍约束当前代码/产品方向的决策。争议时 grep 本文件；历史决策全文见 `docs/archive/decisions-archive.md` + git log。
+> 仍约束当前代码/产品方向的决策。争议时 grep 本文件；被取代方案与完整旧稿入口见 `docs/archive/README.md`，细节按其中 Git SHA 恢复。
 
 ## D-025 — 技术栈
 
@@ -72,10 +72,18 @@
 - 单一真相：`docs/design/software-architecture.md`。D-025 技术选择中 Node/TS/React/Vite/Compose 继续有效；
   D-081 的阶段一模块化形态被本文目标架构取代。
 
+## D-091 — 文档治理：活文档按领域单源，archive 是精简历史诊断库
+
+- 状态：**DECIDED**（2026-08-15）。文档治理先于 D-090 源码迁移，避免新架构继续受旧设计和状态快照误导。
+- 活文档只保留产品/架构/设计系统总纲、每领域一份 canonical、指南/运维和限时研究；任务只进 todo，仍生效决策只进本文件，完成过程只进 commit。
+- archive 收成 README/milestones/decisions/incidents/deferred 五份；旧全文通过 Git SHA 恢复，不保留功能级历史稿。
+- archive 不是默认上下文，也不是死库：设计冲突、恢复旧路、严重执行异常、同路线连续失败或大改关键边界时，必须按 `AGENTS.md` 定向回查并引用稳定 ID。
+- 归档只在 ADR 被取代、阶段结束、出现可复用严重事故、或方案有明确复活条件时补充；普通功能、bug、计划、AI 日志和截图不归档。
+- 单一入口：`docs/README.md`；详细增长和回查规则以根 `AGENTS.md` 为准。
+
 ## 已归档决策索引
 
-- D-005~D-022（v0.3/飞书选型）→ `docs/archive/decisions-archive.md`
-- D-026~D-036（治理立魂/数据河/图纸轨）→ 同上（骨架仍生效：四层架构+路线A+宪法三层）
-- D-032~D-035（治理派生整簇）→ `docs/archive/governance-suspended-decisions.md`
-- D-043/D-053（双轨/自迭代）→ 同上（被 D-066 取代）
-- D-044~D-082（实现账单）→ `docs/archive/decisions-archive.md`
+- D-005~D-030（旧技术、飞书、产品转向与文档策略）→ `docs/archive/decisions.md` / `milestones.md`
+- D-032~D-035（治理派生整簇）→ `docs/archive/deferred.md`
+- D-043/D-053/D-060/D-066/D-081（被取代的流程、UI、模块化方案）→ `docs/archive/decisions.md`
+- D-044~D-082 的普通实现账单不再常驻归档；从 `docs/archive/README.md` 的 legacy snapshot 按 Git SHA 恢复。
