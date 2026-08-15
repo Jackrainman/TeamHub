@@ -471,7 +471,7 @@ describe('hub console API client', () => {
       return {
         ok: true,
         status: 200,
-        json: async () => ({ initialized: false, dataDirHasData: true }),
+        json: async () => ({ initialized: false, databaseState: 'empty' }),
       } as Response;
     });
     const client = createHubApiClient({
@@ -480,7 +480,7 @@ describe('hub console API client', () => {
     });
 
     const state = await client.getSetupState();
-    expect(state).toEqual({ initialized: false, dataDirHasData: true });
+    expect(state).toEqual({ initialized: false, databaseState: 'empty' });
 
     const req = { dataMode: 'real' as const, identityMode: 'identity' as const };
     const res = await client.initSetup(req);
@@ -491,6 +491,51 @@ describe('hub console API client', () => {
     const initCall = calls.find(([p, i]) => p === '/api/setup/init' && i?.method === 'POST');
     expect(initCall).toBeTruthy();
     expect(JSON.parse(String(initCall?.[1]?.body))).toEqual(req);
+  });
+
+  test('setup/state 严格接受 unclaimed 阻塞态与带 AppSettings 的已初始化态', async () => {
+    const initializedAt = '2026-08-15T00:00:00.000Z';
+    const responses = [
+      { initialized: false, databaseState: 'unclaimed' },
+      {
+        initialized: true,
+        settings: {
+          schemaVersion: 1,
+          dataMode: 'real',
+          identityMode: 'identity',
+          verticalId: 'robotics',
+          enabledModules: ['system', 'pm-core'],
+          initializedAt,
+          updatedAt: initializedAt,
+        },
+      },
+    ];
+    const fetcher = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => responses.shift(),
+    }) as Response);
+    const client = createHubApiClient({
+      baseUrl: 'http://127.0.0.1:4177',
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+
+    expect(await client.getSetupState()).toEqual({
+      initialized: false,
+      databaseState: 'unclaimed',
+    });
+    expect(await client.getSetupState()).toEqual({
+      initialized: true,
+      settings: {
+        schemaVersion: 1,
+        dataMode: 'real',
+        identityMode: 'identity',
+        verticalId: 'robotics',
+        enabledModules: ['system', 'pm-core'],
+        initializedAt,
+        updatedAt: initializedAt,
+      },
+    });
   });
 
   test('SETUP-WIZARD 刀③：setConfig PUT /api/setup/config（body 原样）；graduate POST /api/setup/graduate（无 body）', async () => {

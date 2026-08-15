@@ -12,7 +12,7 @@ import {
   ReceiptText,
   Settings,
 } from 'lucide-react';
-import type { IdentityMode, ModuleId, SessionIdentity, TenantConfig } from '@teamhub/hub-contracts';
+import type { AppSettings, IdentityMode, ModuleId, SessionIdentity } from '@teamhub/hub-contracts';
 import { isModuleEnabled } from '@teamhub/hub-contracts';
 import type { HubApiClient } from './api/client';
 import type { OverviewSnapshot } from './api/schemas/system';
@@ -41,10 +41,10 @@ import { SettingsPage } from './features/settings/SettingsPage';
  * 这里收紧成 console 实际用到的 React 组件引用 + 渲染上下文类型。
  *
  * **本步接线（PHASE2-CONSOLE-ASSEMBLY，D-081 已知延后项①收口）**：`CONSOLE_PAGES` 仍是全量静态
- * 注册表（8 页，值不变）；新增 `moduleId` 字段 + `filterConsolePages()` 纯函数按 `TenantConfig.enabledModules`
+ * 注册表（8 页，值不变）；新增 `moduleId` 字段 + `filterConsolePages()` 纯函数按 `AppSettings.enabledModules`
  * 过滤——未启用模块的页面结构上不出现在导航/直达渲染里（§3.4-A"未启用即不渲染"，非灰置禁用）。
- * 具体 TenantConfig 由哪个常量注入是 App.tsx 的装配点（见该文件顶部 `TENANT_CONFIG`），本文件只提供
- * 过滤机制、不持有租户配置本身。"HubApiClient 切片"仍留在 risks——client 全量按域切片改动面大，
+ * App.tsx 在 setup 闸读到服务端 app_settings 后把快照传入，本文件只提供过滤机制、
+ * 不持有配置默认值。"HubApiClient 切片"仍留在 risks——client 全量按域切片改动面大，
  * 属于本步该留的安全边界。
  *
  * 原 ConsoleLayout 的「无 page 时该项灰禁用 + tooltipKey」占位机制（曾用于库存/BOM"开发中"）当前
@@ -242,11 +242,11 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
 
 /**
  * 按租户 `enabledModules` 过滤页面注册表（纯函数，无副作用）——导航渲染与「路由直达降级」共用
- * 同一份判定，不在两处各写一套开关逻辑。装配点（哪个 TenantConfig）在 App.tsx，本函数只做过滤。
+ * 同一份判定，不在两处各写一套开关逻辑。装配点在 App.tsx，本函数只读服务端设置快照。
  */
 export function filterConsolePages(
   pages: ConsolePageDescriptor[],
-  tenantConfig: TenantConfig,
+  tenantConfig: Pick<AppSettings, 'enabledModules'>,
 ): ConsolePageDescriptor[] {
   return pages.filter((page) => isModuleEnabled(tenantConfig, page.moduleId));
 }

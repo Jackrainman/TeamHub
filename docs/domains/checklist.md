@@ -26,7 +26,7 @@ Checklist 管验证门检查项、现场欠条、清偿、书面豁免和跨赛�
 - checklist 拆为 model/requests/policies/templates；`canPassGate` 和 drift 是共享纯规则。
 - baseline service 经窄 `GateChecklistPort` 查询门禁，不直接读 ChecklistStore。
 - 清偿和豁免 use case 统一 actor/clock/error 处理。
-- SQLite repository 取代正式 File/InMemory 路径。
+- 将现有统一 SQLite 实现收进 checklist module，并以 repository port 隔离 application 层。
 
 ## 4. 领域不变式
 
@@ -48,7 +48,7 @@ Checklist 管验证门检查项、现场欠条、清偿、书面豁免和跨赛�
 - CURRENT checklist route 同时了解 baseline，跨域事务边界尚未显式化。
 - 模板导入通道尚未实现，当前模板主要来自代码/既有数据。
 - 旧设计中“扩展 deriveBaselineDrift”已在实现时改为独立 `deriveChecklistDrift`。
-- File/SQLite 双轨期间不能把任一实现细节写进领域规则。
+- 旧 File/SQLite 双轨已经删除；迁移 module 时仍不能把 SQLite 细节写进领域规则。
 
 ## 7. 未落地差异与 TODO
 

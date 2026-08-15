@@ -1,17 +1,13 @@
 import type { FastifyInstance } from 'fastify';
-import { writeFile, mkdir } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
 import {
-  SetupStateResponseSchema,
-  DeployConfigSchema,
   SetupConfigRequestSchema,
+  SetupStateResponseSchema,
 } from '@teamhub/hub-contracts';
 import type { IdentityMode } from '@teamhub/hub-contracts';
-import type { GovStore } from '../store/gov-store.js';
-import { parseBody, requireSuperAdmin } from './helpers.js';
-import { archiveDemoData } from '../demo-archive.js';
 import { RESTART_EXIT_CODE } from '../build-setup-server.js';
 import type { SetupControl } from '../server.js';
+import type { GovStore } from '../store/gov-store.js';
+import { parseBody, requireSuperAdmin } from './helpers.js';
 
 export interface SetupRouteDeps {
   store: GovStore;
@@ -23,11 +19,16 @@ export function registerSetupRoutes(app: FastifyInstance, deps: SetupRouteDeps):
   const { store, identityMode, setupControl } = deps;
 
   app.get('/api/setup/state', async () => {
-    return SetupStateResponseSchema.parse({ initialized: true, dataDirHasData: true });
+    if (!setupControl) {
+      throw new Error('正常模式缺少 app_settings service');
+    }
+    const settings = setupControl.settingsService.getSettings();
+    if (!settings) throw new Error('正常模式 app_settings 单例不存在');
+    return SetupStateResponseSchema.parse({ initialized: true, settings });
   });
 
   app.post('/api/setup/init', async (_request, reply) => {
-    void reply.code(409).send({ detail: '已初始化（config.json 已存在）' });
+    void reply.code(409).send({ detail: 'TeamHub 已初始化' });
     return reply;
   });
 
@@ -43,16 +44,7 @@ export function registerSetupRoutes(app: FastifyInstance, deps: SetupRouteDeps):
     }
     const parsed = parseBody(SetupConfigRequestSchema, request, reply);
     if (!parsed) return reply;
-    const next = DeployConfigSchema.parse({
-      ...setupControl.config,
-      identityMode: parsed.identityMode,
-    });
-    await mkdir(dirname(setupControl.configFile), { recursive: true });
-    await writeFile(
-      setupControl.configFile,
-      `${JSON.stringify(next, null, 2)}\n`,
-      'utf8',
-    );
+    setupControl.settingsService.updateIdentityMode(parsed.identityMode, setupNow());
     setTimeout(() => setupExit(RESTART_EXIT_CODE), setupRestartDelayMs);
     void reply.code(200).send({ restarting: true });
     return reply;
@@ -62,39 +54,16 @@ export function registerSetupRoutes(app: FastifyInstance, deps: SetupRouteDeps):
     if (identityMode === 'identity') {
       if (!(await requireSuperAdmin(store, request, reply))) return reply;
     }
-    if (setupControl.config.dataMode !== 'demo') {
+    const settings = setupControl.settingsService.getSettings();
+    if (!settings || settings.dataMode !== 'demo') {
       void reply
         .code(409)
         .send({ detail: '当前已是正式（real）部署，转正式门只在演示（demo）态可用' });
       return reply;
     }
-    const stamp = setupNow().toISOString().replace(/[:.]/g, '-');
-    const archiveDir = join(
-      dirname(setupControl.configFile),
-      `demo-archive-${stamp}`,
-    );
-    try {
-      await archiveDemoData({
-        archiveDir,
-        dataFiles: setupControl.dataFiles,
-        artifactDir: setupControl.artifactDir,
-      });
-    } catch (err) {
-      void reply.code(500).send({
-        detail: `演示数据归档失败，已中止转正式（未改配置、未重启，数据完好）：${(err as Error).message}`,
-      });
-      return reply;
-    }
-    const next = DeployConfigSchema.parse({
-      ...setupControl.config,
-      dataMode: 'real',
-    });
-    await mkdir(dirname(setupControl.configFile), { recursive: true });
-    await writeFile(
-      setupControl.configFile,
-      `${JSON.stringify(next, null, 2)}\n`,
-      'utf8',
-    );
+
+    // 同库事务只清业务表并更新 app_settings。write_token/lark_config 位于 meta，构件物理目录不触碰。
+    setupControl.settingsService.graduateToReal(setupNow());
     setTimeout(() => setupExit(RESTART_EXIT_CODE), setupRestartDelayMs);
     void reply.code(200).send({ restarting: true });
     return reply;

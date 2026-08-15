@@ -44,7 +44,7 @@ export const zhSettings = {
   'settings.about.unavailable': '后端状态不可用（未连上？）',
   'settings.section.deployment': '部署信息',
   'settings.deployment.desc':
-    '这台服务器当前实际怎么跑的：哪些数据落了盘、走了哪种存储、启用了哪些模块。要改得在启动服务器的环境里设置，界面里不提供开关。',
+    '这台服务器的运行信息。结构化业务事实和产品设置都在统一 SQLite 中，登录模式和启用模块以 app_settings 为准。',
   'settings.deployment.unavailable': '这台后端没提供部署信息（版本较旧？）。',
   'settings.deployment.storage.title': '数据落盘',
   'settings.deployment.domain.gov': '任务与进度',
@@ -57,6 +57,8 @@ export const zhSettings = {
   'settings.deployment.backend.memory': '内存',
   'settings.deployment.memory.warn': '重启即丢，正式使用请配置落盘',
   'settings.deployment.identityMode': '登录模式',
+  'settings.deployment.vertical': '垂直包',
+  'settings.deployment.vertical.robotics': '机器人战队',
   'settings.deployment.modules': '启用模块',
   'settings.deployment.buildId': '构建标识',
   'settings.deployment.uptime': '已运行',
@@ -73,7 +75,7 @@ export const zhSettings = {
   'settings.deployment.artifactUpload.disabled': '未配置（无法上传图纸文件）',
   'settings.section.deployConfig': '部署配置',
   'settings.deployConfig.desc':
-    '在这里改这台服务器的登录方式、或结束试驾转正式。每次更改会自动重启服务（约 10 秒）后生效。',
+    '在这里更新 SQLite app_settings 中的登录方式，或结束试驾转正式。更改后服务会自动重启（约 10 秒）。',
   'settings.deployConfig.identity.title': '登录方式',
   'settings.deployConfig.identity.current': '当前：{mode}',
   'settings.deployConfig.identity.toIdentity': '切换到登录模式',
@@ -84,12 +86,14 @@ export const zhSettings = {
     '切换到匿名模式后，认领 / 验收等操作将不再留名，且所有人的登录会话会全部失效（需重新使用）。服务会重启。确定切换吗？',
   'settings.deployConfig.graduate.title': '结束试驾，转正式',
   'settings.deployConfig.graduate.desc':
-    '当前是演示态（自带示例数据）。转正式会把演示数据归档到数据目录下的 demo-archive 文件夹（挪走不删、可手工找回），然后以空板重启，开始录入你们战队的真实数据。此操作单向不可逆。',
+    '当前是演示态。转正式会在一个 SQLite 事务中清空全部业务事实并将 app_settings 切换为正式态；不会保留 demo archive。操作前必须先运行备份，此操作单向不可逆。',
   'settings.deployConfig.graduate.cta': '结束试驾，转正式',
+  'settings.deployConfig.graduate.backupConfirmed': '我已运行并验证统一 SQLite 备份',
+  'settings.deployConfig.graduate.backupRequired': '请先完成并确认备份',
   'settings.deployConfig.graduate.confirm':
-    '确定结束试驾转正式吗？演示数据会被归档到数据目录下的 demo-archive 文件夹（不会删除，可手工找回），服务将以真实空板重启。此操作不可逆。',
+    '只有已完成并验证 SQLite 备份才能继续。确定要原子清空全部演示业务事实并转为正式空板吗？TeamHub 不会创建 demo archive，此操作不可逆。',
   'settings.deployConfig.applying': '正在应用配置，服务将自动重启（约 10 秒），这个页面会自动刷新。',
-  'settings.deployConfig.error.desc': '配置可能没写成功。点下面重新加载再试一次。',
+  'settings.deployConfig.error.desc': 'app_settings 可能没写成功。点下面重新加载再试一次。',
   'settings.deployConfig.error.timeout': '服务重启等得有点久。多半已经生效了，点下面重新加载看看。',
   'settings.deployConfig.reload': '重新加载',
   'settings.deployConfig.restartNote':
@@ -285,7 +289,7 @@ export const enSettings = {
   'settings.about.unavailable': 'Backend status unavailable (not connected?)',
   'settings.section.deployment': 'Deployment',
   'settings.deployment.desc':
-    'How this server is actually running: which data is persisted, what storage each domain uses, which modules are enabled. Change these via the server startup environment — there is no toggle here.',
+    "How this server is running. Structured business facts and product settings share the unified SQLite database; login mode and enabled modules come from app_settings.",
   'settings.deployment.unavailable': 'This backend did not report deployment info (older version?).',
   'settings.deployment.storage.title': 'Data persistence',
   'settings.deployment.domain.gov': 'Tasks & progress',
@@ -298,6 +302,8 @@ export const enSettings = {
   'settings.deployment.backend.memory': 'In memory',
   'settings.deployment.memory.warn': 'Lost on restart — configure persistence before real use',
   'settings.deployment.identityMode': 'Login mode',
+  'settings.deployment.vertical': 'Vertical package',
+  'settings.deployment.vertical.robotics': 'Robotics team',
   'settings.deployment.modules': 'Enabled modules',
   'settings.deployment.buildId': 'Build id',
   'settings.deployment.uptime': 'Uptime',
@@ -314,7 +320,7 @@ export const enSettings = {
   'settings.deployment.artifactUpload.disabled': 'Not configured (cannot upload files)',
   'settings.section.deployConfig': 'Deployment config',
   'settings.deployConfig.desc':
-    "Change this server's login mode, or end the trial and go live. Each change restarts the service automatically (about 10s) to take effect.",
+    "Update the login mode in SQLite app_settings, or end the trial and go live. The service restarts automatically after a change (about 10s).",
   'settings.deployConfig.identity.title': 'Login mode',
   'settings.deployConfig.identity.current': 'Current: {mode}',
   'settings.deployConfig.identity.toIdentity': 'Switch to login mode',
@@ -325,13 +331,16 @@ export const enSettings = {
     'After switching to anonymous mode, claims / reviews will no longer be attributed, and everyone\'s login sessions will be invalidated. The service will restart. Switch?',
   'settings.deployConfig.graduate.title': 'End trial, go live',
   'settings.deployConfig.graduate.desc':
-    'This is currently demo mode (with sample data). Going live archives the demo data to a demo-archive folder under the data directory (moved, not deleted — recoverable by hand), then restarts blank so you can enter your team\'s real data. This is one-way and irreversible.',
+    'This deployment is in demo mode. Going live atomically clears every business fact and switches app_settings to real mode in one SQLite transaction; no demo archive is kept. You must create and verify a backup first. This is one-way and irreversible.',
   'settings.deployConfig.graduate.cta': 'End trial, go live',
+  'settings.deployConfig.graduate.backupConfirmed':
+    'I have created and verified a backup of the unified SQLite database',
+  'settings.deployConfig.graduate.backupRequired': 'Create and confirm a backup first',
   'settings.deployConfig.graduate.confirm':
-    'End the trial and go live? Demo data will be archived to a demo-archive folder under the data directory (not deleted — recoverable by hand), and the service restarts on a real blank board. This is irreversible.',
+    'Continue only after creating and verifying a SQLite backup. Atomically clear every demo business fact and switch to a real blank board? TeamHub will not create a demo archive. This is irreversible.',
   'settings.deployConfig.applying':
     'Applying config — the service restarts automatically (about 10s); this page will refresh on its own.',
-  'settings.deployConfig.error.desc': 'The config may not have been written. Reload below and try again.',
+  'settings.deployConfig.error.desc': 'app_settings may not have been written. Reload below and try again.',
   'settings.deployConfig.error.timeout':
     'The restart is taking a while. It probably already took effect — reload below to check.',
   'settings.deployConfig.reload': 'Reload',

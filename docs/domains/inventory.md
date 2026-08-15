@@ -45,14 +45,14 @@ Inventory 管零件类型、重要单件、append-only 动作日志、机器人�
 
 ## 6. 已知陷阱
 
-- CURRENT 库存仍有 InMemory/File/SQLite 多实现，业务迁移逻辑重复。
+- 生产持久化已收成统一 SQLite，测试 fake 已物理移入 `test/support`；下一步是把 route/store 形状迁为领域 module/repository。
 - 报账入库通过 `reimb-stock-in:<itemIndex>` note 前缀关联，属于隐藏协议。
 - BOM 需求事实尚不完整，因而“从未买过/下一版不够”不能在没有上游时强推。
 - 历史“对话记账作为主路径”已被否决；Hermes 只适合作为低频补录和草稿入口。
 
 ## 7. 未落地差异与 TODO
 
-- `ARCH-UNIFY`：统一 SQLite repository、service 和结构化跨域入库引用。
+- `ARCH-UNIFY`：建立 inventory module、application service 和结构化跨域入库引用。
 - `INV-BOM-DESIGN`：BOM 自保鲜、双报警和装箱门，必须先确认自然上游。
 - 赛场 site/transfer、TrackedPart.note 等仍是 PLANNED，不得按历史草案当作 CURRENT。
 - 库存导入已存在；后续只补领域能力，不另造第二套 CSV 管线。

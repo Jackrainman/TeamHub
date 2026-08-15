@@ -55,3 +55,4 @@
 - 2026-08-15 refactor(architecture): ARCH-UNIFY A0——删除无主链引用的 ProbeFlash 飞书三包，统一三个 Hub workspace、单根 lock、0.48.0 单版本及 Docker/启动/版本脚本依赖图；新增精确迁移基线的软件架构门 (27b4bdf, 0f3a873)
 - 2026-08-15 refactor(server): ARCH-UNIFY A1 前半——生产 builder 六域 repository 改为必传，测试 fake 统一归入 test/support；正常启动唯一 TEAMHUB_DB_FILE→统一 SQLite，六域状态同源并在 Fastify 关闭时释放数据库；真进程 E2E 改为 SQLite 跨重启读回 v0.49.0
 - 2026-08-15 refactor(storage): ARCH-UNIFY A1 收口——删除六套 File Store、PersistedFile、gov-only SQLite 入口与三份旧迁移器；InMemory fake 全移 test/support，统一 SQLite 六域关闭重开契约生效；Compose/启动/备份收成单 DB 卷 + artifact，smoke 验证写入重启读回
+- 2026-08-15 refactor(settings): ARCH-UNIFY A2 配置单源——严格 AppSettings 契约与 SQLite 单例取代 config.json/tenant env/代码默认；首启区分 empty/unclaimed，初始化 seed+settings 同事务；demo→real 同库清业务事实并保留平台 meta，console 只信服务端模块配置

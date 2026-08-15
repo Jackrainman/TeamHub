@@ -10,12 +10,8 @@ import type {
   IdentityMode,
   SessionIdentity,
   DeploymentInfo,
-  DeployConfig,
 } from '@teamhub/hub-contracts';
-import {
-  ROBOTICS_TENANT_CONFIG,
-  isModuleEnabled,
-} from '@teamhub/hub-contracts';
+import { isModuleEnabled } from '@teamhub/hub-contracts';
 import { SessionManager } from './identity/session-store.js';
 import { FixedClock } from './clock.js';
 import type { Clock } from './clock.js';
@@ -41,6 +37,7 @@ import {
   readSessionCookie,
 } from './routes/helpers.js';
 import { registerWriteGate } from './middleware/write-gate.js';
+import type { AppSettingsService } from './store/sqlite-unified.js';
 
 /**
  * 部署配置写通道运行时依赖（SETUP-WIZARD 刀③，setup-wizard.md §6）：设置页「部署配置」写区背后的
@@ -50,15 +47,9 @@ import { registerWriteGate } from './middleware/write-gate.js';
  * 由 main.ts 在正常模式装配时透传实参。**绝不含密钥**（同 deployment 纪律）。
  */
 export interface SetupControl {
-  /** config.json 落盘路径（改 identityMode / 转正式后重写这里，随后 exit 42 重启）。 */
-  configFile: string;
-  /** 当前部署配置（graduate 前置判 dataMode==='demo'；改 identityMode 时保留 dataMode/initializedAt/schemaVersion）。 */
-  config: DeployConfig;
-  /** 转正式时要归档的五域落盘文件路径（存在的才挪、不存在跳过）。归档落点 = configFile 所在目录 / demo-archive-<时间戳>/。 */
-  dataFiles: readonly string[];
-  /** 归档物文件目录（转正式时其内容整体挪进 demo-archive/artifacts/）；未配则跳过。 */
-  artifactDir?: string;
-  /** 时钟（默认真钟）：注入以便测试断言 demo-archive 目录时间戳确定。 */
+  /** app_settings 单例和同库初始化/改配置/转正式事务的唯一服务。 */
+  settingsService: AppSettingsService;
+  /** 时钟（默认真钟）：注入以便测试断言 updatedAt 确定。 */
   now?: () => Date;
   /** 退出函数（默认 process.exit）：注入以便测试断言退出码而不真杀进程。 */
   exit?: (code: number) => void;
@@ -118,18 +109,14 @@ export interface BuildHubServerOptions {
   trustProxy?: boolean | string;
   /** 归档物上传单文件字节上限（默认 50MB）。测试可调小以触发 413、免造大文件。 */
   artifactMaxBytes?: number;
+  /** SQLite app_settings 中的模块开关；生产与测试组合根都必须显式注入，禁止代码默认成为第二事实源。 */
+  tenantConfig: TenantConfig;
   /**
-   * 租户模块开关（HUB-MODULARIZATION 第2步，装配契约见 `@teamhub/hub-contracts` 的 `TenantConfig`）。
-   * 缺省 = `ROBOTICS_TENANT_CONFIG`（机器人战队全 6 模块启用），与拆分前 master 行为等价。
-   * 未启用的模块，其路由整段不挂（见下方 `registerXxxRoutes` 调用点），不是"挂了但拒绝"。
-   */
-  tenantConfig?: TenantConfig;
-  /**
-   * 轻身份登录模式（IDENTITY-LITE，D-083 §4.2）。缺省 `'anonymous'` = 今天的形态（**现状零变化**）：
+   * 轻身份登录模式（IDENTITY-LITE，D-083 §4.2）。必须由 app_settings 对应的组合根显式注入：
    * 身份模块不启用、session 端点禁用（POST/DELETE → 404）、写路由信客户端自报 actor、写门只认 TEAMHUB_WRITE_TOKEN。
    * `'identity'` = 匿名可读一切 + 登录才能写：session 端点启用、写路由须携有效会话（否则 401）+ actor 服务端注入。
    */
-  identityMode?: IdentityMode;
+  identityMode: IdentityMode;
   /**
    * 部署信息（K3 部署信息刀）。main.ts 启动时收集「每域走哪种 store + 路径 / 启用模块 / 图纸开关 /
    * 构建标识 / 身份模式」这批运维定位事实，经此透传，由 `GET /api/system/status` 原样回显——设置页
@@ -139,7 +126,7 @@ export interface BuildHubServerOptions {
   deployment?: DeploymentInfo;
   /**
    * 部署配置写通道（SETUP-WIZARD 刀③）。给了才注册 `PUT /api/setup/config` + `POST /api/setup/graduate`
-   * （否则两端点 404）。main.ts 在正常模式装配时透传 configFile / 当前 config / 五域落盘文件 / 归档物目录。
+   * （否则两端点 404）。main.ts 在正常模式装配时透传统一 SQLite settings service。
    */
   setupControl?: SetupControl;
   /** 飞书集成配置持久化（LARK-INTEG-CONFIG）。给了才注册 /api/integrations/lark + /api/hermes/credential。 */
@@ -220,12 +207,11 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
   const baselineStore = options.baselineStore;
   const checklistStore = options.checklistStore;
   const reimburseStore = options.reimburseStore;
-  // 装配外壳（HUB-MODULARIZATION 第2步）：租户模块开关，缺省 = 机器人战队全 6 模块启用（与拆分前等价）。
-  const tenantConfig: TenantConfig = options.tenantConfig ?? ROBOTICS_TENANT_CONFIG;
+  const tenantConfig = options.tenantConfig;
 
   // ── 轻身份登录（IDENTITY-LITE，D-083 §4.2）─────────────────────────────────────────────────
-  // 缺省 anonymous = 现状零变化。identity 模式才建内存会话表 + 挂身份解析钩子 + 写门加会话要求。
-  const identityMode: IdentityMode = options.identityMode ?? 'anonymous';
+  // identity 模式才建内存会话表 + 挂身份解析钩子 + 写门加会话要求。
+  const identityMode: IdentityMode = options.identityMode;
   const sessions =
     identityMode === 'identity' ? new SessionManager(SESSION_TTL_MS) : null;
   // 全请求默认 identity=null（decorate 一次）；身份模式钩子据 cookie 解析覆盖，匿名模式恒 null。

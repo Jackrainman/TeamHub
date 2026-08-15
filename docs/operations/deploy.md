@@ -41,7 +41,7 @@ npm ci
 
 - `TEAMHUB_DB_FILE=~/teamhub-data/teamhub.sqlite` 是六个结构化数据域的唯一生产数据库；缺失时正常模式拒绝启动。
 - `TEAMHUB_ARTIFACT_FILES_DIR` 保存图纸/证据字节；它必须与数据库一起备份。
-- `TEAMHUB_CONFIG_FILE` 与 config 卷仅是 A2 `app_settings` 落地前的临时例外，也必须纳入灾备。
+- `app_settings` 与六域业务事实同在 `TEAMHUB_DB_FILE`，不再有独立 config 文件或配置卷。
 - 已删除的 `TEAMHUB_BACKEND`、`TEAMHUB_GOV_*` 和各域 `*_DATA_FILE` 不再产生任何运行行为。
 
 ## 5. Docker Compose
@@ -50,7 +50,7 @@ npm ci
 docker compose up -d --build hub
 ```
 
-Compose 只声明 `hub_data`、`hub_artifacts` 与临时 `hub_config` 三个卷。禁止对真实项目执行 `docker compose down --volumes`；仓库 smoke 脚本只允许名称含 `smoke` 的隔离项目，并会验证 buildId、六域同库及写入后重启读回。
+Compose 只声明 `hub_data` 与 `hub_artifacts` 两个卷。禁止对真实项目执行 `docker compose down --volumes`；仓库 smoke 脚本只允许名称含 `smoke` 的隔离项目，并会验证 buildId、六域同库及写入后重启读回。
 
 ## 6. 无头初始化
 

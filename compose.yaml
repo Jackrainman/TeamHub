@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: teamhub-hub:local
-    # exit code 42 = 首启动向导请求重启；config 卷是 A2 app_settings 落地前的临时例外。
+    # exit code 42 = 首启动向导或设置更新请求重启。
     restart: on-failure
     env_file:
       - deploy/teamhub.env.example
@@ -12,8 +12,6 @@ services:
       HUB_HOST: 0.0.0.0
       HUB_PORT: 4177
       TEAMHUB_CONSOLE_DIST_DIR: /opt/teamhub/console
-      # A2 前临时保留 config.json；产品配置迁入 app_settings 后删除此卷。
-      TEAMHUB_CONFIG_FILE: /var/lib/teamhub/config/config.json
       # 六个结构化数据域共用一个 SQLite 文件与一个数据卷。
       TEAMHUB_DB_FILE: /var/lib/teamhub/data/teamhub.sqlite
       # 图纸等允许服务端持久化的二进制制品使用独立 artifact 卷。
@@ -22,7 +20,6 @@ services:
     ports:
       - "${TEAMHUB_HOST_PORT:-4177}:4177"
     volumes:
-      - hub_config:/var/lib/teamhub/config
       - hub_data:/var/lib/teamhub/data
       - hub_artifacts:/var/lib/teamhub/artifacts
     healthcheck:
@@ -35,7 +32,5 @@ services:
       start_period: 10s
 
 volumes:
-  # A2 前临时保留；app_settings 接管产品配置后删除。
-  hub_config:
   hub_data:
   hub_artifacts:

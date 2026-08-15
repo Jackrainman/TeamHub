@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { RefreshCw, X } from 'lucide-react';
-import { ROBOTICS_TENANT_CONFIG, type TenantConfig } from '@teamhub/hub-contracts';
+import type { AppSettings, VerticalId } from '@teamhub/hub-contracts';
 import { createHubApiClient, type HubApiClient } from './api/client';
 import { queryKeys } from './api/queryKeys';
 import { ConsoleLayout } from './components/layout/ConsoleLayout';
@@ -24,20 +24,15 @@ import { canWriteIdentity, identityCacheKey } from './shared/lib/identity-utils'
 // 避免改动各页 queryKey 形状。
 const SOURCE = 'real';
 
-/**
- * 装配点（PHASE2-CONSOLE-ASSEMBLY，D-081 已知延后项①②收口）：租户配置目前是编译期常量注入，
- * 不做运行期远程拉取（见 docs/design/software-architecture.md「装配层必须极薄」+
- * §6.1「不引入 IoC 容器/插件市场/动态加载」）。robotics 默认 = 全 6 模块启用，与 hub-server
- * `buildHubServer` 的缺省 `tenantConfig ?? ROBOTICS_TENANT_CONFIG` 同一份常量、同口径。
- * 换租户（如游戏工作室）目前 = 换这一行常量，是本步刻意留的清晰接缝。
- */
-const TENANT_CONFIG: TenantConfig = ROBOTICS_TENANT_CONFIG;
-const ENABLED_PAGES = filterConsolePages(CONSOLE_PAGES, TENANT_CONFIG);
-
-// 垂直包词汇覆盖接线（HUB-MODULARIZATION 第6步 i18n 通道，D-081 已知延后项②收口）：装配层在此
-// 调用 setVocabularyOverrides，往下 translate() 读取才有真值可读。robotics 覆盖表恒为空
-// （见 verticals/robotics.ts），故本行为与接线前逐字一致——机制先行验证，非视觉改动。
-setVocabularyOverrides(ROBOTICS_VOCAB_OVERRIDES);
+// 垂直包与模块列表都来自 SQLite app_settings。当前共享契约只注册 robotics；
+// 未来增加垂直包时在这个窄装配点增加对应词汇表，不再引入编译期租户配置。
+function configureVerticalVocabulary(verticalId: VerticalId): void {
+  switch (verticalId) {
+    case 'robotics':
+      setVocabularyOverrides(ROBOTICS_VOCAB_OVERRIDES);
+      return;
+  }
+}
 
 // 后端地址：localStorage 覆盖（设置页可改）> VITE_API_BASE > 同源 '/'。
 function readApiBase(): string {
@@ -52,12 +47,8 @@ function readWriteToken(): string | undefined {
 }
 
 /**
- * 两态启动闸（SETUP-WIZARD 刀②，setup-wizard.md §5）：App 首屏先问 `GET /api/setup/state`——
- *  - 未初始化（config.json 不存在）→ 全屏向导（`SetupWizard`），现有页面一个都不渲染（store 未建、
- *    getSession/getOverview 等此刻打过去全是 404）。
- *  - 已初始化 / 状态读不到 → 正常 app（`ConsoleApp`），后者分页自带「后端没连上」兜底。
- * `retry:1` 界定 splash 时长：后端在线时 setup/state 同源毫秒级返回、splash 一闪即过；后端不可达时一次
- * 快速重试后即落 ConsoleApp（不把整屏卡在 splash，与刀②前"打开就是 app"的观感一致）。
+ * 启动闸只信 `GET /api/setup/state`：empty 进首启向导，unclaimed 阻塞误认领，
+ * initialized 把服务端 AppSettings 交给正常 app。状态读不到时 fail closed，不再回退到编译期默认模块。
  */
 export function App() {
   const apiClient = useMemo(
@@ -76,10 +67,14 @@ export function App() {
   });
 
   if (setupQuery.isLoading) return <SetupSplash />;
-  if (setupQuery.data && !setupQuery.data.initialized) {
+  if (setupQuery.error || !setupQuery.data) {
+    return <SetupStateUnavailable onRetry={() => void setupQuery.refetch()} />;
+  }
+  if (!setupQuery.data.initialized) {
     return <SetupWizard client={apiClient} state={setupQuery.data} />;
   }
-  return <ConsoleApp apiClient={apiClient} />;
+  configureVerticalVocabulary(setupQuery.data.settings.verticalId);
+  return <ConsoleApp apiClient={apiClient} settings={setupQuery.data.settings} />;
 }
 
 // setup/state 未落定前的极简全屏占位（无 chrome、无 nav）：只一个转圈，避免闪现半截 app 或向导。
@@ -93,9 +88,28 @@ function SetupSplash() {
   );
 }
 
-// 正常运行态的 console 主壳（原 App 主体，apiClient 由启动闸创建后下传，避免重复构造）。
-function ConsoleApp({ apiClient }: { apiClient: HubApiClient }) {
+function SetupStateUnavailable({ onRetry }: { onRetry: () => void }) {
   const { t } = useI18n();
+  return (
+    <div className="setup-wizard setup-wizard--center" role="alert">
+      <div className="setup-wizard__inner setup-wizard__status">
+        <h1 className="setup-wizard__title">{t('setup.stateUnavailable.title')}</h1>
+        <p className="setup-wizard__subtitle">{t('setup.stateUnavailable.desc')}</p>
+        <button type="button" className="btn btn--secondary" onClick={onRetry}>
+          {t('setup.stateUnavailable.retry')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// 正常运行态的 console 主壳（原 App 主体，apiClient 由启动闸创建后下传，避免重复构造）。
+function ConsoleApp({ apiClient, settings }: { apiClient: HubApiClient; settings: AppSettings }) {
+  const { t } = useI18n();
+  const enabledPages = useMemo(
+    () => filterConsolePages(CONSOLE_PAGES, settings),
+    [settings],
+  );
 
   // 首启动向导落点（SETUP-WIZARD 刀②，setup-wizard.md §5 末段）：正式+登录制重启回来后，落设置页并亮出
   // 「三步走：导入名册 → 登录本人 → 初始化管理员」引导横幅（复用现有名册导入 / 初始化管理员流程，向导不
@@ -156,8 +170,8 @@ function ConsoleApp({ apiClient }: { apiClient: HubApiClient }) {
   }
 
   // 页面注册表（console-pages.tsx）驱动渲染 + 标题——不再是 if-else 链（HUB-MODULARIZATION 第2步）。
-  // 只在按 TenantConfig 过滤后的列表里找页：未启用模块的页在 ENABLED_PAGES 里不存在。
-  const activePage = ENABLED_PAGES.find((p) => p.key === page);
+  // 只在按服务端 AppSettings 过滤后的列表里找页：未启用模块的页不存在。
+  const activePage = enabledPages.find((p) => p.key === page);
   // 路由直达降级（PHASE2-CONSOLE-ASSEMBLY）：page 落在全量注册表里但被当前租户关掉的模块过滤掉——
   // 例如某组件的 onNavigate 指向一个本租户未启用的页。区别于"key 根本不存在"（TS 类型已堵死，理论不可达）。
   const disabledPage = !activePage ? CONSOLE_PAGES.find((p) => p.key === page) : undefined;
@@ -175,7 +189,7 @@ function ConsoleApp({ apiClient }: { apiClient: HubApiClient }) {
   };
 
   return (
-    <ConsoleLayout page={page} onNavigate={setPage} pages={ENABLED_PAGES} client={apiClient}>
+    <ConsoleLayout page={page} onNavigate={setPage} pages={enabledPages} client={apiClient}>
       <div className="console-toolbar">
         <div>
           <p className="eyebrow">{t('toolbar.eyebrow')}</p>

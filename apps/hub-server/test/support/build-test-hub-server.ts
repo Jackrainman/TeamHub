@@ -1,4 +1,4 @@
-import { GOVERNANCE_SCENARIO_NOW } from '@teamhub/hub-contracts';
+import { GOVERNANCE_SCENARIO_NOW, ROBOTICS_TENANT_CONFIG } from '@teamhub/hub-contracts';
 import { FixedClock } from '../../src/clock.js';
 import {
   buildHubServer,
@@ -17,7 +17,9 @@ type StoreOptionKey =
   | 'invStore'
   | 'baselineStore'
   | 'checklistStore'
-  | 'reimburseStore';
+  | 'reimburseStore'
+  | 'tenantConfig'
+  | 'identityMode';
 
 export type BuildTestHubServerOptions =
   Omit<BuildHubServerOptions, StoreOptionKey>
@@ -33,6 +35,8 @@ export function buildTestHubServer(options: BuildTestHubServerOptions = {}) {
   return buildHubServer({
     ...options,
     clock,
+    tenantConfig: options.tenantConfig ?? ROBOTICS_TENANT_CONFIG,
+    identityMode: options.identityMode ?? 'anonymous',
     store: options.store ?? new InMemoryGovStore(undefined, clock),
     kbStore: options.kbStore ?? new InMemoryKbStore(),
     invStore: options.invStore ?? new InMemoryInvStore(undefined, clock),

@@ -10,25 +10,38 @@
  * 具体宿主在各自包内把类型收紧（如 server 侧 `ModuleDescriptor<FastifyInstance, ModuleRouteCtx>`）。
  */
 
+import { z } from 'zod';
+
 /** 六个可开关功能模块的稳定 id（见 §3.3 模块清单）。system / pm-core 是"核心常装/必装"，
  *  但装配层不做结构性强制——是否常装由 TenantConfig.enabledModules 的内容体现，不在代码里写死例外。 */
-export type ModuleId =
-  | 'system'
-  | 'pm-core'
-  | 'knowledge-base'
-  | 'ledger'
-  | 'archive'
-  | 'presence-schedule';
-
-/** 全部模块 id，用于拼装"默认全启用"的机器人租户配置、以及装配层自查（穷举校验）。 */
-export const ALL_MODULE_IDS: readonly ModuleId[] = [
+export const ModuleIdSchema = z.enum([
   'system',
   'pm-core',
   'knowledge-base',
   'ledger',
   'archive',
   'presence-schedule',
-];
+]);
+export type ModuleId = z.infer<typeof ModuleIdSchema>;
+
+/** 全部模块 id，用于拼装"默认全启用"的机器人租户配置、以及装配层自查（穷举校验）。 */
+export const ALL_MODULE_IDS: readonly ModuleId[] = ModuleIdSchema.options;
+
+/** 配置中的模块清单：只接受已注册模块，并拒绝重复 id。 */
+export const EnabledModulesSchema = z.array(ModuleIdSchema).superRefine((moduleIds, context) => {
+  const seen = new Set<ModuleId>();
+  moduleIds.forEach((moduleId, index) => {
+    if (seen.has(moduleId)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [index],
+        message: `重复模块 id：${moduleId}`,
+      });
+      return;
+    }
+    seen.add(moduleId);
+  });
+});
 
 /** 模块导航项占位形状（宿主决定具体渲染，这里只给注册表需要的最小字段）。 */
 export interface ModuleNavItem {
@@ -72,9 +85,10 @@ export interface ModuleDescriptor<App = unknown, Ctx = unknown, LazyComponent = 
 }
 
 /** 租户配置：人填的模块开关表。装配层只读它、不派生它（否则违反"人在环"）。 */
-export interface TenantConfig {
-  enabledModules: ModuleId[];
-}
+export const TenantConfigSchema = z.object({
+  enabledModules: EnabledModulesSchema,
+}).strict();
+export type TenantConfig = z.infer<typeof TenantConfigSchema>;
 
 /**
  * 词汇注入表接口（三通道之一，见 §3.4-B）：租户/垂直包按 domainKey 注入覆盖词条

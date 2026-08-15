@@ -1,5 +1,5 @@
 {
-  "focus": "ARCH-UNIFY：A0-A1 已收口；现进入 A2，以 SQLite app_settings 删除 config/env 配置双轨，并建立事务与平台端口",
+  "focus": "ARCH-UNIFY：A0-A1 与 A2 配置单源已收口；现完成 application UoW/Actor/Clock/错误等平台端口，再进入 reimburse 模板试点",
   "blocked": [
     {
       "id": "HERMES-LARK-SKILL",
@@ -10,7 +10,7 @@
   "todo": [
     {
       "id": "ARCH-UNIFY",
-      "title": "仓库级软件架构统一：A0-A1 已完成（文档/依赖图/架构门/生产统一 SQLite/旧 Store 清场）→ A2 app_settings+平台基础设施 → A3 reimburse 模块模板试点 → A4 全域迁移 → A5 旧骨架归零；不考虑旧数据兼容，见 docs/design/software-architecture.md",
+      "title": "仓库级软件架构统一：A0-A1 已完成；A2 app_settings+同步 SQLite 事务已完成，继续平台端口 → A3 reimburse 模块模板试点 → A4 全域迁移 → A5 旧骨架归零；不考虑旧数据兼容，见 docs/design/software-architecture.md",
       "tag": "code",
       "batch": "architecture"
     },
@@ -66,12 +66,6 @@
       "id": "KB-AI-STRUCT",
       "title": "知识库 AI 结构化（研究项，先积累导入语料再评估）",
       "tag": "research",
-      "batch": "later"
-    },
-    {
-      "id": "STORE-SQLITE-CONVERGE",
-      "title": "[查明延后] SqliteGovStore.create() 承重 ~10 测试+迁移脚本，删旧路径需弃用周期",
-      "tag": "code",
       "batch": "later"
     },
     {

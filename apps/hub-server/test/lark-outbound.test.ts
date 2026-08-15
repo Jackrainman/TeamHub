@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { SqliteDatabase } from '../src/store/sqlite-db.js';
 import { LarkIntegrationStore } from '../src/store/lark-integration-store.js';
-import { openUnifiedDb, defaultSeeds } from '../src/store/sqlite-unified.js';
+import { openUnifiedDb } from '../src/store/sqlite-unified.js';
 import {
   ClaimTaskResponseSchema,
   LarkPushReminderResponseSchema,
@@ -45,7 +45,15 @@ function mockFetchTokenOk() {
 }
 
 function buildAppWithLark(cfg: { appId: string; appSecret: string; chatId: string; status: 'connected' | 'error' | 'unconfigured' }) {
-  const stores = openUnifiedDb(dbPath, { seeds: defaultSeeds(true) });
+  const database = openUnifiedDb(dbPath);
+  if (database.getDatabaseState() === 'empty') {
+    database.initialize(
+      { dataMode: 'demo', identityMode: 'anonymous' },
+      new Date('2026-08-15T00:00:00.000Z'),
+    );
+  }
+  const opened = database.openStores();
+  const stores = { ...opened, close: () => database.close() };
   const larkStore = LarkIntegrationStore.fromSharedDb(stores.db);
   larkStore.saveConfig(cfg);
   const app = buildTestHubServer({

@@ -31,6 +31,7 @@ describe('SystemStatusResponseSchema：deployment optional 增量', () => {
       deployment: {
         dataMode: 'real',
         identityMode: 'identity',
+        verticalId: 'robotics',
         storage: [
           { domain: 'gov', backend: 'file', path: '/data/gov.json' },
           { domain: 'kb', backend: 'memory' },
@@ -43,6 +44,7 @@ describe('SystemStatusResponseSchema：deployment optional 增量', () => {
     });
     expect(parsed.deployment?.dataMode).toBe('real');
     expect(parsed.deployment?.identityMode).toBe('identity');
+    expect(parsed.deployment?.verticalId).toBe('robotics');
     expect(parsed.deployment?.storage[1]).toEqual({ domain: 'kb', backend: 'memory' });
     expect(parsed.deployment?.artifactUploadEnabled).toBe(false);
   });
@@ -53,6 +55,7 @@ describe('DeploymentStorageEntry：memory 无路径 / 未知 backend 拒绝', ()
     const parsed = DeploymentInfoSchema.parse({
       dataMode: 'demo',
       identityMode: 'anonymous',
+      verticalId: 'robotics',
       storage: [{ domain: 'checklist', backend: 'memory' }],
       enabledModules: [],
       artifactUploadEnabled: true,
@@ -64,12 +67,32 @@ describe('DeploymentStorageEntry：memory 无路径 / 未知 backend 拒绝', ()
   test('非法 backend 枚举被拒', () => {
     expect(() =>
       DeploymentInfoSchema.parse({
+        dataMode: 'real',
         identityMode: 'anonymous',
+        verticalId: 'robotics',
         storage: [{ domain: 'gov', backend: 'redis' }],
         enabledModules: [],
         artifactUploadEnabled: true,
         buildId: 'x',
       }),
+    ).toThrow();
+  });
+
+  test('deployment 复用 ModuleId 契约，拒绝未知或重复模块', () => {
+    const deployment = {
+      dataMode: 'real',
+      identityMode: 'anonymous',
+      verticalId: 'robotics',
+      storage: [],
+      enabledModules: ['system'],
+      artifactUploadEnabled: true,
+      buildId: 'x',
+    };
+    expect(() =>
+      DeploymentInfoSchema.parse({ ...deployment, enabledModules: ['unknown'] }),
+    ).toThrow();
+    expect(() =>
+      DeploymentInfoSchema.parse({ ...deployment, enabledModules: ['system', 'system'] }),
     ).toThrow();
   });
 });

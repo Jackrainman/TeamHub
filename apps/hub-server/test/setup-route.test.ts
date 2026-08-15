@@ -1,289 +1,176 @@
-import { afterAll, describe, expect, test } from 'vitest';
-import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { DeployConfigSchema } from '@teamhub/hub-contracts';
+import { buildSetupServer, RESTART_EXIT_CODE } from '../src/build-setup-server.js';
+import { openUnifiedDb, type UnifiedDatabase } from '../src/store/sqlite-unified.js';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import {
-  buildSetupServer,
-  RESTART_EXIT_CODE,
-} from '../src/build-setup-server.js';
-import { readDeployConfigFile } from '../src/deploy-config-file.js';
 
-/**
- * SETUP-WIZARD 刀①：setup 模式三端点 + 正常模式 setup 路由幂等 + config fail-closed。
- * 覆盖 setup-wizard.md §3/§4：init 写文件 + 退出码 42（注入 exit 断言，不真杀进程）/ 已初始化 409 /
- * 坏 body 400 / config.json 坏文件拒启动。
- */
+const FIXED_NOW = new Date('2026-08-15T12:00:00.000Z');
 
-const tmpDirs: string[] = [];
-async function makeTmpDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'teamhub-setup-'));
-  tmpDirs.push(dir);
-  return dir;
-}
-afterAll(async () => {
-  for (const d of tmpDirs) await rm(d, { recursive: true, force: true });
-});
+describe('setup 与 app_settings 路由', () => {
+  let dir: string;
+  let database: UnifiedDatabase;
 
-const FIXED_NOW = new Date('2026-07-18T12:00:00.000Z');
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'teamhub-setup-'));
+    database = openUnifiedDb(join(dir, 'teamhub.sqlite'));
+  });
 
-describe('setup 模式（buildSetupServer）', () => {
-  test('GET /health 带 setupPending:true + buildId + status ok', async () => {
-    const dir = await makeTmpDir();
+  afterEach(async () => {
+    database.close();
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  test('setup health/state：空库明确返回 empty', async () => {
     const app = buildSetupServer({
-      configFile: join(dir, 'config.json'),
-      exit: () => {},
+      settingsService: database,
       now: () => FIXED_NOW,
+      exit: () => {},
     });
     try {
-      const res = await app.inject({ method: 'GET', url: '/health' });
-      expect(res.statusCode).toBe(200);
-      const body = res.json();
-      expect(body.status).toBe('ok');
-      expect(body.service).toBe('teamhub-hub-server');
-      expect(body.setupPending).toBe(true);
-      expect(typeof body.buildId).toBe('string');
-      expect(body.buildId.length).toBeGreaterThan(0);
+      const health = await app.inject({ method: 'GET', url: '/health' });
+      expect(health.statusCode).toBe(200);
+      expect(health.json()).toMatchObject({ status: 'ok', setupPending: true });
+      expect(health.json().buildId).toBeTruthy();
+
+      const state = await app.inject({ method: 'GET', url: '/api/setup/state' });
+      expect(state.json()).toEqual({ initialized: false, databaseState: 'empty' });
     } finally {
       await app.close();
     }
   });
 
-  test('GET /api/setup/state → initialized:false；dataDirHasData 反映五域文件存在', async () => {
-    const dir = await makeTmpDir();
-    const existingData = join(dir, 'gov.json');
-    await writeFile(existingData, '{}', 'utf8');
-    const missingData = join(dir, 'kb.json');
-
-    const withData = buildSetupServer({
-      configFile: join(dir, 'config.json'),
-      dataFileCandidates: [missingData, existingData],
-      exit: () => {},
-    });
-    try {
-      const res = await withData.inject({ method: 'GET', url: '/api/setup/state' });
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({ initialized: false, dataDirHasData: true });
-    } finally {
-      await withData.close();
-    }
-
-    const noData = buildSetupServer({
-      configFile: join(dir, 'config.json'),
-      dataFileCandidates: [missingData],
-      exit: () => {},
-    });
-    try {
-      const res = await noData.inject({ method: 'GET', url: '/api/setup/state' });
-      expect(res.json()).toEqual({ initialized: false, dataDirHasData: false });
-    } finally {
-      await noData.close();
-    }
-  });
-
-  test('POST /api/setup/init 合法 → 写 config.json + restarting:true + exit(42)', async () => {
-    const dir = await makeTmpDir();
-    const configFile = join(dir, 'nested', 'config.json'); // mkdir -p 深目录
-    let exitCode: number | undefined;
+  test('初始化合法请求：同库写 settings + real 空种子，并请求 exit 42', async () => {
+    const exitCodes: number[] = [];
     const app = buildSetupServer({
-      configFile,
-      exit: (code) => (exitCode = code),
+      settingsService: database,
       now: () => FIXED_NOW,
-      restartDelayMs: 5,
+      exit: (code) => exitCodes.push(code),
+      restartDelayMs: 1,
     });
     try {
-      const res = await app.inject({
+      const response = await app.inject({
         method: 'POST',
         url: '/api/setup/init',
         payload: { dataMode: 'real', identityMode: 'identity' },
       });
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({ restarting: true });
-
-      // 文件已落盘且合法（schemaVersion/字段/时间戳齐备）
-      expect(existsSync(configFile)).toBe(true);
-      const written = DeployConfigSchema.parse(
-        JSON.parse(await readFile(configFile, 'utf8')),
-      );
-      expect(written).toEqual({
-        schemaVersion: 1,
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ restarting: true });
+      expect(database.getSettings()).toMatchObject({
         dataMode: 'real',
         identityMode: 'identity',
-        initializedAt: FIXED_NOW.toISOString(),
+        verticalId: 'robotics',
       });
-
-      // 延迟退出：等 restartDelayMs 后 exit(42) 被调用
-      await new Promise((r) => setTimeout(r, 30));
-      expect(exitCode).toBe(RESTART_EXIT_CODE);
-      expect(exitCode).toBe(42);
+      expect((await database.openStores().gov.getSnapshot()).tasks).toEqual([]);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(exitCodes).toEqual([RESTART_EXIT_CODE]);
     } finally {
       await app.close();
     }
   });
 
-  test('POST /api/setup/init 坏 body → 400，不写文件、不退出', async () => {
-    const dir = await makeTmpDir();
-    const configFile = join(dir, 'config.json');
-    let exited = false;
-    const app = buildSetupServer({
-      configFile,
-      exit: () => (exited = true),
-      restartDelayMs: 0,
+  test('坏请求 400；未认领业务数据返回状态且 init 409，不覆盖原数据', async () => {
+    database.db.ensureEntityTables(['tasks']);
+    database.db.insertRow('tasks', 'legacy', { id: 'legacy' });
+    const app = buildSetupServer({ settingsService: database, exit: () => {} });
+    try {
+      const state = await app.inject({ method: 'GET', url: '/api/setup/state' });
+      expect(state.json()).toEqual({ initialized: false, databaseState: 'unclaimed' });
+
+      const blocked = await app.inject({
+        method: 'POST',
+        url: '/api/setup/init',
+        payload: { dataMode: 'real', identityMode: 'anonymous' },
+      });
+      expect(blocked.statusCode).toBe(409);
+      expect(database.db.getRow('tasks', 'legacy')).toEqual({ id: 'legacy' });
+
+      const invalid = await app.inject({
+        method: 'POST',
+        url: '/api/setup/init',
+        payload: { dataMode: 'invalid' },
+      });
+      expect(invalid.statusCode).toBe(400);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('setup server 不注册 config/graduate 写端点', async () => {
+    const app = buildSetupServer({ settingsService: database, exit: () => {} });
+    try {
+      expect((await app.inject({ method: 'PUT', url: '/api/setup/config', payload: { identityMode: 'identity' } })).statusCode).toBe(404);
+      expect((await app.inject({ method: 'POST', url: '/api/setup/graduate' })).statusCode).toBe(404);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('正常模式读取 settings，修改身份模式后重启', async () => {
+    database.initialize({ dataMode: 'demo', identityMode: 'anonymous' }, FIXED_NOW);
+    const exitCodes: number[] = [];
+    const app = buildTestHubServer({
+      setupControl: {
+        settingsService: database,
+        now: () => new Date('2026-08-15T13:00:00.000Z'),
+        exit: (code) => exitCodes.push(code),
+        restartDelayMs: 1,
+      },
     });
     try {
-      const res = await app.inject({
-        method: 'POST',
-        url: '/api/setup/init',
-        payload: { dataMode: 'nope' },
+      const state = await app.inject({ method: 'GET', url: '/api/setup/state' });
+      expect(state.json()).toMatchObject({
+        initialized: true,
+        settings: { dataMode: 'demo', identityMode: 'anonymous' },
       });
-      expect(res.statusCode).toBe(400);
-      await new Promise((r) => setTimeout(r, 20));
-      expect(existsSync(configFile)).toBe(false);
-      expect(exited).toBe(false);
+
+      const changed = await app.inject({
+        method: 'PUT',
+        url: '/api/setup/config',
+        payload: { identityMode: 'identity' },
+      });
+      expect(changed.statusCode).toBe(200);
+      expect(database.getSettings()).toMatchObject({
+        identityMode: 'identity',
+        initializedAt: FIXED_NOW.toISOString(),
+        updatedAt: '2026-08-15T13:00:00.000Z',
+      });
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(exitCodes).toEqual([42]);
     } finally {
       await app.close();
     }
   });
 
-  test('POST /api/setup/init 已初始化（config.json 已存在）→ 409 幂等', async () => {
-    const dir = await makeTmpDir();
-    const configFile = join(dir, 'config.json');
-    await writeFile(
-      configFile,
-      JSON.stringify({
-        schemaVersion: 1,
-        dataMode: 'demo',
-        identityMode: 'anonymous',
-        initializedAt: FIXED_NOW.toISOString(),
-      }),
-      'utf8',
-    );
-    let exited = false;
-    const app = buildSetupServer({
-      configFile,
-      exit: () => (exited = true),
-      restartDelayMs: 0,
+  test('graduate 清统一库业务数据但保留 token/lark 和构件物理文件', async () => {
+    database.initialize({ dataMode: 'demo', identityMode: 'anonymous' }, FIXED_NOW);
+    database.db.setMeta('write_token', 'keep-token');
+    database.db.setMeta('lark_config', '{"status":"unconfigured"}');
+    const artifactFile = join(dir, 'artifact.pdf');
+    await writeFile(artifactFile, 'keep artifact', 'utf8');
+
+    const app = buildTestHubServer({
+      setupControl: {
+        settingsService: database,
+        now: () => new Date('2026-08-15T14:00:00.000Z'),
+        exit: () => {},
+        restartDelayMs: 0,
+      },
     });
     try {
-      const res = await app.inject({
-        method: 'POST',
-        url: '/api/setup/init',
-        payload: { dataMode: 'real', identityMode: 'identity' },
-      });
-      expect(res.statusCode).toBe(409);
-      await new Promise((r) => setTimeout(r, 20));
-      expect(exited).toBe(false);
-      // 既有 config 未被覆盖
-      const kept = JSON.parse(await readFile(configFile, 'utf8'));
-      expect(kept.dataMode).toBe('demo');
+      const response = await app.inject({ method: 'POST', url: '/api/setup/graduate' });
+      expect(response.statusCode).toBe(200);
+      expect(database.getSettings()?.dataMode).toBe('real');
+      expect(database.db.rowCount('tasks')).toBe(0);
+      expect(database.db.getMeta('write_token')).toBe('keep-token');
+      expect(database.db.getMeta('lark_config')).toBe('{"status":"unconfigured"}');
+      expect(await readFile(artifactFile, 'utf8')).toBe('keep artifact');
+
+      const repeated = await app.inject({ method: 'POST', url: '/api/setup/graduate' });
+      expect(repeated.statusCode).toBe(409);
     } finally {
       await app.close();
     }
-  });
-});
-
-describe('正常模式 setup 路由（buildTestHubServer）', () => {
-  test('GET /api/setup/state → initialized:true', async () => {
-    const app = buildTestHubServer();
-    try {
-      const res = await app.inject({ method: 'GET', url: '/api/setup/state' });
-      expect(res.statusCode).toBe(200);
-      expect(res.json().initialized).toBe(true);
-    } finally {
-      await app.close();
-    }
-  });
-
-  test('POST /api/setup/init → 恒 409（匿名默认）', async () => {
-    const app = buildTestHubServer();
-    try {
-      const res = await app.inject({
-        method: 'POST',
-        url: '/api/setup/init',
-        payload: { dataMode: 'real', identityMode: 'identity' },
-      });
-      expect(res.statusCode).toBe(409);
-    } finally {
-      await app.close();
-    }
-  });
-
-  test('POST /api/setup/init → 409（身份模式无会话也不退化成 401，走幂等门）', async () => {
-    const app = buildTestHubServer({ identityMode: 'identity' });
-    try {
-      const res = await app.inject({
-        method: 'POST',
-        url: '/api/setup/init',
-        payload: { dataMode: 'real', identityMode: 'identity' },
-      });
-      expect(res.statusCode).toBe(409);
-    } finally {
-      await app.close();
-    }
-  });
-
-  test('POST /api/setup/init → 409（配 writeToken 无 Bearer 也不退化成 401）', async () => {
-    const app = buildTestHubServer({ writeToken: 'secret' });
-    try {
-      const res = await app.inject({
-        method: 'POST',
-        url: '/api/setup/init',
-        payload: { dataMode: 'real', identityMode: 'identity' },
-      });
-      expect(res.statusCode).toBe(409);
-    } finally {
-      await app.close();
-    }
-  });
-});
-
-describe('config fail-closed（readDeployConfigFile）', () => {
-  test('文件不存在 → undefined（进 setup 模式）', async () => {
-    const dir = await makeTmpDir();
-    const result = await readDeployConfigFile(join(dir, 'missing.json'));
-    expect(result).toBeUndefined();
-  });
-
-  test('合法 config → 解析返回', async () => {
-    const dir = await makeTmpDir();
-    const configFile = join(dir, 'config.json');
-    await writeFile(
-      configFile,
-      JSON.stringify({
-        schemaVersion: 1,
-        dataMode: 'demo',
-        identityMode: 'anonymous',
-        initializedAt: FIXED_NOW.toISOString(),
-      }),
-      'utf8',
-    );
-    const result = await readDeployConfigFile(configFile);
-    expect(result?.dataMode).toBe('demo');
-    expect(result?.identityMode).toBe('anonymous');
-  });
-
-  test('坏 JSON → 抛错，message 含文件路径', async () => {
-    const dir = await makeTmpDir();
-    const configFile = join(dir, 'config.json');
-    await writeFile(configFile, '{ not json', 'utf8');
-    await expect(readDeployConfigFile(configFile)).rejects.toThrow(configFile);
-  });
-
-  test('schema 不符（陌生 schemaVersion）→ 抛错', async () => {
-    const dir = await makeTmpDir();
-    const configFile = join(dir, 'config.json');
-    await writeFile(
-      configFile,
-      JSON.stringify({
-        schemaVersion: 99,
-        dataMode: 'demo',
-        identityMode: 'anonymous',
-        initializedAt: FIXED_NOW.toISOString(),
-      }),
-      'utf8',
-    );
-    await expect(readDeployConfigFile(configFile)).rejects.toThrow();
   });
 });

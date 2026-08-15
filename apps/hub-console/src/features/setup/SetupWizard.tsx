@@ -16,7 +16,7 @@ import { SETUP_LANDING_KEY } from '../../constants';
  *  - 「先试试」：演示数据（冻结钟 + 演示车 / 排班 / 语料），随便点不心疼；可选折叠「高级」= 演示态也开登录制
  *    （§10 拍板①，默认收起 + 默认匿名）。
  *  - 「直接安装」：真实空板；追问一格「写操作要登录吗」= 登录制（推荐）/ 匿名共用。
- * 提交 → `POST /api/setup/init` 写 config.json → 服务 exit 42 自动重启 → 全屏「正在应用配置…」+ 轮询复活 →
+ * 提交 → `POST /api/setup/init` 写 SQLite app_settings → 服务 exit 42 自动重启 → 全屏「正在应用设置…」+ 轮询复活 →
  * 整页刷新。重启后落点见 §5 末段（试驾 / 正式+匿名 → 总览；正式+身份 → 设置页 + 三步走引导横幅，落点标记
  * 经 localStorage 传递给 ConsoleApp）。
  *
@@ -55,7 +55,7 @@ export function SetupWizard({
   state,
 }: {
   client: HubApiClient;
-  state: SetupStateResponse;
+  state: Extract<SetupStateResponse, { initialized: false }>;
 }) {
   const { t } = useI18n();
   const [phase, setPhase] = useState<Phase>('form');
@@ -64,6 +64,24 @@ export function SetupWizard({
   const [demoIdentity, setDemoIdentity] = useState(false);
   // 直接安装追问格「写操作要登录吗」：默认登录制（推荐）。
   const [realIdentity, setRealIdentity] = useState<ConfigIdentityMode>('identity');
+
+  if (state.databaseState === 'unclaimed') {
+    return (
+      <div className="setup-wizard setup-wizard--center" role="alert">
+        <div className="setup-wizard__inner setup-wizard__status">
+          <h1 className="setup-wizard__title">{t('setup.unclaimed.title')}</h1>
+          <p className="setup-wizard__subtitle">{t('setup.unclaimed.desc')}</p>
+          <button
+            type="button"
+            className="btn btn--secondary"
+            onClick={() => window.location.reload()}
+          >
+            {t('setup.error.retry')}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   async function submit(dataMode: DataMode, identityMode: ConfigIdentityMode) {
     if (phase === 'applying') return;
@@ -84,7 +102,7 @@ export function SetupWizard({
       }
       window.location.reload();
     } catch (err) {
-      // 复活超时（config 多半已写、server 已在起）与真失败统一走「重新加载」兜底：reload 后 gate 重判
+      // 复活超时（app_settings 多半已写、server 已在起）与真失败统一走「重新加载」兜底：reload 后 gate 重判
       // ——已初始化则进正常 app，未初始化则回向导，两种情形都自愈。
       setTimedOut(/restart-timeout/.test(String(err)));
       setPhase('error');
@@ -131,13 +149,6 @@ export function SetupWizard({
           <h1 className="setup-wizard__title">{t('setup.title')}</h1>
           <p className="setup-wizard__subtitle">{t('setup.subtitle')}</p>
         </header>
-
-        {/* 升级迁移提示（§3/§5）：数据目录非空（既有 v0.25.x 部署升级后见一次向导）→ 明示不动数据。 */}
-        {state.dataDirHasData ? (
-          <p className="setup-wizard__notice" role="status">
-            {t('setup.existingData')}
-          </p>
-        ) : null}
 
         <div className="setup-wizard__cards">
           {/* 先试试（演示数据） */}

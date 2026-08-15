@@ -123,8 +123,32 @@ export * from './reimbursement.js';
 export * from './checklist.js';
 // 跨端单一源（D-052 重复真相收口）：系统状态契约 / PM 写请求契约（errorCode 派生已并入 kb-closeout.ts）
 export * from './system-status.js';
-// 部署配置落盘层（SETUP-WIZARD 刀①，setup-wizard.md §2/§3）：config.json 契约 + setup 三端点请求/响应契约。
-export * from './deploy-config.js';
+// SQLite app_settings + setup 端点契约：显式列出公共 API，禁止旧 DeployConfig 兼容出口回流。
+export {
+  AppSettingsSchema,
+  ConfigIdentityModeSchema,
+  DataModeSchema,
+  SetupConfigRequestSchema,
+  SetupConfigResponseSchema,
+  SetupGraduateResponseSchema,
+  SetupInitRequestSchema,
+  SetupInitResponseSchema,
+  SetupStateResponseSchema,
+  VerticalIdSchema,
+  parseAppSettings,
+} from './app-settings.js';
+export type {
+  AppSettings,
+  ConfigIdentityMode,
+  DataMode,
+  SetupConfigRequest,
+  SetupConfigResponse,
+  SetupGraduateResponse,
+  SetupInitRequest,
+  SetupInitResponse,
+  SetupStateResponse,
+  VerticalId,
+} from './app-settings.js';
 export * from './pm-requests.js';
 // 写侧请求契约按域拆分（自 pm-requests.ts 析出 artifact/schedule/resource 三域，照 relay.ts 先例）；
 // 包入口 export * 保证 server/console 既有具名 import 零改动。

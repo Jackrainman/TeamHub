@@ -86,7 +86,6 @@ artifact 不包含在上述 SQLite 备份中：${ARTIFACT_DIR}
 请单独使用 tar/rsync 备份 artifact，并对归档执行列表或解包校验。
 
 Compose 部署对应卷：
-  - hub_data：SQLite（应用运行时应使用 VACUUM INTO，不要直接复制在线数据库文件）
+  - hub_data：SQLite（含 app_settings 与全部结构化业务事实；应用运行时应使用 VACUUM INTO）
   - hub_artifacts：artifact 字节（需单独归档）
-  - hub_config：A2 前临时配置卷（需纳入灾备，A2 app_settings 落地后删除）
 EOF

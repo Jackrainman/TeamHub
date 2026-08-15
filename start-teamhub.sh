@@ -16,7 +16,6 @@
 #                         漏设则上传/下载端点恒 404「未配置归档物文件目录」。字节不进 git（D-025）、只在此卷。
 #   TEAMHUB_WRITE_TOKEN   写端点鉴权密钥（AUDIT H3）。绑非 loopback（0.0.0.0）时必填，未填则本脚本自动生成并打印；
 #                         写端点 POST /api/* 须带 `Authorization: Bearer <token>`，读端点不受影响。
-#   TEAMHUB_CONFIG_FILE   A2 前临时部署配置（默认 ~/teamhub-data/config.json）；不存在时进入首启动向导。
 #   TEAMHUB_TRUST_PROXY   反代信任（默认 false）。反代 / SSH 隧道部署后面**必须**设 true，否则写端点
 #                         限流塌成全队共用一个桶（任一客户端可耗尽、DoS 全队写入，见 server.ts）；
 #                         直连暴露（无反代）保持 false（否则 X-Forwarded-For 可伪造）。本脚本原样
@@ -34,8 +33,6 @@ HUB_PORT="${HUB_PORT:-4177}"
 TEAMHUB_DB_FILE="${TEAMHUB_DB_FILE:-${HOME}/teamhub-data/teamhub.sqlite}"
 TEAMHUB_ARTIFACT_FILES_DIR="${TEAMHUB_ARTIFACT_FILES_DIR:-${HOME}/teamhub-data/artifacts}"
 TEAMHUB_WRITE_TOKEN="${TEAMHUB_WRITE_TOKEN:-}"
-# A2 前临时配置文件。不存在 → 首启动向导；存在 → 严格解析（坏文件拒启动）。
-TEAMHUB_CONFIG_FILE="${TEAMHUB_CONFIG_FILE:-${HOME}/teamhub-data/config.json}"
 # 活体戳：注入 git short SHA 进 /health.buildId，重启后一行 curl 即知在服哪个构建（feiyue ?v= 校验等价）。
 TEAMHUB_BUILD_ID="${TEAMHUB_BUILD_ID:-$(git -C "${ROOT_DIR}" rev-parse --short HEAD 2>/dev/null || echo nogit)}"
 # 产品版本号（D-074 单一真相 = 根 VERSION，bump-version.sh 同步进三包 package.json）。
@@ -67,8 +64,8 @@ if [[ ! -d "${ROOT_DIR}/node_modules" ]]; then
   exit 1
 fi
 
-# 唯一数据库、A2 前临时配置、artifact 三个持久化落点就位。
-mkdir -p "$(dirname "${TEAMHUB_CONFIG_FILE}")" "$(dirname "${TEAMHUB_DB_FILE}")" "${TEAMHUB_ARTIFACT_FILES_DIR}"
+# 唯一数据库与 artifact 两个持久化落点就位。
+mkdir -p "$(dirname "${TEAMHUB_DB_FILE}")" "${TEAMHUB_ARTIFACT_FILES_DIR}"
 
 if [[ "${SKIP_BUILD}" != "1" ]]; then
   echo "构建 TeamHub workspaces（contracts → console → server）…"
@@ -77,18 +74,14 @@ fi
 
 # console 静态产物交给 server 单端口托管
 export TEAMHUB_CONSOLE_DIST_DIR="${CONSOLE_DIR}/dist"
-export TEAMHUB_CONFIG_FILE TEAMHUB_DB_FILE TEAMHUB_ARTIFACT_FILES_DIR HUB_HOST HUB_PORT TEAMHUB_WRITE_TOKEN TEAMHUB_BUILD_ID
+export TEAMHUB_DB_FILE TEAMHUB_ARTIFACT_FILES_DIR HUB_HOST HUB_PORT TEAMHUB_WRITE_TOKEN TEAMHUB_BUILD_ID
 
 echo "──────────────────────────────────────────────"
 echo " Team Hub v${TEAMHUB_VERSION} 启动 → http://${HUB_HOST}:${HUB_PORT}  (console + API 同端口)"
 echo " 统一 SQLite：${TEAMHUB_DB_FILE}（六域共库，node:sqlite，重启不丢）"
 echo " 归档物目录：${TEAMHUB_ARTIFACT_FILES_DIR}（图纸文件上传下载，重启不丢）"
 echo " 版本：v${TEAMHUB_VERSION}（/api/system/status.version 同源）　构建戳：${TEAMHUB_BUILD_ID}（/health.buildId）"
-if [[ -f "${TEAMHUB_CONFIG_FILE}" ]]; then
-  echo " 临时配置：${TEAMHUB_CONFIG_FILE}（A2 app_settings 落地前保留）"
-else
-  echo " 首次启动：打开浏览器完成初始化；临时配置将写入 ${TEAMHUB_CONFIG_FILE}"
-fi
+echo " 产品设置：SQLite app_settings（未初始化时打开浏览器完成向导）"
 if [[ "${HUB_HOST}" != "127.0.0.1" && "${HUB_HOST}" != "localhost" && "${HUB_HOST}" != "::1" ]]; then
   echo " 已绑 ${HUB_HOST}：写端点 POST /api/* 须带 Authorization: Bearer <token>（读端点不限）。"
   if [[ "${AUTO_TOKEN:-0}" == "1" ]]; then
@@ -98,8 +91,8 @@ if [[ "${HUB_HOST}" != "127.0.0.1" && "${HUB_HOST}" != "localhost" && "${HUB_HOS
 fi
 echo "──────────────────────────────────────────────"
 
-# SETUP-WIZARD 刀①：自动重启循环。约定 exit code 42 = 请求重启（向导 / 设置页改配置后 POST init →
-# 服务端写 config.json → exit 42）。非 42（含正常崩溃）原样退出——不引入「崩了就无限拉起」的新行为。
+# SETUP-WIZARD 刀①：自动重启循环。约定 exit code 42 = 请求重启（向导 / 设置页更新
+# SQLite app_settings 后由新进程重读）。非 42（含正常崩溃）原样退出——不引入「崩了就无限拉起」的新行为。
 # 用 if 承接退出码，避免 set -e 在 node 非零退出时先中止（拿不到 $? 就重启不了）。
 while :; do
   if node "${SERVER_DIR}/dist/main.js"; then

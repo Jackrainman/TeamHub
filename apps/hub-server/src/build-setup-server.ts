@@ -1,30 +1,21 @@
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
-import { existsSync } from 'node:fs';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
 import {
-  DeployConfigSchema,
   SetupInitRequestSchema,
   SetupStateResponseSchema,
 } from '@teamhub/hub-contracts';
-import type { DeployConfig } from '@teamhub/hub-contracts';
 import { tryServeStaticConsole } from './static-console.js';
 import { buildHealthResponse } from './status.js';
+import type { AppSettingsService } from './store/sqlite-unified.js';
 
 /** exit code 42 = 请求重启（start-teamhub.sh 循环 / compose restart:on-failure 据此拉起正常模式）。 */
 export const RESTART_EXIT_CODE = 42;
 
 export interface BuildSetupServerOptions {
-  /** config.json 落盘路径（向导提交后写入这里，随后 exit 42 重启进正常模式）。 */
-  configFile: string;
+  /** 同一个统一 SQLite 上的设置服务；setup 与正常模式不再分叉为配置文件。 */
+  settingsService: AppSettingsService;
   /** console 静态站目录（单端口托管向导页面；缺省则只有 API，无静态站）。 */
   consoleDistDir?: string;
-  /**
-   * 五域（gov/kb/inv/baseline/checklist）落盘文件候选路径。GET /api/setup/state 的 dataDirHasData =
-   * 其中任一已存在——供升级迁移提示（既有 v0.25.x 部署升级后见一次向导时提示「检测到已有数据」）。
-   */
-  dataFileCandidates?: string[];
   /** 时钟（默认真钟）：注入以便测试断言 initializedAt / checkedAt 确定。 */
   now?: () => Date;
   /** 退出函数（默认 process.exit）：注入以便测试断言退出码而不真杀进程。 */
@@ -36,9 +27,8 @@ export interface BuildSetupServerOptions {
 /**
  * setup 模式最小 server（SETUP-WIZARD 刀①，setup-wizard.md §3）。
  *
- * config.json 不存在时启动本 server（**不建任何数据 store、不落任何种子**——"选了才 seed"是向导能选真空板的
- * 前提）。只注册四件事：console 静态站托管、`GET /health`（带 setupPending:true）、`GET /api/setup/state`、
- * `POST /api/setup/init`（写 config.json → 回 restarting:true → 延迟 exit 42）。
+ * app_settings 不存在时启动本 server。打开数据库只建 schema/meta/settings 壳，不建业务表；用户提交后，
+ * 六域 seed 与 app_settings 单例在同一事务落库，再退出 42 进入正常模式。
  */
 export function buildSetupServer(
   options: BuildSetupServerOptions,
@@ -55,19 +45,23 @@ export function buildSetupServer(
     setupPending: true,
   }));
 
-  // GET /api/setup/state：setup 模式恒 initialized:false；dataDirHasData 报五域任一落盘文件是否已存在。
+  // 未认领业务数据不允许 setup 覆盖，但要把状态返回给向导解释，而不是静默当空库。
   app.get('/api/setup/state', async () => {
-    const dataDirHasData = (options.dataFileCandidates ?? []).some((p) =>
-      existsSync(p),
-    );
+    const state = options.settingsService.getDatabaseState();
+    if (state === 'initialized') {
+      return SetupStateResponseSchema.parse({
+        initialized: true,
+        settings: options.settingsService.getSettings(),
+      });
+    }
     return SetupStateResponseSchema.parse({
       initialized: false,
-      dataDirHasData,
+      databaseState: state,
     });
   });
 
-  // POST /api/setup/init：zod 校验 {dataMode, identityMode} → mkdir -p → 写 config.json → 回 restarting:true
-  // → 延迟 exit 42。已初始化（config.json 已存在，多标签页并发）→ 409 幂等。
+  // POST /api/setup/init：校验选择 → 同事务写六域 seed + app_settings → 回 restarting:true → 延迟 exit 42。
+  // 多标签页并发或未认领数据都由 service 在同库上再次检查，不做覆盖。
   app.post('/api/setup/init', async (request, reply) => {
     const parsed = SetupInitRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
@@ -76,25 +70,16 @@ export function buildSetupServer(
         .send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
       return reply;
     }
-    // 竞态防护：另一标签页刚写完 config.json → 409（不覆盖、不重复退出）。
-    if (existsSync(options.configFile)) {
-      void reply.code(409).send({ detail: '已初始化（config.json 已存在）' });
+    const state = options.settingsService.getDatabaseState();
+    if (state === 'initialized') {
+      void reply.code(409).send({ detail: 'TeamHub 已初始化' });
       return reply;
     }
-    const config: DeployConfig = {
-      schemaVersion: 1,
-      dataMode: parsed.data.dataMode,
-      identityMode: parsed.data.identityMode,
-      initializedAt: now().toISOString(),
-    };
-    // 对称 fail-closed：落盘前先自校验产物合法（写坏文件会让下次启动拒起，务必只落合法 config）。
-    const validated = DeployConfigSchema.parse(config);
-    await mkdir(dirname(options.configFile), { recursive: true });
-    await writeFile(
-      options.configFile,
-      `${JSON.stringify(validated, null, 2)}\n`,
-      'utf8',
-    );
+    if (state === 'unclaimed') {
+      void reply.code(409).send({ detail: '数据库含未认领业务数据，拒绝初始化覆盖' });
+      return reply;
+    }
+    options.settingsService.initialize(parsed.data, now());
     // 先安排重启再回执：回执落地后 ~500ms 进程退 42，start 脚本 / compose 拉起正常模式。
     setTimeout(() => exit(RESTART_EXIT_CODE), restartDelayMs);
     void reply.code(200).send({ restarting: true });

@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'vitest';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +9,7 @@ import {
   CreateTaskResponseSchema,
   governanceScenarioFixture,
 } from '@teamhub/hub-contracts';
+import { openUnifiedDb } from '../src/store/sqlite-unified.js';
 
 /**
  * 端到端实测（A4，模型 = feiyue `scripts/feiyue-solver/e2e.sh`：驱动**真产物**、断言**内容往返**）。
@@ -52,8 +53,7 @@ async function startServer(
     cwd: serverRoot,
     env: {
       ...process.env,
-      // SETUP-WIZARD 刀①：模式类 env 已退役，dataMode/identityMode 走预置 config.json（见 makeDataDir，
-      // dataMode='real' = 空板，完全受控、断言确定）。TEAMHUB_CONFIG_FILE 随各 test 的 env 传入。
+      // app_settings 预置 real 空板；真实入口只从 TEAMHUB_DB_FILE 读取运行设置。
       HUB_HOST: '127.0.0.1',
       HUB_PORT: String(port),
       ...env,
@@ -91,24 +91,17 @@ async function stopServer(proc: ChildProcess): Promise<void> {
 
 async function makeDataDir(): Promise<{
   database: string;
-  config: string;
 }> {
   const dir = await mkdtemp(join(tmpdir(), 'teamhub-e2e-'));
   tmpDirs.push(dir);
-  // SETUP-WIZARD 刀①：预置 config.json（dataMode='real' 空板 + 匿名），起服即进正常模式、跳过向导，
-  // 断言完全受控。TEAMHUB_CONFIG_FILE 指向此文件（各 test 的 env 传入）。
-  const config = join(dir, 'config.json');
-  await writeFile(
-    config,
-    JSON.stringify({
-      schemaVersion: 1,
-      dataMode: 'real',
-      identityMode: 'anonymous',
-      initializedAt: '2026-07-18T00:00:00.000Z',
-    }),
-    'utf8',
+  const database = join(dir, 'teamhub.sqlite');
+  const unified = openUnifiedDb(database);
+  unified.initialize(
+    { dataMode: 'real', identityMode: 'anonymous' },
+    new Date('2026-08-15T00:00:00.000Z'),
   );
-  return { database: join(dir, 'teamhub.sqlite'), config };
+  unified.close();
+  return { database };
 }
 
 afterAll(async () => {
@@ -177,11 +170,9 @@ const hasEdge = (
 
 describe('e2e: 真 HTTP + 真落盘 + 真重启（驱动 src/main.ts）', () => {
   test('KB 结案 → 杀进程重启 → 同症状仍从统一 SQLite 召回', async () => {
-    const { database, config } = await makeDataDir();
-    const env = {
-      TEAMHUB_DB_FILE: database,
-      TEAMHUB_CONFIG_FILE: config,
-    };
+    const { database } = await makeDataDir();
+    const token = 'e2e-kb-token';
+    const env = { TEAMHUB_DB_FILE: database, TEAMHUB_WRITE_TOKEN: token };
     const recallUrl =
       '/api/kb/similar?symptom=' +
       encodeURIComponent(probeIssue.symptomSummary) +
@@ -204,7 +195,7 @@ describe('e2e: 真 HTTP + 真落盘 + 真重启（驱动 src/main.ts）', () => 
       category: '编码器',
       rootCause: 'E2E 线序错',
       resolution: 'E2E 重接线序',
-    });
+    }, { authorization: `Bearer ${token}` });
     expect(closeout.status).toBe(201);
     expect(hasIssue(await getJson(port1, recallUrl), probeIssue.id)).toBe(true);
     await stopServer(s1);
@@ -217,21 +208,19 @@ describe('e2e: 真 HTTP + 真落盘 + 真重启（驱动 src/main.ts）', () => 
   }, 60_000);
 
   test('PM 建任务+依赖 → 杀进程重启 → 任务与边在统一 SQLite 存活', async () => {
-    const { database, config } = await makeDataDir();
-    const env = {
-      TEAMHUB_DB_FILE: database,
-      TEAMHUB_CONFIG_FILE: config,
-    };
+    const { database } = await makeDataDir();
+    const token = 'e2e-pm-token';
+    const env = { TEAMHUB_DB_FILE: database, TEAMHUB_WRITE_TOKEN: token };
 
     const port1 = await freePort();
     const s1 = await startServer(env, port1);
     // 用 hub-contracts 的响应契约解析（替代不安全强转）：响应格式变更会在此提前报错，
     // 同时 idA/idB 的类型由 schema 推导而非手写 cast。
     const a = CreateTaskResponseSchema.parse(
-      await (await post(port1, '/api/tasks', taskBody('E2E 上游任务'))).json(),
+      await (await post(port1, '/api/tasks', taskBody('E2E 上游任务'), { authorization: `Bearer ${token}` })).json(),
     );
     const b = CreateTaskResponseSchema.parse(
-      await (await post(port1, '/api/tasks', taskBody('E2E 下游任务'))).json(),
+      await (await post(port1, '/api/tasks', taskBody('E2E 下游任务'), { authorization: `Bearer ${token}` })).json(),
     );
     const idA = a.task.id;
     const idB = b.task.id;
@@ -243,7 +232,7 @@ describe('e2e: 真 HTTP + 真落盘 + 真重启（驱动 src/main.ts）', () => 
       type: 'blocks',
       source: 'human',
       confirmedBy: { id: 'console-e2e', displayName: 'E2E', source: 'console' },
-    });
+    }, { authorization: `Bearer ${token}` });
     expect(dep.status).toBe(201);
     expect(hasEdge(await getJson(port1, '/api/dep-graph'), idA, idB)).toBe(true);
     await stopServer(s1);
@@ -259,11 +248,10 @@ describe('e2e: 真 HTTP + 真落盘 + 真重启（驱动 src/main.ts）', () => 
   }, 60_000);
 
   test('H3：配 TEAMHUB_WRITE_TOKEN 后，写端点无 Bearer→401、带 Bearer→201、读端点不受限', async () => {
-    const { database, config } = await makeDataDir();
+    const { database } = await makeDataDir();
     const token = 'e2e-secret-token';
     const env = {
       TEAMHUB_DB_FILE: database,
-      TEAMHUB_CONFIG_FILE: config,
       TEAMHUB_WRITE_TOKEN: token,
     };
     const port = await freePort();

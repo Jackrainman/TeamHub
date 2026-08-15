@@ -4,7 +4,13 @@ export const zhSetup = {
   'setup.title': '欢迎，先选个开局',
   'setup.subtitle':
     '第一次打开 TeamHub，选一种方式开始。选完自动配置，几秒后就绪；之后随时能在设置里改。',
-  'setup.existingData': '检测到已有数据——本次只写配置，不动任何数据。',
+  'setup.unclaimed.title': '检测到未认领的业务数据',
+  'setup.unclaimed.desc':
+    '这个数据库里已有业务事实，但还没有 app_settings。为了避免把旧数据误认领到新部署，TeamHub 不会继续初始化。请先由管理员备份并处理数据库，然后重新加载。',
+  'setup.stateUnavailable.title': '暂时无法读取 TeamHub 设置',
+  'setup.stateUnavailable.desc':
+    '未能从服务端读到 app_settings 状态。为避免用错模块或垂直包，界面不会使用本地默认值继续。',
+  'setup.stateUnavailable.retry': '重新读取',
   'setup.demo.title': '先试试（演示数据）',
   'setup.demo.desc': '带一套演示任务、机器人和排班，随便点不心疼。想先摸清楚它能干嘛，选这个。',
   'setup.demo.advanced': '高级',
@@ -25,7 +31,7 @@ export const zhSetup = {
   'setup.applying.title': '正在应用配置，服务将自动重启（约 10 秒）',
   'setup.applying.desc': '这个页面会自动刷新，不用手动操作。',
   'setup.error.title': '没能完成初始化',
-  'setup.error.desc': '配置可能没写成功。点下面重新加载再试一次。',
+  'setup.error.desc': 'app_settings 可能没写成功。点下面重新加载再试一次。',
   'setup.error.timeout': '服务重启等得有点久。多半已经装好了，点下面重新加载看看。',
   'setup.error.retry': '重新加载',
   'setup.landing.title': '装好了，三步就能开始用',
@@ -39,8 +45,13 @@ export const enSetup = {
   'setup.title': 'Welcome — pick how to start',
   'setup.subtitle':
     'First time opening TeamHub. Choose a way to begin; it configures itself and is ready in seconds. Change this anytime in Settings.',
-  'setup.existingData':
-    'Existing data detected — this only writes config, it touches none of your data.',
+  'setup.unclaimed.title': 'Unclaimed business data detected',
+  'setup.unclaimed.desc':
+    'This database already contains business facts but has no app_settings. To avoid claiming old data into a new deployment by mistake, TeamHub will not initialize it. Ask an administrator to back up and resolve the database, then reload.',
+  'setup.stateUnavailable.title': 'Unable to read TeamHub settings',
+  'setup.stateUnavailable.desc':
+    'The app_settings state could not be read from the server. To avoid loading the wrong modules or vertical package, the console will not continue with local defaults.',
+  'setup.stateUnavailable.retry': 'Read again',
   'setup.demo.title': 'Try it first (demo data)',
   'setup.demo.desc':
     'Comes with sample tasks, robots and schedules — click around freely. Pick this to see what it does.',
@@ -65,7 +76,7 @@ export const enSetup = {
     'Applying config — the service will restart automatically (about 10s)',
   'setup.applying.desc': 'This page refreshes on its own; nothing to do.',
   'setup.error.title': "Couldn't finish setup",
-  'setup.error.desc': 'The config may not have been written. Reload below and try again.',
+  'setup.error.desc': 'app_settings may not have been written. Reload below and try again.',
   'setup.error.timeout':
     'The restart is taking a while. It probably already installed — reload below to check.',
   'setup.error.retry': 'Reload',

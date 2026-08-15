@@ -9,9 +9,13 @@ type MetaRow = { value: string };
 type DataRow = { data: string };
 type IdRow = { id: string };
 type UserVersionRow = { user_version: number | bigint };
+type CountRow = { count: number | bigint };
+type TableExistsRow = { name: string };
 
 export class SqliteDatabase {
   private readonly db: DatabaseSync;
+  private transactionDepth = 0;
+  private savepointSequence = 0;
 
   private constructor(db: DatabaseSync) {
     this.db = db;
@@ -64,15 +68,36 @@ export class SqliteDatabase {
     this.db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').run(key, value);
   }
 
+  deleteMeta(key: string): number {
+    return Number(this.db.prepare('DELETE FROM meta WHERE key = ?').run(key).changes);
+  }
+
   tx<T>(fn: () => T): T {
-    this.db.exec('BEGIN');
+    const outermost = this.transactionDepth === 0;
+    const savepoint = `teamhub_tx_${++this.savepointSequence}`;
+    this.db.exec(outermost ? 'BEGIN IMMEDIATE' : `SAVEPOINT ${savepoint}`);
+    this.transactionDepth += 1;
     try {
       const result = fn();
-      this.db.exec('COMMIT');
+      if (
+        result !== null &&
+        (typeof result === 'object' || typeof result === 'function') &&
+        typeof (result as { then?: unknown }).then === 'function'
+      ) {
+        throw new TypeError('SqliteDatabase.tx 回调必须同步，不能返回 Promise');
+      }
+      this.db.exec(outermost ? 'COMMIT' : `RELEASE SAVEPOINT ${savepoint}`);
       return result;
     } catch (err) {
-      this.db.exec('ROLLBACK');
+      if (outermost) {
+        this.db.exec('ROLLBACK');
+      } else {
+        this.db.exec(`ROLLBACK TO SAVEPOINT ${savepoint}`);
+        this.db.exec(`RELEASE SAVEPOINT ${savepoint}`);
+      }
       throw err;
+    } finally {
+      this.transactionDepth -= 1;
     }
   }
 
@@ -107,6 +132,30 @@ export class SqliteDatabase {
     for (const table of tables) {
       this.db.exec(`CREATE TABLE IF NOT EXISTS "${table}" (id TEXT PRIMARY KEY, data TEXT NOT NULL)`);
     }
+  }
+
+  ensureSingletonEntityTable(table: string, singletonId: string): void {
+    const escapedId = singletonId.replaceAll("'", "''");
+    this.db.exec(
+      `CREATE TABLE IF NOT EXISTS "${table}" (` +
+        `id TEXT PRIMARY KEY CHECK (id = '${escapedId}'), data TEXT NOT NULL)`,
+    );
+  }
+
+  tableExists(table: string): boolean {
+    const row = this.db
+      .prepare("SELECT name FROM sqlite_schema WHERE type = 'table' AND name = ?")
+      .get(table) as TableExistsRow | undefined;
+    return row !== undefined;
+  }
+
+  rowCount(table: string): number {
+    const row = this.db.prepare(`SELECT COUNT(*) AS count FROM "${table}"`).get() as CountRow;
+    return Number(row.count);
+  }
+
+  clearTable(table: string): void {
+    this.db.exec(`DELETE FROM "${table}"`);
   }
 
   bulkInsert(table: string, items: ReadonlyArray<{ id: string }>): void {

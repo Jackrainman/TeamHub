@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import { EnabledModulesSchema } from './assembly.js';
+import {
+  ConfigIdentityModeSchema,
+  DataModeSchema,
+  VerticalIdSchema,
+} from './app-settings.js';
 import { isoDateTimeSchema } from './common.js';
 
 /**
@@ -37,11 +43,12 @@ export const DeploymentStorageEntrySchema = z.object({
 
 export const DeploymentInfoSchema = z.object({
   // 数据形态（SETUP-WIZARD 刀③）：'demo' = 演示锚点数据，'real' = 真空板。设置页「部署配置」据此决定
-  // 是否显示「结束试驾，转正式」按钮（仅 demo 显示）。来源 = config.dataMode（main.ts 装配时透传）。
-  dataMode: z.enum(['demo', 'real']),
-  identityMode: z.enum(['anonymous', 'identity']),
+  // 是否显示「结束试驾，转正式」按钮（仅 demo 显示）。来源 = SQLite app_settings（main.ts 装配时透传）。
+  dataMode: DataModeSchema,
+  identityMode: ConfigIdentityModeSchema,
+  verticalId: VerticalIdSchema,
   storage: z.array(DeploymentStorageEntrySchema),
-  enabledModules: z.array(z.string()),
+  enabledModules: EnabledModulesSchema,
   // 是否配了 TEAMHUB_ARTIFACT_FILES_DIR：未配时图纸上传裸 400，console 据此禁用上传按钮 + 说明。
   artifactUploadEnabled: z.boolean(),
   buildId: z.string().min(1),

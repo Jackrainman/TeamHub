@@ -1,11 +1,18 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
-import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { openUnifiedDb, defaultSeeds, TEAMHUB_UNIFIED_SCHEMA_VERSION } from '../src/store/sqlite-unified.js';
+import { join } from 'node:path';
+import { ALL_MODULE_IDS } from '@teamhub/hub-contracts';
 import { SqliteDatabase } from '../src/store/sqlite-db.js';
+import {
+  TEAMHUB_BUSINESS_TABLES,
+  TEAMHUB_UNIFIED_SCHEMA_VERSION,
+  openUnifiedDb,
+} from '../src/store/sqlite-unified.js';
 
-describe('sqlite-unified', () => {
+const NOW = new Date('2026-08-15T01:02:03.000Z');
+
+describe('统一 SQLite + app_settings', () => {
   let dir: string;
   let dbPath: string;
 
@@ -18,168 +25,170 @@ describe('sqlite-unified', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  it('fresh open assembles all six domains (demo)', () => {
-    const stores = openUnifiedDb(dbPath, { seeds: defaultSeeds(true) });
+  it('首次打开只建数据库壳，业务表和 settings 都不抢跑', () => {
+    const database = openUnifiedDb(dbPath);
     try {
-      expect(stores.gov).toBeDefined();
-      expect(stores.kb).toBeDefined();
-      expect(stores.inv).toBeDefined();
-      expect(stores.baseline).toBeDefined();
-      expect(stores.checklist).toBeDefined();
-      expect(stores.reimburse).toBeDefined();
+      expect(database.getDatabaseState()).toBe('empty');
+      expect(database.getSettings()).toBeUndefined();
+      expect(database.db.readUserVersion()).toBe(TEAMHUB_UNIFIED_SCHEMA_VERSION);
+      expect(database.db.getMeta('schema_kind')).toBe('unified');
+      expect(TEAMHUB_BUSINESS_TABLES.every((table) => !database.db.tableExists(table))).toBe(true);
     } finally {
-      stores.close();
+      database.close();
     }
   });
 
-  it('gov store returns seeded snapshot', async () => {
-    const stores = openUnifiedDb(dbPath, { seeds: defaultSeeds(true) });
+  it('初始化把六域 demo seed 与 app_settings 单例放在同一提交中', async () => {
+    const database = openUnifiedDb(dbPath);
     try {
-      const snap = await stores.gov.getSnapshot();
-      expect(snap.tasks.length).toBeGreaterThan(0);
-      expect(snap.members.length).toBeGreaterThan(0);
-      expect(snap.seasonId).toBeTruthy();
+      const settings = database.initialize(
+        { dataMode: 'demo', identityMode: 'identity' },
+        NOW,
+      );
+      expect(settings).toEqual({
+        schemaVersion: 1,
+        dataMode: 'demo',
+        identityMode: 'identity',
+        verticalId: 'robotics',
+        enabledModules: [...ALL_MODULE_IDS],
+        initializedAt: NOW.toISOString(),
+        updatedAt: NOW.toISOString(),
+      });
+      expect(database.getDatabaseState()).toBe('initialized');
+
+      const stores = database.openStores();
+      expect((await stores.gov.getSnapshot()).tasks.length).toBeGreaterThan(0);
+      expect((await stores.kb.getKbSnapshot()).issueCards.length).toBeGreaterThan(0);
+      expect((await stores.inv.getInventorySnapshot()).partTypes.length).toBeGreaterThan(0);
+      expect(await stores.baseline.getBaseline('season-robocon-2026')).not.toBeNull();
+      expect((await stores.checklist.listItems('baseline-season-robocon-2026')).length).toBeGreaterThan(0);
+      expect(await stores.reimburse.listEntries()).toEqual([]);
     } finally {
-      stores.close();
+      database.close();
     }
   });
 
-  it('kb store returns seeded snapshot', async () => {
-    const stores = openUnifiedDb(dbPath, { seeds: defaultSeeds(true) });
-    try {
-      const snap = await stores.kb.getKbSnapshot();
-      expect(snap.issueCards.length).toBeGreaterThan(0);
-      expect(snap.projectId).toBeTruthy();
-    } finally {
-      stores.close();
-    }
-  });
-
-  it('inv store returns seeded snapshot', async () => {
-    const stores = openUnifiedDb(dbPath, { seeds: defaultSeeds(true) });
-    try {
-      const snap = await stores.inv.getInventorySnapshot();
-      expect(snap.partTypes.length).toBeGreaterThan(0);
-    } finally {
-      stores.close();
-    }
-  });
-
-  it('baseline store returns seeded data', async () => {
-    const stores = openUnifiedDb(dbPath, { seeds: defaultSeeds(true) });
-    try {
-      const b = await stores.baseline.getBaseline('season-robocon-2026');
-      expect(b).not.toBeNull();
-      expect(b!.milestones.length).toBeGreaterThan(0);
-    } finally {
-      stores.close();
-    }
-  });
-
-  it('checklist store returns seeded items', async () => {
-    const stores = openUnifiedDb(dbPath, { seeds: defaultSeeds(true) });
-    try {
-      const items = await stores.checklist.listItems('baseline-season-robocon-2026');
-      expect(items.length).toBeGreaterThan(0);
-    } finally {
-      stores.close();
-    }
-  });
-
-  it('real mode seeds empty domains', async () => {
-    const stores = openUnifiedDb(dbPath, { seeds: defaultSeeds(false) });
-    try {
-      const snap = await stores.gov.getSnapshot();
-      expect(snap.tasks).toHaveLength(0);
-      const kbSnap = await stores.kb.getKbSnapshot();
-      expect(kbSnap.issueCards).toHaveLength(0);
-    } finally {
-      stores.close();
-    }
-  });
-
-  it('six domain writes survive close/reopen through one unified database', async () => {
-    const stores = openUnifiedDb(dbPath, { seeds: defaultSeeds(true) });
-    const task = await stores.gov.createTask({
+  it('real 初始化得到空业务板，重开后 settings 与写入均存活', async () => {
+    const database = openUnifiedDb(dbPath);
+    database.initialize({ dataMode: 'real', identityMode: 'anonymous' }, NOW);
+    const stores = database.openStores();
+    expect((await stores.gov.getSnapshot()).tasks).toEqual([]);
+    const created = await stores.gov.createTask({
       projectId: 'p',
-      title: 'persist-test',
-      rawSummary: 'test',
+      title: 'persist',
+      rawSummary: 'persist',
       groupId: 'grp-ec',
       ownerId: null,
       collaboratorIds: [],
       intrinsicComplexity: 'normal',
     });
-    await stores.kb.appendCloseout({
-      issueCard: { id: 'iss-persist', projectId: 'p', title: 't', rawInput: '', normalizedSummary: '', symptomSummary: '', suspectedDirections: [], suggestedActions: [], status: 'archived', severity: 'medium', tags: [], relatedFiles: [], relatedCommits: [], relatedHistoricalIssueIds: [], createdAt: '2026-01-01', updatedAt: '2026-01-01' },
-      errorEntry: { id: 'err-persist', projectId: 'p', sourceIssueId: 'iss-persist', errorCode: 'DBG-20260101-002', title: 't', category: 'c', symptom: 's', rootCause: 'r', resolution: 'res', prevention: 'p', relatedFiles: [], relatedCommits: [], archiveFilePath: '', createdAt: '2026-01-01', updatedAt: '2026-01-01' },
-      archiveDocument: { issueId: 'iss-persist', projectId: 'p', fileName: 'persist.md', filePath: '/persist.md', markdownContent: '# persist', generatedBy: 'manual', generatedAt: '2026-01-01' },
-    });
-    const part = await stores.inv.upsertPartType({
-      projectId: 'p', partNumber: 'PERSIST-1', name: '持久件', category: 'other', unit: '个',
-      trackIndividually: false, totalQuantity: 3, allocations: [], lowStockThreshold: 1,
-    });
-    const baseline = await stores.baseline.upsertBaseline('season-persist', {
-      anchors: { semesterStart: '2026-09-01T00:00:00.000Z' },
-      milestones: [],
-    });
-    const checklist = await stores.checklist.createItem({
-      seasonBaselineId: baseline.id,
-      title: '持久欠条',
-      anchorDueAt: '2026-10-01T00:00:00.000Z',
-      origin: 'iou',
-      createdAt: '2026-08-15T00:00:00.000Z',
-    });
-    const batch = await stores.reimburse.createBatch({ projectId: 'p', name: '持久批次' });
-    stores.close();
+    database.close();
 
-    const reopened = openUnifiedDb(dbPath, { seeds: defaultSeeds(true) });
+    const reopened = openUnifiedDb(dbPath);
     try {
-      const snap = await reopened.gov.getSnapshot();
-      expect(snap.tasks.some((t) => t.id === task.id)).toBe(true);
-      expect((await reopened.kb.getKbSnapshot()).issueCards.some((item) => item.id === 'iss-persist')).toBe(true);
-      expect((await reopened.inv.getInventorySnapshot()).partTypes.some((item) => item.id === part.id)).toBe(true);
-      expect((await reopened.baseline.getBaseline('season-persist'))?.id).toBe(baseline.id);
-      expect((await reopened.checklist.listItems(baseline.id)).some((item) => item.id === checklist.id)).toBe(true);
-      expect((await reopened.reimburse.getBatch(batch.id))?.name).toBe('持久批次');
+      expect(reopened.getSettings()?.dataMode).toBe('real');
+      expect((await reopened.openStores().gov.getSnapshot()).tasks.some((task) => task.id === created.id)).toBe(true);
     } finally {
       reopened.close();
     }
   });
 
-  it('cross-domain writes do not corrupt each other', async () => {
-    const stores = openUnifiedDb(dbPath, { seeds: defaultSeeds(true) });
+  it('有业务数据但无 settings 时标成 unclaimed，并拒绝初始化覆盖', () => {
+    const database = openUnifiedDb(dbPath);
     try {
-      await stores.gov.createTask({ projectId: 'p', title: 'x', rawSummary: 'x', groupId: 'grp-ec', ownerId: null, collaboratorIds: [], intrinsicComplexity: 'normal' });
-      await stores.kb.appendCloseout({
-        issueCard: { id: 'iss-test', projectId: 'p', title: 't', rawInput: '', normalizedSummary: '', symptomSummary: '', suspectedDirections: [], suggestedActions: [], status: 'archived', severity: 'medium', tags: [], relatedFiles: [], relatedCommits: [], relatedHistoricalIssueIds: [], createdAt: '2026-01-01', updatedAt: '2026-01-01' },
-        errorEntry: { id: 'err-test', projectId: 'p', sourceIssueId: 'iss-test', errorCode: 'DBG-20260101-001', title: 't', category: 'c', symptom: 's', rootCause: 'r', resolution: 'res', prevention: 'p', relatedFiles: [], relatedCommits: [], archiveFilePath: '', createdAt: '2026-01-01', updatedAt: '2026-01-01' },
-        archiveDocument: { issueId: 'iss-test', projectId: 'p', fileName: 'f.md', filePath: '/f.md', markdownContent: '# x', generatedBy: 'manual', generatedAt: '2026-01-01' },
-      });
-      const govSnap = await stores.gov.getSnapshot();
-      const kbSnap = await stores.kb.getKbSnapshot();
-      expect(govSnap.tasks.some((t) => t.title === 'x')).toBe(true);
-      expect(kbSnap.issueCards.some((c) => c.id === 'iss-test')).toBe(true);
+      database.db.ensureEntityTables(['tasks']);
+      database.db.insertRow('tasks', 'legacy-task', { id: 'legacy-task' });
+      expect(database.getDatabaseState()).toBe('unclaimed');
+      expect(() =>
+        database.initialize({ dataMode: 'real', identityMode: 'anonymous' }, NOW),
+      ).toThrow(/未认领/);
+      expect(database.db.getRow('tasks', 'legacy-task')).toEqual({ id: 'legacy-task' });
     } finally {
-      stores.close();
+      database.close();
     }
   });
 
-  it('fail-closed: user_version too high', () => {
-    const sdb = SqliteDatabase.open(dbPath);
-    sdb.ensureMetaTable();
-    sdb.setMeta('schema_kind', 'unified');
-    sdb.setUserVersion(TEAMHUB_UNIFIED_SCHEMA_VERSION + 1);
-    sdb.close();
+  it('graduate 同事务清业务表并更新 real，保留 write_token/lark_config', async () => {
+    const database = openUnifiedDb(dbPath);
+    try {
+      database.initialize({ dataMode: 'demo', identityMode: 'anonymous' }, NOW);
+      database.db.setMeta('write_token', 'keep-token');
+      database.db.setMeta('lark_config', '{"status":"unconfigured"}');
+      expect((await database.openStores().gov.getSnapshot()).tasks.length).toBeGreaterThan(0);
 
-    expect(() => openUnifiedDb(dbPath)).toThrow(/高于本代码支持/);
+      const next = database.graduateToReal(new Date('2026-08-15T02:00:00.000Z'));
+      expect(next.dataMode).toBe('real');
+      expect(database.db.getMeta('write_token')).toBe('keep-token');
+      expect(database.db.getMeta('lark_config')).toBe('{"status":"unconfigured"}');
+      for (const table of TEAMHUB_BUSINESS_TABLES) {
+        expect(database.db.rowCount(table), table).toBe(0);
+      }
+    } finally {
+      database.close();
+    }
   });
 
-  it('fail-closed: legacy gov-only DB (no schema_kind)', () => {
-    const sdb = SqliteDatabase.open(dbPath);
-    sdb.ensureMetaTable();
-    sdb.setUserVersion(1);
-    sdb.close();
+  it('fail-closed：更高 user_version 与 v1 旧库均拒绝打开，不做静默迁移', () => {
+    const tooNew = SqliteDatabase.open(dbPath);
+    tooNew.ensureMetaTable();
+    tooNew.setMeta('schema_kind', 'unified');
+    tooNew.setUserVersion(TEAMHUB_UNIFIED_SCHEMA_VERSION + 1);
+    tooNew.close();
+    expect(() => openUnifiedDb(dbPath)).toThrow(/高于本代码支持/);
 
-    expect(() => openUnifiedDb(dbPath)).toThrow(/旧版 gov-only/);
+    const oldPath = join(dir, 'old-v1.sqlite');
+    const old = SqliteDatabase.open(oldPath);
+    old.ensureMetaTable();
+    old.setMeta('schema_kind', 'unified');
+    old.setUserVersion(1);
+    old.close();
+    expect(() => openUnifiedDb(oldPath)).toThrow(/不受支持/);
+  });
+});
+
+describe('SqliteDatabase 同步可重入事务', () => {
+  let dir: string;
+  let dbPath: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'teamhub-tx-'));
+    dbPath = join(dir, 'tx.sqlite');
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('内层成功随外层提交，内层失败可被外层捕获且只回滚 savepoint', () => {
+    const db = SqliteDatabase.open(dbPath);
+    db.ensureEntityTables(['items']);
+    db.tx(() => {
+      db.insertRow('items', 'outer', { id: 'outer' });
+      db.tx(() => db.insertRow('items', 'nested', { id: 'nested' }));
+      try {
+        db.tx(() => {
+          db.insertRow('items', 'rolled-back', { id: 'rolled-back' });
+          throw new Error('expected');
+        });
+      } catch {
+        // 外层继续提交。
+      }
+    });
+    expect(db.getRow('items', 'outer')).toBeDefined();
+    expect(db.getRow('items', 'nested')).toBeDefined();
+    expect(db.getRow('items', 'rolled-back')).toBeUndefined();
+    db.close();
+  });
+
+  it('拒绝 Promise 回调并回滚', async () => {
+    const db = SqliteDatabase.open(dbPath);
+    db.ensureEntityTables(['items']);
+    expect(() =>
+      db.tx(async () => {
+        db.insertRow('items', 'async', { id: 'async' });
+      }),
+    ).toThrow(/必须同步/);
+    expect(db.getRow('items', 'async')).toBeUndefined();
+    db.close();
   });
 });

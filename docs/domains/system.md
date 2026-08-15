@@ -14,7 +14,7 @@ System 管首启动、部署模式、会话、成员、组织树、项目管理�
 
 ## 2. 当前行为（CURRENT）
 
-- `config.json` 当前保存 `dataMode`、`identityMode` 和初始化时间；文件不存在时只启动 setup 路由和静态页。
+- SQLite `app_settings` 单例保存数据模式、身份模式、垂直包、启用模块和初始化时间；无设置时只启动 setup 路由和静态页。
 - 首启动可选择演示/真实与匿名/身份，写入配置后以 exit code 42 请求包装脚本重启。
 - 身份模式有 session、成员 PIN、项目管理旗标和组长角色；匿名模式使用共享写门。
 - 初始化门依次完成操作者、名册、组长、赛季、库存和知识库等步骤；部分步骤允许跳过。
@@ -23,7 +23,7 @@ System 管首启动、部署模式、会话、成员、组织树、项目管理�
 
 ## 3. 目标结构（TARGET）
 
-- 产品配置迁入统一 SQLite `app_settings`；`config.json` 和模块环境变量退出产品真相链。
+- `app_settings` repository/service 已接管产品配置；后续随 system 模块迁移调整物理目录，不再增加配置来源。
 - 环境变量仅保留 host、port、数据库路径、反代和秘密等启动属性。
 - system 模块提供窄的 `ActorContext`、`SettingsPort`、`MembershipPort`，其他领域不读取完整治理 Store。
 - setup、identity、membership、settings 可以在 system 内分 application service，但对外仍是一个领域模块。
@@ -45,13 +45,12 @@ System 管首启动、部署模式、会话、成员、组织树、项目管理�
 
 ## 6. 已知陷阱
 
-- CURRENT 的产品配置同时受 `config.json`、环境变量、SQLite meta 和代码默认值影响，D-090 尚未完成收敛。
-- server 构造仍可能在缺 repository 时创建 InMemory 实现，模糊生产与测试边界。
-- setup 与 settings 仍能感知多个领域的数据文件，迁移前不要把这种耦合继续扩张。
+- `app_settings` 坏行、旧 schema 或有业务数据但无设置时会 fail-closed；不得用默认值绕过 unclaimed 状态。
+- demo→real 在同一 SQLite 事务清空业务事实；artifact 物理文件不在事务内，操作前必须另行备份。
+- system 仍通过 god `GovStore` 感知多域结构，需在模块迁移中收窄为 port。
 - loopback 初始化/恢复是宿主操作员能力，不得相信可伪造的转发头。
 
 ## 7. 未落地差异与 TODO
 
-- `ARCH-UNIFY`：建立 `app_settings`、显式 repository 注入和 system application services。
-- `DOC-GOV`：本文件取代 setup/onboarding/beta 等多份活设计稿。
+- `ARCH-UNIFY`：继续建立 Actor/Clock/事务 port，并把 system 从 god Store 拆成 application services。
 - 身份模式是否长期保留双模式不在 D-090 中重新拍板；迁移先保持当前产品行为。

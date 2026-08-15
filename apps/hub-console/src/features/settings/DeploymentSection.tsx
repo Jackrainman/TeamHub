@@ -8,10 +8,8 @@ import { DEPLOY_BACKEND_KEY, DEPLOY_DOMAIN_KEY } from './settings-constants';
 import { sectionPermission } from './section-permission';
 import { useSystemStatus } from './sub/useSettingsQueries';
 
-// 部署信息（K3 部署信息刀）：只读展示这台服务器真实怎么跑的——五个数据域各走落盘 / 内存（内存态醒目
-// 警示「重启即丢」）、登录模式、启用模块、构建标识、运行时长（人话化）、图纸上传是否可用。数据取
-// /api/system/status 的 deployment 字段（与「关于」共享同一 query 缓存）；旧后端不回该字段 → 显示不可用兜底。
-// **改这些只能改服务器启动环境变量，界面不提供开关**（同身份分区纪律）。I0：本分区无任何按人维度。
+// 部署信息：运维路径与构建信息由运行环境回显，产品模式、垂直包和模块列表来自
+// 同一 SQLite app_settings 快照。界面不再把环境变量解释为产品配置源。I0：本分区无任何按人维度。
 export function DeploymentSection({
   client,
   source,
@@ -74,6 +72,10 @@ export function DeploymentSection({
                     ? 'settings.identity.mode.identity'
                     : 'settings.identity.mode.anonymous',
                 )}
+              />
+              <MetaRow
+                label={t('settings.deployment.vertical')}
+                value={t(`settings.deployment.vertical.${deployment.verticalId}`)}
               />
               <MetaRow
                 label={t('settings.deployment.modules')}
@@ -147,10 +149,11 @@ export function DeploymentConfigSection({
   const statusQuery = useSystemStatus(client, source);
   const deployment = statusQuery.data?.deployment;
 
-  // applying = 提交后到整页刷新之间的过渡态（轮询重启复活）；error = config 多半已写但复活超时 / 真失败，
+  // applying = 提交后到整页刷新之间的过渡态（轮询重启复活）；error = app_settings 多半已写但复活超时 / 真失败，
   // 统一给「重新加载」兜底（reload 后按新配置重判）。
   const [phase, setPhase] = useState<'idle' | 'applying' | 'error'>('idle');
   const [timedOut, setTimedOut] = useState(false);
+  const [backupConfirmed, setBackupConfirmed] = useState(false);
 
   async function applyRestart(action: () => Promise<unknown>): Promise<void> {
     if (phase === 'applying') return;
@@ -178,7 +181,7 @@ export function DeploymentConfigSection({
   }
 
   function graduate(): void {
-    if (writeLocked) return;
+    if (writeLocked || !backupConfirmed) return;
     if (!window.confirm(t('settings.deployConfig.graduate.confirm'))) return;
     void applyRestart(() => client.graduate());
   }
@@ -260,12 +263,26 @@ export function DeploymentConfigSection({
                 </h3>
                 <p className="settings-desc">{t('settings.deployConfig.graduate.desc')}</p>
                 {lockHint ? <p className="task-detail__hint">{lockHint}</p> : null}
+                <label className="setup-card__check">
+                  <input
+                    type="checkbox"
+                    checked={backupConfirmed}
+                    disabled={writeLocked}
+                    onChange={(event) => setBackupConfirmed(event.target.checked)}
+                  />
+                  <span>{t('settings.deployConfig.graduate.backupConfirmed')}</span>
+                </label>
                 <div className="settings-actions">
                   <button
                     type="button"
                     className="btn btn--primary"
-                    disabled={writeLocked}
-                    title={lockHint ?? undefined}
+                    disabled={writeLocked || !backupConfirmed}
+                    title={
+                      lockHint ??
+                      (!backupConfirmed
+                        ? t('settings.deployConfig.graduate.backupRequired')
+                        : undefined)
+                    }
                     onClick={graduate}
                   >
                     {t('settings.deployConfig.graduate.cta')}

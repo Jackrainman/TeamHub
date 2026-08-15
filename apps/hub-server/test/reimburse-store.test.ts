@@ -7,7 +7,7 @@ import type {
   ReimburseEntryDraft,
   ReimburseStore,
 } from '../src/store/reimburse-store.js';
-import { defaultSeeds, openUnifiedDb } from '../src/store/sqlite-unified.js';
+import { openUnifiedDb } from '../src/store/sqlite-unified.js';
 
 /**
  * 测试 fake 与生产统一 SQLite 复跑同一条报账 Store 行为契约。
@@ -96,16 +96,21 @@ describe('ReimburseStore fake / 统一 SQLite 一致性', () => {
   test('openUnifiedDb：同一行为 + 关闭重开后数据和 id 序列存活', async () => {
     dir = await mkdtemp(join(tmpdir(), 'reimburse-unified-'));
     const dbFile = join(dir, 'teamhub.sqlite');
-    const unified = openUnifiedDb(dbFile, { seeds: defaultSeeds(false) });
-    await expectConsistentBehavior(unified.reimburse);
+    const unified = openUnifiedDb(dbFile);
+    unified.initialize(
+      { dataMode: 'real', identityMode: 'anonymous' },
+      new Date('2026-08-15T00:00:00.000Z'),
+    );
+    await expectConsistentBehavior(unified.openStores().reimburse);
     unified.close();
 
-    const reopened = openUnifiedDb(dbFile, { seeds: defaultSeeds(false) });
+    const reopened = openUnifiedDb(dbFile);
     try {
-      expect(await reopened.reimburse.listEntries()).toHaveLength(2);
-      expect(await reopened.reimburse.listBatches()).toHaveLength(1);
-      expect((await reopened.reimburse.getEntry('reimb-new-1'))?.batchId).toBe('rbatch-new-1');
-      const next = await reopened.reimburse.createEntry(entryDraft({ invoiceNo: null }));
+      const reimburse = reopened.openStores().reimburse;
+      expect(await reimburse.listEntries()).toHaveLength(2);
+      expect(await reimburse.listBatches()).toHaveLength(1);
+      expect((await reimburse.getEntry('reimb-new-1'))?.batchId).toBe('rbatch-new-1');
+      const next = await reimburse.createEntry(entryDraft({ invoiceNo: null }));
       expect(next.id).toBe('reimb-new-3');
     } finally {
       reopened.close();

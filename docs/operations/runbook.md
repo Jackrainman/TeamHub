@@ -16,7 +16,7 @@ last_reviewed: 2026-08-15
 ./scripts/backup-teamhub-data.sh
 ```
 
-必须确认脚本 exit code 为 0，且 `VACUUM INTO` 产物通过 `integrity_check`、schema 版本与 `schema_kind=unified` 读回。artifact 文件目录不包含在 SQLite 备份中，必须另行 tar/rsync 并校验；A2 前临时 config 也需纳入灾备。
+必须确认脚本 exit code 为 0，且 `VACUUM INTO` 产物通过 `integrity_check`、schema 版本与 `schema_kind=unified` 读回。`app_settings` 已包含在数据库中；artifact 文件目录仍须另行 tar/rsync 并校验。
 
 ## 2. 日常启动与观察
 
