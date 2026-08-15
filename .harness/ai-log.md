@@ -51,3 +51,4 @@
 - 2026-08-04 feat(contracts+console): 发票 PDF 解析重点优化（老师只要 PDF）——①pdf.js getDocument 补 cMapUrl/standardFontDataUrl（vite pdfjs-assets 插件：dev 中间件直发 node_modules、build 拷 dist/pdfjs/，免引 static-copy 依赖），根治 12306 铁路票中文 CID 字体丢字（标签全灭只剩 20 位票号）②parser：同行双名称取销售方（左购右销）/品名列折行续名（客运服+务费）/负金额折行星号行判折扣且互为前缀并入 ③铁路电子客票票种分支（无 *分类* 明细段 → 按票价合成「铁路客运（G1985 常州站-上海虹桥站）」）；真实票夹具测试 +2，全语料实测 9/9 发票（滴滴 5+铁路 4）全字段解析、行程报销单正确落 unrecognized v0.48.0
 - 2026-08-15 docs(reimburse): 票据质量门与批量归档设计——购买方抬头校验/核对原因、ZIP+OFD 共用 fflate、财务导出+命名建议、OCR 先 probe；坚持原件不上传、批次不按人聚合，错误抬头用 gross/eligible 双口径且阻止提交 (8f0c923)
 - 2026-08-15 docs(architecture): D-090 软件架构统一总纲——暂停功能增长，拍板单根 workspace/lock/version、生产唯一统一 SQLite、SQLite app_settings、四层模块模板、application service 跨域事务、架构自动门；不考虑旧数据兼容，以 reimburse 为首个纵切试点，旧模块化/飞书三包文档降为历史证据 (375639e)
+- 2026-08-15 docs(governance): D-091 文档体系收口——21 份活文档按总纲/领域单源，archive 蒸馏为 5 份带稳定 ID+Git SHA 的历史诊断库；删除 23k 行旧稿与 102 张截图，根 AGENTS 增异常回查协议并建立自动增长门 (f9c7616, b9b9e28)

@@ -5,7 +5,7 @@
 # 安装为 git 钩子：  bash scripts/install-hooks.sh   （clone 后跑一次；幂等）
 # 手动跑：          bash scripts/pre-commit.sh
 #
-# 默认（快，钩子用）：1) 暂存新增行密钥扫描   2) git diff --check 空白错误
+# 默认（快，钩子用）：1) 暂存新增行密钥扫描   2) git diff --check 空白错误   3) 文档架构门
 # PRE_COMMIT_VERIFY=1：额外跑三包 verify:all（慢；CI 缺位时的本地总闸，AGENTS §4 验证门）
 #
 set -euo pipefail
@@ -27,6 +27,12 @@ fi
 # 2) 空白错误（行尾空格 / 混合缩进 / 文件尾空行等）。
 if ! git diff --cached --check; then
   echo "✗ git diff --check 报空白错误（见上）。" >&2
+  fail=1
+fi
+
+# 2.25) 文档结构门（D-091）：活文档单源、archive 五文件、无截图/状态稿。
+if ! node scripts/verify-docs-architecture.mjs; then
+  echo "✗ 文档架构检查失败（见上）。" >&2
   fail=1
 fi
 

@@ -41,6 +41,7 @@ TeamHub = 机器人战队协作中枢（CASE + 交流 + 数据库）。三支柱
 npm --prefix apps/hub-contracts run verify:all   # 三包各自 typecheck+test+build
 npm --prefix apps/hub-server   run verify:all
 npm --prefix apps/hub-console  run verify:all
+npm run verify:docs                             # 活文档单源 + 五份 archive + 无截图/状态稿
 npx vitest run <file>                            # 单测（在各包目录下）
 ./start-teamhub.sh                                # 单端口 4177
 ./scripts/backup-teamhub-data.sh                  # 重启/重建前必跑
@@ -53,7 +54,7 @@ curl -s http://127.0.0.1:4177/health | grep buildId  # 活体
 
 | 任务类型 | 必跑 |
 |---|---|
-| docs / skills | `git diff --check` |
+| docs / skills | `npm run verify:docs` + `git diff --check` |
 | hub 代码 | 对应包 `verify:all` exit 0 |
 | 部署行为 | e2e-pillars 绿 + /health buildId 非空 |
 | compose | `scripts/verify-hub-compose.sh` |

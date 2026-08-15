@@ -8,7 +8,9 @@
     "apps/hub-console"
   ],
   "scripts": {
-    "verify": "npm run verify:all -w apps/hub-contracts && npm run verify:all -w apps/hub-server && npm run verify:all -w apps/hub-console",
+    "verify:docs": "node scripts/verify-docs-architecture.mjs",
+    "test:docs": "node --test scripts/test/verify-docs-architecture.test.mjs",
+    "verify": "npm run verify:docs && npm run test:docs && npm run verify:all -w apps/hub-contracts && npm run verify:all -w apps/hub-server && npm run verify:all -w apps/hub-console",
     "typecheck": "npm run typecheck -w apps/hub-console && npm run typecheck -w apps/hub-server",
     "test": "npm run test -w apps/hub-server && npm run test -w apps/hub-console",
     "build": "npm run build -w apps/hub-console && npm run build -w apps/hub-server"

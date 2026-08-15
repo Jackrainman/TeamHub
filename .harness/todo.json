@@ -1,5 +1,5 @@
 {
-  "focus": "DOC-GOV → ARCH-UNIFY：先按 D-091 收敛活文档与精简 archive，再按 D-090 统一仓库、生产 SQLite、配置、模块模板与自动架构门；reimburse 作为首个纵切试点",
+  "focus": "ARCH-UNIFY：D-091 文档治理已收口；现按 D-090 统一仓库、生产 SQLite、配置、模块模板与自动架构门，reimburse 作为首个纵切试点",
   "blocked": [
     {
       "id": "HERMES-LARK-SKILL",
@@ -13,12 +13,6 @@
     }
   ],
   "todo": [
-    {
-      "id": "DOC-GOV",
-      "title": "文档治理：总纲+每领域一份活文档，archive 蒸馏为五份可按 Git SHA 回查的历史诊断库，删除状态稿/实施稿/截图并增加增长门；见 docs/README.md 与 D-091",
-      "tag": "docs",
-      "batch": "architecture"
-    },
     {
       "id": "ARCH-UNIFY",
       "title": "仓库级软件架构统一：A0 架构门+单 lock/版本 → A1 workspace/统一 SQLite/删 File+生产 InMemory 双轨 → A2 app_settings+平台基础设施 → A3 reimburse 模块模板试点 → A4 全域迁移 → A5 旧骨架归零；不考虑旧数据兼容，见 docs/design/software-architecture.md",
