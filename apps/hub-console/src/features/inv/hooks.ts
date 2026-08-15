@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import type { HubApiClient } from '../api/client';
-import { queryKeys } from '../api/queryKeys';
+import type { HubApiClient } from '../../api/client';
+import { queryKeys } from '../../api/queryKeys';
 
 export function useInventory(client: HubApiClient, source: string) {
   return useQuery({

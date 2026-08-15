@@ -18,7 +18,7 @@ import type {
   InventoryStockInActionDraft,
   InventoryStockInPartDraft,
   InventoryStockInPort,
-} from '../application/reimburse-stock-in-service.js';
+} from '../modules/reimburse/service.js';
 import { createIdSequence, nextSequentialId } from './id-sequence.js';
 import type { IdSequence } from './id-sequence.js';
 import type { SqliteDatabase } from './sqlite-db.js';
@@ -206,6 +206,7 @@ export class SqliteInvStore implements InvStore, InventoryStockInPort {
       // REIMBURSE-PROC：入库来源 + 关联报账条目（仅 restock 有意义；optional，旧调用方不传则无此键）。
       acquisition: draft.acquisition,
       reimburseEntryId: draft.reimburseEntryId,
+      reimburseItemIndex: draft.reimburseItemIndex,
       recordedBy: { source: draft.source, at: now },
       recordedAt: now,
     };

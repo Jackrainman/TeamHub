@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import type { HubApiClient } from '../../../api/client';
-import type { ReimburseEntry, StockInLine } from '../../../api/schemas/reimburse';
+import type { ReimburseSegment } from '../api';
+import type {
+  ReimburseEntry,
+  StockInLine,
+  StockInPartTypeCandidate,
+} from '@teamhub/hub-contracts';
 import {
   ROBOTICS_PART_CATEGORY_VALUES,
-  type PartType,
 } from '../../../api/schemas/inv';
-import { useStockInEntry } from '../../../hooks/useReimburse';
+import { useStockInEntry } from '../hooks';
 import { useI18n, type TranslationKey } from '../../../i18n';
 import { SideDrawer } from '../../../components/SideDrawer';
 import { Select } from '../../../components/Select';
@@ -33,7 +36,7 @@ interface StockInLineDraft {
   unit: string;
 }
 
-function initialLines(entry: ReimburseEntry, partTypes: PartType[], stocked: Map<number, number>): StockInLineDraft[] {
+function initialLines(entry: ReimburseEntry, partTypes: StockInPartTypeCandidate[], stocked: Map<number, number>): StockInLineDraft[] {
   return entry.items.map((item, index) => {
     const remaining = item.quantity - (stocked.get(index) ?? 0);
     const suggestions = suggestPartTypeMatch(item.name, partTypes);
@@ -52,7 +55,7 @@ function initialLines(entry: ReimburseEntry, partTypes: PartType[], stocked: Map
 /**
  * 入库确认抽屉（REIMBURSE-PROC 阶段 5）：逐明细行确认数量与去向——入既有件
  * （suggestPartTypeMatch 建议默认候选，可改选任何件）或新建件（预填件号/名称=品名）。
- * 剩余可入量 = 条目行 quantity − deriveStockedQuantities（动作日志派生，父组件算好传入）；
+ * 剩余可入量 = 条目行 quantity − 服务端窄入库上下文给出的 stockedLines；
  * 剩余量=0 的行禁选。先全量本地校验再提交；服务端超量整批 400 托底（防重复入库双保险）。
  * 提交错误交全局 MutationCache.onError toast；成功后由父组件关抽屉 + 内联提示。
  */
@@ -65,10 +68,10 @@ export function StockInDialog({
   onClose,
   onStockedIn,
 }: {
-  client: HubApiClient;
+  client: ReimburseSegment;
   source: string;
   entry: ReimburseEntry;
-  partTypes: PartType[];
+  partTypes: StockInPartTypeCandidate[];
   stocked: Map<number, number>;
   onClose: () => void;
   onStockedIn: () => void;

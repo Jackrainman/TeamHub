@@ -18,7 +18,7 @@ import type {
   InventoryStockInActionDraft,
   InventoryStockInPartDraft,
   InventoryStockInPort,
-} from '../../src/application/reimburse-stock-in-service.js';
+} from '../../src/modules/reimburse/service.js';
 import { cloneArrayFields } from '../../src/store/clone-snapshot.js';
 import type {
   InvStore,
@@ -233,6 +233,7 @@ export class InMemoryInvStore implements InvStore, InventoryStockInPort {
       // REIMBURSE-PROC：入库来源 + 关联报账条目（仅 restock 有意义；optional，旧调用方不传则无此键）。
       acquisition: draft.acquisition,
       reimburseEntryId: draft.reimburseEntryId,
+      reimburseItemIndex: draft.reimburseItemIndex,
       recordedBy: { source: draft.source, at: now }, // I0：绝无 memberId
       recordedAt: now,
     };

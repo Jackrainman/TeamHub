@@ -36,8 +36,6 @@ export const ARCHITECTURE_BASELINE = Object.freeze([
   ['raw-react-query', 'apps/hub-console/src/features/settings/sub/useSettingsMutations.ts', 3],
   ['raw-react-query', 'apps/hub-console/src/features/settings/sub/useSettingsQueries.ts', 3],
   ['raw-react-query', 'apps/hub-console/src/hooks/useBaseline.ts', 1],
-  ['raw-react-query', 'apps/hub-console/src/hooks/useInventory.ts', 1],
-  ['raw-react-query', 'apps/hub-console/src/hooks/useReimburse.ts', 2],
   ['raw-react-query', 'apps/hub-console/src/hooks/useRoster.ts', 3],
   ['raw-react-query', 'apps/hub-console/src/hooks/useSchedule.ts', 3],
   ['raw-react-query', 'apps/hub-console/src/hooks/useTasks.ts', 2],
@@ -252,6 +250,49 @@ function compareBaseline(actual, baseline, errors) {
   }
 }
 
+function verifyReimburseTemplate(repoRoot, errors) {
+  const marker = 'apps/hub-contracts/src/domains/reimburse/index.ts';
+  if (!fs.existsSync(path.join(repoRoot, marker))) return;
+
+  const required = [
+    'apps/hub-contracts/src/domains/reimburse/model.ts',
+    'apps/hub-contracts/src/domains/reimburse/requests.ts',
+    'apps/hub-contracts/src/domains/reimburse/policies.ts',
+    'apps/hub-contracts/src/domains/reimburse/import.ts',
+    'apps/hub-contracts/src/domains/reimburse/export.ts',
+    'apps/hub-server/src/modules/reimburse/index.ts',
+    'apps/hub-server/src/modules/reimburse/routes.ts',
+    'apps/hub-server/src/modules/reimburse/service.ts',
+    'apps/hub-server/src/modules/reimburse/repository.ts',
+    'apps/hub-server/src/modules/reimburse/sqlite-repository.ts',
+    'apps/hub-console/src/features/reimburse/index.ts',
+    'apps/hub-console/src/features/reimburse/api.ts',
+    'apps/hub-console/src/features/reimburse/hooks.ts',
+    'apps/hub-console/src/features/reimburse/ReimbursePage.tsx',
+    'apps/hub-console/src/features/reimburse/components',
+  ];
+  const forbidden = [
+    'apps/hub-contracts/src/reimbursement.ts',
+    'apps/hub-server/src/routes/reimburse.ts',
+    'apps/hub-server/src/store/reimburse-store.ts',
+    'apps/hub-server/src/store/sqlite-reimburse-store.ts',
+    'apps/hub-console/src/api/schemas/reimburse.ts',
+    'apps/hub-console/src/api/segments/reimburse.ts',
+    'apps/hub-console/src/hooks/useReimburse.ts',
+    'apps/hub-console/src/features/reimburse/sub',
+  ];
+  for (const relativePath of required) {
+    if (!fs.existsSync(path.join(repoRoot, relativePath))) {
+      errors.push(`${relativePath}: reimburse 模板缺少必需边界`);
+    }
+  }
+  for (const relativePath of forbidden) {
+    if (fs.existsSync(path.join(repoRoot, relativePath))) {
+      errors.push(`${relativePath}: reimburse 已迁移，禁止恢复旧路径或兼容 alias`);
+    }
+  }
+}
+
 export function verifyArchitecture(repoRoot = process.cwd(), options = {}) {
   const root = path.resolve(repoRoot);
   const errors = [];
@@ -365,6 +406,7 @@ export function verifyArchitecture(repoRoot = process.cwd(), options = {}) {
 
   const violations = collectMigrationViolations(root);
   compareBaseline(violations, options.baseline ?? ARCHITECTURE_BASELINE, errors);
+  verifyReimburseTemplate(root, errors);
   return { errors, violations, summary: { packages: packages.length, baseline: violations.length } };
 }
 

@@ -280,7 +280,7 @@ describe('hub console API client', () => {
   });
 
   test('R1 接力画布：getRelay / updateResourceSession / create+deleteRelayHandoff 命中正确路径与方法', async () => {
-    const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+    const fetcher = vi.fn(async (url: string) => {
       const parsed = new URL(url, 'http://teamhub.local');
       return {
         ok: true,
@@ -504,6 +504,7 @@ describe('hub console API client', () => {
           dataMode: 'real',
           identityMode: 'identity',
           verticalId: 'robotics',
+          projectId: 'prj-robots',
           enabledModules: ['system', 'pm-core'],
           initializedAt,
           updatedAt: initializedAt,
@@ -531,6 +532,7 @@ describe('hub console API client', () => {
         dataMode: 'real',
         identityMode: 'identity',
         verticalId: 'robotics',
+        projectId: 'prj-robots',
         enabledModules: ['system', 'pm-core'],
         initializedAt,
         updatedAt: initializedAt,
@@ -724,6 +726,35 @@ describe('hub console API client', () => {
     // 关键契约：multipart 绝不手设 content-type——否则覆盖浏览器自带 boundary、后端解析失败。
     const headers = (init.headers ?? {}) as Record<string, string>;
     expect(headers['content-type']).toBeUndefined();
+  });
+
+  test('报账购买方 profile 与窄入库上下文走本域端点', async () => {
+    const profile = {
+      expectedPurchaserName: '哈尔滨工业大学',
+      expectedPurchaserTaxNo: '12100000400000456B',
+    };
+    const fetcher = vi.fn(async (url: string, _init?: RequestInit) => {
+      const path = new URL(url, 'http://teamhub.local').pathname;
+      const body = path.endsWith('/stock-in-context')
+        ? { partTypes: [], entries: [] }
+        : { profile };
+      return { ok: true, status: 200, json: async () => body } as Response;
+    });
+    const client = createHubApiClient({
+      baseUrl: 'http://127.0.0.1:4177',
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+
+    await expect(client.getReimburseProfile()).resolves.toEqual({ profile });
+    await expect(client.getReimburseStockInContext()).resolves.toEqual({ partTypes: [], entries: [] });
+    await expect(client.updateReimburseProfile(profile)).resolves.toEqual({ profile });
+
+    expect(fetcher.mock.calls.map(([url]) => new URL(String(url)).pathname)).toEqual([
+      '/api/reimburse/profile',
+      '/api/reimburse/stock-in-context',
+      '/api/reimburse/profile',
+    ]);
+    expect(fetcher.mock.calls[2]?.[1]?.method).toBe('PUT');
   });
 });
 

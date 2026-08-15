@@ -178,6 +178,7 @@ function ConsoleApp({ apiClient, settings }: { apiClient: HubApiClient; settings
   const renderCtx: PageRenderCtx = {
     apiClient,
     source: SOURCE,
+    projectId: settings.projectId,
     onNavigate: setPage,
     overview: {
       isLoading: overviewQuery.isLoading,

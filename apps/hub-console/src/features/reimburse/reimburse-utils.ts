@@ -1,9 +1,9 @@
 import type {
   CreateReimburseEntryRequest,
+  InvoiceRecognitionSource,
   ReimburseEntryKind,
   ReimburseItem,
-} from '../../api/schemas/reimburse';
-import type { PartAction } from '../../api/schemas/inv';
+} from '@teamhub/hub-contracts';
 
 /**
  * 报账域纯函数（REIMBURSE-PROC 阶段 3）——金额分↔元格式化、新建表单草稿校验/装配。
@@ -48,6 +48,9 @@ export interface EntryDraft {
   invoiceNo: string;
   invoiceDate: string; // input[type=date] 的 YYYY-MM-DD 或 ''
   seller: string;
+  purchaserName: string;
+  purchaserTaxNo: string;
+  recognitionSource: InvoiceRecognitionSource;
   totalYuan: string;
   actualItemName: string;
   note: string;
@@ -65,6 +68,9 @@ export function emptyEntryDraft(): EntryDraft {
     invoiceNo: '',
     invoiceDate: '',
     seller: '',
+    purchaserName: '',
+    purchaserTaxNo: '',
+    recognitionSource: 'manual',
     totalYuan: '',
     actualItemName: '',
     note: '',
@@ -97,6 +103,10 @@ export function buildCreateEntryRequest(
   draft: EntryDraft,
   projectId: string,
 ): CreateReimburseEntryRequest | null {
+  const normalizedProjectId = projectId.trim();
+  if (normalizedProjectId === '') {
+    return null;
+  }
   const totalAmountFen = yuanTextToFen(draft.totalYuan);
   if (totalAmountFen === null || totalAmountFen < 0) {
     return null;
@@ -133,52 +143,18 @@ export function buildCreateEntryRequest(
   }
 
   return {
-    projectId,
+    projectId: normalizedProjectId,
     kind: draft.kind,
     invoiceNo: optionalText(draft.invoiceNo),
     invoiceDate: optionalText(draft.invoiceDate),
     seller: optionalText(draft.seller),
+    purchaserName: optionalText(draft.purchaserName),
+    purchaserTaxNo: optionalText(draft.purchaserTaxNo),
+    recognitionSource: draft.recognitionSource,
     totalAmountFen,
     items,
     actualItemName: optionalText(draft.actualItemName),
     materials: { paymentShot: false, inspection: false }, // 新条目材料恒未备，在卡片上勾
     note: optionalText(draft.note),
   };
-}
-
-// ── 入库确认（阶段 5）──────────────────────────────────────────────────────
-
-/**
- * 已入库量的唯一真相 = 库存动作日志（与 server routes/reimburse.ts 的 STOCK_IN_NOTE_PREFIX
- * 约定同源）：kind='restock' 且 reimburseEntryId=条目 id 的动作，note 前缀
- * `reimb-stock-in:<itemIndex>` 钉明细行号。解析失败（老数据/手改）的动作不计入 = 保守放行
- * 入库但库存账永远正确。条目不加 stockIn 字段（contracts 已冻结，双写会漂移）。
- */
-const STOCK_IN_NOTE_PREFIX = 'reimb-stock-in:';
-
-function parseStockInItemIndex(note: string | null): number | null {
-  if (!note || !note.startsWith(STOCK_IN_NOTE_PREFIX)) {
-    return null;
-  }
-  const m = /^(\d+)\s/.exec(note.slice(STOCK_IN_NOTE_PREFIX.length));
-  return m ? Number(m[1]) : null;
-}
-
-/** 条目各明细行已入库量：itemIndex → 累计 quantityDelta（绝对值）。无记录的行不在 Map 里。 */
-export function deriveStockedQuantities(
-  entryId: string,
-  actions: PartAction[],
-): Map<number, number> {
-  const stocked = new Map<number, number>();
-  for (const action of actions) {
-    if (action.kind !== 'restock' || action.reimburseEntryId !== entryId) {
-      continue;
-    }
-    const index = parseStockInItemIndex(action.note);
-    if (index === null) {
-      continue;
-    }
-    stocked.set(index, (stocked.get(index) ?? 0) + Math.abs(action.quantityDelta));
-  }
-  return stocked;
 }

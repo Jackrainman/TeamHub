@@ -19,6 +19,7 @@ export type VerticalId = z.infer<typeof VerticalIdSchema>;
  */
 export const AppSettingsSchema = z.object({
   schemaVersion: z.literal(1),
+  projectId: z.string().min(1),
   dataMode: DataModeSchema,
   identityMode: ConfigIdentityModeSchema,
   verticalId: VerticalIdSchema,

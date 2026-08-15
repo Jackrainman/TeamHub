@@ -159,6 +159,9 @@ describe('draftFromParsedInvoice：识别结果 → 表单预填草稿', () => {
     invoiceNo: '24312000000012345678',
     invoiceDate: '2026-07-01',
     seller: '某某科技公司',
+    purchaserName: '哈尔滨工业大学',
+    purchaserTaxNo: '12100000400000456B',
+    recognitionSource: 'xml',
     totalAmountFen: 11300,
     items: [
       { name: '电机驱动板', unit: '块', quantity: 2, unitPriceFen: 5000, amountFen: 11300 },
@@ -171,6 +174,9 @@ describe('draftFromParsedInvoice：识别结果 → 表单预填草稿', () => {
     expect(draft.invoiceNo).toBe('24312000000012345678');
     expect(draft.invoiceDate).toBe('2026-07-01');
     expect(draft.seller).toBe('某某科技公司');
+    expect(draft.purchaserName).toBe('哈尔滨工业大学');
+    expect(draft.purchaserTaxNo).toBe('12100000400000456B');
+    expect(draft.recognitionSource).toBe('xml');
     expect(draft.totalYuan).toBe('113.00');
     expect(draft.items).toEqual([
       { name: '电机驱动板', unit: '块', quantity: '2', unitPriceYuan: '50.00', amountYuan: '113.00' },
@@ -184,11 +190,17 @@ describe('draftFromParsedInvoice：识别结果 → 表单预填草稿', () => {
       invoiceNo: '24312000000012345678',
       invoiceDate: null,
       seller: null,
+      purchaserName: null,
+      purchaserTaxNo: null,
+      recognitionSource: 'pdf',
       totalAmountFen: null,
       items: [],
     });
     expect(draft.invoiceDate).toBe('');
     expect(draft.seller).toBe('');
+    expect(draft.purchaserName).toBe('');
+    expect(draft.purchaserTaxNo).toBe('');
+    expect(draft.recognitionSource).toBe('pdf');
     expect(draft.totalYuan).toBe('');
     expect(draft.items).toEqual(emptyEntryDraft().items);
   });

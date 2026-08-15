@@ -47,6 +47,7 @@ describe('统一 SQLite + app_settings', () => {
       );
       expect(settings).toEqual({
         schemaVersion: 1,
+        projectId: 'prj-robots',
         dataMode: 'demo',
         identityMode: 'identity',
         verticalId: 'robotics',
@@ -63,6 +64,7 @@ describe('统一 SQLite + app_settings', () => {
       expect(await stores.baseline.getBaseline('season-robocon-2026')).not.toBeNull();
       expect((await stores.checklist.listItems('baseline-season-robocon-2026')).length).toBeGreaterThan(0);
       expect(await stores.reimburse.listEntries()).toEqual([]);
+      expect(stores.reimburse.getProfile().expectedPurchaserName).toBe('哈尔滨工业大学');
     } finally {
       database.close();
     }

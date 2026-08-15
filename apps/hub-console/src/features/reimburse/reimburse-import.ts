@@ -100,6 +100,9 @@ export function draftFromParsedInvoice(invoice: ParsedInvoice): EntryDraft {
     invoiceNo: invoice.invoiceNo,
     invoiceDate: invoice.invoiceDate ?? '',
     seller: invoice.seller ?? '',
+    purchaserName: invoice.purchaserName ?? '',
+    purchaserTaxNo: invoice.purchaserTaxNo ?? '',
+    recognitionSource: invoice.recognitionSource,
     totalYuan:
       invoice.totalAmountFen === null ? '' : fenToYuanText(invoice.totalAmountFen),
     actualItemName: '',

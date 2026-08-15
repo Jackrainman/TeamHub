@@ -1,5 +1,5 @@
 {
-  "focus": "ARCH-UNIFY：A0-A2 已收口；正在以 reimburse 完成首个三包同构模块、票据质量门与结构化入库投影",
+  "focus": "ARCH-UNIFY：A0-A3 已收口；按 checklist → baseline 顺序迁移下一批领域，并持续收缩 29 项 console 架构基线",
   "blocked": [
     {
       "id": "HERMES-LARK-SKILL",
@@ -10,19 +10,13 @@
   "todo": [
     {
       "id": "ARCH-UNIFY",
-      "title": "仓库级软件架构统一：A0-A2（单仓库图/统一 SQLite/app_settings/ApplicationUnitOfWork）已完成；继续 A3 reimburse 模块模板试点 → A4 全域迁移 → A5 旧骨架归零；不考虑旧数据兼容，见 docs/design/software-architecture.md",
+      "title": "仓库级软件架构统一：A0-A3（单仓库图/统一 SQLite/app_settings/UoW/reimburse 三包模板）已完成；继续 A4 checklist→baseline→其余领域迁移 → A5 旧骨架归零；不考虑旧数据兼容，见 docs/design/software-architecture.md",
       "tag": "code",
       "batch": "architecture"
     },
     {
-      "id": "REIMBURSE-PURCHASER-CHECK",
-      "title": "报账购买方质量门：持久化 purchaserName/purchaserTaxNo/recognitionSource，部署级期望抬头配置，contracts 派生 match/mismatch/missing/skipped；错误抬头阻止批次提交，汇总显式 gross/eligible/blocked/review 双口径；见 docs/domains/reimburse.md",
-      "tag": "code",
-      "batch": "reimburse"
-    },
-    {
       "id": "REIMBURSE-PM-EXPORT",
-      "title": "项管视角全员发票查看+导出：筛选/选择、建议文件名、购买方校验状态与核对原因、gross/eligible 双金额；名字只在报账事实层流通，永不进治理聚合/统计；见 docs/domains/reimburse.md",
+      "title": "项管视角全员发票筛选/选择与实际导出：命名建议、购买方状态、核对原因和 gross/eligible/blocked/review 已完成；剩余文件导出适配器仍须保持原件不上传，名字永不进治理聚合；见 docs/domains/reimburse.md",
       "tag": "code",
       "batch": "reimburse"
     },

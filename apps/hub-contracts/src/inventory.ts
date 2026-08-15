@@ -21,7 +21,7 @@ import { isoDateTimeSchema } from './common.js';
  *
  * REIMBURSE-PROC 扩展（报账联动一期）：`PartAction` 加 optional `acquisition`（入库来源：
  * selfPurchase=垫付自购 / sponsored=赞助，仅 restock 有意义）+ `reimburseEntryId`（关联的
- * 报账条目）。**PartType 不加来源/价格字段**——同件号可混合来源、不同批次不同价：来源在动作上，
+ * 报账条目）+ `reimburseItemIndex`（关联的发票明细下标）。**PartType 不加来源/价格字段**——同件号可混合来源、不同批次不同价：来源在动作上，
  * 价格在报账条目上；来源构成由 `derivePartAcquisition` 从动作日志派生。旧动作行无新字段 →
  * optional parse 天然通过，三实现零迁移；无 acquisition 的老动作不计入任一来源桶（历史来源不可考，不伪造）。
  */
@@ -101,7 +101,7 @@ export const PartActionRecordedBySchema = z.object({
 });
 
 /** append-only 动作日志一条（绝不删）。承载按数量件 quantityDelta + 个体件归属迁移 + 一句话快记 note。 */
-export const PartActionSchema = z.object({
+const PartActionBaseSchema = z.object({
   id: z.string().min(1), // act-xxx
   projectId: z.string().min(1),
   partTypeId: z.string().min(1),
@@ -115,8 +115,50 @@ export const PartActionSchema = z.object({
   recordedAt: isoDateTimeSchema,
   // REIMBURSE-PROC：入库来源 + 关联报账条目（仅 restock 有意义；optional 向后兼容，见文件头）。
   acquisition: PartAcquisitionSchema.optional(),
-  reimburseEntryId: z.string().optional(),
+  reimburseEntryId: z.string().min(1).optional(),
+  reimburseItemIndex: z.number().int().nonnegative().optional(),
 });
+
+interface ReimburseActionLinkInput {
+  kind: PartActionKind;
+  acquisition?: PartAcquisition;
+  reimburseEntryId?: string;
+  reimburseItemIndex?: number;
+}
+
+function validateReimburseActionLink(
+  action: ReimburseActionLinkInput,
+  context: z.RefinementCtx,
+): void {
+  const hasEntry = action.reimburseEntryId !== undefined;
+  const hasItem = action.reimburseItemIndex !== undefined;
+  if (!hasEntry && !hasItem) {
+    return;
+  }
+  if (action.kind !== 'restock' || action.acquisition !== 'selfPurchase') {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['reimburseEntryId'],
+      message: '报账关联只允许用于 selfPurchase restock 动作',
+    });
+  }
+  if (!hasEntry) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['reimburseEntryId'],
+      message: 'reimburseItemIndex 必须同时关联 reimburseEntryId',
+    });
+  }
+  if (!hasItem) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['reimburseItemIndex'],
+      message: '报账入库动作必须关联结构化明细下标',
+    });
+  }
+}
+
+export const PartActionSchema = PartActionBaseSchema.superRefine(validateReimburseActionLink);
 
 /** 库存读快照（与 GovernanceSnapshot / KbSnapshot 对称，独立于 GovernanceSnapshot）。 */
 export const InventorySnapshotSchema = z.object({
@@ -438,11 +480,11 @@ export const CreatePartTypeResponseSchema = z.object({ partType: PartTypeSchema 
  * REIMBURSE-PROC：`acquisition`/`reimburseEntryId` 随 PartActionSchema 自动带入写契约（不在 omit 列表），
  * restock 时可钉来源；报账联动落账走 server 内部调用（acquisition='selfPurchase'）。
  */
-export const CreatePartActionRequestSchema = PartActionSchema.omit({
+export const CreatePartActionRequestSchema = PartActionBaseSchema.omit({
   id: true,
   recordedAt: true,
   recordedBy: true,
-});
+}).superRefine(validateReimburseActionLink);
 export const CreatePartActionResponseSchema = z.object({ action: PartActionSchema });
 
 export type InventoryResponse = z.infer<typeof InventoryResponseSchema>;

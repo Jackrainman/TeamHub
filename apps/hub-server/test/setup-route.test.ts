@@ -60,6 +60,7 @@ describe('setup 与 app_settings 路由', () => {
       expect(database.getSettings()).toMatchObject({
         dataMode: 'real',
         identityMode: 'identity',
+        projectId: 'prj-robots',
         verticalId: 'robotics',
       });
       expect((await database.openStores().gov.getSnapshot()).tasks).toEqual([]);

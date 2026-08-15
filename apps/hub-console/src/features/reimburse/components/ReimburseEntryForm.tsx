@@ -1,8 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import type { HubApiClient } from '../../../api/client';
-import type { ReimburseEntryKind } from '../../../api/schemas/reimburse';
-import { useCreateReimburseEntry } from '../../../hooks/useReimburse';
+import type { ReimburseSegment } from '../api';
+import type { ReimburseEntryKind } from '@teamhub/hub-contracts';
+import {
+  useCreateReimburseEntry,
+  type ReimburseFormInitial,
+} from '../hooks';
 import { useI18n, type TranslationKey } from '../../../i18n';
 import { humanizeFormError } from '../../../utils';
 import { Field } from '../../../components/Field';
@@ -23,16 +26,6 @@ const KIND_OPTIONS: { value: ReimburseEntryKind; labelKey: TranslationKey }[] = 
 ];
 
 /**
- * 发票导入预填（阶段 4）：父组件按当前队列项重挂本表单（key=job id），
- * 草稿初值 = 识别出的发票要素；用户改完提交或点「跳过这张」→ onDone 推进队列。
- */
-export interface ReimburseFormInitial {
-  draft: EntryDraft;
-  fileName: string;
-  notice: 'recognized' | 'unrecognized';
-}
-
-/**
  * 新建条目表单（阶段 3 手动录入；阶段 4 接 initial 预填——识别值只进草稿，用户确认才 POST）。
  * 金额一律元输入、装配时转分（buildCreateEntryRequest 纯函数，校验逻辑有单测）。
  * 错误内联渲染（声明 onError 跳过全局 toast，照 MutationCache 兜底注释的既有分工）。
@@ -40,15 +33,15 @@ export interface ReimburseFormInitial {
 export function ReimburseEntryForm({
   client,
   source,
-  defaultProjectId,
+  projectId,
   canWrite,
   writeLockedHint,
   initial,
   onDone,
 }: {
-  client: HubApiClient;
+  client: ReimburseSegment;
   source: string;
-  defaultProjectId: string;
+  projectId: string;
   canWrite: boolean;
   writeLockedHint: string | null;
   /** 导入预填：变化时父组件用 key 重挂本表单；null/缺省 = 手动录入。 */
@@ -78,7 +71,7 @@ export function ReimburseEntryForm({
       items: d.items.map((row, i) => (i === index ? { ...row, ...partial } : row)),
     }));
 
-  const request = buildCreateEntryRequest(draft, defaultProjectId);
+  const request = buildCreateEntryRequest(draft, projectId);
   const valid = request !== null;
 
   function submit(event: FormEvent) {
@@ -146,6 +139,22 @@ export function ReimburseEntryForm({
               onChange={(e) => patch({ seller: e.target.value })}
             />
           </Field>
+          <Field label={t('reimb.create.field.purchaserName')}>
+            <input
+              value={draft.purchaserName}
+              placeholder={t('reimb.create.field.purchaserName.placeholder')}
+              onChange={(e) => patch({ purchaserName: e.target.value })}
+            />
+          </Field>
+          <Field label={t('reimb.create.field.purchaserTaxNo')}>
+            <input
+              value={draft.purchaserTaxNo}
+              placeholder={t('reimb.create.field.purchaserTaxNo.placeholder')}
+              onChange={(e) => patch({ purchaserTaxNo: e.target.value })}
+            />
+          </Field>
+        </FormGrid>
+        <FormGrid>
           <Field label={t('reimb.create.field.total')} required>
             <input
               value={draft.totalYuan}

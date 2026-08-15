@@ -5,6 +5,8 @@ import {
   ReimburseBatchResponseSchema,
   ReimburseBatchesResponseSchema,
   ReimburseEntriesResponseSchema,
+  GetReimburseProfileResponseSchema,
+  StockInContextResponseSchema,
   StockInResponseSchema,
   UpdateReimburseEntryResponseSchema,
   governanceScenarioFixture,
@@ -127,6 +129,9 @@ function goodsEntryPayload(over: Record<string, unknown> = {}) {
     invoiceNo: `20260701${String(invoiceSeq).padStart(12, '0')}`,
     invoiceDate: '2026-07-01',
     seller: '某某五金店',
+    purchaserName: '哈尔滨工业大学',
+    purchaserTaxNo: '12100000400000456B',
+    recognitionSource: 'xml',
     totalAmountFen: 2500,
     items: [
       { name: 'M3×8 螺丝', unit: '个', quantity: 20, unitPriceFen: 100, amountFen: 2000 },
@@ -343,6 +348,21 @@ describe('/api/reimburse/batches — 超管门 + 状态流转 + 聚合', () => {
       });
       expect(assign.statusCode).toBe(200);
 
+      const blocked = await app.inject({
+        method: 'PATCH',
+        url: `/api/reimburse/batches/${batch.id}`,
+        headers: { cookie: cookieAdmin },
+        payload: { status: 'submitted' },
+      });
+      expect(blocked.statusCode).toBe(409);
+      expect(blocked.json().code).toBe('REIMBURSE_BATCH_BLOCKED');
+
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/reimburse/entries/${entry.id}`,
+        headers: { cookie: cookieA },
+        payload: { materials: { paymentShot: true, inspection: true } },
+      });
       const flowed = await app.inject({
         method: 'PATCH',
         url: `/api/reimburse/batches/${batch.id}`,
@@ -360,7 +380,13 @@ describe('/api/reimburse/batches — 超管门 + 状态流转 + 聚合', () => {
       const body = ReimburseBatchesResponseSchema.parse(list.json());
       expect(body.batches).toHaveLength(1);
       const summary = body.summaries.find((s) => s.batchId === batch.id);
-      expect(summary).toMatchObject({ count: 1, totalAmountFen: 2500, incompleteCount: 1 });
+      expect(summary).toMatchObject({
+        count: 1,
+        totalAmountFen: 2500,
+        incompleteCount: 0,
+        financial: { gross: { count: 1 }, eligible: { count: 1 }, blocked: { count: 0 } },
+      });
+      expect(body.profile.expectedPurchaserName).toBe('哈尔滨工业大学');
       // I0：聚合体无 memberId 字面
       expect(JSON.stringify(body.summaries)).not.toContain('memberId');
 
@@ -417,13 +443,12 @@ describe('POST /api/reimburse/entries/:id/stock-in — 入库联动', () => {
       expect(newPart?.totalQuantity).toBe(2); // 建 0 + restock 2（量全走动作日志）
       expect(newPart?.id).toMatch(/^parttype-new-/);
 
-      // 落库复核：动作日志带行号前缀（防重复入库的记账键）
+      // 落库复核：结构字段是防重键，note 只做人类可读说明。
       const snap = await invStore.getInventorySnapshot();
       const linked = snap.actions.filter((a) => a.reimburseEntryId === entry.id);
       expect(linked).toHaveLength(2);
-      expect(linked.find((a) => a.partTypeId === 'parttype-m3')?.note).toContain(
-        'reimb-stock-in:0',
-      );
+      expect(linked.find((a) => a.partTypeId === 'parttype-m3')?.reimburseItemIndex).toBe(0);
+      expect(linked.find((a) => a.partTypeId === 'parttype-m3')?.note).toBe('报账入库·M3×8 螺丝');
 
       // 行0 剩余 10：申请 11 → 400（防重复入库）
       const over = await app.inject({
@@ -531,6 +556,59 @@ describe('POST /api/reimburse/entries/:id/stock-in — 入库联动', () => {
         payload: { lines: [{ itemIndex: 0, quantity: 1, target: { partTypeId: 'parttype-m3' } }] },
       });
       expect(entry404.statusCode).toBe(404);
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+describe('报账 profile 与窄入库上下文', () => {
+  test('profile 默认值可读且仅超管可改；context 只聚合当前可见条目与候选投影', async () => {
+    const { app } = buildTestApp();
+    try {
+      const cookieA = await login(app, 'm-a');
+      const cookieB = await login(app, 'm-b');
+      const cookieAdmin = await login(app, 'm-admin');
+      const entryA = await createEntry(app, cookieA);
+      await createEntry(app, cookieB);
+
+      const profile = await app.inject({ method: 'GET', url: '/api/reimburse/profile' });
+      expect(GetReimburseProfileResponseSchema.parse(profile.json()).profile)
+        .toMatchObject({ expectedPurchaserName: '哈尔滨工业大学' });
+      const forbidden = await app.inject({
+        method: 'PUT',
+        url: '/api/reimburse/profile',
+        headers: { cookie: cookieA },
+        payload: { expectedPurchaserName: '', expectedPurchaserTaxNo: '' },
+      });
+      expect(forbidden.statusCode).toBe(403);
+      const updated = await app.inject({
+        method: 'PUT',
+        url: '/api/reimburse/profile',
+        headers: { cookie: cookieAdmin },
+        payload: { expectedPurchaserName: '', expectedPurchaserTaxNo: '' },
+      });
+      expect(updated.statusCode).toBe(200);
+
+      await app.inject({
+        method: 'POST',
+        url: `/api/reimburse/entries/${entryA.id}/stock-in`,
+        headers: { cookie: cookieA },
+        payload: { lines: [{ itemIndex: 0, quantity: 1, target: { partTypeId: 'parttype-m3' } }] },
+      });
+      const context = await app.inject({
+        method: 'GET',
+        url: '/api/reimburse/stock-in-context',
+        headers: { cookie: cookieA },
+      });
+      const body = StockInContextResponseSchema.parse(context.json());
+      expect(body.entries).toHaveLength(1);
+      expect(body.entries[0]).toEqual({
+        entryId: entryA.id,
+        stockedLines: [{ itemIndex: 0, quantity: 1 }],
+      });
+      expect(body.partTypes[0]).not.toHaveProperty('totalQuantity');
+      expect(JSON.stringify(body)).not.toContain('m-b');
     } finally {
       await app.close();
     }

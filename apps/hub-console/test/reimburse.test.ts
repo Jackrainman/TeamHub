@@ -1,13 +1,11 @@
 import { describe, expect, test } from 'vitest';
 import {
   buildCreateEntryRequest,
-  deriveStockedQuantities,
   emptyItemDraft,
   formatAmountFen,
   yuanTextToFen,
   type EntryDraft,
 } from '../src/features/reimburse/reimburse-utils';
-import type { PartAction } from '../src/api/schemas/inv';
 
 // 报账域纯函数单测（REIMBURSE-PROC 阶段 3）——不测 DOM/RTL（本仓「测逻辑不测 DOM」
 // 风格同 myview.test.ts / identity.test.ts）。
@@ -18,6 +16,9 @@ function draft(overrides: Partial<EntryDraft>): EntryDraft {
     invoiceNo: '',
     invoiceDate: '',
     seller: '',
+    purchaserName: '',
+    purchaserTaxNo: '',
+    recognitionSource: 'manual',
     totalYuan: '',
     actualItemName: '',
     note: '',
@@ -54,6 +55,11 @@ describe('yuanTextToFen：用户输入元文本 → 分', () => {
 });
 
 describe('buildCreateEntryRequest：草稿校验与装配', () => {
+  test('项目上下文缺失 → null（不猜默认项目）', () => {
+    expect(buildCreateEntryRequest(draft({ totalYuan: '88.00' }), '')).toBeNull();
+    expect(buildCreateEntryRequest(draft({ totalYuan: '88.00' }), '   ')).toBeNull();
+  });
+
   test('金额缺失或非法 → null', () => {
     expect(buildCreateEntryRequest(draft({ totalYuan: '' }), 'prj-robots')).toBeNull();
     expect(buildCreateEntryRequest(draft({ totalYuan: 'abc' }), 'prj-robots')).toBeNull();
@@ -69,11 +75,31 @@ describe('buildCreateEntryRequest：草稿校验与装配', () => {
       invoiceNo: null,
       invoiceDate: null,
       seller: null,
+      purchaserName: null,
+      purchaserTaxNo: null,
+      recognitionSource: 'manual',
       totalAmountFen: 8800,
       items: [],
       actualItemName: null,
       materials: { paymentShot: false, inspection: false },
       note: null,
+    });
+  });
+
+  test('购买方字段与识别来源原样进入结构化请求', () => {
+    const req = buildCreateEntryRequest(
+      draft({
+        totalYuan: '88.00',
+        purchaserName: ' 哈尔滨工业大学 ',
+        purchaserTaxNo: ' 12100000400000456B ',
+        recognitionSource: 'pdf',
+      }),
+      'prj-robots',
+    );
+    expect(req).toMatchObject({
+      purchaserName: '哈尔滨工业大学',
+      purchaserTaxNo: '12100000400000456B',
+      recognitionSource: 'pdf',
     });
   });
 
@@ -155,50 +181,5 @@ describe('buildCreateEntryRequest：草稿校验与装配', () => {
       'prj-robots',
     );
     expect(req!.items).toEqual([]);
-  });
-});
-
-// ── 入库确认（阶段 5）：已入量从动作日志派生（note 前缀钉行号，与 server 约定同源）────
-
-function restockAction(overrides: Partial<PartAction>): PartAction {
-  return {
-    id: 'act-1',
-    projectId: 'prj-robots',
-    partTypeId: 'parttype-1',
-    trackedPartId: null,
-    kind: 'restock',
-    quantityDelta: 2,
-    fromHolder: null,
-    toHolder: null,
-    note: 'reimb-stock-in:0 报账入库·电机',
-    recordedBy: { source: 'human', at: '2026-08-01T00:00:00.000Z' },
-    recordedAt: '2026-08-01T00:00:00.000Z',
-    acquisition: 'selfPurchase',
-    reimburseEntryId: 'entry-1',
-    ...overrides,
-  };
-}
-
-describe('deriveStockedQuantities：动作日志 → 各明细行已入量', () => {
-  test('按 note 前缀行号累计；同条目多行分开计', () => {
-    const stocked = deriveStockedQuantities('entry-1', [
-      restockAction({ id: 'a1', note: 'reimb-stock-in:0 报账入库·电机', quantityDelta: 2 }),
-      restockAction({ id: 'a2', note: 'reimb-stock-in:0 报账入库·电机', quantityDelta: 1 }),
-      restockAction({ id: 'a3', note: 'reimb-stock-in:2 报账入库·螺丝', quantityDelta: 50 }),
-    ]);
-    expect(stocked.get(0)).toBe(3);
-    expect(stocked.get(2)).toBe(50);
-    expect(stocked.has(1)).toBe(false);
-  });
-
-  test('非本条目 / 非 restock / 无前缀 note 一律不计入（保守放行，库存账不受影响）', () => {
-    const stocked = deriveStockedQuantities('entry-1', [
-      restockAction({ id: 'a1', reimburseEntryId: 'entry-2' }), // 别的条目
-      restockAction({ id: 'a2', kind: 'damage' }), // 非 restock
-      restockAction({ id: 'a3', note: '随手补料' }), // 无前缀
-      restockAction({ id: 'a4', note: null }),
-      restockAction({ id: 'a5', reimburseEntryId: undefined }), // 无关联条目
-    ]);
-    expect(stocked.size).toBe(0);
   });
 });

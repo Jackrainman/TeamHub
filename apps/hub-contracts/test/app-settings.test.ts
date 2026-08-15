@@ -12,6 +12,7 @@ import {
 
 const validSettings = {
   schemaVersion: 1,
+  projectId: 'project-robocon',
   dataMode: 'real',
   identityMode: 'identity',
   verticalId: 'robotics',
@@ -27,9 +28,12 @@ describe('AppSettingsSchema', () => {
 
   test('拒绝缺字段、陌生字段与陌生 schemaVersion', () => {
     const { updatedAt: _drop, ...missing } = validSettings;
+    const { projectId: _projectId, ...missingProjectId } = validSettings;
     expect(() => AppSettingsSchema.parse(missing)).toThrow();
+    expect(() => AppSettingsSchema.parse(missingProjectId)).toThrow();
     expect(() => AppSettingsSchema.parse({ ...validSettings, extra: true })).toThrow();
     expect(() => AppSettingsSchema.parse({ ...validSettings, schemaVersion: 2 })).toThrow();
+    expect(() => AppSettingsSchema.parse({ ...validSettings, projectId: '' })).toThrow();
   });
 
   test('拒绝陌生模式、垂直包与非法时间戳', () => {

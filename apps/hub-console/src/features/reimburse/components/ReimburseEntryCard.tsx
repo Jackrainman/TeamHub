@@ -1,21 +1,39 @@
 import { useMemo, useState } from 'react';
-import type { HubApiClient } from '../../../api/client';
+import type { ReimburseSegment } from '../api';
 import {
+  derivePurchaserCheckStatus,
+  deriveReimburseReviewReasons,
   deriveReimburseStatus,
+  suggestReimburseFilename,
   type ReimburseBatch,
   type ReimburseEntry,
   type ReimburseEntryStatus,
-} from '../../../api/schemas/reimburse';
-import type { PartAction, PartType } from '../../../api/schemas/inv';
-import { useUpdateReimburseEntry } from '../../../hooks/useReimburse';
+  type ReimburseProfile,
+  type ReimburseReviewReason,
+  type StockInContextResponse,
+} from '@teamhub/hub-contracts';
+import { useUpdateReimburseEntry } from '../hooks';
 import { useI18n, type TranslationKey } from '../../../i18n';
-import { deriveStockedQuantities, formatAmountFen } from '../reimburse-utils';
+import { formatAmountFen } from '../reimburse-utils';
 import { StockInDialog } from './StockInDialog';
 
 const STATUS_BADGE: Record<ReimburseEntryStatus, { tone: string; key: TranslationKey }> = {
   draft: { tone: 'badge--outline', key: 'reimb.status.draft' },
   partial: { tone: 'badge--amber', key: 'reimb.status.partial' },
   complete: { tone: 'badge--green', key: 'reimb.status.complete' },
+};
+
+const REVIEW_REASON_KEY: Record<ReimburseReviewReason, TranslationKey> = {
+  'invoice-no-missing': 'reimb.review.invoiceNoMissing',
+  'invoice-date-missing': 'reimb.review.invoiceDateMissing',
+  'seller-missing': 'reimb.review.sellerMissing',
+  'amount-missing': 'reimb.review.amountMissing',
+  'items-missing': 'reimb.review.itemsMissing',
+  'purchaser-mismatch': 'reimb.review.purchaserMismatch',
+  'purchaser-missing': 'reimb.review.purchaserMissing',
+  'unit-price-imprecise': 'reimb.review.unitPriceImprecise',
+  'ocr-recognition': 'reimb.review.ocrRecognition',
+  'manual-entry': 'reimb.review.manualEntry',
 };
 
 /**
@@ -30,16 +48,18 @@ export function ReimburseEntryCard({
   batches,
   isSuperAdmin,
   canWrite,
-  inventory,
+  profile,
+  stockInContext,
 }: {
-  client: HubApiClient;
+  client: ReimburseSegment;
   source: string;
   entry: ReimburseEntry;
   batches: ReimburseBatch[];
   isSuperAdmin: boolean;
   canWrite: boolean;
-  /** 库存快照（partTypes+actions）；null=库存查询未就绪 → 入库确认区整体隐藏（不显示误导性的 已入 0/Y）。 */
-  inventory: { partTypes: PartType[]; actions: PartAction[] } | null;
+  profile: ReimburseProfile;
+  /** 报账域窄入库上下文；不再读取库存完整快照。 */
+  stockInContext: StockInContextResponse | null;
 }) {
   const { t } = useI18n();
   const updateMutation = useUpdateReimburseEntry(client, source);
@@ -50,16 +70,21 @@ export function ReimburseEntryCard({
   const [stockInDone, setStockInDone] = useState(false);
 
   const status = deriveReimburseStatus(entry);
+  const purchaserStatus = derivePurchaserCheckStatus(entry, profile);
+  const reviewReasons = deriveReimburseReviewReasons(entry, profile);
+  const nonMismatchReasons = reviewReasons.filter((reason) => reason !== 'purchaser-mismatch');
   const badge = STATUS_BADGE[status];
   const writeDisabled = !canWrite || updateMutation.isPending;
 
-  // 已入库量：唯一真相=库存动作日志（restock + reimburseEntryId + note 前缀钉行号）。
   const stocked = useMemo(
-    () => (inventory ? deriveStockedQuantities(entry.id, inventory.actions) : new Map<number, number>()),
-    [inventory, entry.id],
+    () => new Map(
+      (stockInContext?.entries.find((candidate) => candidate.entryId === entry.id)?.stockedLines ?? [])
+        .map((line) => [line.itemIndex, line.quantity] as const),
+    ),
+    [stockInContext, entry.id],
   );
   const canStockIn =
-    entry.kind === 'goods' && entry.items.length > 0 && inventory !== null && canWrite;
+    entry.kind === 'goods' && entry.items.length > 0 && stockInContext !== null && canWrite;
 
   const metaDirty =
     actualItemName.trim() !== (entry.actualItemName ?? '') ||
@@ -85,6 +110,16 @@ export function ReimburseEntryCard({
         <strong className="reimb-entry__amount">{formatAmountFen(entry.totalAmountFen)}</strong>
       </header>
 
+      {purchaserStatus === 'mismatch' ? (
+        <p role="alert"><span className="badge badge--dense badge--red">{t('reimb.review.changePurchaser')}</span></p>
+      ) : null}
+      {nonMismatchReasons.length > 0 ? (
+        <p role="status">
+          <span className="badge badge--dense badge--amber">{t('reimb.review.check')}</span>{' '}
+          {nonMismatchReasons.map((reason) => t(REVIEW_REASON_KEY[reason])).join('、')}
+        </p>
+      ) : null}
+
       <dl className="reimb-entry__meta">
         <div>
           <dt>{t('reimb.entry.invoiceNo')}</dt>
@@ -97,6 +132,18 @@ export function ReimburseEntryCard({
         <div>
           <dt>{t('reimb.entry.invoiceDate')}</dt>
           <dd>{entry.invoiceDate ?? t('reimb.entry.unfilled')}</dd>
+        </div>
+        <div>
+          <dt>{t('reimb.entry.purchaserName')}</dt>
+          <dd>{entry.purchaserName ?? t('reimb.entry.unfilled')}</dd>
+        </div>
+        <div>
+          <dt>{t('reimb.entry.purchaserTaxNo')}</dt>
+          <dd>{entry.purchaserTaxNo ?? t('reimb.entry.unfilled')}</dd>
+        </div>
+        <div>
+          <dt>{t('reimb.entry.filename')}</dt>
+          <dd>{suggestReimburseFilename(entry)}</dd>
         </div>
       </dl>
 
@@ -118,7 +165,7 @@ export function ReimburseEntryCard({
                 <td>{item.unit ?? '—'}</td>
                 <td>
                   {item.quantity}
-                  {inventory ? (
+                  {stockInContext ? (
                     <span className="reimb-entry__stocked">
                       {t('reimb.stockIn.stocked', {
                         stocked: stocked.get(index) ?? 0,
@@ -151,12 +198,12 @@ export function ReimburseEntryCard({
           ) : null}
         </div>
       ) : null}
-      {stockInOpen && inventory ? (
+      {stockInOpen && stockInContext ? (
         <StockInDialog
           client={client}
           source={source}
           entry={entry}
-          partTypes={inventory.partTypes}
+          partTypes={stockInContext.partTypes}
           stocked={stocked}
           onClose={() => setStockInOpen(false)}
           onStockedIn={() => {

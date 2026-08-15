@@ -28,7 +28,7 @@ import { SqliteDatabase } from './sqlite-db.js';
 import { SqliteGovRepository } from './sqlite-gov-repository.js';
 import { SqliteInvStore } from './sqlite-inv-store.js';
 import { SqliteKbStore } from './sqlite-kb-store.js';
-import { SqliteReimburseStore } from './sqlite-reimburse-store.js';
+import { SqliteReimburseRepository } from '../modules/reimburse/sqlite-repository.js';
 
 export const TEAMHUB_UNIFIED_SCHEMA_VERSION = 2;
 
@@ -62,6 +62,7 @@ export const TEAMHUB_BUSINESS_TABLES = [
   'checklist_templates',
   'reimburse_entries',
   'reimburse_batches',
+  'reimburse_profile',
 ] as const;
 
 /** 业务域的初始化标记；graduate 会清掉，重启后由 real 空种子重建。 */
@@ -80,7 +81,7 @@ export interface UnifiedStores {
   inv: SqliteInvStore;
   baseline: BaselineStore;
   checklist: ChecklistStore;
-  reimburse: SqliteReimburseStore;
+  reimburse: SqliteReimburseRepository;
   db: SqliteDatabase;
 }
 
@@ -191,7 +192,7 @@ function assembleStores(
       seeds.checklist,
       seeds.checklistTemplates,
     ),
-    reimburse: SqliteReimburseStore.fromSharedDb(db, undefined, clock),
+    reimburse: SqliteReimburseRepository.fromSharedDb(db, undefined, clock),
     db,
   };
 }
@@ -216,6 +217,7 @@ export class UnifiedDatabase implements AppSettingsService {
     const isoNow = now.toISOString();
     const settings = AppSettingsSchema.parse({
       schemaVersion: 1,
+      projectId: governanceScenarioFixture.projectId,
       dataMode: input.dataMode,
       identityMode: input.identityMode,
       verticalId: 'robotics',

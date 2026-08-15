@@ -102,3 +102,14 @@ test('requires stale or reduced baseline entries to be removed or tightened', (c
   messages = verifyArchitecture(root, { baseline }).errors.join('\n');
   assert.match(messages, /基线条目已清除，请删除该精确基线/);
 });
+
+test('freezes the completed reimburse vertical slice and rejects old aliases', (context) => {
+  const root = fixture();
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  write(root, 'apps/hub-contracts/src/domains/reimburse/index.ts', 'export {}\n');
+  write(root, 'apps/hub-contracts/src/reimbursement.ts', 'export {}\n');
+
+  const messages = verifyArchitecture(root, { baseline: [] }).errors.join('\n');
+  assert.match(messages, /reimburse 模板缺少必需边界/);
+  assert.match(messages, /禁止恢复旧路径或兼容 alias/);
+});

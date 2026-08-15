@@ -22,7 +22,7 @@ import { ProjectPage } from './features/project/ProjectPage';
 import { KbSearchPage } from './features/kb/KbSearchPage';
 import { ArchivePage } from './features/archive/ArchivePage';
 import { InvPage } from './features/inv/InvPage';
-import { ReimbursePage } from './features/reimburse/ReimbursePage';
+import { ReimbursePage } from './features/reimburse';
 import { FleetPage } from './features/fleet/FleetPage';
 import { DirectionPage } from './features/direction/DirectionPage';
 import { TimelineEditorPage } from './features/timeline/TimelineEditorPage';
@@ -94,6 +94,8 @@ export interface OverviewView {
 export interface PageRenderCtx {
   apiClient: HubApiClient;
   source: string;
+  /** SQLite app_settings 中的当前项目事实，禁止页面自行默认或从业务列表猜测。 */
+  projectId: string;
   onNavigate: (page: ConsolePage) => void;
   overview: OverviewView;
   identity: PageIdentityCtx;
@@ -197,7 +199,12 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     // 报账属「库存-BOM」支柱的采购-报账-入库联动（REIMBURSE-PROC），随 ledger 模块开关。
     moduleId: 'ledger',
     render: (ctx) => (
-      <ReimbursePage client={ctx.apiClient} source={ctx.source} identity={ctx.identity} />
+      <ReimbursePage
+        client={ctx.apiClient}
+        source={ctx.source}
+        identity={ctx.identity}
+        projectId={ctx.projectId}
+      />
     ),
   },
   {

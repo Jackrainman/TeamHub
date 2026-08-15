@@ -6,6 +6,7 @@ import { isApplicationError } from '../application/application-error.js';
 
 const APPLICATION_ERROR_STATUS = {
   validation: 400,
+  unauthorized: 401,
   not_found: 404,
   forbidden: 403,
   conflict: 409,

@@ -1,8 +1,8 @@
-import { GOVERNANCE_SCENARIO_NOW } from '@teamhub/hub-contracts';
-import type { ReimburseBatch, ReimburseEntry } from '@teamhub/hub-contracts';
+import { GOVERNANCE_SCENARIO_NOW, ReimburseProfileSchema } from '@teamhub/hub-contracts';
+import type { ReimburseBatch, ReimburseEntry, ReimburseProfile } from '@teamhub/hub-contracts';
 import { FixedClock } from '../../src/clock.js';
 import type { Clock } from '../../src/clock.js';
-import type { ReimburseStockInPort } from '../../src/application/reimburse-stock-in-service.js';
+import type { ReimburseStockInPort } from '../../src/modules/reimburse/service.js';
 import { cloneArrayFields } from '../../src/store/clone-snapshot.js';
 import {
   emptyReimburseSnapshot,
@@ -11,12 +11,12 @@ import {
   type ReimburseEntryDraft,
   type ReimburseEntryPatch,
   type ReimburseSnapshot,
-  type ReimburseStore,
-} from '../../src/store/reimburse-store.js';
+  type ReimburseRepository,
+} from '../../src/modules/reimburse/repository.js';
 
 const REIMBURSE_ARRAY_FIELDS: (keyof ReimburseSnapshot)[] = ['entries', 'batches'];
 
-export class InMemoryReimburseStore implements ReimburseStore, ReimburseStockInPort {
+export class InMemoryReimburseStore implements ReimburseRepository, ReimburseStockInPort {
   private readonly snapshot: ReimburseSnapshot;
   private readonly clock: Clock;
   private entrySeq: number;
@@ -32,11 +32,11 @@ export class InMemoryReimburseStore implements ReimburseStore, ReimburseStockInP
     this.batchSeq = this.snapshot.batches.length;
   }
 
-  async listEntries(): Promise<ReimburseEntry[]> {
+  listEntries(): ReimburseEntry[] {
     return [...this.snapshot.entries];
   }
 
-  async getEntry(id: string): Promise<ReimburseEntry | undefined> {
+  getEntry(id: string): ReimburseEntry | undefined {
     return this.readEntryForStockIn(id);
   }
 
@@ -44,11 +44,11 @@ export class InMemoryReimburseStore implements ReimburseStore, ReimburseStockInP
     return this.snapshot.entries.find((entry) => entry.id === id);
   }
 
-  async findEntryByInvoiceNo(invoiceNo: string): Promise<ReimburseEntry | undefined> {
+  findEntryByInvoiceNo(invoiceNo: string): ReimburseEntry | undefined {
     return this.snapshot.entries.find((entry) => entry.invoiceNo === invoiceNo);
   }
 
-  async createEntry(draft: ReimburseEntryDraft): Promise<ReimburseEntry> {
+  createEntry(draft: ReimburseEntryDraft): ReimburseEntry {
     const now = this.clock.now().toISOString();
     const entry: ReimburseEntry = {
       ...draft,
@@ -60,7 +60,7 @@ export class InMemoryReimburseStore implements ReimburseStore, ReimburseStockInP
     return entry;
   }
 
-  async updateEntry(id: string, patch: ReimburseEntryPatch): Promise<ReimburseEntry | undefined> {
+  updateEntry(id: string, patch: ReimburseEntryPatch): ReimburseEntry | undefined {
     const index = this.snapshot.entries.findIndex((entry) => entry.id === id);
     if (index < 0) return undefined;
     const updated: ReimburseEntry = {
@@ -73,15 +73,15 @@ export class InMemoryReimburseStore implements ReimburseStore, ReimburseStockInP
     return updated;
   }
 
-  async listBatches(): Promise<ReimburseBatch[]> {
+  listBatches(): ReimburseBatch[] {
     return [...this.snapshot.batches];
   }
 
-  async getBatch(id: string): Promise<ReimburseBatch | undefined> {
+  getBatch(id: string): ReimburseBatch | undefined {
     return this.snapshot.batches.find((batch) => batch.id === id);
   }
 
-  async createBatch(draft: ReimburseBatchDraft): Promise<ReimburseBatch> {
+  createBatch(draft: ReimburseBatchDraft): ReimburseBatch {
     const now = this.clock.now().toISOString();
     const batch: ReimburseBatch = {
       ...draft,
@@ -94,7 +94,7 @@ export class InMemoryReimburseStore implements ReimburseStore, ReimburseStockInP
     return batch;
   }
 
-  async updateBatch(id: string, patch: ReimburseBatchPatch): Promise<ReimburseBatch | undefined> {
+  updateBatch(id: string, patch: ReimburseBatchPatch): ReimburseBatch | undefined {
     const index = this.snapshot.batches.findIndex((batch) => batch.id === id);
     if (index < 0) return undefined;
     const updated: ReimburseBatch = {
@@ -105,5 +105,14 @@ export class InMemoryReimburseStore implements ReimburseStore, ReimburseStockInP
     };
     this.snapshot.batches[index] = updated;
     return updated;
+  }
+
+  getProfile(): ReimburseProfile {
+    return { ...this.snapshot.profile };
+  }
+
+  updateProfile(profile: ReimburseProfile): ReimburseProfile {
+    this.snapshot.profile = ReimburseProfileSchema.parse(profile);
+    return this.getProfile();
   }
 }

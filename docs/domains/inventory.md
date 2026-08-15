@@ -46,7 +46,7 @@ Inventory 管零件类型、重要单件、append-only 动作日志、机器人�
 ## 6. 已知陷阱
 
 - 生产持久化已收成统一 SQLite，测试 fake 已物理移入 `test/support`；下一步是把 route/store 形状迁为领域 module/repository。
-- 报账入库通过 `reimb-stock-in:<itemIndex>` note 前缀关联，属于隐藏协议。
+- 报账入库已改用结构化 `reimburseItemIndex`；其他跨域入口迁移时不得再把关联键藏进 note。
 - BOM 需求事实尚不完整，因而“从未买过/下一版不够”不能在没有上游时强推。
 - 历史“对话记账作为主路径”已被否决；Hermes 只适合作为低频补录和草稿入口。
 

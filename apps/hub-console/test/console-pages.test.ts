@@ -85,6 +85,7 @@ describe('console-pages: 工具条 onRefresh 注册', () => {
     overviewPage?.onRefresh?.({
       apiClient: {} as never,
       source: 'real',
+      projectId: 'prj-test',
       onNavigate: () => {},
       overview: {
         isLoading: false,

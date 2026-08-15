@@ -4,7 +4,10 @@ import { createSystemPmSegment, type SystemPmSegment } from './segments/system-p
 import { createScheduleSegment, type ScheduleSegment } from './segments/schedule';
 import { createMembersSegment, type MembersSegment } from './segments/members';
 import { createDomainSegment, type DomainSegment } from './segments/domain';
-import { createReimburseSegment, type ReimburseSegment } from './segments/reimburse';
+import {
+  createReimburseSegment,
+  type ReimburseSegment,
+} from '../features/reimburse/api';
 
 export interface HubApiClientOptions {
   baseUrl?: string;

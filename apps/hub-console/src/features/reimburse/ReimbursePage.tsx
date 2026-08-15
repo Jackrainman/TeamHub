@@ -1,37 +1,21 @@
-import { useRef, useState } from 'react';
 import { ReceiptText } from 'lucide-react';
 import { EmptyState } from '../../shared/EmptyState';
 import { useQueryGuard } from '../../shared/QueryGate';
-import { useReimburseBatches, useReimburseEntries } from '../../hooks/useReimburse';
-import { useInventory } from '../../hooks/useInventory';
-import type { HubApiClient } from '../../api/client';
+import {
+  useReimburseBatches,
+  useReimburseEntries,
+  useReimburseImportController,
+  useReimburseProfile,
+  useReimburseStockInContext,
+} from './hooks';
+import type { ReimburseSegment } from './api';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
-import { ReimburseEntryForm, type ReimburseFormInitial } from './sub/ReimburseEntryForm';
-import { ReimburseEntryCard } from './sub/ReimburseEntryCard';
-import { ReimburseBatchSection } from './sub/ReimburseBatchSection';
-import { ReimburseImportZone } from './sub/ReimburseImportZone';
-import {
-  analyzeInvoiceFile,
-  draftFromParsedInvoice,
-  type ImportOutcome,
-} from './reimburse-import';
-import { emptyEntryDraft } from './reimburse-utils';
-
-const DEFAULT_PROJECT_ID = 'prj-robots';
-
-/** 待确认的导入队列项（parsed=预填 / unrecognized=开空表单手填），id 供表单 key 重挂。 */
-interface ImportJob {
-  id: number;
-  outcome: ImportOutcome & { kind: 'parsed' | 'unrecognized' };
-}
-
-/** 读失败/非发票文件的显式报错（不静默），逐条可关。 */
-interface ImportFail {
-  id: number;
-  fileName: string;
-  reason: 'type' | 'read';
-}
+import { ReimburseEntryForm } from './components/ReimburseEntryForm';
+import { ReimburseEntryCard } from './components/ReimburseEntryCard';
+import { ReimburseBatchSection } from './components/ReimburseBatchSection';
+import { ReimburseImportZone } from './components/ReimburseImportZone';
+import { ReimburseProfileSection } from './components/ReimburseProfileSection';
 
 /**
  * 报账页（REIMBURSE-PROC 阶段 3，计划 taskmaster-impulse-steel）：
@@ -50,10 +34,12 @@ export function ReimbursePage({
   client,
   source,
   identity,
+  projectId,
 }: {
-  client: HubApiClient;
+  client: ReimburseSegment;
   source: string;
   identity: PageIdentityCtx;
+  projectId: string;
 }) {
   const { t } = useI18n();
   const session = identity.session;
@@ -63,39 +49,12 @@ export function ReimbursePage({
 
   const entriesQuery = useReimburseEntries(client, source, entriesEnabled);
   const batchesQuery = useReimburseBatches(client, source, isSuperAdmin);
-  // 入库确认（阶段 5）：条目卡片的「已入 X/Y」与匹配候选都从库存快照派生。
-  // 不加硬 gate——库存查询失败只藏入库区，不拖垮报账页本体。
-  const inventoryQuery = useInventory(client, source);
+  const profileQuery = useReimburseProfile(client, source, entriesEnabled);
+  // 窄上下文失败只隐藏入库区，不拖垮报账页本体。
+  const stockInContextQuery = useReimburseStockInContext(client, source, entriesEnabled);
 
-  // 发票导入（阶段 4）：队列逐张预填逐张确认（提交/跳过 → advance）；failed 直接报错不入队。
-  // hooks 须在下方早退 return 之前——状态无条件声明。
-  const [importJobs, setImportJobs] = useState<ImportJob[]>([]);
-  const [importFails, setImportFails] = useState<ImportFail[]>([]);
-  const [parsing, setParsing] = useState(false);
-  const importSeq = useRef(0);
-
-  async function handleImportFiles(files: File[]) {
-    setParsing(true);
-    try {
-      // 逐文件顺序处理：队列顺序 = 用户选择的顺序，且 pdf.js 逐张解析不抢主线程。
-      for (const file of files) {
-        const outcome = await analyzeInvoiceFile(file);
-        importSeq.current += 1;
-        const id = importSeq.current;
-        if (outcome.kind === 'failed') {
-          setImportFails((prev) => [...prev, { id, fileName: outcome.fileName, reason: outcome.reason }]);
-        } else {
-          setImportJobs((prev) => [...prev, { id, outcome }]);
-        }
-      }
-    } finally {
-      setParsing(false);
-    }
-  }
-
-  function advanceImportQueue() {
-    setImportJobs((prev) => prev.slice(1));
-  }
+  // 发票本地解析、失败通知与待确认队列由本域 controller 统一编排。
+  const importController = useReimburseImportController();
 
   if (identity.isLoading) {
     return (
@@ -117,36 +76,23 @@ export function ReimbursePage({
 
   const gate = useQueryGuard(entriesQuery, t('reimb.loading'), t('reimb.error'));
   if (gate.guard) return gate.guard;
+  const profileGate = useQueryGuard(profileQuery, t('reimb.profile.loading'), t('reimb.profile.error'));
+  if (profileGate.guard) return profileGate.guard;
 
   const entries = [...gate.data.entries].sort((a, b) =>
     b.createdAt.localeCompare(a.createdAt),
   );
   const batches = batchesQuery.data?.batches ?? [];
-  const summaries = batchesQuery.data?.summaries ?? [];
-
-  const currentJob = importJobs[0] ?? null;
-  const formInitial: ReimburseFormInitial | null = currentJob
-    ? currentJob.outcome.kind === 'parsed'
-      ? {
-          draft: draftFromParsedInvoice(currentJob.outcome.invoice),
-          fileName: currentJob.outcome.fileName,
-          notice: 'recognized',
-        }
-      : {
-          draft: emptyEntryDraft(),
-          fileName: currentJob.outcome.fileName,
-          notice: 'unrecognized',
-        }
-    : null;
+  const profile = profileGate.data.profile;
 
   return (
     <div className="reimb-page">
       <p className="gaps-intro">{t('reimb.intro')}</p>
 
-      <ReimburseImportZone onFiles={handleImportFiles} busy={parsing} />
-      {importFails.length > 0 ? (
+      <ReimburseImportZone onFiles={importController.importFiles} busy={importController.parsing} />
+      {importController.fails.length > 0 ? (
         <ul className="reimb-import__notices">
-          {importFails.map((fail) => (
+          {importController.fails.map((fail) => (
             <li key={fail.id} className="form-hint form-hint--warn" role="alert">
               {t(
                 fail.reason === 'type'
@@ -157,9 +103,7 @@ export function ReimbursePage({
               <button
                 type="button"
                 className="btn btn--sm btn--ghost"
-                onClick={() =>
-                  setImportFails((prev) => prev.filter((f) => f.id !== fail.id))
-                }
+                onClick={() => importController.dismissFail(fail.id)}
               >
                 {t('reimb.import.dismiss')}
               </button>
@@ -167,21 +111,29 @@ export function ReimbursePage({
           ))}
         </ul>
       ) : null}
-      {importJobs.length > 1 ? (
+      {importController.pendingCount > 0 ? (
         <p className="form-hint" role="status">
-          {t('reimb.import.queue', { count: importJobs.length - 1 })}
+          {t('reimb.import.queue', { count: importController.pendingCount })}
         </p>
       ) : null}
 
       <ReimburseEntryForm
-        key={currentJob ? `import-${currentJob.id}` : 'manual'}
+        key={
+          importController.currentJobId === null
+            ? 'manual'
+            : `import-${importController.currentJobId}`
+        }
         client={client}
         source={source}
-        defaultProjectId={DEFAULT_PROJECT_ID}
+        projectId={projectId}
         canWrite={identity.canWrite}
         writeLockedHint={identity.canWrite ? null : t('identity.writeHint')}
-        initial={formInitial}
-        onDone={currentJob ? advanceImportQueue : undefined}
+        initial={importController.formInitial}
+        onDone={
+          importController.currentJobId === null
+            ? undefined
+            : importController.advance
+        }
       />
 
       <section className="panel" aria-label={t('reimb.entries.title')}>
@@ -203,7 +155,8 @@ export function ReimbursePage({
                 batches={batches}
                 isSuperAdmin={isSuperAdmin}
                 canWrite={identity.canWrite}
-                inventory={inventoryQuery.data ?? null}
+                profile={profile}
+                stockInContext={stockInContextQuery.data ?? null}
               />
             ))}
           </div>
@@ -211,13 +164,17 @@ export function ReimbursePage({
       </section>
 
       {isSuperAdmin ? (
-        <ReimburseBatchSection
-          client={client}
-          source={source}
-          defaultProjectId={DEFAULT_PROJECT_ID}
-          batches={batches}
-          summaries={summaries}
-        />
+        <>
+          <ReimburseProfileSection client={client} source={source} profile={profile} />
+          <ReimburseBatchSection
+            client={client}
+            source={source}
+            projectId={projectId}
+            batches={batches}
+            entries={entries}
+            profile={profile}
+          />
+        </>
       ) : null}
     </div>
   );

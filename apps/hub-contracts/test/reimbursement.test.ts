@@ -1,14 +1,23 @@
 import { describe, expect, test } from 'vitest';
 
 import {
+  DEFAULT_REIMBURSE_PROFILE,
+  GetReimburseProfileResponseSchema,
   PartActionSchema,
+  ReimburseBatchesResponseSchema,
   ReimburseEntrySchema,
+  StockInContextResponseSchema,
+  UpdateReimburseProfileRequestSchema,
   cleanInvoiceItemName,
   deriveBatchSummary,
   derivePartAcquisition,
+  derivePurchaserCheckStatus,
+  deriveReimburseFinancialSummary,
+  deriveReimburseReviewReasons,
   deriveReimburseStatus,
   parseInvoicePdfText,
   parseInvoiceXmlText,
+  suggestReimburseFilename,
 } from '../src/index.js';
 import type { PartAction, ReimburseEntry } from '../src/index.js';
 
@@ -71,6 +80,9 @@ describe('parseInvoiceXmlText', () => {
     expect(inv?.invoiceNo).toBe('26337000000651169782');
     expect(inv?.invoiceDate).toBe('2026-07-06');
     expect(inv?.seller).toBe('杭州洋橙电子商务有限公司');
+    expect(inv?.purchaserName).toBe('太原理工大学');
+    expect(inv?.purchaserTaxNo).toBe('12140000405700021K');
+    expect(inv?.recognitionSource).toBe('xml');
     expect(inv?.totalAmountFen).toBe(12062);
     expect(inv?.items).toHaveLength(2);
     // 品名剥掉 *分类* 星号段；金额=Amount+ComTaxAm 转分。
@@ -134,6 +146,8 @@ describe('parseInvoicePdfText', () => {
     expect(inv?.invoiceNo).toBe('26442000003444434596');
     expect(inv?.invoiceDate).toBe('2026-03-30');
     expect(inv?.seller).toBe('中山大简科技有限公司');
+    expect(inv?.purchaserName).toBe('太原理工大学');
+    expect(inv?.recognitionSource).toBe('pdf');
     expect(inv?.totalAmountFen).toBe(12062);
     expect(inv?.items).toHaveLength(1);
     expect(inv?.items[0]?.name).toBe('绿联typec拓展坞转USB3.2集线器扩展10Gbps转换');
@@ -162,6 +176,14 @@ describe('parseInvoicePdfText', () => {
       parseInvoicePdfText(['这是一份随手记', '买了很多东西', '回头再整理']),
     ).toBeNull();
     expect(parseInvoicePdfText([])).toBeNull();
+  });
+
+  test('OCR 文本兜底可显式保留识别来源', () => {
+    const inv = parseInvoicePdfText(
+      ['发票号码：26952000002955521026', '价税合计（小写） ¥20.30'],
+      'ocr',
+    );
+    expect(inv?.recognitionSource).toBe('ocr');
   });
 
   test('滴滴电子发票（真实票文本流）：同行双名称取销售方 + 品名折行续名 + 金额在前的折扣行并入', () => {
@@ -194,6 +216,8 @@ describe('parseInvoicePdfText', () => {
     expect(inv?.invoiceDate).toBe('2026-07-21');
     // 购买方/销售方同一行连写（左购右销），销售方取第二个名称。
     expect(inv?.seller).toBe('滴滴出行科技有限公司');
+    expect(inv?.purchaserName).toBe('新疆大学');
+    expect(inv?.purchaserTaxNo).toBe('12650000457601471G');
     expect(inv?.totalAmountFen).toBe(6880);
     // 品名列折行：「客运服」+次行「务费」续接成完整品名；折扣行（金额在税率前）
     // 截断名与上一条互为前缀也并入——83.50+2.50−16.70−0.50=68.80 与价税合计闭合。
@@ -227,6 +251,8 @@ describe('parseInvoicePdfText', () => {
     expect(inv?.items[0]?.amountFen).toBe(7700);
     // 票面无销售方抬头（只有购买方）——不强猜，留 null 转手填。
     expect(inv?.seller).toBeNull();
+    expect(inv?.purchaserName).toBe('新疆大学');
+    expect(inv?.purchaserTaxNo).toBe('12650000457601471G');
   });
 });
 
@@ -251,6 +277,9 @@ function makeEntry(overrides: Partial<ReimburseEntry> = {}): ReimburseEntry {
     invoiceNo: null,
     invoiceDate: null,
     seller: null,
+    purchaserName: null,
+    purchaserTaxNo: null,
+    recognitionSource: 'manual',
     totalAmountFen: 0,
     items: [],
     actualItemName: null,
@@ -355,6 +384,9 @@ describe('deriveBatchSummary', () => {
       invoiceNo: '26337000000651169782',
       invoiceDate: '2026-07-06',
       seller: '杭州洋橙电子商务有限公司',
+      purchaserName: '哈尔滨工业大学',
+      purchaserTaxNo: '12100000400000456B',
+      recognitionSource: 'xml',
       totalAmountFen: 12062,
       items: [
         {
@@ -381,18 +413,202 @@ describe('deriveBatchSummary', () => {
     const summary = deriveBatchSummary(
       [complete, partial, otherBatch],
       'batch-1',
+      DEFAULT_REIMBURSE_PROFILE,
     );
     expect(summary).toEqual({
       count: 2,
       totalAmountFen: 12062 + 6900,
       incompleteCount: 1,
+      financial: {
+        gross: { count: 2, amountFen: 12062 + 6900 },
+        eligible: { count: 1, amountFen: 12062 },
+        blocked: { count: 1, amountFen: 6900 },
+        review: { count: 1, amountFen: 6900 },
+      },
     });
     // 空批次
-    expect(deriveBatchSummary([], 'batch-x')).toEqual({
+    expect(deriveBatchSummary([], 'batch-x', DEFAULT_REIMBURSE_PROFILE)).toEqual({
       count: 0,
       totalAmountFen: 0,
       incompleteCount: 0,
+      financial: {
+        gross: { count: 0, amountFen: 0 },
+        eligible: { count: 0, amountFen: 0 },
+        blocked: { count: 0, amountFen: 0 },
+        review: { count: 0, amountFen: 0 },
+      },
     });
+  });
+});
+
+describe('窄入库上下文与批次响应', () => {
+  test('StockInContextResponse 只收候选最小投影和按 entry 分组的 stockedLines', () => {
+    const context = StockInContextResponseSchema.parse({
+      partTypes: [{
+        id: 'part-1',
+        partNumber: 'R-001',
+        name: '电阻',
+        category: 'electronic',
+        unit: '个',
+      }],
+      entries: [{
+        entryId: 'reimb-1',
+        stockedLines: [{ itemIndex: 0, quantity: 2 }],
+      }],
+    });
+    expect(context.entries[0].stockedLines).toEqual([{ itemIndex: 0, quantity: 2 }]);
+    expect(() => StockInContextResponseSchema.parse({
+      ...context,
+      partTypes: [{ ...context.partTypes[0], totalQuantity: 99 }],
+    })).toThrow();
+  });
+
+  test('批次响应携带同源 profile 与 financial summary', () => {
+    const summary = {
+      batchId: 'batch-1',
+      count: 0,
+      totalAmountFen: 0,
+      incompleteCount: 0,
+      financial: {
+        gross: { count: 0, amountFen: 0 },
+        eligible: { count: 0, amountFen: 0 },
+        blocked: { count: 0, amountFen: 0 },
+        review: { count: 0, amountFen: 0 },
+      },
+    };
+    expect(ReimburseBatchesResponseSchema.parse({
+      batches: [],
+      summaries: [summary],
+      profile: DEFAULT_REIMBURSE_PROFILE,
+    })).toEqual({
+      batches: [],
+      summaries: [summary],
+      profile: DEFAULT_REIMBURSE_PROFILE,
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 购买方质量门、核对原因、财务双口径与文件名
+// ---------------------------------------------------------------------------
+
+describe('购买方质量策略', () => {
+  test('match/mismatch/missing/skipped 四态完整', () => {
+    const hit = {
+      purchaserName: '哈尔滨工业大学',
+      purchaserTaxNo: '12100000400000456b',
+    };
+    expect(derivePurchaserCheckStatus(hit, DEFAULT_REIMBURSE_PROFILE)).toBe('match');
+    expect(
+      derivePurchaserCheckStatus(
+        { ...hit, purchaserName: '哈尔滨工业大学（威海）' },
+        DEFAULT_REIMBURSE_PROFILE,
+      ),
+    ).toBe('mismatch');
+    expect(
+      derivePurchaserCheckStatus(
+        { purchaserName: '哈尔滨工业大学', purchaserTaxNo: null },
+        DEFAULT_REIMBURSE_PROFILE,
+      ),
+    ).toBe('missing');
+    expect(
+      derivePurchaserCheckStatus(
+        { purchaserName: null, purchaserTaxNo: null },
+        { expectedPurchaserName: '', expectedPurchaserTaxNo: '' },
+      ),
+    ).toBe('skipped');
+  });
+
+  test('profile 默认值、空字符串跳过与严格 GET/PUT 契约', () => {
+    expect(DEFAULT_REIMBURSE_PROFILE).toEqual({
+      expectedPurchaserName: '哈尔滨工业大学',
+      expectedPurchaserTaxNo: '12100000400000456B',
+    });
+    expect(UpdateReimburseProfileRequestSchema.parse({
+      expectedPurchaserName: '',
+      expectedPurchaserTaxNo: '',
+    })).toEqual({ expectedPurchaserName: '', expectedPurchaserTaxNo: '' });
+    expect(GetReimburseProfileResponseSchema.parse({
+      profile: DEFAULT_REIMBURSE_PROFILE,
+    }).profile).toEqual(DEFAULT_REIMBURSE_PROFILE);
+    expect(() => UpdateReimburseProfileRequestSchema.parse({
+      ...DEFAULT_REIMBURSE_PROFILE,
+      extra: true,
+    })).toThrow();
+  });
+});
+
+describe('核对原因与财务口径', () => {
+  const completeBase = {
+    invoiceNo: '26337000000651169782',
+    invoiceDate: '2026-07-06',
+    seller: '杭州洋橙电子商务有限公司',
+    purchaserName: '哈尔滨工业大学',
+    purchaserTaxNo: '12100000400000456B',
+    totalAmountFen: 1000,
+    items: [{ name: '电阻', unit: '个', quantity: 1, unitPriceFen: 1000, amountFen: 1000 }],
+    materials: { paymentShot: true, inspection: true },
+    recognitionSource: 'xml' as const,
+  };
+
+  test('人工/OCR、超分单价、抬头错误和信息缺失均给结构化原因', () => {
+    const entry = makeEntry({
+      ...completeBase,
+      purchaserName: '错误抬头',
+      recognitionSource: 'ocr',
+      items: [{ ...completeBase.items[0], unitPriceFen: null }],
+    });
+    expect(deriveReimburseReviewReasons(entry, DEFAULT_REIMBURSE_PROFILE)).toEqual([
+      'purchaser-mismatch',
+      'unit-price-imprecise',
+      'ocr-recognition',
+    ]);
+    expect(deriveReimburseReviewReasons(makeEntry(), DEFAULT_REIMBURSE_PROFILE)).toEqual([
+      'invoice-no-missing',
+      'invoice-date-missing',
+      'seller-missing',
+      'amount-missing',
+      'items-missing',
+      'purchaser-missing',
+      'manual-entry',
+    ]);
+  });
+
+  test('gross=eligible+blocked；review 独立且允许与 blocked 重叠', () => {
+    const clean = makeEntry({ id: 'clean', ...completeBase });
+    const review = makeEntry({
+      id: 'review',
+      ...completeBase,
+      totalAmountFen: 2000,
+      recognitionSource: 'pdf',
+      items: [{ ...completeBase.items[0], unitPriceFen: null, amountFen: 2000 }],
+    });
+    const blocked = makeEntry({
+      id: 'blocked',
+      ...completeBase,
+      totalAmountFen: 3000,
+      purchaserName: '错误抬头',
+    });
+    expect(
+      deriveReimburseFinancialSummary([clean, review, blocked], DEFAULT_REIMBURSE_PROFILE),
+    ).toEqual({
+      gross: { count: 3, amountFen: 6000 },
+      eligible: { count: 2, amountFen: 3000 },
+      blocked: { count: 1, amountFen: 3000 },
+      review: { count: 2, amountFen: 5000 },
+    });
+  });
+});
+
+describe('suggestReimburseFilename', () => {
+  test('生成跨平台安全的 YYYYMMDD-销方-金额 文件名', () => {
+    expect(
+      suggestReimburseFilename({
+        invoiceDate: '2026-07-06',
+        seller: '杭州/洋橙:电子商务有限公司',
+        totalAmountFen: 12062,
+      }),
+    ).toBe('20260706-杭州-洋橙-电子商务有限公司-120.62.pdf');
   });
 });
 
@@ -455,13 +671,34 @@ describe('PartActionSchema 向后兼容', () => {
     const parsed = PartActionSchema.parse(legacy);
     expect(parsed.acquisition).toBeUndefined();
     expect(parsed.reimburseEntryId).toBeUndefined();
+    expect(parsed.reimburseItemIndex).toBeUndefined();
     // 带新字段的动作 parse 通过且字段保留
     const withNew = PartActionSchema.parse({
       ...legacy,
       acquisition: 'selfPurchase',
       reimburseEntryId: 'reimb-1',
+      reimburseItemIndex: 0,
     });
     expect(withNew.acquisition).toBe('selfPurchase');
     expect(withNew.reimburseEntryId).toBe('reimb-1');
+    expect(withNew.reimburseItemIndex).toBe(0);
+    expect(() => PartActionSchema.parse({
+      ...legacy,
+      acquisition: 'selfPurchase',
+      reimburseEntryId: 'reimb-1',
+    })).toThrow();
+    expect(() => PartActionSchema.parse({
+      ...legacy,
+      kind: 'damage',
+      acquisition: 'selfPurchase',
+      reimburseEntryId: 'reimb-1',
+      reimburseItemIndex: 0,
+    })).toThrow();
+    expect(() => PartActionSchema.parse({
+      ...legacy,
+      acquisition: 'selfPurchase',
+      reimburseEntryId: '',
+      reimburseItemIndex: 0,
+    })).toThrow();
   });
 });

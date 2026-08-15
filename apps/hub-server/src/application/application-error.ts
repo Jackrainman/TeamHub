@@ -1,5 +1,6 @@
 export type ApplicationErrorKind =
   | 'validation'
+  | 'unauthorized'
   | 'not_found'
   | 'forbidden'
   | 'conflict';

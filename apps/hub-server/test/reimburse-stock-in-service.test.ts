@@ -4,16 +4,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FixedClock } from '../src/clock.js';
 import {
-  ReimburseStockInService,
+  ReimburseService,
   type InventoryStockInPort,
-} from '../src/application/reimburse-stock-in-service.js';
+} from '../src/modules/reimburse/service.js';
 import { SqliteApplicationUnitOfWork } from '../src/infrastructure/sqlite-application-unit-of-work.js';
 import { openUnifiedDb, type UnifiedDatabase } from '../src/store/sqlite-unified.js';
 
 const NOW = new Date('2026-08-15T08:00:00.000Z');
 const ACTOR = { id: 'member-stock-in', displayName: '入库成员', source: 'console' };
 
-describe('ReimburseStockInService + SQLite ApplicationUnitOfWork', () => {
+describe('ReimburseService + SQLite ApplicationUnitOfWork', () => {
   let dir: string;
   let database: UnifiedDatabase;
 
@@ -40,6 +40,9 @@ describe('ReimburseStockInService + SQLite ApplicationUnitOfWork', () => {
       invoiceNo: 'uow-success',
       invoiceDate: '2026-08-15',
       seller: '测试供应商',
+      purchaserName: '哈尔滨工业大学',
+      purchaserTaxNo: '12100000400000456B',
+      recognitionSource: 'xml',
       totalAmountFen: 1000,
       items: [
         { name: '既有件', unit: '个', quantity: 2, unitPriceFen: 100, amountFen: 200 },
@@ -49,10 +52,13 @@ describe('ReimburseStockInService + SQLite ApplicationUnitOfWork', () => {
       materials: { paymentShot: false, inspection: false },
       note: null,
     });
-    const service = new ReimburseStockInService(
+    const service = new ReimburseService(
+      stores.reimburse,
+      stores.gov,
       stores.reimburse,
       stores.inv,
       new SqliteApplicationUnitOfWork(database.db, clock),
+      'identity',
     );
 
     const result = await service.stockIn({
@@ -88,6 +94,9 @@ describe('ReimburseStockInService + SQLite ApplicationUnitOfWork', () => {
       invoiceNo: 'uow-rollback',
       invoiceDate: '2026-08-15',
       seller: '测试供应商',
+      purchaserName: '哈尔滨工业大学',
+      purchaserTaxNo: '12100000400000456B',
+      recognitionSource: 'xml',
       totalAmountFen: 300,
       items: [
         { name: '既有件', unit: '个', quantity: 1, unitPriceFen: 100, amountFen: 100 },
@@ -109,10 +118,13 @@ describe('ReimburseStockInService + SQLite ApplicationUnitOfWork', () => {
         return stores.inv.recordStockInAction(draft, occurredAt);
       },
     };
-    const service = new ReimburseStockInService(
+    const service = new ReimburseService(
+      stores.reimburse,
+      stores.gov,
       stores.reimburse,
       failingInventory,
       new SqliteApplicationUnitOfWork(database.db, clock),
+      'identity',
     );
 
     expect(() =>

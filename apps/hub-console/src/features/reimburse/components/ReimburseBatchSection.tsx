@@ -1,12 +1,14 @@
 import { useState, type FormEvent } from 'react';
 import { PackagePlus } from 'lucide-react';
-import type { HubApiClient } from '../../../api/client';
-import type {
-  ReimburseBatch,
-  ReimburseBatchStatus,
-  ReimburseBatchSummary,
-} from '../../../api/schemas/reimburse';
-import { useCreateReimburseBatch, useUpdateReimburseBatch } from '../../../hooks/useReimburse';
+import type { ReimburseSegment } from '../api';
+import {
+  deriveReimburseFinancialSummary,
+  type ReimburseBatch,
+  type ReimburseBatchStatus,
+  type ReimburseEntry,
+  type ReimburseProfile,
+} from '@teamhub/hub-contracts';
+import { useCreateReimburseBatch, useUpdateReimburseBatch } from '../hooks';
 import { useI18n, type TranslationKey } from '../../../i18n';
 import { humanizeFormError } from '../../../utils';
 import { EmptyState } from '../../../shared/EmptyState';
@@ -19,22 +21,34 @@ const BATCH_STATUS: { value: ReimburseBatchStatus; tone: string; key: Translatio
   { value: 'reimbursed', tone: 'badge--green', key: 'reimb.batch.status.reimbursed' },
 ];
 
+const FINANCIAL_BUCKETS: {
+  value: 'gross' | 'eligible' | 'blocked' | 'review';
+  key: TranslationKey;
+}[] = [
+  { value: 'gross', key: 'reimb.batch.summary.gross' },
+  { value: 'eligible', key: 'reimb.batch.summary.eligible' },
+  { value: 'blocked', key: 'reimb.batch.summary.blocked' },
+  { value: 'review', key: 'reimb.batch.summary.review' },
+];
+
 /**
- * 超管批次区（一期财务视角=超管）：批次列表（名称+状态徽标+服务端聚合 count/总额/未齐计数）、
- * 新建批次、三档状态流转。聚合只用 GET batches 的 summaries——无按人明细、无排行（I0）。
+ * 超管批次区：批次列表展示票面/可报/阻塞/需核对四种口径，新建批次、三档状态流转。
+ * 聚合从当前超管可见条目与共享 contracts 规则派生，无按人明细、无排行（I0）。
  */
 export function ReimburseBatchSection({
   client,
   source,
-  defaultProjectId,
+  projectId,
   batches,
-  summaries,
+  entries,
+  profile,
 }: {
-  client: HubApiClient;
+  client: ReimburseSegment;
   source: string;
-  defaultProjectId: string;
+  projectId: string;
   batches: ReimburseBatch[];
-  summaries: ReimburseBatchSummary[];
+  entries: ReimburseEntry[];
+  profile: ReimburseProfile;
 }) {
   const { t } = useI18n();
   const [name, setName] = useState('');
@@ -45,13 +59,12 @@ export function ReimburseBatchSection({
   });
   const updateMutation = useUpdateReimburseBatch(client, source);
 
-  const summaryByBatchId = new Map(summaries.map((s) => [s.batchId, s]));
-  const valid = name.trim().length > 0;
+  const valid = projectId.trim().length > 0 && name.trim().length > 0;
 
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!valid) return;
-    createMutation.mutate({ projectId: defaultProjectId, name: name.trim() });
+    createMutation.mutate({ projectId: projectId.trim(), name: name.trim() });
   }
 
   return (
@@ -94,7 +107,10 @@ export function ReimburseBatchSection({
       ) : (
         <div className="reimb-batches">
           {batches.map((batch) => {
-            const summary = summaryByBatchId.get(batch.id);
+            const summary = deriveReimburseFinancialSummary(
+              entries.filter((entry) => entry.batchId === batch.id),
+              profile,
+            );
             const current = BATCH_STATUS.find((s) => s.value === batch.status);
             return (
               <article className="card reimb-batch" key={batch.id}>
@@ -106,22 +122,31 @@ export function ReimburseBatchSection({
                     </span>
                   ) : null}
                 </header>
-                {summary ? (
-                  <p className="reimb-batch__summary">
-                    {t('reimb.batch.summary', {
-                      count: summary.count,
-                      total: formatAmountFen(summary.totalAmountFen),
-                      incomplete: summary.incompleteCount,
-                    })}
-                  </p>
-                ) : null}
+                <div className="reimb-batch__summary">
+                  {FINANCIAL_BUCKETS.map((bucket, index) => (
+                    <span key={bucket.value}>
+                      {index > 0 ? ' · ' : ''}
+                      {t(bucket.key)}：{summary[bucket.value].count} ·{' '}
+                      {formatAmountFen(summary[bucket.value].amountFen)}
+                    </span>
+                  ))}
+                </div>
                 <div className="reimb-batch__flow" role="group" aria-label={t('reimb.batch.flow')}>
                   {BATCH_STATUS.map((s) => (
                     <button
                       key={s.value}
                       type="button"
                       className="btn btn--sm btn--secondary"
-                      disabled={batch.status === s.value || updateMutation.isPending}
+                      disabled={
+                        batch.status === s.value ||
+                        updateMutation.isPending ||
+                        (s.value === 'submitted' && summary.blocked.count > 0)
+                      }
+                      title={
+                        s.value === 'submitted' && summary.blocked.count > 0
+                          ? t('reimb.batch.submitBlocked')
+                          : undefined
+                      }
                       onClick={() =>
                         updateMutation.mutate({ id: batch.id, patch: { status: s.value } })
                       }

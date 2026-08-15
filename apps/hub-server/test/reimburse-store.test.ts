@@ -5,8 +5,8 @@ import { join } from 'node:path';
 import { InMemoryReimburseStore } from './support/inmemory-reimburse-store.js';
 import type {
   ReimburseEntryDraft,
-  ReimburseStore,
-} from '../src/store/reimburse-store.js';
+  ReimburseRepository,
+} from '../src/modules/reimburse/repository.js';
 import { openUnifiedDb } from '../src/store/sqlite-unified.js';
 
 /**
@@ -22,6 +22,9 @@ function entryDraft(over: Partial<ReimburseEntryDraft> = {}): ReimburseEntryDraf
     invoiceNo: '20260701000000000001',
     invoiceDate: '2026-07-01',
     seller: '某某五金店',
+    purchaserName: '哈尔滨工业大学',
+    purchaserTaxNo: '12100000400000456B',
+    recognitionSource: 'xml',
     totalAmountFen: 2500,
     items: [
       { name: 'M3×8 螺丝', unit: '个', quantity: 20, unitPriceFen: 100, amountFen: 2000 },
@@ -34,9 +37,12 @@ function entryDraft(over: Partial<ReimburseEntryDraft> = {}): ReimburseEntryDraf
 }
 
 /** 三实现共用的一致性脚本：同一操作序列，断言逐字一致。 */
-async function expectConsistentBehavior(store: ReimburseStore): Promise<void> {
+async function expectConsistentBehavior(store: ReimburseRepository): Promise<void> {
   expect(await store.listEntries()).toHaveLength(0);
   expect(await store.listBatches()).toHaveLength(0);
+  expect(store.getProfile().expectedPurchaserName).toBe('哈尔滨工业大学');
+  expect(store.updateProfile({ expectedPurchaserName: '测试抬头', expectedPurchaserTaxNo: '' }))
+    .toEqual({ expectedPurchaserName: '测试抬头', expectedPurchaserTaxNo: '' });
 
   // createEntry：id reimb-new-N、补时间戳、memberId 原样落（路由钉入，store 不造）
   const e1 = await store.createEntry(entryDraft());
@@ -109,6 +115,7 @@ describe('ReimburseStore fake / 统一 SQLite 一致性', () => {
       const reimburse = reopened.openStores().reimburse;
       expect(await reimburse.listEntries()).toHaveLength(2);
       expect(await reimburse.listBatches()).toHaveLength(1);
+      expect(reimburse.getProfile().expectedPurchaserName).toBe('测试抬头');
       expect((await reimburse.getEntry('reimb-new-1'))?.batchId).toBe('rbatch-new-1');
       const next = await reimburse.createEntry(entryDraft({ invoiceNo: null }));
       expect(next.id).toBe('reimb-new-3');

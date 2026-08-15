@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { EmptyState } from '../../shared/EmptyState';
 import { useQueryGuard } from '../../shared/QueryGate';
-import { useInventory } from '../../hooks/useInventory';
+import { useInventory } from './hooks';
 import type { HubApiClient } from '../../api/client';
 import type { PartAction, PartActionKind } from '../../api/schemas/inv';
 import { useI18n, type TranslationKey } from '../../i18n';

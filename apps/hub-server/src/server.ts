@@ -15,7 +15,7 @@ import { isModuleEnabled } from '@teamhub/hub-contracts';
 import { SessionManager } from './identity/session-store.js';
 import { FixedClock } from './clock.js';
 import type { Clock } from './clock.js';
-import type { ReimburseStore } from './store/reimburse-store.js';
+import type { ReimburseRepository } from './modules/reimburse/repository.js';
 import type { GovStore, InvStore, KbStore } from './store/gov-store.js';
 import type { BaselineStore } from './store/baseline-store.js';
 import type { ChecklistStore } from './store/checklist-store.js';
@@ -24,7 +24,7 @@ import { registerSearchRoutes } from './routes/search.js';
 import { registerExportRoutes } from './routes/export.js';
 import { registerKnowledgeBaseRoutes } from './routes/kb.js';
 import { registerLedgerRoutes } from './routes/ledger.js';
-import { registerReimburseRoutes } from './routes/reimburse.js';
+import { registerReimburseRoutes, ReimburseService } from './modules/reimburse/index.js';
 import { registerPresenceScheduleRoutes } from './routes/schedule.js';
 import { registerArchiveRoutes } from './routes/archive.js';
 import { registerSystemRoutes } from './routes/system.js';
@@ -38,11 +38,10 @@ import {
 } from './routes/helpers.js';
 import { registerWriteGate } from './middleware/write-gate.js';
 import type { AppSettingsService } from './store/sqlite-unified.js';
-import { ReimburseStockInService } from './application/reimburse-stock-in-service.js';
 import type {
   InventoryStockInPort,
   ReimburseStockInPort,
-} from './application/reimburse-stock-in-service.js';
+} from './modules/reimburse/service.js';
 import type { ApplicationUnitOfWork } from './application/unit-of-work.js';
 
 /**
@@ -142,7 +141,7 @@ export interface BuildHubServerOptions {
    * GovernanceSnapshot，同 InvStore 先例）。由 `/api/reimburse/*` 消费
    * （registerReimburseRoutes，挂 ledger 模块下）。
    */
-  reimburseStore: ReimburseStore;
+  reimburseStore: ReimburseRepository;
   /** 跨 repository 写的唯一事务边界；生产必须是 SQLite UoW。 */
   unitOfWork: ApplicationUnitOfWork;
   /** 报账只依赖库存域的窄同步入库 port，不拿完整 repository 做跨域编排。 */
@@ -219,10 +218,13 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
   const baselineStore = options.baselineStore;
   const checklistStore = options.checklistStore;
   const reimburseStore = options.reimburseStore;
-  const reimburseStockInService = new ReimburseStockInService(
+  const reimburseService = new ReimburseService(
+    reimburseStore,
+    store,
     options.reimburseStockInPort,
     options.inventoryStockInPort,
     options.unitOfWork,
+    options.identityMode,
   );
   const tenantConfig = options.tenantConfig;
 
@@ -295,10 +297,7 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
     registerLedgerRoutes(app, { store, invStore, identityMode });
     // REIMBURSE-PROC：报账域挂 ledger 模块下（采购-报账-入库联动，与库存同支柱同开关）。
     registerReimburseRoutes(app, {
-      store,
-      reimburseStore,
-      reimburseStockInService,
-      identityMode,
+      service: reimburseService,
     });
   }
   if (moduleEnabled('presence-schedule')) {

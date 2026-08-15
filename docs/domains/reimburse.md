@@ -18,16 +18,16 @@ Reimburse 管采购/费用条目、发票元数据、材料清单、报账批次
 - 浏览器用 pdf.js 读取 PDF 文字层，也可解析电子发票 XML；纯扫描件无法识别时回到手填。
 - `unitPriceFen=null` 表示单价无法精确到整分，不得硬凑；quantity 可为小数。
 - 身份模式下 API 按本人/项目管理员可见性返回条目和批次，发票号查重；匿名模式没有个人边界，会返回全量条目。
-- goods 条目可选择明细行入库；服务端写库存动作，已入量从动作日志派生。
-- CURRENT 只接受 PDF/XML，尚无购买方字段、ZIP/OFD、OCR 或财务导出质量门。
+- goods 条目通过窄 stock-in context 选择库存候选；服务端在同一 SQLite UnitOfWork 内写结构化 `reimburseItemIndex`，前端不读完整库存或解析 note。
+- PDF/XML 会保留购买方名称、税号和识别来源；部署级 profile 默认校验哈尔滨工业大学抬头，双空值可跳过。
+- 卡片显式区分“需换抬头”和“需核对”，给出归档命名建议；批次按 gross/eligible/blocked/review 展示，blocked 条目阻止提交。
+- CURRENT 仍只接受 PDF/XML，尚无 ZIP/OFD、OCR 或真正的文件筛选下载导出。
 
 ## 3. 目标结构（TARGET）
 
-- contracts 形成 `model/requests/policies/import/export`；PDF/XML/归档解析和质量派生分离。
-- server 形成 routes/service/repository/sqlite-repository；报账入库由 application transaction 编排。
-- console 形成 api/hooks/page/components/lib，不接完整 HubApiClient、不读全量库存。
-- `projectId` 来自当前产品/项目上下文，删除页面硬编码 `prj-robots`。
-- 入库关联改为结构化 stocked lines，删除 note 前缀协议。
+- 已冻结首个三包同构模板；后续只在域内扩展 parser、export adapter 和窄跨域 port。
+- ZIP/OFD 复用统一归档安全门；OCR 只有真实样本验证达标后才允许进入本地 import pipeline。
+- 财务导出补筛选/选择和实际下载，不把发票文件上传服务器。
 
 ## 4. 领域不变式
 
@@ -40,21 +40,19 @@ Reimburse 管采购/费用条目、发票元数据、材料清单、报账批次
 ## 5. 跨域接口
 
 - inventory 只暴露零件匹配和 stock-in port；报账不读取库存完整 snapshot。
-- system 提供 actor、项目上下文和部署级报账抬头配置。
+- system 通过 `AppSettings.projectId` 提供项目上下文；报账 profile 由本域 singleton repository 持有。
 - 本地 import pipeline 复用统一归档安全门；导出使用共享 export/filename 基础设施。
 - PM 可查看有权限的报账事实和导出，但名字不得进入治理聚合。
 
 ## 6. 已知陷阱
 
-- `reimbursement.ts` 当前混合模型、请求、规则、XML/PDF 解析和库存类型，已超过 700 行。
-- console 存在 `DEFAULT_PROJECT_ID`、完整 client 传递和全量库存读取。
-- 已入库关联通过 `reimb-stock-in:<itemIndex>` note 文本解析，属于脆弱隐藏协议。
+- profile 变更会重新派生历史条目的质量状态；这是部署标准变化的显式结果，不能静默固化旧判断。
+- `recognitionSource=manual/ocr` 即使字段齐全仍会进入“需核对”，避免把草稿识别当成已验证事实。
 - 纯扫描 PDF 文字层为空时只能手填；OCR 技术可行性尚未用真实样本验证。
 
 ## 7. 未落地差异与 TODO
 
-- `ARCH-UNIFY`：本域作为首个标准纵切模板，先解决结构耦合再扩功能。
-- `REIMBURSE-PURCHASER-CHECK`：增加 purchaserName/purchaserTaxNo/recognitionSource、部署级期望抬头、质量状态和批次门。
+- `ARCH-UNIFY`：本域模板已完成并由架构门冻结；下一域按 checklist → baseline 顺序迁移。
 - `REIMBURSE-OFD-PARSE`：用单一归档底座导入 ZIP/PDF/XML/OFD，并加文件数、总解压量和递归容器安全门。
-- `REIMBURSE-PM-EXPORT`：建议文件名、筛选导出和 gross/eligible/blocked/review 双口径。
+- `REIMBURSE-PM-EXPORT`：命名建议与四口径已完成；仍需筛选/选择和实际导出适配器。
 - `REIMBURSE-OCR-PROBE`：先用真实样本验证 tesseract.js 体积、耗时、内存和识别率，达标后再进入主流程。
