@@ -18,13 +18,13 @@ Integrations 管飞书、Hermes、Git 等外部触点的配置、鉴权、事件
 - `POST /api/hermes/inbound` 使用 Bearer 写门接收 Hermes 动作；loopback credential 端点可供本机 Hermes 获取 token。
 - 设置页支持 App ID、App Secret、chat_id 选择/手填，并回显连接状态。
 - 出站失败记录错误但不阻断主业务；通知不 @个人。
-- 仓库仍有旧 `lark-gateway`、`lark-toolkit`、`pf-skills` 三包，但未被 TeamHub 主运行链、根 workspace 或部署脚本引用。
+- ProbeFlash 时期的 `lark-gateway`、`lark-toolkit`、`pf-skills` 三包已按 D-090 删除；它们从未进入 TeamHub 主运行链。
 
 ## 3. 目标结构（TARGET）
 
 - 飞书配置和 token 进入统一 SQLite 的平台配置/秘密边界；日志与 API 不回显 secret。
 - integrations module 通过窄 application ports 调 PM/KB/inventory，不直接导入各域 repository。
-- 若无需独立长连接进程，删除旧三包；若确认需要，则合成一个由根 workspace 管理的 `integrations/lark` 包。
+- 若以后确认需要独立长连接进程，从当前 contracts/application port 新建一个由根 workspace 管理的 `integrations/lark` 包，不恢复旧三包。
 - 入站事件带幂等键、来源和确认状态；耗时操作异步处理，避免消息重复。
 
 ## 4. 领域不变式
@@ -45,14 +45,14 @@ Integrations 管飞书、Hermes、Git 等外部触点的配置、鉴权、事件
 
 ## 6. 已知陷阱
 
-- 旧三包是 ProbeFlash 时期设计，三份 lock/版本/验证链与当前仓库拓扑冲突。
-- 长连接、TeamHub 内置飞书 API 和 Hermes 三条路径职责仍有重叠，必须先裁决再迁移。
+- 旧三包的实现只存在于 Git 历史；不得因未来接入需求直接恢复其三套 lock/版本/生命周期。
+- 长连接、TeamHub 内置飞书 API 和 Hermes 三条路径职责仍可能重叠，新增入口前必须先裁决边界。
 - `tenant_access_token` 可自动刷新不等于应用创建、权限审批可以自动化；首次接入仍需人操作。
 - 当前出站事件种类有限，不应在没有真实需求时预建通用事件总线。
 
 ## 7. 未落地差异与 TODO
 
-- `ARCH-UNIFY`：裁决旧三包删除或合并；默认建议删除，未来按真实长连接需求重建单包。
+- `ARCH-UNIFY` A0：旧三包已经删除；后续只收敛 TeamHub 主程序内现有 integration route/config。
 - `HERMES-LARK-SKILL`：Hermes 侧 skill 由用户维护，TeamHub 只稳定公开 use case。
-- `LARK-BIN-PROBE`：若仍选择 CLI 路径，需用户在目标 Linux/WSL 实测可执行文件和 method 名。
+- CLI/独立长连接不在当前实现范围；未来有真实运行需求时重新立项并做目标环境 probe。
 - `REIMBURSE-LARK-BITABLE` 已明确挂起；不得破坏报账“不存文件”和 I0 边界。

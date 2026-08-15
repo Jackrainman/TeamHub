@@ -109,7 +109,7 @@ describe('hub-server routes', () => {
     );
   });
 
-  test('GET /api/agent-backends returns mock agent backends (no xiaolongxia/pf-skills)', async () => {
+  test('GET /api/agent-backends returns mock agent backends (no xiaolongxia)', async () => {
     const response = await app.inject({
       method: 'GET',
       url: '/api/agent-backends',
@@ -122,7 +122,6 @@ describe('hub-server routes', () => {
       expect.arrayContaining(['hermes', 'openclaw', 'claude-code']),
     );
     expect(ids).not.toContain('xiaolongxia');
-    expect(ids).not.toContain('pf-skills');
   });
 
   test('GET /api/data-sources returns mock data sources', async () => {

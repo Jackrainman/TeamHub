@@ -51,7 +51,7 @@ git ls-tree -r --name-only e0761d1c25c2f13306ef55e8afdaea9c4d12ec43 docs/archive
 | ARC-MILE-006 | D-030、D-070、D-073、文档膨胀、Harness | [里程碑](milestones.md#arc-mile-006) 与 [事故](incidents.md#arc-inc-007) | `pre-slim/**`、`completed-log.md`、`decisions-full-2026-07-26.md` | 当前文档治理门 |
 | ARC-MILE-007 | D-083、防爆肝、开源、产品重定义 | [里程碑](milestones.md#arc-mile-007) | `decisions-full-2026-07-26.md` | `docs/design/product.md` |
 | ARC-MILE-008 | D-090、架构统一、单运行栈 | [里程碑](milestones.md#arc-mile-008) | 清理前活文档及 `.harness/decisions.md` | `docs/design/software-architecture.md` |
-| ARC-DEC-001 | 飞书三包、gateway、toolkit、pf-skills、CLI | [历史决策](decisions.md#arc-dec-001) | `pre-pivot-plans/2026-05-*-lark-*.md`、`lark-research/**` | 单一 integration 边界；是否保留由 D-090 迁移裁决 |
+| ARC-DEC-001 | 飞书三包、gateway、toolkit、pf-skills、CLI | [历史决策](decisions.md#arc-dec-001) | `pre-pivot-plans/2026-05-*-lark-*.md`、`lark-research/**` | 旧三包已删除；未来只允许单一 integration 边界 |
 | ARC-DEC-002 | plugin、插件化、CASE base、垂直包 | [历史决策](decisions.md#arc-dec-002) | `core-plugin-architecture.md`、`team-hub-stack-decision.md` | ModuleId + 同构模块模板 |
 | ARC-DEC-003 | 多 Store、JSON、File、InMemory、gov-only SQLite | [历史决策](decisions.md#arc-dec-003) | `v0.3-closeout/PROBEFLASH-V03-ESSENCE.md`、`v0.2-closeout/s3-sqlite-schema-draft.md` | 生产统一 SQLite |
 | ARC-DEC-004 | 旧 Harness、自迭代、skills、handoff | [历史决策](decisions.md#arc-dec-004) | `pre-slim/skills/**`、`pre-slim/agent-state/**`、`D-023-skill-protocol-v1.md` | 根 AGENTS + `.harness` 三文件 |

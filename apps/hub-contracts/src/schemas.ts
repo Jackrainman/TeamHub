@@ -35,7 +35,7 @@ export const HubEventSchema = z.object({
   payload: z.unknown(),
 });
 
-// @deprecated 仅供 bot 自描述（lark-gateway / lark-toolkit / pf-skills 的 hub.ts），
+// @deprecated 仅供旧 bot 自描述，
 // 非 hub 集成列表。集成列表已三分为 BotChannel / AgentBackend / DataSource（见下）。
 // 同理下方 AdapterHealth/Capabilities/Invoke*ResponseSchema 与 AdaptersResponseSchema 一并弃用保留。
 export const AdapterDescriptorSchema = z.object({

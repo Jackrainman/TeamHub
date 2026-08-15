@@ -91,8 +91,8 @@ TeamHub/
 
 - 根 `package.json` 的 workspaces 必须覆盖所有可执行/可发布源码。
 - 未被根 `npm run verify` 覆盖的 `apps/*` 不允许长期存在。
-- 当前 `apps/lark-gateway`、`apps/lark-toolkit`、`apps/pf-skills` 进入收敛审计：若已无真实运行链则删除；
-  若仍需要，合成 `integrations/lark` 一个 workspace。禁止保留三个游离包。
+- ProbeFlash 时期的 `apps/lark-gateway`、`apps/lark-toolkit`、`apps/pf-skills` 已因无真实运行链删除；
+  未来需要独立长连接时，只能新建 `integrations/lark` 一个 workspace，禁止恢复三个源码岛。
 - 根目录只保留一个 `package-lock.json`；三个 hub 子包的 lock 文件删除。
 - 根 `package.json`、三个 hub 包与 `VERSION` 同步同一版本。
 
@@ -396,5 +396,5 @@ fallback、旧 env 和旧文档必须一起删除。暂时无法删除时任务�
 | 页面/组件裸 Query hooks | 迁到 feature hooks | 架构脚本零白名单 |
 | 根外三个 hub `package-lock.json` | 删除 | 全仓只有根 lock |
 | 根/三包版本漂移 | bump 脚本统一同步 | verify 自动判等 |
-| `apps/lark-*` / `apps/pf-skills` | 无运行链则删；有则合成一个 integration | 根 workspace/verify 全覆盖 |
+| 旧 `apps/lark-*` / `apps/pf-skills` | 已删除；历史见 ARC-DEC-001 | 全仓无 `@probeflash` 与旧包目录 |
 | 被 D-090 取代的活跃设计 | 标 superseded 后归档 | `docs/design` 不再给出冲突指令 |

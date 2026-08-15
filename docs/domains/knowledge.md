@@ -53,5 +53,5 @@ Knowledge 管调试问题、结案归档、错误条目、知识节点、相似�
 
 - `ARCH-UNIFY`：knowledge 模块化，并通过 application transaction 收口跨域 closeout。
 - `KB-AI-STRUCT`：积累真实语料后再评估 AI 结构化。
-- `KB-LARK-DESIGN`：飞书 wiki/drive 摄入受 `LARK-BIN-PROBE` 阻塞。
+- `KB-LARK-DESIGN`：飞书 wiki/drive 摄入继续后置；出现真实摄入需求时按单一 integration 边界重新设计。
 - `AXIS-TREE-VIZ`：知识树展示后置，不影响当前相似召回闭环。

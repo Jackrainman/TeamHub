@@ -45,7 +45,7 @@ review_after: 2026-10-26
 ## 5. 待复查事项
 
 - 飞书开放平台 scope 名称、配额、长连接限制和 MCP Open Tools 接入方式可能变化，超过 `review_after` 后使用前必须重查官方文档。
-- `LARK-BIN-PROBE`：是否采用 CLI 路径，取决于目标 Linux/WSL 上实际 bin 名、版本和 method 支持。
+- 当前不采用旧 CLI/三包路径；未来若出现独立长连接需求，必须重新核实目标 Linux 上 SDK、bin 和 method 支持。
 - 旧三包在 `ARCH-UNIFY` 中默认删除；只有真实长连接需求重新出现时才按单包目标重建。
 
 ## 6. 官方来源

@@ -15,7 +15,7 @@ last_reviewed: 2026-08-15
 - 当时选择：把长连接网关、通用 CLI 工具和技能层分别做成独立小包，便于 ProbeFlash 阶段并行试验。
 - 被取代原因：三包长期未被 TeamHub 主程序引用，根 workspace、版本和 lock 也未覆盖它们，形成漂移的第二套仓库拓扑。
 - 保留教训：集成边界可以独立，但必须有真实运行入口、统一契约和仓库生命周期；不能以“以后可能用”维持三个源码岛。
-- 当前替代：D-090 下若确认需要飞书，只建一个 `integrations/lark` 边界；否则删除旧包，完整实现从 Git 恢复。
+- 当前替代：旧三包已在 D-090 A0 删除；以后确认需要独立长连接时，只从当前边界新建一个 `integrations/lark`，不得直接恢复三包拓扑。
 - original_path: `docs/archive/pre-pivot-plans/2026-05-16-lark-gateway.md`, `docs/archive/pre-pivot-plans/2026-05-21-lark-cli-integration-design.md`
 - source_sha: e0761d1c25c2f13306ef55e8afdaea9c4d12ec43
 

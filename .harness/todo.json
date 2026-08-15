@@ -5,11 +5,6 @@
       "id": "HERMES-LARK-SKILL",
       "reason": "卡飞书侧 skill 编写（用户侧）",
       "owner": "user"
-    },
-    {
-      "id": "LARK-BIN-PROBE",
-      "reason": "需用户在 WSL2 实测 which lark / which lark-cli",
-      "owner": "user"
     }
   ],
   "todo": [
@@ -142,7 +137,7 @@
   "directions": [
     {
       "id": "KB-LARK-DESIGN",
-      "title": "飞书 wiki/drive → KB 摄入（卡 LARK-BIN-PROBE）"
+      "title": "飞书 wiki/drive → KB 摄入（出现真实摄入需求时按单一 integration 边界重新立项）"
     },
     {
       "id": "INV-BOM-DESIGN",
