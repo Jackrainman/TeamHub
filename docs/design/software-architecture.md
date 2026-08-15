@@ -316,7 +316,7 @@ e2e:       至少一条真实 SQLite + 真进程 + 重启存活主路径
 
 ## 14. 自动化架构门
 
-新增 `scripts/verify-architecture.mjs`，进入根 `npm run verify` 与 pre-commit。至少验证：
+`scripts/verify-architecture.mjs` 已进入根 `npm run verify` 与 pre-commit。A0 当前验证：
 
 1. `apps/*`/`integrations/*` 的 package 必在根 workspaces；
 2. 只有根 `package-lock.json`；
@@ -326,8 +326,9 @@ e2e:       至少一条真实 SQLite + 真进程 + 重启存活主路径
 6. route 文件不 import SQLite 具体实现；
 7. React 页面无裸 `useQuery/useMutation`；
 8. 禁止新增 `File*Store`、`TEAMHUB_*_DATA_FILE`、多域 client segment；
-9. 模块 registry 的 server/console/contracts id 集合一致；
-10. 新文件超过阈值时失败并要求拆分，不允许只警告。
+9. 存量旧模式必须匹配“规则 + 精确文件 + 精确数量”基线；债务减少时同步收紧，新增即失败。
+
+模块 registry 三端 ID 一致和各层文件阈值在模块模板落地时启用，不能在目标目录尚不存在时伪造通过。
 
 建议阈值：组合根 300 行、route/service/repository 350 行、React 组件 400 行、contracts 单文件 400 行。
 纯数据表/翻译可例外，但须在架构白名单写理由，不能用行数注释绕过。
@@ -344,8 +345,7 @@ e2e:       至少一条真实 SQLite + 真进程 + 重启存活主路径
 6. 同批删除哪个旧路径？
 7. 哪条自动检查能阻止未来回退？
 
-AI 不得以“兼容旧代码”为默认理由保留双轨。用户已明确无旧数据包袱：迁移批次完成时旧实现、alias、
-fallback、旧 env 和旧文档必须一起删除。暂时无法删除时任务不能标完成，必须列为同一架构 epic 的阻塞项。
+AI 不得以“兼容旧代码”为默认理由保留双轨。用户已明确无旧数据包袱：迁移批次完成时旧实现、alias、fallback、旧 env 和旧文档必须一起删除。暂时无法删除时任务不能标完成，必须列为同一架构 epic 的阻塞项。
 
 ## 16. 收敛迁移计划
 

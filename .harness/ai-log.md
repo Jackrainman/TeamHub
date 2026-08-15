@@ -52,3 +52,4 @@
 - 2026-08-15 docs(reimburse): 票据质量门与批量归档设计——购买方抬头校验/核对原因、ZIP+OFD 共用 fflate、财务导出+命名建议、OCR 先 probe；坚持原件不上传、批次不按人聚合，错误抬头用 gross/eligible 双口径且阻止提交 (8f0c923)
 - 2026-08-15 docs(architecture): D-090 软件架构统一总纲——暂停功能增长，拍板单根 workspace/lock/version、生产唯一统一 SQLite、SQLite app_settings、四层模块模板、application service 跨域事务、架构自动门；不考虑旧数据兼容，以 reimburse 为首个纵切试点，旧模块化/飞书三包文档降为历史证据 (375639e)
 - 2026-08-15 docs(governance): D-091 文档体系收口——21 份活文档按总纲/领域单源，archive 蒸馏为 5 份带稳定 ID+Git SHA 的历史诊断库；删除 23k 行旧稿与 102 张截图，根 AGENTS 增异常回查协议并建立自动增长门 (f9c7616, b9b9e28)
+- 2026-08-15 refactor(architecture): ARCH-UNIFY A0——删除无主链引用的 ProbeFlash 飞书三包，统一三个 Hub workspace、单根 lock、0.48.0 单版本及 Docker/启动/版本脚本依赖图；新增精确迁移基线的软件架构门 (27b4bdf, 0f3a873)
