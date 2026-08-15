@@ -59,6 +59,19 @@
 - 宪法修正：G4 里程碑有日期（Task 永不加个人 dueDate）；I0 分析对准事不对准人、不做排行榜；AI 排人三红线（事实拼盘不排序/拍板留名归人/只在决策现场）。
 - 名字三层（D-085）：事实层带名（认领/验收/拍板）/ 聚合层永不做 / 结构层对事。UI = 名字只在事实卡片、永不进首页/聚合/统计。
 
+## D-090 — 软件架构统一：单运行栈、单持久层、统一模块模板
+
+- 状态：**DECIDED**（2026-08-15，用户拍板先停功能增长、先做仓库级软件架构收口）。
+- 目标架构：保留 `hub-contracts ← hub-server/hub-console` 三包；生产只用统一 Node SQLite；产品配置进
+  SQLite，env 只留启动/秘密；业务域统一 domain/application/infrastructure/presentation 四层模板。
+- 删除双轨：不考虑旧数据兼容；移除分域 JSON、gov-only SQLite、生产 InMemory fallback、游离 workspace、
+  子包 lock、多域 client segment 与旧 god Store/Schema。执行真实数据删除前仍须备份并单独确认。
+- 跨域写只允许 application service + 显式事务；route 不直接编排多个 repository；测试 fake 不进入生产装配。
+- 自动守门：新增架构验证脚本检查包覆盖、依赖方向、版本/lock、裸 query、禁用存储路径和 registry 漂移。
+- 实施优先级：`ARCH-UNIFY` 高于当前功能 TODO；以 reimburse 为新模板首个真实纵切，再迁其余域。
+- 单一真相：`docs/design/software-architecture.md`。D-025 技术选择中 Node/TS/React/Vite/Compose 继续有效；
+  D-081 的阶段一模块化形态被本文目标架构取代。
+
 ## 已归档决策索引
 
 - D-005~D-022（v0.3/飞书选型）→ `docs/archive/decisions-archive.md`

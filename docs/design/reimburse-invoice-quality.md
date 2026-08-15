@@ -2,7 +2,8 @@
 
 > 2026-08-15 立档。来源：对 HITCRT 票据助手公开产品思路的适配评估。本文只借鉴票据
 > 校验、批量导入和财务核对体验；TeamHub 继续坚持持久化批次、库存联动、原件永不上传与
-> I0 反监视边界。实现前先做仓库级架构扫描，扫描结果可校正模块落点，但不得放宽红线。
+> I0 反监视边界。实现服从 D-090 `software-architecture.md`，并作为统一模块模板的首个真实纵切；
+> 当前不考虑旧数据兼容，不增加 legacy/default 双读路径。
 
 ## 1. 结论与顺序
 
@@ -34,11 +35,11 @@ recognitionSource: 'xml' | 'pdf-text' | 'ofd-xbrl' | 'ocr' | 'manual'
 ```
 
 购买方字段必须进入持久化条目，不能只留在导入草稿；否则服务端无法在装批、汇总、导出时
-复核。旧持久化数据迁移时字段补 `null`，来源补 `manual` 或显式 legacy 值，具体由兼容性扫描决定。
+复核。新 schema 直接成为唯一事实；不为旧 JSON/SQLite 条目增加 legacy/default 兼容分支。
 
 ### 3.2 配置
 
-期望抬头属于部署/项目配置，不硬编码进 contracts 或组件：
+期望抬头属于 SQLite `app_settings` 中的产品配置，不硬编码进 contracts、组件、env 或分域 JSON：
 
 ```ts
 reimburseProfile: {
@@ -147,9 +148,9 @@ PDF/XML/OFD；路径只取 basename；忽略目录与系统垃圾文件；任一
 ### Q1 `REIMBURSE-PURCHASER-CHECK`
 
 - contracts：schema、解析器、派生函数和专属单测。
-- server：三 store 兼容、配置与批次提交门、route 测试。
+- server：application service、SQLite repository、统一配置与批次提交门、route 测试。
 - console：设置入口、导入确认、红黄核对提示、i18n 与组件测试。
-- DoD：三包 `verify:all` 全绿；旧文件/SQLite 数据可读；错误抬头批次无法提交。
+- DoD：三包 `verify:all` 全绿；新 SQLite schema 是唯一事实；错误抬头批次无法提交。
 
 ### Q2 `REIMBURSE-ARCHIVE-IMPORT`
 
@@ -166,11 +167,12 @@ PDF/XML/OFD；路径只取 basename；忽略目录与系统垃圾文件；任一
 - 只做隔离原型与真实样本报告；未达到门槛不进入主 bundle/主流程。
 - DoD：记录资源体积、设备档位耗时、字段准确率与是否进入生产的明确结论。
 
-## 9. 架构扫描待确认项
+## 9. D-090 架构落点
 
-- 租户配置的单一真相与持久化位置，避免只在 console 写死配置。
-- ReimburseStore 三实现对新增可选字段的旧数据兼容方式。
-- 批次状态更新是否已有适合承载提交前校验的共享逻辑层。
-- CSV/XLSX 现有导出能力与依赖，优先复用而非新增库。
-- Vite 动态 chunk、worker 和静态资源部署路径是否足以承载 OCR 模型。
-- 文件导入共用抽象能否同时服务 PDF/XML/ZIP/OFD，而不让组件直接处理容器细节。
+- contracts 迁入 `domains/reimburse/{model,requests,policies,import,export}.ts`。
+- server 采用 `modules/reimburse/{routes,service,repository,sqlite-repository}.ts`；抬头检查纯规则在
+  contracts，批次提交/报账入库跨域编排在 application service，route 不直接调用两个 repository。
+- console 只通过本域 hooks 访问 API；通用文件 intake/container/PDF/OCR adapter 进入平台文件层。
+- 抬头配置进入统一 SQLite `app_settings`；生产不再存在 ReimburseStore File/InMemory 三实现兼容问题。
+- 导出第一期复用统一 server CSV 平台，不引 XLSX 依赖；命名投影留在 contracts。
+- OCR 仍须单独验证 Vite worker/WASM/模型静态资源链，未达门槛不进主流程。

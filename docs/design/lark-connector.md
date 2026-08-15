@@ -1,6 +1,6 @@
 ---
 title: 飞书 Connector 架构设计（三包架构）
-status: stable
+status: superseded-by-D-090
 date: 2026-05-21
 version: v2
 decisions: [D-020, D-021, D-022]
@@ -9,6 +9,10 @@ supersedes: lark-connector.md v1（2026-05-19 draft）
 ---
 
 # 飞书 Connector 架构设计（三包架构）
+
+> **SUPERSEDED-BY D-090（2026-08-15）**：本文只保留旧三包实现与飞书协议研究证据，不再指导
+> 仓库结构。`apps/lark-gateway/lark-toolkit/pf-skills` 必须在 ARCH-UNIFY 中判定“删除”或“合成一个
+> `integrations/lark` workspace”，不得继续作为未被根 verify 覆盖的三套游离包。
 
 > 备赛期 MVP 设计：把"飞书 @机器人收到调试症状 → ProbeFlash 处理 → 飞书群内回复检查单"这条链路落到代码层面。本文按 D-021 拍板的路径 A（用 `@larksuiteoapi/node-sdk` Long Connection 模式）+ D-022 拍板的三包拆分（lark-gateway 入站进程 + lark-toolkit 出站门面 + pf-skills 业务调度，混合走 SDK / lark-cli）展开接口 / 数据流 / 错误模型 / 部署边界。LARK-03-MIN-INTEGRATION 已落地代码骨架（Mock 模式）；LARK-CLI-01..06 落地三包拆分；真实 LLM provider smoke + 飞书连通走查留用户线下完成。
 

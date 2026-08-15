@@ -5,7 +5,7 @@ owner: Teamhub
 scope: concept-design
 decision: D-026 (立"进度治理"魂) / D-037 (回中: CASE+交流中心+数据库, 去监视) / D-039 (第一轮: 演进留地基 + AI 退出治理 + 三支柱)
 supersedes: D-024 的"信息路由器 / 监控 broker"产品定位; team-hub-product-definition.md v0（2026-06-11 并入，D-030）; D-026 的"制度化进度治理系统"**定位词**（D-037 回中）
-superseded-by-note: "⚠ 2026-07-11 D-083 产品重定义：产品一句话定义/双主轴/宪法修正（G4 里程碑例外·I0 口径降级·AI 排人三红线）以 docs/design/product-redefine-2026-07.md 为准；本文四层架构/三支柱功能描述仍有效（三支柱全保留、重挂双主轴下）"
+superseded-by-note: "⚠ 产品定义以 D-083/product-redefine-2026-07.md 为准；软件代码架构以 D-090/software-architecture.md 为准。本文只保留产品概念四层与三支柱语义。"
 ---
 
 # Teamhub 概念设计 — 协作中枢（CASE 工具 + 团队交流中心 + 战队数据库）
@@ -13,7 +13,9 @@ superseded-by-note: "⚠ 2026-07-11 D-083 产品重定义：产品一句话定�
 > 目标：把 Teamhub 从"信息路由器 + 后端运维控制台 + adapter 底座"（D-024）升级为**机器人战队的协作中枢**——融合 CASE 工具 + 团队交流中心 + 战队数据库（D-026 立"进度治理"魂，**D-037 回中去监视味**：给学长减负 / 给学弟指引 / 项目同步进度表；核心不变式 I0 = 人键只回本人当帮助、第三方只见结构键）。
 > 本文件为**骨架版**（`status: skeleton`）：方向与四层架构已定。原两项待拍板均已拍——架构走法→**D-028**（治理为主轴）、提醒模型→**D-026 后续**。**§6 数据真相 / §8 阻塞归因视图已由 D-028 落地代码、差异化在场排班由 D-029 落地**；本轮（2026-06-11 planning-sync）只修正了 stale 的"待 X-DESIGN"标记，§6-§8 细化深写仍待 `GOV-CONCEPT-REWRITE`。仍 pending：§7 规则层（`GOV-RULES-LAYER`）、§9 触点派生（`GOV-LARK-DERIVE`）、录入交互（`GOV-DEP-INTAKE`，DAG 数据命门）。
 >
-> **本文件现为产品定位 + 架构的单一 canonical 源**——已并入原 `team-hub-product-definition.md`（v0，D-026）的独有实质（数据模型细节 / 中央视图务实版 / 反监视机制），后者 2026-06-11 退役至 `docs/archive/`（见 D-030 文档保留规则）。
+> **本文只作为产品概念层历史骨架**。产品定义真相 = D-083 `product-redefine-2026-07.md`；软件架构
+> 真相 = D-090 `software-architecture.md`。下文“数据/规则/展示/触点”是产品职责分层，不再解释代码目录、
+> Store、配置或部署形态。
 
 ## 0. 一句话
 
@@ -115,7 +117,7 @@ Teamhub = 机器人战队的协作中枢（CASE 工具 + 团队交流中心 + �
 
 ## 9. 触点/集成层（④）— 待细化 GOV-LARK-DERIVE-DESIGN
 
-- **飞书是脸（路线 A）**：从"人本来就在飞书做的动作"派生状态（@ / 回卡片 / 一键 check-in）；飞书做汇报出口 + 卡点通知；不双写。复用 Lark 三包（`lark-gateway` / `lark-toolkit` / `pf-skills`，D-020/D-021/D-022 路径 A 不变）。
+- **飞书是脸（路线 A）**：从"人本来就在飞书做的动作"派生状态（@ / 回卡片 / 一键 check-in）；飞书做汇报出口 + 卡点通知；不双写。旧 Lark 三包形态已被 D-090 纳入收敛审计：无真实运行链则删除，有则合成一个受根 workspace/verify 管理的 integration。
 - **Git**：提交 → 进度派生信号；Forgejo 默认（D-025 不变）。
 - Hermes / 小龙虾 / Claude Code：adapter mock-first，真实接入用户线下审批。
 

@@ -1,5 +1,5 @@
 {
-  "focus": "REIMBURSE-PROC：真实票 PDF 解析已全绿（滴滴/铁路票 9/9）；项管导出+OFD 通道挂账；深度教学动线待讨论",
+  "focus": "ARCH-UNIFY：暂停功能增长，先按 D-090/software-architecture.md 统一仓库、生产 SQLite、配置、模块模板与自动架构门；reimburse 作为首个纵切试点",
   "blocked": [
     {
       "id": "HERMES-LARK-SKILL",
@@ -13,6 +13,12 @@
     }
   ],
   "todo": [
+    {
+      "id": "ARCH-UNIFY",
+      "title": "仓库级软件架构统一：A0 架构门+单 lock/版本 → A1 workspace/统一 SQLite/删 File+生产 InMemory 双轨 → A2 app_settings+平台基础设施 → A3 reimburse 模块模板试点 → A4 全域迁移 → A5 旧骨架归零；不考虑旧数据兼容，见 docs/design/software-architecture.md",
+      "tag": "code",
+      "batch": "architecture"
+    },
     {
       "id": "REIMBURSE-PURCHASER-CHECK",
       "title": "报账购买方质量门：持久化 purchaserName/purchaserTaxNo/recognitionSource，部署级期望抬头配置，contracts 派生 match/mismatch/missing/skipped；错误抬头阻止批次提交，汇总显式 gross/eligible/blocked/review 双口径；见 docs/design/reimburse-invoice-quality.md §3-4",
