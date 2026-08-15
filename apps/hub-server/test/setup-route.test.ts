@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DeployConfigSchema } from '@teamhub/hub-contracts';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import {
   buildSetupServer,
   RESTART_EXIT_CODE,
@@ -184,9 +184,9 @@ describe('setup 模式（buildSetupServer）', () => {
   });
 });
 
-describe('正常模式 setup 路由（buildHubServer）', () => {
+describe('正常模式 setup 路由（buildTestHubServer）', () => {
   test('GET /api/setup/state → initialized:true', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({ method: 'GET', url: '/api/setup/state' });
       expect(res.statusCode).toBe(200);
@@ -197,7 +197,7 @@ describe('正常模式 setup 路由（buildHubServer）', () => {
   });
 
   test('POST /api/setup/init → 恒 409（匿名默认）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -211,7 +211,7 @@ describe('正常模式 setup 路由（buildHubServer）', () => {
   });
 
   test('POST /api/setup/init → 409（身份模式无会话也不退化成 401，走幂等门）', async () => {
-    const app = buildHubServer({ identityMode: 'identity' });
+    const app = buildTestHubServer({ identityMode: 'identity' });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -225,7 +225,7 @@ describe('正常模式 setup 路由（buildHubServer）', () => {
   });
 
   test('POST /api/setup/init → 409（配 writeToken 无 Bearer 也不退化成 401）', async () => {
-    const app = buildHubServer({ writeToken: 'secret' });
+    const app = buildTestHubServer({ writeToken: 'secret' });
     try {
       const res = await app.inject({
         method: 'POST',

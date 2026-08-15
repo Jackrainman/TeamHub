@@ -19,12 +19,6 @@ import {
 import { SessionManager } from './identity/session-store.js';
 import { FixedClock } from './clock.js';
 import type { Clock } from './clock.js';
-import { InMemoryGovStore } from './store/mock-gov-store.js';
-import { InMemoryKbStore } from './store/mock-kb-store.js';
-import { InMemoryInvStore } from './store/mock-inv-store.js';
-import { InMemoryBaselineStore } from './store/mock-baseline-store.js';
-import { InMemoryChecklistStore } from './store/mock-checklist-store.js';
-import { InMemoryReimburseStore } from './store/reimburse-store.js';
 import type { ReimburseStore } from './store/reimburse-store.js';
 import type { GovStore, InvStore, KbStore } from './store/gov-store.js';
 import type { BaselineStore } from './store/baseline-store.js';
@@ -74,8 +68,8 @@ export interface SetupControl {
 
 export interface BuildHubServerOptions {
   consoleDistDir?: string;
-  /** 治理读取出入口（默认 InMemoryGovStore，seed 真实锚点场景 fixtures）。可注入 SqliteGovStore 切持久层。 */
-  store?: GovStore;
+  /** 治理读写出入口；生产与测试组合根都必须显式装配。 */
+  store: GovStore;
   /**
    * 派生快照求值时刻。mock-first 阶段默认钉在 fixture 场景时间 GOVERNANCE_SCENARIO_NOW，
    * 让 real 模式 /api/dep-graph 与 hub-console mock 同口径；真实数据接入后注入 RealClock。
@@ -85,31 +79,29 @@ export interface BuildHubServerOptions {
    * 战队知识库相似检索语料读出入口（KB-CORE）。**base 收口刀对抗核实修正已兑现**：相似检索语料
    * （IssueCard/ErrorEntry/ArchiveDocument）不在 GovernanceSnapshot 内，故 kbStore 由 GovStore 收窄为
    * 独立 `KbStore`（getKbSnapshot；见 store/gov-store.ts）。结案派生 KnowledgeNode 那半仍走 `store`
-   * （GovStore.closeoutKbNode，复用同一 GovernanceSnapshot）。缺省 InMemoryKbStore(seed kbScenarioFixture)，
-   * 由 `GET /api/kb/similar` 消费（见下方路由）。
+   * （GovStore.closeoutKbNode，复用同一 GovernanceSnapshot）。由 `GET /api/kb/similar` 消费（见下方路由）。
    */
-  kbStore?: KbStore;
+  kbStore: KbStore;
   /**
    * 库存 / BOM 读写出入口扩展点（reserved，D-042 决策 4）。INV 是唯一需扩 schema 的支柱（PartStock 不在
    * GovernanceSnapshot 内），故走独立 `InvStore` 而非复用 GovStore。本刀只钉扩展点、不建 PartStock；
-   * 缺省 undefined，INV 支柱落地时注入实现 InvStore 的实例（对话记账 / 盘点 / 缺口汇报）。
+   * 由组合根注入实现 InvStore 的实例（对话记账 / 盘点 / 缺口汇报）。
    */
-  invStore?: InvStore;
+  invStore: InvStore;
   /**
    * 倒排基准线读写出入口（BASELINE-CORE，S3 落地/S4 挂路由）。独立于 `GovStore`（`SeasonBaseline`
    * 不进 `GovernanceSnapshot`，baseline-design.md §5 红线3），故走独立 `BaselineStore` 而非扩 GovStore。
-   * 缺省 `InMemoryBaselineStore`（seed 空，S6 会补 fixtures）。由 `GET/PATCH /api/baseline` +
-   * `POST /api/baseline/milestones/:milestoneId/pass` 消费（registerPmCoreRoutes，与 seasonId 同域）。
+   * 由 `GET/PATCH /api/baseline` + `POST /api/baseline/milestones/:milestoneId/pass` 消费
+   * （registerPmCoreRoutes，与 seasonId 同域）。
    */
-  baselineStore?: BaselineStore;
+  baselineStore: BaselineStore;
   /**
    * 门检查单 / 欠条读写出入口（GATE-CHECKLIST-IOU，D-087；本刀 C2 落地、C3 挂路由）。独立于 `GovStore`
    * （`GateChecklistItem` 不进 `GovernanceSnapshot`，checklist.ts 头部红线），故走独立 `ChecklistStore`。
-   * 缺省 `InMemoryChecklistStore`（seed `checklistScenarioFixture`——demo 首屏门检查单卡 / 告警区非空，
-   * 同 InMemoryBaselineStore 先例）。本刀先钉 options 字段、无消费方；C3 由 `GET/POST /api/checklist` +
+   * 由组合根显式注入；C3 由 `GET/POST /api/checklist` +
    * `POST /api/checklist/:id/{clear,waive}` + `GET /api/checklist/templates` 消费。
    */
-  checklistStore?: ChecklistStore;
+  checklistStore: ChecklistStore;
   /**
    * H3（AUDIT-FIXES 部署前必修）：写端点共享密钥。配了则所有 `POST /api/*` 须带 `Authorization: Bearer <token>`；
    * 未配则放行（loopback dev 默认）。非 loopback 暴露**必须**配（main.ts 拒绝裸暴露）。
@@ -154,10 +146,10 @@ export interface BuildHubServerOptions {
   larkStore?: import('./store/lark-integration-store.js').LarkIntegrationStore;
   /**
    * 报账域读写出入口（REIMBURSE-PROC 一期）。独立于 `GovStore`（ReimburseEntry/ReimburseBatch 不进
-   * GovernanceSnapshot，同 InvStore 先例），缺省 `InMemoryReimburseStore`（空种子——报账无演示 fixture，
-   * 真实垫付数据不伪造）。由 `/api/reimburse/*` 消费（registerReimburseRoutes，挂 ledger 模块下）。
+   * GovernanceSnapshot，同 InvStore 先例）。由 `/api/reimburse/*` 消费
+   * （registerReimburseRoutes，挂 ledger 模块下）。
    */
-  reimburseStore?: ReimburseStore;
+  reimburseStore: ReimburseStore;
 }
 
 // 归档物文件上传上限（50MB）：覆盖机械 CAD（step/stp/sldprt）+ 电路 PDF + 固件，又约束资源耗尽面。
@@ -198,7 +190,7 @@ interface ModuleRouteCtx {
   sessions: SessionManager | null;
   larkStore?: import('./store/lark-integration-store.js').LarkIntegrationStore;
 }
-export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInstance {
+export function buildHubServer(options: BuildHubServerOptions): FastifyInstance {
   // 反代信任（默认 false）：开启后 request.ip 解析为转发的真实客户端 IP，限流才按客户端分桶
   // （见 BuildHubServerOptions.trustProxy；4177 反代部署须开，否则限流塌成全局单桶）。同时供
   // isLoopbackOperator（PIN-DEADLOCK-RECOVERY）决定信裸 socket 还是 request.ip。
@@ -216,39 +208,18 @@ export function buildHubServer(options: BuildHubServerOptions = {}): FastifyInst
     void reply.code(status).send({ detail: error.message || 'internal error' });
   });
 
-  // 派生 / 时间戳求值时刻（先于默认 store 定义——默认内存 store 复用同一 clock，见下）。缺省钉在
+  // 派生 / 时间戳求值时刻。缺省钉在
   // fixture 场景时间 GOVERNANCE_SCENARIO_NOW（演示态冻结钟，与 hub-console mock 同口径）。
   const clock: Clock =
     options.clock ?? new FixedClock(new Date(GOVERNANCE_SCENARIO_NOW));
-  // K6（时钟与空板刀）：未注入 store 走默认内存 store 时，**复用上面的 clock** 而非各自 new FixedClock——
-  // 否则 main.ts 在 dataMode='real' 无落盘 env 时注入 RealClock 到 options.clock，路由层（claim/
-  // assign/baseline/artifact/schedule now）走真钟，但默认 InMemoryGovStore 的 createTask 仍回退假钟 6/11
-  // （"server options 有真钟、默认 store 仍假钟"缺口）。缺省态 clock=FixedClock(GOVERNANCE_SCENARIO_NOW)、
-  // 与原 `new InMemoryGovStore()` 逐字等价，演示 / 测试零变化。
-  const store: GovStore = options.store ?? new InMemoryGovStore(undefined, clock);
-  // 打磨轮刀⑤ 空板默认组树兜底：main.ts 正常模式已对落盘 store（file/sqlite）await 过
-  // ensureDefaultGroups()；这里覆盖「未注入 store → 默认内存 store」路径（内存 store 路径也调用）。
-  // InMemoryGovStore 实现无 await、同步生效（listen 前完成）；groups 非空（demo seed / 既有数据）天然 no-op。
+  const store = options.store;
+  // 组合根通常已 ensure；这里保留幂等兜底，确保所有显式注入实现具备默认组树。
   void store.ensureDefaultGroups();
-  // KB-CORE：知识库相似检索语料读出入口（缺省 InMemoryKbStore seed kbScenarioFixture），由 GET /api/kb/similar 消费。
-  // invStore 仍只钉 options 字段、无消费方（INV 支柱落地时透传），符合 base 收口刀「扩展点先行、路由后置」节奏。
-  const kbStore: KbStore = options.kbStore ?? new InMemoryKbStore();
-  // INV-BOM-CORE：库存 / BOM 读写出入口（缺省 InMemoryInvStore seed inventoryScenarioFixture），由
-  // GET /api/inventory + POST /api/inventory/{part-types,actions} 消费。独立于 GovStore（InventorySnapshot
-  // 不在 GovernanceSnapshot 内）；车列复用 GovStore.listResources 的资源（显示 displayCode ?? name）。
-  // 默认内存 store 同样复用上面的 clock（K6，与 store 同理——真实态 createdAt 走真钟）。
-  const invStore: InvStore = options.invStore ?? new InMemoryInvStore(undefined, clock);
-  // BASELINE-CORE：倒排基准线读写出入口（缺省 InMemoryBaselineStore seed baselineScenarioFixture，
-  // 同 InMemoryInvStore 先例——demo 首屏「基准线 vs 实际」非空）。由 GET/PATCH /api/baseline +
-  // POST /api/baseline/milestones/:id/pass 消费（S4）。
-  const baselineStore: BaselineStore = options.baselineStore ?? new InMemoryBaselineStore();
-  // GATE-CHECKLIST-IOU：门检查单 / 欠条读写出入口（缺省 InMemoryChecklistStore seed checklistScenarioFixture，
-  // 同 InMemoryBaselineStore 先例——demo 首屏门检查单卡 / 告警区欠条非空）。本刀先钉字段、C3 挂路由消费。
-  const checklistStore: ChecklistStore = options.checklistStore ?? new InMemoryChecklistStore();
-  // REIMBURSE-PROC：报账域读写出入口（缺省 InMemoryReimburseStore 空种子）。默认内存 store 同样复用
-  // 上面的 clock（K6，与 store/invStore 同理——真实态 createdAt/updatedAt 走真钟）。
-  const reimburseStore: ReimburseStore =
-    options.reimburseStore ?? new InMemoryReimburseStore(undefined, clock);
+  const kbStore = options.kbStore;
+  const invStore = options.invStore;
+  const baselineStore = options.baselineStore;
+  const checklistStore = options.checklistStore;
+  const reimburseStore = options.reimburseStore;
   // 装配外壳（HUB-MODULARIZATION 第2步）：租户模块开关，缺省 = 机器人战队全 6 模块启用（与拆分前等价）。
   const tenantConfig: TenantConfig = options.tenantConfig ?? ROBOTICS_TENANT_CONFIG;
 

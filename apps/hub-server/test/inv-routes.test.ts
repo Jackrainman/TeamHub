@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import {
   InventoryResponseSchema,
   CreatePartTypeResponseSchema,
@@ -9,7 +9,7 @@ import { InMemoryInvStore } from '../src/store/mock-inv-store.js';
 
 describe('库存 / BOM 路由（INV-BOM-CORE）', () => {
   test('GET /api/inventory → 矩阵 + 缺料告警；I0：返回体无 memberId', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({ method: 'GET', url: '/api/inventory' });
       expect(res.statusCode).toBe(200);
@@ -30,7 +30,7 @@ describe('库存 / BOM 路由（INV-BOM-CORE）', () => {
 
   test('POST /api/inventory/actions：damage 一句话快记 → 201，总数减一', async () => {
     const store = new InMemoryInvStore();
-    const app = buildHubServer({ invStore: store });
+    const app = buildTestHubServer({ invStore: store });
     try {
       const before = (await store.getInventorySnapshot()).partTypes.find(
         (p) => p.id === 'parttype-gm6020',
@@ -66,7 +66,7 @@ describe('库存 / BOM 路由（INV-BOM-CORE）', () => {
 
   test('POST /api/inventory/actions：mount 到已知车 → 201；used +1', async () => {
     const store = new InMemoryInvStore();
-    const app = buildHubServer({ invStore: store });
+    const app = buildTestHubServer({ invStore: store });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -96,7 +96,7 @@ describe('库存 / BOM 路由（INV-BOM-CORE）', () => {
   });
 
   test('POST /api/inventory/actions：未知 resourceId → 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -119,7 +119,7 @@ describe('库存 / BOM 路由（INV-BOM-CORE）', () => {
   });
 
   test('POST /api/inventory/actions：非法迁移（damage 超总数）→ 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -142,7 +142,7 @@ describe('库存 / BOM 路由（INV-BOM-CORE）', () => {
   });
 
   test('写鉴权：配 writeToken 后无 token POST → 401，带 token → 201', async () => {
-    const app = buildHubServer({ writeToken: 'secret-x' });
+    const app = buildTestHubServer({ writeToken: 'secret-x' });
     try {
       const payload = {
         projectId: 'prj-robots',
@@ -178,7 +178,7 @@ describe('库存 / BOM 路由（INV-BOM-CORE）', () => {
 
   test('POST /api/inventory/part-types：带 id 命中 → 更新（调阈值）', async () => {
     const store = new InMemoryInvStore();
-    const app = buildHubServer({ invStore: store });
+    const app = buildTestHubServer({ invStore: store });
     try {
       const res = await app.inject({
         method: 'POST',

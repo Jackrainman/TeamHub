@@ -6,7 +6,7 @@ import {
   GOVERNANCE_SNAPSHOT_ARRAY_KEYS,
   governanceScenarioFixture,
 } from '@teamhub/hub-contracts';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 import { FileGovStore } from '../src/store/file-gov-store.js';
 import { InMemoryKbStore } from '../src/store/mock-kb-store.js';
@@ -129,12 +129,12 @@ describe('base 收口刀: GovStore 写白名单 + 扩展点 + 持久化切换合
     (persisted as SqliteGovStore).close();
   });
 
-  test('kb / inv / sqlite 三方扩展同一底座、不重建：buildHubServer 接受各扩展点并仍服务', async () => {
+  test('kb / inv / sqlite 三方扩展同一底座、不重建：buildTestHubServer 接受各扩展点并仍服务', async () => {
     const shared = new InMemoryGovStore(); // 治理读 + 结案派生 KnowledgeNode 复用同一 GovernanceSnapshot
     const kbStore = new InMemoryKbStore(); // KB 相似检索语料独立 KbStore（IssueCard 不在治理快照内）
     const invStore: InvStore = new InMemoryInvStore(); // INV 独立扩展点（INV-BOM-CORE 已落地）
 
-    const app = buildHubServer({ store: shared, kbStore, invStore });
+    const app = buildTestHubServer({ store: shared, kbStore, invStore });
     try {
       const health = await app.inject({ method: 'GET', url: '/health' });
       expect(health.statusCode).toBe(200);
@@ -165,13 +165,13 @@ describe('base 收口刀: GovStore 写白名单 + 扩展点 + 持久化切换合
     }
   });
 
-  test('持久层可经 store 扩展点切换：SqliteGovStore 可作为 buildHubServer 的 store 注入（同底座不重建）', async () => {
+  test('持久层可经 store 扩展点切换：SqliteGovStore 可作为 buildTestHubServer 的 store 注入（同底座不重建）', async () => {
     sqliteDir = await mkdtemp(join(tmpdir(), 'gov-sqlite-inject-'));
     const persisted: SqliteGovStore = await SqliteGovStore.create(
       join(sqliteDir, 'gov.sqlite'),
     );
     // SqliteGovStore 满足 BuildHubServerOptions.store?: GovStore（无需重建底座），且读路径真派生。
-    const app = buildHubServer({ store: persisted });
+    const app = buildTestHubServer({ store: persisted });
     try {
       const dep = await app.inject({ method: 'GET', url: '/api/dep-graph' });
       expect(dep.statusCode).toBe(200);

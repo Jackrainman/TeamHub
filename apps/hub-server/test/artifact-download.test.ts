@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 
 // governanceScenarioFixture 里真实存在的归档物 id（见 hub-contracts fixtures）。
 const FILE_ID = 'artifact-lift-v1'; // 抬升机构图纸 v1
@@ -11,7 +11,7 @@ const CONTENT = '# 抬升机构图纸\n\n测试下载内容（md）。';
 
 let dir: string;
 const prev = process.env.TEAMHUB_ARTIFACT_FILES_DIR;
-const app = buildHubServer();
+const app = buildTestHubServer();
 
 beforeAll(async () => {
   dir = await mkdtemp(path.join(tmpdir(), 'artifact-files-'));

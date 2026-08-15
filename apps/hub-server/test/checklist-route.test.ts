@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import {
   ChecklistItemsResponseSchema,
   CreateChecklistItemResponseSchema,
@@ -19,7 +19,7 @@ const NON_REVIEWER = { id: 'm-ecB', displayName: '电控B', source: 'human' as c
 
 describe('门检查单 / 欠条路由（GATE-CHECKLIST-IOU，C3）', () => {
   test('GET /api/checklist：无 seasonId → 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({ method: 'GET', url: '/api/checklist' });
       expect(res.statusCode).toBe(400);
@@ -29,7 +29,7 @@ describe('门检查单 / 欠条路由（GATE-CHECKLIST-IOU，C3）', () => {
   });
 
   test('GET /api/checklist：赛季无基准线 → 200 { items: [] }（GET 语义上"还没有"合法）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'GET',
@@ -43,7 +43,7 @@ describe('门检查单 / 欠条路由（GATE-CHECKLIST-IOU，C3）', () => {
   });
 
   test('POST 建 → GET 列，带名不剥（清偿后读回 clearedBy = D-085 事实层）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const created = await app.inject({
         method: 'POST',
@@ -79,7 +79,7 @@ describe('门检查单 / 欠条路由（GATE-CHECKLIST-IOU，C3）', () => {
   });
 
   test('POST /api/checklist：赛季无基准线 → 404（欠条须挂基准线）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -93,7 +93,7 @@ describe('门检查单 / 欠条路由（GATE-CHECKLIST-IOU，C3）', () => {
   });
 
   test('POST /api/checklist：孤儿 anchorMilestoneId（未命中该 baseline 里程碑）→ 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -107,7 +107,7 @@ describe('门检查单 / 欠条路由（GATE-CHECKLIST-IOU，C3）', () => {
   });
 
   test('POST /api/checklist：挂接二选一违规（both / neither）→ 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const both = await app.inject({
         method: 'POST',
@@ -127,7 +127,7 @@ describe('门检查单 / 欠条路由（GATE-CHECKLIST-IOU，C3）', () => {
   });
 
   test('POST clear：匿名无留名 → 400；留名 → 200；不存在 → 404；已非 pending → 409', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       // 匿名 + 无 body.clearedBy → 400 清偿必须留名
       const noName = await app.inject({
@@ -169,7 +169,7 @@ describe('门检查单 / 欠条路由（GATE-CHECKLIST-IOU，C3）', () => {
   });
 
   test('POST waive：缺 reason → 400；非名单 → 403；名单成员 → 200（带名+理由不剥）；匿名无留名 → 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       // 缺 waiveReason（schema 强制非空）→ 400
       const noReason = await app.inject({
@@ -212,7 +212,7 @@ describe('门检查单 / 欠条路由（GATE-CHECKLIST-IOU，C3）', () => {
   });
 
   test('过门硬闸（本刀灵魂）：m-g4 挂 pending 欠条 → pass 被拦 400（detail 含项 title）→ 清完再过 200', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       // chk-demo-1（pending）挂 m-g4 → 过门被拦，detail 列出未清项 title
       const blocked = await app.inject({
@@ -244,7 +244,7 @@ describe('门检查单 / 欠条路由（GATE-CHECKLIST-IOU，C3）', () => {
   });
 
   test('过门硬闸：豁免完再过 200（waive 路径也解闸）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const waived = await app.inject({
         method: 'POST',
@@ -264,7 +264,7 @@ describe('门检查单 / 欠条路由（GATE-CHECKLIST-IOU，C3）', () => {
   });
 
   test('过门硬闸：status=missed 不拦（记录验收失败 → 200，即便 m-g4 仍有 pending 欠条）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const missed = await app.inject({
         method: 'POST',
@@ -278,7 +278,7 @@ describe('门检查单 / 欠条路由（GATE-CHECKLIST-IOU，C3）', () => {
   });
 
   test('GET /api/checklist/templates → 200 { templates: [] }（seed 留空等复盘导入）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({ method: 'GET', url: '/api/checklist/templates' });
       expect(res.statusCode).toBe(200);
@@ -289,7 +289,7 @@ describe('门检查单 / 欠条路由（GATE-CHECKLIST-IOU，C3）', () => {
   });
 
   test('PUT /api/members/:id/gate-reviewer：开关生效（非名单 waive 403 → 开权后 200）+ 剥 pinHash + 不存在 404', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       // 开权前 m-ecB waive → 403
       const before = await app.inject({
@@ -331,7 +331,7 @@ describe('门检查单 / 欠条路由（GATE-CHECKLIST-IOU，C3）', () => {
   });
 
   test('写门覆盖 PUT /api/members/:id/gate-reviewer：配 writeToken 无 token → 401', async () => {
-    const app = buildHubServer({ writeToken: 'secret-gr' });
+    const app = buildTestHubServer({ writeToken: 'secret-gr' });
     try {
       const noToken = await app.inject({
         method: 'PUT',

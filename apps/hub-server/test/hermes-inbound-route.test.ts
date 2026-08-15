@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'vitest';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { InMemoryInvStore } from '../src/store/mock-inv-store.js';
 import {
   inventoryScenarioFixture,
@@ -8,7 +8,7 @@ import {
 
 function hermesApp() {
   const invStore = new InMemoryInvStore(inventoryScenarioFixture);
-  const app = buildHubServer({ invStore });
+  const app = buildTestHubServer({ invStore });
   return { app, invStore };
 }
 
@@ -291,7 +291,7 @@ describe('POST /api/hermes/inbound — 边界', () => {
   });
 
   test('写门鉴权：有 WRITE_TOKEN 时无 Bearer → 401', async () => {
-    const gatedApp = buildHubServer({
+    const gatedApp = buildTestHubServer({
       invStore: new InMemoryInvStore(inventoryScenarioFixture),
       writeToken: 'test-secret',
     });
@@ -308,7 +308,7 @@ describe('POST /api/hermes/inbound — 边界', () => {
   });
 
   test('写门鉴权：有 WRITE_TOKEN + Bearer → 200', async () => {
-    const gatedApp = buildHubServer({
+    const gatedApp = buildTestHubServer({
       invStore: new InMemoryInvStore(inventoryScenarioFixture),
       writeToken: 'test-secret',
     });

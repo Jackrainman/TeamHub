@@ -10,7 +10,6 @@ const SOURCE_EXTENSIONS = new Set(['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx',
 // D-090 迁移基线不是永久豁免：每项都绑定“规则 + 文件 + 精确命中数”。
 // 命中数减少或文件消失时检查会失败，要求在同一批次收缩/删除对应条目。
 export const ARCHITECTURE_BASELINE = Object.freeze([
-  ['legacy-data-file-env', 'apps/hub-server/src/main.ts', 24],
   ['legacy-file-store', 'apps/hub-server/src/store/file-baseline-store.ts', 1],
   ['legacy-file-store', 'apps/hub-server/src/store/file-checklist-store.ts', 1],
   ['legacy-file-store', 'apps/hub-server/src/store/file-gov-store.ts', 1],
@@ -28,7 +27,6 @@ export const ARCHITECTURE_BASELINE = Object.freeze([
   ['multi-domain-client-segment', 'apps/hub-console/src/api/segments/members.ts', 4],
   ['multi-domain-client-segment', 'apps/hub-console/src/api/segments/schedule.ts', 2],
   ['multi-domain-client-segment', 'apps/hub-console/src/api/segments/system-pm.ts', 3],
-  ['production-inmemory-fallback', 'apps/hub-server/src/server.ts', 6],
   ['production-inmemory-fallback', 'apps/hub-server/src/store/file-baseline-store.ts', 1],
   ['production-inmemory-fallback', 'apps/hub-server/src/store/file-checklist-store.ts', 1],
   ['production-inmemory-fallback', 'apps/hub-server/src/store/file-gov-store.ts', 1],

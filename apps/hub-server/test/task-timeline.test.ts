@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 import { FileGovStore } from '../src/store/file-gov-store.js';
 import { SqliteGovStore } from '../src/store/sqlite-gov-store.js';
@@ -25,7 +25,7 @@ const CLAIMER: ActorRef = { id: 'm-mechD', displayName: '机械D', source: 'cons
 const OWNER: ActorRef = { id: 'm-progB', displayName: '程序B', source: 'human' };
 const REVIEWER: ActorRef = { id: 'm-progA', displayName: '程序A', source: 'human' };
 
-async function createPendingTask(app: Awaited<ReturnType<typeof buildHubServer>>): Promise<string> {
+async function createPendingTask(app: Awaited<ReturnType<typeof buildTestHubServer>>): Promise<string> {
   const res = await app.inject({
     method: 'POST',
     url: '/api/tasks',
@@ -45,7 +45,7 @@ async function createPendingTask(app: Awaited<ReturnType<typeof buildHubServer>>
 
 describe('TASK-TIMELINE 路由：四写口追加 transitions', () => {
   test('claim：pending→inProgress 留痕，by=认领人（名册 displayName，source 钉 console）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const id = await createPendingTask(app);
       const res = await app.inject({
@@ -64,7 +64,7 @@ describe('TASK-TIMELINE 路由：四写口追加 transitions', () => {
   });
 
   test('claim 非 pending 挂单（inProgress 无主）→ 不提升、不追加 transition', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       // t-r1-integration fixture status=inProgress、ownerId=null
       const res = await app.inject({
@@ -80,7 +80,7 @@ describe('TASK-TIMELINE 路由：四写口追加 transitions', () => {
   });
 
   test('complete：追加 →done 留名 completedBy；reject：追加 done→inProgress 留名 reviewedBy；accept 不追加', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const done = CompleteTaskResponseSchema.parse(
         (
@@ -137,7 +137,7 @@ describe('TASK-TIMELINE 路由：四写口追加 transitions', () => {
   });
 
   test('POST /status：匿名 body 供 by → 留名；不供 → 追加无 by 条（不硬绑留名）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const named = TransitionTaskStatusResponseSchema.parse(
         (
@@ -175,7 +175,7 @@ describe('TASK-TIMELINE 路由：四写口追加 transitions', () => {
   });
 
   test('生命周期累积：claim → complete → transitions 依序两条', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const id = await createPendingTask(app);
       await app.inject({ method: 'POST', url: `/api/tasks/${id}/claim`, payload: { memberId: 'm-mechD' } });
@@ -195,7 +195,7 @@ describe('TASK-TIMELINE 路由：四写口追加 transitions', () => {
   });
 
   test('fixture 种了 t-r1-arm-mount 两条 transitions（demo 直接可见），经 GET /api/tasks 透出', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const body = TasksResponseSchema.parse(
         (await app.inject({ method: 'GET', url: '/api/tasks' })).json(),

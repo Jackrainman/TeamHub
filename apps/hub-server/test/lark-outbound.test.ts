@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vite
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { SqliteDatabase } from '../src/store/sqlite-db.js';
 import { LarkIntegrationStore } from '../src/store/lark-integration-store.js';
 import { openUnifiedDb, defaultSeeds } from '../src/store/sqlite-unified.js';
@@ -48,7 +48,7 @@ function buildAppWithLark(cfg: { appId: string; appSecret: string; chatId: strin
   const stores = openUnifiedDb(dbPath, { seeds: defaultSeeds(true) });
   const larkStore = LarkIntegrationStore.fromSharedDb(stores.db);
   larkStore.saveConfig(cfg);
-  const app = buildHubServer({
+  const app = buildTestHubServer({
     store: stores.gov,
     kbStore: stores.kb,
     invStore: stores.inv,
@@ -196,7 +196,7 @@ describe('LARK-OUTBOUND-PUSH：push-reminder', () => {
   });
 
   test('无 larkStore → 端点 404', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',

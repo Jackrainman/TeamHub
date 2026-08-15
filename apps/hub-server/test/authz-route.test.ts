@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
 /**
@@ -33,7 +33,7 @@ async function clearFixturePm(store: InMemoryGovStore): Promise<void> {
 
 describe('POST /api/setup/super-admin（初始化首个管理员）', () => {
   test('匿名模式 → 404（身份模式未启用）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -49,7 +49,7 @@ describe('POST /api/setup/super-admin（初始化首个管理员）', () => {
   test('身份模式未登录 + 老路径（无 displayName）→ 401（路由内自判；钩子已豁免本端点供 bootstrap）', async () => {
     const store = new InMemoryGovStore();
     await clearFixturePm(store);
-    const app = buildHubServer({ identityMode: 'identity', store });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -65,7 +65,7 @@ describe('POST /api/setup/super-admin（初始化首个管理员）', () => {
   test('无持旗成员：给登录本人授 projectManager 旗标 + 同笔设 pinHash（此后免 PIN 登录失败）；响应剥 pinHash', async () => {
     const store = new InMemoryGovStore();
     await clearFixturePm(store);
-    const app = buildHubServer({ identityMode: 'identity', store });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       const cookie = await login(app, 'm-ecB'); // 免 PIN 登入（role=member、无旗标）
       const res = await app.inject({
@@ -102,7 +102,7 @@ describe('POST /api/setup/super-admin（初始化首个管理员）', () => {
 
   test('已存在持旗成员 → 409（一次性初始化门）', async () => {
     const store = new InMemoryGovStore(); // fixtures 的 m-progA 已持旗
-    const app = buildHubServer({ identityMode: 'identity', store });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       const cookie = await login(app, 'm-ecB');
       const res = await app.inject({
@@ -122,7 +122,7 @@ describe('POST /api/setup/super-admin — bootstrap 路径（SETUP-WIZARD-ROSTER
   test('无会话 + displayName/groupName → 一笔建人+授旗+设 PIN+签会话 cookie（此后带 cookie 可写）', async () => {
     const store = new InMemoryGovStore();
     await clearFixturePm(store);
-    const app = buildHubServer({ identityMode: 'identity', store });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -176,7 +176,7 @@ describe('POST /api/setup/super-admin — bootstrap 路径（SETUP-WIZARD-ROSTER
   test('GRADE-7-TIERS：带 grade:grad2 新建 → 落库 grade=grad2 + gateReviewer 自动 true（≥大三含研派生）', async () => {
     const store = new InMemoryGovStore();
     await clearFixturePm(store);
-    const app = buildHubServer({ identityMode: 'identity', store });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -195,7 +195,7 @@ describe('POST /api/setup/super-admin — bootstrap 路径（SETUP-WIZARD-ROSTER
   test('姓名命中既有成员 → 认领该行（不新建、组不动），授旗+PIN+会话', async () => {
     const store = new InMemoryGovStore();
     await clearFixturePm(store);
-    const app = buildHubServer({ identityMode: 'identity', store });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       const before = (await store.getSnapshot()).members.length;
       const res = await app.inject({
@@ -217,7 +217,7 @@ describe('POST /api/setup/super-admin — bootstrap 路径（SETUP-WIZARD-ROSTER
   test('新建但缺 groupName → 400；显式 projectManager:false → 建人+PIN 但不授旗（门可再现）', async () => {
     const store = new InMemoryGovStore();
     await clearFixturePm(store);
-    const app = buildHubServer({ identityMode: 'identity', store });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       const bad = await app.inject({
         method: 'POST',
@@ -252,7 +252,7 @@ describe('POST /api/setup/super-admin — bootstrap 路径（SETUP-WIZARD-ROSTER
 describe('PUT /api/members/:id/role（成员角色维护）', () => {
   test('匿名模式：写门即可 → 200；未知 id → 404', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
         method: 'PUT',
@@ -275,7 +275,7 @@ describe('PUT /api/members/:id/role（成员角色维护）', () => {
   });
 
   test('降级保护（两模式统一）：摘掉最后一个持旗成员 → 409', async () => {
-    const app = buildHubServer(); // 匿名，便于直接授/收旗
+    const app = buildTestHubServer(); // 匿名，便于直接授/收旗
     try {
       // fixtures 里 m-progA 持旗；先给 m-ecB 授旗，再收 m-progA（非最后一个 → 200）
       const grant = await app.inject({
@@ -318,7 +318,7 @@ describe('PUT /api/members/:id/role（成员角色维护）', () => {
   test('身份模式：非持旗成员 → 403；持旗管理员 → 200', async () => {
     const store = new InMemoryGovStore();
     await clearFixturePm(store);
-    const app = buildHubServer({ identityMode: 'identity', store });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       // 未初始化管理员时，普通登录人改角色 → 403（fail-closed）
       const cookie = await login(app, 'm-ecB');
@@ -353,7 +353,7 @@ describe('PUT /api/members/:id/role（成员角色维护）', () => {
 
 describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => {
   test('匿名模式 → 404（身份模式未启用）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({ method: 'DELETE', url: '/api/members/m-ecB/pin' });
       expect(res.statusCode).toBe(404);
@@ -364,7 +364,7 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
 
   test('身份模式未登录 → 401（写门钩子）；非持旗成员 → 403（非 loopback 来源）', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ identityMode: 'identity', store });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       // 显式非 loopback 来源（inject 默认 127.0.0.1 会命中 PIN-DEADLOCK-RECOVERY loopback 豁免）
       const anon = await app.inject({
@@ -389,7 +389,7 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
 
   test('loopback 豁免（PIN-DEADLOCK-RECOVERY）：非持旗会话 / 无会话 经 loopback DELETE → 200，pinHash 清除', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ identityMode: 'identity', store });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       // 给 m-visionA 设 PIN（本人登录自设）
       const userCookie = await login(app, 'm-visionA');
@@ -434,7 +434,7 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
 
   test('trustProxy=true：豁免改信转发头——X-Forwarded-For=loopback 放行（SSH 隧道），=非 loopback 仍 401', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ identityMode: 'identity', store, trustProxy: true });
+    const app = buildTestHubServer({ identityMode: 'identity', store, trustProxy: true });
     try {
       const userCookie = await login(app, 'm-visionA');
       await app.inject({
@@ -472,7 +472,7 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
   test('持旗管理员重置他人 PIN → 200：pinHash 清除、回免 PIN 态、可经 firstSetup 重设；响应剥 pinHash', async () => {
     const store = new InMemoryGovStore();
     await clearFixturePm(store);
-    const app = buildHubServer({ identityMode: 'identity', store });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       // 造持旗管理员（m-ecB）+ 给 m-visionA 设 PIN（本人登录后自设）
       const adminCookie = await login(app, 'm-ecB');
@@ -547,7 +547,7 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
   test('持旗管理员重置未知 id → 404', async () => {
     const store = new InMemoryGovStore();
     await clearFixturePm(store);
-    const app = buildHubServer({ identityMode: 'identity', store });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       const cookie = await login(app, 'm-ecB');
       await app.inject({
@@ -571,7 +571,7 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
 describe('敏感门收口：身份模式须持旗管理员（匿名不变）', () => {
   test('gate-reviewer：身份非持旗成员 → 403，持旗 → 200；匿名仍 200', async () => {
     // 匿名不变
-    const anon = buildHubServer();
+    const anon = buildTestHubServer();
     try {
       const res = await anon.inject({
         method: 'PUT',
@@ -585,7 +585,7 @@ describe('敏感门收口：身份模式须持旗管理员（匿名不变）', (
 
     const store = new InMemoryGovStore();
     await clearFixturePm(store);
-    const app = buildHubServer({ identityMode: 'identity', store });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       const cookie = await login(app, 'm-ecB');
       const forbid = await app.inject({
@@ -617,7 +617,7 @@ describe('敏感门收口：身份模式须持旗管理员（匿名不变）', (
   test('POST /api/seasons：身份非持旗成员 → 403，持旗 → 201', async () => {
     const store = new InMemoryGovStore();
     await clearFixturePm(store);
-    const app = buildHubServer({ identityMode: 'identity', store });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       const cookie = await login(app, 'm-ecB');
       const body = { name: 'Robocon 2028', startsAt: '2027-09-01T00:00:00.000Z', endsAt: null };
@@ -654,7 +654,7 @@ describe('H3 写门 × 身份模式（令牌/会话双轨，SETUP-WIZARD-TOKEN �
   // 令牌要进设置页、设置页要先登录。现行规则：身份模式下**有效会话即已鉴权**，且四条引导/认证例外路径
   // （session、bootstrap、roster 导入、loopback PIN 恢复）从 Bearer 硬门放过、鉴权收敛在路由一处判。
   test('身份 + 配 writeToken：无 Bearer 可登录（POST /api/session 豁免 Bearer 门）', async () => {
-    const app = buildHubServer({ identityMode: 'identity', writeToken: 'sekret' });
+    const app = buildTestHubServer({ identityMode: 'identity', writeToken: 'sekret' });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -668,7 +668,7 @@ describe('H3 写门 × 身份模式（令牌/会话双轨，SETUP-WIZARD-TOKEN �
   });
 
   test('身份 + 配 writeToken：持会话 cookie 的写无 Bearer → 放行；无会话无 Bearer → 401', async () => {
-    const app = buildHubServer({ identityMode: 'identity', writeToken: 'sekret' });
+    const app = buildTestHubServer({ identityMode: 'identity', writeToken: 'sekret' });
     try {
       const cookie = await login(app, 'm-progA'); // demo 持旗成员
       const withSession = await app.inject({
@@ -692,7 +692,7 @@ describe('H3 写门 × 身份模式（令牌/会话双轨，SETUP-WIZARD-TOKEN �
   test('身份 + 配 writeToken：bootstrap 无 Bearer 无会话 → 200 一笔建人授旗，再来 → 409', async () => {
     const store = new InMemoryGovStore();
     await clearFixturePm(store);
-    const app = buildHubServer({ identityMode: 'identity', store, writeToken: 'sekret' });
+    const app = buildTestHubServer({ identityMode: 'identity', store, writeToken: 'sekret' });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -714,7 +714,7 @@ describe('H3 写门 × 身份模式（令牌/会话双轨，SETUP-WIZARD-TOKEN �
 
   test('身份 + 配 writeToken：loopback PIN 恢复无 Bearer → 放行（inject 默认 127.0.0.1）', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ identityMode: 'identity', store, writeToken: 'sekret' });
+    const app = buildTestHubServer({ identityMode: 'identity', store, writeToken: 'sekret' });
     try {
       // 先给 m-ecB 设 PIN（经持旗会话），再从 loopback 无令牌恢复
       const cookie = await login(app, 'm-progA');

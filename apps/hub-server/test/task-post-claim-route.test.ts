@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 import {
   governanceScenarioFixture,
@@ -34,7 +34,7 @@ const NON_REVIEWER = { id: 'm-ecB', displayName: '电控B', source: 'human' as c
 
 describe('TASK-POST-CLAIM 路由：认领（claim）', () => {
   test('挂单认领即生效：POST /api/tasks 建无主活 → claim → ownerId + claimedAt + pending→inProgress', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const created = await app.inject({
         method: 'POST',
@@ -70,7 +70,7 @@ describe('TASK-POST-CLAIM 路由：认领（claim）', () => {
   });
 
   test('已有主 → 409（不覆盖他人的活）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       // t-r1-arm-mount 已由 m-mechC 认领（fixture）
       const res = await app.inject({
@@ -85,7 +85,7 @@ describe('TASK-POST-CLAIM 路由：认领（claim）', () => {
   });
 
   test('孤儿 memberId（不在名册）→ 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       // t-r1-integration 无主（convergence，ownerId=null）→ 不触发 409，孤儿 memberId 触发 400
       const res = await app.inject({
@@ -100,7 +100,7 @@ describe('TASK-POST-CLAIM 路由：认领（claim）', () => {
   });
 
   test('缺 memberId（匿名无 body）→ 400 必须留名', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -114,7 +114,7 @@ describe('TASK-POST-CLAIM 路由：认领（claim）', () => {
   });
 
   test('未知 taskId → 404', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -130,7 +130,7 @@ describe('TASK-POST-CLAIM 路由：认领（claim）', () => {
 
 describe('TASK-POST-CLAIM 路由：指派 / 转派（assign）', () => {
   test('缺 reason → 400（schema 强制理由）', async () => {
-    const app = buildHubServer({ store: new InMemoryGovStore(withGroupLead('m-ecB')) });
+    const app = buildTestHubServer({ store: new InMemoryGovStore(withGroupLead('m-ecB')) });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -144,7 +144,7 @@ describe('TASK-POST-CLAIM 路由：指派 / 转派（assign）', () => {
   });
 
   test('非组长 → 403', async () => {
-    const app = buildHubServer(); // 默认 fixture 无 groupAdmin → 一律非组长
+    const app = buildTestHubServer(); // 默认 fixture 无 groupAdmin → 一律非组长
     try {
       const res = await app.inject({
         method: 'POST',
@@ -159,7 +159,7 @@ describe('TASK-POST-CLAIM 路由：指派 / 转派（assign）', () => {
 
   test('组长 → 200：assignReason / assignedBy 落卡；claimedAt 清空', async () => {
     const store = new InMemoryGovStore(withGroupLead('m-ecB')); // m-ecB = grp-ec 组长
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -179,7 +179,7 @@ describe('TASK-POST-CLAIM 路由：指派 / 转派（assign）', () => {
 
   test('转派清搭档：先设本组搭档 → assign 换主后搭档失效', async () => {
     const store = new InMemoryGovStore(withGroupLead('m-ecB'));
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       // 先给 t-r1-chassis(grp-ec) 设本组搭档 m-progA(grp-ec)
       const partnered = await app.inject({
@@ -208,7 +208,7 @@ describe('TASK-POST-CLAIM 路由：指派 / 转派（assign）', () => {
   });
 
   test('缺 assignedBy（匿名无留名）→ 400', async () => {
-    const app = buildHubServer({ store: new InMemoryGovStore(withGroupLead('m-ecB')) });
+    const app = buildTestHubServer({ store: new InMemoryGovStore(withGroupLead('m-ecB')) });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -222,7 +222,7 @@ describe('TASK-POST-CLAIM 路由：指派 / 转派（assign）', () => {
   });
 
   test('孤儿 ownerId（指派对象不在名册）→ 400（与 claim/partner 名册校验对称）', async () => {
-    const app = buildHubServer({ store: new InMemoryGovStore(withGroupLead('m-ecB')) });
+    const app = buildTestHubServer({ store: new InMemoryGovStore(withGroupLead('m-ecB')) });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -238,7 +238,7 @@ describe('TASK-POST-CLAIM 路由：指派 / 转派（assign）', () => {
 
 describe('TASK-POST-CLAIM 路由：本组搭档（partner）', () => {
   test('本组成员 → 200；partnerMemberId 落卡', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -253,7 +253,7 @@ describe('TASK-POST-CLAIM 路由：本组搭档（partner）', () => {
   });
 
   test('外组成员 → 400（跨组是学习通道，不是甩锅通道）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -267,7 +267,7 @@ describe('TASK-POST-CLAIM 路由：本组搭档（partner）', () => {
   });
 
   test('搭档不在名册 → 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -283,7 +283,7 @@ describe('TASK-POST-CLAIM 路由：本组搭档（partner）', () => {
 
 describe('TASK-POST-CLAIM 路由：跨组确认（confirm-cross-claim）', () => {
   test('非组长 → 403', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -297,7 +297,7 @@ describe('TASK-POST-CLAIM 路由：跨组确认（confirm-cross-claim）', () =>
   });
 
   test('组长 → 200；crossClaimConfirmedBy 落卡（事后留名，非启动闸）', async () => {
-    const app = buildHubServer({ store: new InMemoryGovStore(withGroupLead('m-ecB')) });
+    const app = buildTestHubServer({ store: new InMemoryGovStore(withGroupLead('m-ecB')) });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -314,7 +314,7 @@ describe('TASK-POST-CLAIM 路由：跨组确认（confirm-cross-claim）', () =>
   });
 
   test('缺 confirmedBy → 400', async () => {
-    const app = buildHubServer({ store: new InMemoryGovStore(withGroupLead('m-ecB')) });
+    const app = buildTestHubServer({ store: new InMemoryGovStore(withGroupLead('m-ecB')) });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -330,7 +330,7 @@ describe('TASK-POST-CLAIM 路由：跨组确认（confirm-cross-claim）', () =>
 
 describe('TASK-POST-CLAIM 路由：标完成（complete）', () => {
   test('complete → status done + completedBy 落卡', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -347,7 +347,7 @@ describe('TASK-POST-CLAIM 路由：标完成（complete）', () => {
   });
 
   test('缺 completedBy → 400；未知 id → 404', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       expect(
         (await app.inject({ method: 'POST', url: '/api/tasks/t-r1-newboard/complete', payload: {} }))
@@ -370,7 +370,7 @@ describe('TASK-POST-CLAIM 路由：标完成（complete）', () => {
 
 describe('TASK-POST-CLAIM 路由：验收 / 抽查（review）', () => {
   test('非验收人名单 → 403', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -384,7 +384,7 @@ describe('TASK-POST-CLAIM 路由：验收 / 抽查（review）', () => {
   });
 
   test('accept → reviewedBy 留名；status 保持 done', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -401,7 +401,7 @@ describe('TASK-POST-CLAIM 路由：验收 / 抽查（review）', () => {
   });
 
   test('reject（打回）→ status 回 inProgress + reviewNote 打回理由 + reviewedBy 留名', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -419,7 +419,7 @@ describe('TASK-POST-CLAIM 路由：验收 / 抽查（review）', () => {
   });
 
   test('缺 reviewedBy → 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -433,7 +433,7 @@ describe('TASK-POST-CLAIM 路由：验收 / 抽查（review）', () => {
   });
 
   test('非 done 任务 → 409（验收/打回只对已完成任务；防对从未 done 的任务盖章打回）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       // t-r1-chassis fixture 为 blocked（非 done）
       const res = await app.inject({
@@ -450,7 +450,7 @@ describe('TASK-POST-CLAIM 路由：验收 / 抽查（review）', () => {
 
 describe('TASK-POST-CLAIM：GET /api/tasks?q= 子串搜 + isBig 元信息', () => {
   test('q= 搜到 title（大小写不敏感）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({ method: 'GET', url: '/api/tasks?q=r1' });
       expect(res.statusCode).toBe(200);
@@ -464,7 +464,7 @@ describe('TASK-POST-CLAIM：GET /api/tasks?q= 子串搜 + isBig 元信息', () =
   });
 
   test('q= 搜到 rawSummary（title 不含该词）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       // '中断时序' 只在 t-r1-chassis 的 rawSummary，不在其 title
       const res = await app.inject({ method: 'GET', url: '/api/tasks?q=中断时序' });
@@ -476,7 +476,7 @@ describe('TASK-POST-CLAIM：GET /api/tasks?q= 子串搜 + isBig 元信息', () =
   });
 
   test('q= 无命中 → 空列表；缺省 q → 全部', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const empty = TasksResponseSchema.parse(
         (await app.inject({ method: 'GET', url: '/api/tasks?q=zzz-no-such-task' })).json(),
@@ -493,7 +493,7 @@ describe('TASK-POST-CLAIM：GET /api/tasks?q= 子串搜 + isBig 元信息', () =
   });
 
   test('isBig：挂门任务 / 有下游任务 = true；无门无下游 = false', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const body = TasksResponseSchema.parse(
         (await app.inject({ method: 'GET', url: '/api/tasks' })).json(),

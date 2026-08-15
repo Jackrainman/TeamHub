@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import {
   CreateArtifactResponseSchema,
   CreateDependencyResponseSchema,
@@ -12,7 +12,7 @@ import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
 describe('PM 读视图 + 依赖/缺口录入', () => {
   test('GET /api/tasks → 任务列表（I0 安全：Task 无 confirmedBy / 无完成量维度）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({ method: 'GET', url: '/api/tasks' });
       expect(res.statusCode).toBe(200);
@@ -30,7 +30,7 @@ describe('PM 读视图 + 依赖/缺口录入', () => {
   test('POST /api/dependencies → 201；server clamp status=active（D-042 初始态）；持久化', async () => {
     const store = new InMemoryGovStore();
     const before = (await store.getSnapshot()).dependencies.length;
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -56,7 +56,7 @@ describe('PM 读视图 + 依赖/缺口录入', () => {
   });
 
   test('POST /api/dependencies：请求无法夹带 status（被 omit，clamp 生效）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -81,7 +81,7 @@ describe('PM 读视图 + 依赖/缺口录入', () => {
   test('POST /api/artifacts → 201（v2）；server 钉 submittedVia=console + 派生 kind/versionNo/revision（C5）；落盘累积；夹带来源/派生字段被 omit', async () => {
     const store = new InMemoryGovStore();
     const before = (await store.getSnapshot()).artifacts.length;
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -121,7 +121,7 @@ describe('PM 读视图 + 依赖/缺口录入', () => {
   });
 
   test('POST /api/artifacts：ownerGroup/season/robotCode/mechanism 必填，缺失 → 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -135,7 +135,7 @@ describe('PM 读视图 + 依赖/缺口录入', () => {
   });
 
   test('POST /api/needs → 201；clamp status=open / claimedByMemberId=null（A2 反派单）/ A1 归组', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -165,7 +165,7 @@ describe('PM 读视图 + 依赖/缺口录入', () => {
   });
 
   test('POST /api/dependencies 缺必填 → 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -183,7 +183,7 @@ describe('PM 受限状态机迁移：任务状态流转 + 连线作废', () => {
   test('POST /api/tasks/:id/status：inProgress→done → 200；statusSource clamp 为 console（C5）', async () => {
     // t-r1-dataset 原 statusSource='git'，人工流转后应被 server 钉为 'console'（最低优先源）。
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -205,7 +205,7 @@ describe('PM 受限状态机迁移：任务状态流转 + 连线作废', () => {
   });
 
   test('POST /api/tasks/:id/status：请求夹带 statusSource 被忽略，仍 clamp console', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -221,7 +221,7 @@ describe('PM 受限状态机迁移：任务状态流转 + 连线作废', () => {
   });
 
   test('POST /api/tasks/:id/status：未知 id → 404', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -235,7 +235,7 @@ describe('PM 受限状态机迁移：任务状态流转 + 连线作废', () => {
   });
 
   test('POST /api/tasks/:id/status：非法 status → 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -250,7 +250,7 @@ describe('PM 受限状态机迁移：任务状态流转 + 连线作废', () => {
 
   test('POST /api/dependencies/:id/waive：已有边 → 200；status=waived；响应剥 confirmedBy（I0）', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -272,7 +272,7 @@ describe('PM 受限状态机迁移：任务状态流转 + 连线作废', () => {
   });
 
   test('POST /api/dependencies/:id/waive：未知 id → 404', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -285,7 +285,7 @@ describe('PM 受限状态机迁移：任务状态流转 + 连线作废', () => {
   });
 
   test('waive 后 GET /api/dep-graph：该边从图消失，satisfied 边(dep-001)仍在', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       await app.inject({ method: 'POST', url: '/api/dependencies/dep-002/waive' });
       const res = await app.inject({ method: 'GET', url: '/api/dep-graph' });
@@ -302,7 +302,7 @@ describe('PM 受限状态机迁移：任务状态流转 + 连线作废', () => {
   // （waived 边已死、从图隐藏、不构成真实阻塞路径，故不与逆向边成环）。修前 wouldCreateCycle 仍把
   // waived 边算进去 → B→A 被永久 400 误拒。satisfied 边仍参与环检测（见下一条）。
   test('环检测：A→B → waive → 建反向 B→A 应 201（waived 边不挡逆向边）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     const dep = {
       projectId: 'prj-robots',
       type: 'blocks' as const,
@@ -341,7 +341,7 @@ describe('PM 受限状态机迁移：任务状态流转 + 连线作废', () => {
   // 环检测：satisfied / active 边仍参与（只滤 waived）。dep-001 是 satisfied 的 arm-mount→chassis，
   // 建反向 chassis→arm-mount 应被拒 400（成环），证明修复只放行 waived、未放松真实路径的环防护。
   test('环检测：satisfied 边仍挡逆向边（chassis→arm-mount 成环 → 400）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',

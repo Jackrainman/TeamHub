@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'vitest';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 import { governanceScenarioFixture } from '@teamhub/hub-contracts';
 import type { GovernanceSnapshot } from '@teamhub/hub-contracts';
@@ -22,7 +22,7 @@ import {
   SystemStatusResponseSchema,
 } from '@teamhub/hub-contracts';
 
-const app = buildHubServer();
+const app = buildTestHubServer();
 
 afterAll(async () => {
   await app.close();
@@ -58,7 +58,7 @@ describe('hub-server routes', () => {
 
   test('GET /api/system/status echoes deployment (file/memory 两形态)', async () => {
     // K3 部署信息回显：落盘域带 path、内存域省 path；identityMode / 启用模块 / 图纸开关 / 构建标识齐备。
-    const deployApp = buildHubServer({
+    const deployApp = buildTestHubServer({
       deployment: {
         dataMode: 'real',
         identityMode: 'identity',
@@ -276,7 +276,7 @@ describe('hub-server routes', () => {
         },
       ],
     };
-    const app2 = buildHubServer({ store: new InMemoryGovStore(custom) });
+    const app2 = buildTestHubServer({ store: new InMemoryGovStore(custom) });
     try {
       const response = await app2.inject({
         method: 'GET',
@@ -317,7 +317,7 @@ describe('hub-server routes', () => {
         { id: 'season-probe', name: '探针赛季', startsAt: '2026-01-01T00:00:00.000Z', endsAt: null, status: 'active' },
       ],
     };
-    const app2 = buildHubServer({ store: new InMemoryGovStore(custom) });
+    const app2 = buildTestHubServer({ store: new InMemoryGovStore(custom) });
     try {
       const response = await app2.inject({
         method: 'GET',
@@ -341,7 +341,7 @@ describe('hub-server routes', () => {
     };
 
     test('同键 POST 两条 → versionNo 1 then 2、revision v1 then v2、kind report（机械）', async () => {
-      const app2 = buildHubServer({ store: new InMemoryGovStore(emptyArtifacts) });
+      const app2 = buildTestHubServer({ store: new InMemoryGovStore(emptyArtifacts) });
       try {
         const mech = {
           ownerGroup: 'mechanical',
@@ -372,7 +372,7 @@ describe('hub-server routes', () => {
     });
 
     test('电路驱动 POST → kind firmware', async () => {
-      const app2 = buildHubServer({ store: new InMemoryGovStore(emptyArtifacts) });
+      const app2 = buildTestHubServer({ store: new InMemoryGovStore(emptyArtifacts) });
       try {
         const res = await app2.inject({
           method: 'POST',
@@ -401,7 +401,7 @@ describe('hub-server routes', () => {
     });
 
     test('电路图纸 POST → kind report', async () => {
-      const app2 = buildHubServer({ store: new InMemoryGovStore(emptyArtifacts) });
+      const app2 = buildTestHubServer({ store: new InMemoryGovStore(emptyArtifacts) });
       try {
         const res = await app2.inject({
           method: 'POST',
@@ -424,7 +424,7 @@ describe('hub-server routes', () => {
     });
 
     test('缺 subType 的 electrical → 400（superRefine）', async () => {
-      const app2 = buildHubServer({ store: new InMemoryGovStore(emptyArtifacts) });
+      const app2 = buildTestHubServer({ store: new InMemoryGovStore(emptyArtifacts) });
       try {
         const res = await app2.inject({
           method: 'POST',
@@ -446,7 +446,7 @@ describe('hub-server routes', () => {
     });
 
     test('机械夹带 subType → 400（superRefine）', async () => {
-      const app2 = buildHubServer({ store: new InMemoryGovStore(emptyArtifacts) });
+      const app2 = buildTestHubServer({ store: new InMemoryGovStore(emptyArtifacts) });
       try {
         const res = await app2.inject({
           method: 'POST',
@@ -497,7 +497,7 @@ describe('hub-server static console', () => {
       'self.postMessage("worker");',
     );
 
-    const staticApp = buildHubServer({ consoleDistDir });
+    const staticApp = buildTestHubServer({ consoleDistDir });
     try {
       const root = await staticApp.inject({ method: 'GET', url: '/' });
       expect(root.statusCode).toBe(200);

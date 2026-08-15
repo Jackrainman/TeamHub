@@ -6,7 +6,7 @@ import {
   type GovernanceSnapshot,
   type Member,
 } from '@teamhub/hub-contracts';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
 /**
@@ -32,7 +32,7 @@ function member(over: Partial<Member> & Pick<Member, 'id' | 'displayName'>): Mem
 }
 
 /** 身份模式登录，回带 session cookie（member 无 pinHash 免 PIN）。 */
-async function login(app: ReturnType<typeof buildHubServer>, memberId: string): Promise<string> {
+async function login(app: ReturnType<typeof buildTestHubServer>, memberId: string): Promise<string> {
   const res = await app.inject({
     method: 'POST',
     url: '/api/session',
@@ -45,7 +45,7 @@ async function login(app: ReturnType<typeof buildHubServer>, memberId: string): 
 
 describe('GET /api/groups — 刀④ 派生位', () => {
   test('groups 全量 + assignableGroupIds = 叶子组且非哨兵（排除 grp-program / grp-convergence）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({ method: 'GET', url: '/api/groups' });
       expect(res.statusCode).toBe(200);
@@ -65,7 +65,7 @@ describe('GET /api/groups — 刀④ 派生位', () => {
 
 describe('POST /api/groups — 新建叶子组', () => {
   test('201：只给 name，id/seasonId/parentGroupId=null/kind 由 server 钉；出现在 assignableGroupIds', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -88,7 +88,7 @@ describe('POST /api/groups — 新建叶子组', () => {
   });
 
   test('同名（含非叶子组「程序」）→ 409', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const dup = await app.inject({
         method: 'POST',
@@ -110,7 +110,7 @@ describe('POST /api/groups — 新建叶子组', () => {
 
 describe('PUT /api/groups/:id — 改名（仅叶子组）', () => {
   test('叶子组改名 200；撞其它组同名 → 409；id 不存在 → 404', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const ok = await app.inject({
         method: 'PUT',
@@ -139,7 +139,7 @@ describe('PUT /api/groups/:id — 改名（仅叶子组）', () => {
   });
 
   test('非叶子组（grp-program）/ 哨兵组（grp-convergence）→ 409（汇报视角不可改名）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       for (const id of ['grp-program', 'grp-convergence']) {
         const res = await app.inject({
@@ -158,7 +158,7 @@ describe('PUT /api/groups/:id — 改名（仅叶子组）', () => {
 
 describe('DELETE /api/groups/:id — 仅叶子 + 防孤儿', () => {
   test('新建的空叶子组可删（200 回带被删组）；有成员的叶子组 → 409', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const created = GroupResponseSchema.parse(
         (
@@ -190,7 +190,7 @@ describe('DELETE /api/groups/:id — 仅叶子 + 防孤儿', () => {
   });
 
   test('有任务的空叶子组 → 409（先迁走任务再删）；非叶子/哨兵 → 409；不存在 → 404', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       // 造一个无成员但挂了任务的叶子组。
       const created = GroupResponseSchema.parse(
@@ -245,7 +245,7 @@ describe('组管理鉴权 — 身份模式', () => {
         member({ id: 'm-boss', displayName: '队长', projectManager: true }),
       ],
     };
-    const app = buildHubServer({
+    const app = buildTestHubServer({
       store: new InMemoryGovStore(snapshot),
       identityMode: 'identity',
     });

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import {
   CreateResourceSessionResponseSchema,
   RelayBoardResponseSchema,
@@ -14,7 +14,7 @@ import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
 /** 在指定 windowLabel 录入一棒，返回新 session.id（镜像 relay-route.test 的 postSession）。 */
 async function postSession(
-  app: ReturnType<typeof buildHubServer>,
+  app: ReturnType<typeof buildTestHubServer>,
   overrides: Record<string, unknown> = {},
 ): Promise<string> {
   const res = await app.inject({
@@ -39,7 +39,7 @@ async function postSession(
 
 /** 在两棒之间拉一条接力交接线，返回 handoff.id。 */
 async function postHandoff(
-  app: ReturnType<typeof buildHubServer>,
+  app: ReturnType<typeof buildTestHubServer>,
   from: string,
   to: string,
 ): Promise<string> {
@@ -61,7 +61,7 @@ async function postHandoff(
 describe('A2 加一棒（POST /api/resource-sessions）→ GET /api/relay 出现新卡', () => {
   test('POST 建一棒 → 201；server 钉 source=human；GET /api/relay 含该站', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const id = await postSession(app, { orderInWindow: 2 });
       expect(id).toMatch(/^sess-new-/);
@@ -82,7 +82,7 @@ describe('A2 加一棒（POST /api/resource-sessions）→ GET /api/relay 出现
 describe('A2 删一棒（DELETE /api/resource-sessions/:id）', () => {
   test('DELETE 命中 → 200 { deleted }；GET /api/relay 不再含；再删同 id → 404', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const id = await postSession(app);
 
@@ -112,7 +112,7 @@ describe('A2 删一棒（DELETE /api/resource-sessions/:id）', () => {
 
   test('级联：删一棒后引用它的接力交接线也消失（listRelayHandoffs / GET /api/relay 均不含）', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       // 两棒（a=seed 今晚 R1，b=新建第二棒）+ 一条 a→b 接力交接线
       const a = 'sess-tonight-ec'; // seed
@@ -150,7 +150,7 @@ describe('A2 删一棒（DELETE /api/resource-sessions/:id）', () => {
 
   test('级联只清引用被删棒的线：删 fromSession 时其它无关交接线保留', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       // a=seed, b, c 三棒；线 a→b（引用 a/b）与 b→c（引用 b/c）。删 a 只应清掉 a→b，保留 b→c。
       const a = 'sess-tonight-ec';
@@ -174,7 +174,7 @@ describe('A2 删一棒（DELETE /api/resource-sessions/:id）', () => {
   });
 
   test('DELETE 未知 id → 404', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'DELETE',
@@ -188,7 +188,7 @@ describe('A2 删一棒（DELETE /api/resource-sessions/:id）', () => {
 
   test('反监视红线：删一棒返回体无成员/确认人维度', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const id = await postSession(app);
       const del = await app.inject({

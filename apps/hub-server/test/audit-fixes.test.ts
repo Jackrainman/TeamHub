@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
 // AUDIT-FIXES 部署前必修的路由层回归（H1 / M6 / H4 / H3）。
@@ -29,7 +29,7 @@ function depBody(fromTaskId: string, toTaskId: string) {
 
 describe('H1 依赖环 → POST /api/dependencies 落库前拒环/自环', () => {
   test('自环 from===to → 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -44,7 +44,7 @@ describe('H1 依赖环 → POST /api/dependencies 落库前拒环/自环', () =>
 
   test('成环（A→B 后再 B→A）→ 第二条 400，不落库', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const first = await app.inject({
         method: 'POST',
@@ -70,7 +70,7 @@ describe('H1 依赖环 → POST /api/dependencies 落库前拒环/自环', () =>
 
 describe('M6 I0：create 响应剥掉 confirmedBy', () => {
   test('POST /api/dependencies 响应 dependency 不含 confirmedBy', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -85,7 +85,7 @@ describe('M6 I0：create 响应剥掉 confirmedBy', () => {
   });
 
   test('POST /api/needs 响应 need 不含 confirmedBy', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -110,7 +110,7 @@ describe('M6 I0：create 响应剥掉 confirmedBy', () => {
 
 describe('H4 写端点信任边界：拒客户端注入 done/shelved/derived', () => {
   test('status=done → 400（不能跳过工作伪造完成）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -124,7 +124,7 @@ describe('H4 写端点信任边界：拒客户端注入 done/shelved/derived', (
   });
 
   test('statusSource=derived → 400（不能冒充系统派生，违 C5）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -138,7 +138,7 @@ describe('H4 写端点信任边界：拒客户端注入 done/shelved/derived', (
   });
 
   test('合法派生信号 status=inProgress / statusSource=git → 201', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -156,7 +156,7 @@ describe('H4 写端点信任边界：拒客户端注入 done/shelved/derived', (
 
 describe('H3 写端点鉴权 + 限流', () => {
   test('配了 writeToken：无 / 错 Bearer → 401，正确 → 201', async () => {
-    const app = buildHubServer({ writeToken: 'sekret' });
+    const app = buildTestHubServer({ writeToken: 'sekret' });
     try {
       const noAuth = await app.inject({
         method: 'POST',
@@ -186,7 +186,7 @@ describe('H3 写端点鉴权 + 限流', () => {
   });
 
   test('读路由（GET）不受鉴权影响', async () => {
-    const app = buildHubServer({ writeToken: 'sekret' });
+    const app = buildTestHubServer({ writeToken: 'sekret' });
     try {
       const res = await app.inject({ method: 'GET', url: '/api/tasks' });
       expect(res.statusCode).toBe(200);
@@ -196,7 +196,7 @@ describe('H3 写端点鉴权 + 限流', () => {
   });
 
   test('限流：超过 max 的写 → 429', async () => {
-    const app = buildHubServer({ writeRateLimit: { max: 1, windowMs: 60_000 } });
+    const app = buildTestHubServer({ writeRateLimit: { max: 1, windowMs: 60_000 } });
     try {
       const first = await app.inject({
         method: 'POST',

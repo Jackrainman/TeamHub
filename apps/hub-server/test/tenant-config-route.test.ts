@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import {
   TasksResponseSchema,
   GroupsResponseSchema,
@@ -24,7 +24,7 @@ const GAME_STUDIO_LIKE_TENANT: TenantConfig = {
 
 describe('非默认 TenantConfig：关掉 presence-schedule', () => {
   test('presence-schedule 路由整段不挂：/api/resources /api/resource-sessions /api/relay 全 404', async () => {
-    const app = buildHubServer({ tenantConfig: GAME_STUDIO_LIKE_TENANT });
+    const app = buildTestHubServer({ tenantConfig: GAME_STUDIO_LIKE_TENANT });
     try {
       const getResources = await app.inject({ method: 'GET', url: '/api/resources' });
       expect(getResources.statusCode).toBe(404);
@@ -57,7 +57,7 @@ describe('非默认 TenantConfig：关掉 presence-schedule', () => {
   });
 
   test('pm-core / knowledge-base 路由正常（未受影响的模块照常挂载）', async () => {
-    const app = buildHubServer({ tenantConfig: GAME_STUDIO_LIKE_TENANT });
+    const app = buildTestHubServer({ tenantConfig: GAME_STUDIO_LIKE_TENANT });
     try {
       const tasks = await app.inject({ method: 'GET', url: '/api/tasks' });
       expect(tasks.statusCode).toBe(200);
@@ -80,7 +80,7 @@ describe('非默认 TenantConfig：关掉 presence-schedule', () => {
   });
 
   test('ledger 端点正常；库存整车校验路径（内部调 store.listResources()）不因 presence-schedule 未注册而炸', async () => {
-    const app = buildHubServer({ tenantConfig: GAME_STUDIO_LIKE_TENANT });
+    const app = buildTestHubServer({ tenantConfig: GAME_STUDIO_LIKE_TENANT });
     try {
       // GET /api/inventory 内部把 invStore 快照 + store.listResources() 拼成矩阵（server.ts registerLedgerRoutes）——
       // presence-schedule 路由不挂不代表 store 里没有 resources（store 本身仍是全量 seed，两条轴独立）。

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import {
   CreateResourceSessionsBatchResponseSchema,
   SCENARIO_WINDOW_WEEKDAY,
@@ -16,7 +16,7 @@ const CONFIRMED_BY = { id: 'm-progA', displayName: '程序A', source: 'console' 
 describe('PATCH /api/resources/:id/preset：默认阵型写回 / 清除', () => {
   test('传对象 → 整体替换 defaultPreset', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
         method: 'PATCH',
@@ -36,7 +36,7 @@ describe('PATCH /api/resources/:id/preset：默认阵型写回 / 清除', () => 
 
   test('传 null → 清除既有 defaultPreset', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       // res-r1 seed 自带 defaultPreset（fixtures.ts）
       const before = (await store.listResources()).find((r) => r.id === 'res-r1');
@@ -58,7 +58,7 @@ describe('PATCH /api/resources/:id/preset：默认阵型写回 / 清除', () => 
   });
 
   test('未知 id → 404', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'PATCH',
@@ -72,7 +72,7 @@ describe('PATCH /api/resources/:id/preset：默认阵型写回 / 清除', () => 
   });
 
   test('body 缺 defaultPreset 键 → 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'PATCH',
@@ -86,7 +86,7 @@ describe('PATCH /api/resources/:id/preset：默认阵型写回 / 清除', () => 
   });
 
   test('lineup 条目缺 groupId → 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'PATCH',
@@ -103,7 +103,7 @@ describe('PATCH /api/resources/:id/preset：默认阵型写回 / 清除', () => 
 describe('POST /api/resource-sessions/batch：表格页【确认】批量原子落盘', () => {
   test('全部通过 → 201，逐条落盘，confirmedBy 由请求整体注入', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const before = (await store.listResourceSessions()).length;
       const res = await app.inject({
@@ -154,7 +154,7 @@ describe('POST /api/resource-sessions/batch：表格页【确认】批量原子�
 
   test('批内一条 orderInWindow 与既有 session 冲突 → 整批 400，一条都不落盘', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const before = (await store.listResourceSessions()).length;
       const res = await app.inject({
@@ -201,7 +201,7 @@ describe('POST /api/resource-sessions/batch：表格页【确认】批量原子�
 
   test('未知 holderGroupId → 整批 400，不落盘', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const before = (await store.listResourceSessions()).length;
       const res = await app.inject({
@@ -234,7 +234,7 @@ describe('POST /api/resource-sessions/batch：表格页【确认】批量原子�
 
   test('I0 双保险：请求夹带 invitedMemberIds 非空，仍强制落盘为 []', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -268,7 +268,7 @@ describe('POST /api/resource-sessions/batch：表格页【确认】批量原子�
   });
 
   test('sessions 空数组 → 400（min(1)）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',

@@ -3,7 +3,7 @@ import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import FormData from 'form-data';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 
 // governanceScenarioFixture 里真实存在、初始无文件的归档物 id（见 hub-contracts fixtures）。
 const ART_ID = 'artifact-gripper-v1';
@@ -17,7 +17,7 @@ function multipart(filename: string, content: Buffer | string) {
 
 let dir: string;
 const prev = process.env.TEAMHUB_ARTIFACT_FILES_DIR;
-const app = buildHubServer();
+const app = buildTestHubServer();
 
 beforeAll(async () => {
   dir = await mkdtemp(path.join(tmpdir(), 'artifact-upload-'));
@@ -132,7 +132,7 @@ describe('POST /api/artifacts/:id/upload', () => {
 
 describe('POST /api/artifacts/:id/upload — 上限 / 鉴权', () => {
   test('超出 fileSize 上限 → 413', async () => {
-    const tiny = buildHubServer({ artifactMaxBytes: 8 });
+    const tiny = buildTestHubServer({ artifactMaxBytes: 8 });
     const tinyDir = await mkdtemp(path.join(tmpdir(), 'artifact-upload-tiny-'));
     const saved = process.env.TEAMHUB_ARTIFACT_FILES_DIR;
     process.env.TEAMHUB_ARTIFACT_FILES_DIR = tinyDir;
@@ -151,7 +151,7 @@ describe('POST /api/artifacts/:id/upload — 上限 / 鉴权', () => {
   });
 
   test('配了 writeToken 但无 Bearer → 401（证经 H3 写鉴权钩子）', async () => {
-    const guarded = buildHubServer({ writeToken: 'secret' });
+    const guarded = buildTestHubServer({ writeToken: 'secret' });
     const gDir = await mkdtemp(path.join(tmpdir(), 'artifact-upload-auth-'));
     const saved = process.env.TEAMHUB_ARTIFACT_FILES_DIR;
     process.env.TEAMHUB_ARTIFACT_FILES_DIR = gDir;

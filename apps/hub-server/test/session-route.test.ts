@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
 // IDENTITY-LITE（D-083 §4.2）会话 + 服务端 actor 注入端到端。红线：pinHash 永不出响应；防枚举失败不区分；
@@ -25,7 +25,7 @@ async function login(
 
 describe('匿名模式（默认）：现状零变化', () => {
   test('GET /api/session → {mode:anonymous, session:null}', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({ method: 'GET', url: '/api/session' });
       expect(res.statusCode).toBe(200);
@@ -36,7 +36,7 @@ describe('匿名模式（默认）：现状零变化', () => {
   });
 
   test('POST/DELETE /api/session → 404（session 端点禁用）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const post = await app.inject({
         method: 'POST',
@@ -53,7 +53,7 @@ describe('匿名模式（默认）：现状零变化', () => {
 
   test('写路由无会话照常放行（现状），confirmedBy 沿用请求体自报', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -76,7 +76,7 @@ describe('匿名模式（默认）：现状零变化', () => {
   });
 
   test('PUT /api/members/:id/pin → 404（匿名模式禁用设 PIN）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'PUT',
@@ -92,7 +92,7 @@ describe('匿名模式（默认）：现状零变化', () => {
 
 describe('身份模式：登录 / 登出 / 免 PIN / 错 PIN', () => {
   test('无 pinHash 成员免 PIN 登录 → 200 + cookie；GET /api/session 回身份', async () => {
-    const app = buildHubServer({ identityMode: 'identity' });
+    const app = buildTestHubServer({ identityMode: 'identity' });
     try {
       const cookie = await login(app, 'm-ecB'); // 无 pinHash → 免 PIN
       const me = await app.inject({
@@ -111,7 +111,7 @@ describe('身份模式：登录 / 登出 / 免 PIN / 错 PIN', () => {
   });
 
   test('登出后 GET /api/session → session:null', async () => {
-    const app = buildHubServer({ identityMode: 'identity' });
+    const app = buildTestHubServer({ identityMode: 'identity' });
     try {
       const cookie = await login(app, 'm-ecB');
       const out = await app.inject({
@@ -133,7 +133,7 @@ describe('身份模式：登录 / 登出 / 免 PIN / 错 PIN', () => {
   });
 
   test('设 PIN → 登出 → 错 PIN 401 / 对 PIN 200；防枚举失败统一', async () => {
-    const app = buildHubServer({ identityMode: 'identity' });
+    const app = buildTestHubServer({ identityMode: 'identity' });
     try {
       const cookie = await login(app, 'm-visionA'); // 免 PIN 先登进来
       const set = await app.inject({
@@ -182,7 +182,7 @@ describe('身份模式：登录 / 登出 / 免 PIN / 错 PIN', () => {
   });
 
   test('设他人 PIN：非本人会话且他人已有 pinHash → 403', async () => {
-    const app = buildHubServer({ identityMode: 'identity' });
+    const app = buildTestHubServer({ identityMode: 'identity' });
     try {
       // m-visionA 免 PIN 登入后给自己设 PIN（此后 m-visionA 有 pinHash）
       const cookieA = await login(app, 'm-visionA');
@@ -210,7 +210,7 @@ describe('身份模式：登录 / 登出 / 免 PIN / 错 PIN', () => {
 
 describe('身份模式：写门 401 + 服务端 actor 注入', () => {
   test('无会话写 → 401；携会话写 → 201', async () => {
-    const app = buildHubServer({ identityMode: 'identity' });
+    const app = buildTestHubServer({ identityMode: 'identity' });
     try {
       const noAuth = await app.inject({
         method: 'POST',
@@ -248,7 +248,7 @@ describe('身份模式：写门 401 + 服务端 actor 注入', () => {
 
   test('自报身份被服务端覆盖：落库 confirmedBy = session 身份，非请求体值', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ identityMode: 'identity', store });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       const cookie = await login(app, 'm-ecB'); // session = m-ecB
       const before = (await store.getSnapshot()).dependencies.length;
@@ -283,7 +283,7 @@ describe('身份模式：写门 401 + 服务端 actor 注入', () => {
 
 describe('密钥纪律：pinHash 永不出响应', () => {
   test('GET /api/members 与 PUT pin 响应均无 pinHash', async () => {
-    const app = buildHubServer({ identityMode: 'identity' });
+    const app = buildTestHubServer({ identityMode: 'identity' });
     try {
       const cookie = await login(app, 'm-visionA');
       const setRes = await app.inject({

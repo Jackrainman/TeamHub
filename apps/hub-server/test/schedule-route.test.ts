@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import {
   PresenceScheduleResponseSchema,
   ResourceSessionsResponseSchema,
@@ -15,7 +15,7 @@ import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
 describe('GET /api/schedule（差异化在场排班，I0 无人维度）', () => {
   test('windowLabel=今晚 → 非空 recommendations + present/onCall/free 三态俱在', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'GET',
@@ -36,7 +36,7 @@ describe('GET /api/schedule（差异化在场排班，I0 无人维度）', () =>
   });
 
   test('I0：响应 JSON 不含任何人维度字段（memberId/displayName/confirmedBy/invitedMemberIds/成员 id）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'GET',
@@ -62,7 +62,7 @@ describe('GET /api/schedule（差异化在场排班，I0 无人维度）', () =>
   });
 
   test('windowLabel 缺失 → 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({ method: 'GET', url: '/api/schedule' });
       expect(res.statusCode).toBe(400);
@@ -72,7 +72,7 @@ describe('GET /api/schedule（差异化在场排班，I0 无人维度）', () =>
   });
 
   test('windowLabel 空串 → 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({ method: 'GET', url: '/api/schedule?windowLabel=' });
       expect(res.statusCode).toBe(400);
@@ -82,7 +82,7 @@ describe('GET /api/schedule（差异化在场排班，I0 无人维度）', () =>
   });
 
   test('未知窗口 → 200 + 空 recommendations（无该窗会话 = 沉默，非错误）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'GET',
@@ -99,7 +99,7 @@ describe('GET /api/schedule（差异化在场排班，I0 无人维度）', () =>
 
 describe('在场排班读视图 + 录入', () => {
   test('GET /api/resource-sessions → seed 占用窗口（sess-tonight-ec）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({ method: 'GET', url: '/api/resource-sessions' });
       expect(res.statusCode).toBe(200);
@@ -112,7 +112,7 @@ describe('在场排班读视图 + 录入', () => {
   });
 
   test('GET /api/resources → seed 共享资源（res-r1 / res-r2）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({ method: 'GET', url: '/api/resources' });
       expect(res.statusCode).toBe(200);
@@ -126,7 +126,7 @@ describe('在场排班读视图 + 录入', () => {
   test('POST /api/resource-sessions → 201；server 钉 source=human + 补 id/createdAt；响应剥 confirmedBy（I0）', async () => {
     const store = new InMemoryGovStore();
     const before = (await store.listResourceSessions()).length;
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -161,7 +161,7 @@ describe('在场排班读视图 + 录入', () => {
 
   test('POST 一条今晚的接力窗口后 GET /api/schedule?windowLabel=今晚 仍含派生建议（接出闭环）', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       // 录入一条今晚 R1 接力窗口（机械接力，orderInWindow=1）
       const post = await app.inject({
@@ -202,7 +202,7 @@ describe('在场排班读视图 + 录入', () => {
   });
 
   test('POST /api/resource-sessions 缺必填 → 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -216,7 +216,7 @@ describe('在场排班读视图 + 录入', () => {
   });
 
   test('POST /api/resource-sessions 无 Bearer（配了 writeToken）→ 401（继承 H3 onRequest 鉴权）', async () => {
-    const app = buildHubServer({ writeToken: 'secret-xyz' });
+    const app = buildTestHubServer({ writeToken: 'secret-xyz' });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -230,7 +230,7 @@ describe('在场排班读视图 + 录入', () => {
   });
 
   test('POST /api/resource-sessions 带正确 Bearer + 合法 body → 201', async () => {
-    const app = buildHubServer({ writeToken: 'secret-xyz' });
+    const app = buildTestHubServer({ writeToken: 'secret-xyz' });
     try {
       const res = await app.inject({
         method: 'POST',

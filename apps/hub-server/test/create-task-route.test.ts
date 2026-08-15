@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { CreateTaskResponseSchema } from '@teamhub/hub-contracts';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
@@ -18,7 +18,7 @@ describe('POST /api/tasks', () => {
   test('单条任务录入 → 201 + server 补 id/时间戳/默认；持久到 store', async () => {
     const store = new InMemoryGovStore();
     const before = (await store.getSnapshot()).tasks.length;
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({ method: 'POST', url: '/api/tasks', payload: validBody });
       expect(res.statusCode).toBe(201);
@@ -37,7 +37,7 @@ describe('POST /api/tasks', () => {
   });
 
   test('端到端往返：POST 新建的任务出现在 GET /api/tasks 列表（同 app 同 store）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const before = await app.inject({ method: 'GET', url: '/api/tasks' });
       const beforeCount = before.json().tasks.length;
@@ -55,7 +55,7 @@ describe('POST /api/tasks', () => {
   });
 
   test('显式 status/statusSource 生效（如 git 派生信号建任务）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -72,7 +72,7 @@ describe('POST /api/tasks', () => {
   });
 
   test('缺必填（D-042：title+groupId 过不了 Zod）→ 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -88,7 +88,7 @@ describe('POST /api/tasks', () => {
   // 刀④ PROGRAM-GROUP-ABSTRACT：任务只能挂具体叶子组——命中组表里的非叶子/哨兵组 → 400；
   // 组表里不存在的 id 维持既有宽松（历史任务可引用未入表的组）。
   test('刀④：groupId 命中非叶子组（grp-program）/ 哨兵组（grp-convergence）→ 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       for (const groupId of ['grp-program', 'grp-convergence']) {
         const res = await app.inject({
@@ -105,7 +105,7 @@ describe('POST /api/tasks', () => {
   });
 
   test('刀④：叶子组照常 201；组表里不存在的 id 维持宽松（201）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const leaf = await app.inject({
         method: 'POST',

@@ -14,9 +14,9 @@ import {
  * 端到端实测（A4，模型 = feiyue `scripts/feiyue-solver/e2e.sh`：驱动**真产物**、断言**内容往返**）。
  *
  * 与同目录其它测试的本质区别：它们用进程内 `app.inject`（不过 HTTP、不落真盘、不真重启）。本测试 spawn
- * 真实入口 `src/main.ts`（经 tsx，与 `npm run dev` / `dist/main.js` 同一套 env→FileGovStore/FileKbStore
- * 落盘 + 真 HTTP 路径），并**真杀进程再重启**——这是 `app.inject` 证不了、也正是 A1 那类「start 脚本漏接
- * 落盘 env → 重启清空」bug 唯一能被逮住的层。断言 issueId / 任务 / 边**跨真实 reload 存活**，不是 length / 200。
+ * 真实入口 `src/main.ts`（经 tsx，与 `npm run dev` / `dist/main.js` 同一套 TEAMHUB_DB_FILE → 统一 SQLite
+ * 组合根 + 真 HTTP 路径），并**真杀进程再重启**。断言 issueId / 任务 / 边跨新进程存活，证明正常
+ * 运行路径没有重新引入 File/InMemory fallback，而不是只断言 length / 200。
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -90,8 +90,7 @@ async function stopServer(proc: ChildProcess): Promise<void> {
 }
 
 async function makeDataDir(): Promise<{
-  gov: string;
-  kb: string;
+  database: string;
   config: string;
 }> {
   const dir = await mkdtemp(join(tmpdir(), 'teamhub-e2e-'));
@@ -109,7 +108,7 @@ async function makeDataDir(): Promise<{
     }),
     'utf8',
   );
-  return { gov: join(dir, 'gov.json'), kb: join(dir, 'kb.json'), config };
+  return { database: join(dir, 'teamhub.sqlite'), config };
 }
 
 afterAll(async () => {
@@ -177,11 +176,10 @@ const hasEdge = (
 ) => body.edges.some((e) => e.source === from && e.target === to);
 
 describe('e2e: 真 HTTP + 真落盘 + 真重启（驱动 src/main.ts）', () => {
-  test('KB 结案 → 杀进程重启 → 同症状仍召回（FileKbStore 跨真实 reload 存活）', async () => {
-    const { gov, kb, config } = await makeDataDir();
+  test('KB 结案 → 杀进程重启 → 同症状仍从统一 SQLite 召回', async () => {
+    const { database, config } = await makeDataDir();
     const env = {
-      TEAMHUB_GOV_DATA_FILE: gov,
-      TEAMHUB_KB_DATA_FILE: kb,
+      TEAMHUB_DB_FILE: database,
       TEAMHUB_CONFIG_FILE: config,
     };
     const recallUrl =
@@ -191,6 +189,14 @@ describe('e2e: 真 HTTP + 真落盘 + 真重启（驱动 src/main.ts）', () => 
 
     const port1 = await freePort();
     const s1 = await startServer(env, port1);
+    const status = await getJson(port1, '/api/system/status');
+    expect(status.deployment.storage).toHaveLength(6);
+    expect(
+      status.deployment.storage.every(
+        (item: { backend: string; path?: string }) =>
+          item.backend === 'sqlite' && item.path === database,
+      ),
+    ).toBe(true);
     expect(hasIssue(await getJson(port1, recallUrl), probeIssue.id)).toBe(false);
 
     const closeout = await post(port1, '/api/kb/closeout', {
@@ -203,18 +209,17 @@ describe('e2e: 真 HTTP + 真落盘 + 真重启（驱动 src/main.ts）', () => 
     expect(hasIssue(await getJson(port1, recallUrl), probeIssue.id)).toBe(true);
     await stopServer(s1);
 
-    // 真重启（新进程、同落盘文件）→ 仍召回，证 FileKbStore 落盘 + reload
+    // 真重启（新进程、同一个统一 SQLite）→ 仍召回。
     const port2 = await freePort();
     const s2 = await startServer(env, port2);
     expect(hasIssue(await getJson(port2, recallUrl), probeIssue.id)).toBe(true);
     await stopServer(s2);
   }, 60_000);
 
-  test('PM 建任务+依赖 → 杀进程重启 → 任务与边存活（FileGovStore 跨真实 reload）', async () => {
-    const { gov, kb, config } = await makeDataDir();
+  test('PM 建任务+依赖 → 杀进程重启 → 任务与边在统一 SQLite 存活', async () => {
+    const { database, config } = await makeDataDir();
     const env = {
-      TEAMHUB_GOV_DATA_FILE: gov,
-      TEAMHUB_KB_DATA_FILE: kb,
+      TEAMHUB_DB_FILE: database,
       TEAMHUB_CONFIG_FILE: config,
     };
 
@@ -254,11 +259,10 @@ describe('e2e: 真 HTTP + 真落盘 + 真重启（驱动 src/main.ts）', () => 
   }, 60_000);
 
   test('H3：配 TEAMHUB_WRITE_TOKEN 后，写端点无 Bearer→401、带 Bearer→201、读端点不受限', async () => {
-    const { gov, kb, config } = await makeDataDir();
+    const { database, config } = await makeDataDir();
     const token = 'e2e-secret-token';
     const env = {
-      TEAMHUB_GOV_DATA_FILE: gov,
-      TEAMHUB_KB_DATA_FILE: kb,
+      TEAMHUB_DB_FILE: database,
       TEAMHUB_CONFIG_FILE: config,
       TEAMHUB_WRITE_TOKEN: token,
     };

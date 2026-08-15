@@ -15,7 +15,7 @@ import type {
   InventorySnapshot,
   Member,
 } from '@teamhub/hub-contracts';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 import { InMemoryInvStore } from '../src/store/mock-inv-store.js';
 import { InMemoryReimburseStore } from '../src/store/reimburse-store.js';
@@ -108,7 +108,7 @@ async function login(app: FastifyInstance, memberId: string): Promise<string> {
 function buildTestApp() {
   const invStore = new InMemoryInvStore(seedInv());
   const reimburseStore = new InMemoryReimburseStore();
-  const app = buildHubServer({
+  const app = buildTestHubServer({
     store: new InMemoryGovStore(seedGov()),
     invStore,
     reimburseStore,
@@ -537,7 +537,7 @@ describe('POST /api/reimburse/entries/:id/stock-in — 入库联动', () => {
 
 describe('匿名模式（identityMode=anonymous）', () => {
   test('GET entries 回全量（无身份概念，与匿名可读一切一致）；POST → 400 须登录；批次端点 403', async () => {
-    const app = buildHubServer({
+    const app = buildTestHubServer({
       store: new InMemoryGovStore(seedGov()),
       invStore: new InMemoryInvStore(seedInv()),
       reimburseStore: new InMemoryReimburseStore(),

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import {
   BaselineResponseSchema,
   UpdateBaselineResponseSchema,
@@ -14,7 +14,7 @@ const seasonId = 'season-baseline-route-1';
 
 describe('倒排基准线路由（BASELINE-CORE，S4）', () => {
   test('GET /api/baseline：无 seasonId → 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({ method: 'GET', url: '/api/baseline' });
       expect(res.statusCode).toBe(400);
@@ -24,7 +24,7 @@ describe('倒排基准线路由（BASELINE-CORE，S4）', () => {
   });
 
   test('GET /api/baseline：赛季无基准线 → 200 { baseline: null }（非 404，GET 语义上"还没有"合法）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'GET',
@@ -39,7 +39,7 @@ describe('倒排基准线路由（BASELINE-CORE，S4）', () => {
   });
 
   test('PATCH /api/baseline：生成模板（不存在则创建）→ 200，读回一致', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'PATCH',
@@ -74,7 +74,7 @@ describe('倒排基准线路由（BASELINE-CORE，S4）', () => {
   });
 
   test('PATCH /api/baseline：无 seasonId → 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'PATCH',
@@ -88,7 +88,7 @@ describe('倒排基准线路由（BASELINE-CORE，S4）', () => {
   });
 
   test('POST /milestones/:id/pass：证据引用不存在的 artifactId → 400（避孤儿引用）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       await app.inject({
         method: 'PATCH',
@@ -121,7 +121,7 @@ describe('倒排基准线路由（BASELINE-CORE，S4）', () => {
   });
 
   test('POST /milestones/:id/pass：合法过门 → 200，status=passed，响应剥 passedBy（I0 沿 confirmedBy 先例）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       await app.inject({
         method: 'PATCH',
@@ -161,7 +161,7 @@ describe('倒排基准线路由（BASELINE-CORE，S4）', () => {
   });
 
   test('POST /milestones/:id/pass：milestoneId 未命中 → 404', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       await app.inject({
         method: 'PATCH',
@@ -180,7 +180,7 @@ describe('倒排基准线路由（BASELINE-CORE，S4）', () => {
   });
 
   test('写鉴权：配 writeToken 后无 token PATCH /api/baseline → 401，带 token → 200', async () => {
-    const app = buildHubServer({ writeToken: 'secret-baseline' });
+    const app = buildTestHubServer({ writeToken: 'secret-baseline' });
     try {
       const noToken = await app.inject({
         method: 'PATCH',

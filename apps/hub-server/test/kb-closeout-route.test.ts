@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { KbCloseoutResponseSchema } from '@teamhub/hub-contracts';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 import { InMemoryKbStore } from '../src/store/mock-kb-store.js';
@@ -27,7 +27,7 @@ describe('POST /api/kb/closeout', () => {
   test('结案成功 → 归档+错误表+已归档卡+派生知识节点；节点持久到 store', async () => {
     const store = new InMemoryGovStore();
     const before = (await store.getSnapshot()).knowledgeNodes.length;
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -57,7 +57,7 @@ describe('POST /api/kb/closeout', () => {
   });
 
   test('闭环：结案上传后下次 similar 能召回（回灌检索语料）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     const url =
       '/api/kb/similar?symptom=' +
       encodeURIComponent('云台舵机抖动') +
@@ -98,7 +98,7 @@ describe('POST /api/kb/closeout', () => {
   // 原「同 issue 同时刻复现同码」恰是审计指出的碰撞 bug（~38 次/日生日碰撞 → 静默覆盖、污染 kb-similar
   // 跨赛季查找）。新契约：每次结案占一个递增序号，格式仍 DBG-YYYYMMDD-NNN、不碰撞。
   test('errorCode 单调不碰撞（M9）：同日多次结案产出不同的码', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const payload = {
         issue: liveIssue,
@@ -129,7 +129,7 @@ describe('POST /api/kb/closeout', () => {
     const archiveBefore = kbBefore.archiveDocuments.length;
     const cardBefore = kbBefore.issueCards.length;
     const nodesBefore = (await store.getSnapshot()).knowledgeNodes.length;
-    const app = buildHubServer({ store, kbStore });
+    const app = buildTestHubServer({ store, kbStore });
     const payload = {
       issue: liveIssue,
       category: '云台',
@@ -167,7 +167,7 @@ describe('POST /api/kb/closeout', () => {
   // （.trim().min(1)），空值在 safeParse 边界即被拒 → 400（结案仍需手填根因，不伪造完成）。
   // 此前由 buildCloseoutFromIssue 运行时检查兜底 → 422；现约束上提到边界，请求仍被拒，仅状态码 422→400。
   test('缺 rootCause → 400（结案仍需手填根因，约束已上提到边界 schema，不伪造完成）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -181,7 +181,7 @@ describe('POST /api/kb/closeout', () => {
   });
 
   test('body 不合法（缺 issue）→ 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',

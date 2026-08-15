@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import {
   CreateResourceResponseSchema,
   CreateResourcesBatchResponseSchema,
@@ -18,7 +18,7 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
   test('POST /api/resources → 201；displayCode 由 deriveDisplayCode 派生 = 26R2（禁手写）', async () => {
     const store = new InMemoryGovStore();
     const before = (await store.listResources()).length;
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -51,7 +51,7 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
   });
 
   test('POST /api/resources：version=2 → displayCode 显 -v2（26R1-v2）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -74,7 +74,7 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
   });
 
   test('POST /api/resources：不给 season → displayCode 为 undefined（读视图回退 name）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -95,7 +95,7 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
   });
 
   test('POST /api/resources：缺必填字段 → 400（safeParse 拒）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -113,7 +113,7 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
 
   test('PATCH /api/resources/:id/status → repair（带 statusReason）生效；statusSource clamp console', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
         method: 'PATCH',
@@ -137,7 +137,7 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
   test('PATCH /api/resources/:id/status → retired（退役 = 状态迁移，整车仍在列表，无物删）', async () => {
     const store = new InMemoryGovStore();
     const before = (await store.listResources()).length;
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
         method: 'PATCH',
@@ -158,7 +158,7 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
 
   test('PATCH /api/resources/:id/status：statusReason 省略 → 不动既有 reason', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       // 先设一个 reason
       await app.inject({
@@ -183,7 +183,7 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
 
   test('PATCH /api/resources/:id/status：显式 null → 清空 statusReason', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       await app.inject({
         method: 'PATCH',
@@ -204,7 +204,7 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
   });
 
   test('PATCH /api/resources/:id/status：未知 id → 404', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'PATCH',
@@ -218,7 +218,7 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
   });
 
   test('PATCH /api/resources/:id/status：非法 status → 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'PATCH',
@@ -233,7 +233,7 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
 
   // 无 DELETE 物删路由：退役走 PATCH status→retired（整车留展示，ResourceSession 仍引用 resourceId）。
   test('DELETE /api/resources/:id → 404（无物删路由）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'DELETE',
@@ -383,7 +383,7 @@ describe('POST /api/resources/batch（FLEET-BATCH-INIT 车队批量初始化）'
   test('三台全过 → 201；displayCode 派生（27/R1/2 → 27R1-v2）、kind 默认 robot、建时 clamp available', async () => {
     const store = new InMemoryGovStore();
     const before = (await store.listResources()).length;
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -420,7 +420,7 @@ describe('POST /api/resources/batch（FLEET-BATCH-INIT 车队批量初始化）'
 
   test('行带 status=repair（+statusReason）→ 建后补迁移落库；statusSource 钉 console（照单台迁移钉法）', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -457,7 +457,7 @@ describe('POST /api/resources/batch（FLEET-BATCH-INIT 车队批量初始化）'
 
   test('原子性：任一行坏（第 2 台缺 robotTarget）→ 400 整批不落，resources 快照零变化；detail 带第几台', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const snapshotBefore = JSON.stringify(await store.listResources());
       const res = await app.inject({
@@ -483,7 +483,7 @@ describe('POST /api/resources/batch（FLEET-BATCH-INIT 车队批量初始化）'
   test('status 只收初始化四档：第 1 台 inUse → 400 整批不落', async () => {
     const store = new InMemoryGovStore();
     const before = (await store.listResources()).length;
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -500,7 +500,7 @@ describe('POST /api/resources/batch（FLEET-BATCH-INIT 车队批量初始化）'
   });
 
   test('空数组 → 400（min 1，空批无意义）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -514,7 +514,7 @@ describe('POST /api/resources/batch（FLEET-BATCH-INIT 车队批量初始化）'
   });
 
   test('鉴权继承写门：配 writeToken 无 Bearer → 401（与单建 POST /api/resources 同门，不新加敏感门）', async () => {
-    const guarded = buildHubServer({ writeToken: 'secret' });
+    const guarded = buildTestHubServer({ writeToken: 'secret' });
     try {
       const res = await guarded.inject({
         method: 'POST',

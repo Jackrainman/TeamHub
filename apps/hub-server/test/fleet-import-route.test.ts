@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import FormData from 'form-data';
 import { FleetPreviewResponseSchema } from '@teamhub/hub-contracts';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
 /**
@@ -21,7 +21,7 @@ function multipart(content: Buffer | string, filename = 'fleet.csv') {
 
 describe('GET /api/resources/template', () => {
   test('200 + CSV 带 BOM + 五列表头 + 附件下载头', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({ method: 'GET', url: '/api/resources/template' });
       expect(res.statusCode).toBe(200);
@@ -38,7 +38,7 @@ describe('GET /api/resources/template', () => {
 describe('POST /api/resources/preview — 只解析不落库', () => {
   test('解析返回 rows/failed（中文编号/状态映射），车队快照零变化', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const before = await store.listResources();
       const csv =
@@ -71,7 +71,7 @@ describe('POST /api/resources/preview — 只解析不落库', () => {
   });
 
   test('可空列（赛季码/第几代/状态留空）→ undefined，解析仍 200', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const csv = '名称,编号,赛季码,第几代,状态\n裸车,R2,,,\n';
       const res = await app.inject({
@@ -98,7 +98,7 @@ describe('POST /api/resources/preview — 只解析不落库', () => {
       0xbb, 0xfa, 0xb3, 0xb5, 0x2c, 0x52, 0x31, 0x2c, 0x32, 0x37, 0x2c, 0x31, 0x2c, 0xc4, 0xdc, 0xd3,
       0xc3, 0x0d, 0x0a,
     ]);
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -116,7 +116,7 @@ describe('POST /api/resources/preview — 只解析不落库', () => {
   });
 
   test('无法识别的编码 → 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const bad = Buffer.from([0x41, 0xff, 0x42]); // UTF-8 与 GBK 皆非法
       const res = await app.inject({
@@ -136,7 +136,7 @@ describe('写门 × writeToken（与 POST /api/resources/batch 同门）', () =>
   const csv = '名称,编号,赛季码,第几代,状态\nR1 比赛车,R1,27,1,能用\n';
 
   test('匿名 + 配 writeToken：无 Bearer 401；带 Bearer 200', async () => {
-    const app = buildHubServer({ writeToken: 'sekret' });
+    const app = buildTestHubServer({ writeToken: 'sekret' });
     try {
       const noAuth = await app.inject({
         method: 'POST',

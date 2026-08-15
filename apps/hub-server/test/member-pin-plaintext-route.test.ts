@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
 /**
@@ -32,7 +32,7 @@ async function clearFixturePm(store: InMemoryGovStore): Promise<void> {
 describe('pinPlaintext 双写双清', () => {
   test('PUT pin 后 snapshot 同含 pinHash + pinPlaintext；DELETE 后两字段皆无', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ identityMode: 'identity', store });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       const cookie = await login(app, 'm-visionA');
       const set = await app.inject({
@@ -61,7 +61,7 @@ describe('pinPlaintext 双写双清', () => {
   test('bootstrap（POST /api/setup/super-admin）带 pin 也双写；响应体不含 pinPlaintext/pinHash/scrypt:', async () => {
     const store = new InMemoryGovStore();
     await clearFixturePm(store);
-    const app = buildHubServer({ identityMode: 'identity', store });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       const cookie = await login(app, 'm-ecB'); // 免 PIN 登入
       const res = await app.inject({
@@ -87,7 +87,7 @@ describe('pinPlaintext 双写双清', () => {
 describe('密钥纪律：pinPlaintext/pinHash 绝不出读响应', () => {
   test('GET /api/members 与 GET /api/session 的 JSON 串均不含 pinPlaintext/pinHash/scrypt:', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ identityMode: 'identity', store });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       const cookie = await login(app, 'm-visionA');
       await app.inject({
@@ -121,7 +121,7 @@ describe('密钥纪律：pinPlaintext/pinHash 绝不出读响应', () => {
 
 describe('GET /api/members/:id/pin（显示PIN 唯一透出口）', () => {
   test('匿名模式 → 404（身份模式未启用）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({ method: 'GET', url: '/api/members/m-ecB/pin' });
       expect(res.statusCode).toBe(404);
@@ -132,7 +132,7 @@ describe('GET /api/members/:id/pin（显示PIN 唯一透出口）', () => {
 
   test('鉴权三态：本人 200 回明文 / 持旗管理员 200 / 他人 403；成员不存在 404', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ identityMode: 'identity', store });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       // m-visionA 自设 PIN（双写后 pinPlaintext 在库）
       const cookieA = await login(app, 'm-visionA');
@@ -189,7 +189,7 @@ describe('GET /api/members/:id/pin（显示PIN 唯一透出口）', () => {
 
   test('无 pinPlaintext（从未设 / 旧数据）→ 404「未设置 PIN」', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ identityMode: 'identity', store });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       // m-ecB 从未设 PIN → 本人读 → 404 未设置
       const cookie = await login(app, 'm-ecB');
@@ -207,7 +207,7 @@ describe('GET /api/members/:id/pin（显示PIN 唯一透出口）', () => {
 
   test('DELETE 清除后再读 → 404「未设置 PIN」（双清生效）', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ identityMode: 'identity', store });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       const cookie = await login(app, 'm-visionA');
       await app.inject({

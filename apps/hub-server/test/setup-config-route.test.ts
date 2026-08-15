@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { DeployConfig } from '@teamhub/hub-contracts';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import type { SetupControl } from '../src/server.js';
 import { buildSetupServer, RESTART_EXIT_CODE } from '../src/build-setup-server.js';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
@@ -49,10 +49,10 @@ async function login(app: FastifyInstance, memberId: string, pin?: string): Prom
 /** 装配一个带 setupControl 的正常模式 server；exit 注入、config.json 落 tmp。 */
 function buildWithSetupControl(
   overrides: Partial<SetupControl> & { configFile: string },
-  serverOptions: Parameters<typeof buildHubServer>[0] = {},
+  serverOptions: Parameters<typeof buildTestHubServer>[0] = {},
 ): { app: FastifyInstance; exitCodes: number[] } {
   const exitCodes: number[] = [];
-  const app = buildHubServer({
+  const app = buildTestHubServer({
     ...serverOptions,
     setupControl: {
       config: DEMO_CONFIG,
@@ -87,7 +87,7 @@ describe('setup 模式：两端点不注册（404）', () => {
 
 describe('正常模式无 setupControl：两端点不注册（404，匿名）', () => {
   test('PUT/POST → 404', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const put = await app.inject({
         method: 'PUT',

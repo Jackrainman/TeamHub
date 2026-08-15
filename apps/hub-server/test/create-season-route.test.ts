@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { CreateSeasonResponseSchema, SeasonsResponseSchema } from '@teamhub/hub-contracts';
 import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 import { FileGovStore } from '../src/store/file-gov-store.js';
@@ -24,7 +24,7 @@ describe('POST /api/seasons', () => {
     const store = new InMemoryGovStore();
     const priorActive = (await store.getSnapshot()).seasons.filter((s) => s.status === 'active');
     expect(priorActive.length).toBeGreaterThan(0); // fixture 种了一条 active，前提成立
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({ method: 'POST', url: '/api/seasons', payload: validBody });
       expect(res.statusCode).toBe(201);
@@ -48,7 +48,7 @@ describe('POST /api/seasons', () => {
   });
 
   test('同名 400；endsAt 早于 startsAt 400；缺 name 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const dupName = (await app.inject({ method: 'GET', url: '/api/seasons' })).json()
         .seasons[0].name as string;
@@ -78,7 +78,7 @@ describe('POST /api/seasons', () => {
   });
 
   test('status 不受客户端摆布：传 archived 也被服务端钉回 active（生而废弃拒绝）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',

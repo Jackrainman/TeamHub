@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, test } from 'vitest';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { KbSimilarResponseSchema } from '@teamhub/hub-contracts';
 
-const app = buildHubServer();
+const app = buildTestHubServer();
 
 afterAll(async () => {
   await app.close();

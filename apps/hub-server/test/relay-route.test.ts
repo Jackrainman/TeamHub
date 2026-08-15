@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { buildHubServer } from '../src/server.js';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
 import {
   RelayBoardResponseSchema,
   RelayHandoffResponseSchema,
@@ -18,7 +18,7 @@ import { InMemoryGovStore } from '../src/store/mock-gov-store.js';
 
 /** 在指定 windowLabel 录入一条占用窗口，返回新 session.id。 */
 async function postSession(
-  app: ReturnType<typeof buildHubServer>,
+  app: ReturnType<typeof buildTestHubServer>,
   overrides: Record<string, unknown> = {},
 ): Promise<string> {
   const res = await app.inject({
@@ -43,7 +43,7 @@ async function postSession(
 
 describe('PATCH /api/resource-sessions/:id（接力画布编辑：排先后 + 预估时间）', () => {
   test('改 orderInWindow + eta → 200，两字段都生效；响应剥 confirmedBy（I0）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'PATCH',
@@ -62,7 +62,7 @@ describe('PATCH /api/resource-sessions/:id（接力画布编辑：排先后 + �
 
   test('只改 eta（不传 order）→ order 保留旧值；eta 显式 null 可清空', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       // 先设 eta
       const set = await app.inject({
@@ -88,7 +88,7 @@ describe('PATCH /api/resource-sessions/:id（接力画布编辑：排先后 + �
   });
 
   test('两字段都不给 → 400（至少给一个）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'PATCH',
@@ -102,7 +102,7 @@ describe('PATCH /api/resource-sessions/:id（接力画布编辑：排先后 + �
   });
 
   test('eta 空串 → 400（schema min(1)）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'PATCH',
@@ -116,7 +116,7 @@ describe('PATCH /api/resource-sessions/:id（接力画布编辑：排先后 + �
   });
 
   test('未知 id → 404', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'PATCH',
@@ -132,7 +132,7 @@ describe('PATCH /api/resource-sessions/:id（接力画布编辑：排先后 + �
 
 describe('GET /api/relay（接力画布读视图，反监视红线无成员维度）', () => {
   test('windowLabel=今晚 → stages 富集（车号/组名/任务标签/order/eta/boardable）', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'GET',
@@ -155,7 +155,7 @@ describe('GET /api/relay（接力画布读视图，反监视红线无成员维�
 
   test('I0：返回体（含 stages + handoffs）不含任何人维度字段（memberId/invitedMemberIds/displayName/confirmedBy）', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       // 录入第二窗 + 在两站间拉线，让返回体既有 stages 又有 handoffs（更全面覆盖红线）
       const to = await postSession(app);
@@ -200,7 +200,7 @@ describe('GET /api/relay（接力画布读视图，反监视红线无成员维�
   });
 
   test('windowLabel 缺失 → 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({ method: 'GET', url: '/api/relay' });
       expect(res.statusCode).toBe(400);
@@ -213,7 +213,7 @@ describe('GET /api/relay（接力画布读视图，反监视红线无成员维�
 describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400）', () => {
   test('两站间拉线 → 201；server 钉 source=console；响应剥 confirmedBy；GET /api/relay 含该线', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const from = 'sess-tonight-ec'; // seed
       const to = await postSession(app); // 第二条今晚窗口
@@ -249,7 +249,7 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
   });
 
   test('自环（from===to）→ 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -269,7 +269,7 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
   });
 
   test('from/to session 不存在 → 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'POST',
@@ -289,7 +289,7 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
   });
 
   test('跨窗交接（toSession 属另一 windowLabel）→ 400', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       // handoff.windowLabel=平日窗，但 toSessionId 属总联调窗（sess-convergence-day-r1）→ 跨窗 400
       const res = await app.inject({
@@ -311,7 +311,7 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
 
   test('成环（A→B 已存在，再建 B→A）→ 400', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const a = 'sess-tonight-ec';
       const b = await postSession(app);
@@ -348,7 +348,7 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
 
   test('DELETE 命中 → 200；删后 GET /api/relay 不再含；再删同 id → 404', async () => {
     const store = new InMemoryGovStore();
-    const app = buildHubServer({ store });
+    const app = buildTestHubServer({ store });
     try {
       const a = 'sess-tonight-ec';
       const b = await postSession(app);
@@ -389,7 +389,7 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
   });
 
   test('DELETE 未知 id → 404', async () => {
-    const app = buildHubServer();
+    const app = buildTestHubServer();
     try {
       const res = await app.inject({
         method: 'DELETE',
