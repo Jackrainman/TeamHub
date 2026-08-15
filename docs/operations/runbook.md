@@ -16,7 +16,7 @@ last_reviewed: 2026-08-15
 ./scripts/backup-teamhub-data.sh
 ```
 
-必须确认脚本 exit code 为 0 且备份可读。artifact 文件目录当前不一定由旧脚本完整覆盖，操作者需单独确认它已进入备份范围。
+必须确认脚本 exit code 为 0，且 `VACUUM INTO` 产物通过 `integrity_check`、schema 版本与 `schema_kind=unified` 读回。artifact 文件目录不包含在 SQLite 备份中，必须另行 tar/rsync 并校验；A2 前临时 config 也需纳入灾备。
 
 ## 2. 日常启动与观察
 
@@ -35,9 +35,7 @@ curl -s http://127.0.0.1:4177/api/system/status
 3. `git fetch`，确认本地与远端没有意外分叉。
 4. 切换到目标提交并按发布物要求安装/构建。
 5. 重启后检查 buildId、系统状态和关键领域读路径。
-6. 写入一条安全测试事实并重启，确认统一 SQLite/现存后端真正持久。
-
-在 D-090 迁移完成前，不得把“应用升级”顺手变成数据后端迁移。后端切换必须是单独原子批次。
+6. 写入一条安全测试事实并重启，确认统一 SQLite 真正持久。
 
 ## 4. 回滚
 
@@ -61,7 +59,7 @@ loopback 豁免必须基于真实 socket 地址，不信任远端伪造的转发
 | 症状 | 首查 |
 |---|---|
 | 页面仍是旧版本 | `/health.buildId`、静态站路径、实际进程 |
-| 重启后数据消失 | 当前 backend、数据库/旧分域路径、挂卷、写权限 |
+| 重启后数据消失 | `TEAMHUB_DB_FILE`、`hub_data` 挂卷、目录写权限、数据库完整性 |
 | 全队写入被限流 | 反代部署是否正确启用 TRUST_PROXY |
 | Hermes 401 | loopback credential、token 生命周期、重试是否只一次 |
 | 飞书保存失败 | App 凭据、应用审批、chat_id、机器人是否在群内 |
@@ -73,7 +71,7 @@ loopback 豁免必须基于真实 socket 地址，不信任远端伪造的转发
 
 - 禁止把 `docker compose down --volumes` 用于真实项目。
 - 不删除用户数据，不做破坏性迁移，不在没有恢复演练时合并数据清理与代码升级。
-- TARGET 统一 SQLite 后，备份集合为数据库文件、artifact 目录和必要秘密/启动配置；迁移期仍需覆盖所有旧数据文件。
+- 备份集合为统一 SQLite、artifact 目录和必要秘密/启动配置；结构化数据库必须使用在线安全的 `VACUUM INTO`，不要直接复制正在写入的 SQLite 文件。
 - 发票等报账文件从不在服务端，因此不属于 TeamHub 备份集。
 
 ## 8. 需要审批的操作

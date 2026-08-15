@@ -4,8 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: teamhub-hub:local
-    # SETUP-WIZARD 刀①：exit code 42 = 请求重启（向导 / 设置页改配置后 process.exit(42)）。on-failure 非零即
-    # 拉起（含 42），顺带补容器崩溃自愈（此前无 restart 策略）。同一容器原地重启 → config 卷持久、进正常模式。
+    # exit code 42 = 首启动向导请求重启；config 卷是 A2 app_settings 落地前的临时例外。
     restart: on-failure
     env_file:
       - deploy/teamhub.env.example
@@ -13,53 +12,30 @@ services:
       HUB_HOST: 0.0.0.0
       HUB_PORT: 4177
       TEAMHUB_CONSOLE_DIST_DIR: /opt/teamhub/console
-      # SETUP-WIZARD 刀①：部署配置文件（dataMode / identityMode 唯一真相）。首启动无此文件 → 向导；提交后
-      # 写到此卷、重启进正常模式。无头部署可预置本文件到卷，或起服后 curl POST /api/setup/init。
+      # A2 前临时保留 config.json；产品配置迁入 app_settings 后删除此卷。
       TEAMHUB_CONFIG_FILE: /var/lib/teamhub/config/config.json
-      # M11（AUDIT-FIXES 部署前必修）：容器内 KB 落盘到挂卷——否则每次重启静默丢全部
-      # IssueCard/ErrorEntry/ArchiveDocument，破「AI+知识库闭环」前提。
-      TEAMHUB_KB_DATA_FILE: /var/lib/teamhub/kb/kb-data.json
-      # v1：治理快照落盘到挂卷（同 KB 的 H5 持久化纪律）——否则重启丢 PM 录入 / 图纸提交日志 /
-      # 结案知识节点。文件不存在时 FileGovStore seed 真实场景 + 图纸版本日志。
-      TEAMHUB_GOV_DATA_FILE: /var/lib/teamhub/gov/gov-data.json
-      # 库存/BOM 落盘到挂卷（同 KB/Gov 持久化纪律）——否则重启丢盘点 / 拆装登记 / 一句话快记。
-      TEAMHUB_INV_DATA_FILE: /var/lib/teamhub/inv/inv-data.json
-      # K4（配置面还债刀）：倒排基准线落盘到挂卷——否则重启丢队长手写覆盖 / 验证门过门留痕（此前
-      # compose 漏配此变量，容器每次重启会静默清零该域数据，此前只有 kb/gov/inv 三条落盘）。
-      TEAMHUB_BASELINE_DATA_FILE: /var/lib/teamhub/baseline/baseline-data.json
-      # K4：门检查单/欠条落盘到挂卷（同上，GATE-CHECKLIST-IOU）——否则重启丢现场快记欠条 / 清偿 / 豁免。
-      TEAMHUB_CHECKLIST_DATA_FILE: /var/lib/teamhub/checklist/checklist-data.json
-      # 归档物（图纸）字节落挂卷（HUB-ARTIFACT-STORE-MECH 本地卷版，D-025：不进 git）——server 读的是
-      # TEAMHUB_ARTIFACT_FILES_DIR（旧 ARTIFACT_ROOT 名字错、server 从不读，导致上传/下载在部署里恒 404）。
+      # 六个结构化数据域共用一个 SQLite 文件与一个数据卷。
+      TEAMHUB_DB_FILE: /var/lib/teamhub/data/teamhub.sqlite
+      # 图纸等允许服务端持久化的二进制制品使用独立 artifact 卷。
       TEAMHUB_ARTIFACT_FILES_DIR: /var/lib/teamhub/artifacts
+      TEAMHUB_WRITE_TOKEN: ${TEAMHUB_WRITE_TOKEN:-change-me-before-exposing}
     ports:
       - "${TEAMHUB_HOST_PORT:-4177}:4177"
     volumes:
       - hub_config:/var/lib/teamhub/config
+      - hub_data:/var/lib/teamhub/data
       - hub_artifacts:/var/lib/teamhub/artifacts
-      - hub_kb:/var/lib/teamhub/kb
-      - hub_gov:/var/lib/teamhub/gov
-      - hub_inv:/var/lib/teamhub/inv
-      - hub_baseline:/var/lib/teamhub/baseline
-      - hub_checklist:/var/lib/teamhub/checklist
-    # H5（AUDIT-FIXES 部署前必修）：删幻影 Postgres——hub-server 无 PG 客户端、从不读 DATABASE_URL，
-    # 唯三 store 是 InMemoryGovStore / FileKbStore / 抛错的 SqliteGovStore stub。原 depends_on+DATABASE_URL
-    # 只是白等 ~60s 健康重试 + 一个没用的容器，并误导运维以为治理数据进了 PG。SQLite 真上时再挂卷。
-    # H3：HUB_HOST=0.0.0.0 暴露写端点，故 deploy/teamhub.env.example 必须配 TEAMHUB_WRITE_TOKEN（否则拒启动）。
     healthcheck:
       test:
         - CMD-SHELL
-        - node -e "fetch('http://127.0.0.1:4177/health').then(async r => { if (!r.ok) process.exit(1); const body = await r.json(); if (body.status !== 'ok') process.exit(1); }).catch(() => process.exit(1))"
+        - node -e "fetch('http://127.0.0.1:4177/health').then(async r => { if (!r.ok) process.exit(1); const body = await r.json(); if (body.status !== 'ok' || typeof body.buildId !== 'string' || !body.buildId) process.exit(1); }).catch(() => process.exit(1))"
       interval: 10s
       timeout: 5s
       retries: 6
       start_period: 10s
 
 volumes:
+  # A2 前临时保留；app_settings 接管产品配置后删除。
   hub_config:
+  hub_data:
   hub_artifacts:
-  hub_kb:
-  hub_gov:
-  hub_inv:
-  hub_baseline:
-  hub_checklist:

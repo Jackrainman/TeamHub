@@ -11,35 +11,12 @@
 # 可调环境变量：
 #   HUB_HOST              监听地址（默认 127.0.0.1；内网演示用 0.0.0.0）
 #   HUB_PORT              端口（默认 4177）
-#   TEAMHUB_KB_DATA_FILE  知识库语料落盘文件（默认 ~/teamhub-data/kb.json，重启不丢、closeout 累积）
-#   TEAMHUB_GOV_DATA_FILE 治理快照落盘文件（默认 ~/teamhub-data/gov.json，重启不丢；PM 任务/依赖/图纸提交日志/
-#                         结案知识节点）。**漏设则 main.ts 回落 InMemoryGovStore、每次重启清回演示 fixture**——
-#                         D-061 治理落盘在真实启动路径上失效。本脚本默认接好，与 KB 落盘同纪律。
-#   TEAMHUB_GOV_BACKEND   治理后端（SS3 SQLite 增量迁移）。**默认空 = JSON（现状零变化，走 TEAMHUB_GOV_DATA_FILE）**；
-#                         设 sqlite → 走 SqliteGovStore（node24 内置 node:sqlite，零原生依赖），须同时设
-#                         TEAMHUB_GOV_SQLITE_FILE。迁移既有 gov.json：scripts/migrate-gov-to-sqlite.mjs。
-#   TEAMHUB_GOV_SQLITE_FILE  SQLite 库文件（仅 TEAMHUB_GOV_BACKEND=sqlite 时生效，默认 ~/teamhub-data/gov.sqlite）。
-#                         库不存在按 demoSeed 落种子；已迁移/既有库原样打开（schema 版本过高即 fail-closed 拒开）。
+#   TEAMHUB_DB_FILE       六个结构化数据域的唯一 SQLite 文件（默认 ~/teamhub-data/teamhub.sqlite）。
 #   TEAMHUB_ARTIFACT_FILES_DIR  归档物（图纸）文件落盘目录（默认 ~/teamhub-data/artifacts，重启不丢）。
 #                         漏设则上传/下载端点恒 404「未配置归档物文件目录」。字节不进 git（D-025）、只在此卷。
-#   TEAMHUB_INV_DATA_FILE 库存/BOM 落盘文件（默认 ~/teamhub-data/inventory.json，重启不丢；盘点/拆装/
-#                         一句话快记累积）。漏设则 main.ts 回落 InMemoryInvStore、每次重启清回演示 fixture。
-#                         本脚本默认接好，与 KB/Gov 落盘同纪律。
-#   TEAMHUB_BASELINE_DATA_FILE  倒排基准线落盘文件（默认 ~/teamhub-data/baseline.json，重启不丢；队长
-#                         手写覆盖/验证门过门留痕累积）。独立文件、不进 TEAMHUB_GOV_DATA_FILE（红线3：
-#                         基准线本体不塞 GovernanceSnapshot）。漏设则 main.ts 回落 InMemoryBaselineStore、
-#                         每次重启清空。本脚本默认接好，与 KB/Gov/Inv 落盘同纪律。
-#   TEAMHUB_CHECKLIST_DATA_FILE  门检查单/欠条落盘文件（默认 ~/teamhub-data/checklist.json，重启不丢；现场
-#                         快记欠条/清偿/豁免留痕累积，GATE-CHECKLIST-IOU D-087）。独立文件、不进
-#                         TEAMHUB_GOV_DATA_FILE（轻量域不塞 GovernanceSnapshot，照 baseline.json 先例）。
-#                         漏设则 main.ts 回落 InMemoryChecklistStore、每次重启清空。本脚本默认接好。
 #   TEAMHUB_WRITE_TOKEN   写端点鉴权密钥（AUDIT H3）。绑非 loopback（0.0.0.0）时必填，未填则本脚本自动生成并打印；
 #                         写端点 POST /api/* 须带 `Authorization: Bearer <token>`，读端点不受影响。
-#   TEAMHUB_CONFIG_FILE   部署配置文件（默认 ~/teamhub-data/config.json，SETUP-WIZARD 刀①）。**模式的唯一
-#                         真相**：dataMode（演示/真实）+ identityMode（匿名/登录制）落在这里。文件不存在 →
-#                         首启动向导（浏览器里点选，人类路径零 env）；存在 → 严格解析、坏文件拒启动。改配置
-#                         走设置页「部署配置」（自动重启生效）。无头/自动化部署可预置本文件或起服后 curl
-#                         POST /api/setup/init。（演示态开关 / 身份模式两个模式类 env 已退役，来源改本文件。）
+#   TEAMHUB_CONFIG_FILE   A2 前临时部署配置（默认 ~/teamhub-data/config.json）；不存在时进入首启动向导。
 #   TEAMHUB_TRUST_PROXY   反代信任（默认 false）。反代 / SSH 隧道部署后面**必须**设 true，否则写端点
 #                         限流塌成全队共用一个桶（任一客户端可耗尽、DoS 全队写入，见 server.ts）；
 #                         直连暴露（无反代）保持 false（否则 X-Forwarded-For 可伪造）。本脚本原样
@@ -54,20 +31,10 @@ SERVER_DIR="${ROOT_DIR}/apps/hub-server"
 
 HUB_HOST="${HUB_HOST:-127.0.0.1}"
 HUB_PORT="${HUB_PORT:-4177}"
-TEAMHUB_KB_DATA_FILE="${TEAMHUB_KB_DATA_FILE:-${HOME}/teamhub-data/kb.json}"
-TEAMHUB_GOV_DATA_FILE="${TEAMHUB_GOV_DATA_FILE:-${HOME}/teamhub-data/gov.json}"
-# SS3 SQLite（增量迁移）：默认空 = JSON 现状零变化；设 sqlite 才切 SqliteGovStore（须配 TEAMHUB_GOV_SQLITE_FILE）。
-TEAMHUB_GOV_BACKEND="${TEAMHUB_GOV_BACKEND:-}"
-TEAMHUB_GOV_SQLITE_FILE="${TEAMHUB_GOV_SQLITE_FILE:-${HOME}/teamhub-data/gov.sqlite}"
-# 统一 SQLite 后端：设 sqlite → 五域共库（一个 TEAMHUB_DB_FILE 取代六条路径）；默认空 = 旧逐域路径。
-TEAMHUB_BACKEND="${TEAMHUB_BACKEND:-}"
 TEAMHUB_DB_FILE="${TEAMHUB_DB_FILE:-${HOME}/teamhub-data/teamhub.sqlite}"
-TEAMHUB_INV_DATA_FILE="${TEAMHUB_INV_DATA_FILE:-${HOME}/teamhub-data/inventory.json}"
-TEAMHUB_BASELINE_DATA_FILE="${TEAMHUB_BASELINE_DATA_FILE:-${HOME}/teamhub-data/baseline.json}"
-TEAMHUB_CHECKLIST_DATA_FILE="${TEAMHUB_CHECKLIST_DATA_FILE:-${HOME}/teamhub-data/checklist.json}"
 TEAMHUB_ARTIFACT_FILES_DIR="${TEAMHUB_ARTIFACT_FILES_DIR:-${HOME}/teamhub-data/artifacts}"
 TEAMHUB_WRITE_TOKEN="${TEAMHUB_WRITE_TOKEN:-}"
-# SETUP-WIZARD 刀①：部署配置文件（模式的唯一真相）。不存在 → 首启动向导；存在 → 严格解析（坏文件拒启动）。
+# A2 前临时配置文件。不存在 → 首启动向导；存在 → 严格解析（坏文件拒启动）。
 TEAMHUB_CONFIG_FILE="${TEAMHUB_CONFIG_FILE:-${HOME}/teamhub-data/config.json}"
 # 活体戳：注入 git short SHA 进 /health.buildId，重启后一行 curl 即知在服哪个构建（feiyue ?v= 校验等价）。
 TEAMHUB_BUILD_ID="${TEAMHUB_BUILD_ID:-$(git -C "${ROOT_DIR}" rev-parse --short HEAD 2>/dev/null || echo nogit)}"
@@ -100,9 +67,8 @@ if [[ ! -d "${ROOT_DIR}/node_modules" ]]; then
   exit 1
 fi
 
-# 语料 / 治理 / 库存 / 基准线 / 归档物落盘目录就位（server 启动即读：KB 召回 + PM 录入 + 库存盘点 +
-# 倒排基准线 + 图纸文件上传下载，重启不丢）
-mkdir -p "$(dirname "${TEAMHUB_CONFIG_FILE}")" "$(dirname "${TEAMHUB_KB_DATA_FILE}")" "$(dirname "${TEAMHUB_GOV_DATA_FILE}")" "$(dirname "${TEAMHUB_GOV_SQLITE_FILE}")" "$(dirname "${TEAMHUB_DB_FILE}")" "$(dirname "${TEAMHUB_INV_DATA_FILE}")" "$(dirname "${TEAMHUB_BASELINE_DATA_FILE}")" "$(dirname "${TEAMHUB_CHECKLIST_DATA_FILE}")" "${TEAMHUB_ARTIFACT_FILES_DIR}"
+# 唯一数据库、A2 前临时配置、artifact 三个持久化落点就位。
+mkdir -p "$(dirname "${TEAMHUB_CONFIG_FILE}")" "$(dirname "${TEAMHUB_DB_FILE}")" "${TEAMHUB_ARTIFACT_FILES_DIR}"
 
 if [[ "${SKIP_BUILD}" != "1" ]]; then
   echo "构建 TeamHub workspaces（contracts → console → server）…"
@@ -111,29 +77,17 @@ fi
 
 # console 静态产物交给 server 单端口托管
 export TEAMHUB_CONSOLE_DIST_DIR="${CONSOLE_DIR}/dist"
-export TEAMHUB_CONFIG_FILE TEAMHUB_KB_DATA_FILE TEAMHUB_GOV_DATA_FILE TEAMHUB_INV_DATA_FILE TEAMHUB_BASELINE_DATA_FILE TEAMHUB_CHECKLIST_DATA_FILE TEAMHUB_ARTIFACT_FILES_DIR HUB_HOST HUB_PORT TEAMHUB_WRITE_TOKEN TEAMHUB_BUILD_ID TEAMHUB_GOV_BACKEND TEAMHUB_GOV_SQLITE_FILE TEAMHUB_BACKEND TEAMHUB_DB_FILE
+export TEAMHUB_CONFIG_FILE TEAMHUB_DB_FILE TEAMHUB_ARTIFACT_FILES_DIR HUB_HOST HUB_PORT TEAMHUB_WRITE_TOKEN TEAMHUB_BUILD_ID
 
 echo "──────────────────────────────────────────────"
 echo " Team Hub v${TEAMHUB_VERSION} 启动 → http://${HUB_HOST}:${HUB_PORT}  (console + API 同端口)"
-if [[ "${TEAMHUB_BACKEND}" == "sqlite" ]]; then
-  echo " 统一 SQLite：${TEAMHUB_DB_FILE}（五域共库，node:sqlite，重启不丢）"
-else
-  echo " 语料文件：${TEAMHUB_KB_DATA_FILE}"
-  if [[ "${TEAMHUB_GOV_BACKEND}" == "sqlite" ]]; then
-    echo " 治理后端：SQLite → ${TEAMHUB_GOV_SQLITE_FILE}（node:sqlite，PM/图纸/结案重启不丢）"
-  else
-    echo " 治理文件：${TEAMHUB_GOV_DATA_FILE}（PM/图纸/结案重启不丢；JSON 后端，默认）"
-  fi
-  echo " 库存文件：${TEAMHUB_INV_DATA_FILE}（盘点/拆装/快记重启不丢）"
-  echo " 基准线文件：${TEAMHUB_BASELINE_DATA_FILE}（队长手写覆盖/验证门过门重启不丢）"
-  echo " 检查单文件：${TEAMHUB_CHECKLIST_DATA_FILE}（现场快记欠条/清偿/豁免重启不丢）"
-fi
+echo " 统一 SQLite：${TEAMHUB_DB_FILE}（六域共库，node:sqlite，重启不丢）"
 echo " 归档物目录：${TEAMHUB_ARTIFACT_FILES_DIR}（图纸文件上传下载，重启不丢）"
 echo " 版本：v${TEAMHUB_VERSION}（/api/system/status.version 同源）　构建戳：${TEAMHUB_BUILD_ID}（/health.buildId）"
 if [[ -f "${TEAMHUB_CONFIG_FILE}" ]]; then
-  echo " 部署配置：${TEAMHUB_CONFIG_FILE}（dataMode / identityMode 唯一真相；改配置走设置页→部署配置，自动重启）"
+  echo " 临时配置：${TEAMHUB_CONFIG_FILE}（A2 app_settings 落地前保留）"
 else
-  echo " 首次启动：打开浏览器跟随向导完成初始化（选演示数据 / 正式安装 + 登录方式），配置将写入 ${TEAMHUB_CONFIG_FILE}"
+  echo " 首次启动：打开浏览器完成初始化；临时配置将写入 ${TEAMHUB_CONFIG_FILE}"
 fi
 if [[ "${HUB_HOST}" != "127.0.0.1" && "${HUB_HOST}" != "localhost" && "${HUB_HOST}" != "::1" ]]; then
   echo " 已绑 ${HUB_HOST}：写端点 POST /api/* 须带 Authorization: Bearer <token>（读端点不限）。"
