@@ -267,14 +267,15 @@ function extractPdfPurchaserName(lines: string[]): string | null {
     if (labeled?.[1]) {
       return labeled[1].replace(/\s+/g, '');
     }
+    // 购销两列布局（「购 名称：X … 销 名称：Y」）优先精确匹配，避免购方名把「销」单字吞进尾部。
+    const direct = /购\s+名称\s*[:：]\s*(.*?)\s+销\s+名称\s*[:：]/.exec(line);
+    if (direct?.[1] && direct[1].trim()) {
+      return direct[1].replace(/\s+/g, '');
+    }
     const twoNames =
       /名\s*称\s*[:：]\s*(.+?)\s+名\s*称\s*[:：]\s*(.+?)\s*$/.exec(line);
     if (twoNames?.[1] && !/^(购|销|买|售)$/.test(twoNames[1])) {
       return twoNames[1].replace(/\s+/g, '');
-    }
-    const direct = /购\s+名称\s*[:：]\s*(.*?)\s+销\s+名称\s*[:：]/.exec(line);
-    if (direct?.[1]) {
-      return direct[1].replace(/\s+/g, '');
     }
   }
 
