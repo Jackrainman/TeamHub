@@ -27,6 +27,30 @@
       "batch": "later"
     },
     {
+      "id": "RELAY-ADD-GROUP-SOURCE",
+      "title": "加一棒·就地新建的「负责组」下拉数据源错误：AddLegForm 的 groupOptions 从 tasks 里收集 groupId（只显示有任务的组，且直接显示 gid 不显示组名），用户看到只有 grp-vision/grp-ec 两个、实际应显示全量叶子组五个。修复：改用 useGroups 全量组列表 + deriveLeafGroups 过滤（与 TodayPlanTable 同源），显示组名",
+      "tag": "code",
+      "batch": "bug"
+    },
+    {
+      "id": "TASK-GROUP-400-PROGRAM",
+      "title": "选负责组选「程序」报 400：后端 POST /api/tasks 用 deriveLeafGroups 拒绝非叶子组（程序=电控/视觉父组、非叶子 → 400「任务请挂到其下的具体小组」），但联调（总联调）实际以程序组为主，产品规则与 400 校验冲突。待产品拍板：联调任务是否放开父组，或前端对非叶子组标灰/引导挂子组；同时确认五个组的层级现状",
+      "tag": "code",
+      "batch": "bug"
+    },
+    {
+      "id": "SCHED-TABLE-TOOLBAR-UI",
+      "title": "接力画布初始化表格三按键 UI 不对劲（继续昨天/使用预设/确认）：可能是设计问题也可能是显示 bug（待复现确认）。表格 toolbar 用 relay-canvas__carry/__add 样式、确认按钮在 footer、三键布局与泳道图混用样式类，开学收口前核对实际渲染",
+      "tag": "code",
+      "batch": "bug"
+    },
+    {
+      "id": "RELAY-VS-DEPGRAPH-MISMATCH",
+      "title": "泳道图与依赖图显示不一致：创建 3 个任务后泳道图已显示、依赖图没看到。结构差异：泳道图=ResourceSession 读视图（taskLabel 可空，无任务也显示卡片仅显组名），依赖图=Task 节点图（只显示任务实体）。候选根因：①就地新建路径 createTask 后未及时失效 dep-graph ②排班不挂任务（taskLabel=null）本就不进依赖图。需实测确认到底哪个",
+      "tag": "code",
+      "batch": "bug"
+    },
+    {
       "id": "REIMBURSE-PM-EXPORT",
       "title": "项管视角全员发票筛选/选择与实际导出：命名建议、购买方状态、核对原因和 gross/eligible/blocked/review 已完成；剩余文件导出适配器仍须保持原件不上传，名字永不进治理聚合；见 docs/domains/reimburse.md",
       "tag": "code",
