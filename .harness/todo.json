@@ -15,6 +15,18 @@
       "batch": "architecture"
     },
     {
+      "id": "FLEET-PRESET-GROUP-EMPTY",
+      "title": "机器人队页「默认阵型」完全不可用：点开显示「还没加行」→ 点 + 加行 → 负责组下拉为空选不了组、保存按钮永灰。根因：组选项数据源用错——ResourcesPage 的 groupOptions 只从 dep-graph 节点（任务视图）与已有 preset 构建，不取 getGroups() 组列表；项目无任务/该车无对应组任务时下拉无候选。修复：改用组列表 API（叶子组才可进 lineup，见 docs/domains/resources.md §4），任务下拉已可复用 candidateTasksForResource",
+      "tag": "code",
+      "batch": "bug"
+    },
+    {
+      "id": "FLEET-STATUS-GROUP-FOLLOW",
+      "title": "改机器人状态时负责组随状态联动（需求/改进，待产品拍板）：现在改状态只有自由文本原因、无负责组。期望「在用」→ 大概率程序组（电控/视觉）在用；「在修」→ 可选电路/机械在修。建议状态切换 UI 按目标状态推荐/筛选负责组候选（在用=程序/电控/视觉，在修=电路/机械），或状态原因快捷 chips；涉及产品决策需确认",
+      "tag": "code",
+      "batch": "later"
+    },
+    {
       "id": "REIMBURSE-PM-EXPORT",
       "title": "项管视角全员发票筛选/选择与实际导出：命名建议、购买方状态、核对原因和 gross/eligible/blocked/review 已完成；剩余文件导出适配器仍须保持原件不上传，名字永不进治理聚合；见 docs/domains/reimburse.md",
       "tag": "code",
