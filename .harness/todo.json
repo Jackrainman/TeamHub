@@ -1,5 +1,5 @@
 {
-  "focus": "ARCH-UNIFY：A0-A3 已收口；按 checklist → baseline 顺序迁移下一批领域，并持续收缩 29 项 console 架构基线",
+  "focus": "SPRINT-W1 开学收口：仓库已回 npm 单轨、全量门绿；重心转真实数据彩排与基础功能可用，ARCH-UNIFY A4/A5 迁移开学前暂停",
   "blocked": [
     {
       "id": "HERMES-LARK-SKILL",
@@ -84,6 +84,24 @@
       "id": "REIMBURSE-LARK-BITABLE",
       "title": "报账 × 飞书多维表格联动（双向绑定先做定时拉取元数据；不存文件这点不变）——用户说'再说了'，挂起",
       "tag": "code",
+      "batch": "later"
+    },
+    {
+      "id": "ONBOARD-QA",
+      "title": "问答式初始化（TEACHING-FLOW 深化，用户痛点）：聊天式一问一答 + 右侧实时显示已选择确认卡（回答可见回报），规则 chips 优先（复用 suggestSeasonForm 先例）、LLM 自由文本解析可选且只转译不拍板（确认才落库）；名册/库存/知识库三个 CSV 批量步折叠成'有现成数据吗'分支保留；未拍板：车是否回问答建空车草稿 / LLM 内置 or 开关 / 替换 or 并存旧 7 步门；落点 contracts onboarding 纯函数 + server 跨域编排 service + console 引导 UI",
+      "tag": "code",
+      "batch": "onboarding"
+    },
+    {
+      "id": "DUAL-DEPLOY",
+      "title": "稳定版+镜像数据库开发版双实例：复制 teamhub.sqlite 到独立数据目录 + 换端口起第二实例（数据目录/端口走环境变量，无需改代码）；开学冲刺期不做，节奏稳定后再上；落点 docs/operations/deploy.md 补一节",
+      "tag": "ops",
+      "batch": "later"
+    },
+    {
+      "id": "HERMES-INIT",
+      "title": "让 hermes 生成初始化可用版本：复用 docs/operations/agent-deploy.md 提示词路径，目标=干净 clone → 向导走完 → 真实名册导入的全自动部署；与 DUAL-DEPLOY 的稳定版联动",
+      "tag": "ops",
       "batch": "later"
     }
   ],
