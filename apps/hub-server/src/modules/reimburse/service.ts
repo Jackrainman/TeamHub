@@ -257,11 +257,12 @@ export class ReimburseService {
       requestedByLine.set(line.itemIndex, requested);
       const remaining = item.quantity - (stockedByLine.get(line.itemIndex) ?? 0);
       if (requested > remaining) throw new ApplicationError('validation', 'REIMBURSE_STOCK_QUANTITY_EXCEEDED', `明细行「${item.name}」剩余可入库 ${remaining}，本次累计申请 ${requested}（防重复入库）`, { itemIndex: line.itemIndex, remaining, requested });
-      if ('partTypeId' in line.target && !snapshot.partTypes.some((part) => part.id === line.target.partTypeId)) {
-        throw new ApplicationError('validation', 'INVENTORY_PART_NOT_FOUND', `未知件: ${line.target.partTypeId}`, { partTypeId: line.target.partTypeId });
+      const target = line.target;
+      if ('partTypeId' in target && !snapshot.partTypes.some((part) => part.id === target.partTypeId)) {
+        throw new ApplicationError('validation', 'INVENTORY_PART_NOT_FOUND', `未知件: ${target.partTypeId}`, { partTypeId: target.partTypeId });
       }
-      if ('newPart' in line.target && snapshot.partTypes.some((part) => part.partNumber === line.target.newPart.partNumber)) {
-        throw new ApplicationError('validation', 'INVENTORY_PART_NUMBER_CONFLICT', `件号 ${line.target.newPart.partNumber} 已存在，请改用 partTypeId 入库`, { partNumber: line.target.newPart.partNumber });
+      if ('newPart' in target && snapshot.partTypes.some((part) => part.partNumber === target.newPart.partNumber)) {
+        throw new ApplicationError('validation', 'INVENTORY_PART_NUMBER_CONFLICT', `件号 ${target.newPart.partNumber} 已存在，请改用 partTypeId 入库`, { partNumber: target.newPart.partNumber });
       }
     }
     const numbers = lines.flatMap((line) => 'newPart' in line.target ? [line.target.newPart.partNumber] : []);

@@ -56,15 +56,16 @@ describe('hub-server routes', () => {
     expect(body.deployment).toBeUndefined();
   });
 
-  test('GET /api/system/status echoes deployment (file/memory 两形态)', async () => {
-    // K3 部署信息回显：落盘域带 path、内存域省 path；identityMode / 启用模块 / 图纸开关 / 构建标识齐备。
+  test('GET /api/system/status echoes deployment (sqlite 统一形态)', async () => {
+    // K3 部署信息回显：六域统一 sqlite 落盘带 path；identityMode / 启用模块 / 图纸开关 / 构建标识齐备。
     const deployApp = buildTestHubServer({
       deployment: {
         dataMode: 'real',
         identityMode: 'identity',
+        verticalId: 'robotics',
         storage: [
-          { domain: 'gov', backend: 'file', path: '/data/gov.json' },
-          { domain: 'kb', backend: 'memory' },
+          { domain: 'gov', backend: 'sqlite', path: '/data/teamhub.sqlite' },
+          { domain: 'kb', backend: 'sqlite', path: '/data/teamhub.sqlite' },
         ],
         enabledModules: ['system', 'pm-core'],
         artifactUploadEnabled: false,
@@ -81,14 +82,18 @@ describe('hub-server routes', () => {
       expect(body.deployment).toBeDefined();
       expect(body.deployment?.dataMode).toBe('real');
       expect(body.deployment?.identityMode).toBe('identity');
-      // 落盘形态：带路径。
+      expect(body.deployment?.verticalId).toBe('robotics');
+      // 统一 sqlite 形态：每条带落盘路径。
       expect(body.deployment?.storage[0]).toEqual({
         domain: 'gov',
-        backend: 'file',
-        path: '/data/gov.json',
+        backend: 'sqlite',
+        path: '/data/teamhub.sqlite',
       });
-      // 内存形态：无 path 字段（JSON 里被丢）。
-      expect(body.deployment?.storage[1]).toEqual({ domain: 'kb', backend: 'memory' });
+      expect(body.deployment?.storage[1]).toEqual({
+        domain: 'kb',
+        backend: 'sqlite',
+        path: '/data/teamhub.sqlite',
+      });
       expect(body.deployment?.artifactUploadEnabled).toBe(false);
       expect(body.deployment?.buildId).toBe('test-build-1');
     } finally {

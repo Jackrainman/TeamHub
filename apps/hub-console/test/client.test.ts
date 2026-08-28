@@ -280,7 +280,7 @@ describe('hub console API client', () => {
   });
 
   test('R1 接力画布：getRelay / updateResourceSession / create+deleteRelayHandoff 命中正确路径与方法', async () => {
-    const fetcher = vi.fn(async (url: string) => {
+    const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
       const parsed = new URL(url, 'http://teamhub.local');
       return {
         ok: true,

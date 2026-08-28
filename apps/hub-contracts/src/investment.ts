@@ -6,6 +6,10 @@ export const InvestmentTimeAccumulationSchema = z.enum(['high', 'low']);
 export const InvestmentHorizonSchema = z.enum(['season', 'future']);
 export const InvestmentValueSchema = z.enum(['high', 'low']);
 
+export type InvestmentTimeAccumulation = z.infer<typeof InvestmentTimeAccumulationSchema>;
+export type InvestmentHorizon = z.infer<typeof InvestmentHorizonSchema>;
+export type InvestmentValue = z.infer<typeof InvestmentValueSchema>;
+
 export const TaskInvestmentSchema = z.object({
   horizon: InvestmentHorizonSchema,
   value: InvestmentValueSchema,

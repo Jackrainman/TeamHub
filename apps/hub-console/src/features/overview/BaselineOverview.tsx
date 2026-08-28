@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
-import { useBaseline, type BaselineSegment } from '../baseline';
+import { useBaseline } from '../baseline';
 import { useTasks } from '../../hooks/useTasks';
 import { useMembers, useGroups, useSeasons } from '../../hooks/useRoster';
 import type { PageIdentityCtx } from '../../console-pages';
@@ -22,7 +22,7 @@ export function BaselineOverview({
   identity,
 }: {
   client: HubApiClient;
-  baselineClient: BaselineSegment;
+  baselineClient: HubApiClient;
   source: string;
   identity: PageIdentityCtx;
 }) {

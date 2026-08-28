@@ -52,8 +52,10 @@ export function buildTestHubServer(options: BuildTestHubServerOptions = {}) {
     checklistRepository:
       options.checklistRepository ?? new InMemoryChecklistStore(),
     reimburseStore,
-    inventoryStockInPort: options.inventoryStockInPort ?? invStore,
-    reimburseStockInPort: options.reimburseStockInPort ?? reimburseStore,
+    inventoryStockInPort:
+      options.inventoryStockInPort ?? (invStore as InMemoryInvStore),
+    reimburseStockInPort:
+      options.reimburseStockInPort ?? (reimburseStore as InMemoryReimburseStore),
     unitOfWork: options.unitOfWork ?? new TestApplicationUnitOfWork(clock),
   });
 }
