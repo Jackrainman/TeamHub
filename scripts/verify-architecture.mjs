@@ -25,7 +25,6 @@ export const ARCHITECTURE_BASELINE = Object.freeze([
   ['raw-react-query', 'apps/hub-console/src/features/myview/MyViewPage.tsx', 1],
   ['raw-react-query', 'apps/hub-console/src/features/overview/sub/BaselineStates.tsx', 1],
   ['raw-react-query', 'apps/hub-console/src/features/pm/PmCreatePanel.tsx', 1],
-  ['raw-react-query', 'apps/hub-console/src/features/resources/ResourcesPage.tsx', 1],
   ['raw-react-query', 'apps/hub-console/src/features/resources/sub/CreateResourceForm.tsx', 1],
   ['raw-react-query', 'apps/hub-console/src/features/resources/sub/ResourceRow.tsx', 2],
   ['raw-react-query', 'apps/hub-console/src/features/schedule/relay-canvas/useRelayMutations.ts', 5],
