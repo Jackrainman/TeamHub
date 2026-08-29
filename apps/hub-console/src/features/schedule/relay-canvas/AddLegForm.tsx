@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { X } from 'lucide-react';
 import type { HubApiClient } from '../../../api/client';
 import type { SharedResource, Task } from '@teamhub/hub-contracts';
+import { deriveLeafGroups } from '@teamhub/hub-contracts';
 import { useI18n } from '../../../i18n';
+import { useGroups } from '../../../hooks/useRoster';
 import { Field } from '../../../components/Field';
 import { FormGrid } from '../../../components/FormGrid';
 import { FormEmptyState } from '../../../components/FormEmptyState';
@@ -47,13 +49,17 @@ export function AddLegForm({
     [tasks, resource],
   );
 
+  // 「负责组」下拉候选：全量组列表（GET /api/groups）派生叶子组（与 TodayPlanTable 同源；
+  // 叶子组才可挂任务/进 lineup），option 显组名、value 存组 id。不从 tasks 反推——无任务的组也要能选。
+  const groupsQuery = useGroups(client, 'relayAddLeg');
   const groupOptions = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const tk of tasks) {
-      if (!seen.has(tk.groupId)) seen.set(tk.groupId, tk.groupId);
-    }
-    return [...seen.entries()];
-  }, [tasks]);
+    const groups = groupsQuery.data?.groups ?? [];
+    const leaf = new Set(deriveLeafGroups([...groups]));
+    return groups
+      .filter((g) => leaf.has(g.id))
+      .map((g) => ({ id: g.id, name: g.name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+  }, [groupsQuery.data]);
 
   useEffect(() => {
     if (taskId && !candidateTasks.some((tk) => tk.id === taskId)) {
@@ -64,7 +70,7 @@ export function AddLegForm({
   }, [candidateTasks, taskId]);
 
   useEffect(() => {
-    if (!newGroupId && groupOptions[0]) setNewGroupId(groupOptions[0][0]);
+    if (!newGroupId && groupOptions[0]) setNewGroupId(groupOptions[0].id);
   }, [groupOptions, newGroupId]);
 
   const task = candidateTasks.find((tk) => tk.id === taskId);
@@ -192,9 +198,9 @@ export function AddLegForm({
                     value={newGroupId}
                     onChange={(e) => setNewGroupId(e.target.value)}
                   >
-                    {groupOptions.map(([gid]) => (
-                      <option value={gid} key={gid}>
-                        {gid}
+                    {groupOptions.map((g) => (
+                      <option value={g.id} key={g.id}>
+                        {g.name}
                       </option>
                     ))}
                   </select>
