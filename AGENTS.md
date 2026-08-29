@@ -4,6 +4,20 @@
 
 TeamHub = 机器人战队协作中枢（CASE + 交流 + 数据库）。三支柱：① 知识库 ② 项管看板 ③ 库存-BOM。垂直包 = Robocon。文档入口 `docs/README.md`，约束 `.harness/decisions.md`。
 
+### 1.1 文件与数据路径（服务器 /home/ubuntu）
+
+| 路径 | 角色 | 本 agent 可写？ |
+|---|---|---|
+| `~/projects/teamhub/`（即本仓库） | **源码仓库**：git 工作区，唯一的改代码/提交/验证场所 | ✅ 可写 |
+| `~/TeamHub/` | **生产部署目录**：systemd `teamhub.service` 的 WorkingDirectory，由 rsync 从源码部署过去 | ❌ 只读（硬约束） |
+| `~/teamhub-data/` | **生产数据**：`teamhub.sqlite` + `artifacts/`，运行中的 service 读写它 | ❌ 只读（硬约束） |
+| `~/teamhub.log` | 生产运行日志 | ❌ 只读 |
+
+- 生产部署流程（用户/部署 agent 执行，本 agent 不碰）：源码 `git pull` → 构建 → `rsync` 到 `~/TeamHub` → 重启 `teamhub.service`。详见 `docs/operations/deploy.md`。
+- 数据安全：重建/迁移前必须跑 `./scripts/backup-teamhub-data.sh`。
+- 线上活体：`curl -s http://127.0.0.1:4177/health | grep buildId`。
+- **边界纪律**：改代码只改本仓库并提交到 git；不要直接改 `~/TeamHub` 或 `~/teamhub-data`（那属于部署与运维动作，非源码变更）。
+
 **不变式**（约束一切代码）：
 - **I0**：对准事不对准人；人键只回本人，第三方只见结构键（task/group/resource）；名字只在事实卡片，永不进聚合/统计。
 - **C1-C5**：填写成本当下回报抵消 / 摩擦可见·产能不可比 / 小作坊轻量 / AI 转译不拍板 / 只为有自然上游的场景构建。

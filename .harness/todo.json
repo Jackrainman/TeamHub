@@ -18,37 +18,43 @@
       "id": "FLEET-PRESET-GROUP-EMPTY",
       "title": "机器人队页「默认阵型」完全不可用：点开显示「还没加行」→ 点 + 加行 → 负责组下拉为空选不了组、保存按钮永灰。根因：组选项数据源用错——ResourcesPage 的 groupOptions 只从 dep-graph 节点（任务视图）与已有 preset 构建，不取 getGroups() 组列表；项目无任务/该车无对应组任务时下拉无候选。修复：改用组列表 API（叶子组才可进 lineup，见 docs/domains/resources.md §4），任务下拉已可复用 candidateTasksForResource",
       "tag": "code",
-      "batch": "bug"
+      "batch": "bug",
+      "detail": "\n现象：机器人队页每行「默认阵型」列显示「未设置 · 编辑」；点开编辑器显示「还没加行，点下面 + 加一行」；点 + 加行后「负责组」下拉只有「选组」占位、没有任何可选项；保存按钮永远灰（allGroupsFilled 要求每行 groupId 非空）。\n复现：项目里还没有任务（或该车没有挂在任何组下的任务）时，对任一机器人打开默认阵型编辑器即复现。\n根因：ResourcesPage.tsx L37-46 的 groupOptions 只从 dep-graph 节点（任务视图，toDepGraphView 的 nodes=snapshot.tasks）+ 已有 preset lineup 构建，不调 GET /api/groups 全量组列表。项目无任务/该车无对应组任务时 map 为空 → DefaultPresetEditor（ResourceRow.tsx L122-128）的组下拉无候选。数据源与 TodayPlanTable 不一致（后者 L60-89 用 useGroups 全量组 + deriveLeafGroups 叶子过滤）。\n修复：ResourcesPage 改用 useGroups() 全量组列表，组下拉显示组名，叶子组才进 lineup（docs/domains/resources.md §4）；任务下拉已可复用 candidateTasksForResource。\n验证：空任务项目下能选出全部叶子组并保存成功；hub-console verify:all 绿。"
     },
     {
       "id": "FLEET-STATUS-GROUP-FOLLOW",
       "title": "改机器人状态时负责组随状态联动（需求/改进，待产品拍板）：现在改状态只有自由文本原因、无负责组。期望「在用」→ 大概率程序组（电控/视觉）在用；「在修」→ 可选电路/机械在修。建议状态切换 UI 按目标状态推荐/筛选负责组候选（在用=程序/电控/视觉，在修=电路/机械），或状态原因快捷 chips；涉及产品决策需确认",
       "tag": "code",
-      "batch": "later"
+      "batch": "later",
+      "detail": "\n现象/需求：机器人队页改状态目前只有自由文本「原因（选填）」，没有负责组概念。用户反馈：状态「在用」大概率是程序组（电控/视觉）在用，「在修」是电路/机械在修；希望状态切换时负责组能随状态自动推荐/筛选。\n现状：ResourceRow.tsx L255-283 只改 status + statusReason。\n修复（需产品拍板）：状态切换 UI 按目标状态推荐负责组候选（在用→程序/电控/视觉，在修→电路/机械），或状态原因快捷 chips；需确认是加独立「负责组」字段还是并入 statusReason。\n验证：从「在用」切「在修」时负责组候选/快捷项随状态变化。"
     },
     {
       "id": "RELAY-ADD-GROUP-SOURCE",
       "title": "加一棒·就地新建的「负责组」下拉数据源错误：AddLegForm 的 groupOptions 从 tasks 里收集 groupId（只显示有任务的组，且直接显示 gid 不显示组名），用户看到只有 grp-vision/grp-ec 两个、实际应显示全量叶子组五个。修复：改用 useGroups 全量组列表 + deriveLeafGroups 过滤（与 TodayPlanTable 同源），显示组名",
       "tag": "code",
-      "batch": "bug"
+      "batch": "bug",
+      "detail": "\n现象：接力画布「+ 加一棒」→ 切「就地新建」→ 下方「负责组」下拉只有 grp-vision / grp-ec 两个选项，且显示的是 gid 而不是组名；实际应有五个叶子组。\n根因：AddLegForm.tsx L50-56 的 groupOptions 从 tasks 里收集（只收集已有任务的 tk.groupId），L195-199 渲染直接输出 gid。数据源错误：应取全量组列表而非有任务的组。\n修复：与 TodayPlanTable 同源——AddLegForm 接收 useGroups() 全量组 + deriveLeafGroups 过滤，option 显示组名（id 存 value）。\n验证：下拉显示全部叶子组的中文名（5 个），选中后新建任务成功。"
     },
     {
       "id": "TASK-GROUP-400-PROGRAM",
       "title": "选负责组选「程序」报 400：后端 POST /api/tasks 用 deriveLeafGroups 拒绝非叶子组（程序=电控/视觉父组、非叶子 → 400「任务请挂到其下的具体小组」），但联调（总联调）实际以程序组为主，产品规则与 400 校验冲突。待产品拍板：联调任务是否放开父组，或前端对非叶子组标灰/引导挂子组；同时确认五个组的层级现状",
       "tag": "code",
-      "batch": "bug"
+      "batch": "bug",
+      "detail": "\n现象：今日计划表格/加一棒里选「程序」作为负责组并新建任务，后端返回 400「组「程序」是汇报视角（含子组或是联调哨兵组），任务请挂到其下的具体小组」。\n根因：后端 POST /api/tasks（tasks.ts L167-170）用 deriveLeafGroups(snapshot.groups)（schedule.ts L140-153）拒绝非叶子组；「程序」=电控/视觉的父组 → 非叶子 → 400。但实际联调（总联调）就是以程序组为主的，产品规则与 400 校验冲突。\n修复（需产品拍板）：①联调任务是否放开父组（改校验或加白名单）②前端对非叶子组标灰/引导挂子组 ③先确认当前五个组的 parentGroupId 层级现状。\n验证：按拍板结果，联调任务能挂程序组，或前端明确提示并引导。"
     },
     {
       "id": "SCHED-TABLE-TOOLBAR-UI",
       "title": "接力画布初始化表格三按键 UI 不对劲（继续昨天/使用预设/确认）：可能是设计问题也可能是显示 bug（待复现确认）。表格 toolbar 用 relay-canvas__carry/__add 样式、确认按钮在 footer、三键布局与泳道图混用样式类，开学收口前核对实际渲染",
       "tag": "code",
-      "batch": "bug"
+      "batch": "bug",
+      "detail": "\n现象：接力画布初始化（当日无 session 自动落表格视图）时，「继续昨天 / 使用预设 / 确认」三个按键 UI 不对劲——可能是设计问题也可能是显示 bug（用户描述为“UI 不太对劲，显示不正确”）。\n复现：新一天打开接力画布 → 自动落表格页 → 观察 toolbar（继续昨天/使用预设）与 footer（确认）三键的布局/样式。\n现状：TodayPlanTable L309-327 toolbar 复用 relay-canvas__carry / relay-canvas__add 样式类，L370-379 footer 的确认键用 relay-canvas__add，三键分散在 toolbar+footer、样式类与泳道图混用。\n修复：核对 12-fleet.css 与 today-plan 样式，确认是布局设计问题还是渲染 bug；统一表格域专用按钮样式与位置。\n验证：三键在表格视图内布局正常、禁用态/文案正确；视觉核对。"
     },
     {
       "id": "RELAY-VS-DEPGRAPH-MISMATCH",
       "title": "泳道图与依赖图显示不一致：创建 3 个任务后泳道图已显示、依赖图没看到。结构差异：泳道图=ResourceSession 读视图（taskLabel 可空，无任务也显示卡片仅显组名），依赖图=Task 节点图（只显示任务实体）。候选根因：①就地新建路径 createTask 后未及时失效 dep-graph ②排班不挂任务（taskLabel=null）本就不进依赖图。需实测确认到底哪个",
       "tag": "code",
-      "batch": "bug"
+      "batch": "bug",
+      "detail": "\n现象：用户创建 3 个任务后，泳道图（接力画布）已显示对应卡片，但依赖图（DepGraph）里看不到这 3 个任务节点。\n结构差异（已确认）：泳道图=ResourceSession 读视图（deriveRelayBoard，schedule.ts L576-608）——taskLabel 可空，无任务也显示卡片仅显组名；依赖图=Task 节点图（toDepGraphView，attribution.ts L385+）——只显示真实任务实体。\n候选根因：①「就地新建」路径 AddLegForm.createTask 成功后未即时失效 dep-graph（createSession 才 refetch，schedule-invalidation 含 dep-graph 前缀但时序上可能晚/漏）②排班根本不挂任务（holderTaskId=null）→ 泳道图有卡、依赖图自然无节点（这是预期行为，非 bug）。\n修复：先在页面实测区分：建任务后刷新依赖图看是否出现。若 ①→ 在 createTask 成功后补 invalidateQueries(['dep-graph'])；若 ②→ 属预期，需产品确认是否要在泳道卡片上显式标注「未挂任务」以免误导。\n验证：建任务后依赖图即时出现该节点；无任务排班时泳道卡有明确标注。"
     },
     {
       "id": "REIMBURSE-PM-EXPORT",
