@@ -311,7 +311,7 @@ export function TodayPlanTable({
         <div className="today-plan-table__actions">
           <button
             type="button"
-            className="relay-canvas__carry"
+            className="btn btn--secondary"
             disabled={prevCount === 0 || carrying}
             title={prevCount === 0 ? t('schedule.table.carryDisabledHint') : undefined}
             onClick={() => {
@@ -320,7 +320,7 @@ export function TodayPlanTable({
           >
             {carrying ? t('schedule.relay.addSubmitting') : t('schedule.table.carryOver')}
           </button>
-          <button type="button" className="relay-canvas__add" onClick={handleUsePreset}>
+          <button type="button" className="btn btn--secondary" onClick={handleUsePreset}>
             {t('schedule.table.usePreset')}
           </button>
         </div>
@@ -370,7 +370,7 @@ export function TodayPlanTable({
       <div className="today-plan-table__footer">
         <button
           type="button"
-          className="relay-canvas__add"
+          className="btn btn--primary"
           disabled={confirming || resources.length === 0}
           onClick={() => {
             void handleConfirm();
