@@ -5,7 +5,7 @@ import {
   deriveMyVehicleProgress,
   deriveRobotStageMarkers,
   deriveSeasonTaskProgress,
-  deriveStagePipeline,
+  deriveStageProgress,
   type StagePipelineStage,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
@@ -359,10 +359,11 @@ const STAGE_I18N_KEY: Record<StagePipelineStage, Parameters<ReturnType<typeof us
 };
 
 /**
- * 整车六阶段时间线（STAGE-PIPELINE Step1.5）：用现有 phases 时间窗近似映射六阶段，零 schema
- * 变更看形态（Step2 merge 后才给 milestone 加可选 stage 字段）。时间线样式 = 节点+连线+日期窗；
- * 车徽标（V1/V2/V3）落在「该车最早 pending 里程碑」所属段 = 「当前 V1 车状态在这里」
- * （纯派生，非 robot 实体字段）。「待联调」段附总联调任务计数（CONVERGENCE-TASK-ENTRY 咬合）。
+ * 整车六阶段时间线（STAGE-PIPELINE Step2）：deriveStageProgress 精确派生——里程碑挂可选
+ * stage 字段即进精确模式（窗口=该阶段里程碑 plannedAt 区间，状态=里程碑结论投影）；存量
+ * 零标签板自动回退 Step1 phases 近似映射。时间线样式 = 节点+连线+日期窗；车徽标（V1/V2/V3）
+ * 落在「该车最早 pending 里程碑」所属段 = 「当前 V1 车状态在这里」（纯派生，非 robot 实体
+ * 字段）。「待联调」段附总联调任务计数（CONVERGENCE-TASK-ENTRY 咬合）。
  */
 function StagePipelineStrip({ client, source }: { client: HubApiClient; source: string }) {
   const { t } = useI18n();
@@ -384,7 +385,12 @@ function StagePipelineStrip({ client, source }: { client: HubApiClient; source: 
   }, [tasksQuery.data]);
 
   if (!baseline) return null;
-  const stages = deriveStagePipeline(baseline.phases, baseline.anchors.competitionDate, now);
+  const stages = deriveStageProgress(
+    baseline.milestones,
+    baseline.phases,
+    baseline.anchors.competitionDate,
+    now,
+  );
   if (!stages) {
     return <p className="workbench-note">{t('workbench.stage.empty')}</p>;
   }

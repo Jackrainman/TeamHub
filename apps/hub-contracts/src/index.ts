@@ -135,8 +135,10 @@ export {
   deriveInvestmentWarnings,
   deriveRobotStageMarkers,
   deriveStagePipeline,
+  deriveStageProgress,
   deriveTimeAccumulationFlags,
   generateRoboconBaselineTemplate,
+  MilestoneStageSchema,
   STAGE_PIPELINE_STAGES,
 } from './domains/baseline/index.js';
 export type {
@@ -157,6 +159,7 @@ export type {
   MilestoneDriftLevel,
   MilestoneKind,
   MilestoneRobotVersion,
+  MilestoneStage,
   MilestoneStatus,
   PassMilestoneRequest,
   PassMilestoneResponse,

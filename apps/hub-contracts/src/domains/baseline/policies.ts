@@ -1,5 +1,6 @@
 import type { Task } from '../../pm-core.js';
 import type { TaskInvestment } from '../../investment.js';
+import { STAGE_PIPELINE_STAGES } from './model.js';
 import type {
   BaselineAnchors,
   BaselineMilestone,
@@ -7,6 +8,7 @@ import type {
   BaselinePhaseType,
   BaselineSegment,
   MilestoneRobotVersion,
+  MilestoneStage,
   SeasonBaseline,
 } from './model.js';
 
@@ -234,6 +236,10 @@ export const TEMPLATE_NOTE_M2 = '调参入场默认挂在 G4 整车试跑之后�
  * **锚点间隔假设**：模板正向段（G2 落在第二学期第 1–2 周 ≈ 开学 +25 周）与倒推段（G3 ≈ 赛日 −8 周）
  * 需两锚点至少相隔约 34 周才不互相穿插；间隔过短时里程碑顺序可能错乱，属需队长手写覆盖修正的边界情形
  * （v1 相对周占位的已知约束，记入实现 deviations）。
+ *
+ * **stage 挂载（STAGE-PIPELINE Step2）**：G1→moduleDesign（V2 设计拍板门）、M1→moduleTest
+ * （sim2real 模块级验证基建）、G2/G3→integratedAssembly（V2 拼装/V3 出车）、G4→integratedTest、
+ * M2→convergence；moduleAssembly 不挂标签（塌缩零长区间自动跳过）。队长可按实际经 PATCH 改挂。
  */
 export function generateRoboconBaselineTemplate(anchors: {
   semesterStart: string;
@@ -271,6 +277,7 @@ export function generateRoboconBaselineTemplate(anchors: {
       title: '门 G1：问题清单收敛（V2 设计拍板）',
       kind: 'gate',
       plannedAt: addWeeks(s, 11),
+      stage: 'moduleDesign',
       robotVersion: 'V1',
       status: 'pending',
       note: TEMPLATE_NOTE_G1,
@@ -280,6 +287,7 @@ export function generateRoboconBaselineTemplate(anchors: {
       title: '里程碑 M1：sim2real 环境可用',
       kind: 'milestone',
       plannedAt: addWeeks(s, 21),
+      stage: 'moduleTest',
       status: 'pending',
       note: TEMPLATE_NOTE_M1,
     },
@@ -288,6 +296,7 @@ export function generateRoboconBaselineTemplate(anchors: {
       title: '门 G2：V2 拼装完成',
       kind: 'gate',
       plannedAt: addWeeks(s, 25), // 第二学期第 1–2 周
+      stage: 'integratedAssembly',
       robotVersion: 'V2',
       status: 'pending',
     },
@@ -296,6 +305,7 @@ export function generateRoboconBaselineTemplate(anchors: {
       title: '门 G3：V3 出车（冲奖、能完整闭环）',
       kind: 'gate',
       plannedAt: addWeeks(c, -8), // 期中前
+      stage: 'integratedAssembly',
       robotVersion: 'V3',
       status: 'pending',
     },
@@ -304,6 +314,7 @@ export function generateRoboconBaselineTemplate(anchors: {
       title: '门 G4：整车试跑（含破坏性 / 极限工况）',
       kind: 'gate',
       plannedAt: tuningStart, // 赛日 −4 周
+      stage: 'integratedTest',
       robotVersion: 'V3',
       status: 'pending',
     },
@@ -312,6 +323,7 @@ export function generateRoboconBaselineTemplate(anchors: {
       title: '里程碑 M2：调参入场',
       kind: 'milestone',
       plannedAt: addWeeks(c, -3), // 挂在 G4 之后
+      stage: 'convergence',
       status: 'pending',
       note: TEMPLATE_NOTE_M2,
     },
@@ -326,22 +338,14 @@ export function generateRoboconBaselineTemplate(anchors: {
 }
 
 // ---------------------------------------------------------------------------
-// 整车六阶段 stepper（STAGE-PIPELINE Step1，IA-RESTRUCTURE）：阶段只做视图投影、不建实体。
-// Step1 零 schema 变更：拿现有 phases（rd/iterate/tuning）时间窗近似映射六阶段看形态——
-// rd 三等分 = 模块设计/模块组装/模块测试，iterate = 集成组装，tuning = 集成测试，
-// 待联调 = tuning 末 → 比赛日（缺省 +14d）。Step2（merge 后）才给 milestone 加可选 stage
-// 字段 + 精确派生；届时本函数被替换，组件props 不变。
+// 整车六阶段 stepper（STAGE-PIPELINE，IA-RESTRUCTURE）：阶段只做视图投影、不建实体。
+// Step1 零 schema 变更：phases（rd/iterate/tuning）时间窗近似映射六阶段（deriveStagePipeline）。
+// Step2（本版）：milestone 可选 stage 字段 + deriveStageProgress 精确派生——任意里程碑带
+// stage 标签即进精确模式，存量零标签板回退 Step1 近似映射，组件 props 不变。
 // ---------------------------------------------------------------------------
 
-export const STAGE_PIPELINE_STAGES = [
-  'moduleDesign',
-  'moduleAssembly',
-  'moduleTest',
-  'integratedAssembly',
-  'integratedTest',
-  'convergence',
-] as const;
-export type StagePipelineStage = (typeof STAGE_PIPELINE_STAGES)[number];
+export { STAGE_PIPELINE_STAGES } from './model.js';
+export type StagePipelineStage = MilestoneStage;
 export type StagePipelineStatus = 'done' | 'current' | 'upcoming';
 export interface StageProgress {
   stage: StagePipelineStage;
@@ -351,6 +355,68 @@ export interface StageProgress {
 }
 
 const STAGE_CONVERGENCE_FALLBACK_MS = 14 * 24 * 60 * 60 * 1000;
+
+/**
+ * 六阶段精确派生（STAGE-PIPELINE Step2）：milestone 可选 `stage` 字段驱动。
+ * 任一里程碑带 stage 标签 → 精确模式：
+ * - **时间窗** = 该阶段里程碑 plannedAt 的 [min, max]，按阶段序单调钳制（乱序/倒挂数据不炸）；
+ *   无标签阶段塌缩为零长区间（位于 current 之前判 done、之后判 upcoming，不阻断传递，
+ *   与 Step1 缺失 phase 塌缩口径一致）；末段 endsAt 不早于比赛日（若配置且更晚）。
+ * - **状态** = 里程碑结论投影（不再由时钟驱动）：阶段内里程碑全部完结（passed/missed，
+ *   无 pending）→ done；第一个未完结阶段 → current；其余 upcoming；全过则全 done 无
+ *   current（与 deriveRobotStageMarkers 的 allPassed 口径一致）。
+ * 存量板（零 stage 标签）→ 回退 Step1 phases 近似映射 deriveStagePipeline，行为不变。
+ * 未挂 stage 的里程碑不参与窗口/状态（仅 deriveRobotStageMarkers 的车标定位仍用它）。
+ */
+export function deriveStageProgress(
+  milestones: readonly BaselineMilestone[],
+  phases: readonly BaselinePhase[],
+  competitionDate: string | undefined,
+  now: string,
+): StageProgress[] | null {
+  const byStage = STAGE_PIPELINE_STAGES.map((stage) =>
+    milestones.filter((m) => m.stage === stage),
+  );
+  if (byStage.every((list) => list.length === 0)) {
+    return deriveStagePipeline(phases, competitionDate, now);
+  }
+
+  const msOf = (iso: string) => new Date(iso).getTime();
+  const toIso = (ms: number) => new Date(ms).toISOString();
+  // 游标起点 = 全部挂标里程碑的最早 plannedAt：前导无标签阶段塌缩到该点。
+  let cursor = Math.min(...byStage.flatMap((list) => list.map((m) => msOf(m.plannedAt))));
+
+  const ranges = byStage.map((list, i) => {
+    if (list.length === 0) return { startsAt: cursor, endsAt: cursor, empty: true };
+    let start = Math.min(...list.map((m) => msOf(m.plannedAt)));
+    let end = Math.max(...list.map((m) => msOf(m.plannedAt)));
+    if (start < cursor) start = cursor;
+    if (end < start) end = start;
+    if (i === byStage.length - 1 && competitionDate && msOf(competitionDate) > end) {
+      end = msOf(competitionDate);
+    }
+    cursor = end;
+    return { startsAt: start, endsAt: end, empty: false };
+  });
+
+  let currentUsed = false;
+  return ranges.map((range, i) => {
+    const list = byStage[i];
+    let status: StagePipelineStatus;
+    if (range.empty) status = currentUsed ? 'upcoming' : 'done';
+    else if (list.every((m) => m.status !== 'pending')) status = 'done';
+    else if (!currentUsed) {
+      status = 'current';
+      currentUsed = true;
+    } else status = 'upcoming';
+    return {
+      stage: STAGE_PIPELINE_STAGES[i],
+      status,
+      startsAt: toIso(range.startsAt),
+      endsAt: toIso(range.endsAt),
+    };
+  });
+}
 
 /**
  * 六阶段近似投影：状态语义 = 已结束的 done、**第一个未结束的 current**、其余 upcoming
@@ -438,8 +504,10 @@ export function deriveRobotStageMarkers(
   }
   const locate = (plannedAt: string): number => {
     const ms = new Date(plannedAt).getTime();
+    // <=：精确模式（Step2）下单里程碑阶段是零长点窗口（startsAt==endsAt），严格 < 会漏掉
+    // 恰好落在阶段末的里程碑；边界归属早段（「该阶段截止节点」口径）。
     for (let i = 0; i < stages.length; i++) {
-      if (ms < new Date(stages[i].endsAt).getTime()) return i;
+      if (ms <= new Date(stages[i].endsAt).getTime()) return i;
     }
     return stages.length - 1;
   };
