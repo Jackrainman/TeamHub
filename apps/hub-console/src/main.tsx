@@ -30,6 +30,8 @@ import './styles/21-pool.css';
 import './styles/22-reimburse.css';
 import './styles/23-workbench.css';
 import './styles/24-notion.css';
+import './styles/25-linear.css';
+import './styles/26-style-gallery.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {

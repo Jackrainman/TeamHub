@@ -1,0 +1,91 @@
+/* 风格预览页（IA-RESTRUCTURE demo 专用）：主题切换卡片 + kitchen-sink 栅格。 */
+.style-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg, 20px);
+}
+
+.style-gallery__themes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  padding: 14px;
+}
+
+.style-gallery__theme {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-base);
+  cursor: pointer;
+  transition:
+    background-color var(--transition),
+    border-color var(--transition),
+    box-shadow var(--transition);
+}
+
+.style-gallery__theme:hover {
+  border-color: var(--border-strong);
+}
+
+.style-gallery__theme--active {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 1px var(--blue);
+}
+
+/* 主题迷你色板：一格底色 + 一格主色，瞄一眼即知明暗与 accent。 */
+.style-gallery__swatch {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.style-gallery__swatch--notion {
+  background: linear-gradient(135deg, #ffffff 55%, #37352f 55%);
+}
+.style-gallery__swatch--tech {
+  background: linear-gradient(135deg, #0a0f1a 55%, #22d3ee 55%);
+}
+.style-gallery__swatch--linear {
+  background: linear-gradient(135deg, #0d0e12 55%, #5e6ad2 55%);
+}
+.style-gallery__swatch--classic {
+  background: linear-gradient(135deg, #f4f7f2 55%, #1f8a5f 55%);
+}
+.style-gallery__swatch--warm {
+  background: linear-gradient(135deg, #f0ebe1 55%, #976212 55%);
+}
+.style-gallery__swatch--dark {
+  background: linear-gradient(135deg, #0f1411 55%, #4cba85 55%);
+}
+
+.style-gallery__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.style-gallery__body {
+  padding: 14px;
+}
+
+.style-gallery__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.style-gallery__col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

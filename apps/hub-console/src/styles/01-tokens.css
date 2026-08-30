@@ -234,9 +234,46 @@
   --card-bg: var(--surface);
 }
 
+/* ===== Linear 风（linear，风格画廊候选）——第 6 套主题 · 深色现代 SaaS =====
+   深灰底（非纯黑）+ 紫罗兰主色 + 紧凑排版，典型 Linear/Vercel 系审美。纯 token 覆盖。 */
+:root[data-theme='linear'] {
+  --page-bg: #0d0e12;
+  --surface: #15161b;
+  --surface-muted: #111318;
+  --surface-raised: #1b1d24;
+  --text: #f7f8f8;
+  --muted: #9699a3;
+  --faint: #6e7180;
+  --border: #23252d;
+  --border-strong: #35383f;
+  --green: #4cb782;
+  --green-soft: #14241c;
+  --amber: #f2c94c;
+  --amber-soft: #2a2410;
+  --red: #eb5757;
+  --red-soft: #2a1616;
+  /* Linear 紫罗兰接管 --blue 槽：主按钮/链接/焦点环/激活态全部变紫。 */
+  --blue: #5e6ad2;
+  --blue-soft: #1d2033;
+  --sidebar-bg: #0a0b0e;
+  --sidebar-text: #f7f8f8;
+  --sidebar-bg-hover: rgba(255, 255, 255, 0.06);
+  --font-title: inherit;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --accent: var(--blue);
+  --card-bg: var(--surface);
+}
+
 /* 深色主题的原生控件 scheme（2026-08-03 bug 修复，背景见 :root 处注释）：日期选择器弹窗/日历指示
    图标、滚动条、select 弹层按 dark scheme 渲染（浅色图标/深底），不再"太黑看不到"。 */
 :root[data-theme='dark'],
+:root[data-theme='linear'],
 :root[data-theme='tech'] {
   color-scheme: dark;
 }

@@ -1,0 +1,38 @@
+/* ===== Linear 风结构微调（风格画廊候选）=====
+   tokens 已承担配色；本文件只做少量结构覆盖：品牌块、主按钮 hover 微光、导航行高。
+   全部圈在 :root[data-theme='linear'] 下，其余主题零影响。 */
+
+:root[data-theme='linear'] .brand-mark {
+  border: none;
+  background: var(--blue); /* 紫罗兰品牌块 */
+  color: #ffffff;
+}
+
+:root[data-theme='linear'] .nav-item {
+  min-height: 30px;
+  font-weight: var(--weight-medium);
+}
+
+:root[data-theme='linear'] .console-nav .nav-item-active,
+:root[data-theme='linear'] .nav-item-active {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
+
+:root[data-theme='linear'] .nav-item-active::before {
+  background: var(--blue);
+}
+
+/* 主按钮：紫罗兰实底 + hover 微弱紫光（类比 tech 的克制辉光，预算仅主按钮一处）。 */
+:root[data-theme='linear'] .btn--primary:not(:disabled):hover {
+  filter: none;
+  background: #6872e0;
+  box-shadow: 0 0 12px rgba(94, 106, 210, 0.35);
+}
+
+/* 面板压平一档，靠边框分区。 */
+:root[data-theme='linear'] .panel,
+:root[data-theme='linear'] .metric-tile,
+:root[data-theme='linear'] .card {
+  box-shadow: none;
+}

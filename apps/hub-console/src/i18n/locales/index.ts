@@ -9,7 +9,8 @@ import { zhChecklist, enChecklist } from './checklist';
 import { zhSetup, enSetup } from './setup';
 import { zhReimburse, enReimburse } from './reimburse';
 import { zhWorkbench, enWorkbench } from './workbench';
+import { zhStyleGallery, enStyleGallery } from './stylegallery';
 
-export const zh = { ...zhBase, ...zhSettings, ...zhPm, ...zhSchedule, ...zhInv, ...zhKb, ...zhOverview, ...zhChecklist, ...zhSetup, ...zhReimburse, ...zhWorkbench };
+export const zh = { ...zhBase, ...zhSettings, ...zhPm, ...zhSchedule, ...zhInv, ...zhKb, ...zhOverview, ...zhChecklist, ...zhSetup, ...zhReimburse, ...zhWorkbench, ...zhStyleGallery };
 
-export const en = { ...enBase, ...enSettings, ...enPm, ...enSchedule, ...enInv, ...enKb, ...enOverview, ...enChecklist, ...enSetup, ...enReimburse, ...enWorkbench };
+export const en = { ...enBase, ...enSettings, ...enPm, ...enSchedule, ...enInv, ...enKb, ...enOverview, ...enChecklist, ...enSetup, ...enReimburse, ...enWorkbench, ...enStyleGallery };

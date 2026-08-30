@@ -11,6 +11,7 @@ import {
   Home,
   LayoutGrid,
   ListChecks,
+  Palette,
   ReceiptText,
   Settings,
 } from 'lucide-react';
@@ -21,6 +22,7 @@ import type { OverviewSnapshot } from './api/schemas/system';
 import type { TranslationKey } from './i18n';
 import { OverviewPage } from './features/overview/OverviewPage';
 import { WorkbenchPage } from './features/workbench/WorkbenchPage';
+import { StyleGalleryPage } from './features/style-gallery/StyleGalleryPage';
 import { SchedulePage } from './features/schedule/SchedulePage';
 import { ResourcesPage } from './features/resources/ResourcesPage';
 import { ProjectPage } from './features/project/ProjectPage';
@@ -58,6 +60,7 @@ import { SettingsPage } from './features/settings/SettingsPage';
 
 export type ConsolePage =
   | 'workbench'
+  | 'stylegallery'
   | 'overview'
   | 'myview'
   | 'project'
@@ -150,6 +153,15 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
         onNavigate={ctx.onNavigate}
       />
     ),
+  },
+  {
+    key: 'stylegallery',
+    labelKey: 'nav.stylegallery',
+    titleKey: 'toolbar.title.stylegallery',
+    icon: Palette,
+    section: 'home',
+    moduleId: 'system',
+    render: () => <StyleGalleryPage />,
   },
   {
     key: 'overview',

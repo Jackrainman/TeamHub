@@ -11,11 +11,12 @@ import { CONSOLE_PAGES, filterConsolePages } from '../src/console-pages';
 describe('console-pages: filterConsolePages', () => {
   const ALL_ENABLED: TenantConfig = { enabledModules: [...ALL_MODULE_IDS] };
 
-  test('全模块启用：13 页全在（含 IA-RESTRUCTURE 新增 workbench / schedule）、顺序不变', () => {
+  test('全模块启用：14 页全在（含 IA-RESTRUCTURE 新增 workbench / schedule / stylegallery）、顺序不变', () => {
     const pages = filterConsolePages(CONSOLE_PAGES, ALL_ENABLED);
     expect(pages.map((p) => p.key)).toEqual(CONSOLE_PAGES.map((p) => p.key));
     expect(pages.map((p) => p.key)).toEqual([
       'workbench',
+      'stylegallery',
       'overview',
       'myview',
       'project',
@@ -56,9 +57,10 @@ describe('console-pages: filterConsolePages', () => {
     expect(keys).toContain('fleet');
   });
 
-  test('只启用 system：仅 overview / settings 在（system 模块名下的两页）', () => {
+  test('只启用 system：overview / stylegallery / settings 在（system 模块名下的页）', () => {
     const tenant: TenantConfig = { enabledModules: ['system'] };
     expect(filterConsolePages(CONSOLE_PAGES, tenant).map((p) => p.key)).toEqual([
+      'stylegallery',
       'overview',
       'settings',
     ]);

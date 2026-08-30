@@ -12,7 +12,7 @@ import type { PropsWithChildren } from 'react';
 // 架构逐行镜像 i18n/index.tsx 的 LanguageProvider——localStorage 持久 + documentElement 属性 +
 // 设置页 .seg 选择器。每套 token 挂在 :root[data-theme='<id>']，全站组件已消费 var(--*)，故零组件改动。
 // 第 4 套 tech（遥测台，D1）为旗舰默认；warm/dark 仍 opt-in。
-export type Theme = 'classic' | 'warm' | 'dark' | 'tech' | 'notion';
+export type Theme = 'classic' | 'warm' | 'dark' | 'tech' | 'notion' | 'linear';
 
 const STORAGE_KEY = 'teamhub.theme';
 // Notion 风为 IA-RESTRUCTURE demo 默认；已存偏好的用户不被覆盖（readInitialTheme 读 localStorage 原样返回）。
@@ -27,7 +27,8 @@ export function normalizeTheme(value: string | null): Theme {
     value === 'classic' ||
     value === 'dark' ||
     value === 'tech' ||
-    value === 'notion'
+    value === 'notion' ||
+    value === 'linear'
     ? value
     : DEFAULT_THEME;
 }
