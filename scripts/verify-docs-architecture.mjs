@@ -26,6 +26,7 @@ export const ACTIVE_MARKDOWN = Object.freeze([
   'docs/operations/release.md',
   'docs/operations/agent-deploy.md',
   'docs/research/lark.md',
+  'docs/research/dead-code-audit.md',
 ]);
 
 export const ARCHIVE_MARKDOWN = Object.freeze([
