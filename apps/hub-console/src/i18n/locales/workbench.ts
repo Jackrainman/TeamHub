@@ -26,6 +26,13 @@ export const zhWorkbench = {
   'workbench.report.weeksLeft': '{n} 周',
   'workbench.report.none': '本赛季暂无待过节点',
   'workbench.report.upcoming': '之后还有',
+  'workbench.progress.myVehicle': '本车进度',
+  'workbench.progress.season': '全赛季进度',
+  'workbench.progress.doneOf': '{done}/{total} 任务完成',
+  'workbench.progress.milestones': '节点 {done}/{total}',
+  'workbench.progress.noTasks': '还没有任务，进度暂无。',
+  'workbench.progress.emptyVehicle': '还没有负责的车——认领一条带机器人目标的任务后，这里显示它的进度。',
+  'workbench.progress.claim': '去挂单池挑一件 →',
 };
 
 export const enWorkbench = {
@@ -56,4 +63,11 @@ export const enWorkbench = {
   'workbench.report.weeksLeft': '{n} weeks',
   'workbench.report.none': 'No pending checkpoints this season',
   'workbench.report.upcoming': 'Up next',
+  'workbench.progress.myVehicle': 'My vehicle progress',
+  'workbench.progress.season': 'Season progress',
+  'workbench.progress.doneOf': '{done}/{total} tasks done',
+  'workbench.progress.milestones': 'Checkpoints {done}/{total}',
+  'workbench.progress.noTasks': 'No tasks yet — nothing to show.',
+  'workbench.progress.emptyVehicle': 'No vehicle under your name yet — claim a task with a robot target and its progress shows up here.',
+  'workbench.progress.claim': 'Pick one from the pool →',
 };

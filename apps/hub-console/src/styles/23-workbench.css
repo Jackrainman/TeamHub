@@ -168,3 +168,43 @@
   text-transform: uppercase;
   color: var(--muted);
 }
+
+/* 进度条双卡（WORKBENCH-MY-VEHICLE / WORKBENCH-SEASON-PROGRESS）：本车 + 全赛季并列。 */
+.workbench-progress__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.workbench-progress__milestones {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.workbench-progress {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--panel-alt, rgba(127, 127, 127, 0.12));
+  overflow: visible;
+  display: flex;
+  align-items: center;
+}
+
+.workbench-progress__bar {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--green, #3d9a50);
+  min-width: 0;
+  transition: width 0.3s ease;
+}
+
+.workbench-progress__pct {
+  margin-left: 8px;
+  font-size: 0.82rem;
+  color: var(--muted);
+  white-space: nowrap;
+}

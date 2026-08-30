@@ -777,3 +777,61 @@ export type DepEdgeKind = z.infer<typeof DepEdgeKindSchema>;
 export type DepEdge = z.infer<typeof DepEdgeSchema>;
 export type DepGraphSummary = z.infer<typeof DepGraphSummarySchema>;
 export type DepGraph = z.infer<typeof DepGraphSchema>;
+
+// ── 工作台进度条派生（WORKBENCH-MY-VEHICLE / WORKBENCH-SEASON-PROGRESS，IA-RESTRUCTURE）────────
+// 纯派生零手工状态：完成率 = 非搁置任务 done/total；shelved 从分母分子同时剔除（已搁置不算待办）。
+// 红线（I0 同 MY-VIEW 先例）：`deriveMyVehicleProgress` 由调用方只传 session 本人 memberId，
+// 绝不提供查他人入口——person 键永不进任何聚合/排行输出。
+
+/** 任务完成率三元组（非搁置口径；total=0 时 ratio=0）。 */
+export interface TaskProgress {
+  total: number;
+  done: number;
+  ratio: number; // 0..1
+}
+
+/** 本车进度（WORKBENCH-MY-VEHICLE）：robotTarget = 我持有任务中出现最多的车。 */
+export interface MyVehicleProgress extends TaskProgress {
+  robotTarget: string;
+}
+
+function toProgress(tasks: readonly Task[]): TaskProgress {
+  const live = tasks.filter((t) => t.status !== 'shelved');
+  const done = live.filter((t) => t.status === 'done').length;
+  return { total: live.length, done, ratio: live.length === 0 ? 0 : done / live.length };
+}
+
+/** 全赛季进度（WORKBENCH-SEASON-PROGRESS）：全量任务完成率（非搁置口径）。 */
+export function deriveSeasonTaskProgress(tasks: readonly Task[]): TaskProgress {
+  return toProgress(tasks);
+}
+
+/**
+ * 本车进度（WORKBENCH-MY-VEHICLE）：我持有（ownerId=memberId，非搁置）任务中 robotTarget
+ * 出现最多者 = 我的车（并列取先出现者，Map 插入序稳定）；完成率 = 该车**全量**（含他人）任务完成率。
+ * 我无持有任务 / 持有任务均无 robotTarget → null（前端给引导空态）。
+ */
+export function deriveMyVehicleProgress(
+  tasks: readonly Task[],
+  memberId: string,
+): MyVehicleProgress | null {
+  const mine = tasks.filter(
+    (t) => t.ownerId === memberId && t.status !== 'shelved' && t.robotTarget,
+  );
+  if (mine.length === 0) return null;
+  const counts = new Map<string, number>();
+  for (const t of mine) {
+    const rt = t.robotTarget!;
+    counts.set(rt, (counts.get(rt) ?? 0) + 1);
+  }
+  let top: string | null = null;
+  let topN = 0;
+  for (const [rt, n] of counts) {
+    if (n > topN) {
+      top = rt;
+      topN = n;
+    }
+  }
+  if (top === null) return null;
+  return { robotTarget: top, ...toProgress(tasks.filter((t) => t.robotTarget === top)) };
+}
