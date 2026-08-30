@@ -230,8 +230,6 @@ describe('season-step: i18n 双语键与步序号锚点', () => {
       'gate.season.dateOrder',
       'gate.season.submit',
       'gate.season.submitting',
-      'gate.season.createdWithBaseline',
-      'gate.season.createdNoBaseline',
       'gate.season.next',
       'gate.season.skip',
       'gate.season.error',
@@ -240,27 +238,19 @@ describe('season-step: i18n 双语键与步序号锚点', () => {
       expect(translations.zh[key], `zh ${key}`).toBeTruthy();
       expect(translations.en[key], `en ${key}`).toBeTruthy();
     }
-    // 插值参数双语都在模板里。
-    for (const key of [
-      'gate.season.hasSeason',
-      'gate.season.createdWithBaseline',
-      'gate.season.createdNoBaseline',
-    ] as const) {
-      expect(translations.zh[key]).toContain('{name}');
-      expect(translations.en[key]).toContain('{name}');
-    }
+    // 插值参数双语都在模板里（ONBOARD-QA：创建即确认自动前进，created* 二次确认 key 已删）。
+    expect(translations.zh['gate.season.hasSeason']).toContain('{name}');
+    expect(translations.en['gate.season.hasSeason']).toContain('{name}');
     expect(translations.zh['gate.season.error']).toContain('{detail}');
     expect(translations.en['gate.season.error']).toContain('{detail}');
   });
 
-  test('步序号同步：subtitle 七步、season ④/(4) 插在 leads 与 inventory 之间、done ⑦/(7)', () => {
-    expect(translations.zh['gate.subtitle']).toContain('七步');
-    expect(translations.en['gate.subtitle']).toContain('Seven steps');
+  test('步序号同步：subtitle 六步、season ④/(4) 插在 leads 与 inventory 之间（done 页已删）', () => {
+    expect(translations.zh['gate.subtitle']).toContain('六步');
+    expect(translations.en['gate.subtitle']).toContain('Six steps');
     expect(translations.zh['gate.step.season']).toBe('④ 建赛季');
     expect(translations.en['gate.step.season']).toBe('(4) Create the season');
     expect(translations.zh['gate.step.inventory']).toContain('⑤');
     expect(translations.en['gate.step.inventory']).toContain('(5)');
-    expect(translations.zh['gate.done.title']).toBe('⑦ 完成');
-    expect(translations.en['gate.done.title']).toBe('(7) Done');
   });
 });

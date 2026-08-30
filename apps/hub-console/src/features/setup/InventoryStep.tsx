@@ -9,6 +9,7 @@ import type { HubApiClient } from '../../api/client';
 import { useI18n } from '../../i18n';
 import { humanizeFormError } from '../../utils';
 import { InvPreviewTable, InvReportView } from '../inv/InvPreviewTable';
+import { HaveDataChips } from './HaveDataChips';
 
 // ⑥ 录入库存（INV-BULK-IMPORT 刀⑪，结构照 RosterStep 刀⑦）：模板下载 + 上传 → preview 只解析不落库
 // → InvPreviewTable 行内编辑（件号只读 = 幂等匹配键）→ 确认后 JSON 导入（partNumber 幂等 upsert、
@@ -18,11 +19,13 @@ export function InventoryStep({
   onNext,
 }: {
   client: HubApiClient;
-  onNext: () => void;
+  onNext: (fact?: string) => void;
 }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // ONBOARD-QA chips 分支：null=未答（先问有没有现成库存表）；true=展开上传；「没有」直接下一题。
+  const [hasData, setHasData] = useState<boolean | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [preview, setPreview] = useState<InventoryPreviewResponse | null>(null);
@@ -52,6 +55,20 @@ export function InventoryStep({
     } finally {
       setPending(false);
     }
+  }
+
+  if (hasData === null) {
+    return (
+      <section className="setup-card setup-card--primary">
+        <h2 className="setup-card__title">{t('gate.step.inventory')}</h2>
+        <p className="setup-card__desc">{t('gate.inv.desc')}</p>
+        <HaveDataChips
+          questionKey="gate.qa.haveInventory"
+          onHave={() => setHasData(true)}
+          onLater={() => onNext(t('gate.rail.laterGeneric'))}
+        />
+      </section>
+    );
   }
 
   return (
@@ -96,7 +113,19 @@ export function InventoryStep({
         />
       ) : null}
       {report ? <InvReportView report={report} /> : null}
-      <button type="button" className="btn btn--primary" onClick={onNext}>
+      <button
+        type="button"
+        className="btn btn--primary"
+        onClick={() =>
+          onNext(
+            report
+              ? t('gate.rail.invDone', {
+                  n: report.created.length + report.updated.length,
+                })
+              : undefined,
+          )
+        }
+      >
         {report ? t('gate.inv.next') : t('gate.inv.skip')}
       </button>
     </section>

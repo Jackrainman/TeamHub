@@ -12,6 +12,7 @@ import { useI18n } from '../../i18n';
 import { humanizeFormError } from '../../utils';
 import { RosterPreviewTable } from '../settings/RosterPreviewTable';
 import { RosterReportView } from '../../shared/roster';
+import { HaveDataChips } from './HaveDataChips';
 
 // ② 导入名册 CSV（刀⑦ 预览表可编辑）：上传 → preview 只解析不落库 → RosterPreviewTable 行内编辑
 // （年级下拉 / 组 datalist）→ 确认后 JSON 导入 → 报告回显；名册已就绪可直接下一步（死锁恢复场景
@@ -26,11 +27,13 @@ export function RosterStep({
 }: {
   client: HubApiClient;
   groups: readonly Group[];
-  onNext: () => void;
+  onNext: (fact?: string) => void;
 }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // ONBOARD-QA chips 分支：null=未答（先问有没有现成名册表）；true=展开上传；「没有」直接下一题。
+  const [hasData, setHasData] = useState<boolean | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [preview, setPreview] = useState<RosterPreviewResponse | null>(null);
@@ -67,6 +70,20 @@ export function RosterStep({
     } finally {
       setPending(false);
     }
+  }
+
+  if (hasData === null) {
+    return (
+      <section className="setup-card setup-card--primary">
+        <h2 className="setup-card__title">{t('gate.step.roster')}</h2>
+        <p className="setup-card__desc">{t('gate.roster.desc')}</p>
+        <HaveDataChips
+          questionKey="gate.qa.haveRoster"
+          onHave={() => setHasData(true)}
+          onLater={() => onNext(t('gate.rail.laterGeneric'))}
+        />
+      </section>
+    );
   }
 
   return (
@@ -112,7 +129,19 @@ export function RosterStep({
         />
       ) : null}
       {report ? <RosterReportView report={report} /> : null}
-      <button type="button" className="btn btn--primary" onClick={onNext}>
+      <button
+        type="button"
+        className="btn btn--primary"
+        onClick={() =>
+          onNext(
+            report
+              ? t('gate.rail.rosterDone', {
+                  n: report.created.length + report.updated.length,
+                })
+              : undefined,
+          )
+        }
+      >
         {report ? t('gate.roster.next') : t('gate.roster.ready')}
       </button>
     </section>

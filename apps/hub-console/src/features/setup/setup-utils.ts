@@ -16,14 +16,16 @@ import { suggestSeason } from '../../utils';
 
 // ─── 步骤元数据 ───────────────────────────────────────────────────────────────
 
-export type Step = 'who' | 'roster' | 'leads' | 'season' | 'inventory' | 'kb' | 'done';
+export type Step = 'who' | 'roster' | 'leads' | 'season' | 'inventory' | 'kb';
 
 /**
- * 向导进度（WIZARD-PROGRESS）：步 → 1-based 序号 + 短名 i18n 键。顶显「第 N/7 步 · 步名」用——
+ * 向导进度（WIZARD-PROGRESS）：步 → 1-based 序号 + 短名 i18n 键。顶显「第 N/6 步 · 步名」用——
  * 短名（gate.stepName.*）独立于带圈号标题（gate.step.* = 「① 你是谁」），进度行不重复圈号。
- * 车队步已移出向导（2026-08-03 教学动线）：初始化车改在左侧「机器人队」页做，向导七步。
+ * 车队步已移出向导（2026-08-03 教学动线）：初始化车改在左侧「机器人队」页做。
+ * ONBOARD-QA（2026-08-30 拍板）：末步 done「再次确认页」删除——各步提交即落库，无需终确认；
+ * kb 步完成直接进 app。
  */
-export const WIZARD_STEP_TOTAL = 7;
+export const WIZARD_STEP_TOTAL = 6;
 export const WIZARD_STEP_META: Record<Step, { n: number; nameKey: TranslationKey }> = {
   who: { n: 1, nameKey: 'gate.stepName.who' },
   roster: { n: 2, nameKey: 'gate.stepName.roster' },
@@ -31,7 +33,6 @@ export const WIZARD_STEP_META: Record<Step, { n: number; nameKey: TranslationKey
   season: { n: 4, nameKey: 'gate.stepName.season' },
   inventory: { n: 5, nameKey: 'gate.stepName.inventory' },
   kb: { n: 6, nameKey: 'gate.stepName.kb' },
-  done: { n: 7, nameKey: 'gate.stepName.done' },
 };
 
 /**
@@ -46,7 +47,6 @@ export const WIZARD_STEP_ORDER: readonly Step[] = [
   'season',
   'inventory',
   'kb',
-  'done',
 ];
 
 // ─── ① 你是谁 ─────────────────────────────────────────────────────────────────

@@ -17,6 +17,7 @@ import {
 // 推导值，status 服务端钉 active）；两锚点齐（学期开始+比赛日都填）则顺手 generateRoboconBaselineTemplate +
 // updateBaseline 落基准线模板；比赛日空只建赛季（提示进 app 后总览可补锚点生成）。已有 active 赛季显示
 // 「已有当前赛季」可直接下一步（照 fleet「已有 N 台车」先例）；任何时刻可「跳过」（刀⑨ app 内空态一键创建兜底）。
+// ONBOARD-QA（2026-08-30 拍板）：创建成功即自动进下一步——创建动作本身就是确认，二次确认段多余。
 export function SeasonStep({
   client,
   onNext,
@@ -32,9 +33,6 @@ export function SeasonStep({
   const [form, setForm] = useState<SeasonForm>(() => suggestSeasonForm(new Date()));
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  const [created, setCreated] = useState<{ name: string; baselineGenerated: boolean } | null>(
-    null,
-  );
   const [showCreateForm, setShowCreateForm] = useState(false);
 
   const submittable = seasonFormSubmittable(form);
@@ -45,12 +43,12 @@ export function SeasonStep({
     setPending(true);
     setError(null);
     try {
-      const res = await submitSeasonStep(client, form);
-      setCreated({ name: res.season.name, baselineGenerated: res.baselineGenerated });
+      await submitSeasonStep(client, form);
       void queryClient.invalidateQueries({ queryKey: ['seasons'] });
+      // ONBOARD-QA：创建即确认，直接进下一步（赛季名在右侧确认卡实时回显，无需二次确认段）。
+      onNext();
     } catch (err) {
       setError(err);
-    } finally {
       setPending(false);
     }
   }
@@ -78,17 +76,6 @@ export function SeasonStep({
               {t('gate.season.createNew')}
             </button>
           </div>
-        </>
-      ) : created ? (
-        <>
-          <p className="settings-desc">
-            {created.baselineGenerated
-              ? t('gate.season.createdWithBaseline', { name: created.name })
-              : t('gate.season.createdNoBaseline', { name: created.name })}
-          </p>
-          <button type="button" className="btn btn--primary" onClick={onNext}>
-            {t('gate.season.next')}
-          </button>
         </>
       ) : (
         <form onSubmit={(e) => void submit(e)}>

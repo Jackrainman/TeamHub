@@ -4,6 +4,7 @@ import type { HubApiClient } from '../../api/client';
 import { useI18n } from '../../i18n';
 import { humanizeFormError } from '../../utils';
 import { KB_DOC_ACCEPT, kbImportReportCounts } from './setup-utils';
+import { HaveDataChips } from './HaveDataChips';
 
 // ⑦ 导入知识库（KB-BULK-MD-IMPORT 刀⑫）：多选 .md/.markdown → importKbDocs 整批上传（服务端
 // 按 title 幂等去重）→ 三段报告回显（导入 N 篇 / 跳过 M / 失败 K，含逐条原因）；没有要导的可直接
@@ -17,6 +18,8 @@ export function KbStep({
 }) {
   const { t } = useI18n();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // ONBOARD-QA chips 分支：null=未答（先问有没有现成档案）；true=展开上传；「没有」直接进 app（末步）。
+  const [hasData, setHasData] = useState<boolean | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [report, setReport] = useState<KbImportDocsReport | null>(null);
@@ -32,6 +35,20 @@ export function KbStep({
     } finally {
       setPending(false);
     }
+  }
+
+  if (hasData === null) {
+    return (
+      <section className="setup-card setup-card--primary">
+        <h2 className="setup-card__title">{t('gate.step.kb')}</h2>
+        <p className="setup-card__desc">{t('gate.kb.desc')}</p>
+        <HaveDataChips
+          questionKey="gate.qa.haveKb"
+          onHave={() => setHasData(true)}
+          onLater={() => onNext()}
+        />
+      </section>
+    );
   }
 
   return (

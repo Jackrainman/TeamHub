@@ -97,17 +97,24 @@ export function WhoStep({
             <span>{t('gate.who.group')}</span>
             {leafGroups.length > 0 ? (
               <>
+                {/* ONBOARD-QA chips：叶子组点选即填；仍可手打新组名（自动建组）。 */}
+                <div className="setup-chips">
+                  {leafGroups.map((g) => (
+                    <button
+                      type="button"
+                      className={`setup-chip${groupName === g.name ? ' setup-chip--active' : ''}`}
+                      key={g.id}
+                      onClick={() => setGroupName(g.name)}
+                    >
+                      {g.name}
+                    </button>
+                  ))}
+                </div>
                 <input
-                  list="gate-leaf-groups"
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
                   placeholder={t('gate.who.groupPlaceholder')}
                 />
-                <datalist id="gate-leaf-groups">
-                  {leafGroups.map((g) => (
-                    <option value={g.name} key={g.id} />
-                  ))}
-                </datalist>
               </>
             ) : (
               <input

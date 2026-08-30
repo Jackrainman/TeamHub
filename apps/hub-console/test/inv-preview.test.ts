@@ -140,10 +140,8 @@ describe('inv-preview（刀⑪）：i18n 双语齐全', () => {
     }
   });
 
-  test('向导步序号锚点：库存 = ⑤/(5)，完成 = ⑦/(7)（season ④ 见 season-step.test.ts）', () => {
+  test('向导步序号锚点：库存 = ⑤/(5)（season ④ 见 season-step.test.ts；ONBOARD-QA 起 done 页删除）', () => {
     expect(translations.zh['gate.step.inventory']).toContain('⑤');
     expect(translations.en['gate.step.inventory']).toContain('(5)');
-    expect(translations.zh['gate.done.title']).toContain('⑦');
-    expect(translations.en['gate.done.title']).toContain('(7)');
   });
 });
