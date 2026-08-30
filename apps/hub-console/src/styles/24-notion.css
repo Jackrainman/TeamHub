@@ -1,0 +1,182 @@
+/* ===== Notion 风结构微调（IA-RESTRUCTURE demo）=====
+   01-tokens.css 的 notion 主题只换色板；本文件做「另起炉灶」的结构层覆盖——
+   侧栏导航、面板、按钮、表格行的观感差异。全部圈在 :root[data-theme='notion'] 下，
+   其余四主题零影响；demo 若不采纳，删本文件 + tokens 里的 notion 块即可整体摘除。 */
+
+/* ---- 侧栏：浅灰底、文档目录式导航 ---- */
+:root[data-theme='notion'] .console-sidebar {
+  gap: 16px;
+  padding: 16px 10px;
+  border-right: 1px solid var(--border);
+}
+
+:root[data-theme='notion'] .console-brand {
+  padding: 2px 8px;
+}
+
+:root[data-theme='notion'] .brand-mark {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--text); /* 墨块 logo，替代绿底白字 */
+  color: #ffffff;
+  font-size: var(--text-sm);
+}
+
+:root[data-theme='notion'] .console-brand span:last-child {
+  color: var(--faint);
+}
+
+/* Notion 目录项：低字重、矮行高、hover 浅灰、激活深灰底，无左侧色轨。 */
+:root[data-theme='notion'] .nav-item {
+  min-height: 30px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: var(--weight-medium);
+}
+
+:root[data-theme='notion'] .nav-item:hover:not(.nav-item-active):not(:disabled) {
+  background: var(--sidebar-bg-hover);
+  color: var(--text);
+}
+
+:root[data-theme='notion'] .console-nav .nav-item-active,
+:root[data-theme='notion'] .nav-item-active {
+  background: rgba(55, 53, 47, 0.09);
+  color: var(--text);
+}
+
+:root[data-theme='notion'] .nav-item-active::before {
+  display: none; /* Notion 无激活色轨，只靠灰底 */
+}
+
+:root[data-theme='notion'] .nav-section {
+  margin: 14px 8px 2px;
+  font-size: var(--text-2xs);
+  color: var(--faint);
+}
+
+/* 全局搜索框：融进侧栏灰底，去掉描边感。 */
+:root[data-theme='notion'] .global-search__input-wrap {
+  border-color: transparent;
+  background: var(--sidebar-bg-hover);
+}
+:root[data-theme='notion'] .global-search__input {
+  color: var(--text);
+}
+
+/* ---- 主区：白纸 + 宽呼吸边距 ---- */
+:root[data-theme='notion'] .console-main {
+  gap: 24px;
+  padding: 28px 40px 48px;
+}
+
+:root[data-theme='notion'] .console-toolbar h1 {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+}
+
+:root[data-theme='notion'] .eyebrow {
+  letter-spacing: 0.04em;
+}
+
+/* ---- 面板/卡片：压平，发丝边框，只留必要投影 ---- */
+:root[data-theme='notion'] .panel,
+:root[data-theme='notion'] .metric-tile,
+:root[data-theme='notion'] .card {
+  box-shadow: none;
+  border-color: var(--border);
+}
+
+:root[data-theme='notion'] .panel--hero {
+  box-shadow: none;
+}
+
+:root[data-theme='notion'] .panel-header {
+  background: var(--surface); /* 不再灰头，分区只靠发丝分隔线 */
+  padding: 12px 16px;
+}
+
+:root[data-theme='notion'] .metric-tile::before {
+  display: none; /* Notion 无顶部 tone 条，指标卡纯排版 */
+}
+
+:root[data-theme='notion'] .pm-card:hover,
+:root[data-theme='notion'] .kb-card:hover,
+:root[data-theme='notion'] .gap-card:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---- 按钮：Notion 墨色主按钮 / 白底细边次按钮 ---- */
+:root[data-theme='notion'] .btn {
+  font-weight: var(--weight-medium);
+  padding: 7px 14px;
+}
+
+:root[data-theme='notion'] .btn--primary {
+  background: var(--text);
+  color: #ffffff;
+}
+
+:root[data-theme='notion'] .btn--primary:hover:not(:disabled) {
+  filter: none;
+  background: #0f0e0c;
+}
+
+:root[data-theme='notion'] .btn--secondary,
+:root[data-theme='notion'] .btn--ghost {
+  border-color: var(--border);
+}
+
+:root[data-theme='notion'] .btn--secondary:hover:not(:disabled),
+:root[data-theme='notion'] .btn--ghost:hover:not(:disabled) {
+  background: var(--surface-muted);
+}
+
+:root[data-theme='notion'] .icon-button {
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+/* ---- 徽章：Notion tag 是小圆角矩形而非胶囊 ---- */
+:root[data-theme='notion'] .badge {
+  border-radius: var(--radius-sm);
+  font-weight: var(--weight-medium);
+}
+
+/* ---- 输入件：浅灰底、聚焦蓝边（Notion 表单观感） ---- */
+:root[data-theme='notion'] .kb-field input,
+:root[data-theme='notion'] .kb-field textarea,
+:root[data-theme='notion'] .kb-field select,
+:root[data-theme='notion'] .identity-bar--form select,
+:root[data-theme='notion'] .identity-bar--form input {
+  border-color: var(--border);
+  background: var(--surface-raised);
+}
+
+:root[data-theme='notion'] .kb-field input:hover:not(:focus),
+:root[data-theme='notion'] .kb-field textarea:hover:not(:focus),
+:root[data-theme='notion'] .kb-field select:hover:not(:focus),
+:root[data-theme='notion'] .identity-bar--form select:hover:not(:focus),
+:root[data-theme='notion'] .identity-bar--form input:hover:not(:focus) {
+  border-color: var(--border-strong);
+}
+
+/* ---- 工作台首页：节标题用文档式大标题 ---- */
+:root[data-theme='notion'] .workbench-section__title {
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+}
+
+:root[data-theme='notion'] .workbench-myweek__row,
+:root[data-theme='notion'] .workbench-countdown {
+  background: var(--surface);
+}
+
+/* 状态带也压平。 */
+:root[data-theme='notion'] .state-band {
+  box-shadow: none;
+}

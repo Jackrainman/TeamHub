@@ -21,6 +21,7 @@ export const zhSettings = {
   'settings.theme.warm': '暖纸',
   'settings.theme.dark': '暗色',
   'settings.theme.tech': '科技',
+  'settings.theme.notion': 'Notion 风',
   'settings.apiBase.desc': '覆盖默认后端地址，仅真实模式生效；改动后会重新加载页面。',
   'settings.apiBase.label': '后端地址',
   'settings.apiBase.placeholder': '例如 http://100.78.202.84:4177',
@@ -265,6 +266,7 @@ export const enSettings = {
   'settings.theme.warm': 'Warm paper',
   'settings.theme.dark': 'Dark',
   'settings.theme.tech': 'Tech',
+  'settings.theme.notion': 'Notion',
   'settings.apiBase.desc':
     'Override the default backend address (Live mode only); the page reloads after applying.',
   'settings.apiBase.label': 'Backend address',

@@ -196,6 +196,44 @@
     'Sarasa Mono SC', Menlo, monospace;
 }
 
+/* ===== Notion 风（notion，IA-RESTRUCTURE demo）——第 5 套主题 · 轻编辑文档风 · demo 默认 =====
+   白底黑字、极浅灰分区、细发丝边框、零投影/微投影、深灰墨主按钮。架构同 warm/dark/tech：
+   纯 CSS-variable 覆盖，全站 var 消费零组件改动；结构微调（导航激活态/面板压平）见 24-notion.css。 */
+:root[data-theme='notion'] {
+  --page-bg: #ffffff;
+  --surface: #ffffff;
+  --surface-muted: #f7f7f5; /* Notion 侧栏灰 */
+  --surface-raised: #fbfbfa;
+  --text: #37352f; /* Notion 墨色 */
+  --muted: #6f6e69;
+  --faint: #9b9a97;
+  --border: #e9e9e7;
+  --border-strong: #d3d1cb;
+  --green: #0f7b6c;
+  --green-soft: #e9f3f1;
+  --amber: #c19138;
+  --amber-soft: #fbf3e3;
+  --red: #eb5757;
+  --red-soft: #fdeeee;
+  --blue: #2383e2; /* Notion 链接蓝 */
+  --blue-soft: #e9f1fb;
+  --sidebar-bg: #f7f7f5;
+  --sidebar-text: #37352f;
+  --sidebar-bg-hover: rgba(55, 53, 47, 0.055);
+  --font-title: inherit;
+  --shadow: 0 4px 14px rgba(15, 15, 15, 0.08);
+  --shadow-xs: none;
+  --shadow-sm: 0 1px 2px rgba(15, 15, 15, 0.05);
+  --shadow-md: 0 4px 14px rgba(15, 15, 15, 0.08);
+  /* 圆角收小一档（Notion 4-6px 的轻圆角）。 */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  /* 存量未定义变量的补齐（02-base.css 里 global-search/activity-row 消费但全站零定义的死槽）。 */
+  --accent: var(--blue);
+  --card-bg: var(--surface);
+}
+
 /* 深色主题的原生控件 scheme（2026-08-03 bug 修复，背景见 :root 处注释）：日期选择器弹窗/日历指示
    图标、滚动条、select 弹层按 dark scheme 渲染（浅色图标/深底），不再"太黑看不到"。 */
 :root[data-theme='dark'],

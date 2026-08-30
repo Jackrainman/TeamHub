@@ -30,7 +30,7 @@
 }
 
 .workbench-note--error {
-  color: var(--danger, #c0392b);
+  color: var(--red);
 }
 
 .workbench-myweek__summary {
@@ -49,13 +49,13 @@
 }
 
 .workbench-chip--ok {
-  color: var(--ok, #1e8e5a);
-  border-color: var(--ok, #1e8e5a);
+  color: var(--green);
+  border-color: var(--green);
 }
 
 .workbench-chip--warn {
-  color: var(--warn, #b9770e);
-  border-color: var(--warn, #b9770e);
+  color: var(--amber);
+  border-color: var(--amber);
 }
 
 .workbench-myweek__list {
