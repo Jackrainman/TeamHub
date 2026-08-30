@@ -1,5 +1,5 @@
 {
-  "focus": "STYLE-PICK 已拍板（v0.55.7：Notion 默认 + Notion 夜航黑白可变，其余皮肤保留）；IA-RESTRUCTURE 全部收口；master 待 push origin（ahead 15）；demo:4277 仍为旧构建，重建切 master；下一步方向讨论中（hermes 部署形态/记录减负）；杂货模块（报销/库存/KB 等）冻结，ARCH-UNIFY A4/A5 开学前暂停",
+  "focus": "NIGHT-CHAIN-20260830 待启动（见 todo 同 id 条目，含部署拓扑/拍板结论/自测要求）；master 已 push origin 追平；备份 cron 已配（每日 03:30，14 天保留）",
   "blocked": [
     {
       "id": "HERMES-LARK-SKILL",
@@ -8,6 +8,12 @@
     }
   ],
   "todo": [
+    {
+      "id": "NIGHT-CHAIN-20260830",
+      "title": "夜班连续构建链（用户拍板『能跑多少跑多少』2026-08-30 深夜）。顺序执行，每任务一 commit + scripts/bump-version.sh 升版 + 自测（npm run typecheck && npm test，node 在 ~/.hermes/node/bin），全链完成后 git push origin master：【Step0 部署两件套·用户已授权 agent 执行】先手动跑 scripts/backup-teamhub-data.sh 备份 → 关 demo:4277（进程=~/projects/teamhub 下的 start-teamhub.sh + node dist/main.js，PID 族以 ss -tlnp :4277 为准；注意 demo 直接跑在 projects 源码构建产物上，必须先杀再构建）→ 生产 4177 追平 master（~/TeamHub 独立 checkout：git pull → npm ci → npm run build → sudo systemctl restart teamhub → curl 127.0.0.1:4177/health 验 buildId；~/TeamHub 与 ~/teamhub-data 常规只读，本次部署用户已明确授权）→ 回报备份位置/运行 commit/恢复方法（systemctl restart 即可回滚不了代码，回滚=git checkout 旧 commit 重建）。【Step1 STAGE-PIPELINE Step2】milestone 加可选 stage 字段 + deriveStageProgress 精确派生替换 phases 近似映射，WorkbenchPage StagePipelineStrip 组件 props 不变（原 todo 条目规格）。【Step2 DEAD-CODE-AUDIT】调用路径/死代码清单，只出报告不改码（报告落 .harness/ 或 docs/）。【Step3 GOV-REPORT·排最后】拍板=B 导出文件形态：一键生成 Markdown/HTML 可打印 PDF 的项目级汇报（数据已有：里程碑进度/任务完成/在场统计/库存消耗），学期末前必交付。",
+      "tag": "code",
+      "batch": "night-chain"
+    },
     {
       "id": "STAGE-PIPELINE",
       "title": "整车六阶段 stepper Step2（Step1 已上 demo v0.55.2：phases 时间窗近似映射六阶段+待联调段联调任务计数）：merge 回 master 后给 milestone 加可选 stage 字段 + deriveStageProgress 精确派生替换近似映射（WorkbenchPage StagePipelineStrip 组件 props 不变）",
@@ -94,7 +100,7 @@
     },
     {
       "id": "HERMES-CHAT-MVP",
-      "title": "hermes 群聊记账最小闭环（设计已落稿 docs/domains/integrations.md §6，与 Hermes 侧对答案后）：库存 inv-query/inv-record 已落地；TeamHub 侧缺口=feishu_link 映射表（union_id→memberId）+ GET /api/links/me + presence-checkin/task-advance 两命令（parseHermesText 加正则分支）+ 名册角色指令级鉴权，预估 ~1 天；部署形态拍板=检测/外挂式不捆绑（同机走 /api/hermes/credential 零配置）；Hermes 侧 skill 归 HERMES-LARK-SKILL（用户维护）",
+      "title": "hermes 群聊记账最小闭环（设计已落稿 docs/domains/integrations.md §6，与 Hermes 侧对答案后）：库存 inv-query/inv-record 已落地；TeamHub 侧缺口=feishu_link 映射表（union_id→memberId）+ GET /api/links/me + presence-checkin/task-advance 两命令（parseHermesText 加正则分支）+ 名册角色指令级鉴权，预估 ~1 天；部署形态拍板=检测/外挂式不捆绑（同机走 /api/hermes/credential 零配置）；飞书 bot 已有（跑在 4177 上，hermes 管着，不用操心）。拍板进展 2026-08-30：①task-advance 鉴权拍板=补「须本人认领名下」校验，经 feishu_link 飞书↔teamhub 用户名映射在 inbound 接口层判定；②记在场指令发现硬缺口（ResourceSession.resourceId 必填，无纯成员在场模型，踩 I0 反监视红线），用户不熟此功能，缓做/倾向砍掉，待最终拍板；③路由 A（skill 只调 /api/hermes/inbound 适配层，推荐）vs B（skill 直连业务端点）待最终拍板——已向用户澄清 A 的本质=单端点命令分发器（类似 mini-CLI over HTTP）：hermes 把『自然语言原文或 {command,args}』POST 到这一个口，TeamHub 集中解析/schema 闸/鉴权/回执，skill 不需要懂各业务端点的 payload。Hermes 侧 skill 归 HERMES-LARK-SKILL（用户维护）",
       "tag": "code",
       "batch": "later"
     },
@@ -143,6 +149,8 @@
   ],
   "done-tonight": [
     "STYLE-PICK 拍板定案 v0.55.7：默认 Notion 风 + 新增 Notion 夜航（notion-dark，黑白可变）+ 其余五皮保留不裁剪；tokens 色板 + 结构层前缀选择器共享 + theme/i18n/swatch/test 全链同步",
+    "BACKUP-CRON（用户授权）：每日 03:30 自动备份——scripts/backup-teamhub-data.sh（VACUUM INTO + 读回校验）+ artifacts tar 打包 + 14 天保留，落 ~/teamhub-data/backups/；此前 crontab 为空、备份只能人肉跑，属高危缺口；PUSH-ORIGIN：master 18 笔已 push GitHub 追平",
+    "拍板落账：招新季新人入职流不立项（线下教+表格记录即可）；安全暴露面自检不做；杂货模块（=报销/库存/KB 等低频管理组模块，IA 期冻结令）维持冻结；记在场指令缓做倾向砍（见 HERMES-CHAT-MVP）",
     "IA-RESTRUCTURE 收口：主体早已在 master（三层导航/首页工作台/风格预览/六阶段 Step1），最后一笔『风格预览降级收进设置页外观区』cherry-pick 回 master v0.55.6（swatch 选择器替代 6 项 SegToggle，13 页注册表）；demo 分支零独有提交已删；demo:4277 待重建切 master",
     "ONBOARD-QA 一期（已拍板）v0.55.5：初始化门改问答流——双栏（左一次一题/右实时确认卡）+ 名册/库存/档案三步 chips 分支「有现成的吗」+ WhoStep 组 chips 点选 + SeasonStep 创建成功自动前进（二次确认段删）+ done 再次确认页删（7→6 步）；LLM 不做；步序锚点测试全量更新",
     "拍板落账：PROGRAM-RYG-RULES 转共享文档（Excel 拉，程序组按人评价，TeamHub 不做）；FLEET-STATUS-GROUP-FOLLOW 否决（状态→负责组联动属自动化但不好用）；ONBOARD-QA 定案=chips+确认卡+赛季创建确认合一页+无 LLM",
