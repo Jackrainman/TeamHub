@@ -119,7 +119,7 @@ function ConsoleApp({ apiClient, settings }: { apiClient: HubApiClient; settings
     if (flag) window.localStorage.removeItem(SETUP_LANDING_KEY);
     return flag === 'roster';
   });
-  const [page, setPage] = useState<ConsolePage>(setupLanding ? 'settings' : 'overview');
+  const [page, setPage] = useState<ConsolePage>(setupLanding ? 'settings' : 'workbench');
   const [showSetupGuide, setShowSetupGuide] = useState<boolean>(setupLanding);
 
   // 轻身份（IDENTITY-LITE，I2 console 接线）：两模式均可读，缺省 anonymous（GET /api/session

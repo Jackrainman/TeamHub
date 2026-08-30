@@ -87,8 +87,8 @@ export const zhBase = {
   'enum.artifact.report': '报告',
   'enum.artifact.other': '其他',
   'toolbar.title.inv': '库存 / BOM',
-  'nav.fleet': '机器人队',
-  'toolbar.title.fleet': '机器人队',
+  'nav.fleet': '机器人清单',
+  'toolbar.title.fleet': '机器人清单 · 建车与状态',
   'module.disabled.title': '模块未启用',
   'module.disabled.message': '当前租户未启用该功能模块，页面内容已隐藏。',
 };
@@ -183,8 +183,8 @@ export const enBase = {
   'enum.artifact.report': 'Report',
   'enum.artifact.other': 'Other',
   'toolbar.title.inv': 'Inventory / BOM',
-  'nav.fleet': 'Robot Fleet',
-  'toolbar.title.fleet': 'Robot Fleet',
+  'nav.fleet': 'Robots',
+  'toolbar.title.fleet': 'Robots · Registry & Status',
   'module.disabled.title': 'Module not enabled',
   'module.disabled.message': 'This feature module is not enabled for the current tenant.',
 };

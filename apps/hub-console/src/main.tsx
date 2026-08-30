@@ -28,6 +28,7 @@ import './styles/19-timeline.css';
 import './styles/20-viz.css';
 import './styles/21-pool.css';
 import './styles/22-reimburse.css';
+import './styles/23-workbench.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {

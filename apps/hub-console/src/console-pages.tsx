@@ -1,9 +1,11 @@
 import type { ReactElement } from 'react';
 import {
+  Activity,
   BookOpen,
   Bot,
   Boxes,
   Calendar,
+  CalendarDays,
   Compass,
   FileStack,
   Home,
@@ -18,12 +20,14 @@ import type { HubApiClient } from './api/client';
 import type { OverviewSnapshot } from './api/schemas/system';
 import type { TranslationKey } from './i18n';
 import { OverviewPage } from './features/overview/OverviewPage';
+import { WorkbenchPage } from './features/workbench/WorkbenchPage';
+import { SchedulePage } from './features/schedule/SchedulePage';
+import { ResourcesPage } from './features/resources/ResourcesPage';
 import { ProjectPage } from './features/project/ProjectPage';
 import { KbSearchPage } from './features/kb/KbSearchPage';
 import { ArchivePage } from './features/archive/ArchivePage';
 import { InvPage } from './features/inv/InvPage';
 import { ReimbursePage } from './features/reimburse';
-import { FleetPage } from './features/fleet/FleetPage';
 import { DirectionPage } from './features/direction/DirectionPage';
 import { TimelineEditorPage } from './features/timeline/TimelineEditorPage';
 import { MyViewPage } from './features/myview/MyViewPage';
@@ -53,9 +57,11 @@ import { SettingsPage } from './features/settings/SettingsPage';
  */
 
 export type ConsolePage =
+  | 'workbench'
   | 'overview'
   | 'myview'
   | 'project'
+  | 'schedule'
   | 'knowledge'
   | 'archive'
   | 'inv'
@@ -64,6 +70,14 @@ export type ConsolePage =
   | 'direction'
   | 'timeline'
   | 'settings';
+
+/**
+ * 导航分组（IA-RESTRUCTURE demo）：三层信息架构——
+ *   home = 首页工作台（萌新落地页，单独置顶，无分组标题）
+ *   work = 高频工作区（我的视图 / 项目 / 每日在场）
+ *   manage = 低频管理杂货（运维总览 / 机器人清单 / 报销库存等）
+ */
+export type ConsoleSection = 'home' | 'work' | 'manage';
 
 /**
  * 身份槽（IDENTITY-LITE，I2 console 接线，product-redefine §4.2 / 审计 §9-②）：由 App.tsx 据
@@ -106,6 +120,7 @@ export interface ConsolePageDescriptor {
   labelKey: TranslationKey;
   titleKey: TranslationKey;
   icon: typeof Home;
+  section: ConsoleSection;
   render: (ctx: PageRenderCtx) => ReactElement | null;
   // 页面归属模块（§3.3 模块清单表逐字对照）：过滤/降级判定的唯一依据，非重复真相——
   // 加一页时这一个字段就决定它在哪些租户下出现，不须另开一张映射表。
@@ -117,14 +132,31 @@ export interface ConsolePageDescriptor {
   onRefresh?: (ctx: PageRenderCtx) => void;
 }
 
-// 顺序即导航顺序（IA D-077 定案原 9 页顺序不变；MY-VIEW 插在总览之后，REIMBURSE-PROC 报账页插在库存之后）：
-// 总览 → 我的视图 → 项目 → 知识库 → 图纸档案 → 库存 → 报账 → 机器人队 → 学习方向 → 时间线 → 设置。
+// 顺序即导航顺序（IA-RESTRUCTURE demo 三层重排：首页 → 工作区[我的视图/项目/每日在场] → 管理[总览/机器人清单/学习方向/知识库/图纸档案/库存/报账/时间线/设置]）：
+// 每日在场从机器人队 Tab 提升为顶级入口；fleet 页降为纯机器人清单（管理组）。
 export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
+  {
+    key: 'workbench',
+    labelKey: 'nav.workbench',
+    titleKey: 'toolbar.title.workbench',
+    icon: Home,
+    section: 'home',
+    moduleId: 'pm-core',
+    render: (ctx) => (
+      <WorkbenchPage
+        client={ctx.apiClient}
+        source={ctx.source}
+        identity={ctx.identity}
+        onNavigate={ctx.onNavigate}
+      />
+    ),
+  },
   {
     key: 'overview',
     labelKey: 'nav.overview',
     titleKey: 'toolbar.title.overview',
-    icon: Home,
+    icon: Activity,
+    section: 'manage',
     moduleId: 'system',
     // 唯一声明了 onRefresh 的页（改动前"只有总览有刷新按钮"的行为不变，
     // 差别是现在由本页自己声明，不是 App.tsx 按 key 字面量特判）。
@@ -146,6 +178,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     labelKey: 'nav.myview',
     titleKey: 'toolbar.title.myview',
     icon: ListChecks,
+    section: 'work',
     // pm-core：我的视图是任务(Task)的个人化投影，随 pm-core 模块一起开关，与 project/direction 同口径。
     moduleId: 'pm-core',
     render: (ctx) => (
@@ -162,16 +195,27 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     labelKey: 'nav.project',
     titleKey: 'toolbar.title.project',
     icon: LayoutGrid,
+    section: 'work',
     moduleId: 'pm-core',
     render: (ctx) => (
       <ProjectPage client={ctx.apiClient} source={ctx.source} identity={ctx.identity} />
     ),
   },
   {
+    key: 'schedule',
+    labelKey: 'nav.schedule',
+    titleKey: 'toolbar.title.schedule',
+    icon: CalendarDays,
+    section: 'work',
+    moduleId: 'presence-schedule',
+    render: (ctx) => <SchedulePage client={ctx.apiClient} source={ctx.source} />,
+  },
+  {
     key: 'knowledge',
     labelKey: 'nav.knowledge',
     titleKey: 'toolbar.title.knowledge',
     icon: BookOpen,
+    section: 'manage',
     moduleId: 'knowledge-base',
     render: (ctx) => <KbSearchPage client={ctx.apiClient} source={ctx.source} />,
   },
@@ -180,6 +224,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     labelKey: 'nav.archive',
     titleKey: 'toolbar.title.archive',
     icon: FileStack,
+    section: 'manage',
     moduleId: 'archive',
     render: (ctx) => <ArchivePage client={ctx.apiClient} source={ctx.source} />,
   },
@@ -188,6 +233,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     labelKey: 'nav.inv',
     titleKey: 'toolbar.title.inv',
     icon: Boxes,
+    section: 'manage',
     moduleId: 'ledger',
     render: (ctx) => <InvPage client={ctx.apiClient} source={ctx.source} />,
   },
@@ -196,6 +242,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     labelKey: 'nav.reimburse',
     titleKey: 'toolbar.title.reimburse',
     icon: ReceiptText,
+    section: 'manage',
     // 报账属「库存-BOM」支柱的采购-报账-入库联动（REIMBURSE-PROC），随 ledger 模块开关。
     moduleId: 'ledger',
     render: (ctx) => (
@@ -212,14 +259,17 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     labelKey: 'nav.fleet',
     titleKey: 'toolbar.title.fleet',
     icon: Bot,
+    section: 'manage',
     moduleId: 'presence-schedule',
-    render: (ctx) => <FleetPage client={ctx.apiClient} source={ctx.source} />,
+    // IA-RESTRUCTURE demo：接力画布提升为顶级「每日在场」，本页降为纯机器人清单（建/改状态/退役）。
+    render: (ctx) => <ResourcesPage client={ctx.apiClient} source={ctx.source} />,
   },
   {
     key: 'direction',
     labelKey: 'nav.direction',
     titleKey: 'toolbar.title.direction',
     icon: Compass,
+    section: 'manage',
     moduleId: 'pm-core',
     render: (ctx) => (
       <DirectionPage client={ctx.apiClient} source={ctx.source} identity={ctx.identity} />
@@ -230,6 +280,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     labelKey: 'nav.timeline',
     titleKey: 'toolbar.title.timeline',
     icon: Calendar,
+    section: 'manage',
     moduleId: 'pm-core',
     render: (ctx) => (
       <TimelineEditorPage
@@ -244,6 +295,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     labelKey: 'nav.settings',
     titleKey: 'toolbar.title.settings',
     icon: Settings,
+    section: 'manage',
     moduleId: 'system',
     render: (ctx) => (
       <SettingsPage client={ctx.apiClient} source={ctx.source} identity={ctx.identity} overview={ctx.overview} />

@@ -86,7 +86,11 @@ export function WorkCard({
   const className = [
     'relay-card',
     s.boardable ? 'relay-card--boardable' : 'relay-card--closed',
-  ].join(' ');
+    // IA-RESTRUCTURE 产品拍板：未挂任务的排班卡显式标注（虚线边 + 徽标），消除"泳道有卡、依赖图无节点"的误导。
+    s.taskLabel ? '' : 'relay-card--unlinked',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   const downstreamIds = new Set(outgoing.map((h) => h.toSessionId));
   const pickable = laneStages.filter(
@@ -123,7 +127,9 @@ export function WorkCard({
       <div className="relay-card__group">{s.groupName}</div>
       {s.taskLabel ? (
         <div className="relay-card__task">{s.taskLabel}</div>
-      ) : null}
+      ) : (
+        <div className="relay-card__unlinked">{t('schedule.relay.unlinked')}</div>
+      )}
       {!s.boardable ? (
         <div className="relay-card__closed-note">
           {t('schedule.relay.boardingClosed', { reason: s.statusReason ?? '—' })}

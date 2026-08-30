@@ -11,13 +11,15 @@ import { CONSOLE_PAGES, filterConsolePages } from '../src/console-pages';
 describe('console-pages: filterConsolePages', () => {
   const ALL_ENABLED: TenantConfig = { enabledModules: [...ALL_MODULE_IDS] };
 
-  test('全模块启用：11 页全在（含 MY-VIEW / 报账）、顺序不变', () => {
+  test('全模块启用：13 页全在（含 IA-RESTRUCTURE 新增 workbench / schedule）、顺序不变', () => {
     const pages = filterConsolePages(CONSOLE_PAGES, ALL_ENABLED);
     expect(pages.map((p) => p.key)).toEqual(CONSOLE_PAGES.map((p) => p.key));
     expect(pages.map((p) => p.key)).toEqual([
+      'workbench',
       'overview',
       'myview',
       'project',
+      'schedule',
       'knowledge',
       'archive',
       'inv',
@@ -29,13 +31,16 @@ describe('console-pages: filterConsolePages', () => {
     ]);
   });
 
-  test('关掉 presence-schedule：fleet 页消失，其余页仍在', () => {
+  test('关掉 presence-schedule：fleet / schedule 页消失，其余页仍在', () => {
     const tenant: TenantConfig = {
       enabledModules: ALL_MODULE_IDS.filter((id) => id !== 'presence-schedule'),
     };
     const keys = filterConsolePages(CONSOLE_PAGES, tenant).map((p) => p.key);
     expect(keys).not.toContain('fleet');
-    expect(keys).toEqual(CONSOLE_PAGES.map((p) => p.key).filter((k) => k !== 'fleet'));
+    expect(keys).not.toContain('schedule');
+    expect(keys).toEqual(
+      CONSOLE_PAGES.map((p) => p.key).filter((k) => k !== 'fleet' && k !== 'schedule'),
+    );
   });
 
   test('关掉 pm-core：project / direction / myview 三页一起消失（MY-VIEW 是任务的个人化投影，同挂 pm-core）', () => {

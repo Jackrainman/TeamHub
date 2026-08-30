@@ -8,7 +8,8 @@ import { zhOverview, enOverview } from './overview';
 import { zhChecklist, enChecklist } from './checklist';
 import { zhSetup, enSetup } from './setup';
 import { zhReimburse, enReimburse } from './reimburse';
+import { zhWorkbench, enWorkbench } from './workbench';
 
-export const zh = { ...zhBase, ...zhSettings, ...zhPm, ...zhSchedule, ...zhInv, ...zhKb, ...zhOverview, ...zhChecklist, ...zhSetup, ...zhReimburse };
+export const zh = { ...zhBase, ...zhSettings, ...zhPm, ...zhSchedule, ...zhInv, ...zhKb, ...zhOverview, ...zhChecklist, ...zhSetup, ...zhReimburse, ...zhWorkbench };
 
-export const en = { ...enBase, ...enSettings, ...enPm, ...enSchedule, ...enInv, ...enKb, ...enOverview, ...enChecklist, ...enSetup, ...enReimburse };
+export const en = { ...enBase, ...enSettings, ...enPm, ...enSchedule, ...enInv, ...enKb, ...enOverview, ...enChecklist, ...enSetup, ...enReimburse, ...enWorkbench };

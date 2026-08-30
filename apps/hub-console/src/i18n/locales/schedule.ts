@@ -58,6 +58,7 @@ export const zhSchedule = {
   'schedule.relay.addEmpty': '还没有机器人或任务，先去机器人管理 / 项目看板建一条。',
   'schedule.relay.addError': '没加上：{detail}',
   'schedule.relay.deleteLeg': '删除',
+  'schedule.relay.unlinked': '未挂任务',
   'schedule.relay.deleteConfirm': '删掉这一棒？连带它的接力交接线也会一起删掉。',
   'schedule.relay.deleteError': '没删掉：{detail}',
   'schedule.relay.empty.title': '这天还没排机器人',
@@ -232,6 +233,7 @@ export const enSchedule = {
     'No available robots or tasks yet — create one in Robots / Project board first.',
   'schedule.relay.addError': "Couldn't add: {detail}",
   'schedule.relay.deleteLeg': 'Remove',
+  'schedule.relay.unlinked': 'No task linked',
   'schedule.relay.deleteConfirm':
     'Remove this leg? Its handoff lines will be removed too.',
   'schedule.relay.deleteError': "Couldn't remove: {detail}",
