@@ -1,5 +1,5 @@
 {
-  "focus": "NIGHT-CHAIN-20260830 待启动（见 todo 同 id 条目，含部署拓扑/拍板结论/自测要求）；master 已 push origin 追平；备份 cron 已配（每日 03:30，14 天保留）",
+  "focus": "NIGHT-CHAIN-20260830 全链完成（Step0 部署/Step1 六阶段精确派生/Step2 死代码审计报告/Step3 项目汇报导出，v0.57.1 已 push）；生产 4177 跑 v0.55.7@9eb3d5d，落后 master 4 笔，下次部署追平；demo:4277 已关停未重建",
   "blocked": [
     {
       "id": "HERMES-LARK-SKILL",
@@ -8,18 +8,6 @@
     }
   ],
   "todo": [
-    {
-      "id": "NIGHT-CHAIN-20260830",
-      "title": "夜班连续构建链（用户拍板『能跑多少跑多少』2026-08-30 深夜）。顺序执行，每任务一 commit + scripts/bump-version.sh 升版 + 自测（npm run typecheck && npm test，node 在 ~/.hermes/node/bin），全链完成后 git push origin master：【Step0 部署两件套·用户已授权 agent 执行】先手动跑 scripts/backup-teamhub-data.sh 备份 → 关 demo:4277（进程=~/projects/teamhub 下的 start-teamhub.sh + node dist/main.js，PID 族以 ss -tlnp :4277 为准；注意 demo 直接跑在 projects 源码构建产物上，必须先杀再构建）→ 生产 4177 追平 master（~/TeamHub 独立 checkout：git pull → npm ci → npm run build → sudo systemctl restart teamhub → curl 127.0.0.1:4177/health 验 buildId；~/TeamHub 与 ~/teamhub-data 常规只读，本次部署用户已明确授权）→ 回报备份位置/运行 commit/恢复方法（systemctl restart 即可回滚不了代码，回滚=git checkout 旧 commit 重建）。【Step1 STAGE-PIPELINE Step2】milestone 加可选 stage 字段 + deriveStageProgress 精确派生替换 phases 近似映射，WorkbenchPage StagePipelineStrip 组件 props 不变（原 todo 条目规格）。【Step2 DEAD-CODE-AUDIT】调用路径/死代码清单，只出报告不改码（报告落 .harness/ 或 docs/）。【Step3 GOV-REPORT·排最后】拍板=B 导出文件形态：一键生成 Markdown/HTML 可打印 PDF 的项目级汇报（数据已有：里程碑进度/任务完成/在场统计/库存消耗），学期末前必交付。",
-      "tag": "code",
-      "batch": "night-chain"
-    },
-    {
-      "id": "STAGE-PIPELINE",
-      "title": "整车六阶段 stepper Step2（Step1 已上 demo v0.55.2：phases 时间窗近似映射六阶段+待联调段联调任务计数）：merge 回 master 后给 milestone 加可选 stage 字段 + deriveStageProgress 精确派生替换近似映射（WorkbenchPage StagePipelineStrip 组件 props 不变）",
-      "tag": "code",
-      "batch": "ia-restructure"
-    },
     {
       "id": "ARCH-UNIFY",
       "title": "仓库级软件架构统一：A0-A3（单仓库图/统一 SQLite/app_settings/UoW/reimburse 三包模板）已完成；继续 A4 checklist→baseline→其余领域迁移 → A5 旧骨架归零；不考虑旧数据兼容，见 docs/design/software-architecture.md",
@@ -81,12 +69,6 @@
       "batch": "later"
     },
     {
-      "id": "GOV-REPORT",
-      "title": "给老师项目级汇报（数据已有，学期末前必做，勿拖）",
-      "tag": "code",
-      "batch": "later"
-    },
-    {
       "id": "REIMBURSE-TIDOC-UX",
       "title": "报账页 UI/交互参照 tidoc web 前端打磨（github.com/totok22/tidoc 的 tidoc/web/，成熟产品可大幅参照：条目卡片材料快捷按钮、批次栏文件夹式入口、多栏列表+Shift范围选择、识别提醒视图）；REIMBURSE-PROC 一期落地后再做",
       "tag": "code",
@@ -129,12 +111,6 @@
       "batch": "later"
     },
     {
-      "id": "DEAD-CODE-AUDIT",
-      "title": "调用路径/死代码清单：跑一遍哪些页面/接口真被点到，把死代码标出来，收窄『逻辑乱』范围，再决定留砍",
-      "tag": "code",
-      "batch": "later"
-    },
-    {
       "id": "GIT-BASELINE",
       "title": "git 收基线：先 git 收个干净基线，每个 bug 一个 commit，逐步理清逻辑链；主分支只放稳定版，功能走开发分支，停掉后缀式版本管理",
       "tag": "ops",
@@ -148,6 +124,10 @@
     }
   ],
   "done-tonight": [
+    "NIGHT-CHAIN-20260830 全链收工：Step0 部署两件套（备份 teamhub.sqlite.20260830-223910 + artifacts tar 落 ~/teamhub-data/backups/；demo:4277 进程族已杀（源码构建产物上直接跑，先杀再构建）；4177 git pull→npm ci→build→systemctl restart，/health buildId=9eb3d5d v0.55.7 绿；回滚=git checkout 旧 commit 重建）→ Step1 v0.56.0 → Step2 v0.56.1 → Step3 v0.57.0，每任务一 commit 自测全绿（typecheck+test+build），全链 push origin master",
+    "STAGE-PIPELINE Step2 v0.56.0：milestone 可选 stage 字段（MilestoneStageSchema 六阶段枚举）+ deriveStageProgress 精确派生——窗口=阶段内里程碑 plannedAt [min,max] 单调钳制、状态=里程碑结论投影（无 pending 才 done），无标签阶段塌缩零长不阻断，存量零标签板回退 Step1 phases 近似；模板六节点挂 stage（moduleAssembly 留空塌缩）；deriveRobotStageMarkers locate 改 <=（点窗口边界归早段）；StagePipelineStrip props 不变；+9 测试",
+    "DEAD-CODE-AUDIT 报告 v0.56.1（只出报告不改码）：.harness/dead-code-audit.mjs 可重跑静态交叉引用（98 路由/803 导出/孤儿文件/hooks/i18n）→ docs/research/dead-code-audit.md；结论：无高危，真尸体=FleetPage.tsx+Sparkline.tsx+KNOWN_GROUP_KINDS 待砍，7 条 console 未消费路由均 test-only/外部休眠端点，65 个类型面子债随 ARCH-UNIFY 顺手收",
+    "GOV-REPORT 拍板=B 落地 v0.57.0：GET /api/reports/governance?format=md|html 一键导出项目汇报（里程碑进度+六阶段/任务完成/在场统计/库存消耗），HTML 自包含可打印（浏览器打印即 PDF）；contracts buildGovReport 纯派生+双渲染器；I0 红线=在场只到组/资源维度、产物零成员名（测试钉死）；设置页数据导出区加入口；+10 测试",
     "STYLE-PICK 拍板定案 v0.55.7：默认 Notion 风 + 新增 Notion 夜航（notion-dark，黑白可变）+ 其余五皮保留不裁剪；tokens 色板 + 结构层前缀选择器共享 + theme/i18n/swatch/test 全链同步",
     "BACKUP-CRON（用户授权）：每日 03:30 自动备份——scripts/backup-teamhub-data.sh（VACUUM INTO + 读回校验）+ artifacts tar 打包 + 14 天保留，落 ~/teamhub-data/backups/；此前 crontab 为空、备份只能人肉跑，属高危缺口；PUSH-ORIGIN：master 18 笔已 push GitHub 追平",
     "拍板落账：招新季新人入职流不立项（线下教+表格记录即可）；安全暴露面自检不做；杂货模块（=报销/库存/KB 等低频管理组模块，IA 期冻结令）维持冻结；记在场指令缓做倾向砍（见 HERMES-CHAT-MVP）",
