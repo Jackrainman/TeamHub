@@ -133,6 +133,7 @@
     }
   ],
   "done-tonight": [
+    "GROUP-DROPDOWN-LEAF: 归属类组下拉全链路口子过滤——ResourcesPage 默认阵型/AddLegForm 就地新建（v0.54.3/4）+ TodayPlanTable 表格行（v0.54.6）均 deriveLeafGroups 过滤+引用兜底；PmCreatePanel 本就用服务端 assignableGroupIds；「程序」等父组不再出现（筛选/组管理视图按域保留）",
     "SCHED-TABLE-TOOLBAR-UI: 初始化表格三按钮归回 B3 按钮体系——继续昨天/使用预设引用已删除的 relay-canvas__add、carry 缺 btn 皮肤（B3 归并漏网），统一 btn btn--primary/btn--secondary v0.54.5",
     "FLEET-PRESET-GROUP-EMPTY: 默认阵型负责组下拉改用 useGroups 全量组列表 + deriveLeafGroups 叶子过滤（原从 dep-graph 任务视图反推，无任务时下拉为空保存永灰），与 TodayPlanTable 同源，raw-react-query 基线收缩 v0.54.3",
     "RELAY-ADD-GROUP-SOURCE: 加一棒就地新建负责组下拉改用全量叶子组、显组名存 id（原从 tasks 反推只显示有任务的组且渲染 gid）v0.54.4",
