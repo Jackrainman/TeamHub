@@ -19,9 +19,16 @@
 }
 
 .workbench-section__title {
-  margin: 0 0 12px;
-  font-size: var(--text-lg, 1.05rem);
+  margin: 0 0 10px;
+  font-size: var(--text-md);
   font-weight: 600;
+}
+
+/* 面板态的 section：panel 基类无内边距且 min-height 260px，小内容被撑空、文字贴边——
+   补上呼吸边距并允许按内容收缩。 */
+.workbench-section.panel {
+  min-height: 0;
+  padding: 16px 18px;
 }
 
 .workbench-note {
@@ -71,9 +78,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 6px 10px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 10px);
+  border-radius: var(--radius-md);
   background: var(--surface-muted);
 }
 
@@ -97,10 +104,10 @@
 .workbench-countdown {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 14px;
+  gap: 14px;
+  padding: 12px 14px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 10px);
+  border-radius: var(--radius-md);
   background: var(--surface-muted);
 }
 

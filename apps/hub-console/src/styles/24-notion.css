@@ -165,15 +165,50 @@
   border-color: var(--border-strong);
 }
 
-/* ---- 工作台首页：节标题用文档式大标题 ---- */
+/* ---- 工作台首页：文档式节奏 ---- */
 :root[data-theme='notion'] .workbench-section__title {
   font-size: var(--text-md);
   font-weight: var(--weight-bold);
 }
 
-:root[data-theme='notion'] .workbench-myweek__row,
+/* Notion 下首页两卡去盒子感：无边框无底板，直接落在白纸上，靠间距分区。 */
+:root[data-theme='notion'] .workbench-section.panel {
+  border: none;
+  padding: 4px 8px;
+  background: transparent;
+}
+
+:root[data-theme='notion'] .workbench-myweek__row {
+  background: transparent;
+  border-color: var(--border);
+}
+
+:root[data-theme='notion'] .workbench-myweek__row:hover {
+  background: var(--surface-muted);
+}
+
 :root[data-theme='notion'] .workbench-countdown {
-  background: var(--surface);
+  background: var(--surface-muted);
+  border-color: transparent;
+}
+
+/* 徽签从描边改软底（Notion tag 观感）。 */
+:root[data-theme='notion'] .workbench-chip {
+  border: none;
+}
+
+:root[data-theme='notion'] .workbench-chip--ok {
+  background: var(--green-soft);
+}
+
+:root[data-theme='notion'] .workbench-chip--warn {
+  background: var(--amber-soft);
+}
+
+/* 倒计时数字：文档页大数。 */
+:root[data-theme='notion'] .workbench-countdown__num {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-heavy);
 }
 
 /* 状态带也压平。 */

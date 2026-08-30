@@ -36,3 +36,33 @@
 :root[data-theme='linear'] .card {
   box-shadow: none;
 }
+
+/* ---- 工作台首页：Linear 紧凑节奏 ---- */
+:root[data-theme='linear'] .workbench-section.panel {
+  padding: 14px 16px;
+  background: var(--surface);
+}
+
+:root[data-theme='linear'] .workbench-section__title {
+  font-size: var(--text-base);
+  letter-spacing: 0.01em;
+}
+
+:root[data-theme='linear'] .workbench-myweek__row {
+  background: var(--surface-muted);
+  border-color: var(--border);
+}
+
+:root[data-theme='linear'] .workbench-myweek__row:hover {
+  border-color: var(--border-strong);
+}
+
+:root[data-theme='linear'] .workbench-countdown {
+  background: var(--surface-muted);
+  border-color: var(--border);
+}
+
+:root[data-theme='linear'] .workbench-countdown__num {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-heavy);
+}
