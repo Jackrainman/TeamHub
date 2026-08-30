@@ -26,6 +26,7 @@ import type {
 import { tryServeStaticConsole } from './static-console.js';
 import { registerSearchRoutes } from './routes/search.js';
 import { registerExportRoutes } from './routes/export.js';
+import { registerGovReportRoutes } from './routes/gov-report.js';
 import { registerKnowledgeBaseRoutes } from './routes/kb.js';
 import { registerLedgerRoutes } from './routes/ledger.js';
 import { registerReimburseRoutes, ReimburseService } from './modules/reimburse/index.js';
@@ -326,6 +327,8 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
 
   registerSearchRoutes(app, { store, kbStore, invStore });
   registerExportRoutes(app, { store, invStore });
+  // GOV-REPORT：项目级汇报导出（拍板=B 文件形态，随 export 族常挂）
+  registerGovReportRoutes(app, { store, invStore, baselineRepository });
 
   if (options.larkStore) {
     registerLarkRoutes(app, { store, clock, baselineRepository, larkStore: options.larkStore, trustProxy });

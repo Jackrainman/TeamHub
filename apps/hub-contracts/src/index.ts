@@ -187,6 +187,7 @@ export * from './kb.js';
 export * from './kb-similar.js';
 export * from './kb-closeout.js';
 export * from './inventory.js';
+export * from './gov-report.js';
 // 报账标准纵切模块：只从正式 domain public API 显式导出，不保留旧根文件转发层。
 export {
   DEFAULT_REIMBURSE_PROFILE,

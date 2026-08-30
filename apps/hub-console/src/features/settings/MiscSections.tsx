@@ -14,6 +14,11 @@ export function ExportSection() {
         <a className="btn btn--secondary btn--sm" href="/api/export/tasks" download>{t('settings.export.tasks')}</a>
         <a className="btn btn--secondary btn--sm" href="/api/export/inventory" download>{t('settings.export.inventory')}</a>
       </div>
+      <p className="settings-desc">{t('settings.export.govReport.desc')}</p>
+      <div className="settings-actions">
+        <a className="btn btn--primary btn--sm" href="/api/reports/governance?format=html" download>{t('settings.export.govReport.html')}</a>
+        <a className="btn btn--secondary btn--sm" href="/api/reports/governance?format=md" download>{t('settings.export.govReport.md')}</a>
+      </div>
     </section>
   );
 }
