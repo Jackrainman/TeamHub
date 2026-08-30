@@ -120,6 +120,12 @@
       "batch": "onboarding"
     },
     {
+      "id": "STYLE-DEAD-CLASS-CLEANUP",
+      "title": "装饰性死 CSS 类批量清理（DeepSeek 一致性审计 v0.54.7 遗留 15 处低风险：archive-mech-group / checklist-add__trigger / baseline-warn--future / learn-block__pending / panel-header__meta / reimb-items-editor__cell--narrow / relay-add__task-toggle / 裸 input 类 / inv-cell 基类 / inv-create / inv-record / resources-create / schedule-page / settings-desc--spaced / setup-wizard__progress——全是纯装饰空壳，底层有 .panel/.btn 兼底视觉无破坏）+ 3 处 queryKey 特例变体（MyViewPage 扩展键/App+IdentityBar members 变体/App setup-state）入工厂；随样式清理批次一次性做",
+      "tag": "code",
+      "batch": "later"
+    },
+    {
       "id": "DUAL-DEPLOY",
       "title": "稳定版+镜像数据库开发版双实例：复制 teamhub.sqlite 到独立数据目录 + 换端口起第二实例（数据目录/端口走环境变量，无需改代码）；开学冲刺期不做，节奏稳定后再上；落点 docs/operations/deploy.md 补一节",
       "tag": "ops",
@@ -133,7 +139,8 @@
     }
   ],
   "done-tonight": [
-    "GROUP-DROPDOWN-LEAF: 归属类组下拉全链路口子过滤——ResourcesPage 默认阵型/AddLegForm 就地新建（v0.54.3/4）+ TodayPlanTable 表格行（v0.54.6）均 deriveLeafGroups 过滤+引用兜底；PmCreatePanel 本就用服务端 assignableGroupIds；「程序」等父组不再出现（筛选/组管理视图按域保留）",
+    "CONSISTENCY-AUDIT: DeepSeek 子代理六维度一致性审计（死 CSS 类/裸修饰类/i18n key/裸 fetch+useQuery/queryKey 裸写/组归属过滤）——无高危；App+DepGraphPage 字面量 queryKey 归工厂、KbStep gate-section 死类补样式 v0.54.7；15 处低风险死类挂起 STYLE-DEAD-CLASS-CLEANUP",
+    "GROUP-DROPDOWN-LEAF: 归属类组下拉全链路叶子过滤——ResourcesPage 默认阵型/AddLegForm 就地新建（v0.54.3/4）+ TodayPlanTable 表格行（v0.54.6）均 deriveLeafGroups 过滤+引用兜底；PmCreatePanel 本就用服务端 assignableGroupIds；「程序」等父组不再出现（筛选/组管理视图按域保留）",
     "SCHED-TABLE-TOOLBAR-UI: 初始化表格三按钮归回 B3 按钮体系——继续昨天/使用预设引用已删除的 relay-canvas__add、carry 缺 btn 皮肤（B3 归并漏网），统一 btn btn--primary/btn--secondary v0.54.5",
     "FLEET-PRESET-GROUP-EMPTY: 默认阵型负责组下拉改用 useGroups 全量组列表 + deriveLeafGroups 叶子过滤（原从 dep-graph 任务视图反推，无任务时下拉为空保存永灰），与 TodayPlanTable 同源，raw-react-query 基线收缩 v0.54.3",
     "RELAY-ADD-GROUP-SOURCE: 加一棒就地新建负责组下拉改用全量叶子组、显组名存 id（原从 tasks 反推只显示有任务的组且渲染 gid）v0.54.4",
