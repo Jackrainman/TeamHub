@@ -33,13 +33,6 @@
       "batch": "architecture"
     },
     {
-      "id": "FLEET-STATUS-GROUP-FOLLOW",
-      "title": "改机器人状态时负责组随状态联动（需求/改进，待产品拍板）：已查非代码一致性问题——ResourceRow 状态切换 UI 渲染正常（btn 体系正确），系统内不存在任何状态→组映射，这是纯新功能。现状改状态只有自由文本原因、无负责组。期望「在用」→ 大概率程序组（电控/视觉）在用；「在修」→ 可选电路/机械在修。建议状态切换 UI 按目标状态推荐/筛选负责组候选（在用=程序/电控/视觉，在修=电路/机械），或状态原因快捷 chips；涉及产品决策需确认",
-      "tag": "code",
-      "batch": "later",
-      "detail": "\n现象/需求：机器人队页改状态目前只有自由文本「原因（选填）」，没有负责组概念。用户反馈：状态「在用」大概率是程序组（电控/视觉）在用，「在修」是电路/机械在修；希望状态切换时负责组能随状态自动推荐/筛选。\n现状：ResourceRow.tsx L255-283 只改 status + statusReason。\n修复（需产品拍板）：状态切换 UI 按目标状态推荐负责组候选（在用→程序/电控/视觉，在修→电路/机械），或状态原因快捷 chips；需确认是加独立「负责组」字段还是并入 statusReason。\n验证：从「在用」切「在修」时负责组候选/快捷项随状态变化。"
-    },
-    {
       "id": "REIMBURSE-PM-EXPORT",
       "title": "项管视角全员发票筛选/选择与实际导出：命名建议、购买方状态、核对原因和 gross/eligible/blocked/review 已完成；剩余文件导出适配器仍须保持原件不上传，名字永不进治理聚合；见 docs/domains/reimburse.md",
       "tag": "code",
@@ -112,12 +105,6 @@
       "batch": "later"
     },
     {
-      "id": "ONBOARD-QA",
-      "title": "问答式初始化（TEACHING-FLOW 深化，用户痛点）：聊天式一问一答 + 右侧实时显示已选择确认卡（回答可见回报），规则 chips 优先（复用 suggestSeasonForm 先例）、LLM 自由文本解析可选且只转译不拍板（确认才落库）；名册/库存/知识库三个 CSV 批量步折叠成'有现成数据吗'分支保留；未拍板：车是否回问答建空车草稿 / LLM 内置 or 开关 / 替换 or 并存旧 7 步门；落点 contracts onboarding 纯函数 + server 跨域编排 service + console 引导 UI",
-      "tag": "code",
-      "batch": "onboarding"
-    },
-    {
       "id": "DUAL-DEPLOY",
       "title": "稳定版+镜像数据库开发版双实例：复制 teamhub.sqlite 到独立数据目录 + 换端口起第二实例（数据目录/端口走环境变量，无需改代码）；开学冲刺期不做，节奏稳定后再上；落点 docs/operations/deploy.md 补一节",
       "tag": "ops",
@@ -154,12 +141,6 @@
       "batch": "later"
     },
     {
-      "id": "PROGRAM-RYG-RULES",
-      "title": "程序组红绿黄判定细则：绿色=全干完且能讲清自己模块；黄色=必做都干完但漏了一件事；红色=代码逻辑自己讲不清（纯AI、无测试、无git均标红）；与另一组长细说后落地",
-      "tag": "code",
-      "batch": "later"
-    },
-    {
       "id": "GIT-POLICY",
       "title": "确认 git 用法：代码用 git（历史/回滚/对比/协作），内容文档用 DB；主分支只放稳定版，功能走开发分支；停掉后缀式版本管理",
       "tag": "ops",
@@ -167,6 +148,8 @@
     }
   ],
   "done-tonight": [
+    "ONBOARD-QA 一期（已拍板）v0.55.5：初始化门改问答流——双栏（左一次一题/右实时确认卡）+ 名册/库存/档案三步 chips 分支「有现成的吗」+ WhoStep 组 chips 点选 + SeasonStep 创建成功自动前进（二次确认段删）+ done 再次确认页删（7→6 步）；LLM 不做；步序锚点测试全量更新",
+    "拍板落账：PROGRAM-RYG-RULES 转共享文档（Excel 拉，程序组按人评价，TeamHub 不做）；FLEET-STATUS-GROUP-FOLLOW 否决（状态→负责组联动属自动化但不好用）；ONBOARD-QA 定案=chips+确认卡+赛季创建确认合一页+无 LLM",
     "CONVERGENCE-TASK-ENTRY: 联调任务创建通道 v0.55.0——空板默认组树预建 grp-convergence 哨兵组（buildDefaultGroupTree）+ POST /api/tasks 放行「哨兵组+convergenceScope 同现」、scope/组不匹配 400 + PmCreatePanel/加一棒「总联调」开关（Combobox 加 disabled）；create-task-route 联调三态测试 + ensure-default-groups 断言修订；TASK-GROUP-400-PROGRAM 产品纠结随之消解",
     "WORKBENCH-MY-VEHICLE + WORKBENCH-SEASON-PROGRESS: 首页进度双卡 v0.55.1——contracts deriveMyVehicleProgress（我持有任务 robotTarget 最多者=我的车，完成率按该车全量任务）/deriveSeasonTaskProgress（非搁置 done/total）纯派生 +7 测试；本车卡 I0 红线=只按 session 派生，无负责车给引导空态+跳挂单池；赛季卡附里程碑 passed/total",
     "STAGE-PIPELINE Step1: 整车六阶段 stepper v0.55.2——deriveStagePipeline 现有 phases 近似映射（rd 三等分/iterate/tuning/待联调至比赛日），零 schema 变更；状态语义=第一个未结束段 current 不断头；「待联调」段附联调任务计数；+9 测试",
