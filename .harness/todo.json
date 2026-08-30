@@ -1,5 +1,5 @@
 {
-  "focus": "SPRINT-W1 开学收口：仓库已回 npm 单轨、全量门绿；重心转真实数据彩排与基础功能可用，ARCH-UNIFY A4/A5 迁移开学前暂停",
+  "focus": "IA-RESTRUCTURE demo 待验收：分支 feat/ia-restructure-demo，demo http://100.122.240.97:4277（生产 4177 不动）；三层导航+首页工作台+Notion/Linear 双新皮+风格预览页已上线，待用户挑风格拍板后 merge 回 master；杂货模块（报销/库存/KB 等）冻结，ARCH-UNIFY A4/A5 开学前暂停",
   "blocked": [
     {
       "id": "HERMES-LARK-SKILL",
@@ -8,6 +8,24 @@
     }
   ],
   "todo": [
+    {
+      "id": "IA-RESTRUCTURE",
+      "title": "前端 IA 重构 demo（分支 feat/ia-restructure-demo，demo http://100.122.240.97:4277）：三层导航（首页/工作区/管理）+ 首页工作台（我这周/汇报倒计时/整车进度）+ 每日在场提级为顶级入口 + 机器人清单降级管理组 + 泳道卡未挂任务标注（产品已拍板）；待用户看 demo 拍板后 merge 回 master，杂货模块保持冻结",
+      "tag": "code",
+      "batch": "ia-restructure"
+    },
+    {
+      "id": "STYLE-PICK",
+      "title": "风格选型：风格预览页已上 demo（6 套皮肤即点即换：Notion/Linear/科技/经典绿/暖纸/暗色），Notion/Linear 已做首页节奏微调；待用户在真实组件上挑定一套（或给参考站），定稿后其余主题可裁剪",
+      "tag": "code",
+      "batch": "ia-restructure"
+    },
+    {
+      "id": "STAGE-PIPELINE",
+      "title": "整车六阶段 stepper Step2（Step1 已上 demo v0.55.2：phases 时间窗近似映射六阶段+待联调段联调任务计数）：merge 回 master 后给 milestone 加可选 stage 字段 + deriveStageProgress 精确派生替换近似映射（WorkbenchPage StagePipelineStrip 组件 props 不变）",
+      "tag": "code",
+      "batch": "ia-restructure"
+    },
     {
       "id": "ARCH-UNIFY",
       "title": "仓库级软件架构统一：A0-A3（单仓库图/统一 SQLite/app_settings/UoW/reimburse 三包模板）已完成；继续 A4 checklist→baseline→其余领域迁移 → A5 旧骨架归零；不考虑旧数据兼容，见 docs/design/software-architecture.md",
@@ -20,26 +38,6 @@
       "tag": "code",
       "batch": "later",
       "detail": "\n现象/需求：机器人队页改状态目前只有自由文本「原因（选填）」，没有负责组概念。用户反馈：状态「在用」大概率是程序组（电控/视觉）在用，「在修」是电路/机械在修；希望状态切换时负责组能随状态自动推荐/筛选。\n现状：ResourceRow.tsx L255-283 只改 status + statusReason。\n修复（需产品拍板）：状态切换 UI 按目标状态推荐负责组候选（在用→程序/电控/视觉，在修→电路/机械），或状态原因快捷 chips；需确认是加独立「负责组」字段还是并入 statusReason。\n验证：从「在用」切「在修」时负责组候选/快捷项随状态变化。"
-    },
-    {
-      "id": "TASK-GROUP-400-PROGRAM",
-      "title": "选负责组选「程序」报 400：已查证不应开放父组——presence 派生（schedule.ts else 分支）会 upgrade 父组、render 只拦哨兵组不拦父组，而成员只能挂叶子组（父组永远无成员），开放后「程序」会以无成员组身份混进在场/排班建议且子组不亮，误导性强。正解=已有哨兵组机制（demo 的 grp-convergence + convergenceScope='allLeafGroups'）。前端下拉已全部叶子过滤（v0.54.3/v0.54.4），400 触发路径已消失。剩余缺口见 CONVERGENCE-TASK-ENTRY",
-      "tag": "code",
-      "batch": "later",
-      "detail": "\n现象：今日计划表格/加一棒里选「程序」作为负责组并新建任务，后端返回 400「组「程序」是汇报视角（含子组或是联调哨兵组），任务请挂到其下的具体小组」。\n根因：后端 POST /api/tasks 用 deriveLeafGroups 拒绝非叶子组；「程序」=电控/视觉的父组 → 非叶子 → 400。\n调查结论（v0.54.5）：不应开放父组（presence 派生会被无成员父组污染）；正解是哨兵组机制，但正式空板组初始化不含 grp-convergence（pm-core-store.ts L278）且 console 无建联调任务入口（CreateTaskRequestSchema 已带 convergenceScope 可选字段）。\n验证：联调任务经 CONVERGENCE-TASK-ENTRY 通道创建并在场派生正常。"
-    },
-    {
-      "id": "CONVERGENCE-TASK-ENTRY",
-      "title": "联调任务创建通道缺口：正式空板补 grp-convergence 哨兵组（组初始化幂等处加，仿 demo fixture）+ 任务表单/加一棒加「总联调」开关（置 groupId=grp-convergence + convergenceScope='allLeafGroups'），API 层已支持；做完后 TASK-GROUP-400-PROGRAM 的产品纠结自然消解",
-      "tag": "code",
-      "batch": "later"
-    },
-    {
-      "id": "RELAY-VS-DEPGRAPH-MISMATCH",
-      "title": "泳道图与依赖图显示不一致：实测非 bug——服务端建任务后 dep-graph 立即含新节点，前端失效链（invalidateScheduleFamily 含 dep-graph 前缀）完整；属候选根因②：排班不挂任务（holderTaskId=null，表格行任务留空即产生）时泳道显组名卡、依赖图无节点，预期行为。剩余产品确认项：是否给未挂任务的泳道卡显式标注「未挂任务」以免误导",
-      "tag": "code",
-      "batch": "later",
-      "detail": "\n现象：用户创建 3 个任务后，泳道图（接力画布）已显示对应卡片，但依赖图（DepGraph）里看不到这 3 个任务节点。\n结构差异（已确认）：泳道图=ResourceSession 读视图（deriveRelayBoard，schedule.ts L576-608）——taskLabel 可空，无任务也显示卡片仅显组名；依赖图=Task 节点图（toDepGraphView，attribution.ts L385+）——只显示真实任务实体。\n候选根因：①「就地新建」路径 AddLegForm.createTask 成功后未即时失效 dep-graph（createSession 才 refetch，schedule-invalidation 含 dep-graph 前缀但时序上可能晚/漏）②排班根本不挂任务（holderTaskId=null）→ 泳道图有卡、依赖图自然无节点（这是预期行为，非 bug）。\n修复：先在页面实测区分：建任务后刷新依赖图看是否出现。若 ①→ 在 createTask 成功后补 invalidateQueries(['dep-graph'])；若 ②→ 属预期，需产品确认是否要在泳道卡片上显式标注「未挂任务」以免误导。\n验证：建任务后依赖图即时出现该节点；无任务排班时泳道卡有明确标注。"
     },
     {
       "id": "REIMBURSE-PM-EXPORT",
@@ -120,12 +118,6 @@
       "batch": "onboarding"
     },
     {
-      "id": "STYLE-DEAD-CLASS-CLEANUP",
-      "title": "装饰性死 CSS 类批量清理（DeepSeek 一致性审计 v0.54.7 遗留 15 处低风险：archive-mech-group / checklist-add__trigger / baseline-warn--future / learn-block__pending / panel-header__meta / reimb-items-editor__cell--narrow / relay-add__task-toggle / 裸 input 类 / inv-cell 基类 / inv-create / inv-record / resources-create / schedule-page / settings-desc--spaced / setup-wizard__progress——全是纯装饰空壳，底层有 .panel/.btn 兼底视觉无破坏）+ 3 处 queryKey 特例变体（MyViewPage 扩展键/App+IdentityBar members 变体/App setup-state）入工厂；随样式清理批次一次性做",
-      "tag": "code",
-      "batch": "later"
-    },
-    {
       "id": "DUAL-DEPLOY",
       "title": "稳定版+镜像数据库开发版双实例：复制 teamhub.sqlite 到独立数据目录 + 换端口起第二实例（数据目录/端口走环境变量，无需改代码）；开学冲刺期不做，节奏稳定后再上；落点 docs/operations/deploy.md 补一节",
       "tag": "ops",
@@ -136,9 +128,49 @@
       "title": "让 hermes 生成初始化可用版本：复用 docs/operations/agent-deploy.md 提示词路径，目标=干净 clone → 向导走完 → 真实名册导入的全自动部署；与 DUAL-DEPLOY 的稳定版联动",
       "tag": "ops",
       "batch": "later"
+    },
+    {
+      "id": "PRINCIPLES-DB",
+      "title": "战队原则数据表：加 settings/principles 表（key+内容），默认空，由后台手动更新维护；对应 md 底稿当编辑源，TeamHub 从它渲染或改动时同步进该行",
+      "tag": "code",
+      "batch": "later"
+    },
+    {
+      "id": "PRINCIPLES-UI",
+      "title": "战队原则入口：右上角加「战队原则」入口，弹层/页面渲染该数据（改完经飞书私发审，勿发聊天框文本）",
+      "tag": "code",
+      "batch": "later"
+    },
+    {
+      "id": "DEAD-CODE-AUDIT",
+      "title": "调用路径/死代码清单：跑一遍哪些页面/接口真被点到，把死代码标出来，收窄『逻辑乱』范围，再决定留砍",
+      "tag": "code",
+      "batch": "later"
+    },
+    {
+      "id": "GIT-BASELINE",
+      "title": "git 收基线：先 git 收个干净基线，每个 bug 一个 commit，逐步理清逻辑链；主分支只放稳定版，功能走开发分支，停掉后缀式版本管理",
+      "tag": "ops",
+      "batch": "later"
+    },
+    {
+      "id": "PROGRAM-RYG-RULES",
+      "title": "程序组红绿黄判定细则：绿色=全干完且能讲清自己模块；黄色=必做都干完但漏了一件事；红色=代码逻辑自己讲不清（纯AI、无测试、无git均标红）；与另一组长细说后落地",
+      "tag": "code",
+      "batch": "later"
+    },
+    {
+      "id": "GIT-POLICY",
+      "title": "确认 git 用法：代码用 git（历史/回滚/对比/协作），内容文档用 DB；主分支只放稳定版，功能走开发分支；停掉后缀式版本管理",
+      "tag": "ops",
+      "batch": "later"
     }
   ],
   "done-tonight": [
+    "CONVERGENCE-TASK-ENTRY: 联调任务创建通道 v0.55.0——空板默认组树预建 grp-convergence 哨兵组（buildDefaultGroupTree）+ POST /api/tasks 放行「哨兵组+convergenceScope 同现」、scope/组不匹配 400 + PmCreatePanel/加一棒「总联调」开关（Combobox 加 disabled）；create-task-route 联调三态测试 + ensure-default-groups 断言修订；TASK-GROUP-400-PROGRAM 产品纠结随之消解",
+    "WORKBENCH-MY-VEHICLE + WORKBENCH-SEASON-PROGRESS: 首页进度双卡 v0.55.1——contracts deriveMyVehicleProgress（我持有任务 robotTarget 最多者=我的车，完成率按该车全量任务）/deriveSeasonTaskProgress（非搁置 done/total）纯派生 +7 测试；本车卡 I0 红线=只按 session 派生，无负责车给引导空态+跳挂单池；赛季卡附里程碑 passed/total",
+    "STAGE-PIPELINE Step1: 整车六阶段 stepper v0.55.2——deriveStagePipeline 现有 phases 近似映射（rd 三等分/iterate/tuning/待联调至比赛日），零 schema 变更；状态语义=第一个未结束段 current 不断头；「待联调」段附联调任务计数；+9 测试",
+    "STYLE-DEAD-CLASS-CLEANUP: 死 CSS 类批量清理 v0.55.3（DeepSeek 子代理）——13 处裸类 className 清除（核实 styles/ 零规则，无 CSS 可删）+ queryKey 3 处特例入工厂（MyViewPage 扩展键/App+IdentityBar members 变体/App setupState 工厂新增）；reimb-items-editor 冻结跳过、inv-cell--zero 等有样式修饰类保留",
     "CONSISTENCY-AUDIT: DeepSeek 子代理六维度一致性审计（死 CSS 类/裸修饰类/i18n key/裸 fetch+useQuery/queryKey 裸写/组归属过滤）——无高危；App+DepGraphPage 字面量 queryKey 归工厂、KbStep gate-section 死类补样式 v0.54.7；15 处低风险死类挂起 STYLE-DEAD-CLASS-CLEANUP",
     "GROUP-DROPDOWN-LEAF: 归属类组下拉全链路叶子过滤——ResourcesPage 默认阵型/AddLegForm 就地新建（v0.54.3/4）+ TodayPlanTable 表格行（v0.54.6）均 deriveLeafGroups 过滤+引用兜底；PmCreatePanel 本就用服务端 assignableGroupIds；「程序」等父组不再出现（筛选/组管理视图按域保留）",
     "SCHED-TABLE-TOOLBAR-UI: 初始化表格三按钮归回 B3 按钮体系——继续昨天/使用预设引用已删除的 relay-canvas__add、carry 缺 btn 皮肤（B3 归并漏网），统一 btn btn--primary/btn--secondary v0.54.5",
