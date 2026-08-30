@@ -1,7 +1,4 @@
 export const zhStyleGallery = {
-  'nav.stylegallery': '风格预览',
-  'toolbar.title.stylegallery': '风格预览 · 挑一套你喜欢的',
-  'stylegallery.pick': '点一套，全站即时换肤',
   'stylegallery.current': '当前',
   'stylegallery.section.buttons': '按钮',
   'stylegallery.section.badges': '徽章',
@@ -21,9 +18,6 @@ export const zhStyleGallery = {
 };
 
 export const enStyleGallery = {
-  'nav.stylegallery': 'Style Gallery',
-  'toolbar.title.stylegallery': 'Style Gallery · Pick one you like',
-  'stylegallery.pick': 'Click a style — the whole app re-skins instantly',
   'stylegallery.current': 'Current',
   'stylegallery.section.buttons': 'Buttons',
   'stylegallery.section.badges': 'Badges',

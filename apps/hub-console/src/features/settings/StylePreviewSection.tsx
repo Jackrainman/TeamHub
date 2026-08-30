@@ -1,43 +1,47 @@
 import { useI18n } from '../../i18n';
 import { useTheme } from '../../theme';
-import { THEME_OPTIONS } from '../settings/settings-constants';
+import { THEME_OPTIONS } from './settings-constants';
 
 /**
- * 风格预览页（IA-RESTRUCTURE demo 专用，非产品功能）：一页集中展示代表性组件
- * （按钮/徽章/指标卡/面板行/表单/状态条），顶部主题切换即点即换——
- * 让用户在真实组件上对比候选皮肤，而不是看别人的截图。
- * 纯静态 kitchen-sink，零数据请求、零远程状态。
+ * 外观与风格预览（STYLE-PICK，IA-RESTRUCTURE）：原顶级「风格预览」页降级收进设置页——
+ * 风格选型是设置项，不该占导航。上半 = 主题 swatch 选择器（即时控件 FORM-UNIFY B3 §1.3.7：
+ * 点选即 setTheme、不套表单、无提交按钮；6 套皮肤太宽，不用 SegToggle 改用 swatch 按钮组），
+ * 下半 = kitchen-sink 预览格（按钮/徽章/指标卡/面板行/表单/状态条），让用户在真实组件上
+ * 对比候选皮肤，而不是看别人的截图。纯静态展示，零数据请求、零远程状态。
  */
-export function StyleGalleryPage() {
+export function StylePreviewSection() {
   const { t } = useI18n();
   const { theme, setTheme } = useTheme();
 
   return (
-    <div className="style-gallery">
-      <section className="panel">
+    <>
+      <section className="panel settings-panel">
         <div className="panel-header">
-          <h2>{t('stylegallery.pick')}</h2>
+          <h2>{t('settings.section.appearance')}</h2>
         </div>
-        <div className="style-gallery__themes">
-          {THEME_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              className={
-                theme === opt.value
-                  ? 'style-gallery__theme style-gallery__theme--active'
-                  : 'style-gallery__theme'
-              }
-              onClick={() => setTheme(opt.value)}
-              aria-pressed={theme === opt.value}
-            >
-              <span className={`style-gallery__swatch style-gallery__swatch--${opt.value}`} />
-              <span>{t(opt.labelKey)}</span>
-              {theme === opt.value ? (
-                <span className="badge badge--blue">{t('stylegallery.current')}</span>
-              ) : null}
-            </button>
-          ))}
+        <div className="settings-section">
+          <p className="settings-desc">{t('settings.appearance.desc')}</p>
+          <div className="style-gallery__themes">
+            {THEME_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className={
+                  theme === opt.value
+                    ? 'style-gallery__theme style-gallery__theme--active'
+                    : 'style-gallery__theme'
+                }
+                onClick={() => setTheme(opt.value)}
+                aria-pressed={theme === opt.value}
+              >
+                <span className={`style-gallery__swatch style-gallery__swatch--${opt.value}`} />
+                <span>{t(opt.labelKey)}</span>
+                {theme === opt.value ? (
+                  <span className="badge badge--blue">{t('stylegallery.current')}</span>
+                ) : null}
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -132,6 +136,6 @@ export function StyleGalleryPage() {
           </div>
         </section>
       </div>
-    </div>
+    </>
   );
 }

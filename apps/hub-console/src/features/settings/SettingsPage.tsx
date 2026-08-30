@@ -1,9 +1,9 @@
 import type { HubApiClient } from '../../api/client';
 import type { OverviewView, PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
-import { useTheme } from '../../theme';
 import { SegToggle } from '../../components/SegToggle';
-import { LANG_OPTIONS, THEME_OPTIONS } from './settings-constants';
+import { LANG_OPTIONS } from './settings-constants';
+import { StylePreviewSection } from './StylePreviewSection';
 import { IdentitySection } from './IdentitySection';
 import { SeasonsSection } from './SeasonsSection';
 import { GroupsSection } from './GroupsSection';
@@ -28,7 +28,6 @@ export function SettingsPage({
   overview: OverviewView;
 }) {
   const { t, lang, setLang } = useI18n();
-  const { theme, setTheme } = useTheme();
 
   return (
     <div className="settings-page">
@@ -54,25 +53,8 @@ export function SettingsPage({
         </div>
       </section>
 
-      <section className="panel settings-panel">
-        <div className="panel-header">
-          <h2>{t('settings.section.appearance')}</h2>
-        </div>
-        <div className="settings-section">
-          <p className="settings-desc">{t('settings.appearance.desc')}</p>
-          {/* 主题 = 即时控件（FORM-UNIFY B3 / §1.3.7）：点选即 setTheme、不套表单、无提交按钮。
-              seg → SegToggle（吐同款 div.seg + seg__btn(segClass)，像素零变）。 */}
-          <SegToggle
-            value={theme}
-            options={THEME_OPTIONS.map((opt) => ({
-              value: opt.value,
-              label: t(opt.labelKey),
-            }))}
-            onChange={setTheme}
-            ariaLabel={t('settings.section.appearance')}
-          />
-        </div>
-      </section>
+      {/* 外观 = 主题 swatch 选择器 + 风格预览格（原顶级风格预览页降级收进设置，STYLE-PICK）。 */}
+      <StylePreviewSection />
 
       <SeasonsSection client={client} source={source} identity={identity} />
       <GroupsSection client={client} source={source} identity={identity} />

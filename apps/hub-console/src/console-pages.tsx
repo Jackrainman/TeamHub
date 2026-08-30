@@ -11,7 +11,6 @@ import {
   Home,
   LayoutGrid,
   ListChecks,
-  Palette,
   ReceiptText,
   Settings,
 } from 'lucide-react';
@@ -22,7 +21,6 @@ import type { OverviewSnapshot } from './api/schemas/system';
 import type { TranslationKey } from './i18n';
 import { OverviewPage } from './features/overview/OverviewPage';
 import { WorkbenchPage } from './features/workbench/WorkbenchPage';
-import { StyleGalleryPage } from './features/style-gallery/StyleGalleryPage';
 import { SchedulePage } from './features/schedule/SchedulePage';
 import { ResourcesPage } from './features/resources/ResourcesPage';
 import { ProjectPage } from './features/project/ProjectPage';
@@ -47,7 +45,7 @@ import { SettingsPage } from './features/settings/SettingsPage';
  * 这里收紧成 console 实际用到的 React 组件引用 + 渲染上下文类型。
  *
  * **本步接线（PHASE2-CONSOLE-ASSEMBLY，D-081 已知延后项①收口）**：`CONSOLE_PAGES` 仍是全量静态
- * 注册表（8 页，值不变）；新增 `moduleId` 字段 + `filterConsolePages()` 纯函数按 `AppSettings.enabledModules`
+ * 注册表（13 页）；新增 `moduleId` 字段 + `filterConsolePages()` 纯函数按 `AppSettings.enabledModules`
  * 过滤——未启用模块的页面结构上不出现在导航/直达渲染里（§3.4-A"未启用即不渲染"，非灰置禁用）。
  * App.tsx 在 setup 闸读到服务端 app_settings 后把快照传入，本文件只提供过滤机制、
  * 不持有配置默认值。"HubApiClient 切片"仍留在 risks——client 全量按域切片改动面大，
@@ -60,7 +58,6 @@ import { SettingsPage } from './features/settings/SettingsPage';
 
 export type ConsolePage =
   | 'workbench'
-  | 'stylegallery'
   | 'overview'
   | 'myview'
   | 'project'
@@ -76,7 +73,8 @@ export type ConsolePage =
 
 /**
  * 导航分组（IA-RESTRUCTURE demo）：三层信息架构——
- *   home = 首页工作台（萌新落地页，单独置顶，无分组标题）
+ *   home = 首页工作台（萌新落地页，单独置顶，无分组标题；风格预览已降级收进设置页外观区——
+ *          风格选型是设置项不占导航，见 settings/StylePreviewSection）
  *   work = 高频工作区（我的视图 / 项目 / 每日在场）
  *   manage = 低频管理杂货（运维总览 / 机器人清单 / 报销库存等）
  */
@@ -136,7 +134,7 @@ export interface ConsolePageDescriptor {
 }
 
 // 顺序即导航顺序（IA-RESTRUCTURE demo 三层重排：首页 → 工作区[我的视图/项目/每日在场] → 管理[总览/机器人清单/学习方向/知识库/图纸档案/库存/报账/时间线/设置]）：
-// 每日在场从机器人队 Tab 提升为顶级入口；fleet 页降为纯机器人清单（管理组）。
+// 每日在场从机器人队 Tab 提升为顶级入口；fleet 页降为纯机器人清单（管理组）；风格预览收进设置页。
 export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
   {
     key: 'workbench',
@@ -153,15 +151,6 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
         onNavigate={ctx.onNavigate}
       />
     ),
-  },
-  {
-    key: 'stylegallery',
-    labelKey: 'nav.stylegallery',
-    titleKey: 'toolbar.title.stylegallery',
-    icon: Palette,
-    section: 'home',
-    moduleId: 'system',
-    render: () => <StyleGalleryPage />,
   },
   {
     key: 'overview',
