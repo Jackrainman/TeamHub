@@ -1,5 +1,5 @@
 {
-  "focus": "IA-RESTRUCTURE demo 待验收：分支 feat/ia-restructure-demo，demo http://100.122.240.97:4277（生产 4177 不动）；三层导航+首页工作台+Notion/Linear 双新皮+风格预览页已上线，待用户挑风格拍板后 merge 回 master；杂货模块（报销/库存/KB 等）冻结，ARCH-UNIFY A4/A5 开学前暂停",
+  "focus": "IA-RESTRUCTURE 已收口 merge 进 master（v0.55.6：风格预览降级收进设置页外观区，demo 分支已删）；master 待 push origin（ahead 13）；demo:4277 仍为旧分支构建，重建切 master 即顺带拿到 ONBOARD-QA 6 步问答门；STYLE-PICK 继续——在设置页外观区挑定一套皮肤；杂货模块（报销/库存/KB 等）冻结，ARCH-UNIFY A4/A5 开学前暂停",
   "blocked": [
     {
       "id": "HERMES-LARK-SKILL",
@@ -9,14 +9,8 @@
   ],
   "todo": [
     {
-      "id": "IA-RESTRUCTURE",
-      "title": "前端 IA 重构 demo（分支 feat/ia-restructure-demo，demo http://100.122.240.97:4277）：三层导航（首页/工作区/管理）+ 首页工作台（我这周/汇报倒计时/整车进度）+ 每日在场提级为顶级入口 + 机器人清单降级管理组 + 泳道卡未挂任务标注（产品已拍板）；待用户看 demo 拍板后 merge 回 master，杂货模块保持冻结",
-      "tag": "code",
-      "batch": "ia-restructure"
-    },
-    {
       "id": "STYLE-PICK",
-      "title": "风格选型：风格预览页已上 demo（6 套皮肤即点即换：Notion/Linear/科技/经典绿/暖纸/暗色），Notion/Linear 已做首页节奏微调；待用户在真实组件上挑定一套（或给参考站），定稿后其余主题可裁剪",
+      "title": "风格选型：风格预览已收进设置页外观区（v0.55.6：swatch 选择器 + kitchen-sink 预览格，即点即换）；待用户在真实组件上挑定一套（或给参考站），定稿后其余主题可裁剪",
       "tag": "code",
       "batch": "ia-restructure"
     },
@@ -105,6 +99,12 @@
       "batch": "later"
     },
     {
+      "id": "HERMES-CHAT-MVP",
+      "title": "hermes 群聊记账最小闭环：三个一句话指令（记在场/任务推进/记库存）覆盖 80% 记录场景，替代『开网页→找页面→填表单』长链；先出 teamhub 侧指令集+API 映射+回执文案设计文档给用户审，与 HERMES-LARK-SKILL（blocked 用户侧）联动",
+      "tag": "code",
+      "batch": "later"
+    },
+    {
       "id": "DUAL-DEPLOY",
       "title": "稳定版+镜像数据库开发版双实例：复制 teamhub.sqlite 到独立数据目录 + 换端口起第二实例（数据目录/端口走环境变量，无需改代码）；开学冲刺期不做，节奏稳定后再上；落点 docs/operations/deploy.md 补一节",
       "tag": "ops",
@@ -148,6 +148,7 @@
     }
   ],
   "done-tonight": [
+    "IA-RESTRUCTURE 收口：主体早已在 master（三层导航/首页工作台/风格预览/六阶段 Step1），最后一笔『风格预览降级收进设置页外观区』cherry-pick 回 master v0.55.6（swatch 选择器替代 6 项 SegToggle，13 页注册表）；demo 分支零独有提交已删；demo:4277 待重建切 master",
     "ONBOARD-QA 一期（已拍板）v0.55.5：初始化门改问答流——双栏（左一次一题/右实时确认卡）+ 名册/库存/档案三步 chips 分支「有现成的吗」+ WhoStep 组 chips 点选 + SeasonStep 创建成功自动前进（二次确认段删）+ done 再次确认页删（7→6 步）；LLM 不做；步序锚点测试全量更新",
     "拍板落账：PROGRAM-RYG-RULES 转共享文档（Excel 拉，程序组按人评价，TeamHub 不做）；FLEET-STATUS-GROUP-FOLLOW 否决（状态→负责组联动属自动化但不好用）；ONBOARD-QA 定案=chips+确认卡+赛季创建确认合一页+无 LLM",
     "CONVERGENCE-TASK-ENTRY: 联调任务创建通道 v0.55.0——空板默认组树预建 grp-convergence 哨兵组（buildDefaultGroupTree）+ POST /api/tasks 放行「哨兵组+convergenceScope 同现」、scope/组不匹配 400 + PmCreatePanel/加一棒「总联调」开关（Combobox 加 disabled）；create-task-route 联调三态测试 + ensure-default-groups 断言修订；TASK-GROUP-400-PROGRAM 产品纠结随之消解",
