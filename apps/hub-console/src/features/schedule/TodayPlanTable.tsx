@@ -4,6 +4,7 @@ import type { HubApiClient } from '../../api/client';
 import { useResources, useResourceSessions } from '../../hooks/useSchedule';
 import { useTasks } from '../../hooks/useTasks';
 import { useGroups } from '../../hooks/useRoster';
+import { deriveLeafGroups } from '@teamhub/hub-contracts';
 import type { CreateTaskRequest } from '../../api/schemas/pm';
 import { deriveTodayPlanFromPresets } from '../../api/schemas/schedule';
 import { useI18n } from '../../i18n';
@@ -55,11 +56,14 @@ export function TodayPlanTable({
   const resourcesById = useMemo(() => new Map(resources.map((r) => [r.id, r])), [resources]);
   const tasksById = useMemo(() => new Map(tasks.map((tk) => [tk.id, tk])), [tasks]);
 
-  // 「负责组」下拉候选：组 id -> 组名，来源=GET /api/groups 全量组列表 + 各车预设 lineup 里出现过的组
-  // （兜底：万一某组的 seed 漏了但预设引用了它，选中值仍要能显示，不留空白 option）。
+  // 「负责组」下拉候选：组 id -> 组名，来源=GET /api/groups 全量组列表**仅叶子组**
+  // （叶子组才可挂任务/进 lineup；父组是汇报视角、永远无成员，进下拉只会误导）
+  // + 各车预设 lineup 里出现过的组（兜底：预设引用了被滤掉的组时，选中值仍要能显示）。
   const groupOptions = useMemo(() => {
+    const groups = groupsQuery.data?.groups ?? [];
+    const leaf = new Set(deriveLeafGroups([...groups]));
     const map = new Map<string, string>();
-    for (const g of groupsQuery.data?.groups ?? []) map.set(g.id, g.name);
+    for (const g of groups) if (leaf.has(g.id)) map.set(g.id, g.name);
     for (const r of resources) {
       for (const entry of r.defaultPreset?.lineup ?? []) {
         if (!map.has(entry.groupId)) map.set(entry.groupId, entry.groupId);
