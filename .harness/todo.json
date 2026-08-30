@@ -94,7 +94,7 @@
     },
     {
       "id": "HERMES-CHAT-MVP",
-      "title": "hermes 群聊记账最小闭环：三个一句话指令（记在场/任务推进/记库存）覆盖 80% 记录场景，替代『开网页→找页面→填表单』长链；先出 teamhub 侧指令集+API 映射+回执文案设计文档给用户审，与 HERMES-LARK-SKILL（blocked 用户侧）联动",
+      "title": "hermes 群聊记账最小闭环（设计已落稿 docs/domains/integrations.md §6，与 Hermes 侧对答案后）：库存 inv-query/inv-record 已落地；TeamHub 侧缺口=feishu_link 映射表（union_id→memberId）+ GET /api/links/me + presence-checkin/task-advance 两命令（parseHermesText 加正则分支）+ 名册角色指令级鉴权，预估 ~1 天；部署形态拍板=检测/外挂式不捆绑（同机走 /api/hermes/credential 零配置）；Hermes 侧 skill 归 HERMES-LARK-SKILL（用户维护）",
       "tag": "code",
       "batch": "later"
     },
