@@ -92,7 +92,7 @@ export function DepGraphPage({
           ? '#e6ddca'
           : '#d8e0d6';
   const query = useQuery({
-    queryKey: ['dep-graph', source],
+    queryKey: queryKeys.depGraph(source),
     queryFn: () => client.getDepGraph(),
   });
   const tasksQuery = useTasks(client, source);

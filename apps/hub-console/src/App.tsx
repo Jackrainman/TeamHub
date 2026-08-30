@@ -125,7 +125,7 @@ function ConsoleApp({ apiClient, settings }: { apiClient: HubApiClient; settings
   // 轻身份（IDENTITY-LITE，I2 console 接线）：两模式均可读，缺省 anonymous（GET /api/session
   // 报当前部署模式 + 当前身份），前端据此判断要不要渲染登录 UI / 收紧写门——不是另开一个开关。
   const sessionQuery = useQuery({
-    queryKey: ['session'],
+    queryKey: queryKeys.session(),
     queryFn: () => apiClient.getSession(),
   });
   const identityMode = sessionQuery.data?.mode ?? 'anonymous';

@@ -86,6 +86,20 @@
   font-size: var(--text-base);
   line-height: 1.6;
 }
+/* KB 步卡内分段（排障笔记 / Bug 快录）：与主描述拉开一档、虚线细分隔。 */
+.gate-section {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gate-section__title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+}
 /* 试驾卡把 CTA 顶到底、与正式卡按钮对齐（正式卡多一格选择、天然更高）。 */
 .setup-card__spacer {
   flex: 1 1 auto;
