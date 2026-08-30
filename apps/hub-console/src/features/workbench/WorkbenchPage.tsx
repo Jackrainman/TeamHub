@@ -1,8 +1,11 @@
 import { useMemo } from 'react';
 import type { BaselineMilestonePublic } from '@teamhub/hub-contracts';
 import {
+  CONVERGENCE_SCOPE_ALL_LEAF_GROUPS,
   deriveMyVehicleProgress,
   deriveSeasonTaskProgress,
+  deriveStagePipeline,
+  type StagePipelineStage,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import type { ConsolePage, PageIdentityCtx } from '../../console-pages';
@@ -48,6 +51,7 @@ export function WorkbenchPage({
       <ProgressStripSection client={client} source={source} identity={identity} onNavigate={onNavigate} />
       <section className="workbench-section" aria-label={t('workbench.section.fleet')}>
         <h2 className="workbench-section__title">{t('workbench.section.fleet')}</h2>
+        <StagePipelineStrip client={client} source={source} />
         <BaselineOverview
           client={client}
           baselineClient={client}
@@ -340,6 +344,60 @@ function ProgressBar({ ratio }: { ratio: number }) {
     <div className="workbench-progress" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
       <div className="workbench-progress__bar" style={{ width: `${pct}%` }} />
       <span className="workbench-progress__pct">{pct}%</span>
+    </div>
+  );
+}
+
+const STAGE_I18N_KEY: Record<StagePipelineStage, Parameters<ReturnType<typeof useI18n>['t']>[0]> = {
+  moduleDesign: 'workbench.stage.moduleDesign',
+  moduleAssembly: 'workbench.stage.moduleAssembly',
+  moduleTest: 'workbench.stage.moduleTest',
+  integratedAssembly: 'workbench.stage.integratedAssembly',
+  integratedTest: 'workbench.stage.integratedTest',
+  convergence: 'workbench.stage.convergence',
+};
+
+/**
+ * 整车六阶段 stepper（STAGE-PIPELINE Step1）：用现有 phases 时间窗近似映射六阶段，零 schema
+ * 变更看形态（Step2 merge 后才给 milestone 加可选 stage 字段）。「待联调」段附总联调任务计数
+ * （CONVERGENCE-TASK-ENTRY 咬合）。赛季级模板一份、不建 per-robot 流水线实例。
+ */
+function StagePipelineStrip({ client, source }: { client: HubApiClient; source: string }) {
+  const { t } = useI18n();
+  const now = useMemo(() => new Date().toISOString(), []);
+  const seasonsQuery = useSeasons(client);
+  const activeSeason = useMemo(() => {
+    const seasons = seasonsQuery.data?.seasons ?? [];
+    return seasons.find((s) => s.status === 'active') ?? seasons[0];
+  }, [seasonsQuery.data]);
+  const baselineQuery = useBaseline(client, source, activeSeason?.id);
+  const baseline = baselineQuery.data?.baseline ?? null;
+
+  const tasksQuery = useTasks(client, source);
+  const convergence = useMemo(() => {
+    const list = (tasksQuery.data?.tasks ?? []).filter(
+      (tk) => tk.convergenceScope === CONVERGENCE_SCOPE_ALL_LEAF_GROUPS,
+    );
+    return { done: list.filter((tk) => tk.status === 'done').length, total: list.length };
+  }, [tasksQuery.data]);
+
+  if (!baseline) return null;
+  const stages = deriveStagePipeline(baseline.phases, baseline.anchors.competitionDate, now);
+  if (!stages) {
+    return <p className="workbench-note">{t('workbench.stage.empty')}</p>;
+  }
+  return (
+    <div className="workbench-stages" role="list" aria-label={t('workbench.stage.title')}>
+      {stages.map((s) => (
+        <div className={`workbench-stage workbench-stage--${s.status}`} role="listitem" key={s.stage}>
+          <span className="workbench-stage__name">{t(STAGE_I18N_KEY[s.stage])}</span>
+          {s.stage === 'convergence' && convergence.total > 0 ? (
+            <span className="workbench-stage__sub">
+              {t('workbench.stage.convergenceTasks', { done: convergence.done, total: convergence.total })}
+            </span>
+          ) : null}
+        </div>
+      ))}
     </div>
   );
 }

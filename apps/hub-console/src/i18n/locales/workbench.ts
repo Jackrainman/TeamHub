@@ -33,6 +33,15 @@ export const zhWorkbench = {
   'workbench.progress.noTasks': '还没有任务，进度暂无。',
   'workbench.progress.emptyVehicle': '还没有负责的车——认领一条带机器人目标的任务后，这里显示它的进度。',
   'workbench.progress.claim': '去挂单池挑一件 →',
+  'workbench.stage.title': '整车六阶段',
+  'workbench.stage.moduleDesign': '模块设计',
+  'workbench.stage.moduleAssembly': '模块组装',
+  'workbench.stage.moduleTest': '模块测试',
+  'workbench.stage.integratedAssembly': '集成组装',
+  'workbench.stage.integratedTest': '集成测试',
+  'workbench.stage.convergence': '待联调',
+  'workbench.stage.convergenceTasks': '联调任务 {done}/{total}',
+  'workbench.stage.empty': '还没有赛季编排，六阶段暂无投影。',
 };
 
 export const enWorkbench = {
@@ -70,4 +79,13 @@ export const enWorkbench = {
   'workbench.progress.noTasks': 'No tasks yet — nothing to show.',
   'workbench.progress.emptyVehicle': 'No vehicle under your name yet — claim a task with a robot target and its progress shows up here.',
   'workbench.progress.claim': 'Pick one from the pool →',
+  'workbench.stage.title': 'Six vehicle stages',
+  'workbench.stage.moduleDesign': 'Module design',
+  'workbench.stage.moduleAssembly': 'Module assembly',
+  'workbench.stage.moduleTest': 'Module testing',
+  'workbench.stage.integratedAssembly': 'Integration assembly',
+  'workbench.stage.integratedTest': 'Integration testing',
+  'workbench.stage.convergence': 'Convergence',
+  'workbench.stage.convergenceTasks': 'Convergence tasks {done}/{total}',
+  'workbench.stage.empty': 'No season plan yet — stage projection unavailable.',
 };

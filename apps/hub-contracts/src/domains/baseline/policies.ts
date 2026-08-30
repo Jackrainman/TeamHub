@@ -4,6 +4,7 @@ import type {
   BaselineAnchors,
   BaselineMilestone,
   BaselinePhase,
+  BaselinePhaseType,
   BaselineSegment,
   SeasonBaseline,
 } from './model.js';
@@ -321,4 +322,86 @@ export function generateRoboconBaselineTemplate(anchors: {
     phases,
     milestones,
   };
+}
+
+// ---------------------------------------------------------------------------
+// 整车六阶段 stepper（STAGE-PIPELINE Step1，IA-RESTRUCTURE）：阶段只做视图投影、不建实体。
+// Step1 零 schema 变更：拿现有 phases（rd/iterate/tuning）时间窗近似映射六阶段看形态——
+// rd 三等分 = 模块设计/模块组装/模块测试，iterate = 集成组装，tuning = 集成测试，
+// 待联调 = tuning 末 → 比赛日（缺省 +14d）。Step2（merge 后）才给 milestone 加可选 stage
+// 字段 + 精确派生；届时本函数被替换，组件props 不变。
+// ---------------------------------------------------------------------------
+
+export const STAGE_PIPELINE_STAGES = [
+  'moduleDesign',
+  'moduleAssembly',
+  'moduleTest',
+  'integratedAssembly',
+  'integratedTest',
+  'convergence',
+] as const;
+export type StagePipelineStage = (typeof STAGE_PIPELINE_STAGES)[number];
+export type StagePipelineStatus = 'done' | 'current' | 'upcoming';
+export interface StageProgress {
+  stage: StagePipelineStage;
+  status: StagePipelineStatus;
+  startsAt: string;
+  endsAt: string;
+}
+
+const STAGE_CONVERGENCE_FALLBACK_MS = 14 * 24 * 60 * 60 * 1000;
+
+/**
+ * 六阶段近似投影：状态语义 = 已结束的 done、**第一个未结束的 current**、其余 upcoming
+ * （间隙期/未开赛都有明确的「当前要推进的阶段」，不出现无 current 断头）。
+ * 无 rd phase（空板/未编排）→ null（前端空态）。缺失的 iterate/tuning 塌缩为零长区间
+ * （自动判 done 跳过），不炸。
+ */
+export function deriveStagePipeline(
+  phases: readonly BaselinePhase[],
+  competitionDate: string | undefined,
+  now: string,
+): StageProgress[] | null {
+  const windowOf = (type: BaselinePhaseType) => {
+    const ps = phases.filter((p) => p.type === type);
+    if (ps.length === 0) return null;
+    const starts = ps.map((p) => p.startsAt).sort();
+    const ends = ps.map((p) => p.endsAt).sort();
+    return { startsAt: starts[0], endsAt: ends[ends.length - 1] };
+  };
+  const rd = windowOf('rd');
+  if (!rd) return null;
+  const iterate = windowOf('iterate');
+  const tuning = windowOf('tuning');
+
+  const rdStartMs = new Date(rd.startsAt).getTime();
+  const rdThird = (new Date(rd.endsAt).getTime() - rdStartMs) / 3;
+  const iso = (ms: number) => new Date(ms).toISOString();
+  const asmStart = iterate?.startsAt ?? rd.endsAt;
+  const asmEnd = iterate?.endsAt ?? asmStart;
+  const testStart = tuning?.startsAt ?? asmEnd;
+  const testEnd = tuning?.endsAt ?? testStart;
+  const convEnd =
+    competitionDate ?? iso(new Date(testEnd).getTime() + STAGE_CONVERGENCE_FALLBACK_MS);
+
+  const ranges: Array<[StagePipelineStage, string, string]> = [
+    ['moduleDesign', rd.startsAt, iso(rdStartMs + rdThird)],
+    ['moduleAssembly', iso(rdStartMs + rdThird), iso(rdStartMs + 2 * rdThird)],
+    ['moduleTest', iso(rdStartMs + 2 * rdThird), rd.endsAt],
+    ['integratedAssembly', asmStart, asmEnd],
+    ['integratedTest', testStart, testEnd],
+    ['convergence', testEnd, convEnd],
+  ];
+
+  const nowMs = new Date(now).getTime();
+  let currentUsed = false;
+  return ranges.map(([stage, startsAt, endsAt]) => {
+    let status: StagePipelineStatus;
+    if (nowMs >= new Date(endsAt).getTime()) status = 'done';
+    else if (!currentUsed) {
+      status = 'current';
+      currentUsed = true;
+    } else status = 'upcoming';
+    return { stage, status, startsAt, endsAt };
+  });
 }

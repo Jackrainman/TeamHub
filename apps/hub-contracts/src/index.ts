@@ -133,8 +133,10 @@ export {
   deriveBaselineDrift,
   deriveGroupsBehind,
   deriveInvestmentWarnings,
+  deriveStagePipeline,
   deriveTimeAccumulationFlags,
   generateRoboconBaselineTemplate,
+  STAGE_PIPELINE_STAGES,
 } from './domains/baseline/index.js';
 export type {
   BaselineAnchors,
@@ -160,6 +162,9 @@ export type {
   RoboconBaselineTemplate,
   SeasonBaseline,
   SeasonBaselinePublic,
+  StagePipelineStage,
+  StagePipelineStatus,
+  StageProgress,
   TaskInvestment,
   TimeAccumulationFlag,
   UpdateBaselineRequest,

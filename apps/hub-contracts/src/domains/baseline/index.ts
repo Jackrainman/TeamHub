@@ -53,8 +53,10 @@ export {
   deriveBaselineDrift,
   deriveGroupsBehind,
   deriveInvestmentWarnings,
+  deriveStagePipeline,
   deriveTimeAccumulationFlags,
   generateRoboconBaselineTemplate,
+  STAGE_PIPELINE_STAGES,
 } from './policies.js';
 export type {
   GroupBehindSummary,
@@ -62,6 +64,9 @@ export type {
   MilestoneDrift,
   MilestoneDriftLevel,
   RoboconBaselineTemplate,
+  StagePipelineStage,
+  StagePipelineStatus,
+  StageProgress,
   TimeAccumulationFlag,
 } from './policies.js';
 
