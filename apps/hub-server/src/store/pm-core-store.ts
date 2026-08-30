@@ -275,7 +275,8 @@ export interface PmCoreStore {
   /**
    * 空板默认组树（打磨轮刀⑤，onboarding-init-wizard-2026-07-25 §4）：real 模式真空板没有任何组 →
    * 正常模式启动装配（main.ts）调用本方法预建 contracts `buildDefaultGroupTree` 的默认树
-   * （四组 + 程序母组，**不含 grp-convergence 哨兵组**）。**临界区内判空幂等**：groups 已非空
+   * （四组 + 程序母组 + grp-convergence 收敛哨兵组——CONVERGENCE-TASK-ENTRY 起空板预建哨兵组，
+   * 总联调任务才有合法挂靠组）。**临界区内判空幂等**：groups 已非空
    * （demo seed / 既有数据）→ 什么都不做；空 → 一次性插入整棵树（seasonId 取当前 active ?? 顶层，
    * 照 createGroup 钉法）。旧 JSON decorator 落 governance.json（groups 是 GovernanceSnapshot 字段，
    * persist 失败整组还原，镜像 importRoster）；SqliteGovRepository 单事务读-判-写。

@@ -8,6 +8,10 @@ import type {
   InvestmentValue,
   InvestmentTimeAccumulation,
 } from '@teamhub/hub-contracts';
+import {
+  CONVERGENCE_SCOPE_ALL_LEAF_GROUPS,
+  CONVERGENCE_SENTINEL_GROUP_ID,
+} from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useMembers, useGroups } from '../../hooks/useRoster';
 import type { CreateTaskRequest } from '../../api/schemas/pm';
@@ -59,6 +63,7 @@ interface PmFormFields {
   rawSummary: string;
   robotTarget: RobotTarget;
   complexity: TaskComplexity;
+  convergence: boolean;
   owner: string;
   collaborators: string;
   isInvestment: boolean;
@@ -118,6 +123,8 @@ export function PmCreatePanel({
       rawSummary: { initial: '' },
       robotTarget: { initial: 'shared' as RobotTarget, sticky: true },
       complexity: { initial: 'normal' as TaskComplexity, sticky: true },
+      // 总联调开关（CONVERGENCE-TASK-ENTRY）：勾选后挂哨兵组 + convergenceScope，负责组不用选。
+      convergence: { initial: false },
       owner: { initial: '', sticky: true },
       collaborators: { initial: '' },
       isInvestment: { initial: false },
@@ -125,7 +132,13 @@ export function PmCreatePanel({
       invValue: { initial: 'high' as InvestmentValue, sticky: true },
       invTimeAcc: { initial: 'high' as InvestmentTimeAccumulation, sticky: true },
     },
-    valid: (v) => Boolean(v.projectId.trim() && v.groupId.trim() && v.title.trim() && v.rawSummary.trim()),
+    valid: (v) =>
+      Boolean(
+        v.projectId.trim() &&
+          (v.convergence || v.groupId.trim()) &&
+          v.title.trim() &&
+          v.rawSummary.trim(),
+      ),
   });
 
   useEffect(() => {
@@ -165,7 +178,7 @@ export function PmCreatePanel({
 
   const {
     projectId, groupId, title, rawSummary, robotTarget, complexity,
-    owner, collaborators, isInvestment, invHorizon, invValue, invTimeAcc,
+    convergence, owner, collaborators, isInvestment, invHorizon, invValue, invTimeAcc,
   } = form.values;
 
   return (
@@ -175,11 +188,14 @@ export function PmCreatePanel({
         if (writeLocked) return;
         mutation.mutate({
           projectId: projectId.trim(),
-          groupId: nameToId.get(groupId.trim()) ?? groupId.trim(),
+          groupId: convergence
+            ? CONVERGENCE_SENTINEL_GROUP_ID
+            : (nameToId.get(groupId.trim()) ?? groupId.trim()),
           title: title.trim(),
           rawSummary: rawSummary.trim(),
           robotTarget,
           intrinsicComplexity: complexity,
+          convergenceScope: convergence ? CONVERGENCE_SCOPE_ALL_LEAF_GROUPS : undefined,
           ownerId: owner.trim() || null,
           collaboratorIds: parseList(collaborators),
           investment: isInvestment
@@ -198,17 +214,28 @@ export function PmCreatePanel({
         </Field>
         <Field
           label={t('pm.field.groupId')}
-          required
-          hint={t('pm.field.groupId.hint')}
+          required={!convergence}
+          hint={convergence ? t('pm.field.convergence.hint') : t('pm.field.groupId.hint')}
         >
           <Combobox
-            value={groupId}
+            value={convergence ? '' : groupId}
             onChange={(v) => form.set('groupId', v)}
             options={groupOptions}
             placeholder={t('pm.field.groupId.placeholder')}
             ariaLabel={t('pm.field.groupId')}
-            required
+            required={!convergence}
+            disabled={convergence}
           />
+        </Field>
+        <Field as="div" label={t('pm.field.convergence')}>
+          <label className="pm-check">
+            <input
+              type="checkbox"
+              checked={convergence}
+              onChange={(e) => form.set('convergence', e.target.checked)}
+            />
+            <span>{t('pm.convergence.enable')}</span>
+          </label>
         </Field>
       </FormGrid>
       <Field label={t('pm.field.title')} required>

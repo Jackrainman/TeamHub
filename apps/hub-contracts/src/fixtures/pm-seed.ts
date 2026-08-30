@@ -1,6 +1,7 @@
 import type { GovernanceSnapshot } from '../attribution.js';
 import type { ArtifactRef } from '../artifact.js';
 import type { Dependency, Group, Member, Need, Season, Task } from '../pm-core.js';
+import { CONVERGENCE_SENTINEL_GROUP_ID } from '../pm-core.js';
 import type { KnowledgeNode, TaskKnowledgeTag } from '../growth.js';
 import { artifactVersionLogFixtures } from './api-contracts.js';
 
@@ -95,6 +96,9 @@ export function buildDefaultGroupTree(seasonId: string): Group[] {
     { id: 'grp-program', seasonId, parentGroupId: null, name: '程序', kind: 'program' },
     { id: 'grp-ec', seasonId, parentGroupId: 'grp-program', name: '电控', kind: 'electrical' },
     { id: 'grp-vision', seasonId, parentGroupId: 'grp-program', name: '视觉', kind: 'custom' },
+    // 收敛哨兵组（CONVERGENCE-TASK-ENTRY）：承载总联调任务归属（无成员、不进在场派生、
+    // 不算可选组——deriveLeafGroups 按 id 剔除）。空板不预建则总联调任务无合法挂靠组。
+    { id: CONVERGENCE_SENTINEL_GROUP_ID, seasonId, parentGroupId: null, name: '全组联调', kind: 'custom' },
   ];
 }
 

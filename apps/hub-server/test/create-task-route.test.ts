@@ -85,20 +85,65 @@ describe('POST /api/tasks', () => {
     }
   });
 
-  // 刀④ PROGRAM-GROUP-ABSTRACT：任务只能挂具体叶子组——命中组表里的非叶子/哨兵组 → 400；
+  // 刀④ PROGRAM-GROUP-ABSTRACT：任务只能挂具体叶子组——命中组表里的非叶子组 → 400；
   // 组表里不存在的 id 维持既有宽松（历史任务可引用未入表的组）。
-  test('刀④：groupId 命中非叶子组（grp-program）/ 哨兵组（grp-convergence）→ 400', async () => {
+  // CONVERGENCE-TASK-ENTRY：哨兵组 grp-convergence 仅接纳带 convergenceScope 的总联调任务。
+  test('刀④：groupId 命中非叶子组（grp-program）→ 400', async () => {
     const app = buildTestHubServer();
     try {
-      for (const groupId of ['grp-program', 'grp-convergence']) {
-        const res = await app.inject({
-          method: 'POST',
-          url: '/api/tasks',
-          payload: { ...validBody, groupId },
-        });
-        expect(res.statusCode).toBe(400);
-        expect(res.json().detail).toContain('汇报视角');
-      }
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/tasks',
+        payload: { ...validBody, groupId: 'grp-program' },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json().detail).toContain('汇报视角');
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('总联调：哨兵组 + convergenceScope=allLeafGroups → 201（正解通道）', async () => {
+    const app = buildTestHubServer();
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/tasks',
+        payload: {
+          ...validBody,
+          groupId: 'grp-convergence',
+          title: 'R1 总联调',
+          ownerId: null,
+          convergenceScope: 'allLeafGroups',
+        },
+      });
+      expect(res.statusCode).toBe(201);
+      const body = CreateTaskResponseSchema.parse(res.json());
+      expect(body.task.groupId).toBe('grp-convergence');
+      expect(body.task.convergenceScope).toBe('allLeafGroups');
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('总联调 scope/哨兵组必须同现：只挂哨兵组或只带 scope → 400', async () => {
+    const app = buildTestHubServer();
+    try {
+      // 挂哨兵组但没带 scope（普通任务混进无成员组）→ 400
+      const sentinelOnly = await app.inject({
+        method: 'POST',
+        url: '/api/tasks',
+        payload: { ...validBody, groupId: 'grp-convergence' },
+      });
+      expect(sentinelOnly.statusCode).toBe(400);
+      // 带 scope 但挂叶子组（乱挂收敛标记）→ 400
+      const scopeOnly = await app.inject({
+        method: 'POST',
+        url: '/api/tasks',
+        payload: { ...validBody, groupId: 'grp-vision', convergenceScope: 'allLeafGroups' },
+      });
+      expect(scopeOnly.statusCode).toBe(400);
+      expect(scopeOnly.json().detail).toContain('总联调');
     } finally {
       await app.close();
     }

@@ -74,6 +74,7 @@ export const zhSchedule = {
   'schedule.relay.addTaskExisting': '选已有任务',
   'schedule.relay.addTaskNew': '就地新建',
   'schedule.relay.addTaskNewPlaceholder': '输入新任务标题…',
+  'schedule.relay.addConvergence': '总联调（挂「全组联调」，各组都要到）',
   'schedule.view.switchLabel': '切换今日计划的看法',
   'schedule.view.table': '表格',
   'schedule.view.lanes': '泳道图',
@@ -254,6 +255,8 @@ export const enSchedule = {
   'schedule.relay.addTaskExisting': 'Pick existing',
   'schedule.relay.addTaskNew': 'Create new',
   'schedule.relay.addTaskNewPlaceholder': 'Enter new task title…',
+  'schedule.relay.addConvergence':
+    'Full-team convergence (filed under "All-team convergence"; every group must show up)',
   'schedule.view.switchLabel': "Switch how today's plan is shown",
   'schedule.view.table': 'Table',
   'schedule.view.lanes': 'Swimlane',

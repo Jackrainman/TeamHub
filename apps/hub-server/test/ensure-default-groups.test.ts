@@ -7,9 +7,10 @@ import type { GovernanceSnapshot } from '@teamhub/hub-contracts';
 import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 
 /**
- * 空板默认组树（打磨轮刀⑤，onboarding-init-wizard-2026-07-25 §4）：real 真空板（groups 空）→
- * ensureDefaultGroups 预建 fixtures 同构默认树（四组 + 程序母组，parentGroupId 链对齐，
- * **不含 grp-convergence 哨兵组**）；临界区判空幂等（二次调用数量不变）；非空 store 不动。
+ * 空板默认组树（打磨轮刀⑤，onboarding-init-wizard-2026-07-25 §4；CONVERGENCE-TASK-ENTRY 修订）：
+ * real 真空板（groups 空）→ ensureDefaultGroups 预建 fixtures 同构默认树（四组 + 程序母组 +
+ * **grp-convergence 收敛哨兵组**——空板不预建则总联调任务无合法挂靠组，哨兵组无成员、不进在场派生、
+ * 不算可选组）；临界区判空幂等（二次调用数量不变）；非空 store 不动。
  * groups 是 GovernanceSnapshot 字段 → file/sqlite 落盘、重启（新实例）仍在。
  */
 
@@ -29,7 +30,7 @@ const EMPTY_SEED: GovernanceSnapshot = {
   artifacts: [],
 };
 
-const DEFAULT_GROUP_IDS = ['grp-mech', 'grp-circuit', 'grp-program', 'grp-ec', 'grp-vision'];
+const DEFAULT_GROUP_IDS = ['grp-mech', 'grp-circuit', 'grp-program', 'grp-ec', 'grp-vision', 'grp-convergence'];
 
 function expectDefaultTree(groups: GovernanceSnapshot['groups']): void {
   expect(groups.map((g) => g.id).sort()).toEqual([...DEFAULT_GROUP_IDS].sort());
@@ -46,12 +47,12 @@ function expectDefaultTree(groups: GovernanceSnapshot['groups']): void {
   expect(byId.get('grp-program')).toMatchObject({ name: '程序', kind: 'program' });
   expect(byId.get('grp-ec')).toMatchObject({ name: '电控', kind: 'electrical' });
   expect(byId.get('grp-vision')).toMatchObject({ name: '视觉', kind: 'custom' });
-  // 不预建 grp-convergence 哨兵组。
-  expect(groups.some((g) => g.id === 'grp-convergence')).toBe(false);
+  // 预建 grp-convergence 收敛哨兵组（顶层、custom、无成员）。
+  expect(byId.get('grp-convergence')).toMatchObject({ name: '全组联调', kind: 'custom', parentGroupId: null });
 }
 
 describe('ensureDefaultGroups — InMemory', () => {
-  test('空板 → 预建四组 + 程序母组（id/链/kind 对齐 fixtures，无哨兵组，seasonId=当前赛季）', async () => {
+  test('空板 → 预建四组 + 程序母组 + 联调哨兵组（id/链/kind 对齐 fixtures，seasonId=当前赛季）', async () => {
     const store = new InMemoryGovStore(EMPTY_SEED);
     expect((await store.getSnapshot()).groups).toEqual([]);
     await store.ensureDefaultGroups();

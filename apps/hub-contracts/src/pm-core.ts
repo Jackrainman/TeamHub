@@ -261,6 +261,13 @@ export const TaskComplexitySchema = z.enum(['trivial', 'normal', 'hard']);
  */
 export const CONVERGENCE_SCOPE_ALL_LEAF_GROUPS = 'allLeafGroups' as const;
 
+/**
+ * 收敛哨兵组 id 单源（PRESENCE-RECONCILE-LOCK 路线 C / CONVERGENCE-TASK-ENTRY）：仅承载总联调
+ * 收敛任务的归属，无成员、绝不进派生在场输出、不算叶子组（`deriveLeafGroups` 剔除）。
+ * 空板默认组树（`buildDefaultGroupTree`）预建此组，正式空板才能创建总联调任务。
+ */
+export const CONVERGENCE_SENTINEL_GROUP_ID = 'grp-convergence' as const;
+
 export const TaskSchema = z.object({
   id: z.string().min(1),
   projectId: z.string().min(1),

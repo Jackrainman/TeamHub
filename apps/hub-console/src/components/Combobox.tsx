@@ -11,6 +11,7 @@ export function Combobox({
   ariaLabel,
   className,
   required,
+  disabled,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -20,6 +21,8 @@ export function Combobox({
   className?: string;
   // 必填：透传 aria-required 给 AT（与 Field required 视觉标记配套）。
   required?: boolean;
+  // 禁用：总联调模式负责组锁定哨兵组等场景。
+  disabled?: boolean;
 }) {
   const listId = useId();
   return (
@@ -31,6 +34,7 @@ export function Combobox({
         placeholder={placeholder}
         aria-label={ariaLabel}
         aria-required={required || undefined}
+        disabled={disabled || undefined}
         onChange={(e) => onChange(e.target.value)}
       />
       <datalist id={listId}>

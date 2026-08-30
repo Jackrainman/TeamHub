@@ -1,5 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import {
+  CONVERGENCE_SCOPE_ALL_LEAF_GROUPS,
+  CONVERGENCE_SENTINEL_GROUP_ID,
   DepGraphSchema,
   GroupGapsResponseSchema,
   GroupsResponseSchema,
@@ -164,10 +166,25 @@ export function registerTaskRoutes(app: FastifyInstance, deps: TaskRouteDeps): v
     if (!parsed) return;
     const snapshot = await store.getSnapshot();
     const knownGroup = snapshot.groups.find((g) => g.id === parsed.groupId);
-    if (knownGroup && !deriveLeafGroups(snapshot.groups).includes(knownGroup.id)) {
+    // CONVERGENCE-TASK-ENTRY：总联调任务合法归属 = 哨兵组 grp-convergence + convergenceScope。
+    // 两者必须同现：挂哨兵组但没带 scope（普通任务混进无成员组）或带 scope 但挂别的组，都拒。
+    const wantsConvergence = parsed.convergenceScope === CONVERGENCE_SCOPE_ALL_LEAF_GROUPS;
+    const onSentinel = parsed.groupId === CONVERGENCE_SENTINEL_GROUP_ID;
+    if (wantsConvergence !== onSentinel) {
       void reply
         .code(400)
-        .send({ detail: `组「${knownGroup.name}」是汇报视角（含子组或是联调哨兵组），任务请挂到其下的具体小组` });
+        .send({ detail: '总联调任务请挂「全组联调」组并勾选总联调；普通任务请挂到具体小组' });
+      return;
+    }
+    const isConvergenceTask = wantsConvergence && onSentinel;
+    if (
+      knownGroup &&
+      !deriveLeafGroups(snapshot.groups).includes(knownGroup.id) &&
+      !isConvergenceTask
+    ) {
+      void reply
+        .code(400)
+        .send({ detail: `组「${knownGroup.name}」是汇报视角（含子组），任务请挂到其下的具体小组` });
       return;
     }
     const task = await store.createTask(parsed);

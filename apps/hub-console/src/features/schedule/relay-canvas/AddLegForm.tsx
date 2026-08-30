@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { X } from 'lucide-react';
 import type { HubApiClient } from '../../../api/client';
 import type { SharedResource, Task } from '@teamhub/hub-contracts';
-import { deriveLeafGroups } from '@teamhub/hub-contracts';
+import {
+  CONVERGENCE_SCOPE_ALL_LEAF_GROUPS,
+  CONVERGENCE_SENTINEL_GROUP_ID,
+  deriveLeafGroups,
+} from '@teamhub/hub-contracts';
 import { useI18n } from '../../../i18n';
 import { useGroups } from '../../../hooks/useRoster';
 import { Field } from '../../../components/Field';
@@ -36,6 +40,8 @@ export function AddLegForm({
   const [newTaskMode, setNewTaskMode] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newGroupId, setNewGroupId] = useState('');
+  // 总联调开关（CONVERGENCE-TASK-ENTRY）：勾选后新任务挂哨兵组 + convergenceScope，不走负责组下拉。
+  const [newConvergence, setNewConvergence] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,7 +81,10 @@ export function AddLegForm({
 
   const task = candidateTasks.find((tk) => tk.id === taskId);
   const validExisting = Boolean(resource) && Boolean(task);
-  const validNew = Boolean(resource) && newTitle.trim().length > 0 && Boolean(newGroupId);
+  const validNew =
+    Boolean(resource) &&
+    newTitle.trim().length > 0 &&
+    (newConvergence || Boolean(newGroupId));
   const valid = newTaskMode ? validNew : validExisting;
   const noOptions = resources.length === 0;
 
@@ -86,22 +95,24 @@ export function AddLegForm({
 
     if (newTaskMode) {
       setCreating(true);
+      const groupId = newConvergence ? CONVERGENCE_SENTINEL_GROUP_ID : newGroupId;
       try {
         const res = await client.createTask({
           projectId: resource.projectId,
-          groupId: newGroupId,
+          groupId,
           title: newTitle.trim(),
           rawSummary: newTitle.trim(),
           robotTarget: resource.robotTarget,
           intrinsicComplexity: 'normal',
           ownerId: null,
           collaboratorIds: [],
+          convergenceScope: newConvergence ? CONVERGENCE_SCOPE_ALL_LEAF_GROUPS : undefined,
         });
         onSubmit({
           resourceId: resource.id,
           projectId: resource.projectId,
           taskId: res.task.id,
-          groupId: newGroupId,
+          groupId,
         });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'failed');
@@ -158,7 +169,7 @@ export function AddLegForm({
               </select>
             </Field>
             <Field label={t('schedule.relay.addTask')}>
-              <div className="relay-add__task-toggle">
+              <div>
                 <button
                   type="button"
                   className={`btn btn--sm ${!newTaskMode ? 'btn--primary' : ''}`}
@@ -194,16 +205,26 @@ export function AddLegForm({
                     onChange={(e) => setNewTitle(e.target.value)}
                     placeholder={t('schedule.relay.addTaskNewPlaceholder')}
                   />
-                  <select
-                    value={newGroupId}
-                    onChange={(e) => setNewGroupId(e.target.value)}
-                  >
-                    {groupOptions.map((g) => (
-                      <option value={g.id} key={g.id}>
-                        {g.name}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="pm-check">
+                    <input
+                      type="checkbox"
+                      checked={newConvergence}
+                      onChange={(e) => setNewConvergence(e.target.checked)}
+                    />
+                    <span>{t('schedule.relay.addConvergence')}</span>
+                  </label>
+                  {!newConvergence && (
+                    <select
+                      value={newGroupId}
+                      onChange={(e) => setNewGroupId(e.target.value)}
+                    >
+                      {groupOptions.map((g) => (
+                        <option value={g.id} key={g.id}>
+                          {g.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </>
               )}
             </Field>
