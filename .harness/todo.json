@@ -16,24 +16,23 @@
     },
     {
       "id": "FLEET-STATUS-GROUP-FOLLOW",
-      "title": "改机器人状态时负责组随状态联动（需求/改进，待产品拍板）：现在改状态只有自由文本原因、无负责组。期望「在用」→ 大概率程序组（电控/视觉）在用；「在修」→ 可选电路/机械在修。建议状态切换 UI 按目标状态推荐/筛选负责组候选（在用=程序/电控/视觉，在修=电路/机械），或状态原因快捷 chips；涉及产品决策需确认",
+      "title": "改机器人状态时负责组随状态联动（需求/改进，待产品拍板）：已查非代码一致性问题——ResourceRow 状态切换 UI 渲染正常（btn 体系正确），系统内不存在任何状态→组映射，这是纯新功能。现状改状态只有自由文本原因、无负责组。期望「在用」→ 大概率程序组（电控/视觉）在用；「在修」→ 可选电路/机械在修。建议状态切换 UI 按目标状态推荐/筛选负责组候选（在用=程序/电控/视觉，在修=电路/机械），或状态原因快捷 chips；涉及产品决策需确认",
       "tag": "code",
       "batch": "later",
       "detail": "\n现象/需求：机器人队页改状态目前只有自由文本「原因（选填）」，没有负责组概念。用户反馈：状态「在用」大概率是程序组（电控/视觉）在用，「在修」是电路/机械在修；希望状态切换时负责组能随状态自动推荐/筛选。\n现状：ResourceRow.tsx L255-283 只改 status + statusReason。\n修复（需产品拍板）：状态切换 UI 按目标状态推荐负责组候选（在用→程序/电控/视觉，在修→电路/机械），或状态原因快捷 chips；需确认是加独立「负责组」字段还是并入 statusReason。\n验证：从「在用」切「在修」时负责组候选/快捷项随状态变化。"
     },
     {
       "id": "TASK-GROUP-400-PROGRAM",
-      "title": "选负责组选「程序」报 400：后端 POST /api/tasks 用 deriveLeafGroups 拒绝非叶子组（程序=电控/视觉父组、非叶子 → 400「任务请挂到其下的具体小组」），但联调（总联调）实际以程序组为主，产品规则与 400 校验冲突。待产品拍板：联调任务是否放开父组，或前端对非叶子组标灰/引导挂子组；同时确认五个组的层级现状",
+      "title": "选负责组选「程序」报 400：已查证不应开放父组——presence 派生（schedule.ts else 分支）会 upgrade 父组、render 只拦哨兵组不拦父组，而成员只能挂叶子组（父组永远无成员），开放后「程序」会以无成员组身份混进在场/排班建议且子组不亮，误导性强。正解=已有哨兵组机制（demo 的 grp-convergence + convergenceScope='allLeafGroups'）。前端下拉已全部叶子过滤（v0.54.3/v0.54.4），400 触发路径已消失。剩余缺口见 CONVERGENCE-TASK-ENTRY",
       "tag": "code",
-      "batch": "bug",
-      "detail": "\n现象：今日计划表格/加一棒里选「程序」作为负责组并新建任务，后端返回 400「组「程序」是汇报视角（含子组或是联调哨兵组），任务请挂到其下的具体小组」。\n根因：后端 POST /api/tasks（tasks.ts L167-170）用 deriveLeafGroups(snapshot.groups)（schedule.ts L140-153）拒绝非叶子组；「程序」=电控/视觉的父组 → 非叶子 → 400。但实际联调（总联调）就是以程序组为主的，产品规则与 400 校验冲突。\n修复（需产品拍板）：①联调任务是否放开父组（改校验或加白名单）②前端对非叶子组标灰/引导挂子组 ③先确认当前五个组的 parentGroupId 层级现状。\n验证：按拍板结果，联调任务能挂程序组，或前端明确提示并引导。"
+      "batch": "later",
+      "detail": "\n现象：今日计划表格/加一棒里选「程序」作为负责组并新建任务，后端返回 400「组「程序」是汇报视角（含子组或是联调哨兵组），任务请挂到其下的具体小组」。\n根因：后端 POST /api/tasks 用 deriveLeafGroups 拒绝非叶子组；「程序」=电控/视觉的父组 → 非叶子 → 400。\n调查结论（v0.54.5）：不应开放父组（presence 派生会被无成员父组污染）；正解是哨兵组机制，但正式空板组初始化不含 grp-convergence（pm-core-store.ts L278）且 console 无建联调任务入口（CreateTaskRequestSchema 已带 convergenceScope 可选字段）。\n验证：联调任务经 CONVERGENCE-TASK-ENTRY 通道创建并在场派生正常。"
     },
     {
-      "id": "SCHED-TABLE-TOOLBAR-UI",
-      "title": "接力画布初始化表格三按键 UI 不对劲（继续昨天/使用预设/确认）：可能是设计问题也可能是显示 bug（待复现确认）。表格 toolbar 用 relay-canvas__carry/__add 样式、确认按钮在 footer、三键布局与泳道图混用样式类，开学收口前核对实际渲染",
+      "id": "CONVERGENCE-TASK-ENTRY",
+      "title": "联调任务创建通道缺口：正式空板补 grp-convergence 哨兵组（组初始化幂等处加，仿 demo fixture）+ 任务表单/加一棒加「总联调」开关（置 groupId=grp-convergence + convergenceScope='allLeafGroups'），API 层已支持；做完后 TASK-GROUP-400-PROGRAM 的产品纠结自然消解",
       "tag": "code",
-      "batch": "bug",
-      "detail": "\n现象：接力画布初始化（当日无 session 自动落表格视图）时，「继续昨天 / 使用预设 / 确认」三个按键 UI 不对劲——可能是设计问题也可能是显示 bug（用户描述为“UI 不太对劲，显示不正确”）。\n复现：新一天打开接力画布 → 自动落表格页 → 观察 toolbar（继续昨天/使用预设）与 footer（确认）三键的布局/样式。\n现状：TodayPlanTable L309-327 toolbar 复用 relay-canvas__carry / relay-canvas__add 样式类，L370-379 footer 的确认键用 relay-canvas__add，三键分散在 toolbar+footer、样式类与泳道图混用。\n修复：核对 12-fleet.css 与 today-plan 样式，确认是布局设计问题还是渲染 bug；统一表格域专用按钮样式与位置。\n验证：三键在表格视图内布局正常、禁用态/文案正确；视觉核对。"
+      "batch": "later"
     },
     {
       "id": "RELAY-VS-DEPGRAPH-MISMATCH",
@@ -134,6 +133,7 @@
     }
   ],
   "done-tonight": [
+    "SCHED-TABLE-TOOLBAR-UI: 初始化表格三按钮归回 B3 按钮体系——继续昨天/使用预设引用已删除的 relay-canvas__add、carry 缺 btn 皮肤（B3 归并漏网），统一 btn btn--primary/btn--secondary v0.54.5",
     "FLEET-PRESET-GROUP-EMPTY: 默认阵型负责组下拉改用 useGroups 全量组列表 + deriveLeafGroups 叶子过滤（原从 dep-graph 任务视图反推，无任务时下拉为空保存永灰），与 TodayPlanTable 同源，raw-react-query 基线收缩 v0.54.3",
     "RELAY-ADD-GROUP-SOURCE: 加一棒就地新建负责组下拉改用全量叶子组、显组名存 id（原从 tasks 反推只显示有任务的组且渲染 gid）v0.54.4",
     "RELAY-VS-DEPGRAPH-MISMATCH: 实测定性非 bug——服务端/失效链完整，不一致源于无任务排班卡（holderTaskId=null）本就不进依赖图（预期行为），剩余「未挂任务标注」转产品确认项",
