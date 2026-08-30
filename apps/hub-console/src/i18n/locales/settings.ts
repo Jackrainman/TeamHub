@@ -22,6 +22,7 @@ export const zhSettings = {
   'settings.theme.dark': '暗色',
   'settings.theme.tech': '科技',
   'settings.theme.notion': 'Notion 风',
+  'settings.theme.notionDark': 'Notion 夜航',
   'settings.theme.linear': 'Linear 风',
   'settings.apiBase.desc': '覆盖默认后端地址，仅真实模式生效；改动后会重新加载页面。',
   'settings.apiBase.label': '后端地址',
@@ -268,6 +269,7 @@ export const enSettings = {
   'settings.theme.dark': 'Dark',
   'settings.theme.tech': 'Tech',
   'settings.theme.notion': 'Notion',
+  'settings.theme.notionDark': 'Notion dark',
   'settings.theme.linear': 'Linear',
   'settings.apiBase.desc':
     'Override the default backend address (Live mode only); the page reloads after applying.',

@@ -234,6 +234,42 @@
   --card-bg: var(--surface);
 }
 
+/* ===== Notion 夜航（notion-dark，STYLE-PICK 拍板 2026-08-30：默认 Notion 风 + 黑白可变）=====
+   Notion 自家深色模式的色板复刻：#191919 墨底 + 明灰文字 + 白透边框；结构层（侧栏/按钮/导航）
+   由 24-notion.css 的 [data-theme^='notion'] 前缀选择器自动共享，本块只换 token。 */
+:root[data-theme='notion-dark'] {
+  --page-bg: #191919;
+  --surface: #202020;
+  --surface-muted: #202020; /* 与 Notion 深色侧栏同底 */
+  --surface-raised: #252525;
+  --text: #d4d4d2;
+  --muted: #9b9a97;
+  --faint: #6f6e69;
+  --border: #2f2f2f;
+  --border-strong: #4a4a48;
+  --green: #4aa89b;
+  --green-soft: #17352f;
+  --amber: #cba45c;
+  --amber-soft: #3a2f1b;
+  --red: #eb5757;
+  --red-soft: #3d2222;
+  --blue: #529cca; /* Notion 深色链接蓝 */
+  --blue-soft: #1b2f45;
+  --sidebar-bg: #202020;
+  --sidebar-text: #d4d4d2;
+  --sidebar-bg-hover: rgba(255, 255, 255, 0.055);
+  --font-title: inherit;
+  --shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  --shadow-xs: none;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.4);
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --accent: var(--blue);
+  --card-bg: var(--surface);
+}
+
 /* ===== Linear 风（linear，风格画廊候选）——第 6 套主题 · 深色现代 SaaS =====
    深灰底（非纯黑）+ 紫罗兰主色 + 紧凑排版，典型 Linear/Vercel 系审美。纯 token 覆盖。 */
 :root[data-theme='linear'] {
@@ -273,6 +309,7 @@
 /* 深色主题的原生控件 scheme（2026-08-03 bug 修复，背景见 :root 处注释）：日期选择器弹窗/日历指示
    图标、滚动条、select 弹层按 dark scheme 渲染（浅色图标/深底），不再"太黑看不到"。 */
 :root[data-theme='dark'],
+:root[data-theme='notion-dark'],
 :root[data-theme='linear'],
 :root[data-theme='tech'] {
   color-scheme: dark;

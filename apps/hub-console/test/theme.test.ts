@@ -10,10 +10,11 @@ describe('主题：normalizeTheme（localStorage 存储值收敛）', () => {
     expect(normalizeTheme('dark')).toBe('dark'); // 2026-06-23 批次H：暗色成为合法第三主题
     expect(normalizeTheme('tech')).toBe('tech'); // D1：科技「遥测台」成为合法第四主题
     expect(normalizeTheme('notion')).toBe('notion'); // IA-RESTRUCTURE demo：Notion 风第五主题
+    expect(normalizeTheme('notion-dark')).toBe('notion-dark'); // STYLE-PICK 拍板：Notion 黑白可变之「黑」
     expect(normalizeTheme('linear')).toBe('linear'); // 风格画廊候选：Linear 风第六主题
   });
 
-  test('null / 空 / 未知值 → 默认 notion（IA-RESTRUCTURE demo 默认；已存偏好者读 localStorage 不被覆盖）', () => {
+  test('null / 空 / 未知值 → 默认 notion（STYLE-PICK 拍板定案；已存偏好者读 localStorage 不被覆盖）', () => {
     expect(normalizeTheme(null)).toBe('notion');
     expect(normalizeTheme('')).toBe('notion');
     expect(normalizeTheme('TECH')).toBe('notion'); // 大小写敏感，非精确匹配即 fallback 到默认

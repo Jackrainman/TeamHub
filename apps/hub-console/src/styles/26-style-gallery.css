@@ -50,6 +50,9 @@
 .style-gallery__swatch--notion {
   background: linear-gradient(135deg, #ffffff 55%, #37352f 55%);
 }
+.style-gallery__swatch--notion-dark {
+  background: linear-gradient(135deg, #191919 55%, #d4d4d2 55%);
+}
 .style-gallery__swatch--tech {
   background: linear-gradient(135deg, #0a0f1a 55%, #22d3ee 55%);
 }

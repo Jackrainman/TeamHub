@@ -52,6 +52,7 @@ export const LANG_OPTIONS = [
 // 主题选项——扩展时须同步 i18n 键（settings.theme.<value>）与 Theme 类型。
 export const THEME_OPTIONS = [
   { value: 'notion' as const, labelKey: 'settings.theme.notion' as const },
+  { value: 'notion-dark' as const, labelKey: 'settings.theme.notionDark' as const },
   { value: 'linear' as const, labelKey: 'settings.theme.linear' as const },
   { value: 'tech' as const, labelKey: 'settings.theme.tech' as const },
   { value: 'classic' as const, labelKey: 'settings.theme.classic' as const },
