@@ -116,7 +116,7 @@ export function InvQuickRecordForm({
     : t('inv.record.field.quantity.placeholder');
 
   return (
-    <section className="inv-record panel" aria-label={t('inv.record.title')}>
+    <section className="panel" aria-label={t('inv.record.title')}>
       <header className="pm-create__head">
         <div>
           <h2>{t('inv.record.title')}</h2>

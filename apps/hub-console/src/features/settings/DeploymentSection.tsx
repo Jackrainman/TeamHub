@@ -258,7 +258,7 @@ export function DeploymentConfigSection({
             {/* 结束试驾，转正式（单向门，仅演示态显示） */}
             {deployment.dataMode === 'demo' ? (
               <>
-                <h3 className="integration-group__title settings-desc--spaced">
+                <h3 className="integration-group__title">
                   {t('settings.deployConfig.graduate.title')}
                 </h3>
                 <p className="settings-desc">{t('settings.deployConfig.graduate.desc')}</p>
@@ -292,7 +292,7 @@ export function DeploymentConfigSection({
             ) : null}
 
             {/* 常驻底注：改部署配置会自动重启。 */}
-            <p className="settings-desc settings-desc--spaced">
+            <p className="settings-desc">
               {t('settings.deployConfig.restartNote')}
             </p>
           </>

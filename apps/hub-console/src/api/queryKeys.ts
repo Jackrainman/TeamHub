@@ -39,5 +39,6 @@ export const queryKeys = {
   systemStatus: (source: string) => ['system-status', source] as const,
   larkConfig: () => ['lark-config'] as const,
   larkChats: () => ['lark-chats'] as const,
+  setupState: () => ['setup-state'] as const,
   session: () => ['session'] as const,
 } as const;

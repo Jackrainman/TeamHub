@@ -98,7 +98,7 @@ export function ConnectionSection() {
         {/* 写入令牌：同上，独立 display:contents form（spaced desc 作首个 flex 项保留 gap）。 */}
         <form style={{ display: 'contents' }} onSubmit={applyToken}>
           {/* 写入令牌 */}
-          <p className="settings-desc settings-desc--spaced">{t('settings.writeToken.desc')}</p>
+          <p className="settings-desc">{t('settings.writeToken.desc')}</p>
           <label className="kb-field">
             <span>{t('settings.writeToken.label')}</span>
             <span className="settings-token-row">

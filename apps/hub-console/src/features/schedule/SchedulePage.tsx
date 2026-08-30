@@ -68,7 +68,7 @@ export function SchedulePage({
   const recommendations = query.data.recommendations;
 
   return (
-    <div className="schedule-page">
+    <div>
       <p className="gaps-intro">{t('schedule.intro')}</p>
       <p className="gaps-note">{t('schedule.note')}</p>
 

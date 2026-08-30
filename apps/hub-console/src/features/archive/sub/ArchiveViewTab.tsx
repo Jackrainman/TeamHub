@@ -51,7 +51,7 @@ export function ArchiveViewTab({
           <h2>{sectionLabel}</h2>
         </div>
         {section.mechanisms.map((group) => (
-          <div key={group.mechanism} className="archive-mech-group">
+          <div key={group.mechanism}>
             <div className="panel-header" style={{ paddingTop: '0.5rem' }}>
               <h3 className="archive-mechanism-title">{group.mechanism}</h3>
               <span>{t('archive.group.count', { n: group.entries.length })}</span>

@@ -370,7 +370,7 @@ export function GateChecklistCard({
           ) : (
             <button
               type="button"
-              className="btn btn--dashed btn--sm checklist-add__trigger"
+              className="btn btn--dashed btn--sm"
               onClick={() => setAddOpen(true)}
             >
               {t('checklist.add.open')}

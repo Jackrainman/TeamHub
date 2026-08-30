@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LogIn, LogOut } from 'lucide-react';
 import type { IdentityMode, SessionIdentity } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
+import { queryKeys } from '../../api/queryKeys';
 import { useI18n } from '../../i18n';
 import { useForm } from '../../hooks/useForm';
 import { Select } from '../../components/Select';
@@ -36,7 +37,7 @@ export function IdentityBar({
   });
 
   const membersQuery = useQuery({
-    queryKey: ['members', 'identity-bar'],
+    queryKey: [...queryKeys.members(), 'identity-bar'],
     queryFn: () => client.getMembers(),
     enabled: mode === 'identity' && open,
   });

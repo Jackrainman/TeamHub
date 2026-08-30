@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import type { DepNode } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
+import { queryKeys } from '../../api/queryKeys';
 import type { ConsolePage, PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
 import { identityCacheKey } from '../../shared/lib/identity-utils';
@@ -44,7 +45,7 @@ export function MyViewPage({
   // Hook 顺序纪律：useQuery 恒调用（Rules of Hooks），用 enabled 而非条件渲染控制是否真发请求
   // ——匿名模式 / 未登录时 enabled=false，零网络请求（同 IdentityBar 的 membersQuery 先例）。
   const query = useQuery({
-    queryKey: ['dep-graph', source, identityCacheKey(session)],
+    queryKey: [...queryKeys.depGraph(source), identityCacheKey(session)],
     queryFn: () => client.getDepGraph(),
     enabled: identity.mode === 'identity' && session !== null,
   });

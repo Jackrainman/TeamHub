@@ -91,7 +91,7 @@ export function BootstrapGate({
           <p className="eyebrow">{t('toolbar.eyebrow')}</p>
           <h1 className="setup-wizard__title">{t('gate.title')}</h1>
           <p className="setup-wizard__subtitle">{t('gate.subtitle')}</p>
-          <p className="setup-wizard__progress">
+          <p>
             {t('gate.progress', {
               n: WIZARD_STEP_META[step].n,
               total: WIZARD_STEP_TOTAL,

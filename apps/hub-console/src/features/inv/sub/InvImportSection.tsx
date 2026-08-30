@@ -51,7 +51,7 @@ export function InvImportSection({
   }
 
   return (
-    <section className="inv-create panel" aria-label={t('inv.import.title')}>
+    <section className="panel" aria-label={t('inv.import.title')}>
       <header className="pm-create__head">
         <div>
           <h2>{t('inv.import.title')}</h2>

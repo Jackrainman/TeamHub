@@ -64,7 +64,7 @@ export function CreateResourceForm({
     : '—';
 
   return (
-    <section className="resources-create panel" aria-label={t('resources.create.title')}>
+    <section className="panel" aria-label={t('resources.create.title')}>
       <header className="pm-create__head">
         <div>
           <h2>{t('resources.create.title')}</h2>

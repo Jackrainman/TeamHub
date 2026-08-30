@@ -200,7 +200,6 @@ export function AddLegForm({
               ) : (
                 <>
                   <input
-                    className="input"
                     value={newTitle}
                     onChange={(e) => setNewTitle(e.target.value)}
                     placeholder={t('schedule.relay.addTaskNewPlaceholder')}

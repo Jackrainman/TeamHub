@@ -91,7 +91,7 @@ export function InvLedgerTable({
                   ) : null}
                 </td>
                 {row.perResource.map((c) => (
-                  <td key={c.resourceId} className="inv-cell">
+                  <td key={c.resourceId}>
                     {c.used > 0 || c.reserved > 0 ? (
                       <>
                         <span>{c.used}</span>

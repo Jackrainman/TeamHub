@@ -215,7 +215,6 @@ export function LarkIntegrationSection({ client }: { client: HubApiClient }) {
           <FormGrid>
             <Field label={t('settings.integrations.lark.appId')}>
               <input
-                className="input"
                 value={appId}
                 onChange={(e) => setAppId(e.target.value)}
                 placeholder={config?.appId ?? 'cli_xxxx'}
@@ -224,7 +223,6 @@ export function LarkIntegrationSection({ client }: { client: HubApiClient }) {
             </Field>
             <Field label={t('settings.integrations.lark.appSecret')}>
               <input
-                className="input"
                 type="password"
                 value={appSecret}
                 onChange={(e) => setAppSecret(e.target.value)}
@@ -235,7 +233,6 @@ export function LarkIntegrationSection({ client }: { client: HubApiClient }) {
             <Field label={t('settings.integrations.lark.chatId')}>
               {useSelect ? (
                 <select
-                  className="input"
                   value={chatId}
                   onChange={(e) => {
                     if (e.target.value === '__manual__') {
@@ -264,7 +261,6 @@ export function LarkIntegrationSection({ client }: { client: HubApiClient }) {
               ) : (
                 <>
                   <input
-                    className="input"
                     value={chatId}
                     onChange={(e) => setChatId(e.target.value)}
                     placeholder={config?.chatId ?? 'oc_xxxx'}
@@ -286,7 +282,6 @@ export function LarkIntegrationSection({ client }: { client: HubApiClient }) {
           {config?.configured && (
             <div className="pm-form__footer">
               <input
-                className="input"
                 value={newChatName}
                 onChange={(e) => setNewChatName(e.target.value)}
                 placeholder={t('settings.integrations.lark.chats.createPlaceholder')}

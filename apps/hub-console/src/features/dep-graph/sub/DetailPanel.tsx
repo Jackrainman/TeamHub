@@ -163,7 +163,7 @@ export function DetailPanel({
           </h4>
           <ul>
             {node.relatedKnowledge.map((k) => (
-              <li key={k.uri ?? k.title} className="learn-block__pending">
+              <li key={k.uri ?? k.title}>
                 <span>{k.title}</span>
                 <span className="soon-badge">{t('nav.soon')}</span>
               </li>

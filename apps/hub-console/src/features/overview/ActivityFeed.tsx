@@ -51,7 +51,7 @@ export function ActivityFeed({ client, source }: { client: HubApiClient; source:
     <section className="panel">
       <div className="panel-header">
         <h3>{t('overview.panel.activity')}</h3>
-        <span className="panel-header__meta">{t('overview.meta.activity', { n: items.length })}</span>
+        <span>{t('overview.meta.activity', { n: items.length })}</span>
       </div>
       <div className="stack-list">
         {items.map((item, i) => (

@@ -87,7 +87,7 @@ export function CreatePartTypeForm({
   }
 
   return (
-    <section className="inv-create panel" aria-label={t('inv.create.title')}>
+    <section className="panel" aria-label={t('inv.create.title')}>
       <header className="pm-create__head">
         <div>
           <h2>{t('inv.create.title')}</h2>

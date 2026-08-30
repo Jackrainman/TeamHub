@@ -129,7 +129,7 @@ export function BaselineTimeline({
 
       <div className="baseline-hero__body">
       {investmentWarnings.length > 0 ? (
-        <div className="baseline-warn baseline-warn--future" role="note">
+        <div className="baseline-warn" role="note">
           <strong>{t('overview.baseline.invest.title')}</strong>
           <ul>
             {investmentWarnings.map((w) => (
@@ -146,7 +146,7 @@ export function BaselineTimeline({
       ) : null}
 
       {pendingIouCount > 0 ? (
-        <div className="baseline-warn baseline-warn--future" role="note">
+        <div className="baseline-warn" role="note">
           <strong>{t('overview.checklist.warn.title')}</strong>
           {overdueIous.length > 0 ? (
             <ul>

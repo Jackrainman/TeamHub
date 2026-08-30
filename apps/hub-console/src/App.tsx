@@ -61,7 +61,7 @@ export function App() {
   );
 
   const setupQuery = useQuery({
-    queryKey: ['setup-state'],
+    queryKey: queryKeys.setupState(),
     queryFn: () => apiClient.getSetupState(),
     retry: 1,
   });
@@ -153,7 +153,7 @@ function ConsoleApp({ apiClient, settings }: { apiClient: HubApiClient; settings
   const [gateDone, setGateDone] = useState(false);
   const gateShownRef = useRef(false);
   const gateMembersQuery = useQuery({
-    queryKey: ['members', 'bootstrap-gate'],
+    queryKey: [...queryKeys.members(), 'bootstrap-gate'],
     queryFn: () => apiClient.getMembers(),
     enabled: identityMode === 'identity',
   });
