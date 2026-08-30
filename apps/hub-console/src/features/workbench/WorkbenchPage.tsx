@@ -3,6 +3,7 @@ import type { BaselineMilestonePublic } from '@teamhub/hub-contracts';
 import {
   CONVERGENCE_SCOPE_ALL_LEAF_GROUPS,
   deriveMyVehicleProgress,
+  deriveRobotStageMarkers,
   deriveSeasonTaskProgress,
   deriveStagePipeline,
   type StagePipelineStage,
@@ -358,9 +359,10 @@ const STAGE_I18N_KEY: Record<StagePipelineStage, Parameters<ReturnType<typeof us
 };
 
 /**
- * 整车六阶段 stepper（STAGE-PIPELINE Step1）：用现有 phases 时间窗近似映射六阶段，零 schema
- * 变更看形态（Step2 merge 后才给 milestone 加可选 stage 字段）。「待联调」段附总联调任务计数
- * （CONVERGENCE-TASK-ENTRY 咬合）。赛季级模板一份、不建 per-robot 流水线实例。
+ * 整车六阶段时间线（STAGE-PIPELINE Step1.5）：用现有 phases 时间窗近似映射六阶段，零 schema
+ * 变更看形态（Step2 merge 后才给 milestone 加可选 stage 字段）。时间线样式 = 节点+连线+日期窗；
+ * 车徽标（V1/V2/V3）落在「该车最早 pending 里程碑」所属段 = 「当前 V1 车状态在这里」
+ * （纯派生，非 robot 实体字段）。「待联调」段附总联调任务计数（CONVERGENCE-TASK-ENTRY 咬合）。
  */
 function StagePipelineStrip({ client, source }: { client: HubApiClient; source: string }) {
   const { t } = useI18n();
@@ -386,18 +388,57 @@ function StagePipelineStrip({ client, source }: { client: HubApiClient; source: 
   if (!stages) {
     return <p className="workbench-note">{t('workbench.stage.empty')}</p>;
   }
+  const markers = deriveRobotStageMarkers(baseline.milestones, stages);
+  const fmt = (iso: string) => iso.slice(5, 10);
   return (
-    <div className="workbench-stages" role="list" aria-label={t('workbench.stage.title')}>
-      {stages.map((s) => (
-        <div className={`workbench-stage workbench-stage--${s.status}`} role="listitem" key={s.stage}>
-          <span className="workbench-stage__name">{t(STAGE_I18N_KEY[s.stage])}</span>
-          {s.stage === 'convergence' && convergence.total > 0 ? (
-            <span className="workbench-stage__sub">
-              {t('workbench.stage.convergenceTasks', { done: convergence.done, total: convergence.total })}
-            </span>
-          ) : null}
-        </div>
-      ))}
-    </div>
+    <>
+      <div className="workbench-timeline" role="list" aria-label={t('workbench.stage.title')}>
+        {stages.map((s, i) => {
+          const here = markers.filter((m) => m.stageIndex === i);
+          return (
+            <div
+              className={`workbench-tl-stage workbench-tl-stage--${s.status}`}
+              role="listitem"
+              key={s.stage}
+              aria-current={s.status === 'current' ? 'step' : undefined}
+            >
+              <span className="workbench-tl-dot" aria-hidden="true" />
+              <span className="workbench-tl-name">{t(STAGE_I18N_KEY[s.stage])}</span>
+              <span className="workbench-tl-dates">
+                {fmt(s.startsAt)} – {fmt(s.endsAt)}
+              </span>
+              {s.stage === 'convergence' && convergence.total > 0 ? (
+                <span className="workbench-tl-sub">
+                  {t('workbench.stage.convergenceTasks', {
+                    done: convergence.done,
+                    total: convergence.total,
+                  })}
+                </span>
+              ) : null}
+              {here.length > 0 ? (
+                <span className="workbench-tl-robots">
+                  {here.map((m) => (
+                    <span
+                      className={`workbench-robot-chip${m.allPassed ? ' workbench-robot-chip--passed' : ''}`}
+                      key={m.robotVersion}
+                      title={
+                        m.allPassed
+                          ? t('workbench.stage.allPassed', { v: m.robotVersion })
+                          : t('workbench.stage.here', { v: m.robotVersion, title: m.milestoneTitle })
+                      }
+                    >
+                      {m.robotVersion}
+                    </span>
+                  ))}
+                </span>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+      {markers.length > 0 ? (
+        <p className="workbench-tl-legend">{t('workbench.stage.legend')}</p>
+      ) : null}
+    </>
   );
 }

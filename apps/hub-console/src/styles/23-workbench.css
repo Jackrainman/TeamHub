@@ -209,61 +209,132 @@
   white-space: nowrap;
 }
 
-/* 整车六阶段 stepper（STAGE-PIPELINE Step1）：视图投影，非实体。 */
-.workbench-stages {
+/* 整车六阶段时间线（STAGE-PIPELINE Step1.5）：节点+连线+日期窗+车徽标（「当前 V1 车在这」）。 */
+.workbench-timeline {
   display: flex;
-  gap: 6px;
-  margin: 4px 0 14px;
+  margin: 8px 0 4px;
 }
 
-.workbench-stage {
+.workbench-tl-stage {
+  position: relative;
   flex: 1;
   min-width: 0;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--line, rgba(127, 127, 127, 0.25));
-  background: var(--panel-alt, rgba(127, 127, 127, 0.08));
+  padding: 18px 8px 8px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
-.workbench-stage__name {
+/* 水平连线：贯穿每段，首段/末段只画半条。 */
+.workbench-tl-stage::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--line, rgba(127, 127, 127, 0.3));
+}
+.workbench-tl-stage:first-child::before {
+  left: 10px;
+}
+.workbench-tl-stage:last-child::before {
+  right: 10px;
+}
+
+/* 阶段节点圆点。 */
+.workbench-tl-dot {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--line, rgba(127, 127, 127, 0.4));
+  background: var(--panel-bg, #fff);
+  z-index: 1;
+}
+
+.workbench-tl-stage--done::before {
+  background: var(--green, #3d9a50);
+}
+.workbench-tl-stage--done .workbench-tl-dot {
+  border-color: var(--green, #3d9a50);
+  background: var(--green, #3d9a50);
+}
+.workbench-tl-stage--done .workbench-tl-name {
+  color: var(--green, #3d9a50);
+}
+
+.workbench-tl-stage--current .workbench-tl-dot {
+  border-color: var(--accent, #4f7fd0);
+  background: var(--accent, #4f7fd0);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent, #4f7fd0) 22%, transparent);
+}
+.workbench-tl-stage--current .workbench-tl-name {
+  font-weight: 600;
+  color: var(--accent, #4f7fd0);
+}
+
+.workbench-tl-stage--upcoming {
+  color: var(--muted);
+}
+
+.workbench-tl-name {
   font-size: 0.85rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.workbench-stage__sub {
-  font-size: 0.75rem;
+.workbench-tl-dates {
+  font-size: 0.72rem;
+  color: var(--faint, var(--muted));
+  font-variant-numeric: tabular-nums;
+}
+
+.workbench-tl-sub {
+  font-size: 0.72rem;
   color: var(--muted);
 }
 
-.workbench-stage--done {
-  border-color: var(--green, #3d9a50);
-  background: color-mix(in srgb, var(--green, #3d9a50) 12%, transparent);
+/* 车徽标：「当前 V1 车在这里」——落在该车最早 pending 里程碑所属段。 */
+.workbench-tl-robots {
+  display: flex;
+  gap: 4px;
+  margin-top: 2px;
+  flex-wrap: wrap;
 }
 
-.workbench-stage--done .workbench-stage__name {
+.workbench-robot-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent, #4f7fd0);
+  cursor: default;
+}
+
+.workbench-robot-chip--passed {
   color: var(--green, #3d9a50);
+  background: color-mix(in srgb, var(--green, #3d9a50) 14%, transparent);
+  border: 1px solid var(--green, #3d9a50);
 }
 
-.workbench-stage--current {
-  border-color: var(--accent, #4f7fd0);
-  background: color-mix(in srgb, var(--accent, #4f7fd0) 14%, transparent);
-  box-shadow: 0 0 0 1px var(--accent, #4f7fd0);
-}
-
-.workbench-stage--upcoming {
-  color: var(--muted);
+.workbench-tl-legend {
+  margin: 2px 0 12px;
+  font-size: 0.75rem;
+  color: var(--faint, var(--muted));
 }
 
 @media (max-width: 900px) {
-  .workbench-stages {
+  .workbench-timeline {
     flex-wrap: wrap;
   }
-  .workbench-stage {
+  .workbench-tl-stage {
     flex: 1 1 30%;
   }
 }

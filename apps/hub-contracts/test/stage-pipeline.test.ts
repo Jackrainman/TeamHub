@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import {
+  deriveRobotStageMarkers,
   deriveStagePipeline,
   STAGE_PIPELINE_STAGES,
+  type BaselineMilestone,
   type BaselinePhase,
 } from '../src/index.js';
 
@@ -76,5 +78,65 @@ describe('deriveStagePipeline', () => {
   test('now 在 rd 开始前 → 首段 current（「当前要推进的」不断头）', () => {
     const stages = deriveStagePipeline([rd, iterate, tuning], COMPETITION, '2026-02-01T00:00:00.000Z')!;
     expect(stages[0].status).toBe('current');
+  });
+});
+
+describe('deriveRobotStageMarkers（「当前 V1 车状态在这里」车标派生）', () => {
+  const stages = deriveStagePipeline([rd, iterate, tuning], COMPETITION, '2026-04-01T00:00:00.000Z')!;
+  const ms = (
+    id: string,
+    robotVersion: 'V1' | 'V2' | 'V3' | undefined,
+    plannedAt: string,
+    status: 'pending' | 'passed' | 'missed' = 'pending',
+  ): BaselineMilestone => ({
+    id,
+    title: `节点-${id}`,
+    kind: 'milestone',
+    plannedAt,
+    robotVersion,
+    status,
+  });
+
+  test('车标 = 该车最早 pending 里程碑落入的阶段区间', () => {
+    const markers = deriveRobotStageMarkers(
+      [
+        ms('a', 'V1', '2026-03-10T00:00:00.000Z'), // rd 前 1/3 → moduleDesign(0)
+        ms('b', 'V1', '2026-07-20T00:00:00.000Z'), // 更晚的 pending 不影响（取最早）
+        ms('c', 'V2', '2026-07-20T00:00:00.000Z'), // tuning → integratedTest(4)
+      ],
+      stages,
+    );
+    expect(markers).toHaveLength(2);
+    expect(markers[0]).toMatchObject({ robotVersion: 'V1', stageIndex: 0, allPassed: false });
+    expect(markers[1]).toMatchObject({ robotVersion: 'V2', stageIndex: 4, allPassed: false });
+  });
+
+  test('plannedAt 早于首段 → 首段；晚于末段 → 末段', () => {
+    const markers = deriveRobotStageMarkers(
+      [
+        ms('early', 'V1', '2026-01-01T00:00:00.000Z'),
+        ms('late', 'V2', '2027-01-01T00:00:00.000Z'),
+      ],
+      stages,
+    );
+    expect(markers[0].stageIndex).toBe(0);
+    expect(markers[1].stageIndex).toBe(stages.length - 1);
+  });
+
+  test('该车里程碑全通过 → 末段 + allPassed 标记（冲线而非还有节点）', () => {
+    const markers = deriveRobotStageMarkers(
+      [ms('a', 'V1', '2026-03-10T00:00:00.000Z', 'passed')],
+      stages,
+    );
+    expect(markers).toHaveLength(1);
+    expect(markers[0]).toMatchObject({ stageIndex: stages.length - 1, allPassed: true });
+  });
+
+  test('无挂版里程碑的车不出标记；无 robotVersion 的里程碑不参与', () => {
+    const markers = deriveRobotStageMarkers(
+      [ms('a', undefined, '2026-03-10T00:00:00.000Z')],
+      stages,
+    );
+    expect(markers).toHaveLength(0);
   });
 });

@@ -6,6 +6,7 @@ import type {
   BaselinePhase,
   BaselinePhaseType,
   BaselineSegment,
+  MilestoneRobotVersion,
   SeasonBaseline,
 } from './model.js';
 
@@ -404,4 +405,67 @@ export function deriveStagePipeline(
     } else status = 'upcoming';
     return { stage, status, startsAt, endsAt };
   });
+}
+
+/**
+ * 车标位置派生（STAGE-PIPELINE Step1.5，「当前 V1 车状态在这里」）：每辆整车版本（V1/V2/V3）
+ * 当前所处阶段 = 该车**最早 pending 里程碑**的 plannedAt 落入的阶段区间；plannedAt 早于所有区间
+ * → 首段，晚于所有 → 末段。该车里程碑全通过（无 pending）→ 落在末段（待联调/冲刺）；
+ * 该车没有任何挂版里程碑 → 不出标记（而非猜）。
+ * **纯派生零手工状态**——阶段是里程碑/任务进度的投影，不是 robot 实体的成员变量（见 todo
+ * STAGE-PIPELINE 产品定案：阶段只做视图投影、不建实体）。
+ */
+export interface RobotStageMarker {
+  robotVersion: MilestoneRobotVersion;
+  stageIndex: number;
+  /** 定位依据里程碑标题（悬停说明用）。 */
+  milestoneTitle: string;
+  /** true = 该车里程碑已全部通过，标记在末段是「全过冲线」而非「还有节点」。 */
+  allPassed: boolean;
+}
+
+export function deriveRobotStageMarkers(
+  milestones: readonly BaselineMilestone[],
+  stages: readonly StageProgress[],
+): RobotStageMarker[] {
+  if (stages.length === 0) return [];
+  const byRobot = new Map<MilestoneRobotVersion, BaselineMilestone[]>();
+  for (const m of milestones) {
+    if (!m.robotVersion) continue;
+    const list = byRobot.get(m.robotVersion) ?? [];
+    list.push(m);
+    byRobot.set(m.robotVersion, list);
+  }
+  const locate = (plannedAt: string): number => {
+    const ms = new Date(plannedAt).getTime();
+    for (let i = 0; i < stages.length; i++) {
+      if (ms < new Date(stages[i].endsAt).getTime()) return i;
+    }
+    return stages.length - 1;
+  };
+  const markers: RobotStageMarker[] = [];
+  for (const [robotVersion, list] of [...byRobot.entries()].sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
+    const pending = list
+      .filter((m) => m.status === 'pending')
+      .sort((a, b) => (a.plannedAt < b.plannedAt ? -1 : 1));
+    if (pending.length > 0) {
+      markers.push({
+        robotVersion,
+        stageIndex: locate(pending[0].plannedAt),
+        milestoneTitle: pending[0].title,
+        allPassed: false,
+      });
+    } else {
+      const last = list.slice().sort((a, b) => (a.plannedAt < b.plannedAt ? -1 : 1)).at(-1)!;
+      markers.push({
+        robotVersion,
+        stageIndex: stages.length - 1,
+        milestoneTitle: last.title,
+        allPassed: true,
+      });
+    }
+  }
+  return markers;
 }
