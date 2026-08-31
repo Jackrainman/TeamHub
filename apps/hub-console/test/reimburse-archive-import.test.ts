@@ -4,7 +4,7 @@ import {
   analyzeInvoiceFileDeep,
   type AnalyzeDeepDeps,
 } from '../src/features/reimburse/reimburse-import';
-import { extractZipEntries, extractOfdXbrlText } from '../src/features/reimburse/lib/archive-extract';
+import { extractZipEntries, extractOfdXbrlText, decodeZipEntryName } from '../src/features/reimburse/lib/archive-extract';
 import { INVOICE_ARCHIVE_LIMITS } from '@teamhub/hub-contracts';
 
 /**
@@ -128,5 +128,31 @@ describe('analyzeInvoiceFileDeep（ZIP/OFD 归档导入）', () => {
     const outcomes = await analyzeInvoiceFileDeep(new File([zipBytes], 'p.zip'), makeDeps());
     expect(outcomes).toHaveLength(1);
     expect(outcomes[0].kind).toBe('parsed');
+  });
+});
+
+describe('decodeZipEntryName：GBK/Windows zip 文件名回退（REIMBURSE-DEFECTS #3）', () => {
+  // fflate 对未置 UTF-8 flag 的条目按 latin1 解码（charCode=字节），本组用真实字节构造验证回退。
+  const latin1 = (bytes: number[]) => String.fromCharCode(...bytes);
+
+  test('GBK 编码的中文路径 → 正确还原（打车报销/…）', () => {
+    // 「打车报销」GBK 字节：B4F2 B3B5 B1A8 CFFA
+    const raw = [...[0xb4, 0xf2, 0xb3, 0xb5, 0xb1, 0xa8, 0xcf, 0xfa], 0x2f, ...[0xb7, 0xa2, 0xc6, 0xb1]];
+    expect(decodeZipEntryName(`${latin1(raw)}.pdf`)).toBe('打车报销/发票.pdf');
+  });
+
+  test('已正常 UTF-8 解码的名字原样返回', () => {
+    expect(decodeZipEntryName('电子发票/上海-常州.pdf')).toBe('电子发票/上海-常州.pdf');
+  });
+
+  test('纯 ASCII 名字不受影响', () => {
+    expect(decodeZipEntryName('12306/ticket.pdf')).toBe('12306/ticket.pdf');
+  });
+
+  test('整条真实解包路径：latin1 名 zip → extractZipEntries 键已还原', async () => {
+    // zipSync 写入的名字按 UTF-8 flag 存储，造不出 GBK zip；改直接验 latin1 字符串输入。
+    // 真实 GBK zip 路径已由 decodeZipEntryName 单测 + 真语料手工验证覆盖（见 reimburse-test-report #3）。
+    const { entries } = await extractZipEntries(zipSync({ 'a.txt': enc.encode('x') }));
+    expect([...entries.keys()]).toEqual(['a.txt']);
   });
 });

@@ -26,6 +26,8 @@ const REIMBURSE_TABLES = ['reimburse_entries', 'reimburse_batches'] as const;
 export class SqliteReimburseRepository implements ReimburseRepository, ReimburseStockInPort {
   private entrySeq!: IdSequence;
   private batchSeq!: IdSequence;
+  /** 发票号 → 条目 id 的进程内索引（REIMBURSE-DEFECTS #6：查重不再全表扫描；单写者仓库内维护）。 */
+  private invoiceIndex = new Map<string, string>();
 
   private constructor(
     private readonly sdb: SqliteDatabase,
@@ -57,6 +59,10 @@ export class SqliteReimburseRepository implements ReimburseRepository, Reimburse
   private resyncSequences(): void {
     this.entrySeq = createIdSequence(this.sdb.maxSuffix('reimburse_entries', 'reimb-new'));
     this.batchSeq = createIdSequence(this.sdb.maxSuffix('reimburse_batches', 'rbatch-new'));
+    this.invoiceIndex.clear();
+    for (const entry of this.sdb.allRows<ReimburseEntry>('reimburse_entries')) {
+      if (entry.invoiceNo) this.invoiceIndex.set(entry.invoiceNo, entry.id);
+    }
   }
 
   listEntries(): ReimburseEntry[] {
@@ -72,7 +78,8 @@ export class SqliteReimburseRepository implements ReimburseRepository, Reimburse
   }
 
   findEntryByInvoiceNo(invoiceNo: string): ReimburseEntry | undefined {
-    return this.listEntries().find((entry) => entry.invoiceNo === invoiceNo);
+    const id = this.invoiceIndex.get(invoiceNo);
+    return id ? this.getEntry(id) : undefined;
   }
 
   createEntry(draft: ReimburseEntryDraft): ReimburseEntry {
@@ -84,6 +91,7 @@ export class SqliteReimburseRepository implements ReimburseRepository, Reimburse
       updatedAt: now,
     };
     this.sdb.tx(() => this.sdb.insertRow('reimburse_entries', entry.id, entry));
+    if (entry.invoiceNo) this.invoiceIndex.set(entry.invoiceNo, entry.id);
     return entry;
   }
 
@@ -92,6 +100,10 @@ export class SqliteReimburseRepository implements ReimburseRepository, Reimburse
     if (!prior) return undefined;
     const updated: ReimburseEntry = { ...prior, ...patch, id, updatedAt: this.clock.now().toISOString() };
     this.sdb.tx(() => this.sdb.updateRow('reimburse_entries', id, updated));
+    if (prior.invoiceNo !== updated.invoiceNo) {
+      if (prior.invoiceNo) this.invoiceIndex.delete(prior.invoiceNo);
+      if (updated.invoiceNo) this.invoiceIndex.set(updated.invoiceNo, id);
+    }
     return updated;
   }
 

@@ -22,8 +22,16 @@ import type { ApplicationUnitOfWork } from '../../application/unit-of-work.js';
 import type {
   ReimburseBatchDraft,
   ReimburseEntryDraft,
+  ReimburseEntryInput,
   ReimburseRepository,
 } from './repository.js';
+
+/** 批次状态机（REIMBURSE-DEFECTS #2/#4）：顺向单向，提交后财务快照不可回退。 */
+const BATCH_TRANSITIONS: Record<ReimburseBatch['status'], readonly ReimburseBatch['status'][]> = {
+  collecting: ['submitted'],
+  submitted: ['reimbursed'],
+  reimbursed: [],
+};
 
 export type InventoryStockInPartDraft = Omit<
   PartType,
@@ -86,7 +94,18 @@ export class ReimburseService {
       : entries.filter((entry) => entry.memberId === identity.memberId);
   }
 
-  createEntry(draft: ReimburseEntryDraft): ReimburseEntry {
+  createEntry(input: ReimburseEntryInput): ReimburseEntry {
+    // 可空键缺省规整为 null（REIMBURSE-DEFECTS #5：Create 请求允许省略 nullable 键）。
+    const draft: ReimburseEntryDraft = {
+      ...input,
+      invoiceNo: input.invoiceNo ?? null,
+      invoiceDate: input.invoiceDate ?? null,
+      seller: input.seller ?? null,
+      purchaserName: input.purchaserName ?? null,
+      purchaserTaxNo: input.purchaserTaxNo ?? null,
+      actualItemName: input.actualItemName ?? null,
+      note: input.note ?? null,
+    };
     if (draft.invoiceNo) {
       const duplicate = this.repository.findEntryByInvoiceNo(draft.invoiceNo);
       if (duplicate) {
@@ -98,6 +117,23 @@ export class ReimburseService {
       }
     }
     return this.repository.createEntry(draft);
+  }
+
+  /**
+   * 批次锁（REIMBURSE-DEFECTS #2）：非 collecting 批次的财务快照不可变——
+   * 条目归属/材料/备注均不得改写；也不允许把条目装进已锁批次。
+   */
+  private assertBatchMutable(batchId: string | null | undefined): void {
+    if (!batchId) return;
+    const batch = this.repository.getBatch(batchId);
+    if (batch && batch.status !== 'collecting') {
+      throw new ApplicationError(
+        'conflict',
+        'REIMBURSE_BATCH_LOCKED',
+        `批次「${batch.name}」已${batch.status === 'submitted' ? '提交' : '完成报账'}，快照不可变`,
+        { batchId: batch.id, status: batch.status },
+      );
+    }
   }
 
   async updateEntry(
@@ -112,6 +148,8 @@ export class ReimburseService {
     if (patch.batchId && !this.repository.getBatch(patch.batchId)) {
       throw new ApplicationError('validation', 'REIMBURSE_BATCH_NOT_FOUND', `未知批次: ${patch.batchId}`);
     }
+    this.assertBatchMutable(entry.batchId);
+    this.assertBatchMutable(patch.batchId);
     return this.repository.updateEntry(id, patch)!;
   }
 
@@ -152,6 +190,24 @@ export class ReimburseService {
     await this.requireAdmin(identity);
     const batch = this.repository.getBatch(id);
     if (!batch) throw new ApplicationError('not_found', 'REIMBURSE_BATCH_NOT_FOUND', `未知批次: ${id}`);
+    // 状态机（#4）：只允许顺向单向转移 collecting→submitted→reimbursed；同值视为无操作放行。
+    if (patch.status && patch.status !== batch.status && !BATCH_TRANSITIONS[batch.status].includes(patch.status)) {
+      throw new ApplicationError(
+        'conflict',
+        'REIMBURSE_BATCH_TRANSITION',
+        `批次状态不允许从「${batch.status}」变为「${patch.status}」（只允许顺向推进）`,
+        { batchId: id, from: batch.status, to: patch.status },
+      );
+    }
+    // 快照锁（#2）：提交后批次名也不可改（状态推进本身除外）。
+    if (patch.name !== undefined && batch.status !== 'collecting') {
+      throw new ApplicationError(
+        'conflict',
+        'REIMBURSE_BATCH_LOCKED',
+        `批次「${batch.name}」已提交，快照不可变`,
+        { batchId: id, status: batch.status },
+      );
+    }
     if (patch.status === 'submitted') {
       const summary = deriveBatchSummary(this.repository.listEntries(), id, this.repository.getProfile());
       if (summary.financial.blocked.count > 0) {

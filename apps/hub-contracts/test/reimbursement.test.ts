@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import {
+  CreateReimburseEntryRequestSchema,
   DEFAULT_REIMBURSE_PROFILE,
   GetReimburseProfileResponseSchema,
   PartActionSchema,
@@ -253,6 +254,56 @@ describe('parseInvoicePdfText', () => {
     expect(inv?.seller).toBeNull();
     expect(inv?.purchaserName).toBe('新疆大学');
     expect(inv?.purchaserTaxNo).toBe('12650000457601471G');
+  });
+
+  test('铁路电子客票：车次夹在站名之间（同列一行）也能抓出区间（REIMBURSE-DEFECTS #1）', () => {
+    // 真实样本「上海-常州 26319130671006495711」抽取行：上海站 G8274 常州站（车次不独占一行）。
+    const inv = parseInvoicePdfText([
+      '电子发票（铁路电子客票）',
+      '发票号码:26319130671006495711 江 开票日期:2026年07月17日',
+      '上海站 G8274 常州站',
+      'Shanghai Changzhou',
+      '票价:￥91.00',
+      '电子客票号:3045275086071791740572027',
+    ]);
+    expect(inv).not.toBeNull();
+    expect(inv?.items[0]?.name).toBe('铁路客运（G8274 上海站-常州站）');
+    expect(inv?.items[0]?.amountFen).toBe(9100);
+  });
+});
+
+describe('CreateReimburseEntryRequestSchema 可空键宽容（REIMBURSE-DEFECTS #5）', () => {
+  const base = {
+    projectId: 'robotics',
+    kind: 'expense' as const,
+    recognitionSource: 'manual' as const,
+    totalAmountFen: 3200,
+    items: [{ name: '打车', unit: null, quantity: 1, unitPriceFen: null, amountFen: 3200 }],
+    materials: { paymentShot: false, inspection: false },
+  };
+
+  test('省略 nullable 键（purchaserName/seller/note/invoiceNo 等）也能过', () => {
+    const parsed = CreateReimburseEntryRequestSchema.parse(base);
+    expect(parsed.totalAmountFen).toBe(3200);
+    expect(parsed.invoiceNo).toBeUndefined();
+  });
+
+  test('显式 null 仍然兼容（console 全键发送路径不变）', () => {
+    const parsed = CreateReimburseEntryRequestSchema.parse({
+      ...base,
+      invoiceNo: null,
+      seller: null,
+      purchaserName: null,
+      purchaserTaxNo: null,
+      invoiceDate: null,
+      actualItemName: null,
+      note: null,
+    });
+    expect(parsed.invoiceNo).toBeNull();
+  });
+
+  test('必填键缺失仍拒（totalAmountFen/items 不放宽）', () => {
+    expect(() => CreateReimburseEntryRequestSchema.parse({ kind: 'expense' })).toThrow();
   });
 });
 

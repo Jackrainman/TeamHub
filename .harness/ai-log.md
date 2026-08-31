@@ -139,3 +139,20 @@
 - ARCH-UNIFY 五条线（A1-A5）+ HOOKS-1-TAIL + SPLIT-1-TAIL **全部完成**，todo 三项进 done-tonight
 - 版本 v0.59.0 → v0.69.1（本会话 12 commits）
 - 待用户拍板项仍挂起：REIMBURSE-DEFECTS-20260831 修复取舍、HERMES-CHAT-MVP 三事项、TEACHING-FLOW、HERMES-LARK-SKILL、REIMBURSE-LARK-BITABLE、REIMBURSE-PM-EXPORT 待做
+
+## 2026-08-31 晚（deep 续）：REIMBURSE-DEFECTS-20260831 缺陷修复（v0.69.1 → v0.70.0）
+
+**用户指令**：报账 7 缺陷全修（子 agent 测试报告 docs/research/reimburse-test-report.md §4）。
+
+**修复明细**：
+- #1 铁路 PDF 区间丢失：`import.ts` 区间正则允许两站间夹车次段（`[A-Za-z0-9]{1,6}`），真实版式「上海站 G8274 常州站」可抽出 `G8274 上海站-常州站`；新增 contracts 用例复刻真实抽取行
+- #2 批次不可变快照：`service.assertBatchMutable`——非 collecting 批次的条目归属/材料/备注一律 409 REIMBURSE_BATCH_LOCKED，装进已锁批次同拒；提交后批次名也锁
+- #3 GBK zip 文件名：console `archive-extract.ts` 新增 `decodeZipEntryName`——fflate 对未置 UTF-8 flag 条目按 latin1 解码（charCode=字节可收回），UTF-8(fatal)→GB18030 顺序试解；真实语料 `打车报销.zip` 验证 10 个文件名全部还原；零新依赖（TextDecoder gb18030 浏览器/Node 24 均原生支持）
+- #4 批次状态机：`BATCH_TRANSITIONS` collecting→submitted→reimbursed 顺向单向，跳级/回退 409 REIMBURSE_BATCH_TRANSITION
+- #5 Create 可空键宽容：`CreateReimburseEntryRequestSchema.partial({invoiceNo/.../note})`，service 层 `createEntry` 规整 undefined→null（repository 层保持严格全键 draft）
+- #6 发票号查重索引：SqliteReimburseRepository 进程内 `invoiceIndex`（create/update 维护 + resyncSequences 从行数据回填），不再 listEntries 全表扫描；新增重启语义重建测试
+- #7 匿名模式批次/配置 fail-closed：**报告自述为文档行为（I2 设计），不修**，特此记录
+
+**测试**：contracts 442（+4）/ server 418（+4：批次锁×2 + 索引×2）/ console 264（+4：decodeZipEntryName）全绿；npm run verify 门禁通过。
+
+**决策**：#2 锁粒度=整个条目（非仅 batchId）——提交后材料/备注也不许改，审计快照完整；改名仅限 collecting 阶段。

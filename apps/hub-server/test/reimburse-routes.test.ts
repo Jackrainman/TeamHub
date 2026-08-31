@@ -640,3 +640,136 @@ describe('匿名模式（identityMode=anonymous）', () => {
     }
   });
 });
+
+describe('批次不可变快照与状态机（REIMBURSE-DEFECTS #2/#4）', () => {
+  test('提交后：条目归属/材料冻结、装批拒绝、改名拒绝；状态只允许顺向推进', async () => {
+    const { app } = buildTestApp();
+    try {
+      const cookieA = await login(app, 'm-a');
+      const cookieAdmin = await login(app, 'm-admin');
+
+      const created = await app.inject({
+        method: 'POST',
+        url: '/api/reimburse/batches',
+        headers: { cookie: cookieAdmin },
+        payload: { projectId: 'prj-robots', name: '2026-08 锁批' },
+      });
+      const batch = ReimburseBatchResponseSchema.parse(created.json()).batch;
+
+      const entry = await createEntry(app, cookieA);
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/reimburse/entries/${entry.id}`,
+        headers: { cookie: cookieA },
+        payload: {
+          batchId: batch.id,
+          materials: { paymentShot: true, inspection: true },
+        },
+      });
+      const submitted = await app.inject({
+        method: 'PATCH',
+        url: `/api/reimburse/batches/${batch.id}`,
+        headers: { cookie: cookieAdmin },
+        payload: { status: 'submitted' },
+      });
+      expect(submitted.statusCode).toBe(200);
+
+      // 提交后移出批次 → 409 快照锁
+      const detach = await app.inject({
+        method: 'PATCH',
+        url: `/api/reimburse/entries/${entry.id}`,
+        headers: { cookie: cookieA },
+        payload: { batchId: null },
+      });
+      expect(detach.statusCode).toBe(409);
+      expect(detach.json().code).toBe('REIMBURSE_BATCH_LOCKED');
+
+      // 提交后改材料 → 409
+      const editMaterials = await app.inject({
+        method: 'PATCH',
+        url: `/api/reimburse/entries/${entry.id}`,
+        headers: { cookie: cookieA },
+        payload: { materials: { paymentShot: false, inspection: false } },
+      });
+      expect(editMaterials.statusCode).toBe(409);
+
+      // 装进已提交批次 → 409
+      const other = await createEntry(app, cookieA);
+      const attach = await app.inject({
+        method: 'PATCH',
+        url: `/api/reimburse/entries/${other.id}`,
+        headers: { cookie: cookieA },
+        payload: { batchId: batch.id },
+      });
+      expect(attach.statusCode).toBe(409);
+      expect(attach.json().code).toBe('REIMBURSE_BATCH_LOCKED');
+
+      // 提交后改名 → 409；回退 collecting → 409 状态机
+      const rename = await app.inject({
+        method: 'PATCH',
+        url: `/api/reimburse/batches/${batch.id}`,
+        headers: { cookie: cookieAdmin },
+        payload: { name: '改名' },
+      });
+      expect(rename.statusCode).toBe(409);
+      const back = await app.inject({
+        method: 'PATCH',
+        url: `/api/reimburse/batches/${batch.id}`,
+        headers: { cookie: cookieAdmin },
+        payload: { status: 'collecting' },
+      });
+      expect(back.statusCode).toBe(409);
+      expect(back.json().code).toBe('REIMBURSE_BATCH_TRANSITION');
+
+      // 顺向推进 submitted → reimbursed 放行；之后一切状态转移拒绝
+      const done = await app.inject({
+        method: 'PATCH',
+        url: `/api/reimburse/batches/${batch.id}`,
+        headers: { cookie: cookieAdmin },
+        payload: { status: 'reimbursed' },
+      });
+      expect(done.statusCode).toBe(200);
+      const reopen = await app.inject({
+        method: 'PATCH',
+        url: `/api/reimburse/batches/${batch.id}`,
+        headers: { cookie: cookieAdmin },
+        payload: { status: 'submitted' },
+      });
+      expect(reopen.statusCode).toBe(409);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('跳级拒绝：collecting 不能直达 reimbursed', async () => {
+    const { app } = buildTestApp();
+    try {
+      const cookieAdmin = await login(app, 'm-admin');
+      const created = await app.inject({
+        method: 'POST',
+        url: '/api/reimburse/batches',
+        headers: { cookie: cookieAdmin },
+        payload: { projectId: 'prj-robots', name: '跳级批' },
+      });
+      const batch = ReimburseBatchResponseSchema.parse(created.json()).batch;
+      const skip = await app.inject({
+        method: 'PATCH',
+        url: `/api/reimburse/batches/${batch.id}`,
+        headers: { cookie: cookieAdmin },
+        payload: { status: 'reimbursed' },
+      });
+      expect(skip.statusCode).toBe(409);
+      expect(skip.json().code).toBe('REIMBURSE_BATCH_TRANSITION');
+      // collecting 阶段改名仍放行
+      const rename = await app.inject({
+        method: 'PATCH',
+        url: `/api/reimburse/batches/${batch.id}`,
+        headers: { cookie: cookieAdmin },
+        payload: { name: '跳级批·改' },
+      });
+      expect(rename.statusCode).toBe(200);
+    } finally {
+      await app.close();
+    }
+  });
+});

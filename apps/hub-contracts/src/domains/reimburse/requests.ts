@@ -10,12 +10,21 @@ import {
   ReimburseProfileSchema,
 } from './model.js';
 
+// 可空键宽容缺省（REIMBURSE-DEFECTS #5）：裸 API 客户端可省略 null 键，服务端规整为 null。
 export const CreateReimburseEntryRequestSchema = ReimburseEntrySchema.omit({
   id: true,
   memberId: true,
   batchId: true,
   createdAt: true,
   updatedAt: true,
+}).partial({
+  invoiceNo: true,
+  invoiceDate: true,
+  seller: true,
+  purchaserName: true,
+  purchaserTaxNo: true,
+  actualItemName: true,
+  note: true,
 });
 export const CreateReimburseEntryResponseSchema = z.object({ entry: ReimburseEntrySchema });
 

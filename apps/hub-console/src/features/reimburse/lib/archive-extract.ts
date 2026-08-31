@@ -23,6 +23,30 @@ export interface ArchiveExtractResult {
   entries: Map<string, Uint8Array>;
 }
 
+/**
+ * zip 条目名编码回退（REIMBURSE-DEFECTS #3）：zip 未置 UTF-8 flag（bit 11）时 fflate 按 latin1
+ * 解码，原始字节可经 charCodeAt 完整收回；再按 UTF-8(fatal) → GB18030 顺序试解，覆盖 Windows
+ * 资源管理器/国产压缩软件的 GBK 文件名（如「打车报销.zip」）。已正常解码（含 >0xFF 字符）的名字原样返回。
+ */
+export function decodeZipEntryName(name: string): string {
+  const bytes = new Uint8Array(name.length);
+  for (let i = 0; i < name.length; i += 1) {
+    const code = name.charCodeAt(i);
+    if (code > 0xff) return name; // 已按 UTF-8 正常解码
+    bytes[i] = code;
+  }
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    // 不是合法 UTF-8 → 按 GB18030（GBK 超集）试解；再失败就保留原样（不挡解析主流程）。
+    try {
+      return new TextDecoder('gb18030').decode(bytes);
+    } catch {
+      return name;
+    }
+  }
+}
+
 function concatChunks(chunks: Uint8Array[], total: number): Uint8Array {
   const out = new Uint8Array(total);
   let offset = 0;
@@ -97,7 +121,7 @@ export function extractZipEntries(
         }
         chunks.push(chunk);
         if (final) {
-          entries.set(file.name, concatChunks(chunks, entryBytes));
+          entries.set(decodeZipEntryName(file.name), concatChunks(chunks, entryBytes));
         }
       };
       file.start();

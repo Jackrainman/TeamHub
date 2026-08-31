@@ -34,12 +34,6 @@
   ],
   "todo": [
     {
-      "id": "REIMBURSE-DEFECTS-20260831",
-      "title": "报账子 agent 实测缺陷（docs/research/reimburse-test-report.md §4）：①铁路 PDF 车次夹站名时区间丢失（import.ts 区间正则不跨车次，仅命名质量）②已提交批次无不可变快照、可被静默改写（updateEntry/updateBatch 无 submitted 后锁/状态机，影响审计完整性）③GBK zip 文件名乱码（fflate 无编码回退）；④批次状态可跳级⑤发票号查重 O(n)——待用户拍板修哪些",
-      "tag": "code",
-      "batch": "reimburse"
-    },
-    {
       "id": "REIMBURSE-PM-EXPORT",
       "title": "项管视角全员发票筛选/选择与实际导出：命名建议、购买方状态、核对原因和 gross/eligible/blocked/review 已完成；剩余文件导出适配器仍须保持原件不上传，名字永不进治理聚合；见 docs/domains/reimburse.md",
       "tag": "code",
@@ -131,6 +125,10 @@
     }
   ],
   "done-tonight": [
+    {
+      "id": "REIMBURSE-DEFECTS-20260831",
+      "title": "报账测试缺陷修复：#1 铁路 PDF 车次夹站名区间正则、#2 批次提交后快照锁、#3 GBK zip 文件名回退、#4 批次状态机顺向单向、#5 Create 请求可空键宽容、#6 发票号查重索引；#7 匿名 fail-closed 为文档行为不修（v0.70.0）"
+    },
     {
       "id": "ARCH-UNIFY",
       "title": "三包/模块/控制台分层收口（A1-A5）：全域 modules 三包就位，GovStore 归零，console 每域 api+hooks，架构门禁白名单 25→0（v0.60.0-v0.69.0）"

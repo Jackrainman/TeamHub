@@ -683,7 +683,8 @@ export function parseInvoicePdfText(
     const trainNo =
       /(?<![A-Za-z0-9])([GDCKTZ]\d{1,5})(?![A-Za-z0-9])/.exec(text)?.[1] ??
       /(?<![A-Za-z0-9])(\d{1,4})次/.exec(text)?.[1];
-    const route = /([一-鿿]{2,8}站)\s+([一-鿿]{2,8}站)/.exec(text);
+    // 区间：两站之间允许夹一段车次（真实票版式常见「上海站 G8274 常州站」同列一行，旧正则 \s+ 跨不过车次）。
+    const route = /([一-鿿]{2,8}站)\s*(?:[A-Za-z0-9]{1,6}\s+)?([一-鿿]{2,8}站)/.exec(text);
     const detail = [trainNo, route ? `${route[1]}-${route[2]}` : null]
       .filter(Boolean)
       .join(' ');

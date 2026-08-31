@@ -14,6 +14,17 @@ export interface ReimburseSnapshot {
 }
 
 export type ReimburseEntryDraft = Omit<ReimburseEntry, 'id' | 'createdAt' | 'updatedAt'>;
+/** 条目可空键（Create 请求允许省略，service 规整为 null 后再进 repository）。 */
+type ReimburseEntryNullableKey =
+  | 'invoiceNo'
+  | 'invoiceDate'
+  | 'seller'
+  | 'purchaserName'
+  | 'purchaserTaxNo'
+  | 'actualItemName'
+  | 'note';
+export type ReimburseEntryInput = Omit<ReimburseEntryDraft, ReimburseEntryNullableKey> &
+  Partial<Pick<ReimburseEntryDraft, ReimburseEntryNullableKey>>;
 export type ReimburseBatchDraft = Omit<
   ReimburseBatch,
   'id' | 'status' | 'createdAt' | 'updatedAt'
