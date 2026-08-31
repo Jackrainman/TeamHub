@@ -1,5 +1,5 @@
 {
-  "focus": "NIGHT-CHAIN-20260830 全链完成（Step0 部署/Step1 六阶段精确派生/Step2 死代码审计报告/Step3 项目汇报导出，v0.57.1 已 push）；生产 4177 跑 v0.55.7@9eb3d5d，落后 master 4 笔，下次部署追平；demo:4277 已关停未重建",
+  "focus": "4177 待用户部署追平 v0.58.x（master 已含六阶段精确派生+stage 改挂+项目汇报导出）；demo:4277 关停未重建",
   "blocked": [
     {
       "id": "HERMES-LARK-SKILL",
@@ -124,6 +124,8 @@
     }
   ],
   "done-tonight": [
+    "DEAD-CODE 尸体清除 v0.57.2（用户点头）：删 FleetPage.tsx+15-fleet-tabs.css / Sparkline.tsx+.viz-spark+vv-draw / KNOWN_GROUP_KINDS；效果不变验证=431+414+253 测试全绿+build+产物 CSS 活类俱在尸体类清零（零入边代码删除，UI 无变化）",
+    "STAGE-PIPELINE Step2.5 v0.58.0：里程碑 stage 行内改挂——BaselineTimeline meta 行六阶段下拉（canWrite 可编辑、只读身份 chip 展示），下拉即存走 useUpdateBaseline；选中即触发 deriveStageProgress 精确模式",
     "NIGHT-CHAIN-20260830 全链收工：Step0 部署两件套（备份 teamhub.sqlite.20260830-223910 + artifacts tar 落 ~/teamhub-data/backups/；demo:4277 进程族已杀（源码构建产物上直接跑，先杀再构建）；4177 git pull→npm ci→build→systemctl restart，/health buildId=9eb3d5d v0.55.7 绿；回滚=git checkout 旧 commit 重建）→ Step1 v0.56.0 → Step2 v0.56.1 → Step3 v0.57.0，每任务一 commit 自测全绿（typecheck+test+build），全链 push origin master",
     "STAGE-PIPELINE Step2 v0.56.0：milestone 可选 stage 字段（MilestoneStageSchema 六阶段枚举）+ deriveStageProgress 精确派生——窗口=阶段内里程碑 plannedAt [min,max] 单调钳制、状态=里程碑结论投影（无 pending 才 done），无标签阶段塌缩零长不阻断，存量零标签板回退 Step1 phases 近似；模板六节点挂 stage（moduleAssembly 留空塌缩）；deriveRobotStageMarkers locate 改 <=（点窗口边界归早段）；StagePipelineStrip props 不变；+9 测试",
     "DEAD-CODE-AUDIT 报告 v0.56.1（只出报告不改码）：.harness/dead-code-audit.mjs 可重跑静态交叉引用（98 路由/803 导出/孤儿文件/hooks/i18n）→ docs/research/dead-code-audit.md；结论：无高危，真尸体=FleetPage.tsx+Sparkline.tsx+KNOWN_GROUP_KINDS 待砍，7 条 console 未消费路由均 test-only/外部休眠端点，65 个类型面子债随 ARCH-UNIFY 顺手收",
