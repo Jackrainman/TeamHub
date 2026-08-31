@@ -21,12 +21,6 @@
       "batch": "reimburse"
     },
     {
-      "id": "REIMBURSE-OFD-PARSE",
-      "title": "ZIP/OFD 共用归档导入：引 fflate 单一解包底座，ZIP 展开 PDF/XML/OFD 队列，OFD 读内嵌 XBRL XML；加文件数/解压总量/递归容器安全门，逐文件失败不拖垮整包；见 docs/domains/reimburse.md",
-      "tag": "code",
-      "batch": "reimburse"
-    },
-    {
       "id": "REIMBURSE-OCR-PROBE",
       "title": "扫描票本地 OCR 技术验证：真实样本测 tesseract.js 资源体积、单页耗时、低性能设备内存与核心字段识别率；达标后才评估接主流程，结果必须人工确认且原件不上传；见 docs/domains/reimburse.md",
       "tag": "research",
@@ -124,6 +118,7 @@
     }
   ],
   "done-tonight": [
+    "REIMBURSE-OFD-PARSE v0.59.0：fflate 统一归档底座（流式解压+硬中止三道门+PK/EOCD 快检）；OFD 内嵌 XBRL 解析（铁路客票真实样本 4/4 通过）；zip 逐条处置计划（先到先得/截图静默/嵌套明示）；包内发票号去重留结构化源；导入区 accept 扩 .ofd/.zip；+14 测试。测试数据在 ~/发票测试/（不进 git 不上传）",
     "DEAD-CODE 尸体清除 v0.57.2（用户点头）：删 FleetPage.tsx+15-fleet-tabs.css / Sparkline.tsx+.viz-spark+vv-draw / KNOWN_GROUP_KINDS；效果不变验证=431+414+253 测试全绿+build+产物 CSS 活类俱在尸体类清零（零入边代码删除，UI 无变化）",
     "STAGE-PIPELINE Step2.5 v0.58.0：里程碑 stage 行内改挂——BaselineTimeline meta 行六阶段下拉（canWrite 可编辑、只读身份 chip 展示），下拉即存走 useUpdateBaseline；选中即触发 deriveStageProgress 精确模式",
     "NIGHT-CHAIN-20260830 全链收工：Step0 部署两件套（备份 teamhub.sqlite.20260830-223910 + artifacts tar 落 ~/teamhub-data/backups/；demo:4277 进程族已杀（源码构建产物上直接跑，先杀再构建）；4177 git pull→npm ci→build→systemctl restart，/health buildId=9eb3d5d v0.55.7 绿；回滚=git checkout 旧 commit 重建）→ Step1 v0.56.0 → Step2 v0.56.1 → Step3 v0.57.0，每任务一 commit 自测全绿（typecheck+test+build），全链 push origin master",
