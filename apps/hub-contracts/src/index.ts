@@ -192,10 +192,10 @@ export type {
 export * from './pm-core.js';
 // 轻身份登录契约（IDENTITY-LITE，D-083 §4.2）：session / setPin，依赖 pm-core 的 MemberPublicSchema，故其后导出。
 export * from './identity.js';
-export * from './schedule-infra.js';
+// schedule 域四件套显式导出见下方 domains/schedule 段（schedule-infra 已并入 model.ts）
 export * from './growth.js';
 export * from './attribution.js';
-export * from './schedule.js';
+// （schedule.js 已迁 domains/schedule/policies.ts）
 // 知识库标准纵切模块：只从正式 domain public API 显式导出，不保留旧根文件转发层。
 export {
   ARCHIVE_FILE_NAME_PATTERN,
@@ -476,12 +476,103 @@ export type {
   VerticalId,
 } from './app-settings.js';
 export * from './pm-requests.js';
-export * from './schedule-requests.js';
-export * from './resource-requests.js';
+// （schedule-requests/resource-requests 已并 domains/schedule/requests.ts）
 // 名册导入（ROSTER-IMPORT，K8）：CSV 模板生成 + 编码探测 + 手写零依赖解析器 + 导入报告契约（纯，无状态）。
 export * from './roster-import.js';
 // 车队批量导入（FLEET-CSV-IMPORT）：CSV 模板生成 + 手写零依赖解析器 + 预览契约（纯，无状态；落库走既有批量端点）。
-export * from './fleet-import.js';
+// （fleet-import 已迁 domains/schedule/import.ts）
+// 在场排班/接力标准纵切模块（含资源车 + 车队 CSV 导入）：只从正式 domain public API 显式导出。
+export {
+  canBoardResource,
+  DefaultPresetSchema,
+  PresenceFeasibilitySchema,
+  PresenceModeSchema,
+  PresenceReasonSchema,
+  PresenceRecommendationSchema,
+  PresenceScheduleResponseSchema,
+  RelayHandoffSchema,
+  ResourceKindSchema,
+  ResourceSessionSchema,
+  ResourceSessionsResponseSchema,
+  ResourceStatusSchema,
+  SharedResourceSchema,
+  SharedResourcesResponseSchema,
+  WeeklyMinuteWindowSchema,
+  WindowDefSchema,
+  deriveGroupAvailability,
+  deriveLeafGroups,
+  derivePresenceSchedule,
+  deriveRelayBoard,
+  deriveTodayPlanFromPresets,
+  RelayBoardResponseSchema,
+  RelayStageSchema,
+  CreateRelayHandoffRequestSchema,
+  CreateResourceRequestSchema,
+  CreateResourceResponseSchema,
+  CreateResourceSessionRequestSchema,
+  CreateResourceSessionResponseSchema,
+  CreateResourceSessionsBatchRequestSchema,
+  CreateResourceSessionsBatchResponseSchema,
+  CreateResourcesBatchRequestSchema,
+  CreateResourcesBatchResponseSchema,
+  RelayHandoffResponseSchema,
+  RESOURCE_INIT_STATUSES,
+  UpdateResourceDefaultPresetRequestSchema,
+  UpdateResourceDefaultPresetResponseSchema,
+  UpdateResourceResponseSchema,
+  UpdateResourceSessionRequestSchema,
+  UpdateResourceSessionResponseSchema,
+  UpdateResourceStatusRequestSchema,
+  buildFleetTemplateCsv,
+  FLEET_TEMPLATE_HEADERS,
+  FleetImportFailureSchema,
+  FleetImportRowSchema,
+  FleetPreviewResponseSchema,
+  parseFleetCsv,
+} from './domains/schedule/index.js';
+export type {
+  DefaultPreset,
+  PresenceFeasibility,
+  PresenceMode,
+  PresenceReason,
+  PresenceRecommendation,
+  PresenceScheduleResponse,
+  RelayHandoff,
+  ResourceKind,
+  ResourceSession,
+  ResourceSessionsResponse,
+  ResourceStatus,
+  SharedResource,
+  SharedResourcesResponse,
+  WeeklyMinuteWindow,
+  WindowDef,
+  AvailabilityContext,
+  RelayBoard,
+  RelayBoardResponse,
+  RelayStage,
+  ScheduleSnapshot,
+  TodayPlanSessionDraft,
+  CreateRelayHandoffRequest,
+  CreateResourceRequest,
+  CreateResourceResponse,
+  CreateResourceSessionRequest,
+  CreateResourceSessionResponse,
+  CreateResourceSessionsBatchRequest,
+  CreateResourceSessionsBatchResponse,
+  CreateResourcesBatchRequest,
+  CreateResourcesBatchResponse,
+  RelayHandoffResponse,
+  UpdateResourceDefaultPresetRequest,
+  UpdateResourceDefaultPresetResponse,
+  UpdateResourceResponse,
+  UpdateResourceSessionRequest,
+  UpdateResourceSessionResponse,
+  UpdateResourceStatusRequest,
+  FleetImportFailure,
+  FleetImportRow,
+  FleetParseResult,
+  FleetPreviewResponse,
+} from './domains/schedule/index.js';
 export * from './csv-core.js';
 // 装配契约（HUB-MODULARIZATION 第2步）：ModuleDescriptor / TenantConfig / VocabularyRegistry，只接口不实现。
 export * from './assembly.js';

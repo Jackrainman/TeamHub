@@ -10,7 +10,7 @@
 import type { SeasonBaseline } from './domains/baseline/model.js';
 import { deriveStageProgress, type StagePipelineStatus } from './domains/baseline/policies.js';
 import type { Group, Member, Task, TaskStatus } from './pm-core.js';
-import type { ResourceSession, SharedResource } from './schedule-infra.js';
+import type { ResourceSession, SharedResource } from './domains/schedule/index.js';
 import { deriveInventoryLedger, deriveShortfalls, type InventorySnapshot } from './domains/inventory/index.js';
 
 export interface GovReportInput {

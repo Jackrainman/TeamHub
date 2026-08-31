@@ -1,5 +1,5 @@
 import type { GovernanceSnapshot } from '../attribution.js';
-import type { ScheduleSnapshot } from '../schedule.js';
+import type { ScheduleSnapshot } from '../domains/schedule/index.js';
 import { deriveDisplayCode } from '../verticals/robotics.js';
 import { generateRoboconBaselineTemplate } from '../domains/baseline/index.js';
 import type { SeasonBaseline } from '../domains/baseline/index.js';

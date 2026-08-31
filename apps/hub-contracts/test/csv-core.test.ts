@@ -4,7 +4,7 @@ import {
   tokenizeCsv,
   UTF8_BOM,
 } from '../src/csv-core';
-import { canBoardResource } from '../src/schedule-infra';
+import { canBoardResource } from '../src/domains/schedule/index';
 import { isModuleEnabled, ROBOTICS_TENANT_CONFIG } from '../src/assembly';
 import { weeklyMinuteWindowRefine } from '../src/common';
 
