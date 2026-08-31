@@ -8,9 +8,9 @@ import {
   RosterPreviewResponseSchema,
 } from '@teamhub/hub-contracts';
 import type { IdentityMode, RosterImportFailure, RosterImportRow } from '@teamhub/hub-contracts';
-import type { PmRepository } from '../modules/pm/repository.js';
-import { isSuperAdmin } from '../authz.js';
-import { parseBody, readCsvUpload } from './helpers.js';
+import type { PmRepository } from './repository.js';
+import { isSuperAdmin } from '../../authz.js';
+import { parseBody, readCsvUpload } from '../../routes/helpers.js';
 
 const ROSTER_MAX_BYTES = 1024 * 1024;
 

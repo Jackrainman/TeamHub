@@ -48,7 +48,8 @@ import {
 } from './modules/archive/index.js';
 import type { ArtifactRepository } from './modules/archive/index.js';
 import { registerSystemRoutes } from './routes/system.js';
-import { registerPmCoreRoutes } from './routes/pm.js';
+import { registerPmCoreRoutes } from './modules/pm/routes.js';
+import { PmService } from './modules/pm/service.js';
 import { registerSessionRoutes } from './routes/session.js';
 import { registerSetupRoutes } from './routes/setup.js';
 import { registerLarkRoutes } from './routes/lark.js';
@@ -200,6 +201,7 @@ declare module 'fastify' {
  */
 interface ModuleRouteCtx {
   store: PmRepository;
+  service: PmService;
   clock: Clock;
   inventoryRead: InventoryReadPort;
   // BASELINE-CORE：S4 起由 registerPmCoreRoutes 的 GET/PATCH /api/baseline + 过门路由消费。
@@ -304,8 +306,10 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
     trustProxy,
   });
 
+  const pmService = new PmService(store, clock);
   const ctx: ModuleRouteCtx = {
     store,
+    service: pmService,
     clock,
     inventoryRead: inventoryRepository,
     baselineService,
