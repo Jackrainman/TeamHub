@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { ActorRefSchema, isoDateTimeSchema } from './common.js';
+import { ActorRefSchema, isoDateTimeSchema } from '../../common.js';
 
 export const HubEventSourceSchema = z.enum([
   'lark',

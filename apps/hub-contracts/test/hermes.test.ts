@@ -5,7 +5,7 @@ import {
   HermesInvQueryArgsSchema,
   HermesInvRecordArgsSchema,
   parseHermesText,
-} from '../src/hermes';
+} from '../src/domains/integrations/index';
 
 describe('parseHermesText: inv-record 入库', () => {
   test('新到了5个3508', () => {

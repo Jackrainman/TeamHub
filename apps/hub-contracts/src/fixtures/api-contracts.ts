@@ -8,7 +8,7 @@ import type {
   DataSource,
   GitRepoRef,
   HubEvent,
-} from '../schemas.js';
+} from '../domains/system/index.js';
 import type { ArtifactRef } from '../domains/artifacts/index.js';
 
 export const CONTRACT_FIXTURE_TIME = '2026-06-06T00:00:00.000Z';

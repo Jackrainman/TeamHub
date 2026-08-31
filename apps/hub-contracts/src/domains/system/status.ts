@@ -4,8 +4,8 @@ import {
   ConfigIdentityModeSchema,
   DataModeSchema,
   VerticalIdSchema,
-} from './app-settings.js';
-import { isoDateTimeSchema } from './common.js';
+} from './settings.js';
+import { isoDateTimeSchema } from '../../common.js';
 
 /**
  * hub-server `/health` 与 `/api/system/status` 响应契约（单一源，D-052 重复真相收口）。

@@ -5,7 +5,7 @@ import {
   UTF8_BOM,
 } from '../src/csv-core';
 import { canBoardResource } from '../src/domains/schedule/index';
-import { isModuleEnabled, ROBOTICS_TENANT_CONFIG } from '../src/assembly';
+import { isModuleEnabled, ROBOTICS_TENANT_CONFIG } from '../src/domains/system/index';
 import { weeklyMinuteWindowRefine } from '../src/common';
 
 describe('decodeCsvBytes', () => {

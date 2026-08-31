@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { EnabledModulesSchema } from './assembly.js';
-import { isoDateTimeSchema } from './common.js';
+import { isoDateTimeSchema } from '../../common.js';
 
 /** 数据形态：demo 为演示库，real 为正式库。 */
 export const DataModeSchema = z.enum(['demo', 'real']);
