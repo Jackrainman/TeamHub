@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useI18n } from '../../i18n';
 import { useBaseline, useUpdateBaseline, type BaselineSegment } from '../baseline';
-import { useSeasons, type SeasonsClient } from '../../hooks/useRoster';
+import type { SeasonsClient } from '../../features/pm/hooks';
+import { useSeasons } from '../../features/pm/hooks';
 import type { SeasonBaseline, BaselineMilestone } from '@teamhub/hub-contracts';
 
 const OFFSET_OPTIONS = [

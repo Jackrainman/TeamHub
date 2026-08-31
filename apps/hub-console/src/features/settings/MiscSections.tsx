@@ -1,7 +1,7 @@
 import type { HubApiClient } from '../../api/client';
 import { useI18n } from '../../i18n';
 import { MetaRow } from '../../components/MetaRow';
-import { useSystemStatus } from './sub/useSettingsQueries';
+import { useSystemStatus } from '../system/hooks';
 
 export function ExportSection() {
   const { t } = useI18n();

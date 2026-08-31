@@ -13,8 +13,9 @@ import {
   CONVERGENCE_SENTINEL_GROUP_ID,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
-import { useMembers, useGroups } from '../../hooks/useRoster';
-import type { CreateTaskRequest } from '../../api/schemas/pm';
+import { useMembers } from '../../features/identity/hooks';
+import { useGroups } from '../../features/pm/hooks';
+import type { CreateTaskRequest } from '@teamhub/hub-contracts';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { parseList } from '../../utils';

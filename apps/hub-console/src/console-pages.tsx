@@ -17,7 +17,7 @@ import {
 import type { AppSettings, IdentityMode, ModuleId, SessionIdentity } from '@teamhub/hub-contracts';
 import { isModuleEnabled } from '@teamhub/hub-contracts';
 import type { HubApiClient } from './api/client';
-import type { OverviewSnapshot } from './api/schemas/system';
+import type { OverviewSnapshot } from './features/system/api';
 import type { TranslationKey } from './i18n';
 import { OverviewPage } from './features/overview/OverviewPage';
 import { WorkbenchPage } from './features/workbench/WorkbenchPage';

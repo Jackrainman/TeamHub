@@ -17,7 +17,7 @@ import {
   useSetupAdminMutation,
   useRosterPreviewMutation,
   useRosterImportMutation,
-} from './useSettingsMutations';
+} from '../hooks';
 
 export function MemberPinReveal({ client, memberId }: { client: HubApiClient; memberId: string }) {
   const { t } = useI18n();

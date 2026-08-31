@@ -8,7 +8,7 @@ import {
   deriveLeafGroups,
 } from '@teamhub/hub-contracts';
 import { useI18n } from '../../../i18n';
-import { useGroups } from '../../../hooks/useRoster';
+import { useGroups } from '../../../features/pm/hooks';
 import { Field } from '../../../components/Field';
 import { FormGrid } from '../../../components/FormGrid';
 import { FormEmptyState } from '../../../components/FormEmptyState';

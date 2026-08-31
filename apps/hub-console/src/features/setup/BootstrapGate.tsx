@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
-import { useMembers, useGroups, useSeasons } from '../../hooks/useRoster';
+import { useMembers } from '../../features/identity/hooks';
+import { useGroups, useSeasons } from '../../features/pm/hooks';
 import { useI18n } from '../../i18n';
 import { GroupLeadConfirm } from '../settings/GroupLeadConfirm';
 import { WIZARD_STEP_META, WIZARD_STEP_ORDER, WIZARD_STEP_TOTAL, type Step } from './setup-utils';

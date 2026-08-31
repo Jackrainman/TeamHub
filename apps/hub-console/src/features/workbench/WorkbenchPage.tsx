@@ -11,8 +11,8 @@ import {
 import type { HubApiClient } from '../../api/client';
 import type { ConsolePage, PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
-import { useSeasons } from '../../hooks/useRoster';
-import { useTasks } from '../../hooks/useTasks';
+import { useSeasons } from '../../features/pm/hooks';
+import { useTasks } from '../../features/pm/hooks';
 import { useBaseline } from '../baseline';
 import { splitMyTasks } from '../myview/myview-utils';
 import { BaselineOverview } from '../overview/BaselineOverview';

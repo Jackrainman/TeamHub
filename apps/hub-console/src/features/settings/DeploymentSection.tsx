@@ -6,7 +6,7 @@ import { useI18n, type TranslationKey } from '../../i18n';
 import { MetaRow } from '../../components/MetaRow';
 import { DEPLOY_BACKEND_KEY, DEPLOY_DOMAIN_KEY } from './settings-constants';
 import { sectionPermission } from './section-permission';
-import { useSystemStatus } from './sub/useSettingsQueries';
+import { useSystemStatus } from '../system/hooks';
 
 // 部署信息：运维路径与构建信息由运行环境回显，产品模式、垂直包和模块列表来自
 // 同一 SQLite app_settings 快照。界面不再把环境变量解释为产品配置源。I0：本分区无任何按人维度。

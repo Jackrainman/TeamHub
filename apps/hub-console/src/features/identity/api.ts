@@ -1,23 +1,20 @@
 import {
+  ClearPinResponseSchema,
+  MemberPinResponseSchema,
   MembersResponseSchema,
+  RosterImportReportSchema,
+  RosterPreviewResponseSchema,
   SessionResponseSchema,
   SetGateReviewerResponseSchema,
   SetMemberRoleResponseSchema,
   SetProjectManagerResponseSchema,
-  ClearPinResponseSchema,
-  MemberPinResponseSchema,
   SetupSuperAdminResponseSchema,
-  SetupStateResponseSchema,
-  SetupInitResponseSchema,
-  SetupConfigResponseSchema,
-  SetupGraduateResponseSchema,
-  RosterImportReportSchema,
-  RosterPreviewResponseSchema,
-  LarkConfigResponseSchema,
-  LarkConfigSaveResponseSchema,
-  LarkChatsResponseSchema,
-  LarkCreateChatResponseSchema,
+  type ClearPinResponse,
+  type MemberPinResponse,
   type MemberPublic,
+  type RosterImportReport,
+  type RosterImportRow,
+  type RosterPreviewResponse,
   type SessionRequest,
   type SessionResponse,
   type SetGateReviewerRequest,
@@ -26,31 +23,17 @@ import {
   type SetMemberRoleResponse,
   type SetProjectManagerRequest,
   type SetProjectManagerResponse,
-  type ClearPinResponse,
-  type MemberPinResponse,
   type SetupSuperAdminRequest,
   type SetupSuperAdminResponse,
-  type SetupStateResponse,
-  type SetupInitRequest,
-  type SetupInitResponse,
-  type SetupConfigRequest,
-  type SetupConfigResponse,
-  type SetupGraduateResponse,
-  type RosterImportReport,
-  type RosterImportRow,
-  type RosterPreviewResponse,
-  type LarkConfigResponse,
-  type LarkConfigSaveRequest,
-  type LarkConfigSaveResponse,
-  type LarkChatsResponse,
-  type LarkCreateChatRequest,
-  type LarkCreateChatResponse,
 } from '@teamhub/hub-contracts';
-import { z } from 'zod';
-import type { HttpContext } from '../http';
-import { fetchJson, postJson, postFormData, sendJson } from '../http';
+import type { HttpContext } from '../../api/http';
+import { fetchJson, postFormData, postJson, sendJson } from '../../api/http';
 
-export interface MembersSegment {
+/**
+ * 身份与名册域 API 分段（ARCH-UNIFY A4；前身 api/segments/members.ts 的成员/会话/名册半）。
+ * 端点对照 server modules/pm/members.ts + roster.ts + modules/system/session.ts。
+ */
+export interface IdentitySegment {
   getMembers(): Promise<{ members: MemberPublic[] }>;
   getSession(): Promise<SessionResponse>;
   login(req: SessionRequest): Promise<SessionResponse>;
@@ -65,18 +48,9 @@ export interface MembersSegment {
   importRoster(file: File): Promise<RosterImportReport>;
   previewRoster(file: File): Promise<RosterPreviewResponse>;
   importRosterRows(rows: RosterImportRow[]): Promise<RosterImportReport>;
-  getSetupState(): Promise<SetupStateResponse>;
-  initSetup(req: SetupInitRequest): Promise<SetupInitResponse>;
-  setConfig(req: SetupConfigRequest): Promise<SetupConfigResponse>;
-  graduate(): Promise<SetupGraduateResponse>;
-  getLarkConfig(): Promise<LarkConfigResponse>;
-  saveLarkConfig(req: LarkConfigSaveRequest): Promise<LarkConfigSaveResponse>;
-  resetLarkConfig(): Promise<{ ok: boolean }>;
-  getLarkChats(): Promise<LarkChatsResponse>;
-  createLarkChat(req: LarkCreateChatRequest): Promise<LarkCreateChatResponse>;
 }
 
-export function createMembersSegment(ctx: HttpContext): MembersSegment {
+export function createIdentitySegment(ctx: HttpContext): IdentitySegment {
   const { baseUrl, fetcher, writeToken } = ctx;
   return {
     async getMembers() {
@@ -120,33 +94,6 @@ export function createMembersSegment(ctx: HttpContext): MembersSegment {
     },
     async importRosterRows(rows: RosterImportRow[]) {
       return postJson(`${baseUrl}/api/roster/import`, { rows }, RosterImportReportSchema, fetcher, writeToken);
-    },
-    async getSetupState() {
-      return fetchJson(`${baseUrl}/api/setup/state`, SetupStateResponseSchema, fetcher);
-    },
-    async initSetup(req: SetupInitRequest) {
-      return postJson(`${baseUrl}/api/setup/init`, req, SetupInitResponseSchema, fetcher, writeToken);
-    },
-    async setConfig(req: SetupConfigRequest) {
-      return sendJson('PUT', `${baseUrl}/api/setup/config`, req, SetupConfigResponseSchema, fetcher, writeToken);
-    },
-    async graduate() {
-      return sendJson('POST', `${baseUrl}/api/setup/graduate`, undefined, SetupGraduateResponseSchema, fetcher, writeToken);
-    },
-    async getLarkConfig() {
-      return fetchJson(`${baseUrl}/api/integrations/lark`, LarkConfigResponseSchema, fetcher);
-    },
-    async saveLarkConfig(req: LarkConfigSaveRequest) {
-      return sendJson('PUT', `${baseUrl}/api/integrations/lark`, req, LarkConfigSaveResponseSchema, fetcher, writeToken);
-    },
-    async resetLarkConfig() {
-      return sendJson('DELETE', `${baseUrl}/api/integrations/lark`, undefined, z.object({ ok: z.boolean() }), fetcher, writeToken);
-    },
-    async getLarkChats() {
-      return fetchJson(`${baseUrl}/api/integrations/lark/chats`, LarkChatsResponseSchema, fetcher);
-    },
-    async createLarkChat(req: LarkCreateChatRequest) {
-      return postJson(`${baseUrl}/api/integrations/lark/chats`, req, LarkCreateChatResponseSchema, fetcher, writeToken);
     },
   };
 }

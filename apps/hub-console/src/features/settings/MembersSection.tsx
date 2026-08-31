@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
-import { useMembers, useGroups } from '../../hooks/useRoster';
+import { useMembers } from '../../features/identity/hooks';
+import { useGroups } from '../../features/pm/hooks';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
 import { GRADE_KEY } from '../../shared/roster';
@@ -10,7 +11,7 @@ import { humanizeFormError } from '../../utils';
 import { MEMBER_ROLE_OPTIONS, ROLE_KEY } from './settings-constants';
 import { sectionPermission } from './section-permission';
 import { MemberPinReveal, SetupAdminCard, RosterImportBlock } from './sub/MembersSubComponents';
-import { useMemberMutations } from './sub/useSettingsMutations';
+import { useMemberMutations } from './hooks';
 
 export function MembersPermissionsSection({
   client,

@@ -6,7 +6,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
 import { useRelay, useResources } from '../schedule/hooks';
-import { useTasks } from '../../hooks/useTasks';
+import { useTasks } from '../../features/pm/hooks';
 import { canBoardResource } from '@teamhub/hub-contracts';
 import { useI18n } from '../../i18n';
 import { FormBanner } from '../../components/FormBanner';

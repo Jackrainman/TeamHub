@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import type { Season } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
-import { useSeasons } from '../../hooks/useRoster';
+import { useSeasons } from '../../features/pm/hooks';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
 import { Field } from '../../components/Field';
@@ -9,7 +9,7 @@ import { FormActions } from '../../components/FormActions';
 import { FormGrid } from '../../components/FormGrid';
 import { humanizeFormError, seasonRangeLabel, suggestSeason } from '../../utils';
 import { sectionPermission } from './section-permission';
-import { useCreateSeasonMutation } from './sub/useSettingsMutations';
+import { useCreateSeasonMutation } from './hooks';
 
 // 赛季（SEASON-CREATE 补链路）：总览页空态文案"先在设置里建一个赛季"此前指向不存在的入口，
 // 本分区兑现它——列现有赛季 + 新建表单。新建 = 宣告新的当前赛季（status 服务端钉 active、

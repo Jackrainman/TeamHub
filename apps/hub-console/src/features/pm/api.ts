@@ -1,80 +1,63 @@
 import {
-  DepGraphSchema,
-  GroupGapsResponseSchema,
-  GroupsResponseSchema,
-  GroupResponseSchema,
-  SeasonsResponseSchema,
-  CreateSeasonResponseSchema,
-  TasksResponseSchema,
-  type DepGraph,
-  type GroupGapsResponse,
-  type Group,
-  type GroupResponse,
-  type CreateGroupRequest,
-  type RenameGroupRequest,
-  type CreateSeasonRequest,
-  type Season,
-  type TaskWithMeta,
-  type TaskStatus,
-} from '@teamhub/hub-contracts';
-import {
-  HealthResponseSchema,
-  OverviewSnapshotSchema,
-  SystemStatusResponseSchema,
-  type OverviewSnapshot,
-  type SystemStatusResponse,
-} from '../schemas/system';
-import {
-  CreateTaskResponseSchema,
+  AssignTaskResponseSchema,
+  ClaimTaskResponseSchema,
+  CompleteTaskResponseSchema,
+  ConfirmCrossClaimResponseSchema,
   CreateDependencyResponseSchema,
   CreateNeedResponseSchema,
+  CreateSeasonResponseSchema,
+  CreateTaskResponseSchema,
+  DepGraphSchema,
+  GroupGapsResponseSchema,
+  GroupResponseSchema,
+  GroupsResponseSchema,
+  ReviewTaskResponseSchema,
+  SeasonsResponseSchema,
+  SetTaskPartnerResponseSchema,
+  TasksResponseSchema,
   TransitionTaskStatusResponseSchema,
   WaiveDependencyResponseSchema,
-  ClaimTaskResponseSchema,
-  AssignTaskResponseSchema,
-  SetTaskPartnerResponseSchema,
-  ConfirmCrossClaimResponseSchema,
-  CompleteTaskResponseSchema,
-  ReviewTaskResponseSchema,
-  type CreateTaskRequest,
-  type CreateTaskResponse,
-  type CreateDependencyRequest,
-  type CreateDependencyResponse,
-  type CreateNeedRequest,
-  type CreateNeedResponse,
-  type TransitionTaskStatusResponse,
-  type WaiveDependencyResponse,
-  type ClaimTaskRequest,
-  type ClaimTaskResponse,
   type AssignTaskRequest,
   type AssignTaskResponse,
-  type SetTaskPartnerRequest,
-  type SetTaskPartnerResponse,
-  type ConfirmCrossClaimRequest,
-  type ConfirmCrossClaimResponse,
+  type ClaimTaskRequest,
+  type ClaimTaskResponse,
   type CompleteTaskRequest,
   type CompleteTaskResponse,
+  type ConfirmCrossClaimRequest,
+  type ConfirmCrossClaimResponse,
+  type CreateDependencyRequest,
+  type CreateDependencyResponse,
+  type CreateGroupRequest,
+  type CreateNeedRequest,
+  type CreateNeedResponse,
+  type CreateSeasonRequest,
+  type CreateTaskRequest,
+  type CreateTaskResponse,
+  type DepGraph,
+  type Group,
+  type GroupGapsResponse,
+  type GroupResponse,
+  type RenameGroupRequest,
   type ReviewTaskRequest,
   type ReviewTaskResponse,
-} from '../schemas/pm';
-import {
-  AgentBackendsResponseSchema,
-  BotChannelsResponseSchema,
-  BridgeMembersResponseSchema,
-  DataSourcesResponseSchema,
-  GitReposResponseSchema,
-  HubEventsResponseSchema,
-  ArtifactsResponseSchema,
+  type Season,
+  type SetTaskPartnerRequest,
+  type SetTaskPartnerResponse,
+  type TaskStatus,
+  type TaskWithMeta,
+  type TransitionTaskStatusResponse,
+  type WaiveDependencyResponse,
 } from '@teamhub/hub-contracts';
-import type { HttpContext } from '../http';
-import { fetchJson, postJson, sendJson } from '../http';
+import type { HttpContext } from '../../api/http';
+import { fetchJson, postJson, sendJson } from '../../api/http';
 
-export interface SystemPmSegment {
-  getOverview(): Promise<OverviewSnapshot>;
-  getSystemStatus(): Promise<SystemStatusResponse>;
+/**
+ * pm 域 API 分段（ARCH-UNIFY A4；前身 api/segments/system-pm.ts 的 pm 半 + schemas/pm.ts 转发层）。
+ * 端点对照 server modules/pm。全局搜索（/api/search）属 reporting，不入本段。
+ */
+export interface PmSegment {
   getDepGraph(): Promise<DepGraph>;
   getGroupGaps(): Promise<GroupGapsResponse>;
-  globalSearch(q: string): Promise<{ results: Array<{ type: string; id: string; title: string; snippet: string }> }>;
   getTasks(query?: { q?: string }): Promise<{ tasks: TaskWithMeta[] }>;
   getSeasons(): Promise<{ seasons: Season[] }>;
   createSeason(req: CreateSeasonRequest): Promise<{ season: Season }>;
@@ -95,48 +78,14 @@ export interface SystemPmSegment {
   reviewTask(taskId: string, req: ReviewTaskRequest): Promise<ReviewTaskResponse>;
 }
 
-export function createSystemPmSegment(ctx: HttpContext): SystemPmSegment {
+export function createPmSegment(ctx: HttpContext): PmSegment {
   const { baseUrl, fetcher, writeToken } = ctx;
   return {
-    async getOverview() {
-      const [
-        health,
-        system,
-        botChannels,
-        agentBackends,
-        dataSources,
-        events,
-        bridgeMembers,
-        gitRepos,
-        artifacts,
-      ] = await Promise.all([
-        fetchJson(`${baseUrl}/health`, HealthResponseSchema, fetcher),
-        fetchJson(`${baseUrl}/api/system/status`, SystemStatusResponseSchema, fetcher),
-        fetchJson(`${baseUrl}/api/bot-channels`, BotChannelsResponseSchema, fetcher),
-        fetchJson(`${baseUrl}/api/agent-backends`, AgentBackendsResponseSchema, fetcher),
-        fetchJson(`${baseUrl}/api/data-sources`, DataSourcesResponseSchema, fetcher),
-        fetchJson(`${baseUrl}/api/events`, HubEventsResponseSchema, fetcher),
-        fetchJson(`${baseUrl}/api/bridge/members`, BridgeMembersResponseSchema, fetcher),
-        fetchJson(`${baseUrl}/api/git/repos`, GitReposResponseSchema, fetcher),
-        fetchJson(`${baseUrl}/api/artifacts`, ArtifactsResponseSchema, fetcher),
-      ]);
-      return OverviewSnapshotSchema.parse({
-        health, system, botChannels, agentBackends, dataSources, events, bridgeMembers, gitRepos, artifacts,
-      });
-    },
-    async getSystemStatus() {
-      return fetchJson(`${baseUrl}/api/system/status`, SystemStatusResponseSchema, fetcher);
-    },
     async getDepGraph() {
       return fetchJson(`${baseUrl}/api/dep-graph`, DepGraphSchema, fetcher);
     },
     async getGroupGaps() {
       return fetchJson(`${baseUrl}/api/group-gaps`, GroupGapsResponseSchema, fetcher);
-    },
-    async globalSearch(q: string) {
-      const res = await fetcher(`${baseUrl}/api/search?q=${encodeURIComponent(q)}`);
-      if (!res.ok) throw new Error(`search ${res.status}`);
-      return res.json() as Promise<{ results: Array<{ type: string; id: string; title: string; snippet: string }> }>;
     },
     async getTasks(query?: { q?: string }) {
       const q = query?.q?.trim();

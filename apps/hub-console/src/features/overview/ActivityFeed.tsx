@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useI18n } from '../../i18n';
 import type { HubApiClient } from '../../api/client';
-import { useTasks } from '../../hooks/useTasks';
+import { useTasks } from '../../features/pm/hooks';
 import type { TaskStatus } from '@teamhub/hub-contracts';
 
 const STATUS_LABEL: Record<TaskStatus, string> = {

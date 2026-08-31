@@ -1,11 +1,14 @@
 import type { HttpContext } from './http';
 import { normalizeBaseUrl } from './http';
-import { createSystemPmSegment, type SystemPmSegment } from './segments/system-pm';
+import { createPmSegment, type PmSegment } from '../features/pm/api';
+import { createIdentitySegment, type IdentitySegment } from '../features/identity/api';
+import { createSystemSegment, type SystemSegment } from '../features/system/api';
+import { createSettingsSegment, type SettingsSegment } from '../features/settings/api';
+import { createSearchSegment, type SearchSegment } from '../features/search/api';
 import {
   createScheduleSegment,
   type ScheduleSegment,
 } from '../features/schedule/api';
-import { createMembersSegment, type MembersSegment } from './segments/members';
 import {
   createReimburseSegment,
   type ReimburseSegment,
@@ -37,9 +40,13 @@ export interface HubApiClientOptions {
   writeToken?: string;
 }
 
-export type HubApiClient = SystemPmSegment &
+export type HubApiClient =
+  PmSegment &
+  IdentitySegment &
+  SystemSegment &
+  SettingsSegment &
+  SearchSegment &
   ScheduleSegment &
-  MembersSegment &
   ReimburseSegment &
   ChecklistSegment &
   BaselineSegment &
@@ -54,14 +61,17 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
     writeToken: options.writeToken?.trim() || undefined,
   };
   return {
-    ...createSystemPmSegment(ctx),
     ...createScheduleSegment(ctx),
-    ...createMembersSegment(ctx),
     ...createReimburseSegment(ctx),
     ...createChecklistSegment(ctx),
     ...createBaselineSegment(ctx),
     ...createInventorySegment(ctx),
     ...createArchiveSegment(ctx),
+    ...createPmSegment(ctx),
+    ...createIdentitySegment(ctx),
+    ...createSystemSegment(ctx),
+    ...createSettingsSegment(ctx),
+    ...createSearchSegment(ctx),
     ...createKnowledgeSegment(ctx),
   };
 }

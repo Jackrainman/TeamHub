@@ -2,7 +2,7 @@ import { lazy, Suspense, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Inbox, LayoutGrid, Network } from 'lucide-react';
 import type { HubApiClient } from '../../api/client';
-import { useTasks } from '../../hooks/useTasks';
+import { useTasks } from '../../features/pm/hooks';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
 import { segClass } from '../../utils';

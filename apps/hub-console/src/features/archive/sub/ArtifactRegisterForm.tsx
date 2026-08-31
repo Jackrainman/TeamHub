@@ -8,7 +8,7 @@ import {
 import type { ArtifactRef } from '@teamhub/hub-contracts';
 import { nextArtifactVersionNo } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../../api/client';
-import type { CreateArtifactRequest } from '../../../api/schemas/pm';
+import type { CreateArtifactRequest } from '@teamhub/hub-contracts';
 import { useHubMutation } from '../../../hooks/useHubMutation';
 import { useI18n } from '../../../i18n';
 import { humanizeFormError } from '../../../utils';

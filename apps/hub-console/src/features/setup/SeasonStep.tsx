@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
-import { useSeasons } from '../../hooks/useRoster';
+import { useSeasons } from '../../features/pm/hooks';
 import { useI18n } from '../../i18n';
 import { humanizeFormError, seasonForYear, seasonYearOptions } from '../../utils';
 import {

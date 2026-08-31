@@ -13,8 +13,8 @@ import {
   LIFECYCLE_STATUS_KEY,
   type IntegrationRow,
 } from './settings-constants';
-import { useLarkConfig, useLarkChats } from './sub/useSettingsQueries';
-import { useLarkMutations } from './sub/useSettingsMutations';
+import { useLarkConfig, useLarkChats } from './hooks';
+import { useLarkMutations } from './hooks';
 
 // 集成（只读）：地基重建后按物种三分——BOT 渠道（飞书/微信/QQ）/ Agent 后端（Hermes/OpenClaw/
 // Claude Code）/ 数据源（Git/图纸库）。复用 App 已取的总览（overview 透传，同份缓存），展示在设置页。

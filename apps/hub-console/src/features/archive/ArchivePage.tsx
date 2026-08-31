@@ -3,7 +3,7 @@ import { FolderOpen, FilePlus } from 'lucide-react';
 import type { HubApiClient } from '../../api/client';
 import { useI18n } from '../../i18n';
 import { useArtifacts } from './hooks';
-import { useSystemStatus } from '../settings/sub/useSettingsQueries';
+import { useSystemStatus } from '../system/hooks';
 import { useResources } from '../schedule/hooks';
 import { segClass } from '../../utils';
 import { ArtifactRegisterForm } from './sub/ArtifactRegisterForm';

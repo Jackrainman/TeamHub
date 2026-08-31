@@ -21,8 +21,8 @@ import {
   type TaskStatus,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
-import { useTasks } from '../../hooks/useTasks';
-import type { CreateDependencyRequest } from '../../api/schemas/pm';
+import { useTasks } from '../../features/pm/hooks';
+import type { CreateDependencyRequest } from '@teamhub/hub-contracts';
 import { useI18n } from '../../i18n';
 import { MetricTile } from '../../components/MetricTile';
 import { NODE_W, NODE_H, EDGE_COLORS, type DepFlowNode } from './sub/constants';

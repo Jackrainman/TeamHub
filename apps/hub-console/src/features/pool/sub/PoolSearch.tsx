@@ -4,7 +4,7 @@ import type { MemberPublic } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../../api/client';
 import { useI18n } from '../../../i18n';
 import { memberOptionLabel } from '../../../shared/lib/identity-utils';
-import { useTasksSearch } from '../../../hooks/useTasks';
+import { useTasksSearch } from '../../../features/pm/hooks';
 import { STATUS_KEY } from './constants';
 
 export function PoolSearch({

@@ -1,21 +1,43 @@
-import { useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import type {
+  LarkConfigSaveResponse,
   MemberRole,
   RosterImportRow,
   RosterPreviewResponse,
-  LarkConfigSaveResponse,
 } from '@teamhub/hub-contracts';
-import type { HubApiClient } from '../../../api/client';
-import { queryKeys } from '../../../api/queryKeys';
-import { useHubMutation } from '../../../hooks/useHubMutation';
+import type { HubApiClient } from '../../api/client';
+import { queryKeys } from '../../api/queryKeys';
+import { useHubMutation } from '../../hooks/useHubMutation';
+
+/**
+ * 设置域远端状态唯一消费点（§10；前身 settings/sub/useSettingsQueries.ts + useSettingsMutations.ts）。
+ * 查询：useSystemStatus 在 features/system/hooks.ts（system 域）。本文件 = 设置页写动作 +
+ * 飞书集成配置读（lark 属 integrations 词汇，设置页是其唯一宿主 UI）。
+ */
+export function useLarkConfig(client: HubApiClient) {
+  return useQuery({
+    queryKey: queryKeys.larkConfig(),
+    queryFn: () => client.getLarkConfig(),
+  });
+}
+
+export function useLarkChats(client: HubApiClient, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.larkChats(),
+    queryFn: () => client.getLarkChats(),
+    enabled,
+    retry: false,
+  });
+}
 
 export function useSetupAdminMutation(
   client: HubApiClient,
   pin: string,
   onSuccess: () => void,
 ) {
-  return useMutation({
+  return useHubMutation({
     meta: { silent: true },
+    invalidateKeys: [],
     mutationFn: () => client.setupSuperAdmin({ pin }),
     onSuccess,
   });
@@ -25,8 +47,9 @@ export function useRosterPreviewMutation(
   client: HubApiClient,
   onSuccess: (data: RosterPreviewResponse) => void,
 ) {
-  return useMutation({
+  return useHubMutation({
     meta: { silent: true },
+    invalidateKeys: [],
     mutationFn: (file: File) => client.previewRoster(file),
     onSuccess,
   });
@@ -36,8 +59,9 @@ export function useRosterImportMutation(
   client: HubApiClient,
   onSuccess: () => void,
 ) {
-  return useMutation({
+  return useHubMutation({
     meta: { silent: true },
+    invalidateKeys: [queryKeys.members()],
     mutationFn: (rows: RosterImportRow[]) => client.importRosterRows(rows),
     onSuccess,
   });

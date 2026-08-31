@@ -7,7 +7,7 @@ import {
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { queryKeys } from '../../api/queryKeys';
-import { useGroups } from '../../hooks/useRoster';
+import { useGroups } from '../../features/pm/hooks';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { GROUP_LABEL_KEY } from '../../verticals/robotics';

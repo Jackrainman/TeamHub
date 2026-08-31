@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { EmptyState } from '../../shared/EmptyState';
 import { useQueryGuard } from '../../shared/QueryGate';
-import { useTasks } from '../../hooks/useTasks';
-import { useMembers, useGroups } from '../../hooks/useRoster';
+import { useTasks } from '../../features/pm/hooks';
+import { useMembers } from '../../features/identity/hooks';
+import { useGroups } from '../../features/pm/hooks';
 import { Network, Plus, PanelRightOpen } from 'lucide-react';
 import type {
   MemberPublic,

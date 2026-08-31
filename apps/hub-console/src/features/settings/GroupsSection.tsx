@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import type { Group } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
-import { useGroups } from '../../hooks/useRoster';
+import { useGroups } from '../../features/pm/hooks';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
 import { Field } from '../../components/Field';
@@ -9,7 +9,7 @@ import { FormActions } from '../../components/FormActions';
 import { FormGrid } from '../../components/FormGrid';
 import { humanizeFormError } from '../../utils';
 import { sectionPermission } from './section-permission';
-import { useGroupMutations } from './sub/useSettingsMutations';
+import { useGroupMutations } from './hooks';
 
 // 组（PROGRAM-GROUP-ABSTRACT 刀④，D-072「设置页可增减组」前置缺口的最小版）：列**全量**组（组树展示
 // 需要非叶子/哨兵在场），用 server 派生位 `assignableGroupIds`（叶子组且非哨兵）分两类——叶子组=可选组

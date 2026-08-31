@@ -7,6 +7,7 @@ import {
   kbScenarioFixture,
   scheduleScenarioFixture,
 } from '@teamhub/hub-contracts';
+import { OverviewSnapshotSchema } from '../src/features/system/api';
 import type {
   CreateTaskRequest,
   CreateDependencyRequest,
@@ -19,7 +20,6 @@ import type {
   CreatePartActionRequest,
 } from '@teamhub/hub-contracts';
 import { createHubApiClient } from '../src/api/client';
-import { OverviewSnapshotSchema } from '../src/api/schemas/system';
 
 describe('hub console API client', () => {
   test('fetches and parses the real API split when baseUrl is set', async () => {

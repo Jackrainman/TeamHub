@@ -1,5 +1,5 @@
 import type { ArtifactRef, GitRepoRef, HubEvent } from '@teamhub/hub-contracts';
-import type { OverviewSnapshot } from '../../api/schemas/system';
+import type { OverviewSnapshot } from '../system/api';
 import type { ConsolePage } from '../../components/layout/ConsoleLayout';
 import type { HubApiClient } from '../../api/client';
 import type { PageIdentityCtx } from '../../console-pages';
