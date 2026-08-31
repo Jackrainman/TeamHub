@@ -29,7 +29,12 @@ import {
   parseFleetCsv,
   FleetPreviewResponseSchema,
 } from '@teamhub/hub-contracts';
-import { ScheduleQuerySchema } from '../route-schemas.js';
+import { z } from 'zod';
+
+/** 排班 querystring（server 专用）。 */
+const ScheduleQuerySchema = z.object({
+  windowLabel: z.string().min(1),
+});
 import type { SessionIdentity } from '@teamhub/hub-contracts';
 import type { GovStore } from '../store/gov-store.js';
 import type { Clock } from '../clock.js';

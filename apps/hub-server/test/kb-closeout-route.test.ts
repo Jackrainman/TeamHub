@@ -129,7 +129,7 @@ describe('POST /api/kb/closeout', () => {
     const archiveBefore = kbBefore.archiveDocuments.length;
     const cardBefore = kbBefore.issueCards.length;
     const nodesBefore = (await store.getSnapshot()).knowledgeNodes.length;
-    const app = buildTestHubServer({ store, kbStore });
+    const app = buildTestHubServer({ store, knowledgeRepository: kbStore });
     const payload = {
       issue: liveIssue,
       category: '云台',

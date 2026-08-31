@@ -17,7 +17,6 @@ export const ARCHITECTURE_BASELINE = Object.freeze([
   ['raw-react-query', 'apps/hub-console/src/features/dep-graph/DepGraphPage.tsx', 1],
   ['raw-react-query', 'apps/hub-console/src/features/direction/DirectionPage.tsx', 1],
   ['raw-react-query', 'apps/hub-console/src/features/identity/IdentityBar.tsx', 3],
-  ['raw-react-query', 'apps/hub-console/src/features/kb/KbSearchPage.tsx', 1],
   ['raw-react-query', 'apps/hub-console/src/features/myview/MyViewPage.tsx', 1],
   ['raw-react-query', 'apps/hub-console/src/features/overview/sub/BaselineStates.tsx', 1],
   ['raw-react-query', 'apps/hub-console/src/features/pm/PmCreatePanel.tsx', 1],

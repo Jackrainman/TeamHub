@@ -13,7 +13,7 @@ import type {
   CreateNeedRequest,
   CreateArtifactRequest,
 } from '@teamhub/hub-contracts';
-import type { KbCloseoutRequest } from '../src/api/schemas/kb';
+import type { KbCloseoutRequest } from '@teamhub/hub-contracts';
 import type {
   CreatePartTypeRequest,
   CreatePartActionRequest,

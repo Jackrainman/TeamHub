@@ -15,7 +15,7 @@ import { TestApplicationUnitOfWork } from './test-application-unit-of-work.js';
 
 type StoreOptionKey =
   | 'store'
-  | 'kbStore'
+  | 'knowledgeRepository'
   | 'inventoryRepository'
   | 'artifactRepository'
   | 'baselineRepository'
@@ -49,7 +49,7 @@ export function buildTestHubServer(options: BuildTestHubServerOptions = {}) {
     store: options.store ?? new InMemoryGovStore(undefined, clock),
     artifactRepository:
       options.artifactRepository ?? new InMemoryArtifactRepository(undefined, clock),
-    kbStore: options.kbStore ?? new InMemoryKbStore(),
+    knowledgeRepository: options.knowledgeRepository ?? new InMemoryKbStore(),
     inventoryRepository,
     baselineRepository:
       options.baselineRepository ?? new InMemoryBaselineStore(),

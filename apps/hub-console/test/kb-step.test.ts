@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { KbImportDocsReportSchema } from '../src/api/schemas/kb';
+import { KbImportDocsReportSchema } from '@teamhub/hub-contracts';
 import {
   KB_DOC_ACCEPT,
   kbImportReportCounts,

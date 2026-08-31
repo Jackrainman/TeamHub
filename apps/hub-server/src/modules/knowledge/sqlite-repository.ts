@@ -1,18 +1,22 @@
 import type { ArchiveDocument, KbSnapshot } from '@teamhub/hub-contracts';
 import { kbScenarioFixture } from '@teamhub/hub-contracts';
-import type { SqliteDatabase } from './sqlite-db.js';
-import type { KbAddArchiveDocsResult, KbCloseoutAppend, KbStore } from './gov-store.js';
+import type { SqliteDatabase } from '../../store/sqlite-db.js';
+import type {
+  KbAddArchiveDocsResult,
+  KbCloseoutAppend,
+  KnowledgeRepository,
+} from './repository.js';
 
 const KB_TABLES = ['kb_issue_cards', 'kb_error_entries', 'kb_archive_documents'] as const;
 
-export class SqliteKbStore implements KbStore {
+export class SqliteKnowledgeRepository implements KnowledgeRepository {
   private readonly sdb: SqliteDatabase;
 
   private constructor(sdb: SqliteDatabase) {
     this.sdb = sdb;
   }
 
-  static fromSharedDb(sdb: SqliteDatabase, seed: KbSnapshot = kbScenarioFixture): SqliteKbStore {
+  static fromSharedDb(sdb: SqliteDatabase, seed: KbSnapshot = kbScenarioFixture): SqliteKnowledgeRepository {
     sdb.ensureEntityTables(KB_TABLES);
     if (sdb.getMeta('kb_projectId') === undefined) {
       sdb.tx(() => {
@@ -22,7 +26,7 @@ export class SqliteKbStore implements KbStore {
         sdb.bulkInsert('kb_archive_documents', seed.archiveDocuments.map((d) => ({ id: d.issueId, ...d })));
       });
     }
-    return new SqliteKbStore(sdb);
+    return new SqliteKnowledgeRepository(sdb);
   }
 
   async getKbSnapshot(): Promise<KbSnapshot> {

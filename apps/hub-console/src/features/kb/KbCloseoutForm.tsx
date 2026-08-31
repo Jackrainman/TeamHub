@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { Archive, CheckCircle2 } from 'lucide-react';
 import type { IssueSeverity, ArchiveGeneratedBy } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
-import type { KbCloseoutRequest } from '../../api/schemas/kb';
+import type { KbCloseoutRequest } from '@teamhub/hub-contracts';
 import { useHubMutation } from '../../hooks/useHubMutation';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { parseList } from '../../utils';

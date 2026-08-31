@@ -3,7 +3,6 @@ import { normalizeBaseUrl } from './http';
 import { createSystemPmSegment, type SystemPmSegment } from './segments/system-pm';
 import { createScheduleSegment, type ScheduleSegment } from './segments/schedule';
 import { createMembersSegment, type MembersSegment } from './segments/members';
-import { createDomainSegment, type DomainSegment } from './segments/domain';
 import {
   createReimburseSegment,
   type ReimburseSegment,
@@ -24,6 +23,10 @@ import {
   createArchiveSegment,
   type ArchiveSegment,
 } from '../features/archive/api';
+import {
+  createKnowledgeSegment,
+  type KnowledgeSegment,
+} from '../features/kb/api';
 
 export interface HubApiClientOptions {
   baseUrl?: string;
@@ -34,12 +37,12 @@ export interface HubApiClientOptions {
 export type HubApiClient = SystemPmSegment &
   ScheduleSegment &
   MembersSegment &
-  DomainSegment &
   ReimburseSegment &
   ChecklistSegment &
   BaselineSegment &
   InventorySegment &
-  ArchiveSegment;
+  ArchiveSegment &
+  KnowledgeSegment;
 
 export function createHubApiClient(options: HubApiClientOptions = {}): HubApiClient {
   const ctx: HttpContext = {
@@ -51,11 +54,11 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
     ...createSystemPmSegment(ctx),
     ...createScheduleSegment(ctx),
     ...createMembersSegment(ctx),
-    ...createDomainSegment(ctx),
     ...createReimburseSegment(ctx),
     ...createChecklistSegment(ctx),
     ...createBaselineSegment(ctx),
     ...createInventorySegment(ctx),
     ...createArchiveSegment(ctx),
+    ...createKnowledgeSegment(ctx),
   };
 }

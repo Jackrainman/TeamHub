@@ -16,7 +16,7 @@ import { SessionManager } from './identity/session-store.js';
 import { FixedClock } from './clock.js';
 import type { Clock } from './clock.js';
 import type { ReimburseRepository } from './modules/reimburse/repository.js';
-import type { GovStore, KbStore } from './store/gov-store.js';
+import type { GovStore } from './store/gov-store.js';
 import { BaselineService } from './modules/baseline/service.js';
 import type { BaselineRepository } from './modules/baseline/repository.js';
 import { ChecklistService } from './modules/checklist/service.js';
@@ -28,7 +28,11 @@ import { tryServeStaticConsole } from './static-console.js';
 import { registerSearchRoutes } from './routes/search.js';
 import { registerExportRoutes } from './routes/export.js';
 import { registerGovReportRoutes } from './routes/gov-report.js';
-import { registerKnowledgeBaseRoutes } from './routes/kb.js';
+import {
+  KnowledgeService,
+  registerKnowledgeRoutes,
+} from './modules/knowledge/index.js';
+import type { KnowledgeRepository } from './modules/knowledge/index.js';
 import { registerInventoryRoutes, InventoryService } from './modules/inventory/index.js';
 import type { InventoryReadPort, InventoryRepository } from './modules/inventory/index.js';
 import { registerReimburseRoutes, ReimburseService } from './modules/reimburse/index.js';
@@ -85,12 +89,11 @@ export interface BuildHubServerOptions {
    */
   clock?: Clock;
   /**
-   * 战队知识库相似检索语料读出入口（KB-CORE）。**base 收口刀对抗核实修正已兑现**：相似检索语料
-   * （IssueCard/ErrorEntry/ArchiveDocument）不在 GovernanceSnapshot 内，故 kbStore 由 GovStore 收窄为
-   * 独立 `KbStore`（getKbSnapshot；见 store/gov-store.ts）。结案派生 KnowledgeNode 那半仍走 `store`
-   * （GovStore.closeoutKbNode，复用同一 GovernanceSnapshot）。由 `GET /api/kb/similar` 消费（见下方路由）。
+   * 知识库域 repository（ARCH-UNIFY A4；原 KbStore 收窄点）：相似检索语料
+   * （IssueCard/ErrorEntry/ArchiveDocument）不在 GovernanceSnapshot 内，故独立 port。
+   * 结案派生 KnowledgeNode 那半经窄口 KnowledgeNodeCloseoutPort 适配 `store.closeoutKbNode`。
    */
-  kbStore: KbStore;
+  knowledgeRepository: KnowledgeRepository;
   /**
    * 库存 / BOM repository（ARCH-UNIFY A4 库存域；原 InvStore 扩展点，D-042 决策 4）。
    * INV 是唯一需扩 schema 的支柱（InventorySnapshot 不在 GovernanceSnapshot 内），故走独立
@@ -188,7 +191,6 @@ declare module 'fastify' {
 interface ModuleRouteCtx {
   store: GovStore;
   clock: Clock;
-  kbStore: KbStore;
   inventoryRead: InventoryReadPort;
   // BASELINE-CORE：S4 起由 registerPmCoreRoutes 的 GET/PATCH /api/baseline + 过门路由消费。
   baselineService: BaselineService;
@@ -231,7 +233,8 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
   const store = options.store;
   // 组合根通常已 ensure；这里保留幂等兜底，确保所有显式注入实现具备默认组树。
   void store.ensureDefaultGroups();
-  const kbStore = options.kbStore;
+  const knowledgeRepository = options.knowledgeRepository;
+  const knowledgeService = new KnowledgeService(knowledgeRepository, store, clock);
   const inventoryRepository = options.inventoryRepository;
   const inventoryService = new InventoryService(inventoryRepository, {
     listResources: () => store.listResources(),
@@ -292,7 +295,6 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
   const ctx: ModuleRouteCtx = {
     store,
     clock,
-    kbStore,
     inventoryRead: inventoryRepository,
     baselineService,
     checklistService,
@@ -333,7 +335,11 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
     registerPmCoreRoutes(app, ctx);
   }
   if (moduleEnabled('knowledge-base')) {
-    registerKnowledgeBaseRoutes(app, { store, clock, kbStore, identityMode });
+    registerKnowledgeRoutes(app, {
+      service: knowledgeService,
+      identityMode,
+      requireSuperAdmin: (request, reply) => requireSuperAdmin(store, request, reply),
+    });
   }
   if (moduleEnabled('ledger')) {
     registerInventoryRoutes(app, {
@@ -350,7 +356,7 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
     registerPresenceScheduleRoutes(app, { store, clock });
   }
 
-  registerSearchRoutes(app, { store, kbStore, inventoryRead: inventoryRepository });
+  registerSearchRoutes(app, { store, knowledgeRead: knowledgeRepository, inventoryRead: inventoryRepository });
   registerExportRoutes(app, { store, inventoryRead: inventoryRepository });
   // GOV-REPORT：项目级汇报导出（拍板=B 文件形态，随 export 族常挂）
   registerGovReportRoutes(app, { store, inventoryRead: inventoryRepository, baselineRepository });

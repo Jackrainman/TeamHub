@@ -83,7 +83,7 @@ async function login(app: ReturnType<typeof buildTestHubServer>, memberId: strin
 describe('POST /api/kb/import-docs — 匿名模式', () => {
   test('多文件导入落库：generatedBy=manual 钉住、title=文件名去后缀、只进 archiveDocuments', async () => {
     const kbStore = new InMemoryKbStore(emptyKb());
-    const app = buildTestHubServer({ kbStore });
+    const app = buildTestHubServer({ knowledgeRepository: kbStore });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -121,7 +121,7 @@ describe('POST /api/kb/import-docs — 匿名模式', () => {
 
   test('幂等：同 title 重导 → skipped 不翻倍；同批同名文件也只取首条', async () => {
     const kbStore = new InMemoryKbStore(emptyKb());
-    const app = buildTestHubServer({ kbStore });
+    const app = buildTestHubServer({ knowledgeRepository: kbStore });
     try {
       const files = [{ name: 'notes.md', content: '# 笔记 v1' }];
       const first = await app.inject({
@@ -165,7 +165,7 @@ describe('POST /api/kb/import-docs — 匿名模式', () => {
 
   test('非 md 后缀 → skipped 记原因，不落库；md 文件同批照常导入', async () => {
     const kbStore = new InMemoryKbStore(emptyKb());
-    const app = buildTestHubServer({ kbStore });
+    const app = buildTestHubServer({ knowledgeRepository: kbStore });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -189,7 +189,7 @@ describe('POST /api/kb/import-docs — 匿名模式', () => {
 
   test('非 multipart 请求体 → 400，不落库', async () => {
     const kbStore = new InMemoryKbStore(emptyKb());
-    const app = buildTestHubServer({ kbStore });
+    const app = buildTestHubServer({ knowledgeRepository: kbStore });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -211,7 +211,7 @@ describe('POST /api/kb/import-docs — 身份模式鉴权（无空板豁免，�
   test('已登录但非持旗成员 → 403', async () => {
     const app = buildTestHubServer({
       store: new InMemoryGovStore(seedGov([member({ id: 'm-plain', displayName: '普通成员' })])),
-      kbStore: new InMemoryKbStore(emptyKb()),
+      knowledgeRepository: new InMemoryKbStore(emptyKb()),
       identityMode: 'identity',
     });
     try {
@@ -235,7 +235,7 @@ describe('POST /api/kb/import-docs — 身份模式鉴权（无空板豁免，�
       store: new InMemoryGovStore(
         seedGov([member({ id: 'm-boss', displayName: '队长', projectManager: true })]),
       ),
-      kbStore,
+      knowledgeRepository: kbStore,
       identityMode: 'identity',
     });
     try {
@@ -258,7 +258,7 @@ describe('POST /api/kb/import-docs — 身份模式鉴权（无空板豁免，�
   test('无会话 → 401（写门「须有会话」段先挡，无空板豁免）', async () => {
     const app = buildTestHubServer({
       store: new InMemoryGovStore(seedGov([member({ id: 'm-plain', displayName: '普通成员' })])),
-      kbStore: new InMemoryKbStore(emptyKb()),
+      knowledgeRepository: new InMemoryKbStore(emptyKb()),
       identityMode: 'identity',
     });
     try {
@@ -277,7 +277,7 @@ describe('POST /api/kb/import-docs — 身份模式鉴权（无空板豁免，�
 describe('写门 × writeToken（匿名模式走 Bearer，照名册/库存双轨范式）', () => {
   test('匿名 + 配 writeToken：无 Bearer 401；带 Bearer 200', async () => {
     const app = buildTestHubServer({
-      kbStore: new InMemoryKbStore(emptyKb()),
+      knowledgeRepository: new InMemoryKbStore(emptyKb()),
       writeToken: 'sekret',
     });
     try {

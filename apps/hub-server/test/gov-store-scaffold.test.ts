@@ -103,7 +103,7 @@ describe('base 收口刀: GovStore 写白名单 + 扩展点 + 持久化切换合
     const kbStore = new InMemoryKbStore(); // KB 相似检索语料独立 KbStore（IssueCard 不在治理快照内）
     const inventoryRepository: InventoryRepository = new InMemoryInvStore(); // INV 独立 repository（ARCH-UNIFY A4）
 
-    const app = buildTestHubServer({ store: shared, kbStore, inventoryRepository });
+    const app = buildTestHubServer({ store: shared, knowledgeRepository: kbStore, inventoryRepository });
     try {
       const health = await app.inject({ method: 'GET', url: '/health' });
       expect(health.statusCode).toBe(200);

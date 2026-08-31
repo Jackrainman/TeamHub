@@ -30,7 +30,7 @@ import { SqliteDatabase } from './sqlite-db.js';
 import { SqliteGovRepository } from './sqlite-gov-repository.js';
 import { SqliteInventoryRepository } from '../modules/inventory/sqlite-repository.js';
 import { SqliteArtifactRepository } from '../modules/archive/sqlite-repository.js';
-import { SqliteKbStore } from './sqlite-kb-store.js';
+import { SqliteKnowledgeRepository } from '../modules/knowledge/sqlite-repository.js';
 import { SqliteReimburseRepository } from '../modules/reimburse/sqlite-repository.js';
 
 export const TEAMHUB_UNIFIED_SCHEMA_VERSION = 2;
@@ -80,7 +80,7 @@ const TEAMHUB_BUSINESS_META_KEYS = [
 
 export interface UnifiedStores {
   gov: GovStore;
-  kb: SqliteKbStore;
+  kb: SqliteKnowledgeRepository;
   inv: SqliteInventoryRepository;
   archive: SqliteArtifactRepository;
   baseline: BaselineRepository;
@@ -189,7 +189,7 @@ function assembleStores(
 ): UnifiedStores {
   return {
     gov: SqliteGovRepository.fromSharedDb(db, seeds.gov, clock, seeds.demoSeed),
-    kb: SqliteKbStore.fromSharedDb(db, seeds.kb),
+    kb: SqliteKnowledgeRepository.fromSharedDb(db, seeds.kb),
     inv: SqliteInventoryRepository.fromSharedDb(db, seeds.inv, clock),
     archive: SqliteArtifactRepository.fromSharedDb(db, seeds.artifacts, clock),
     baseline: SqliteBaselineRepository.fromSharedDb(db, seeds.baseline),

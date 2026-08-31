@@ -6,7 +6,12 @@ import {
   UpdateBaselineRequestSchema,
   UpdateBaselineResponseSchema,
 } from '@teamhub/hub-contracts';
-import { BaselineQuerySchema } from '../../route-schemas.js';
+import { z } from 'zod';
+
+/** 基准线 querystring（server 专用）。 */
+const BaselineQuerySchema = z.object({
+  seasonId: z.string().min(1),
+});
 import {
   parseBody,
   parseQuery,

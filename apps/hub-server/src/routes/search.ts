@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import type { GovStore, KbStore } from '../store/gov-store.js';
+import type { GovStore } from '../store/gov-store.js';
 import type { InventoryReadPort } from '../modules/inventory/repository.js';
+import type { KnowledgeReadPort } from '../modules/knowledge/repository.js';
 import { parseQuery } from './helpers.js';
 
 const SearchQuerySchema = z.object({
@@ -10,7 +11,7 @@ const SearchQuerySchema = z.object({
 
 export interface SearchRouteDeps {
   store: GovStore;
-  kbStore: KbStore;
+  knowledgeRead: KnowledgeReadPort;
   inventoryRead: InventoryReadPort;
 }
 
@@ -22,7 +23,7 @@ export interface SearchResult {
 }
 
 export function registerSearchRoutes(app: FastifyInstance, deps: SearchRouteDeps): void {
-  const { store, kbStore, inventoryRead } = deps;
+  const { store, knowledgeRead, inventoryRead } = deps;
 
   app.get('/api/search', async (request, reply) => {
     const query = parseQuery(SearchQuerySchema, request, reply, 'q parameter required (1-100 chars)');
@@ -45,7 +46,7 @@ export function registerSearchRoutes(app: FastifyInstance, deps: SearchRouteDeps
       }
     }
 
-    const kb = await kbStore.getKbSnapshot();
+    const kb = await knowledgeRead.getKbSnapshot();
     for (const card of kb.issueCards) {
       if (
         card.symptomSummary.toLowerCase().includes(q) ||

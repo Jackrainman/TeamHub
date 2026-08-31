@@ -4,8 +4,8 @@ import { cloneArrayFields } from '../../src/store/clone-snapshot.js';
 import type {
   KbAddArchiveDocsResult,
   KbCloseoutAppend,
-  KbStore,
-} from '../../src/store/gov-store.js';
+  KnowledgeRepository,
+} from '../../src/modules/knowledge/repository.js';
 
 /** 语料快照的三数组字段（appendCloseout upsert 触及的集合）——构造期克隆隔离 + getKbSnapshot 浅拷贝共用。 */
 const KB_ARRAY_FIELDS: (keyof KbSnapshot)[] = [
@@ -21,7 +21,7 @@ const KB_ARRAY_FIELDS: (keyof KbSnapshot)[] = [
  *
  * 写：`appendCloseout` 回灌结案派生物（AI+知识库闭环），让 closeout 上传后下次 similar 可召回。
  */
-export class InMemoryKbStore implements KbStore {
+export class InMemoryKbStore implements KnowledgeRepository {
   private readonly snapshot: KbSnapshot;
 
   constructor(seed: KbSnapshot = kbScenarioFixture) {

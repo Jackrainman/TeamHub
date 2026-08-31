@@ -85,7 +85,7 @@ async function main(): Promise<void> {
     consoleDistDir: process.env.TEAMHUB_CONSOLE_DIST_DIR,
     store: stores.gov,
     clock,
-    kbStore: stores.kb,
+    knowledgeRepository: stores.kb,
     inventoryRepository: stores.inv,
     artifactRepository: stores.archive,
     baselineRepository: stores.baseline,
