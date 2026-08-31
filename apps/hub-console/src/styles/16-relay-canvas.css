@@ -756,6 +756,15 @@
   font-size: var(--text-xs);
   color: var(--muted);
 }
+/* STAGE-PIPELINE Step2.5：里程碑 stage 改挂下拉（行内紧凑控件，随 meta 行字号）。 */
+.baseline-ms__stage-select {
+  padding: 1px 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-xs);
+}
 .baseline-ms__note {
   margin: 2px 0 0;
   font-size: var(--text-xs);

@@ -5,13 +5,16 @@ import {
   deriveGroupsBehind,
   deriveInvestmentWarnings,
   deriveTimeAccumulationFlags,
+  STAGE_PIPELINE_STAGES,
   type BaselineMilestonePublic,
   type GateChecklistItem,
   type MemberPublic,
+  type MilestoneStage,
   type SeasonBaselinePublic,
   type Task,
 } from '@teamhub/hub-contracts';
 import type { ChecklistSegment } from '../../checklist';
+import { useUpdateBaseline, type BaselineSegment } from '../../baseline';
 import type { PageIdentityCtx } from '../../../console-pages';
 import { useI18n } from '../../../i18n';
 import { CountUpNumber } from '../../../components/viz/CountUpNumber';
@@ -47,7 +50,7 @@ export function BaselineTimeline({
   groupName: (id: string) => string;
   taskTitle: (id: string) => string;
   seasonName?: string;
-  client: ChecklistSegment;
+  client: ChecklistSegment & BaselineSegment;
   seasonId: string;
   source: string;
   identity: PageIdentityCtx;
@@ -56,6 +59,16 @@ export function BaselineTimeline({
 }) {
   const { t } = useI18n();
   const nowMs = now.getTime();
+
+  // STAGE-PIPELINE Step2.5：里程碑 stage 改挂入口（下拉即存，PATCH 全量 milestones 回写）。
+  const updateBaseline = useUpdateBaseline(client, source, seasonId);
+  const setMilestoneStage = (milestoneId: string, stage: MilestoneStage | '') => {
+    updateBaseline.mutate({
+      milestones: baseline.milestones.map((x) =>
+        x.id === milestoneId ? { ...x, stage: stage === '' ? undefined : stage } : x,
+      ),
+    });
+  };
 
   const drift = deriveBaselineDrift(baseline, tasks, now);
   const driftById = useMemo(() => new Map(drift.map((d) => [d.milestoneId, d])), [drift]);
@@ -234,6 +247,24 @@ export function BaselineTimeline({
                     {t(m.kind === 'gate' ? 'enum.milestone.gate' : 'enum.milestone.milestone')}
                   </span>
                   {m.robotVersion ? <span className="baseline-chip">{m.robotVersion}</span> : null}
+                  {identity.canWrite ? (
+                    <select
+                      className="baseline-ms__stage-select"
+                      value={m.stage ?? ''}
+                      disabled={updateBaseline.isPending}
+                      onChange={(e) => setMilestoneStage(m.id, e.target.value as MilestoneStage | '')}
+                      aria-label={t('overview.baseline.stage.label')}
+                    >
+                      <option value="">{t('overview.baseline.stage.none')}</option>
+                      {STAGE_PIPELINE_STAGES.map((s) => (
+                        <option key={s} value={s}>
+                          {t(`workbench.stage.${s}`)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : m.stage ? (
+                    <span className="baseline-chip">{t(`workbench.stage.${m.stage}`)}</span>
+                  ) : null}
                   <span>{t('overview.baseline.plannedAt', { date: dateOf(m.plannedAt) })}</span>
                 </span>
                 {m.note ? <p className="baseline-ms__note">{m.note}</p> : null}
