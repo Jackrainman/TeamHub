@@ -1,5 +1,5 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import type { SessionIdentity, ActorRef, ScheduleSnapshot } from '@teamhub/hub-contracts';
+import type { SessionIdentity, ActorRef } from '@teamhub/hub-contracts';
 import type { GovStore } from '../store/gov-store.js';
 import { isSuperAdmin } from '../authz.js';
 import { isApplicationError } from '../application/application-error.js';
@@ -159,14 +159,4 @@ export function buildSessionCookie(token: string): string {
 
 export function clearSessionCookie(): string {
   return `${SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0`;
-}
-
-export async function buildScheduleSnapshot(store: GovStore): Promise<ScheduleSnapshot> {
-  const [snapshot, resources, resourceSessions, relayHandoffs] = await Promise.all([
-    store.getSnapshot(),
-    store.listResources(),
-    store.listResourceSessions(),
-    store.listRelayHandoffs(),
-  ]);
-  return { ...snapshot, resources, resourceSessions, relayHandoffs };
 }

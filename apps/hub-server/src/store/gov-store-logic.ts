@@ -5,14 +5,11 @@ import type {
   KnowledgeNode,
   Member,
   Need,
-  RelayHandoff,
-  ResourceSession,
   Season,
-  SharedResource,
   Task,
   TaskStatus,
 } from '@teamhub/hub-contracts';
-import { deriveDisplayCode, deriveLeafGroups } from '@teamhub/hub-contracts';
+import { deriveLeafGroups } from '@teamhub/hub-contracts';
 import {
   DEPENDENCY_INITIAL_STATUS,
   DEPENDENCY_WAIVED_STATUS,
@@ -22,10 +19,6 @@ import {
   MEMBER_ROLE_UPDATED_BY,
   MEMBER_ROSTER_UPDATED_BY,
   NEED_INITIAL_STATUS,
-  RELAY_HANDOFF_SOURCE,
-  RESOURCE_DEFAULT_STATUS,
-  RESOURCE_SESSION_SOURCE,
-  RESOURCE_STATUS_SOURCE,
   ROSTER_IMPORT_GROUP_KIND,
   ROSTER_IMPORT_MEMBER_STATUS,
   TASK_DEFAULT_STATUS,
@@ -36,12 +29,6 @@ import type {
   DependencyDraft,
   KnowledgeNodeDraft,
   NeedDraft,
-  RelayHandoffDraft,
-  ResourceDefaultPresetPatch,
-  ResourceDraft,
-  ResourceSessionDraft,
-  ResourceSessionPatch,
-  ResourceStatusPatch,
   SeasonDraft,
   TaskDraft,
 } from './gov-store.js';
@@ -220,52 +207,10 @@ export function buildCreatedKbNode(draft: KnowledgeNodeDraft, id: string, now: s
 }
 
 /** 建车：displayCode 在 store 内派生（禁手写）——给了 season 才有，否则 undefined（读视图回退 name）。 */
-export function buildCreatedResource(draft: ResourceDraft, id: string, now: string): SharedResource {
-  const displayCode =
-    draft.season !== undefined
-      ? deriveDisplayCode(draft.season, draft.robotTarget, draft.version ?? 1)
-      : undefined;
-  return {
-    ...draft,
-    id,
-    status: RESOURCE_DEFAULT_STATUS,
-    statusReason: null,
-    statusSource: RESOURCE_STATUS_SOURCE,
-    displayCode,
-    updatedAt: now,
-  };
-}
 
-export function buildCreatedResourceSession(
-  draft: ResourceSessionDraft,
-  id: string,
-  now: string,
-): ResourceSession {
-  return { ...draft, id, source: RESOURCE_SESSION_SOURCE, createdAt: now };
-}
 
 /** 批量原子创建：逐条补 id + 钉 source，**invitedMemberIds 恒强制清空 []**（I0 双保险，不信任 draft）。 */
-export function buildCreatedResourceSessionsBatch(
-  drafts: readonly ResourceSessionDraft[],
-  nextId: () => string,
-  now: string,
-): ResourceSession[] {
-  return drafts.map((draft) => ({
-    ...draft,
-    id: nextId(),
-    source: RESOURCE_SESSION_SOURCE,
-    invitedMemberIds: [],
-    createdAt: now,
-  }));
-}
 
-export function buildCreatedRelayHandoff(
-  draft: RelayHandoffDraft,
-  id: string,
-  now: string,
-): RelayHandoff {
-  return { ...draft, id, source: RELAY_HANDOFF_SOURCE, createdAt: now };
-}
 
 export function buildCreatedSeason(draft: SeasonDraft, id: string): Season {
   return { ...draft, id, status: 'active' };
@@ -310,44 +255,10 @@ export function applyMemberRole(prev: Member, role: Member['role'], now: string)
 }
 
 /** 车状态迁移：statusReason 未传（undefined）保留旧值、显式 null 清空、给值改写；statusSource 钉 console。 */
-export function applyResourceStatus(
-  prev: SharedResource,
-  patch: ResourceStatusPatch,
-  now: string,
-): SharedResource {
-  return {
-    ...prev,
-    status: patch.status,
-    statusReason: patch.statusReason !== undefined ? patch.statusReason : prev.statusReason,
-    statusSource: RESOURCE_STATUS_SOURCE,
-    updatedAt: now,
-  };
-}
 
 /** 车默认阵型整体写回：preset===null → 整条不含 defaultPreset 键（schema .optional() 非 .nullable()）。 */
-export function applyResourceDefaultPreset(
-  prev: SharedResource,
-  preset: ResourceDefaultPresetPatch,
-  now: string,
-): SharedResource {
-  if (preset === null) {
-    const { defaultPreset: _drop, ...rest } = prev;
-    return { ...rest, updatedAt: now };
-  }
-  return { ...prev, defaultPreset: preset, updatedAt: now };
-}
 
 /** 占用窗口受限编辑：只改 orderInWindow / eta（传了才改、eta 显式 null=清空）。 */
-export function applyResourceSessionPatch(
-  prev: ResourceSession,
-  patch: ResourceSessionPatch,
-): ResourceSession {
-  return {
-    ...prev,
-    orderInWindow: patch.orderInWindow !== undefined ? patch.orderInWindow : prev.orderInWindow,
-    eta: patch.eta !== undefined ? patch.eta : prev.eta,
-  };
-}
 
 /** 软删除依赖边：转 status=waived，保留 confirmedBy/createdAt（G2 可审计）。 */
 export function applyDependencyWaive(prev: Dependency, now: string): Dependency {

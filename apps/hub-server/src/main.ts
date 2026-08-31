@@ -86,6 +86,7 @@ async function main(): Promise<void> {
     store: stores.gov,
     clock,
     knowledgeRepository: stores.kb,
+    scheduleRepository: stores.schedule,
     inventoryRepository: stores.inv,
     artifactRepository: stores.archive,
     baselineRepository: stores.baseline,

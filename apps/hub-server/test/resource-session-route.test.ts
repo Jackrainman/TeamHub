@@ -7,6 +7,7 @@ import {
   SCENARIO_WINDOW_WEEKDAY,
 } from '@teamhub/hub-contracts';
 import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryScheduleRepository } from './support/inmemory-schedule-store.js';
 
 // A2 接力画布「加/删一棒」后端：POST /api/resource-sessions（建一棒，R1 已存在，这里验「加」入口端到端）
 // + DELETE /api/resource-sessions/:id（删一棒 + **级联删引用它的接力交接线**，避免删卡后箭头悬空）。
@@ -61,7 +62,8 @@ async function postHandoff(
 describe('A2 加一棒（POST /api/resource-sessions）→ GET /api/relay 出现新卡', () => {
   test('POST 建一棒 → 201；server 钉 source=human；GET /api/relay 含该站', async () => {
     const store = new InMemoryGovStore();
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
       const id = await postSession(app, { orderInWindow: 2 });
       expect(id).toMatch(/^sess-new-/);
@@ -82,7 +84,8 @@ describe('A2 加一棒（POST /api/resource-sessions）→ GET /api/relay 出现
 describe('A2 删一棒（DELETE /api/resource-sessions/:id）', () => {
   test('DELETE 命中 → 200 { deleted }；GET /api/relay 不再含；再删同 id → 404', async () => {
     const store = new InMemoryGovStore();
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
       const id = await postSession(app);
 
@@ -112,7 +115,8 @@ describe('A2 删一棒（DELETE /api/resource-sessions/:id）', () => {
 
   test('级联：删一棒后引用它的接力交接线也消失（listRelayHandoffs / GET /api/relay 均不含）', async () => {
     const store = new InMemoryGovStore();
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
       // 两棒（a=seed 今晚 R1，b=新建第二棒）+ 一条 a→b 接力交接线
       const a = 'sess-tonight-ec'; // seed
@@ -127,7 +131,7 @@ describe('A2 删一棒（DELETE /api/resource-sessions/:id）', () => {
       expect(del.statusCode).toBe(200);
 
       // store 层：listRelayHandoffs 不再含这条
-      const handoffs = await store.listRelayHandoffs();
+      const handoffs = await scheduleStore.listRelayHandoffs();
       expect(handoffs.some((h) => h.id === handoffId)).toBe(false);
       expect(
         handoffs.some((h) => h.fromSessionId === b || h.toSessionId === b),
@@ -150,7 +154,8 @@ describe('A2 删一棒（DELETE /api/resource-sessions/:id）', () => {
 
   test('级联只清引用被删棒的线：删 fromSession 时其它无关交接线保留', async () => {
     const store = new InMemoryGovStore();
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
       // a=seed, b, c 三棒；线 a→b（引用 a/b）与 b→c（引用 b/c）。删 a 只应清掉 a→b，保留 b→c。
       const a = 'sess-tonight-ec';
@@ -165,7 +170,7 @@ describe('A2 删一棒（DELETE /api/resource-sessions/:id）', () => {
       });
       expect(del.statusCode).toBe(200);
 
-      const handoffs = await store.listRelayHandoffs();
+      const handoffs = await scheduleStore.listRelayHandoffs();
       expect(handoffs.some((h) => h.id === ab)).toBe(false); // 引用 a → 级联删
       expect(handoffs.some((h) => h.id === bc)).toBe(true); // 不引用 a → 保留
     } finally {
@@ -188,7 +193,8 @@ describe('A2 删一棒（DELETE /api/resource-sessions/:id）', () => {
 
   test('反监视红线：删一棒返回体无成员/确认人维度', async () => {
     const store = new InMemoryGovStore();
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
       const id = await postSession(app);
       const del = await app.inject({

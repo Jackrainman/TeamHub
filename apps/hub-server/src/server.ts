@@ -36,7 +36,11 @@ import type { KnowledgeRepository } from './modules/knowledge/index.js';
 import { registerInventoryRoutes, InventoryService } from './modules/inventory/index.js';
 import type { InventoryReadPort, InventoryRepository } from './modules/inventory/index.js';
 import { registerReimburseRoutes, ReimburseService } from './modules/reimburse/index.js';
-import { registerPresenceScheduleRoutes } from './routes/schedule.js';
+import {
+  ScheduleService,
+  registerScheduleRoutes,
+} from './modules/schedule/index.js';
+import type { ScheduleRepository } from './modules/schedule/index.js';
 import {
   ArchiveService,
   LocalArtifactFileStorage,
@@ -94,6 +98,12 @@ export interface BuildHubServerOptions {
    * 结案派生 KnowledgeNode 那半经窄口 KnowledgeNodeCloseoutPort 适配 `store.closeoutKbNode`。
    */
   knowledgeRepository: KnowledgeRepository;
+  /**
+   * 排班域 repository（ARCH-UNIFY A4；原 ScheduleStore 交叉进 GovStore，已摘出）：
+   * 共享资源车 + 占用窗口 + 接力交接线（不在 GovernanceSnapshot 内）。
+   * 派生所需治理快照经窄口 PmSnapshotReadPort 由 `store` 适配注入。
+   */
+  scheduleRepository: ScheduleRepository;
   /**
    * 库存 / BOM repository（ARCH-UNIFY A4 库存域；原 InvStore 扩展点，D-042 决策 4）。
    * INV 是唯一需扩 schema 的支柱（InventorySnapshot 不在 GovernanceSnapshot 内），故走独立
@@ -236,8 +246,10 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
   const knowledgeRepository = options.knowledgeRepository;
   const knowledgeService = new KnowledgeService(knowledgeRepository, store, clock);
   const inventoryRepository = options.inventoryRepository;
+  const scheduleRepository = options.scheduleRepository;
+  const scheduleService = new ScheduleService(scheduleRepository, store, clock);
   const inventoryService = new InventoryService(inventoryRepository, {
-    listResources: () => store.listResources(),
+    listResources: () => scheduleRepository.listResources(),
   });
   const baselineRepository = options.baselineRepository;
   const checklistRepository = options.checklistRepository;
@@ -353,13 +365,13 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
     });
   }
   if (moduleEnabled('presence-schedule')) {
-    registerPresenceScheduleRoutes(app, { store, clock });
+    registerScheduleRoutes(app, { service: scheduleService });
   }
 
   registerSearchRoutes(app, { store, knowledgeRead: knowledgeRepository, inventoryRead: inventoryRepository });
-  registerExportRoutes(app, { store, inventoryRead: inventoryRepository });
+  registerExportRoutes(app, { store, inventoryRead: inventoryRepository, scheduleRead: scheduleRepository });
   // GOV-REPORT：项目级汇报导出（拍板=B 文件形态，随 export 族常挂）
-  registerGovReportRoutes(app, { store, inventoryRead: inventoryRepository, baselineRepository });
+  registerGovReportRoutes(app, { store, inventoryRead: inventoryRepository, baselineRepository, scheduleRead: scheduleRepository });
 
   if (options.larkStore) {
     registerLarkRoutes(app, { store, clock, baselineRepository, larkStore: options.larkStore, trustProxy });

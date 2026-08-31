@@ -1,12 +1,8 @@
 import type { PmCoreStore } from './pm-core-store.js';
-import type { ScheduleStore } from './schedule-store.js';
 
-// 域接口 + 其 Draft/Patch 类型的定义已按语义拆到独立文件（STORE-SPLIT-SQLITE，
-// product-redefine-2026-07 §4.4 / §9-③）；本文件 `export *` 全量转发，
-// 消费点（test/support fake / 旧 JSON decorator / sqlite-gov-repository.ts / server.ts）
-// 继续从 './gov-store.js' 导入、**零 import 路径改动**。
+// ARCH-UNIFY A4：schedule 域已摘出（modules/schedule，ScheduleRepository）；
+// 本文件只剩 pm-core 域接口转发。A5 拆 GovStore 时本文件随 pm-core-store 一并归 pm 模块。
 export * from './pm-core-store.js';
-export * from './schedule-store.js';
 
 /**
  * `GovStore`（product-redefine-2026-07 §4.4 / §9-③ STORE-SPLIT-SQLITE）：三支柱共享底座的读写
@@ -25,4 +21,4 @@ export * from './schedule-store.js';
  * id 生成 / clamp 初始态默认值已抽独立纯函数模块（见 id-sequence.ts / clamp-defaults.ts），
  * 三实现共享同一份策略——为 SQLite 增量迁移（SS3 后续刀）铺路。
  */
-export type GovStore = PmCoreStore & ScheduleStore;
+export type GovStore = PmCoreStore;

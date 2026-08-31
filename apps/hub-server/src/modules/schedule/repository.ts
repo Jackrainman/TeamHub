@@ -1,5 +1,6 @@
 import type {
   DefaultPreset,
+  GovernanceSnapshot,
   RelayHandoff,
   ResourceSession,
   ResourceStatus,
@@ -7,9 +8,9 @@ import type {
 } from '@teamhub/hub-contracts';
 
 /**
- * schedule 域写入口（STORE-SPLIT-SQLITE，product-redefine-2026-07 §4.4 / §9-③）：共享物理资源
- * （车）+ 差异化在场排班（D-029 占用窗口 / R1 接力交接线）——从原 god-interface `GovStore` 按语义
- * 拆出的第三个域接口，经交叉类型复合回 `GovStore`（见 gov-store.ts）。**8 个排班方法**
+ * schedule 域 repository port（ARCH-UNIFY A4；前身 store/schedule-store.ts 的 ScheduleStore，
+ * 再前身 god-interface `GovStore` 按语义拆出的域接口）：共享物理资源（车）+ 差异化在场排班
+ * （D-029 占用窗口 / R1 接力交接线）。**8 个排班方法**
  * （createResourceSession/createResourceSessionsBatch/updateResourceSession/deleteResourceSession/
  * listResourceSessions/createRelayHandoff/deleteRelayHandoff/listRelayHandoffs）此前**连 JSON 落盘先例
  * 都没有**（仅走内存，D-029 粗粒度临时、重启回 seed）——**SCHEDULE-PERSIST 已补齐**：旧 JSON decorator 落盘到
@@ -102,7 +103,7 @@ export type RelayHandoffDraft = Omit<
  *     无 list 全家桶 / 物理 delete 大部分口子（deleteResourceSession/deleteRelayHandoff 是本域仅有的两条物删，
  *     镜像 D-029 粗粒度临时数据的可回收语义）。
  */
-export interface ScheduleStore {
+export interface ScheduleRepository {
   /**
    * 共享物理资源（实车 / 测试台）只读。**为何独立读口**见本文件顶部注释。
    */
@@ -183,4 +184,20 @@ export interface ScheduleStore {
   createRelayHandoff(draft: RelayHandoffDraft): Promise<RelayHandoff>;
   /** 删一条接力交接线（DELETE /api/relay-handoffs/:id）。命中删除返回 true，不存在 false（路由转 404）。 */
   deleteRelayHandoff(id: string): Promise<boolean>;
+}
+
+/** 跨域只读窄口（§8.2）：export / gov-report / inventory holder 校验只读资源与窗口，不拿完整 repository。 */
+export type ScheduleResourcesReadPort = Pick<ScheduleRepository, 'listResources'>;
+export type ScheduleReadPort = Pick<
+  ScheduleRepository,
+  'listResources' | 'listResourceSessions' | 'listRelayHandoffs'
+>;
+
+/**
+ * 派生输入的治理快照读口（§8.2 跨域读）：derivePresenceSchedule / deriveRelayBoard / 批量窗口校验
+ * 需要 GovernanceSnapshot（tasks/dependencies/groups/…）。生产由 GovStore.getSnapshot 适配注入；
+ * A5 拆 GovStore 后归 pm 域读 port。
+ */
+export interface PmSnapshotReadPort {
+  getSnapshot(): Promise<GovernanceSnapshot>;
 }

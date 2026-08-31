@@ -3,7 +3,6 @@ import {
   buildDefaultGroupTree,
   deriveLeafGroups,
   governanceScenarioFixture,
-  scheduleScenarioFixture,
 } from '@teamhub/hub-contracts';
 import type {
   ActorRef,
@@ -14,11 +13,8 @@ import type {
   Member,
   MemberRole,
   Need,
-  RelayHandoff,
-  ResourceSession,
   RosterImportRow,
   Season,
-  SharedResource,
   Task,
   TaskKnowledgeTag,
   TaskStatus,
@@ -35,13 +31,7 @@ import type {
   GroupDraft,
   KnowledgeNodeDraft,
   NeedDraft,
-  RelayHandoffDraft,
   RenameGroupResult,
-  ResourceDefaultPresetPatch,
-  ResourceDraft,
-  ResourceSessionDraft,
-  ResourceSessionPatch,
-  ResourceStatusPatch,
   RosterImportOutcome,
   SetProjectManagerResult,
   SeasonDraft,
@@ -56,17 +46,10 @@ import {
   buildCreatedDependency,
   buildCreatedNeed,
   buildCreatedKbNode,
-  buildCreatedResource,
-  buildCreatedResourceSession,
-  buildCreatedResourceSessionsBatch,
-  buildCreatedRelayHandoff,
   buildCreatedSeason,
   applyMemberPin,
   applyMemberGateReviewer,
   applyMemberRole,
-  applyResourceStatus,
-  applyResourceDefaultPreset,
-  applyResourceSessionPatch,
   applyDependencyWaive,
   applyTaskStatusTransition,
   buildRosterMemberCreate,
@@ -111,6 +94,7 @@ import { SqliteDatabase } from './sqlite-db.js';
 /**
  * 域实体表清单（每张 `(id TEXT PRIMARY KEY, data TEXT NOT NULL)`，整实体 JSON 落 data 列）。
  * 表由统一库在首次打开时确保存在；实体 JSON 形状仍由 contracts schema 与 repository 行为测试约束。
+ * 本类只管 pm-core 八表 + meta 标量；schedule 三表归 modules/schedule、artifacts 归 modules/archive。
  */
 const ENTITY_TABLES = [
   // pm-core 域
@@ -122,17 +106,12 @@ const ENTITY_TABLES = [
   'needs',
   'knowledge_nodes',
   'task_knowledge_tags',
-  // ARCH-UNIFY A4：artifacts 表已摘出，归 modules/archive（本类不再读写）。
-  // schedule 域（不在 GovernanceSnapshot 内，走独立读口，与 InMemory/File 同）
-  'resources',
-  'resource_sessions',
-  'relay_handoffs',
+  // ARCH-UNIFY A4：artifacts 摘出归 modules/archive；schedule 摘出归 modules/schedule（本类不再读写）。
 ] as const;
 
 function seedFreshDatabase(
   sdb: SqliteDatabase,
   seed: GovernanceSnapshot,
-  demoSeed: boolean,
 ): void {
   sdb.tx(() => {
     sdb.setMeta('seasonId', seed.seasonId);
@@ -146,11 +125,6 @@ function seedFreshDatabase(
     sdb.bulkInsert('needs', seed.needs);
     sdb.bulkInsert('knowledge_nodes', seed.knowledgeNodes);
     sdb.bulkInsert('task_knowledge_tags', seed.taskKnowledgeTags);
-    if (demoSeed) {
-      sdb.bulkInsert('resources', scheduleScenarioFixture.resources);
-      sdb.bulkInsert('resource_sessions', scheduleScenarioFixture.resourceSessions);
-      sdb.bulkInsert('relay_handoffs', scheduleScenarioFixture.relayHandoffs);
-    }
   });
 }
 
@@ -167,9 +141,6 @@ export class SqliteGovRepository implements GovStore {
   private seasonSeq!: IdSequence;
   private memberSeq!: IdSequence;
   private groupSeq!: IdSequence;
-  private resourceSeq!: IdSequence;
-  private resourceSessionSeq!: IdSequence;
-  private relayHandoffSeq!: IdSequence;
 
   private constructor(sdb: SqliteDatabase, clock?: Clock) {
     this.sdb = sdb;
@@ -181,12 +152,11 @@ export class SqliteGovRepository implements GovStore {
     sdb: SqliteDatabase,
     seed: GovernanceSnapshot = governanceScenarioFixture,
     clock?: Clock,
-    demoSeed = true,
   ): SqliteGovRepository {
     sdb.ensureEntityTables(ENTITY_TABLES);
     const existing = sdb.allRows('tasks');
     if (existing.length === 0 && sdb.getMeta('seasonId') === undefined) {
-      seedFreshDatabase(sdb, seed, demoSeed);
+      seedFreshDatabase(sdb, seed);
     }
     return new SqliteGovRepository(sdb, clock);
   }
@@ -234,11 +204,6 @@ export class SqliteGovRepository implements GovStore {
     this.seasonSeq = createIdSequence(this.maxSuffix('seasons', 'season-new'));
     this.memberSeq = createIdSequence(this.maxSuffix('members', 'member-new'));
     this.groupSeq = createIdSequence(this.maxSuffix('groups', 'grp-new'));
-    this.resourceSeq = createIdSequence(this.maxSuffix('resources', 'res-new'));
-    this.resourceSessionSeq = createIdSequence(
-      this.maxSuffix('resource_sessions', 'sess-new'),
-    );
-    this.relayHandoffSeq = createIdSequence(this.maxSuffix('relay_handoffs', 'handoff-new'));
   }
 
   // ── 读 ────────────────────────────────────────────────────────────────────────────
@@ -618,127 +583,4 @@ export class SqliteGovRepository implements GovStore {
     });
   }
 
-  // ── schedule 域读写（车 + 占用窗口 + 接力交接线） ───────────────────────────────────
-
-  async listResources(): Promise<SharedResource[]> {
-    return this.allRows<SharedResource>('resources');
-  }
-
-  async createResource(draft: ResourceDraft): Promise<SharedResource> {
-    const now = this.clock.now().toISOString();
-    const resource = buildCreatedResource(
-      draft,
-      nextSequentialId('res-new', this.resourceSeq),
-      now,
-    );
-    this.tx(() => this.insertRow('resources', resource.id, resource));
-    return resource;
-  }
-
-  async updateResourceStatus(
-    id: string,
-    patch: ResourceStatusPatch,
-  ): Promise<SharedResource | null> {
-    return this.tx(() => {
-      const prev = this.getRow<SharedResource>('resources', id);
-      if (!prev) return null;
-      const updated = applyResourceStatus(prev, patch, this.clock.now().toISOString());
-      this.updateRow('resources', id, updated);
-      return updated;
-    });
-  }
-
-  async setResourceDefaultPreset(
-    id: string,
-    preset: ResourceDefaultPresetPatch,
-  ): Promise<SharedResource | null> {
-    return this.tx(() => {
-      const prev = this.getRow<SharedResource>('resources', id);
-      if (!prev) return null;
-      const updated = applyResourceDefaultPreset(prev, preset, this.clock.now().toISOString());
-      this.updateRow('resources', id, updated);
-      return updated;
-    });
-  }
-
-  async listResourceSessions(): Promise<ResourceSession[]> {
-    return this.allRows<ResourceSession>('resource_sessions');
-  }
-
-  async createResourceSession(
-    draft: ResourceSessionDraft,
-  ): Promise<ResourceSession> {
-    const now = this.clock.now().toISOString();
-    const session = buildCreatedResourceSession(
-      draft,
-      nextSequentialId('sess-new', this.resourceSessionSeq),
-      now,
-    );
-    this.tx(() => this.insertRow('resource_sessions', session.id, session));
-    return session;
-  }
-
-  async createResourceSessionsBatch(
-    drafts: ResourceSessionDraft[],
-  ): Promise<ResourceSession[]> {
-    const now = this.clock.now().toISOString();
-    return this.tx(() => {
-      const sessions = buildCreatedResourceSessionsBatch(
-        drafts,
-        () => nextSequentialId('sess-new', this.resourceSessionSeq),
-        now,
-      );
-      for (const session of sessions) {
-        this.insertRow('resource_sessions', session.id, session);
-      }
-      return sessions;
-    });
-  }
-
-  async updateResourceSession(
-    id: string,
-    patch: ResourceSessionPatch,
-  ): Promise<ResourceSession | null> {
-    return this.tx(() => {
-      const prev = this.getRow<ResourceSession>('resource_sessions', id);
-      if (!prev) return null;
-      const updated = applyResourceSessionPatch(prev, patch);
-      this.updateRow('resource_sessions', id, updated);
-      return updated;
-    });
-  }
-
-  async deleteResourceSession(id: string): Promise<boolean> {
-    return this.tx(() => {
-      if (this.deleteRow('resource_sessions', id) === 0) return false;
-      // 级联删除引用该 session 的接力交接线（fromSessionId/toSessionId 命中，避免悬空箭头）——
-      // 与本 session 删除同一事务原子落盘（消除 InMemory 注释里「session 没了但 handoff 悬空」的分叉窗口）。
-      const handoffs = this.allRows<RelayHandoff>('relay_handoffs');
-      for (const h of handoffs) {
-        if (h.fromSessionId === id || h.toSessionId === id) {
-          this.deleteRow('relay_handoffs', h.id);
-        }
-      }
-      return true;
-    });
-  }
-
-  async listRelayHandoffs(): Promise<RelayHandoff[]> {
-    return this.allRows<RelayHandoff>('relay_handoffs');
-  }
-
-  async createRelayHandoff(draft: RelayHandoffDraft): Promise<RelayHandoff> {
-    const now = this.clock.now().toISOString();
-    const handoff = buildCreatedRelayHandoff(
-      draft,
-      nextSequentialId('handoff-new', this.relayHandoffSeq),
-      now,
-    );
-    this.tx(() => this.insertRow('relay_handoffs', handoff.id, handoff));
-    return handoff;
-  }
-
-  async deleteRelayHandoff(id: string): Promise<boolean> {
-    return this.tx(() => this.deleteRow('relay_handoffs', id) > 0);
-  }
 }

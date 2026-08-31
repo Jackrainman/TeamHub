@@ -6,12 +6,14 @@ import {
 } from '@teamhub/hub-contracts';
 import type { GovStore } from '../store/gov-store.js';
 import type { InventoryReadPort } from '../modules/inventory/repository.js';
+import type { ScheduleReadPort } from '../modules/schedule/repository.js';
 import type { BaselineRepository } from '../modules/baseline/repository.js';
 
 export interface GovReportRouteDeps {
   store: GovStore;
   inventoryRead: InventoryReadPort;
   baselineRepository: BaselineRepository;
+  scheduleRead: ScheduleReadPort;
 }
 
 /**
@@ -20,7 +22,7 @@ export interface GovReportRouteDeps {
  * 数据全有：里程碑进度/任务完成/在场统计（I0 只到组与资源维度）/库存消耗。
  */
 export function registerGovReportRoutes(app: FastifyInstance, deps: GovReportRouteDeps): void {
-  const { store, inventoryRead, baselineRepository } = deps;
+  const { store, inventoryRead, baselineRepository, scheduleRead } = deps;
 
   app.get('/api/reports/governance', async (request, reply) => {
     const { format } = request.query as { format?: string };
@@ -29,8 +31,8 @@ export function registerGovReportRoutes(app: FastifyInstance, deps: GovReportRou
     const activeSeason = seasons.find((s) => s.status === 'active') ?? seasons[0];
     const baseline = activeSeason ? await baselineRepository.getBaseline(activeSeason.id) : null;
     const [resources, sessions, inventory] = await Promise.all([
-      store.listResources(),
-      store.listResourceSessions(),
+      scheduleRead.listResources(),
+      scheduleRead.listResourceSessions(),
       inventoryRead.getInventorySnapshot(),
     ]);
 

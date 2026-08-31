@@ -9,6 +9,7 @@ import {
   UpdateResourceResponseSchema,
 } from '@teamhub/hub-contracts';
 import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryScheduleRepository } from './support/inmemory-schedule-store.js';
 
 // R3 车管理（D-072 §3.2/§3.3）：建车（displayCode 派生、禁手写）/ 改状态（维修/退役 = 状态迁移、非物删）
 // + 持久化（建/退役的车落盘 resources.json，重启仍在）。镜像 POST /api/resource-sessions 的 safeParse→400/201。
@@ -16,8 +17,9 @@ import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
   test('POST /api/resources → 201；displayCode 由 deriveDisplayCode 派生 = 26R2（禁手写）', async () => {
     const store = new InMemoryGovStore();
-    const before = (await store.listResources()).length;
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const before = (await scheduleStore.listResources()).length;
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -41,7 +43,7 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
       expect(body.resource.statusReason).toBeNull();
       expect(body.resource.statusSource).toBe('console');
       // 落库
-      expect((await store.listResources()).length).toBe(before + 1);
+      expect((await scheduleStore.listResources()).length).toBe(before + 1);
       // I0：无成员维度
       expect(body.resource).not.toHaveProperty('memberId');
     } finally {
@@ -112,7 +114,8 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
 
   test('PATCH /api/resources/:id/status → repair（带 statusReason）生效；statusSource clamp console', async () => {
     const store = new InMemoryGovStore();
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
       const res = await app.inject({
         method: 'PATCH',
@@ -126,7 +129,7 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
       expect(body.resource.statusReason).toBe('撞坏底盘');
       expect(body.resource.statusSource).toBe('console');
       // 落库
-      const live = (await store.listResources()).find((r) => r.id === 'res-r1');
+      const live = (await scheduleStore.listResources()).find((r) => r.id === 'res-r1');
       expect(live?.status).toBe('repair');
     } finally {
       await app.close();
@@ -135,8 +138,9 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
 
   test('PATCH /api/resources/:id/status → retired（退役 = 状态迁移，整车仍在列表，无物删）', async () => {
     const store = new InMemoryGovStore();
-    const before = (await store.listResources()).length;
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const before = (await scheduleStore.listResources()).length;
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
       const res = await app.inject({
         method: 'PATCH',
@@ -147,7 +151,7 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
       const body = UpdateResourceResponseSchema.parse(res.json());
       expect(body.resource.status).toBe('retired');
       // 退役不物理删除：整车仍在列表（数量不减），仍可被 ResourceSession 引用
-      const after = await store.listResources();
+      const after = await scheduleStore.listResources();
       expect(after.length).toBe(before);
       expect(after.some((r) => r.id === 'res-r2')).toBe(true);
     } finally {
@@ -157,7 +161,8 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
 
   test('PATCH /api/resources/:id/status：statusReason 省略 → 不动既有 reason', async () => {
     const store = new InMemoryGovStore();
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
       // 先设一个 reason
       await app.inject({
@@ -182,7 +187,8 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
 
   test('PATCH /api/resources/:id/status：显式 null → 清空 statusReason', async () => {
     const store = new InMemoryGovStore();
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
       await app.inject({
         method: 'PATCH',
@@ -248,8 +254,9 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
 describe('POST /api/resources/batch（FLEET-BATCH-INIT 车队批量初始化）', () => {
   test('三台全过 → 201；displayCode 派生（27/R1/2 → 27R1-v2）、kind 默认 robot、建时 clamp available', async () => {
     const store = new InMemoryGovStore();
-    const before = (await store.listResources()).length;
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const before = (await scheduleStore.listResources()).length;
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -277,7 +284,7 @@ describe('POST /api/resources/batch（FLEET-BATCH-INIT 车队批量初始化）'
       expect(body.resources[0].statusReason).toBeNull();
       expect(body.resources[0].statusSource).toBe('console');
       // 落库 + I0 无成员维度
-      expect((await store.listResources()).length).toBe(before + 3);
+      expect((await scheduleStore.listResources()).length).toBe(before + 3);
       expect(body.resources[0]).not.toHaveProperty('memberId');
     } finally {
       await app.close();
@@ -286,7 +293,8 @@ describe('POST /api/resources/batch（FLEET-BATCH-INIT 车队批量初始化）'
 
   test('行带 status=repair（+statusReason）→ 建后补迁移落库；statusSource 钉 console（照单台迁移钉法）', async () => {
     const store = new InMemoryGovStore();
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -313,7 +321,7 @@ describe('POST /api/resources/batch（FLEET-BATCH-INIT 车队批量初始化）'
       expect(body.resources[1].statusSource).toBe('console');
       expect(body.resources[2].status).toBe('retired');
       // 迁移落库（重启口径同 store 层，这里断言 live 读回）
-      const live = await store.listResources();
+      const live = await scheduleStore.listResources();
       expect(live.find((r) => r.id === body.resources[1].id)?.status).toBe('repair');
       expect(live.find((r) => r.id === body.resources[2].id)?.status).toBe('retired');
     } finally {
@@ -323,9 +331,10 @@ describe('POST /api/resources/batch（FLEET-BATCH-INIT 车队批量初始化）'
 
   test('原子性：任一行坏（第 2 台缺 robotTarget）→ 400 整批不落，resources 快照零变化；detail 带第几台', async () => {
     const store = new InMemoryGovStore();
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
-      const snapshotBefore = JSON.stringify(await store.listResources());
+      const snapshotBefore = JSON.stringify(await scheduleStore.listResources());
       const res = await app.inject({
         method: 'POST',
         url: '/api/resources/batch',
@@ -340,7 +349,7 @@ describe('POST /api/resources/batch（FLEET-BATCH-INIT 车队批量初始化）'
       expect(res.statusCode).toBe(400);
       expect(res.json().detail).toContain('第 2 台');
       // 一台不落——含第 1 台好车也不落（全量先验、通过才落盘）
-      expect(JSON.stringify(await store.listResources())).toBe(snapshotBefore);
+      expect(JSON.stringify(await scheduleStore.listResources())).toBe(snapshotBefore);
     } finally {
       await app.close();
     }
@@ -348,8 +357,9 @@ describe('POST /api/resources/batch（FLEET-BATCH-INIT 车队批量初始化）'
 
   test('status 只收初始化四档：第 1 台 inUse → 400 整批不落', async () => {
     const store = new InMemoryGovStore();
-    const before = (await store.listResources()).length;
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const before = (await scheduleStore.listResources()).length;
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -359,7 +369,7 @@ describe('POST /api/resources/batch（FLEET-BATCH-INIT 车队批量初始化）'
         },
       });
       expect(res.statusCode).toBe(400);
-      expect((await store.listResources()).length).toBe(before);
+      expect((await scheduleStore.listResources()).length).toBe(before);
     } finally {
       await app.close();
     }

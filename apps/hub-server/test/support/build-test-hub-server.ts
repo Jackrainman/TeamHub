@@ -11,11 +11,13 @@ import { InMemoryGovStore } from './inmemory-gov-store.js';
 import { InMemoryInvStore } from './inmemory-inv-store.js';
 import { InMemoryKbStore } from './inmemory-kb-store.js';
 import { InMemoryReimburseStore } from './inmemory-reimburse-store.js';
+import { InMemoryScheduleRepository } from './inmemory-schedule-store.js';
 import { TestApplicationUnitOfWork } from './test-application-unit-of-work.js';
 
 type StoreOptionKey =
   | 'store'
   | 'knowledgeRepository'
+  | 'scheduleRepository'
   | 'inventoryRepository'
   | 'artifactRepository'
   | 'baselineRepository'
@@ -50,6 +52,7 @@ export function buildTestHubServer(options: BuildTestHubServerOptions = {}) {
     artifactRepository:
       options.artifactRepository ?? new InMemoryArtifactRepository(undefined, clock),
     knowledgeRepository: options.knowledgeRepository ?? new InMemoryKbStore(),
+    scheduleRepository: options.scheduleRepository ?? new InMemoryScheduleRepository(clock),
     inventoryRepository,
     baselineRepository:
       options.baselineRepository ?? new InMemoryBaselineStore(),

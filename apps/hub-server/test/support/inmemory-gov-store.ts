@@ -1,6 +1,5 @@
 import { InMemoryGovStoreBase } from './inmemory-gov-store-base.js';
 import { PmCoreMixin } from './inmemory-gov-store-pm.js';
-import { ScheduleMixin } from './inmemory-gov-store-schedule.js';
 
 /**
  * 内存实现（GOV-SPLIT，mock-gov-store 单文件 862 行按域拆分）：基座（状态 + 构造 + 持久层内部句柄，
@@ -11,5 +10,5 @@ import { ScheduleMixin } from './inmemory-gov-store-schedule.js';
  * 导出名 `InMemoryGovStore` 不变（value=组合后的类、type=其实例类型）：既有 `new InMemoryGovStore(seed?, clock?,
  * demoSeed?)` 构造签名经 mixin 链逐字保留，旧生产 Store 组合复用与全部测试 import 零改动。
  */
-export const InMemoryGovStore = ScheduleMixin(PmCoreMixin(InMemoryGovStoreBase));
+export const InMemoryGovStore = PmCoreMixin(InMemoryGovStoreBase);
 export type InMemoryGovStore = InstanceType<typeof InMemoryGovStore>;

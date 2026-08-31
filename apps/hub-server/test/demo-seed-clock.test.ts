@@ -8,13 +8,14 @@ import {
 } from '@teamhub/hub-contracts';
 import type { GovernanceSnapshot } from '@teamhub/hub-contracts';
 import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryScheduleRepository } from './support/inmemory-schedule-store.js';
 import { FixedClock } from '../src/clock.js';
 import type { Clock } from '../src/clock.js';
 import type { TaskDraft } from '../src/store/gov-store.js';
 
 /**
  * K6（时钟与空板刀）回归门：坐实「演示态 = 冻结时钟 + 演示锚点，真实态 = 真实时钟 + 真空板」，
- * 二者由 demoSeed 一个开关派生，覆盖 InMemory / File / Sqlite 三实现。
+ * 二者由 demoSeed 一个开关派生（A4 后：gov 由 seed/clock 派生，schedule 三块由 InMemoryScheduleRepository 的 demoSeed 派生）。
  *  - bug1 时钟冻结：真实态 createTask 的 createdAt 来自注入 clock（非硬编码冻结锚点 2026-06-11）。
  *  - bug2 空板不彻底：真实态 resources/resourceSessions/relayHandoffs 恒空（不再见虚构车 + 演示排班）。
  */
@@ -63,9 +64,10 @@ afterAll(async () => {
 
 describe('K6 演示态：冻结时钟 + 演示锚点（默认，现状零变化）', () => {
   test('demoSeed 缺省 → resources/resourceSessions 非空（演示车 + 排班仍在）', async () => {
-    const store = new InMemoryGovStore();
-    expect((await store.listResources()).length).toBeGreaterThan(0);
-    expect((await store.listResourceSessions()).length).toBeGreaterThan(0);
+    // ARCH-UNIFY A4：schedule 三块已摘出 GovStore，归独立 InMemoryScheduleRepository。
+    const scheduleStore = new InMemoryScheduleRepository();
+    expect((await scheduleStore.listResources()).length).toBeGreaterThan(0);
+    expect((await scheduleStore.listResourceSessions()).length).toBeGreaterThan(0);
   });
 
   test('demoSeed 缺省 → createTask 的 createdAt 是冻结锚点 2026-06-11', async () => {
@@ -77,14 +79,14 @@ describe('K6 演示态：冻结时钟 + 演示锚点（默认，现状零变化�
 
 describe('K6 真实态：真实时钟 + 真空板（demoSeed=false）', () => {
   test('InMemory: schedule 三块恒空（bug2 空板彻底）', async () => {
-    const store = new InMemoryGovStore(EMPTY_SEED, realStandInClock, false);
-    expect(await store.listResources()).toEqual([]);
-    expect(await store.listResourceSessions()).toEqual([]);
-    expect(await store.listRelayHandoffs()).toEqual([]);
+    const scheduleStore = new InMemoryScheduleRepository(realStandInClock, false);
+    expect(await scheduleStore.listResources()).toEqual([]);
+    expect(await scheduleStore.listResourceSessions()).toEqual([]);
+    expect(await scheduleStore.listRelayHandoffs()).toEqual([]);
   });
 
   test('InMemory: createTask 的 createdAt 来自注入 clock、非冻结锚点（bug1 时钟不再冻结）', async () => {
-    const store = new InMemoryGovStore(EMPTY_SEED, realStandInClock, false);
+    const store = new InMemoryGovStore(EMPTY_SEED, realStandInClock);
     const task = await store.createTask(taskDraft('真实态任务'));
     expect(task.createdAt).toBe(REAL_NOW_ISO);
     expect(task.createdAt).not.toBe(GOVERNANCE_SCENARIO_NOW);

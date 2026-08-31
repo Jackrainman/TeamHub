@@ -32,6 +32,7 @@ import { SqliteInventoryRepository } from '../modules/inventory/sqlite-repositor
 import { SqliteArtifactRepository } from '../modules/archive/sqlite-repository.js';
 import { SqliteKnowledgeRepository } from '../modules/knowledge/sqlite-repository.js';
 import { SqliteReimburseRepository } from '../modules/reimburse/sqlite-repository.js';
+import { SqliteScheduleRepository } from '../modules/schedule/sqlite-repository.js';
 
 export const TEAMHUB_UNIFIED_SCHEMA_VERSION = 2;
 
@@ -80,6 +81,7 @@ const TEAMHUB_BUSINESS_META_KEYS = [
 
 export interface UnifiedStores {
   gov: GovStore;
+  schedule: SqliteScheduleRepository;
   kb: SqliteKnowledgeRepository;
   inv: SqliteInventoryRepository;
   archive: SqliteArtifactRepository;
@@ -188,7 +190,8 @@ function assembleStores(
   clock?: Clock,
 ): UnifiedStores {
   return {
-    gov: SqliteGovRepository.fromSharedDb(db, seeds.gov, clock, seeds.demoSeed),
+    gov: SqliteGovRepository.fromSharedDb(db, seeds.gov, clock),
+    schedule: SqliteScheduleRepository.fromSharedDb(db, clock, seeds.demoSeed),
     kb: SqliteKnowledgeRepository.fromSharedDb(db, seeds.kb),
     inv: SqliteInventoryRepository.fromSharedDb(db, seeds.inv, clock),
     archive: SqliteArtifactRepository.fromSharedDb(db, seeds.artifacts, clock),

@@ -3,6 +3,7 @@ import FormData from 'form-data';
 import { FleetPreviewResponseSchema } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryScheduleRepository } from './support/inmemory-schedule-store.js';
 
 /**
  * 车队批量导入端到端（FLEET-CSV-IMPORT）：GET 模板 + POST preview（只解析不落库）+ 中文编号/状态映射 +
@@ -38,9 +39,10 @@ describe('GET /api/resources/template', () => {
 describe('POST /api/resources/preview — 只解析不落库', () => {
   test('解析返回 rows/failed（中文编号/状态映射），车队快照零变化', async () => {
     const store = new InMemoryGovStore();
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
-      const before = await store.listResources();
+      const before = await scheduleStore.listResources();
       const csv =
         '名称,编号,赛季码,第几代,状态\n' +
         'R1 比赛机器人,R1,27,2,能用\n' +
@@ -64,7 +66,7 @@ describe('POST /api/resources/preview — 只解析不落库', () => {
       expect(preview.failed).toHaveLength(1);
       expect(preview.failed[0].line).toBe(3);
       // 不落库：resources 与调用前逐字相等。
-      expect(await store.listResources()).toEqual(before);
+      expect(await scheduleStore.listResources()).toEqual(before);
     } finally {
       await app.close();
     }

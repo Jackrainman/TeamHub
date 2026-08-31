@@ -6,6 +6,7 @@ import {
   UpdateResourceDefaultPresetResponseSchema,
 } from '@teamhub/hub-contracts';
 import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryScheduleRepository } from './support/inmemory-schedule-store.js';
 
 // 今日计划：每车预设写回（PATCH /api/resources/:id/preset）+ 表格页批量确认落盘
 // （POST /api/resource-sessions/batch，D-082 daily-plan-presets）。res-r1/res-r2 defaultPreset seed
@@ -16,7 +17,8 @@ const CONFIRMED_BY = { id: 'm-progA', displayName: '程序A', source: 'console' 
 describe('PATCH /api/resources/:id/preset：默认阵型写回 / 清除', () => {
   test('传对象 → 整体替换 defaultPreset', async () => {
     const store = new InMemoryGovStore();
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
       const res = await app.inject({
         method: 'PATCH',
@@ -27,7 +29,7 @@ describe('PATCH /api/resources/:id/preset：默认阵型写回 / 清除', () => 
       const body = UpdateResourceDefaultPresetResponseSchema.parse(res.json());
       expect(body.resource.defaultPreset).toEqual({ lineup: [{ groupId: 'grp-circuit' }] });
       // 落库
-      const live = (await store.listResources()).find((r) => r.id === 'res-r2');
+      const live = (await scheduleStore.listResources()).find((r) => r.id === 'res-r2');
       expect(live?.defaultPreset).toEqual({ lineup: [{ groupId: 'grp-circuit' }] });
     } finally {
       await app.close();
@@ -36,10 +38,11 @@ describe('PATCH /api/resources/:id/preset：默认阵型写回 / 清除', () => 
 
   test('传 null → 清除既有 defaultPreset', async () => {
     const store = new InMemoryGovStore();
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
       // res-r1 seed 自带 defaultPreset（fixtures.ts）
-      const before = (await store.listResources()).find((r) => r.id === 'res-r1');
+      const before = (await scheduleStore.listResources()).find((r) => r.id === 'res-r1');
       expect(before?.defaultPreset).toBeDefined();
 
       const res = await app.inject({
@@ -50,7 +53,7 @@ describe('PATCH /api/resources/:id/preset：默认阵型写回 / 清除', () => 
       expect(res.statusCode).toBe(200);
       const body = UpdateResourceDefaultPresetResponseSchema.parse(res.json());
       expect(body.resource.defaultPreset).toBeUndefined();
-      const live = (await store.listResources()).find((r) => r.id === 'res-r1');
+      const live = (await scheduleStore.listResources()).find((r) => r.id === 'res-r1');
       expect(live?.defaultPreset).toBeUndefined();
     } finally {
       await app.close();
@@ -103,9 +106,10 @@ describe('PATCH /api/resources/:id/preset：默认阵型写回 / 清除', () => 
 describe('POST /api/resource-sessions/batch：表格页【确认】批量原子落盘', () => {
   test('全部通过 → 201，逐条落盘，confirmedBy 由请求整体注入', async () => {
     const store = new InMemoryGovStore();
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
-      const before = (await store.listResourceSessions()).length;
+      const before = (await scheduleStore.listResourceSessions()).length;
       const res = await app.inject({
         method: 'POST',
         url: '/api/resource-sessions/batch',
@@ -146,7 +150,7 @@ describe('POST /api/resource-sessions/batch：表格页【确认】批量原子�
       // I0：响应剥 confirmedBy
       expect(body.sessions[0]).not.toHaveProperty('confirmedBy');
       // 落库
-      expect((await store.listResourceSessions()).length).toBe(before + 2);
+      expect((await scheduleStore.listResourceSessions()).length).toBe(before + 2);
     } finally {
       await app.close();
     }
@@ -154,9 +158,10 @@ describe('POST /api/resource-sessions/batch：表格页【确认】批量原子�
 
   test('批内一条 orderInWindow 与既有 session 冲突 → 整批 400，一条都不落盘', async () => {
     const store = new InMemoryGovStore();
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
-      const before = (await store.listResourceSessions()).length;
+      const before = (await scheduleStore.listResourceSessions()).length;
       const res = await app.inject({
         method: 'POST',
         url: '/api/resource-sessions/batch',
@@ -193,7 +198,7 @@ describe('POST /api/resource-sessions/batch：表格页【确认】批量原子�
       });
       expect(res.statusCode).toBe(400);
       // 半成功检查：第一条本应合法，但整批必须一条都不落盘
-      expect((await store.listResourceSessions()).length).toBe(before);
+      expect((await scheduleStore.listResourceSessions()).length).toBe(before);
     } finally {
       await app.close();
     }
@@ -201,9 +206,10 @@ describe('POST /api/resource-sessions/batch：表格页【确认】批量原子�
 
   test('未知 holderGroupId → 整批 400，不落盘', async () => {
     const store = new InMemoryGovStore();
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
-      const before = (await store.listResourceSessions()).length;
+      const before = (await scheduleStore.listResourceSessions()).length;
       const res = await app.inject({
         method: 'POST',
         url: '/api/resource-sessions/batch',
@@ -226,7 +232,7 @@ describe('POST /api/resource-sessions/batch：表格页【确认】批量原子�
         },
       });
       expect(res.statusCode).toBe(400);
-      expect((await store.listResourceSessions()).length).toBe(before);
+      expect((await scheduleStore.listResourceSessions()).length).toBe(before);
     } finally {
       await app.close();
     }
@@ -234,7 +240,8 @@ describe('POST /api/resource-sessions/batch：表格页【确认】批量原子�
 
   test('I0 双保险：请求夹带 invitedMemberIds 非空，仍强制落盘为 []', async () => {
     const store = new InMemoryGovStore();
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -260,7 +267,7 @@ describe('POST /api/resource-sessions/batch：表格页【确认】批量原子�
       expect(res.statusCode).toBe(201);
       const body = CreateResourceSessionsBatchResponseSchema.parse(res.json());
       expect(body.sessions[0].invitedMemberIds).toEqual([]);
-      const live = (await store.listResourceSessions()).find((s) => s.id === body.sessions[0].id);
+      const live = (await scheduleStore.listResourceSessions()).find((s) => s.id === body.sessions[0].id);
       expect(live?.invitedMemberIds).toEqual([]);
     } finally {
       await app.close();

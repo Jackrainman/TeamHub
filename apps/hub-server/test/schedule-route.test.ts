@@ -8,6 +8,7 @@ import {
   SCENARIO_WINDOW_WEEKDAY,
 } from '@teamhub/hub-contracts';
 import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryScheduleRepository } from './support/inmemory-schedule-store.js';
 
 // SCHED-WIRE-EXISTING（D-029 差异化在场排班）：把已存在但零运行时引用的纯函数 derivePresenceSchedule
 // 接出成真实 API。验证：seed 锚点（scheduleScenarioFixture）→ GET /api/schedule?windowLabel=今晚 出非空建议、
@@ -125,8 +126,9 @@ describe('在场排班读视图 + 录入', () => {
 
   test('POST /api/resource-sessions → 201；server 钉 source=human + 补 id/createdAt；响应剥 confirmedBy（I0）', async () => {
     const store = new InMemoryGovStore();
-    const before = (await store.listResourceSessions()).length;
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const before = (await scheduleStore.listResourceSessions()).length;
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -153,7 +155,7 @@ describe('在场排班读视图 + 录入', () => {
       // I0：读响应永不回 confirmedBy（ActorRef）
       expect(body.session).not.toHaveProperty('confirmedBy');
       // 落库生效（内存累积）
-      expect((await store.listResourceSessions()).length).toBe(before + 1);
+      expect((await scheduleStore.listResourceSessions()).length).toBe(before + 1);
     } finally {
       await app.close();
     }
@@ -161,7 +163,8 @@ describe('在场排班读视图 + 录入', () => {
 
   test('POST 一条今晚的接力窗口后 GET /api/schedule?windowLabel=今晚 仍含派生建议（接出闭环）', async () => {
     const store = new InMemoryGovStore();
-    const app = buildTestHubServer({ store });
+    const scheduleStore = new InMemoryScheduleRepository();
+    const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
       // 录入一条今晚 R1 接力窗口（机械接力，orderInWindow=1）
       const post = await app.inject({
