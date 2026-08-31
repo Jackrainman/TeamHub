@@ -1,5 +1,30 @@
 {
-  "focus": "4177 待用户部署追平 v0.58.x（master 已含六阶段精确派生+stage 改挂+项目汇报导出）；demo:4277 关停未重建",
+  "focus": [
+    {
+      "id": "AI-CHAT-UX",
+      "title": "AI 聊天 UX（kimi-claw 抄来哪些能借）",
+      "note": "交互体验向，待用户拉对齐；属产品决策",
+      "owner": "user"
+    },
+    {
+      "id": "INV-STOCK-REORDER",
+      "title": "库存补货建议（阈值配置+计算）+ 台账汇总行（待发/在途）",
+      "note": "INV-1 已拍板子项；低优先，功能向时做",
+      "owner": "user"
+    },
+    {
+      "id": "BUG-REDIRECT-APP",
+      "title": "验收驳回后前端跳 /app 疑似带错 payload 的 bug",
+      "note": "排班验收驳回后跳转异常，待复现确认",
+      "owner": "user"
+    },
+    {
+      "id": "ARCH-FOLLOWUPS",
+      "title": "架构统一后的跟进小项：test/support 文件名仍叫 inmemory-gov-store*（类已改名，文件改名纯 churn）；OverviewSnapshot 是 console 聚合（暂留 features/system/api.ts，§10 加域条件成熟后归 system 模块）",
+      "owner": "agent",
+      "priority": "P3"
+    }
+  ],
   "blocked": [
     {
       "id": "HERMES-LARK-SKILL",
@@ -8,12 +33,6 @@
     }
   ],
   "todo": [
-    {
-      "id": "ARCH-UNIFY",
-      "title": "仓库级软件架构统一：A0-A3 完成；A4 已迁 checklist/baseline/inventory/archive/knowledge/schedule 六域（schedule 含 relay+车队 CSV，ScheduleStore 摘出 GovStore——GovStore 仅剩 pm-core；export/gov-report/inventory 走 ScheduleReadPort 窄口）；A4 最后一刀 pm/system（contracts pm-core/pm-requests + routes pm/tasks/tasks-claim/members/roster + pm-core-store/sqlite-gov-repository 归 modules/pm，GovStore 归零）；再 A5 旧骨架归零；调查报告 docs/research/arch-a4-survey.md；不考虑旧数据兼容",
-      "tag": "code",
-      "batch": "architecture"
-    },
     {
       "id": "REIMBURSE-DEFECTS-20260831",
       "title": "报账子 agent 实测缺陷（docs/research/reimburse-test-report.md §4）：①铁路 PDF 车次夹站名时区间丢失（import.ts 区间正则不跨车次，仅命名质量）②已提交批次无不可变快照、可被静默改写（updateEntry/updateBatch 无 submitted 后锁/状态机，影响审计完整性）③GBK zip 文件名乱码（fflate 无编码回退）；④批次状态可跳级⑤发票号查重 O(n)——待用户拍板修哪些",
@@ -31,18 +50,6 @@
       "title": "扫描票本地 OCR 技术验证：真实样本测 tesseract.js 资源体积、单页耗时、低性能设备内存与核心字段识别率；达标后才评估接主流程，结果必须人工确认且原件不上传；见 docs/domains/reimburse.md",
       "tag": "research",
       "batch": "later"
-    },
-    {
-      "id": "HOOKS-1-TAIL",
-      "title": "useXxx hook 层尾巴：裸 useQuery/useMutation 白名单 21→10 文件（inv/kb/archive/schedule 已清，schedule 一刀清 8 处）；剩余 pm 6 处、settings 6 处、resources/sub 3 处、平台 14 处（App.tsx bootstrap 4 处或豁免），以 scripts/verify-architecture.mjs 白名单为唯一真相",
-      "tag": "code",
-      "batch": "hooks"
-    },
-    {
-      "id": "SPLIT-1-TAIL",
-      "title": "组件拆分尾巴：GateChecklistCard(396)/DirectionStarmap(389)/TodayPlanTable(384) 近线组件，功能迭代时顺带拆",
-      "tag": "code",
-      "batch": "split"
     },
     {
       "id": "TESTS-PM-CORE",
@@ -124,58 +131,18 @@
     }
   ],
   "done-tonight": [
-    "ARCH-UNIFY A4 排班域（2026-08-31）：contracts domains/schedule 四件套（五根文件并入）v0.62.1；server modules/schedule（service 收口批量窗口校验/接力成环/车队 CSV 编排，ScheduleStore 摘出 GovStore，GovStore 仅剩 pm-core）v0.63.0；console features/schedule api/hooks+8 处裸 hook 清零 v0.64.0；架构基线 20→15",
-    "ARCH-UNIFY A4 三连域+P0-4（2026-08-31）：inventory 三包+InvStore 删 v0.60.0；窄 port 化 checklist/reimburse 成员判定 v0.60.1；archive 摘出 GovernanceSnapshot+modules/archive+ArtifactFileStorage port v0.61.0；knowledge 三包+KbStore/route-schemas/schemas-kb/segments-domain 删 v0.62.0；架构基线 25→20；调查报告 arch-a4-survey.md + 报账实测报告 reimburse-test-report.md 落 docs/research",
-    "REIMBURSE-OFD-PARSE v0.59.0：fflate 统一归档底座（流式解压+硬中止三道门+PK/EOCD 快检）；OFD 内嵌 XBRL 解析（铁路客票真实样本 4/4 通过）；zip 逐条处置计划（先到先得/截图静默/嵌套明示）；包内发票号去重留结构化源；导入区 accept 扩 .ofd/.zip；+14 测试。测试数据在 ~/发票测试/（不进 git 不上传）",
-    "DEAD-CODE 尸体清除 v0.57.2（用户点头）：删 FleetPage.tsx+15-fleet-tabs.css / Sparkline.tsx+.viz-spark+vv-draw / KNOWN_GROUP_KINDS；效果不变验证=431+414+253 测试全绿+build+产物 CSS 活类俱在尸体类清零（零入边代码删除，UI 无变化）",
-    "STAGE-PIPELINE Step2.5 v0.58.0：里程碑 stage 行内改挂——BaselineTimeline meta 行六阶段下拉（canWrite 可编辑、只读身份 chip 展示），下拉即存走 useUpdateBaseline；选中即触发 deriveStageProgress 精确模式",
-    "NIGHT-CHAIN-20260830 全链收工：Step0 部署两件套（备份 teamhub.sqlite.20260830-223910 + artifacts tar 落 ~/teamhub-data/backups/；demo:4277 进程族已杀（源码构建产物上直接跑，先杀再构建）；4177 git pull→npm ci→build→systemctl restart，/health buildId=9eb3d5d v0.55.7 绿；回滚=git checkout 旧 commit 重建）→ Step1 v0.56.0 → Step2 v0.56.1 → Step3 v0.57.0，每任务一 commit 自测全绿（typecheck+test+build），全链 push origin master",
-    "STAGE-PIPELINE Step2 v0.56.0：milestone 可选 stage 字段（MilestoneStageSchema 六阶段枚举）+ deriveStageProgress 精确派生——窗口=阶段内里程碑 plannedAt [min,max] 单调钳制、状态=里程碑结论投影（无 pending 才 done），无标签阶段塌缩零长不阻断，存量零标签板回退 Step1 phases 近似；模板六节点挂 stage（moduleAssembly 留空塌缩）；deriveRobotStageMarkers locate 改 <=（点窗口边界归早段）；StagePipelineStrip props 不变；+9 测试",
-    "DEAD-CODE-AUDIT 报告 v0.56.1（只出报告不改码）：.harness/dead-code-audit.mjs 可重跑静态交叉引用（98 路由/803 导出/孤儿文件/hooks/i18n）→ docs/research/dead-code-audit.md；结论：无高危，真尸体=FleetPage.tsx+Sparkline.tsx+KNOWN_GROUP_KINDS 待砍，7 条 console 未消费路由均 test-only/外部休眠端点，65 个类型面子债随 ARCH-UNIFY 顺手收",
-    "GOV-REPORT 拍板=B 落地 v0.57.0：GET /api/reports/governance?format=md|html 一键导出项目汇报（里程碑进度+六阶段/任务完成/在场统计/库存消耗），HTML 自包含可打印（浏览器打印即 PDF）；contracts buildGovReport 纯派生+双渲染器；I0 红线=在场只到组/资源维度、产物零成员名（测试钉死）；设置页数据导出区加入口；+10 测试",
-    "STYLE-PICK 拍板定案 v0.55.7：默认 Notion 风 + 新增 Notion 夜航（notion-dark，黑白可变）+ 其余五皮保留不裁剪；tokens 色板 + 结构层前缀选择器共享 + theme/i18n/swatch/test 全链同步",
-    "BACKUP-CRON（用户授权）：每日 03:30 自动备份——scripts/backup-teamhub-data.sh（VACUUM INTO + 读回校验）+ artifacts tar 打包 + 14 天保留，落 ~/teamhub-data/backups/；此前 crontab 为空、备份只能人肉跑，属高危缺口；PUSH-ORIGIN：master 18 笔已 push GitHub 追平",
-    "拍板落账：招新季新人入职流不立项（线下教+表格记录即可）；安全暴露面自检不做；杂货模块（=报销/库存/KB 等低频管理组模块，IA 期冻结令）维持冻结；记在场指令缓做倾向砍（见 HERMES-CHAT-MVP）",
-    "IA-RESTRUCTURE 收口：主体早已在 master（三层导航/首页工作台/风格预览/六阶段 Step1），最后一笔『风格预览降级收进设置页外观区』cherry-pick 回 master v0.55.6（swatch 选择器替代 6 项 SegToggle，13 页注册表）；demo 分支零独有提交已删；demo:4277 待重建切 master",
-    "ONBOARD-QA 一期（已拍板）v0.55.5：初始化门改问答流——双栏（左一次一题/右实时确认卡）+ 名册/库存/档案三步 chips 分支「有现成的吗」+ WhoStep 组 chips 点选 + SeasonStep 创建成功自动前进（二次确认段删）+ done 再次确认页删（7→6 步）；LLM 不做；步序锚点测试全量更新",
-    "拍板落账：PROGRAM-RYG-RULES 转共享文档（Excel 拉，程序组按人评价，TeamHub 不做）；FLEET-STATUS-GROUP-FOLLOW 否决（状态→负责组联动属自动化但不好用）；ONBOARD-QA 定案=chips+确认卡+赛季创建确认合一页+无 LLM",
-    "CONVERGENCE-TASK-ENTRY: 联调任务创建通道 v0.55.0——空板默认组树预建 grp-convergence 哨兵组（buildDefaultGroupTree）+ POST /api/tasks 放行「哨兵组+convergenceScope 同现」、scope/组不匹配 400 + PmCreatePanel/加一棒「总联调」开关（Combobox 加 disabled）；create-task-route 联调三态测试 + ensure-default-groups 断言修订；TASK-GROUP-400-PROGRAM 产品纠结随之消解",
-    "WORKBENCH-MY-VEHICLE + WORKBENCH-SEASON-PROGRESS: 首页进度双卡 v0.55.1——contracts deriveMyVehicleProgress（我持有任务 robotTarget 最多者=我的车，完成率按该车全量任务）/deriveSeasonTaskProgress（非搁置 done/total）纯派生 +7 测试；本车卡 I0 红线=只按 session 派生，无负责车给引导空态+跳挂单池；赛季卡附里程碑 passed/total",
-    "STAGE-PIPELINE Step1: 整车六阶段 stepper v0.55.2——deriveStagePipeline 现有 phases 近似映射（rd 三等分/iterate/tuning/待联调至比赛日），零 schema 变更；状态语义=第一个未结束段 current 不断头；「待联调」段附联调任务计数；+9 测试",
-    "STYLE-DEAD-CLASS-CLEANUP: 死 CSS 类批量清理 v0.55.3（DeepSeek 子代理）——13 处裸类 className 清除（核实 styles/ 零规则，无 CSS 可删）+ queryKey 3 处特例入工厂（MyViewPage 扩展键/App+IdentityBar members 变体/App setupState 工厂新增）；reimb-items-editor 冻结跳过、inv-cell--zero 等有样式修饰类保留",
-    "CONSISTENCY-AUDIT: DeepSeek 子代理六维度一致性审计（死 CSS 类/裸修饰类/i18n key/裸 fetch+useQuery/queryKey 裸写/组归属过滤）——无高危；App+DepGraphPage 字面量 queryKey 归工厂、KbStep gate-section 死类补样式 v0.54.7；15 处低风险死类挂起 STYLE-DEAD-CLASS-CLEANUP",
-    "GROUP-DROPDOWN-LEAF: 归属类组下拉全链路叶子过滤——ResourcesPage 默认阵型/AddLegForm 就地新建（v0.54.3/4）+ TodayPlanTable 表格行（v0.54.6）均 deriveLeafGroups 过滤+引用兜底；PmCreatePanel 本就用服务端 assignableGroupIds；「程序」等父组不再出现（筛选/组管理视图按域保留）",
-    "SCHED-TABLE-TOOLBAR-UI: 初始化表格三按钮归回 B3 按钮体系——继续昨天/使用预设引用已删除的 relay-canvas__add、carry 缺 btn 皮肤（B3 归并漏网），统一 btn btn--primary/btn--secondary v0.54.5",
-    "FLEET-PRESET-GROUP-EMPTY: 默认阵型负责组下拉改用 useGroups 全量组列表 + deriveLeafGroups 叶子过滤（原从 dep-graph 任务视图反推，无任务时下拉为空保存永灰），与 TodayPlanTable 同源，raw-react-query 基线收缩 v0.54.3",
-    "RELAY-ADD-GROUP-SOURCE: 加一棒就地新建负责组下拉改用全量叶子组、显组名存 id（原从 tasks 反推只显示有任务的组且渲染 gid）v0.54.4",
-    "RELAY-VS-DEPGRAPH-MISMATCH: 实测定性非 bug——服务端/失效链完整，不一致源于无任务排班卡（holderTaskId=null）本就不进依赖图（预期行为），剩余「未挂任务标注」转产品确认项",
-    "REIMBURSE-PROC: 报账模块一期（采购-报账-入库联动）——contracts reimbursement 域（schema+状态/批次 derive+发票 XML/PDF 解析纯函数）+ PartAction 来源字段（自购/赞助+reimburseEntryId）；server ReimburseStore 三实现+路由（服务端按 actor 过滤/发票号查重 409/stock-in 入库联动）；console 报账页（手动录入+材料 checklist+批次区）+ pdf.js 本地解析三入口导入（文件永不上传）+ 入库确认对话框（suggestPartTypeMatch）+ 库存来源构成展示；e2e-pillars 绿",
-    "USER-FEEDBACK-FIX: 名册预览表分批渲染+行 memo+importRoster Map 线性化（根治 CSV 大表卡死）",
-    "THEME-SCHEME: 01-tokens.css 补 color-scheme light/dark——深色主题原生日期选择器/滚动条随主题反转",
-    "ONBOARD-SIMPLE: 教学动线简版——车队步移出初始化向导（8→7 步），初始化一台车移去左侧机器人队页空态引导",
-    "TASK-TIMELINE: 任务状态流转历史补全——by 注入（sessionActor/body）+ claim/complete/reject 四处 builder 追加 transitions + 路由测试 8 条 + seed 种 demo 时间线",
-    "LARK-CONFIG-UX: 飞书配置体验四件套——hint 引导步骤补全 / GET chats 群下拉（含手填逃生口）/ POST chats 建群自动入群 / PUT 保存真发测试消息验证 chat_id",
-    "STORE-GOV-BASE: gov-store 对象构造单源化（create 族+更新族+builder 全抽入 gov-store-logic.ts 110→388 行）",
-    "STORE-PERSIST-ROLL: PersistedFile 推广四 store，删 ~96 行手写原子写",
-    "CONTRACTS-REQ-RULE: 写契约放置约定文档化（pm-requests.ts 头部）",
-    "CONTRACTS-MERGE: 3/5 碎片合并（direction-gaps/error-code/relay），2 项否决有据",
-    "CONTRACTS-SCHEMAS: ArtifactRef 析出治理域 artifact.ts",
-    "SHARED-PREVIEW: 2 个真共享 helper 上提 shared/lib，消跨 feature 耦合",
-    "SCAFFOLD-2: identity-utils/pool-utils/project-nav → shared/lib/",
-    "GOV-1: client.ts 按域拆分（1259→31 行组合根 + segments/4）",
-    "GOV-2: styles.css token 收口（硬编码→变量）",
-    "SCAFFOLD-4/5/6: sqlite 复用 logic / 废二次 barrel / 删死代码",
-    "REFACTOR-SERVER-SPLIT: server.ts 3672→330 行，路由全迁出",
-    "HOOKS-1a~j: 6 域 hooks + 迁移 20+ 文件",
-    "SPLIT-1a~h: 8 组件拆分（RelayCanvas/Archive/Resources/DepGraph/Baseline/TaskDrawer/Inv/Members）",
-    "SCAFFOLD-1: useHubMutation 工厂落地，9 文件 18 处 mutation 迁移，裸键归一 queryKeys",
-    "AGENTS-REWRITE: 151→107 行，删腐烂清单/合并重叠/补六个漏加约定",
-    "TYPES-NODE-FIX: @types/node ^20→^24 对齐 engines",
-    "EMPTY-IMPORT-DIR: 删 hub-server/src/import/ 空目录",
-    "TESTS-CONTRACTS-GAP: csv-core/schedule-infra/assembly/common 纯函数单测 +20",
-    "I18N-SPLIT: translations.ts 2786→40 行组合根，1176 key×2 拆入 locales/ 9 域",
-    "GOV-SPLIT: InMemoryGovStore mixin 拆分 862→5 文件（base+pm/artifact/schedule 三 mixin），494 测试绿",
-    "CSS-SPLIT: styles.css 5542 行按 feature 拆 21 文件 + 按序 import 保级联，concat 字节一致"
+    {
+      "id": "ARCH-UNIFY",
+      "title": "三包/模块/控制台分层收口（A1-A5）：全域 modules 三包就位，GovStore 归零，console 每域 api+hooks，架构门禁白名单 25→0（v0.60.0-v0.69.0）"
+    },
+    {
+      "id": "HOOKS-1-TAIL",
+      "title": "裸 useQuery/useMutation 收口：16 处清零，features/{pm,identity,system,settings,resources}/hooks.ts 就位（v0.69.0）"
+    },
+    {
+      "id": "SPLIT-1-TAIL",
+      "title": "GateChecklistCard/TodayPlanTable/DirectionStarmap 三组件拆小（控制器/sub 抽出，383/388/389→273/187/190 行，v0.69.1）"
+    }
   ],
   "directions": [
     {

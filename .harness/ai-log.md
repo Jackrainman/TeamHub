@@ -68,3 +68,74 @@
 - 2026-08-31 refactor(contracts): ARCH-UNIFY A4 排班域契约——schedule/schedule-infra/schedule-requests/resource-requests/fleet-import 五根文件收进 domains/schedule 四件套 v0.62.1
 - 2026-08-31 refactor(schedule): A4 排班域服务端——modules/schedule 四件（repository/logic/service/routes），ScheduleStore 摘出 GovStore（GovStore 仅剩 pm-core），SqliteScheduleRepository 摘表自 sqlite-gov-repository，export/gov-report/inventory 走 ScheduleReadPort 窄口 v0.63.0
 - 2026-08-31 refactor(schedule): A4 排班域 console——features/schedule api/hooks，segments/schedule、hooks/useSchedule、schemas/schedule、schemas/resources 删；SchedulePage/RelayCanvas/useRelayMutations 8 处裸 hook 尽收，架构白名单 20→15 v0.64.0
+
+## 2026-08-31 晚（deep）
+
+### ARCH-UNIFY 收尾：pm/system 迁移 + GovStore 归零（v0.64.1 → v0.67.0）
+
+**用户指令**：「把 A4 和尾巴搞掉，拍板的不做」——继续推进 A4 全域迁移（前一阶段已迁 inventory/archive/knowledge/schedule），本轮完成最后最大的 pm/system。
+
+**完成清单**：
+
+1. **contracts domains/pm 建立（v0.64.1）**
+   - pm-core.ts → model.ts（investment.ts 并入）、pm-requests.ts → requests.ts、attribution.ts → policies.ts（GovernanceSnapshot 一并归位）、growth.ts、gov-report.ts → report.ts、roster-import.ts → import.ts
+   - 显式 index.ts（无 export *）；baseline model.ts 的 Investment* 类型重复导出修复（barrel 冲突显式化）
+   - contracts 438 tests 全绿
+
+2. **contracts domains/system + integrations（v0.64.2）**
+   - identity/app-settings/system-status/assembly/schemas(HubEvent) → domains/system 五件
+   - hermes/lark-integration → domains/integrations
+   - contracts 根目录只剩 shared kernel（common/csv-core/fixtures/verticals + index.ts）
+
+3. **server pm store 层迁移（v0.65.0）**
+   - pm-core-store.ts → modules/pm/repository.ts（PmCoreStore → PmRepository）；gov-store-logic.ts → logic.ts；sqlite-gov-repository.ts → sqlite-repository.ts（SqlitePmRepository）
+   - **GovStore 接口与 store/gov-store.ts 删除**：60+ 消费点（routes/authz/logic/repositories/tests/scripts）全换 PmRepository
+   - store 目录只剩 csv-utf8 + index 转发
+   - 测试 fake 类改名 InMemoryPmRepository（文件名保留 inmemory-gov-store*.ts 减 churn）
+   - server 414 tests 全绿
+
+4. **server pm 路由层迁移（v0.66.0）**
+   - 新建 PmService（PmOutcome 携带 HTTP status/detail 语义）收口组/赛季/任务/认领/指派/搭档/验收编排；routes/pm/tasks/tasks-claim/members/roster 归 modules/pm/；authz（isGroupLeadOf/isGateReviewer/requireSuperAdmin）与飞书通知副作用留 route 层
+
+5. **server system/integrations/reporting（v0.67.0）**
+   - session/setup/system → modules/system；lark 族 → modules/integrations（lark-integration-store → lark-store.ts）；search/export/gov-report → modules/reporting
+   - routes/helpers.ts → src/http/helpers.ts；**src/routes 目录删除**；各模块补 index.ts（barrel 语义从「路径转发」变「模块出口」）
+   - server.ts 组合根改用 modules/*/index.ts 装配
+   - **server src/routes 与 store god 全清零**
+
+### ARCH-UNIFY console 收尾：api 拆分 + HOOKS-1-TAIL 白名单清零（v0.68.0 → v0.69.0）
+
+6. **console api 拆分（v0.68.0）**
+   - segments/members.ts + system-pm.ts 拆成 features/{pm,identity,system,settings,search}/api.ts 五段（OverviewSnapshot 为 console 专有聚合，本地定义于 features/system/api.ts）
+   - 删 schemas/pm.ts + schemas/system.ts + hooks/useTasks.ts + useRoster.ts + settings/sub/useSettings{Queries,Mutations}.ts 转发层
+   - **api/segments 与 api/schemas 目录清空**；client.ts 重新组合
+   - 白名单 15 → 9
+
+7. **HOOKS-1-TAIL 白名单清零（v0.69.0）**
+   - 新建 features/pm/hooks.ts（8 hook + 类型）、identity/hooks.ts（5 hook + MembersClient）、system/hooks.ts、settings/hooks.ts（含 lark 配置读写）、resources/hooks.ts（3 mutation）
+   - App/IdentityBar/DepGraph/Direction/MyView/BaselineStates/PmCreatePanel/CreateResourceForm/ResourceRow 共 9 文件 16 处裸 useQuery/useMutation 收口
+   - **架构门禁白名单 0 项**（架构检查首次全绿，verify-architecture.mjs 基线空数组）
+   - console 260 tests 全绿
+
+### SPLIT-1-TAIL：三个大组件拆小（v0.69.1）
+
+8. **GateChecklistCard(383→273) / TodayPlanTable(388→187) / DirectionStarmap(389→190)**
+   - GateChecklistCard：状态徽章/tone 映射抽 checklist-item-meta.ts（单一源），清偿选人/豁免理由两行动面板拆 sub/ChecklistItemPanels.tsx
+   - TodayPlanTable：行编辑/预设铺底/继续昨天/确认三步编排全部进 today-plan-controller.ts（纯本地状态控制器）
+   - DirectionStarmap：相机/指针会话/对焦缓动/自转全部进 sub/useStarmapCamera.ts
+
+### 验证与决策
+
+- 全程 verify：contracts 438 + server 414 + console 260 测试每步全绿；`npm run verify` 门禁每 commit 通过
+- **架构门禁白名单 25 → 0**：所有精确迁移基线条目随清零即删，脚本回到纯规则判定
+- 决策：A5 旧骨架收尾（store/segments/schemas 空壳）已随各刀顺带清零，不单独做一轮
+- 决策：console pm/settings/search/identity 五域各自 api+hooks 就位后，hooks/useRoster.ts、hooks/useTasks.ts 等转发层全删
+- 遗留跟进（todo ARCH-FOLLOWUPS P3）：test/support 文件名 inmemory-gov-store* 未改（类已改名）；OverviewSnapshot 聚合归位待 system 模块端点条件成熟
+
+**红线核查**：无 memberId 引入 schedule 域；无按人聚合/排行/筛选写入；ActorRef 来源链不变；I0/I2/I5 语义不变。
+
+### 状态
+
+- ARCH-UNIFY 五条线（A1-A5）+ HOOKS-1-TAIL + SPLIT-1-TAIL **全部完成**，todo 三项进 done-tonight
+- 版本 v0.59.0 → v0.69.1（本会话 12 commits）
+- 待用户拍板项仍挂起：REIMBURSE-DEFECTS-20260831 修复取舍、HERMES-CHAT-MVP 三事项、TEACHING-FLOW、HERMES-LARK-SKILL、REIMBURSE-LARK-BITABLE、REIMBURSE-PM-EXPORT 待做

@@ -16,7 +16,7 @@ TeamHub 已从单一机器人协作工具长成知识库、项目管理、库存
 
 - 生产持久化同时存在内存、分域 JSON、旧 gov-only SQLite、统一 SQLite；
 - A2 前配置曾同时来自环境变量、`config.json`、代码常量和模块开关；现已收成 SQLite `app_settings`；
-- 后端既有 god `GovStore`，又有独立 Store；跨域动作有时直接在路由调用多个 Store；
+- ~~后端既有 god `GovStore`~~（已于 ARCH-UNIFY 归零，全域 modules/<domain> 三包就位；本节其余条目是历史背景留痕）
 - contracts 既有按域文件，也有历史 god 文件和跨域 re-export；
 - console 既有 feature hook，也有页面直接 `useQuery/useMutation`；API segment 粒度不一致；
 - 导入、CSV、文件资源、错误映射等基础能力在局部实现，容易被下一个功能再造一套；
@@ -357,7 +357,7 @@ AI 不得以“兼容旧代码”为默认理由保留双轨。用户已明确�
 | A1 仓库与运行时（完成） | 旧飞书三包、JSON/gov-only/生产 InMemory/旧 env 已删除；生产强制统一 SQLite | main 只有一个 DB 装配路径，不写旧数据双读迁移 |
 | A2 平台设施（配置已完成） | `app_settings` 与同步 SQLite 事务已落地；继续统一错误、导出、文件 intake、Clock/Actor 和 application UoW | 配置单源，跨域写具有显式事务 |
 | A3 模板试点 | reimburse 三包纵切并实现购买方质量门和“报账→库存”事务 | 模板承载真实业务后冻结，不再产生第二套模板 |
-| A4 全域迁移 | checklist → baseline → inventory → knowledge → artifacts → schedule → PM/system | 独立域先迁，最后拆 GovernanceSnapshot/GovStore |
+| A4 全域迁移 | checklist → baseline → inventory → archive → knowledge → schedule → PM/system/integrations/reporting | 已完成：全域三包就位、GovStore 归零、console 每域 features/<domain>/{api,hooks}、架构门禁白名单清零 |
 | A5 归零 | 删除 god files、旧 Store/client/hook/config/文档，架构白名单归零 | 根验证、SQLite 重启、compose 行为均满足目标 |
 
 ## 17. 完成定义
@@ -389,10 +389,10 @@ AI 不得以“兼容旧代码”为默认理由保留双轨。用户已明确�
 | `file-*-store.ts` / `PersistedFile` | 删除 | 生产与测试均无 import |
 | `mock-*store.ts` / 默认 InMemory 装配 | 生产删除；必要 fake 移 `test/support` | `src/` 无生产内存 repository |
 | `sqlite-unified.ts` | 保留思想，改成唯一生产 composition | main 只有这一条 DB 路径 |
-| `sqlite-gov-repository.ts` / `GovStore` | 按域拆 repository，最后删除 god interface | 无跨域万能 snapshot API |
+| ~~`sqlite-gov-repository.ts` / `GovStore`~~ | 已按域拆完并删除 god interface（pm 归 modules/pm/sqlite-repository.ts） | 跨域一律窄口 port（ScheduleReadPort / PmSnapshotReadPort / GateReviewerPort / ReimburseAdminPort / KnowledgeNodeCloseoutPort 等） |
 | `routes/*.ts` | 逐域迁到 `modules/<domain>/routes.ts` 并变薄；reimburse/checklist 已完成并冻结旧路径 | route 不含业务编排，跨域只走窄 port/UoW |
 | `config.json` / tenant env /代码默认 | 已删除并合入 SQLite `app_settings` | 产品配置只有一个读写源 |
-| `api/segments/domain.ts`、`system-pm.ts` | 拆成一域一个 segment | segment 名与 module id 对齐 |
+| ~~`api/segments/domain.ts`、`system-pm.ts`~~ | 已拆成一域一个 segment（features/<domain>/api.ts，api/segments 与 api/schemas 已删） | segment 名与 module id 对齐 |
 | 页面/组件裸 Query hooks | 迁到 feature hooks | 架构脚本零白名单 |
 | 根外三个 hub `package-lock.json` | 删除 | 全仓只有根 lock |
 | 根/三包版本漂移 | bump 脚本统一同步 | verify 自动判等 |
