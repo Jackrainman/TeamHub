@@ -17,8 +17,6 @@ import type {
   UpdateReimburseBatchRequest,
   UpdateReimburseEntryRequest,
 } from '@teamhub/hub-contracts';
-import { isSuperAdmin } from '../../authz.js';
-import type { GovStore } from '../../store/gov-store.js';
 import { ApplicationError } from '../../application/application-error.js';
 import type { ApplicationUnitOfWork } from '../../application/unit-of-work.js';
 import type {
@@ -59,10 +57,18 @@ export interface StockInReimburseEntryResult {
   actions: PartAction[];
 }
 
+/**
+ * 超管判定的窄 port（§8.2；前身 GovStore.getSnapshot().members + isSuperAdmin 全量依赖）。
+ * 组合根用 pm 成员表适配注入；reimburse 域不反向感知成员实体。
+ */
+export interface ReimburseAdminPort {
+  isSuperAdmin(memberId: string): Promise<boolean>;
+}
+
 export class ReimburseService {
   constructor(
     private readonly repository: ReimburseRepository,
-    private readonly gov: GovStore,
+    private readonly admin: ReimburseAdminPort,
     private readonly reimburseStockIn: ReimburseStockInPort,
     private readonly inventory: InventoryStockInPort,
     private readonly unitOfWork: ApplicationUnitOfWork,
@@ -282,6 +288,6 @@ export class ReimburseService {
   }
 
   private async isAdmin(memberId: string): Promise<boolean> {
-    return isSuperAdmin((await this.gov.getSnapshot()).members, memberId);
+    return this.admin.isSuperAdmin(memberId);
   }
 }

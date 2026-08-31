@@ -6,10 +6,8 @@ import type {
   GateChecklistItem,
 } from '@teamhub/hub-contracts';
 import { ZodError } from 'zod';
-import { isGateReviewer } from '../../authz.js';
 import type { Clock } from '../../clock.js';
 import { ApplicationError } from '../../application/application-error.js';
-import type { GovStore } from '../../store/gov-store.js';
 import type {
   ChecklistRepository,
   GateChecklistPort,
@@ -23,11 +21,19 @@ export interface ChecklistBaselinePort {
   } | null>;
 }
 
+/**
+ * 豁免权属判定的窄 port（§8.2；前身 GovStore.getSnapshot().members + isGateReviewer 全量依赖）。
+ * 组合根用 pm 成员表适配注入；checklist 域不反向感知成员实体。
+ */
+export interface GateReviewerPort {
+  isGateReviewer(memberId: string): Promise<boolean>;
+}
+
 export class ChecklistService implements GateChecklistPort {
   constructor(
     private readonly repository: ChecklistRepository,
     private readonly baselines: ChecklistBaselinePort,
-    private readonly gov: GovStore,
+    private readonly gateReviewers: GateReviewerPort,
     private readonly clock: Clock,
   ) {}
 
@@ -93,7 +99,7 @@ export class ChecklistService implements GateChecklistPort {
     actor: ActorRef,
     waiveReason: string,
   ): Promise<GateChecklistItem> {
-    if (!isGateReviewer((await this.gov.getSnapshot()).members, actor.id)) {
+    if (!(await this.gateReviewers.isGateReviewer(actor.id))) {
       throw new ApplicationError('forbidden', 'CHECKLIST_WAIVE_FORBIDDEN', '豁免权属验收人名单（大三）');
     }
     await this.requireItemInSeason(id, seasonId);

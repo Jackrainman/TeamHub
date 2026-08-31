@@ -3,6 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FixedClock } from '../src/clock.js';
+import { isSuperAdmin } from '../src/authz.js';
 import {
   ReimburseService,
   type InventoryStockInPort,
@@ -54,7 +55,7 @@ describe('ReimburseService + SQLite ApplicationUnitOfWork', () => {
     });
     const service = new ReimburseService(
       stores.reimburse,
-      stores.gov,
+      { isSuperAdmin: async (memberId) => isSuperAdmin((await stores.gov.getSnapshot()).members, memberId) },
       stores.reimburse,
       stores.inv,
       new SqliteApplicationUnitOfWork(database.db, clock),
@@ -120,7 +121,7 @@ describe('ReimburseService + SQLite ApplicationUnitOfWork', () => {
     };
     const service = new ReimburseService(
       stores.reimburse,
-      stores.gov,
+      { isSuperAdmin: async (memberId) => isSuperAdmin((await stores.gov.getSnapshot()).members, memberId) },
       stores.reimburse,
       failingInventory,
       new SqliteApplicationUnitOfWork(database.db, clock),

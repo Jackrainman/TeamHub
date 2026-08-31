@@ -23,6 +23,7 @@ import { ChecklistService } from './modules/checklist/service.js';
 import type {
   ChecklistRepository,
 } from './modules/checklist/repository.js';
+import { isGateReviewer, isSuperAdmin } from './authz.js';
 import { tryServeStaticConsole } from './static-console.js';
 import { registerSearchRoutes } from './routes/search.js';
 import { registerExportRoutes } from './routes/export.js';
@@ -230,7 +231,8 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
   const checklistService = new ChecklistService(
     checklistRepository,
     baselineRepository,
-    store,
+    // GateReviewerPort 窄口：pm 成员表适配（checklist 不反向感知成员实体）。
+    { isGateReviewer: async (memberId) => isGateReviewer((await store.getSnapshot()).members, memberId) },
     clock,
   );
   const baselineService = new BaselineService(
@@ -246,7 +248,8 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
   const reimburseStore = options.reimburseStore;
   const reimburseService = new ReimburseService(
     reimburseStore,
-    store,
+    // ReimburseAdminPort 窄口：pm 成员表适配（reimburse 不反向感知成员实体）。
+    { isSuperAdmin: async (memberId) => isSuperAdmin((await store.getSnapshot()).members, memberId) },
     options.reimburseStockInPort,
     options.inventoryStockInPort,
     options.unitOfWork,
