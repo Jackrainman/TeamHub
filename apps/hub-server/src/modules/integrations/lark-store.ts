@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import type { SqliteDatabase } from './sqlite-db.js';
+import type { SqliteDatabase } from '../../store/sqlite-db.js';
 
 export interface LarkConfigRecord {
   appId: string;

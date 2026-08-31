@@ -14,8 +14,8 @@ import {
   SetTaskPartnerResponseSchema,
 } from '@teamhub/hub-contracts';
 import { isGateReviewer, isGroupLeadOf } from '../../authz.js';
-import { sendLarkMessage } from '../../lark-client.js';
-import { parseBody, requireActor } from '../../routes/helpers.js';
+import { sendLarkMessage } from '../integrations/lark-client.js';
+import { parseBody, requireActor } from '../../http/helpers.js';
 import type { PmOutcome } from './service.js';
 import type { TaskRouteDeps } from './tasks.js';
 

@@ -16,7 +16,7 @@ import {
   UpdateReimburseProfileRequestSchema,
   UpdateReimburseProfileResponseSchema,
 } from '@teamhub/hub-contracts';
-import { parseBody, requireActor, sendApplicationError } from '../../routes/helpers.js';
+import { parseBody, requireActor, sendApplicationError } from '../../http/helpers.js';
 import type { ReimburseService } from './service.js';
 
 export interface ReimburseRouteDeps {

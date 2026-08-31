@@ -4,10 +4,10 @@ import {
   renderGovReportHtml,
   renderGovReportMarkdown,
 } from '@teamhub/hub-contracts';
-import type { PmRepository } from '../modules/pm/repository.js';
-import type { InventoryReadPort } from '../modules/inventory/repository.js';
-import type { ScheduleReadPort } from '../modules/schedule/repository.js';
-import type { BaselineRepository } from '../modules/baseline/repository.js';
+import type { PmRepository } from '../pm/repository.js';
+import type { InventoryReadPort } from '../inventory/repository.js';
+import type { ScheduleReadPort } from '../schedule/repository.js';
+import type { BaselineRepository } from '../baseline/repository.js';
 
 export interface GovReportRouteDeps {
   store: PmRepository;

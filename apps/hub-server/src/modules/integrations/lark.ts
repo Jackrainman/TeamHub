@@ -7,17 +7,17 @@ import {
   LarkCreateChatResponseSchema,
   deriveBaselineDrift,
 } from '@teamhub/hub-contracts';
-import type { PmRepository } from '../modules/pm/repository.js';
-import type { BaselineRepository } from '../modules/baseline/repository.js';
-import type { Clock } from '../clock.js';
-import type { LarkIntegrationStore } from '../store/lark-integration-store.js';
+import type { PmRepository } from '../pm/repository.js';
+import type { BaselineRepository } from '../baseline/repository.js';
+import type { Clock } from '../../clock.js';
+import type { LarkIntegrationStore } from './lark-store.js';
 import {
   sendLarkMessage,
   getTenantAccessToken,
   listLarkChats,
   createLarkChat,
-} from '../lark-client.js';
-import { parseBody, isLoopbackOperator } from './helpers.js';
+} from './lark-client.js';
+import { parseBody, isLoopbackOperator } from '../../http/helpers.js';
 
 export interface LarkRouteDeps {
   store: PmRepository;

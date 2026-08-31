@@ -23,8 +23,8 @@ import {
 } from '@teamhub/hub-contracts';
 import type { IdentityMode } from '@teamhub/hub-contracts';
 import type { PmRepository } from './repository.js';
-import { parseBody, parseQuery, requireSuperAdmin, sessionActor } from '../../routes/helpers.js';
-import type { LarkIntegrationStore } from '../../store/lark-integration-store.js';
+import { parseBody, parseQuery, requireSuperAdmin, sessionActor } from '../../http/helpers.js';
+import type { LarkIntegrationStore } from '../integrations/lark-store.js';
 import { PmService } from './service.js';
 import type { PmOutcome } from './service.js';
 import type { FastifyReply } from 'fastify';

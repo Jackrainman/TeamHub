@@ -4,10 +4,10 @@ import {
   SetupStateResponseSchema,
 } from '@teamhub/hub-contracts';
 import type { IdentityMode } from '@teamhub/hub-contracts';
-import { RESTART_EXIT_CODE } from '../build-setup-server.js';
-import type { SetupControl } from '../server.js';
-import type { PmRepository } from '../modules/pm/repository.js';
-import { parseBody, requireSuperAdmin } from './helpers.js';
+import { RESTART_EXIT_CODE } from '../../build-setup-server.js';
+import type { SetupControl } from '../../server.js';
+import type { PmRepository } from '../pm/repository.js';
+import { parseBody, requireSuperAdmin } from '../../http/helpers.js';
 
 export interface SetupRouteDeps {
   store: PmRepository;

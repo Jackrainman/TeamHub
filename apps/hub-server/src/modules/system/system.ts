@@ -19,18 +19,18 @@ import {
   listMockAgentBackends,
   listMockBotChannels,
   listMockDataSources,
-} from '../mock-integrations.js';
+} from '../../mock-integrations.js';
 import {
   getMockAgentBackendCapabilities,
   getMockAgentBackendHealth,
   invokeMockAgentBackend,
   isMockAgentBackendId,
-} from '../mock-agent-backends.js';
+} from '../../mock-agent-backends.js';
 import {
   buildHealthResponse,
   buildSystemStatusResponse,
-} from '../status.js';
-import { parseBody } from './helpers.js';
+} from '../../status.js';
+import { parseBody } from '../../http/helpers.js';
 
 export function registerSystemRoutes(
   app: FastifyInstance,

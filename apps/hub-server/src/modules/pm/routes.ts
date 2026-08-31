@@ -5,7 +5,7 @@ import type { BaselineService } from '../baseline/service.js';
 import type { ChecklistService } from '../checklist/service.js';
 import type { Clock } from '../../clock.js';
 import type { SessionManager } from '../../identity/session-store.js';
-import type { LarkIntegrationStore } from '../../store/lark-integration-store.js';
+import type { LarkIntegrationStore } from '../integrations/lark-store.js';
 import { registerBaselineRoutes } from '../baseline/routes.js';
 import { registerMemberRoutes } from './members.js';
 import { registerRosterRoutes } from './roster.js';

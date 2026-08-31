@@ -17,7 +17,7 @@ import {
   parseQuery,
   sendApplicationError,
   sessionActor,
-} from '../../routes/helpers.js';
+} from '../../http/helpers.js';
 import type { BaselineService } from './service.js';
 
 async function present<T>(reply: FastifyReply, action: () => T | Promise<T>): Promise<T | FastifyReply> {

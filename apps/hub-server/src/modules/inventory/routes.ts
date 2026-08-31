@@ -20,7 +20,7 @@ import type {
   InventoryImportRow,
   SessionIdentity,
 } from '@teamhub/hub-contracts';
-import { parseBody, readCsvUpload } from '../../routes/helpers.js';
+import { parseBody, readCsvUpload } from '../../http/helpers.js';
 import { HermesUnknownCommandError, InventoryService } from './service.js';
 
 const INVENTORY_IMPORT_MAX_BYTES = 1024 * 1024;

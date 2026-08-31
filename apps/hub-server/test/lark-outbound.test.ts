@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { SqliteDatabase } from '../src/store/sqlite-db.js';
-import { LarkIntegrationStore } from '../src/store/lark-integration-store.js';
+import { LarkIntegrationStore } from '../src/modules/integrations/lark-store.js';
 import { openUnifiedDb } from '../src/store/sqlite-unified.js';
 import {
   ClaimTaskResponseSchema,

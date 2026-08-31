@@ -5,7 +5,7 @@ import { buildSetupServer } from './build-setup-server.js';
 import { FixedClock, RealClock } from './clock.js';
 import type { Clock } from './clock.js';
 import { buildHubServer } from './server.js';
-import { LarkIntegrationStore } from './store/lark-integration-store.js';
+import { LarkIntegrationStore } from './modules/integrations/lark-store.js';
 import { openUnifiedDb } from './store/sqlite-unified.js';
 import { resolveBuildId } from './status.js';
 import { SqliteApplicationUnitOfWork } from './infrastructure/sqlite-application-unit-of-work.js';

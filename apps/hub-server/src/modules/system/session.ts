@@ -4,15 +4,15 @@ import {
   SessionResponseSchema,
 } from '@teamhub/hub-contracts';
 import type { IdentityMode, SessionIdentity } from '@teamhub/hub-contracts';
-import type { PmRepository } from '../modules/pm/repository.js';
-import type { SessionManager } from '../identity/session-store.js';
-import { verifyPin } from '../identity/pin.js';
+import type { PmRepository } from '../pm/repository.js';
+import type { SessionManager } from '../../identity/session-store.js';
+import { verifyPin } from '../../identity/pin.js';
 import {
   parseBody,
   readSessionCookie,
   buildSessionCookie,
   clearSessionCookie,
-} from './helpers.js';
+} from '../../http/helpers.js';
 
 export interface SessionRouteDeps {
   store: PmRepository;

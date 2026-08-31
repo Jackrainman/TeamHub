@@ -7,7 +7,7 @@ import {
   KbSimilarResponseSchema,
 } from '@teamhub/hub-contracts';
 import type { IdentityMode, SessionIdentity } from '@teamhub/hub-contracts';
-import { parseBody, parseQuery } from '../../routes/helpers.js';
+import { parseBody, parseQuery } from '../../http/helpers.js';
 import {
   KbCloseoutDivergenceError,
   KbCloseoutRejectedError,

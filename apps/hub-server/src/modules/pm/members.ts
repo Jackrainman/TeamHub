@@ -21,7 +21,7 @@ import type { PmRepository } from './repository.js';
 import type { SessionManager } from '../../identity/session-store.js';
 import { isSuperAdmin, memberHasPmFlag } from '../../authz.js';
 import { hashPin } from '../../identity/pin.js';
-import { parseBody, isLoopbackOperator, buildSessionCookie } from '../../routes/helpers.js';
+import { parseBody, isLoopbackOperator, buildSessionCookie } from '../../http/helpers.js';
 
 export interface MemberRouteDeps {
   store: PmRepository;

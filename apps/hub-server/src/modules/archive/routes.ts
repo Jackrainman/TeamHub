@@ -7,7 +7,7 @@ import {
 } from '@teamhub/hub-contracts';
 import { isApplicationError } from '../../application/application-error.js';
 import type { ApplicationError } from '../../application/application-error.js';
-import { parseBody } from '../../routes/helpers.js';
+import { parseBody } from '../../http/helpers.js';
 import type { ArchiveService } from './service.js';
 
 /**

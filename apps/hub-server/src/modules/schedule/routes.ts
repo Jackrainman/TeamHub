@@ -32,7 +32,7 @@ import {
   parseQuery,
   readCsvUpload,
   sessionActor,
-} from '../../routes/helpers.js';
+} from '../../http/helpers.js';
 import { ScheduleService, ScheduleValidationError } from './service.js';
 
 const FLEET_IMPORT_MAX_BYTES = 1024 * 1024;

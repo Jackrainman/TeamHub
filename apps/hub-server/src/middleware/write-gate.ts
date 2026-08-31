@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { IdentityMode } from '@teamhub/hub-contracts';
-import { isLoopbackOperator } from '../routes/helpers.js';
+import { isLoopbackOperator } from '../http/helpers.js';
 
 export interface WriteGateOptions {
   writeToken?: string;

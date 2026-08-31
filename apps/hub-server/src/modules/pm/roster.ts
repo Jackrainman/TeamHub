@@ -10,7 +10,7 @@ import {
 import type { IdentityMode, RosterImportFailure, RosterImportRow } from '@teamhub/hub-contracts';
 import type { PmRepository } from './repository.js';
 import { isSuperAdmin } from '../../authz.js';
-import { parseBody, readCsvUpload } from '../../routes/helpers.js';
+import { parseBody, readCsvUpload } from '../../http/helpers.js';
 
 const ROSTER_MAX_BYTES = 1024 * 1024;
 

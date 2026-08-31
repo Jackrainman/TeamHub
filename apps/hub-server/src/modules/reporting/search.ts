@@ -1,9 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import type { PmRepository } from '../modules/pm/repository.js';
-import type { InventoryReadPort } from '../modules/inventory/repository.js';
-import type { KnowledgeReadPort } from '../modules/knowledge/repository.js';
-import { parseQuery } from './helpers.js';
+import type { PmRepository } from '../pm/repository.js';
+import type { InventoryReadPort } from '../inventory/repository.js';
+import type { KnowledgeReadPort } from '../knowledge/repository.js';
+import { parseQuery } from '../../http/helpers.js';
 
 const SearchQuerySchema = z.object({
   q: z.string().min(1).max(100),

@@ -25,9 +25,9 @@ import type {
 } from './modules/checklist/repository.js';
 import { isGateReviewer, isSuperAdmin } from './authz.js';
 import { tryServeStaticConsole } from './static-console.js';
-import { registerSearchRoutes } from './routes/search.js';
-import { registerExportRoutes } from './routes/export.js';
-import { registerGovReportRoutes } from './routes/gov-report.js';
+import { registerSearchRoutes } from './modules/reporting/search.js';
+import { registerExportRoutes } from './modules/reporting/export.js';
+import { registerGovReportRoutes } from './modules/reporting/gov-report.js';
 import {
   KnowledgeService,
   registerKnowledgeRoutes,
@@ -47,17 +47,17 @@ import {
   registerArchiveRoutes,
 } from './modules/archive/index.js';
 import type { ArtifactRepository } from './modules/archive/index.js';
-import { registerSystemRoutes } from './routes/system.js';
+import { registerSystemRoutes } from './modules/system/system.js';
 import { registerPmCoreRoutes } from './modules/pm/routes.js';
 import { PmService } from './modules/pm/service.js';
-import { registerSessionRoutes } from './routes/session.js';
-import { registerSetupRoutes } from './routes/setup.js';
-import { registerLarkRoutes } from './routes/lark.js';
+import { registerSessionRoutes } from './modules/system/session.js';
+import { registerSetupRoutes } from './modules/system/setup.js';
+import { registerLarkRoutes } from './modules/integrations/lark.js';
 import {
   SESSION_TTL_MS,
   readSessionCookie,
   requireSuperAdmin,
-} from './routes/helpers.js';
+} from './http/helpers.js';
 import { registerWriteGate } from './middleware/write-gate.js';
 import type { AppSettingsService } from './store/sqlite-unified.js';
 import type {
@@ -162,7 +162,7 @@ export interface BuildHubServerOptions {
    */
   setupControl?: SetupControl;
   /** 飞书集成配置持久化（LARK-INTEG-CONFIG）。给了才注册 /api/integrations/lark + /api/hermes/credential。 */
-  larkStore?: import('./store/lark-integration-store.js').LarkIntegrationStore;
+  larkStore?: import('./modules/integrations/lark-store.js').LarkIntegrationStore;
   /**
    * 报账域读写出入口（REIMBURSE-PROC 一期）。独立于 `PmRepository`（ReimburseEntry/ReimburseBatch 不进
    * GovernanceSnapshot，同 InvStore 先例）。由 `/api/reimburse/*` 消费
@@ -218,7 +218,7 @@ interface ModuleRouteCtx {
   // SETUP-WIZARD-ROSTER 刀②：内存会话表（匿名模式 null）——POST /api/setup/super-admin 的 bootstrap
   // 路径一笔落库后签发会话 cookie（建人+授旗+设 PIN+登录态），免操作者再登一次。
   sessions: SessionManager | null;
-  larkStore?: import('./store/lark-integration-store.js').LarkIntegrationStore;
+  larkStore?: import('./modules/integrations/lark-store.js').LarkIntegrationStore;
 }
 export function buildHubServer(options: BuildHubServerOptions): FastifyInstance {
   // 反代信任（默认 false）：开启后 request.ip 解析为转发的真实客户端 IP，限流才按客户端分桶

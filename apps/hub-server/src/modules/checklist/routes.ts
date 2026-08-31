@@ -10,7 +10,7 @@ import {
   WaiveChecklistItemRequestSchema,
   WaiveChecklistItemResponseSchema,
 } from '@teamhub/hub-contracts';
-import { parseBody, parseQuery, requireActor, sendApplicationError } from '../../routes/helpers.js';
+import { parseBody, parseQuery, requireActor, sendApplicationError } from '../../http/helpers.js';
 import type { ChecklistService } from './service.js';
 
 async function present<T>(reply: FastifyReply, action: () => T | Promise<T>): Promise<T | FastifyReply> {
