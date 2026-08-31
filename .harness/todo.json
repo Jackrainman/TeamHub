@@ -10,9 +10,15 @@
   "todo": [
     {
       "id": "ARCH-UNIFY",
-      "title": "仓库级软件架构统一：A0-A3（单仓库图/统一 SQLite/app_settings/UoW/reimburse 三包模板）已完成；继续 A4 checklist→baseline→其余领域迁移 → A5 旧骨架归零；不考虑旧数据兼容，见 docs/design/software-architecture.md",
+      "title": "仓库级软件架构统一：A0-A3 完成；A4 已迁 checklist/baseline/inventory/archive/knowledge 五域（inventory/archive 已摘出 GovStore/GovernanceSnapshot，knowledge 带 KnowledgeNodeCloseoutPort 窄口，reimburse/checklist 已窄 port 化 GateReviewerPort/ReimburseAdminPort）；继续 A4 schedule(+relay) → pm/system（最后拆 GovernanceSnapshot/GovStore/sqlite-gov-repository）→ A5 旧骨架归零；调查报告 docs/research/arch-a4-survey.md；不考虑旧数据兼容，见 docs/design/software-architecture.md",
       "tag": "code",
       "batch": "architecture"
+    },
+    {
+      "id": "REIMBURSE-DEFECTS-20260831",
+      "title": "报账子 agent 实测缺陷（docs/research/reimburse-test-report.md §4）：①铁路 PDF 车次夹站名时区间丢失（import.ts 区间正则不跨车次，仅命名质量）②已提交批次无不可变快照、可被静默改写（updateEntry/updateBatch 无 submitted 后锁/状态机，影响审计完整性）③GBK zip 文件名乱码（fflate 无编码回退）；④批次状态可跳级⑤发票号查重 O(n)——待用户拍板修哪些",
+      "tag": "code",
+      "batch": "reimburse"
     },
     {
       "id": "REIMBURSE-PM-EXPORT",
@@ -28,7 +34,7 @@
     },
     {
       "id": "HOOKS-1-TAIL",
-      "title": "useXxx hook 层尾巴：剩余 ~19 处域特有 useQuery（relay/archive/kb/dep-graph/settings）按需迁移",
+      "title": "useXxx hook 层尾巴：裸 useQuery/useMutation 白名单 21→16 文件（inv/kb/archive 已清）；剩余 schedule 域 11 处（relay-canvas/SchedulePage/useSchedule，随 A4 schedule 迁移收）、pm 6 处、settings 6 处、其他平台 14 处（App.tsx bootstrap 4 处或豁免），以 scripts/verify-architecture.mjs 白名单为唯一真相",
       "tag": "code",
       "batch": "hooks"
     },
@@ -118,6 +124,7 @@
     }
   ],
   "done-tonight": [
+    "ARCH-UNIFY A4 三连域+P0-4（2026-08-31）：inventory 三包+InvStore 删 v0.60.0；窄 port 化 checklist/reimburse 成员判定 v0.60.1；archive 摘出 GovernanceSnapshot+modules/archive+ArtifactFileStorage port v0.61.0；knowledge 三包+KbStore/route-schemas/schemas-kb/segments-domain 删 v0.62.0；架构基线 25→20；调查报告 arch-a4-survey.md + 报账实测报告 reimburse-test-report.md 落 docs/research",
     "REIMBURSE-OFD-PARSE v0.59.0：fflate 统一归档底座（流式解压+硬中止三道门+PK/EOCD 快检）；OFD 内嵌 XBRL 解析（铁路客票真实样本 4/4 通过）；zip 逐条处置计划（先到先得/截图静默/嵌套明示）；包内发票号去重留结构化源；导入区 accept 扩 .ofd/.zip；+14 测试。测试数据在 ~/发票测试/（不进 git 不上传）",
     "DEAD-CODE 尸体清除 v0.57.2（用户点头）：删 FleetPage.tsx+15-fleet-tabs.css / Sparkline.tsx+.viz-spark+vv-draw / KNOWN_GROUP_KINDS；效果不变验证=431+414+253 测试全绿+build+产物 CSS 活类俱在尸体类清零（零入边代码删除，UI 无变化）",
     "STAGE-PIPELINE Step2.5 v0.58.0：里程碑 stage 行内改挂——BaselineTimeline meta 行六阶段下拉（canWrite 可编辑、只读身份 chip 展示），下拉即存走 useUpdateBaseline；选中即触发 deriveStageProgress 精确模式",
