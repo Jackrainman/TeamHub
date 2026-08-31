@@ -2,6 +2,7 @@ import {
   AppSettingsSchema,
   ROBOTICS_TENANT_CONFIG,
   baselineScenarioFixture,
+  buildArchiveSeed,
   checklistScenarioFixture,
   governanceScenarioFixture,
   inventoryScenarioFixture,
@@ -9,6 +10,7 @@ import {
 } from '@teamhub/hub-contracts';
 import type {
   AppSettings,
+  ArtifactRef,
   ChecklistTemplate,
   ConfigIdentityMode,
   GateChecklistItem,
@@ -27,6 +29,7 @@ import { SqliteChecklistRepository } from '../modules/checklist/sqlite-repositor
 import { SqliteDatabase } from './sqlite-db.js';
 import { SqliteGovRepository } from './sqlite-gov-repository.js';
 import { SqliteInventoryRepository } from '../modules/inventory/sqlite-repository.js';
+import { SqliteArtifactRepository } from '../modules/archive/sqlite-repository.js';
 import { SqliteKbStore } from './sqlite-kb-store.js';
 import { SqliteReimburseRepository } from '../modules/reimburse/sqlite-repository.js';
 
@@ -79,6 +82,7 @@ export interface UnifiedStores {
   gov: GovStore;
   kb: SqliteKbStore;
   inv: SqliteInventoryRepository;
+  archive: SqliteArtifactRepository;
   baseline: BaselineRepository;
   checklist: ChecklistRepository;
   reimburse: SqliteReimburseRepository;
@@ -89,6 +93,7 @@ export interface UnifiedDbSeeds {
   gov: GovernanceSnapshot;
   kb: KbSnapshot;
   inv: InventorySnapshot;
+  artifacts: ArtifactRef[];
   baseline: SeasonBaseline[];
   checklist: GateChecklistItem[];
   checklistTemplates: ChecklistTemplate[];
@@ -152,7 +157,6 @@ export function defaultSeeds(demoSeed: boolean): UnifiedDbSeeds {
           needs: [],
           knowledgeNodes: [],
           taskKnowledgeTags: [],
-          artifacts: [],
         },
     kb: demoSeed
       ? kbScenarioFixture
@@ -170,6 +174,7 @@ export function defaultSeeds(demoSeed: boolean): UnifiedDbSeeds {
           trackedParts: [],
           actions: [],
         },
+    artifacts: demoSeed ? buildArchiveSeed() : [],
     baseline: demoSeed ? baselineScenarioFixture : [],
     checklist: demoSeed ? checklistScenarioFixture : [],
     checklistTemplates: [],
@@ -186,6 +191,7 @@ function assembleStores(
     gov: SqliteGovRepository.fromSharedDb(db, seeds.gov, clock, seeds.demoSeed),
     kb: SqliteKbStore.fromSharedDb(db, seeds.kb),
     inv: SqliteInventoryRepository.fromSharedDb(db, seeds.inv, clock),
+    archive: SqliteArtifactRepository.fromSharedDb(db, seeds.artifacts, clock),
     baseline: SqliteBaselineRepository.fromSharedDb(db, seeds.baseline),
     checklist: SqliteChecklistRepository.fromSharedDb(
       db,

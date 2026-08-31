@@ -133,7 +133,6 @@ export function buildGovernanceSeed(): GovernanceSnapshot {
     ...pm,
     knowledgeNodes: kb.knowledgeNodes,
     taskKnowledgeTags: kb.taskKnowledgeTags,
-    artifacts: buildArchiveSeed(),
   };
 }
 

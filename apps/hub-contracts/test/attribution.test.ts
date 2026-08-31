@@ -103,7 +103,6 @@ describe('classifyReason — sharesResource 边驱动 sharedResourceBusy 分支'
     needs: [], // 关键：root 无 unmetNeed → classifyReason 跳过 unmetNeed 分支
     knowledgeNodes: [],
     taskKnowledgeTags: [],
-    artifacts: [],
   };
 
   const attrs = deriveBlockAttributions(snapshot, NOW);

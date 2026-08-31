@@ -33,7 +33,12 @@ import { registerInventoryRoutes, InventoryService } from './modules/inventory/i
 import type { InventoryReadPort, InventoryRepository } from './modules/inventory/index.js';
 import { registerReimburseRoutes, ReimburseService } from './modules/reimburse/index.js';
 import { registerPresenceScheduleRoutes } from './routes/schedule.js';
-import { registerArchiveRoutes } from './routes/archive.js';
+import {
+  ArchiveService,
+  LocalArtifactFileStorage,
+  registerArchiveRoutes,
+} from './modules/archive/index.js';
+import type { ArtifactRepository } from './modules/archive/index.js';
 import { registerSystemRoutes } from './routes/system.js';
 import { registerPmCoreRoutes } from './routes/pm.js';
 import { registerSessionRoutes } from './routes/session.js';
@@ -150,6 +155,11 @@ export interface BuildHubServerOptions {
    * （registerReimburseRoutes，挂 ledger 模块下）。
    */
   reimburseStore: ReimburseRepository;
+  /**
+   * 归档物域 repository（ARCH-UNIFY A4；原 GovStore.ArtifactStore + snapshot.artifacts 读路径）。
+   * 由 `/api/artifacts*` 消费（registerArchiveRoutes）+ baseline 证据引用存在性校验（窄口读）。
+   */
+  artifactRepository: ArtifactRepository;
   /** 跨 repository 写的唯一事务边界；生产必须是 SQLite UoW。 */
   unitOfWork: ApplicationUnitOfWork;
   /** 报账只依赖库存域的窄同步入库 port，不拿完整 repository 做跨域编排。 */
@@ -240,7 +250,7 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
     checklistService,
     {
       findMissingArtifactId: async (ids) => {
-        const known = new Set((await store.getSnapshot()).artifacts.map((artifact) => artifact.id));
+        const known = new Set((await options.artifactRepository.listArtifacts()).map((artifact) => artifact.id));
         return ids.find((id) => !known.has(id));
       },
     },
@@ -314,7 +324,10 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
     registerSystemRoutes(app, options.deployment);
   }
   if (moduleEnabled('archive')) {
-    registerArchiveRoutes(app, { store, clock });
+    registerArchiveRoutes(
+      app,
+      new ArchiveService(options.artifactRepository, new LocalArtifactFileStorage(), clock),
+    );
   }
   if (moduleEnabled('pm-core')) {
     registerPmCoreRoutes(app, ctx);

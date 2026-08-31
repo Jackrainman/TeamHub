@@ -57,7 +57,6 @@ function seedWith(members: Member[], groups: readonly Group[] = [GRP_MECH]): Gov
     needs: [],
     knowledgeNodes: [],
     taskKnowledgeTags: [],
-    artifacts: [],
   };
 }
 

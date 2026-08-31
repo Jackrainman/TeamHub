@@ -4,7 +4,6 @@ import type {
   IssueCard,
   KbSnapshot,
 } from '@teamhub/hub-contracts';
-import type { ArtifactStore } from './artifact-store.js';
 import type { PmCoreStore } from './pm-core-store.js';
 import type { ScheduleStore } from './schedule-store.js';
 
@@ -13,13 +12,14 @@ import type { ScheduleStore } from './schedule-store.js';
 // 消费点（test/support fake / 旧 JSON decorator / sqlite-gov-repository.ts / server.ts）
 // 继续从 './gov-store.js' 导入、**零 import 路径改动**。
 export * from './pm-core-store.js';
-export * from './artifact-store.js';
 export * from './schedule-store.js';
 
 /**
  * `GovStore`（product-redefine-2026-07 §4.4 / §9-③ STORE-SPLIT-SQLITE）：三支柱共享底座的读写
- * 出入口，**域接口交叉类型**——pm-core（项目计划表核心 + 受限状态机迁移 + 身份写路径）/ artifact
- * （图纸归档提交日志）/ schedule（共享资源车 + 差异化在场排班）。
+ * 出入口，**域接口交叉类型**——pm-core（项目计划表核心 + 受限状态机迁移 + 身份写路径）/
+ * schedule（共享资源车 + 差异化在场排班）。
+ *
+ * ARCH-UNIFY A4：artifact 域已摘出（modules/archive；提交日志不再进 GovernanceSnapshot）。
  *
  * **拆分前史**：本类型此前是单一 21+ 方法的 god-interface（混 6 域，见 §9-③ 审计账单）；
  * 拆分「纯重构」——GovStore 的方法签名集合逐字不变（仍是三个域接口方法的并集），
@@ -31,7 +31,7 @@ export * from './schedule-store.js';
  * id 生成 / clamp 初始态默认值已抽独立纯函数模块（见 id-sequence.ts / clamp-defaults.ts），
  * 三实现共享同一份策略——为 SQLite 增量迁移（SS3 后续刀）铺路。
  */
-export type GovStore = PmCoreStore & ArtifactStore & ScheduleStore;
+export type GovStore = PmCoreStore & ScheduleStore;
 
 /**
  * 战队知识库读出入口契约（KB-CORE；承接 base 收口刀 4-opus 对抗核实结论）。

@@ -1,8 +1,4 @@
 import {
-  ArtifactsResponseSchema,
-  type ArtifactsResponse,
-} from '@teamhub/hub-contracts';
-import {
   KbSimilarResponseSchema,
   KbCloseoutResponseSchema,
   KbImportDocsReportSchema,
@@ -12,20 +8,10 @@ import {
   type KbCloseoutResponse,
   type KbImportDocsReport,
 } from '../schemas/kb';
-import {
-  CreateArtifactResponseSchema,
-  UploadArtifactResponseSchema,
-  type CreateArtifactRequest,
-  type CreateArtifactResponse,
-  type UploadArtifactResponse,
-} from '../schemas/pm';
 import type { HttpContext } from '../http';
-import { fetchJson, postJson, postFormData, postMultiFormData } from '../http';
+import { fetchJson, postJson, postMultiFormData } from '../http';
 
 export interface DomainSegment {
-  getArtifacts(): Promise<ArtifactsResponse>;
-  createArtifact(req: CreateArtifactRequest): Promise<CreateArtifactResponse>;
-  uploadArtifactFile(id: string, file: File): Promise<UploadArtifactResponse>;
   getKbSimilar(params: KbSimilarParams): Promise<KbSimilarResponse>;
   closeoutKb(req: KbCloseoutRequest): Promise<KbCloseoutResponse>;
   importKbDocs(files: File[]): Promise<KbImportDocsReport>;
@@ -34,15 +20,6 @@ export interface DomainSegment {
 export function createDomainSegment(ctx: HttpContext): DomainSegment {
   const { baseUrl, fetcher, writeToken } = ctx;
   return {
-    async getArtifacts() {
-      return fetchJson(`${baseUrl}/api/artifacts`, ArtifactsResponseSchema, fetcher);
-    },
-    async createArtifact(req: CreateArtifactRequest) {
-      return postJson(`${baseUrl}/api/artifacts`, req, CreateArtifactResponseSchema, fetcher, writeToken);
-    },
-    async uploadArtifactFile(id: string, file: File) {
-      return postFormData(`${baseUrl}/api/artifacts/${encodeURIComponent(id)}/upload`, file, UploadArtifactResponseSchema, fetcher, writeToken);
-    },
     async getKbSimilar(params: KbSimilarParams) {
       const qs = new URLSearchParams();
       qs.set('symptom', params.symptom);

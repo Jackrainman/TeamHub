@@ -27,7 +27,6 @@ const EMPTY_SEED: GovernanceSnapshot = {
   needs: [],
   knowledgeNodes: [],
   taskKnowledgeTags: [],
-  artifacts: [],
 };
 
 const DEFAULT_GROUP_IDS = ['grp-mech', 'grp-circuit', 'grp-program', 'grp-ec', 'grp-vision', 'grp-convergence'];

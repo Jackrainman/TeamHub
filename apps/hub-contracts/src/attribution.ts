@@ -29,8 +29,6 @@ import type {
 } from './pm-core.js';
 import { KnowledgeNodeSchema, TaskKnowledgeTagSchema } from './growth.js';
 import type { KnowledgeNode, TaskKnowledgeTag } from './growth.js';
-import { ArtifactRefSchema } from './domains/artifacts/index.js';
-import type { ArtifactRef } from './domains/artifacts/index.js';
 
 /**
  * 治理真相快照 → 阻塞归因 / DepGraph 视图的纯派生函数（无 IO、可单测）。
@@ -64,10 +62,8 @@ export interface GovernanceSnapshot {
   needs: Need[];
   knowledgeNodes: KnowledgeNode[];
   taskKnowledgeTags: TaskKnowledgeTag[];
-  // 图纸提交日志/时间线（v1）：每条 = 某机构某版的归档物（图纸 / 固件 / 报告）。
-  // 多条/机构、按 createdAt 倒序即时间线。无人维度——记录主键是机构 + 版本 + 归档物，
-  // 不存"谁提交"作排名依据（I0/A4）。GET /api/artifacts 读这个数组。
-  artifacts: ArtifactRef[];
+  // ARCH-UNIFY A4：artifacts（图纸提交日志）已摘出本快照，归 archive 域独立 repository
+  // （modules/archive；GET /api/artifacts 改由该域服务）。
 }
 
 /**
@@ -90,7 +86,6 @@ export const GovernanceSnapshotSchema = z
     needs: z.array(NeedSchema),
     knowledgeNodes: z.array(KnowledgeNodeSchema),
     taskKnowledgeTags: z.array(TaskKnowledgeTagSchema),
-    artifacts: z.array(ArtifactRefSchema),
   })
   .passthrough();
 
@@ -108,7 +103,6 @@ export const GOVERNANCE_SNAPSHOT_ARRAY_KEYS: ReadonlyArray<keyof GovernanceSnaps
   'needs',
   'knowledgeNodes',
   'taskKnowledgeTags',
-  'artifacts',
 ] as const;
 
 const COMPLEXITY_CN: Record<TaskComplexity, string> = {

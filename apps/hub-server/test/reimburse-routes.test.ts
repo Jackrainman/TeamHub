@@ -70,7 +70,6 @@ function seedGov(): GovernanceSnapshot {
     needs: [],
     knowledgeNodes: [],
     taskKnowledgeTags: [],
-    artifacts: [],
   };
 }
 

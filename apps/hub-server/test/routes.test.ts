@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
+import { InMemoryArtifactRepository } from './support/inmemory-artifact-store.js';
 import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 import { governanceScenarioFixture } from '@teamhub/hub-contracts';
 import type { GovernanceSnapshot } from '@teamhub/hub-contracts';
@@ -263,12 +264,11 @@ describe('hub-server routes', () => {
     expect(body.artifacts.length).toBeGreaterThan(0);
   });
 
-  // ① 硬化：证明 GET /api/artifacts 的响应确由 store 快照派生（非硬编码 fixture）。
-  // 注入一个自定义 snapshot（含一条独特 id/mechanism 的图纸日志），断言响应原样回出注入值。
-  test('GET /api/artifacts is derived from the injected store snapshot', async () => {
-    const custom: GovernanceSnapshot = {
-      ...governanceScenarioFixture,
-      artifacts: [
+  // ① 硬化：证明 GET /api/artifacts 的响应确由注入的归档物 repository 派生（非硬编码 fixture）。
+  // 注入一条独特 id/mechanism 的图纸日志，断言响应原样回出注入值。
+  test('GET /api/artifacts is derived from the injected artifact repository', async () => {
+    const app2 = buildTestHubServer({
+      artifactRepository: new InMemoryArtifactRepository([
         {
           id: 'art-probe-xyz',
           kind: 'firmware',
@@ -279,9 +279,8 @@ describe('hub-server routes', () => {
           submittedVia: 'console',
           createdAt: '2026-01-01T00:00:00.000Z',
         },
-      ],
-    };
-    const app2 = buildTestHubServer({ store: new InMemoryGovStore(custom) });
+      ]),
+    });
     try {
       const response = await app2.inject({
         method: 'GET',
@@ -293,7 +292,7 @@ describe('hub-server routes', () => {
       const probe = body.artifacts.find((a) => a.id === 'art-probe-xyz');
       expect(probe).toBeDefined();
       expect(probe?.mechanism).toBe('PROBE-MECH');
-      // 注入快照只放了一条 → 响应也只有这一条（进一步排除掺入默认种子的可能）。
+      // 注入 repository 只放了一条 → 响应也只有这一条（进一步排除掺入默认种子的可能）。
       expect(body.artifacts).toHaveLength(1);
     } finally {
       await app2.close();
@@ -338,15 +337,12 @@ describe('hub-server routes', () => {
   });
 
   // 图纸档案 v2（HUB-ARTIFACT-ARCHIVE-V2）：POST round-trip 证 server 派生 versionNo/revision/kind。
-  // 用空 artifacts 的注入 store 隔离自增起点（不被 seed 的同键记录干扰），每个断言独立可读。
+  // 用空 artifacts 的注入 repository 隔离自增起点（不被 seed 的同键记录干扰），每个断言独立可读。
   describe('POST /api/artifacts (v2 server-derived versionNo/kind/revision)', () => {
-    const emptyArtifacts: GovernanceSnapshot = {
-      ...governanceScenarioFixture,
-      artifacts: [],
-    };
+    const emptyArtifacts = () => new InMemoryArtifactRepository([]);
 
     test('同键 POST 两条 → versionNo 1 then 2、revision v1 then v2、kind report（机械）', async () => {
-      const app2 = buildTestHubServer({ store: new InMemoryGovStore(emptyArtifacts) });
+      const app2 = buildTestHubServer({ artifactRepository: emptyArtifacts() });
       try {
         const mech = {
           ownerGroup: 'mechanical',
@@ -377,7 +373,7 @@ describe('hub-server routes', () => {
     });
 
     test('电路驱动 POST → kind firmware', async () => {
-      const app2 = buildTestHubServer({ store: new InMemoryGovStore(emptyArtifacts) });
+      const app2 = buildTestHubServer({ artifactRepository: emptyArtifacts() });
       try {
         const res = await app2.inject({
           method: 'POST',
@@ -406,7 +402,7 @@ describe('hub-server routes', () => {
     });
 
     test('电路图纸 POST → kind report', async () => {
-      const app2 = buildTestHubServer({ store: new InMemoryGovStore(emptyArtifacts) });
+      const app2 = buildTestHubServer({ artifactRepository: emptyArtifacts() });
       try {
         const res = await app2.inject({
           method: 'POST',
@@ -429,7 +425,7 @@ describe('hub-server routes', () => {
     });
 
     test('缺 subType 的 electrical → 400（superRefine）', async () => {
-      const app2 = buildTestHubServer({ store: new InMemoryGovStore(emptyArtifacts) });
+      const app2 = buildTestHubServer({ artifactRepository: emptyArtifacts() });
       try {
         const res = await app2.inject({
           method: 'POST',
@@ -451,7 +447,7 @@ describe('hub-server routes', () => {
     });
 
     test('机械夹带 subType → 400（superRefine）', async () => {
-      const app2 = buildTestHubServer({ store: new InMemoryGovStore(emptyArtifacts) });
+      const app2 = buildTestHubServer({ artifactRepository: emptyArtifacts() });
       try {
         const res = await app2.inject({
           method: 'POST',

@@ -20,6 +20,10 @@ import {
   createInventorySegment,
   type InventorySegment,
 } from '../features/inv/api';
+import {
+  createArchiveSegment,
+  type ArchiveSegment,
+} from '../features/archive/api';
 
 export interface HubApiClientOptions {
   baseUrl?: string;
@@ -34,7 +38,8 @@ export type HubApiClient = SystemPmSegment &
   ReimburseSegment &
   ChecklistSegment &
   BaselineSegment &
-  InventorySegment;
+  InventorySegment &
+  ArchiveSegment;
 
 export function createHubApiClient(options: HubApiClientOptions = {}): HubApiClient {
   const ctx: HttpContext = {
@@ -51,5 +56,6 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
     ...createChecklistSegment(ctx),
     ...createBaselineSegment(ctx),
     ...createInventorySegment(ctx),
+    ...createArchiveSegment(ctx),
   };
 }

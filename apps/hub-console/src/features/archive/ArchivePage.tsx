@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { FolderOpen, FilePlus } from 'lucide-react';
 import type { HubApiClient } from '../../api/client';
-import { queryKeys } from '../../api/queryKeys';
 import { useI18n } from '../../i18n';
+import { useArtifacts } from './hooks';
+import { useSystemStatus } from '../settings/sub/useSettingsQueries';
+import { useResources } from '../../hooks/useSchedule';
 import { segClass } from '../../utils';
 import { ArtifactRegisterForm } from './sub/ArtifactRegisterForm';
 import { ArchiveViewTab } from './sub/ArchiveViewTab';
@@ -25,26 +26,17 @@ export function ArchivePage({
   // 读写分页：查看档案（读，默认，高频）/ 新登记（写）。仿 KbSearchPage 的 seg 标签。
   const [tab, setTab] = useState<'view' | 'register'>('view');
 
-  const query = useQuery({
-    queryKey: queryKeys.artifacts(source),
-    queryFn: () => client.getArtifacts(),
-  });
+  const query = useArtifacts(client, source);
 
   // K3 部署信息：服务器未配 TEAMHUB_ARTIFACT_FILES_DIR（deployment.artifactUploadEnabled===false）时，
   // 上传会裸报 400——据此禁用行内上传按钮 + title 说明。共享设置页同 query 缓存（['system-status', source]）。
   // 仅 ===false 才禁（旧后端不回 deployment 字段时保持可用，不误伤）。
-  const statusQuery = useQuery({
-    queryKey: queryKeys.systemStatus(source),
-    queryFn: () => client.getSystemStatus(),
-  });
+  const statusQuery = useSystemStatus(client, source);
   const uploadDisabled =
     statusQuery.data?.deployment?.artifactUploadEnabled === false;
 
   // 机器人台账（适配机器人组合框候选源）：复用 ResourcesPage 同 key 缓存，缺失则组合框退化为纯手填。
-  const resourcesQuery = useQuery({
-    queryKey: queryKeys.resources(source),
-    queryFn: () => client.getResources(),
-  });
+  const resourcesQuery = useResources(client, source);
 
   const sections = useMemo(
     () => groupArtifacts(query.data?.artifacts ?? []),

@@ -1,6 +1,6 @@
 import { GOVERNANCE_SCENARIO_NOW } from '@teamhub/hub-contracts';
 import type { DeploymentInfo, TenantConfig } from '@teamhub/hub-contracts';
-import { getArtifactDir } from './artifact-storage.js';
+import { LocalArtifactFileStorage } from './modules/archive/index.js';
 import { buildSetupServer } from './build-setup-server.js';
 import { FixedClock, RealClock } from './clock.js';
 import type { Clock } from './clock.js';
@@ -77,7 +77,7 @@ async function main(): Promise<void> {
     verticalId: settings.verticalId,
     storage,
     enabledModules: [...settings.enabledModules],
-    artifactUploadEnabled: getArtifactDir() !== null,
+    artifactUploadEnabled: new LocalArtifactFileStorage().dir() !== null,
     buildId: resolveBuildId(),
   };
 
@@ -87,6 +87,7 @@ async function main(): Promise<void> {
     clock,
     kbStore: stores.kb,
     inventoryRepository: stores.inv,
+    artifactRepository: stores.archive,
     baselineRepository: stores.baseline,
     checklistRepository: stores.checklist,
     reimburseStore: stores.reimburse,

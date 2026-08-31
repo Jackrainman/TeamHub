@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 import {
   apiContractFixtures,
+  buildArchiveSeed,
   governanceScenarioFixture,
   inventoryScenarioFixture,
   kbScenarioFixture,
@@ -576,7 +577,7 @@ describe('hub console API client', () => {
         return {
           ok: true,
           status: 200,
-          json: async () => ({ artifact: governanceScenarioFixture.artifacts[0] }),
+          json: async () => ({ artifact: buildArchiveSeed()[0] }),
         } as Response;
       }
       return {
@@ -703,7 +704,7 @@ describe('hub console API client', () => {
       return {
         ok: true,
         status: 200,
-        json: async () => ({ artifact: governanceScenarioFixture.artifacts[0] }),
+        json: async () => ({ artifact: buildArchiveSeed()[0] }),
       } as Response;
     });
 
@@ -898,7 +899,7 @@ function writeResponseByPath(path: string): unknown {
         knowledgeNode: governanceScenarioFixture.knowledgeNodes[0],
       };
     case '/api/artifacts':
-      return { artifact: governanceScenarioFixture.artifacts[0] };
+      return { artifact: buildArchiveSeed()[0] };
     default:
       return { detail: 'Not found' };
   }

@@ -1,6 +1,5 @@
 import type {
   ActorRef,
-  ArtifactRef,
   Dependency,
   Group,
   KnowledgeNode,
@@ -15,7 +14,6 @@ import type {
 } from '@teamhub/hub-contracts';
 import { deriveDisplayCode, deriveLeafGroups } from '@teamhub/hub-contracts';
 import {
-  ARTIFACT_SUBMITTED_VIA,
   DEPENDENCY_INITIAL_STATUS,
   DEPENDENCY_WAIVED_STATUS,
   MANUAL_TASK_STATUS_SOURCE,
@@ -35,7 +33,6 @@ import {
 } from './clamp-defaults.js';
 import { memberHasPmFlag } from '../authz.js';
 import type {
-  ArtifactDraft,
   DependencyDraft,
   KnowledgeNodeDraft,
   NeedDraft,
@@ -220,10 +217,6 @@ export function buildCreatedNeed(draft: NeedDraft, id: string, now: string): Nee
 /** 结案知识节点新建分支（按 name upsert 的「未命中」支；命中支保留旧 id、只刷内容/时间戳，见各 store）。 */
 export function buildCreatedKbNode(draft: KnowledgeNodeDraft, id: string, now: string): KnowledgeNode {
   return { ...draft, id, createdAt: now };
-}
-
-export function buildCreatedArtifact(draft: ArtifactDraft, id: string, now: string): ArtifactRef {
-  return { ...draft, id, submittedVia: ARTIFACT_SUBMITTED_VIA, createdAt: now };
 }
 
 /** 建车：displayCode 在 store 内派生（禁手写）——给了 season 才有，否则 undefined（读视图回退 name）。 */

@@ -69,7 +69,6 @@ function seedGov(members: Member[], groups: readonly Group[] = [GRP_MECH]): Gove
     needs: [],
     knowledgeNodes: [],
     taskKnowledgeTags: [],
-    artifacts: [],
   };
 }
 

@@ -7,7 +7,6 @@ import {
 } from '@teamhub/hub-contracts';
 import type {
   ActorRef,
-  ArtifactRef,
   Dependency,
   GovernanceSnapshot,
   Group,
@@ -29,7 +28,6 @@ import type { Clock } from '../clock.js';
 import { createIdSequence, nextSequentialId } from './id-sequence.js';
 import type { IdSequence } from './id-sequence.js';
 import type {
-  ArtifactDraft,
   CreateGroupResult,
   DeleteGroupResult,
   DependencyDraft,
@@ -58,7 +56,6 @@ import {
   buildCreatedDependency,
   buildCreatedNeed,
   buildCreatedKbNode,
-  buildCreatedArtifact,
   buildCreatedResource,
   buildCreatedResourceSession,
   buildCreatedResourceSessionsBatch,
@@ -100,7 +97,7 @@ import { SqliteDatabase } from './sqlite-db.js';
  *    invitedMemberIds …）铺平成列（脆弱、加字段即破向后兼容）。id 列供主键/查改删，rowid 保插入序
  *    （`ORDER BY rowid` 还原数组原序；更新走 `UPDATE`（不换 rowid）而非 `INSERT OR REPLACE`（会把行挪到末尾））。
  *    表按三域分组：pm-core（tasks/dependencies/needs/knowledge_nodes/task_knowledge_tags/members/
- *    groups/seasons + meta 标量）、artifact（artifacts）、schedule（resources/resource_sessions/relay_handoffs）。
+ *    groups/seasons + meta 标量）、schedule（resources/resource_sessions/relay_handoffs）；artifact 已摘出（modules/archive）。
  *  - **PRAGMA user_version fail-closed + 事务**：schema 版本钉在 `user_version`；打开时高于本代码支持版本即抛
  *    （拒绝降级读写损坏更高版本数据）；每个写方法的 DB 变更包在 `BEGIN/COMMIT`（异常 `ROLLBACK`）里保证原子性。
  *
@@ -125,8 +122,7 @@ const ENTITY_TABLES = [
   'needs',
   'knowledge_nodes',
   'task_knowledge_tags',
-  // artifact 域
-  'artifacts',
+  // ARCH-UNIFY A4：artifacts 表已摘出，归 modules/archive（本类不再读写）。
   // schedule 域（不在 GovernanceSnapshot 内，走独立读口，与 InMemory/File 同）
   'resources',
   'resource_sessions',
@@ -150,7 +146,6 @@ function seedFreshDatabase(
     sdb.bulkInsert('needs', seed.needs);
     sdb.bulkInsert('knowledge_nodes', seed.knowledgeNodes);
     sdb.bulkInsert('task_knowledge_tags', seed.taskKnowledgeTags);
-    sdb.bulkInsert('artifacts', seed.artifacts);
     if (demoSeed) {
       sdb.bulkInsert('resources', scheduleScenarioFixture.resources);
       sdb.bulkInsert('resource_sessions', scheduleScenarioFixture.resourceSessions);
@@ -169,7 +164,6 @@ export class SqliteGovRepository implements GovStore {
   private dependencySeq!: IdSequence;
   private needSeq!: IdSequence;
   private knowledgeNodeSeq!: IdSequence;
-  private artifactSeq!: IdSequence;
   private seasonSeq!: IdSequence;
   private memberSeq!: IdSequence;
   private groupSeq!: IdSequence;
@@ -237,7 +231,6 @@ export class SqliteGovRepository implements GovStore {
     this.dependencySeq = createIdSequence(this.maxSuffix('dependencies', 'dep-new'));
     this.needSeq = createIdSequence(this.maxSuffix('needs', 'need-new'));
     this.knowledgeNodeSeq = createIdSequence(this.maxSuffix('knowledge_nodes', 'kn-cl'));
-    this.artifactSeq = createIdSequence(this.maxSuffix('artifacts', 'artifact-new'));
     this.seasonSeq = createIdSequence(this.maxSuffix('seasons', 'season-new'));
     this.memberSeq = createIdSequence(this.maxSuffix('members', 'member-new'));
     this.groupSeq = createIdSequence(this.maxSuffix('groups', 'grp-new'));
@@ -265,7 +258,6 @@ export class SqliteGovRepository implements GovStore {
       needs: this.allRows<Need>('needs'),
       knowledgeNodes: this.allRows<KnowledgeNode>('knowledge_nodes'),
       taskKnowledgeTags: this.allRows<TaskKnowledgeTag>('task_knowledge_tags'),
-      artifacts: this.allRows<ArtifactRef>('artifacts'),
     };
   }
 
@@ -623,32 +615,6 @@ export class SqliteGovRepository implements GovStore {
       const season = buildCreatedSeason(draft, nextSequentialId('season-new', this.seasonSeq));
       this.insertRow('seasons', season.id, season);
       return season;
-    });
-  }
-
-  // ── artifact 域写 ──────────────────────────────────────────────────────────────────
-
-  async appendArtifact(draft: ArtifactDraft): Promise<ArtifactRef> {
-    const now = this.clock.now().toISOString();
-    const artifact = buildCreatedArtifact(
-      draft,
-      nextSequentialId('artifact-new', this.artifactSeq),
-      now,
-    );
-    this.tx(() => this.insertRow('artifacts', artifact.id, artifact));
-    return artifact;
-  }
-
-  async setArtifactFile(
-    id: string,
-    file: NonNullable<ArtifactRef['storedFile']>,
-  ): Promise<ArtifactRef | null> {
-    return this.tx(() => {
-      const prev = this.getRow<ArtifactRef>('artifacts', id);
-      if (!prev) return null;
-      const updated: ArtifactRef = { ...prev, storedFile: file };
-      this.updateRow('artifacts', id, updated);
-      return updated;
     });
   }
 

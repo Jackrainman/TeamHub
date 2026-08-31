@@ -8,6 +8,7 @@ import {
   WaiveDependencyResponseSchema,
 } from '@teamhub/hub-contracts';
 import { TasksResponseSchema } from '@teamhub/hub-contracts';
+import { InMemoryArtifactRepository } from './support/inmemory-artifact-store.js';
 import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 
 describe('PM 读视图 + 依赖/缺口录入', () => {
@@ -80,8 +81,9 @@ describe('PM 读视图 + 依赖/缺口录入', () => {
 
   test('POST /api/artifacts → 201（v2）；server 钉 submittedVia=console + 派生 kind/versionNo/revision（C5）；落盘累积；夹带来源/派生字段被 omit', async () => {
     const store = new InMemoryGovStore();
-    const before = (await store.getSnapshot()).artifacts.length;
-    const app = buildTestHubServer({ store });
+    const artifactRepository = new InMemoryArtifactRepository();
+    const before = (await artifactRepository.listArtifacts()).length;
+    const app = buildTestHubServer({ store, artifactRepository });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -113,8 +115,8 @@ describe('PM 读视图 + 依赖/缺口录入', () => {
       expect(body.artifact.versionNo).toBe(1); // 空键自增起点（非夹带的 99）
       expect(body.artifact.revision).toBe('v1'); // server 钉 `v${versionNo}`（非夹带的 vBOGUS）
       expect(body.artifact.kind).toBe('report'); // 机械派生 report（非夹带的 image）
-      // 落盘累积：快照 artifacts +1
-      expect((await store.getSnapshot()).artifacts.length).toBe(before + 1);
+      // 落盘累积：提交日志 +1
+      expect((await artifactRepository.listArtifacts()).length).toBe(before + 1);
     } finally {
       await app.close();
     }

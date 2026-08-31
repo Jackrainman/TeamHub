@@ -1,5 +1,4 @@
 import type {
-  ArtifactRef,
   Dependency,
   Group,
   Member,
@@ -51,7 +50,6 @@ export const RESOURCE_STATUS_SOURCE: SharedResource['statusSource'] = 'console';
 // --- artifact：提交日志来源 seam（C5：请求不收，server 钉） ---
 
 /** 图纸/归档物提交日志追加（POST /api/artifacts）钉的 submittedVia。 */
-export const ARTIFACT_SUBMITTED_VIA: NonNullable<ArtifactRef['submittedVia']> = 'console';
 
 // --- schedule：新建资源 / 占用窗口 / 接力交接线 clamp（D-029 / D-072） ---
 

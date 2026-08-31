@@ -32,7 +32,6 @@ const EMPTY_SEED: GovernanceSnapshot = {
   needs: [],
   knowledgeNodes: [],
   taskKnowledgeTags: [],
-  artifacts: [],
 };
 
 // 可控「RealClock 替身」：注入一个**非 2026-06-11** 的确定时刻（等价 RealClock 但结果确定），

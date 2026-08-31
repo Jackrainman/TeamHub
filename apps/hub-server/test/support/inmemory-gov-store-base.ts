@@ -53,7 +53,6 @@ export class InMemoryGovStoreBase {
   protected readonly dependencySeq: IdSequence;
   protected readonly needSeq: IdSequence;
   protected readonly knowledgeNodeSeq: IdSequence;
-  protected readonly artifactSeq: IdSequence;
   protected readonly seasonSeq: IdSequence;
   // 名册导入（ROSTER-IMPORT，K8）：members/groups 是 GovernanceSnapshot 字段、随 seed 传入构造，
   // 故计数器从 seed 长度起步即已含已加载数据（无 delete、单调增），无需 旧生产 Store 载入后 resync
@@ -74,8 +73,7 @@ export class InMemoryGovStoreBase {
   ) {
     // 浅克隆 + 克隆全部 8 个数组（M13）：写方法追加时不污染共享 fixture。复用 cloneArrayFields（与
     // 旧生产 Store.cloneSnapshot 同一份实现，零漂移）——groups/members/taskKnowledgeTags 当前无写方法触及，
-    // 但一并克隆保证隔离一致性（防未来写入串台污染共享 fixture，进而影响后续实例与依赖 fixture 的测试）；
-    // artifacts 同理（图纸版本日志当前只读）。
+    // 但一并克隆保证隔离一致性（防未来写入串台污染共享 fixture，进而影响后续实例与依赖 fixture 的测试）。
     this.snapshot = cloneArrayFields(seed, GOVERNANCE_ARRAY_FIELDS);
     this.clock = clock;
     // 资源 / 占用窗口锚点数据：**受 demoSeed 管**（K6 时钟与空板刀）。与 seed 治理快照解耦——这两块锚点
@@ -99,7 +97,6 @@ export class InMemoryGovStoreBase {
     this.dependencySeq = createIdSequence(this.snapshot.dependencies.length);
     this.needSeq = createIdSequence(this.snapshot.needs.length);
     this.knowledgeNodeSeq = createIdSequence(this.snapshot.knowledgeNodes.length);
-    this.artifactSeq = createIdSequence(this.snapshot.artifacts.length);
     this.seasonSeq = createIdSequence(this.snapshot.seasons.length);
     this.memberSeq = createIdSequence(this.snapshot.members.length);
     this.groupSeq = createIdSequence(this.snapshot.groups.length);
