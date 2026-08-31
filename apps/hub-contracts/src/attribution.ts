@@ -29,8 +29,8 @@ import type {
 } from './pm-core.js';
 import { KnowledgeNodeSchema, TaskKnowledgeTagSchema } from './growth.js';
 import type { KnowledgeNode, TaskKnowledgeTag } from './growth.js';
-import { ArtifactRefSchema } from './artifact.js';
-import type { ArtifactRef } from './artifact.js';
+import { ArtifactRefSchema } from './domains/artifacts/index.js';
+import type { ArtifactRef } from './domains/artifacts/index.js';
 
 /**
  * 治理真相快照 → 阻塞归因 / DepGraph 视图的纯派生函数（无 IO、可单测）。

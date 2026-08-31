@@ -1,5 +1,5 @@
 import type { GovernanceSnapshot } from '../attribution.js';
-import type { ArtifactRef } from '../artifact.js';
+import type { ArtifactRef } from '../domains/artifacts/index.js';
 import type { Dependency, Group, Member, Need, Season, Task } from '../pm-core.js';
 import { CONVERGENCE_SENTINEL_GROUP_ID } from '../pm-core.js';
 import type { KnowledgeNode, TaskKnowledgeTag } from '../growth.js';

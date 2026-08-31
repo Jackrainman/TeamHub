@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ArtifactRefSchema } from './artifact.js';
+import { ArtifactRefSchema } from './model.js';
 
 // 图纸归档物「写侧请求契约」域文件（自 pm-requests.ts 拆出，照 RelayBoardResponseSchema 迁 relay.ts 先例）。
 // I0 图纸日志永无人维度：ArtifactRef 无 person 字段，写请求绝不收提交人/确认人。
@@ -88,3 +88,9 @@ export type CreateArtifactResponse = z.infer<
 export type UploadArtifactResponse = z.infer<
   typeof UploadArtifactResponseSchema
 >;
+
+/** GET /api/artifacts 读响应包装（artifact 域读契约，随实体同域）。 */
+export const ArtifactsResponseSchema = z.object({
+  artifacts: z.array(ArtifactRefSchema),
+});
+export type ArtifactsResponse = z.infer<typeof ArtifactsResponseSchema>;

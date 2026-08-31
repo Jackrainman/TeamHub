@@ -53,8 +53,22 @@ export type {
   HubEventsResponse,
 } from './schemas.js';
 // 归档物实体契约（治理域，CONTRACTS-SCHEMAS 自 schemas.ts 析出）。
-export { ArtifactRefSchema, ArtifactsResponseSchema } from './artifact.js';
-export type { ArtifactRef, ArtifactsResponse } from './artifact.js';
+// 归档物标准纵切模块：只从正式 domain public API 显式导出，不保留旧根文件转发层。
+export {
+  ArtifactRefSchema,
+  ArtifactsResponseSchema,
+  buildCreateArtifactRequestSchema,
+  CreateArtifactResponseSchema,
+  nextArtifactVersionNo,
+  UploadArtifactResponseSchema,
+} from './domains/artifacts/index.js';
+export type {
+  ArtifactRef,
+  ArtifactVersionKey,
+  ArtifactsResponse,
+  CreateArtifactResponse,
+  UploadArtifactResponse,
+} from './domains/artifacts/index.js';
 export {
   CONTRACT_FIXTURE_TIME,
   agentBackendCapabilitiesFixture,
@@ -181,7 +195,6 @@ export * from './identity.js';
 export * from './schedule-infra.js';
 export * from './growth.js';
 export * from './attribution.js';
-export * from './artifact-version.js';
 export * from './schedule.js';
 export * from './kb.js';
 export * from './kb-similar.js';
@@ -407,9 +420,6 @@ export type {
   VerticalId,
 } from './app-settings.js';
 export * from './pm-requests.js';
-// 写侧请求契约按域拆分（自 pm-requests.ts 析出 artifact/schedule/resource 三域，照 relay.ts 先例）；
-// 包入口 export * 保证 server/console 既有具名 import 零改动。
-export * from './artifact-requests.js';
 export * from './schedule-requests.js';
 export * from './resource-requests.js';
 // 名册导入（ROSTER-IMPORT，K8）：CSV 模板生成 + 编码探测 + 手写零依赖解析器 + 导入报告契约（纯，无状态）。

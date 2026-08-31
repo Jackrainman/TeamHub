@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { isoDateTimeSchema } from './common.js';
+import { isoDateTimeSchema } from '../../common.js';
 
 /**
  * 归档物实体契约（治理域，V1-FOLLOWUPS ④ / HUB-ARTIFACT-ARCHIVE-V2）。原住 `schemas.ts`（集成杂物间），
@@ -58,10 +58,4 @@ export const ArtifactRefSchema = z.object({
     .optional(),
 });
 
-/** GET /api/artifacts 读响应包装（artifact 域读契约，随实体同域）。 */
-export const ArtifactsResponseSchema = z.object({
-  artifacts: z.array(ArtifactRefSchema),
-});
-
 export type ArtifactRef = z.infer<typeof ArtifactRefSchema>;
-export type ArtifactsResponse = z.infer<typeof ArtifactsResponseSchema>;
