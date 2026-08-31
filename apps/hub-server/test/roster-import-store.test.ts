@@ -3,10 +3,10 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { RosterImportRow } from '@teamhub/hub-contracts';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 
 /**
- * GovStore.importRoster（ROSTER-IMPORT，K8 持久层）：三实现（mock/file/sqlite）同语义——
+ * PmRepository.importRoster（ROSTER-IMPORT，K8 持久层）：三实现（mock/file/sqlite）同语义——
  * displayName 幂等 upsert + 自动建组 + pinHash/projectManager 旗标不动 + missingFromSheet（绝不删），
  * members/groups 落 governance.json / SQLite，重启不丢；`member-new-N`/`grp-new-N` id 重开后不撞。
  */
@@ -20,7 +20,7 @@ function row(over: Partial<RosterImportRow> & Pick<RosterImportRow, 'displayName
   };
 }
 
-describe('GovStore.importRoster', () => {
+describe('PmRepository.importRoster', () => {
   let dir = '';
   afterEach(async () => {
     if (dir) await rm(dir, { recursive: true, force: true });
@@ -29,7 +29,7 @@ describe('GovStore.importRoster', () => {
 
   test('InMemory：自动建组 + 更新既有（role / pinHash / projectManager 旗标不动）+ missingFromSheet', async () => {
     // fixture 既有成员含 m-visionA（视觉A, member）；先手动授旗 + 设 pinHash 验「导入不洗旗标/凭证/role」。
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     await store.setProjectManager('m-visionA', true);
     await store.setMemberPin('m-visionA', 'scrypt:aa:bb');
 
@@ -67,7 +67,7 @@ describe('GovStore.importRoster', () => {
   // grp-convergence）→ 该行拒绝进 failed（行号随行指回 CSV 原行），成员不建不改；叶子组正常。
   // InMemory 与 Sqlite 逐字镜像同语义。
   test('刀④：InMemory 拒抽象组（非叶子/哨兵）进 failed；叶子组不受影响', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const outcome = await store.importRoster([
       row({ displayName: '程甲', groupName: '程序', line: 2 }), // grp-program 有子组 → 非叶子
       row({ displayName: '联乙', groupName: '全组联调', line: 3 }), // grp-convergence 哨兵

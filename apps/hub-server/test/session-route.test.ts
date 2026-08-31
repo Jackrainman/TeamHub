@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 
 // IDENTITY-LITE（D-083 §4.2）会话 + 服务端 actor 注入端到端。红线：pinHash 永不出响应；防枚举失败不区分；
 // 匿名模式（默认）现状零变化。
@@ -52,7 +52,7 @@ describe('匿名模式（默认）：现状零变化', () => {
   });
 
   test('写路由无会话照常放行（现状），confirmedBy 沿用请求体自报', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
@@ -247,7 +247,7 @@ describe('身份模式：写门 401 + 服务端 actor 注入', () => {
   });
 
   test('自报身份被服务端覆盖：落库 confirmedBy = session 身份，非请求体值', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       const cookie = await login(app, 'm-ecB'); // session = m-ecB

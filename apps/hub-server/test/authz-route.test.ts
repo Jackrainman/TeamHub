@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 
 /**
  * 权限地基路由端到端（K1 + MEMBER-PM-FLAG 公测补强刀②b）：
@@ -27,7 +27,7 @@ async function login(app: FastifyInstance, memberId: string, pin?: string): Prom
 }
 
 /** fixtures 的 demo 持旗成员（m-progA）收旗——让「初始化首个管理员」流程有干净的零旗标起点。 */
-async function clearFixturePm(store: InMemoryGovStore): Promise<void> {
+async function clearFixturePm(store: InMemoryPmRepository): Promise<void> {
   await store.setProjectManager('m-progA', false);
 }
 
@@ -47,7 +47,7 @@ describe('POST /api/setup/super-admin（初始化首个管理员）', () => {
   });
 
   test('身份模式未登录 + 老路径（无 displayName）→ 401（路由内自判；钩子已豁免本端点供 bootstrap）', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     await clearFixturePm(store);
     const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
@@ -63,7 +63,7 @@ describe('POST /api/setup/super-admin（初始化首个管理员）', () => {
   });
 
   test('无持旗成员：给登录本人授 projectManager 旗标 + 同笔设 pinHash（此后免 PIN 登录失败）；响应剥 pinHash', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     await clearFixturePm(store);
     const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
@@ -101,7 +101,7 @@ describe('POST /api/setup/super-admin（初始化首个管理员）', () => {
   });
 
   test('已存在持旗成员 → 409（一次性初始化门）', async () => {
-    const store = new InMemoryGovStore(); // fixtures 的 m-progA 已持旗
+    const store = new InMemoryPmRepository(); // fixtures 的 m-progA 已持旗
     const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       const cookie = await login(app, 'm-ecB');
@@ -120,7 +120,7 @@ describe('POST /api/setup/super-admin（初始化首个管理员）', () => {
 
 describe('POST /api/setup/super-admin — bootstrap 路径（SETUP-WIZARD-ROSTER 刀②）', () => {
   test('无会话 + displayName/groupName → 一笔建人+授旗+设 PIN+签会话 cookie（此后带 cookie 可写）', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     await clearFixturePm(store);
     const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
@@ -174,7 +174,7 @@ describe('POST /api/setup/super-admin — bootstrap 路径（SETUP-WIZARD-ROSTER
   });
 
   test('GRADE-7-TIERS：带 grade:grad2 新建 → 落库 grade=grad2 + gateReviewer 自动 true（≥大三含研派生）', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     await clearFixturePm(store);
     const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
@@ -193,7 +193,7 @@ describe('POST /api/setup/super-admin — bootstrap 路径（SETUP-WIZARD-ROSTER
   });
 
   test('姓名命中既有成员 → 认领该行（不新建、组不动），授旗+PIN+会话', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     await clearFixturePm(store);
     const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
@@ -215,7 +215,7 @@ describe('POST /api/setup/super-admin — bootstrap 路径（SETUP-WIZARD-ROSTER
   });
 
   test('新建但缺 groupName → 400；显式 projectManager:false → 建人+PIN 但不授旗（门可再现）', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     await clearFixturePm(store);
     const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
@@ -251,7 +251,7 @@ describe('POST /api/setup/super-admin — bootstrap 路径（SETUP-WIZARD-ROSTER
 
 describe('PUT /api/members/:id/role（成员角色维护）', () => {
   test('匿名模式：写门即可 → 200；未知 id → 404', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
@@ -316,7 +316,7 @@ describe('PUT /api/members/:id/role（成员角色维护）', () => {
   });
 
   test('身份模式：非持旗成员 → 403；持旗管理员 → 200', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     await clearFixturePm(store);
     const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
@@ -363,7 +363,7 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
   });
 
   test('身份模式未登录 → 401（写门钩子）；非持旗成员 → 403（非 loopback 来源）', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       // 显式非 loopback 来源（inject 默认 127.0.0.1 会命中 PIN-DEADLOCK-RECOVERY loopback 豁免）
@@ -388,7 +388,7 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
   });
 
   test('loopback 豁免（PIN-DEADLOCK-RECOVERY）：非持旗会话 / 无会话 经 loopback DELETE → 200，pinHash 清除', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       // 给 m-visionA 设 PIN（本人登录自设）
@@ -433,7 +433,7 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
   });
 
   test('trustProxy=true：豁免改信转发头——X-Forwarded-For=loopback 放行（SSH 隧道），=非 loopback 仍 401', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const app = buildTestHubServer({ identityMode: 'identity', store, trustProxy: true });
     try {
       const userCookie = await login(app, 'm-visionA');
@@ -470,7 +470,7 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
   });
 
   test('持旗管理员重置他人 PIN → 200：pinHash 清除、回免 PIN 态、可经 firstSetup 重设；响应剥 pinHash', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     await clearFixturePm(store);
     const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
@@ -545,7 +545,7 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
   });
 
   test('持旗管理员重置未知 id → 404', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     await clearFixturePm(store);
     const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
@@ -583,7 +583,7 @@ describe('敏感门收口：身份模式须持旗管理员（匿名不变）', (
       await anon.close();
     }
 
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     await clearFixturePm(store);
     const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
@@ -615,7 +615,7 @@ describe('敏感门收口：身份模式须持旗管理员（匿名不变）', (
   });
 
   test('POST /api/seasons：身份非持旗成员 → 403，持旗 → 201', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     await clearFixturePm(store);
     const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
@@ -690,7 +690,7 @@ describe('H3 写门 × 身份模式（令牌/会话双轨，SETUP-WIZARD-TOKEN �
   });
 
   test('身份 + 配 writeToken：bootstrap 无 Bearer 无会话 → 200 一笔建人授旗，再来 → 409', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     await clearFixturePm(store);
     const app = buildTestHubServer({ identityMode: 'identity', store, writeToken: 'sekret' });
     try {
@@ -713,7 +713,7 @@ describe('H3 写门 × 身份模式（令牌/会话双轨，SETUP-WIZARD-TOKEN �
   });
 
   test('身份 + 配 writeToken：loopback PIN 恢复无 Bearer → 放行（inject 默认 127.0.0.1）', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const app = buildTestHubServer({ identityMode: 'identity', store, writeToken: 'sekret' });
     try {
       // 先给 m-ecB 设 PIN（经持旗会话），再从 loopback 无令牌恢复

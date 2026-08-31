@@ -19,15 +19,15 @@ import type {
   TaskKnowledgeTag,
   TaskStatus,
 } from '@teamhub/hub-contracts';
-import { FixedClock } from '../clock.js';
-import type { Clock } from '../clock.js';
-import { createIdSequence, nextSequentialId } from './id-sequence.js';
-import type { IdSequence } from './id-sequence.js';
+import { FixedClock } from '../../clock.js';
+import type { Clock } from '../../clock.js';
+import { createIdSequence, nextSequentialId } from '../../store/id-sequence.js';
+import type { IdSequence } from '../../store/id-sequence.js';
 import type {
   CreateGroupResult,
   DeleteGroupResult,
   DependencyDraft,
-  GovStore,
+  PmRepository,
   GroupDraft,
   KnowledgeNodeDraft,
   NeedDraft,
@@ -36,7 +36,7 @@ import type {
   SetProjectManagerResult,
   SeasonDraft,
   TaskDraft,
-} from './gov-store.js';
+} from './repository.js';
 import {
   buildAssignedTask,
   buildClaimedTask,
@@ -60,12 +60,12 @@ import {
   validateGroupRename,
   validateLastProjectManagerGuard,
   buildProjectManagerUpdate,
-} from './gov-store-logic.js';
-import { SqliteDatabase } from './sqlite-db.js';
+} from './logic.js';
+import { SqliteDatabase } from '../../store/sqlite-db.js';
 
 /**
  * 统一 SQLite 内部的治理域 repository。数据库生命周期、schema kind 与版本由 sqlite-unified.ts 独占；
- * 本类只在已打开的共享连接上建治理域表、播种并实现 GovStore。
+ * 本类只在已打开的共享连接上建治理域表、播种并实现 PmRepository。
  *
  * **注释勾销（D-083 刀④拍板）**：本文件此前头注释「待部署审批后接 better-sqlite3/drizzle」是 D-042
  * 时代旧口径——彼时把「持久层实现」等同「真实服务器写入需白天审批」（AGENTS §8）。D-083 刀④重新
@@ -128,7 +128,7 @@ function seedFreshDatabase(
   });
 }
 
-export class SqliteGovRepository implements GovStore {
+export class SqlitePmRepository implements PmRepository {
   private readonly sdb: SqliteDatabase;
   private readonly clock: Clock;
 
@@ -152,13 +152,13 @@ export class SqliteGovRepository implements GovStore {
     sdb: SqliteDatabase,
     seed: GovernanceSnapshot = governanceScenarioFixture,
     clock?: Clock,
-  ): SqliteGovRepository {
+  ): SqlitePmRepository {
     sdb.ensureEntityTables(ENTITY_TABLES);
     const existing = sdb.allRows('tasks');
     if (existing.length === 0 && sdb.getMeta('seasonId') === undefined) {
       seedFreshDatabase(sdb, seed);
     }
-    return new SqliteGovRepository(sdb, clock);
+    return new SqlitePmRepository(sdb, clock);
   }
 
   // ── 低层行操作（委托 SqliteDatabase） ─────────────────────────────────

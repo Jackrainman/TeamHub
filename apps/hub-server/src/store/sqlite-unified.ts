@@ -23,11 +23,11 @@ import type {
 import type { Clock } from '../clock.js';
 import type { BaselineRepository } from '../modules/baseline/repository.js';
 import type { ChecklistRepository } from '../modules/checklist/repository.js';
-import type { GovStore } from './gov-store.js';
+import type { PmRepository } from '../modules/pm/repository.js';
 import { SqliteBaselineRepository } from '../modules/baseline/sqlite-repository.js';
 import { SqliteChecklistRepository } from '../modules/checklist/sqlite-repository.js';
 import { SqliteDatabase } from './sqlite-db.js';
-import { SqliteGovRepository } from './sqlite-gov-repository.js';
+import { SqlitePmRepository } from '../modules/pm/sqlite-repository.js';
 import { SqliteInventoryRepository } from '../modules/inventory/sqlite-repository.js';
 import { SqliteArtifactRepository } from '../modules/archive/sqlite-repository.js';
 import { SqliteKnowledgeRepository } from '../modules/knowledge/sqlite-repository.js';
@@ -80,7 +80,7 @@ const TEAMHUB_BUSINESS_META_KEYS = [
 ] as const;
 
 export interface UnifiedStores {
-  gov: GovStore;
+  gov: PmRepository;
   schedule: SqliteScheduleRepository;
   kb: SqliteKnowledgeRepository;
   inv: SqliteInventoryRepository;
@@ -190,7 +190,7 @@ function assembleStores(
   clock?: Clock,
 ): UnifiedStores {
   return {
-    gov: SqliteGovRepository.fromSharedDb(db, seeds.gov, clock),
+    gov: SqlitePmRepository.fromSharedDb(db, seeds.gov, clock),
     schedule: SqliteScheduleRepository.fromSharedDb(db, clock, seeds.demoSeed),
     kb: SqliteKnowledgeRepository.fromSharedDb(db, seeds.kb),
     inv: SqliteInventoryRepository.fromSharedDb(db, seeds.inv, clock),

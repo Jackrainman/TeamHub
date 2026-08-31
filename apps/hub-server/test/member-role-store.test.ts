@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 
 // setMemberRole + setProjectManager（K1 权限地基持久层 + MEMBER-PM-FLAG 公测补强刀②b）：role 枚举位
 // （groupAdmin/member 两档，不再承载管理员权限）与 projectManager 旗标（原 superAdmin 的正交化）就地改
@@ -11,7 +11,7 @@ import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 // （判与写不分离，照余项⑥ nit③ TOCTOU 修复先例）。三实现（mock/file/sqlite）同语义。**I0**：只改一个
 // 枚举位 / 布尔位，绝不做按人聚合/排行。
 
-describe('GovStore.setMemberRole', () => {
+describe('PmRepository.setMemberRole', () => {
   let dir = '';
   afterEach(async () => {
     if (dir) await rm(dir, { recursive: true, force: true });
@@ -19,7 +19,7 @@ describe('GovStore.setMemberRole', () => {
   });
 
   test('InMemory：命中 → role 落库、updatedBy=console；未知 id → null', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const before = (await store.getSnapshot()).members.find((m) => m.id === 'm-ecB');
     expect(before?.role).toBe('member');
 
@@ -41,7 +41,7 @@ describe('GovStore.setMemberRole', () => {
 
 });
 
-describe('GovStore.setProjectManager', () => {
+describe('PmRepository.setProjectManager', () => {
   let dir = '';
   afterEach(async () => {
     if (dir) await rm(dir, { recursive: true, force: true });
@@ -49,7 +49,7 @@ describe('GovStore.setProjectManager', () => {
   });
 
   test('InMemory：授旗/收旗落库、updatedBy=console；未知 id → not-found', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     // fixtures：m-progA 已持旗（demo），m-ecB 未持旗。
     const before = (await store.getSnapshot()).members.find((m) => m.id === 'm-ecB');
     expect(before?.projectManager).toBeUndefined();
@@ -73,7 +73,7 @@ describe('GovStore.setProjectManager', () => {
   });
 
   test('InMemory：guardLastProjectManager 降级保护——摘最后一个持旗成员被拦且不落库', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     // fixtures 唯一持旗成员 = m-progA。
 
     // guard 拦截：唯一持旗成员收旗 → last-projectmanager，库内旗标不变

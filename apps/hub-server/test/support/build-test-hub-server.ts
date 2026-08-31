@@ -7,7 +7,7 @@ import {
 import { InMemoryBaselineStore } from './inmemory-baseline-store.js';
 import { InMemoryChecklistStore } from './inmemory-checklist-store.js';
 import { InMemoryArtifactRepository } from './inmemory-artifact-store.js';
-import { InMemoryGovStore } from './inmemory-gov-store.js';
+import { InMemoryPmRepository } from './inmemory-gov-store.js';
 import { InMemoryInvStore } from './inmemory-inv-store.js';
 import { InMemoryKbStore } from './inmemory-kb-store.js';
 import { InMemoryReimburseStore } from './inmemory-reimburse-store.js';
@@ -48,7 +48,7 @@ export function buildTestHubServer(options: BuildTestHubServerOptions = {}) {
     clock,
     tenantConfig: options.tenantConfig ?? ROBOTICS_TENANT_CONFIG,
     identityMode: options.identityMode ?? 'anonymous',
-    store: options.store ?? new InMemoryGovStore(undefined, clock),
+    store: options.store ?? new InMemoryPmRepository(undefined, clock),
     artifactRepository:
       options.artifactRepository ?? new InMemoryArtifactRepository(undefined, clock),
     knowledgeRepository: options.knowledgeRepository ?? new InMemoryKbStore(),

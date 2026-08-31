@@ -1,11 +1,11 @@
 import type { FastifyInstance } from 'fastify';
-import type { GovStore } from '../store/gov-store.js';
+import type { PmRepository } from '../modules/pm/repository.js';
 import type { ScheduleResourcesReadPort } from '../modules/schedule/repository.js';
 import type { InventoryReadPort } from '../modules/inventory/repository.js';
 import { deriveInventoryLedger } from '@teamhub/hub-contracts';
 
 export interface ExportRouteDeps {
-  store: GovStore;
+  store: PmRepository;
   inventoryRead: InventoryReadPort;
   scheduleRead: ScheduleResourcesReadPort;
 }

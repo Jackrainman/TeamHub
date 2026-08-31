@@ -12,7 +12,7 @@ import type {
  * 库存域 repository port（ARCH-UNIFY A4；前身 store/gov-store.ts 的 InvStore）。
  *
  * INV 是三支柱里**唯一需要扩 schema 的根**——`InventorySnapshot` 不在 `GovernanceSnapshot` 内，故 INV 不复用
- * `GovStore`，走本独立 port（组合根注入；生产唯一实现 = sqlite-repository.ts，测试 fake 在 test/support）。
+ * `PmRepository`，走本独立 port（组合根注入；生产唯一实现 = sqlite-repository.ts，测试 fake 在 test/support）。
  *
  * 写白名单仅 `upsertPartType / recordPartAction / importPartTypes`（C3：无通用 delete / list 全家桶）。**红线**：
  *  - **I0**：recordPartAction 的 recordedBy 永无 memberId（只 source）；无按人聚合视图。
@@ -75,7 +75,7 @@ export type InventoryReadPort = Pick<
 
 /**
  * 机器人资源窄口（§8.2 跨域依赖）：库存动作 holder 校验 + 矩阵派生只需要资源清单，
- * 不拿完整 GovStore。生产由 GovStore.listResources 适配注入。
+ * 不拿完整 PmRepository。生产由 PmRepository.listResources 适配注入。
  */
 export interface InventoryResourcePort {
   listResources(): Promise<SharedResource[]>;

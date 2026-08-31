@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 
 // AUDIT-FIXES 部署前必修的路由层回归（H1 / M6 / H4 / H3）。
 // H2 旧 JSON 写链事故已随生产 File Store 删除；M9（errorCode 单调）见 kb-closeout-route.test.ts。
@@ -43,7 +43,7 @@ describe('H1 依赖环 → POST /api/dependencies 落库前拒环/自环', () =>
   });
 
   test('成环（A→B 后再 B→A）→ 第二条 400，不落库', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const app = buildTestHubServer({ store });
     try {
       const first = await app.inject({

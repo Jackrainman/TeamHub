@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 
 /**
  * PIN 明文副本 + 显示端点（打磨轮刀⑧② pinPlaintext，2026-07-25 用户拍板的密钥纪律例外）端到端：
@@ -25,13 +25,13 @@ async function login(app: FastifyInstance, memberId: string, pin?: string): Prom
 }
 
 /** fixtures 的 demo 持旗成员（m-progA）收旗——让「初始化首个管理员」流程有干净的零旗标起点。 */
-async function clearFixturePm(store: InMemoryGovStore): Promise<void> {
+async function clearFixturePm(store: InMemoryPmRepository): Promise<void> {
   await store.setProjectManager('m-progA', false);
 }
 
 describe('pinPlaintext 双写双清', () => {
   test('PUT pin 后 snapshot 同含 pinHash + pinPlaintext；DELETE 后两字段皆无', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       const cookie = await login(app, 'm-visionA');
@@ -59,7 +59,7 @@ describe('pinPlaintext 双写双清', () => {
   });
 
   test('bootstrap（POST /api/setup/super-admin）带 pin 也双写；响应体不含 pinPlaintext/pinHash/scrypt:', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     await clearFixturePm(store);
     const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
@@ -86,7 +86,7 @@ describe('pinPlaintext 双写双清', () => {
 
 describe('密钥纪律：pinPlaintext/pinHash 绝不出读响应', () => {
   test('GET /api/members 与 GET /api/session 的 JSON 串均不含 pinPlaintext/pinHash/scrypt:', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       const cookie = await login(app, 'm-visionA');
@@ -131,7 +131,7 @@ describe('GET /api/members/:id/pin（显示PIN 唯一透出口）', () => {
   });
 
   test('鉴权三态：本人 200 回明文 / 持旗管理员 200 / 他人 403；成员不存在 404', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       // m-visionA 自设 PIN（双写后 pinPlaintext 在库）
@@ -188,7 +188,7 @@ describe('GET /api/members/:id/pin（显示PIN 唯一透出口）', () => {
   });
 
   test('无 pinPlaintext（从未设 / 旧数据）→ 404「未设置 PIN」', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       // m-ecB 从未设 PIN → 本人读 → 404 未设置
@@ -206,7 +206,7 @@ describe('GET /api/members/:id/pin（显示PIN 唯一透出口）', () => {
   });
 
   test('DELETE 清除后再读 → 404「未设置 PIN」（双清生效）', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const app = buildTestHubServer({ identityMode: 'identity', store });
     try {
       const cookie = await login(app, 'm-visionA');

@@ -28,7 +28,7 @@ export const GOVERNANCE_ARRAY_FIELDS: (keyof GovernanceSnapshot)[] = [
  * 写白名单全部已落地：createTask/createDependency/createNeed（PM 录入簇）+ closeoutKbNode（KB-CORE）。
  * 每个写方法 Store 负责补 id/时间戳/派生默认 + clamp 初始态（C1 兜底录入、不取代 git/lark 派生信号）。
  */
-export class InMemoryGovStoreBase {
+export class InMemoryPmRepositoryBase {
   protected readonly snapshot: GovernanceSnapshot;
   protected readonly clock: Clock;
   // L1：单调自增计数器（构造期初始化为对应 seed 数组 length），实现抽到 id-sequence.ts（STORE-SPLIT-SQLITE，

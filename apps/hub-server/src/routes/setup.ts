@@ -6,11 +6,11 @@ import {
 import type { IdentityMode } from '@teamhub/hub-contracts';
 import { RESTART_EXIT_CODE } from '../build-setup-server.js';
 import type { SetupControl } from '../server.js';
-import type { GovStore } from '../store/gov-store.js';
+import type { PmRepository } from '../modules/pm/repository.js';
 import { parseBody, requireSuperAdmin } from './helpers.js';
 
 export interface SetupRouteDeps {
-  store: GovStore;
+  store: PmRepository;
   identityMode: IdentityMode;
   setupControl?: SetupControl;
 }

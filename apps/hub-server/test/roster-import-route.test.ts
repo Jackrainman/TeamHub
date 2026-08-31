@@ -9,7 +9,7 @@ import {
   type Member,
 } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 
 /**
  * 名册导入端到端（ROSTER-IMPORT，K8）：GET 模板 + POST 导入（匿名成功 / 身份空板豁免 / 身份非管理员
@@ -90,7 +90,7 @@ describe('GET /api/roster/template', () => {
 
 describe('POST /api/roster/import — 匿名模式', () => {
   test('创建/更新/自动建组/missingFromSheet/autoReviewers 一次到位', async () => {
-    const store = new InMemoryGovStore(
+    const store = new InMemoryPmRepository(
       seedWith([
         member({ id: 'm-old1', displayName: '老队员甲', grade: 'freshman' }),
         member({ id: 'm-old2', displayName: '老队员乙' }),
@@ -139,7 +139,7 @@ describe('POST /api/roster/import — 匿名模式', () => {
   });
 
   test('坏行进 failed（年级非法）不中断整批；末行无换行也解析', async () => {
-    const store = new InMemoryGovStore(seedWith([]));
+    const store = new InMemoryPmRepository(seedWith([]));
     const app = buildTestHubServer({ store });
     try {
       const csv = '姓名,年级,组\n错的,大五,机械\n阿甲,大三,机械'; // 无尾换行
@@ -160,7 +160,7 @@ describe('POST /api/roster/import — 匿名模式', () => {
   });
 
   test('旗标 + role 双保护：重导时目标持旗且已是组长 → 旗标 / role / pinHash 全不动（刀③ 导入不写 role）', async () => {
-    const store = new InMemoryGovStore(
+    const store = new InMemoryPmRepository(
       seedWith([
         member({
           id: 'm-boss',
@@ -199,7 +199,7 @@ describe('POST /api/roster/import — 匿名模式', () => {
       0xd0, 0xd5, 0xc3, 0xfb, 0x2c, 0xc4, 0xea, 0xbc, 0xb6, 0x2c, 0xd7, 0xe9, 0x0d, 0x0a, 0xc0,
       0xee, 0xcb, 0xc4, 0x2c, 0xb4, 0xf3, 0xc8, 0xfd, 0x2c, 0xb5, 0xe7, 0xbf, 0xd8, 0x0d, 0x0a,
     ]);
-    const store = new InMemoryGovStore(seedWith([]));
+    const store = new InMemoryPmRepository(seedWith([]));
     const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
@@ -217,7 +217,7 @@ describe('POST /api/roster/import — 匿名模式', () => {
   });
 
   test('无法识别的编码 → 400', async () => {
-    const store = new InMemoryGovStore(seedWith([]));
+    const store = new InMemoryPmRepository(seedWith([]));
     const app = buildTestHubServer({ store });
     try {
       const bad = Buffer.from([0x41, 0xff, 0x42]); // UTF-8 与 GBK 皆非法
@@ -236,7 +236,7 @@ describe('POST /api/roster/import — 匿名模式', () => {
   // 刀④ PROGRAM-GROUP-ABSTRACT：CSV 写「程序」不再静默命中 grp-program——非叶子/哨兵组是汇报视角、
   // 不可挂人，该行拒进 failed（说明原因 + 指回原行）；叶子组与本批新建组不受影响。
   test('刀④：组名命中非叶子/哨兵组 → 拒行进 failed（指回原行+说明）；叶子组正常导入', async () => {
-    const store = new InMemoryGovStore(
+    const store = new InMemoryPmRepository(
       seedWith(
         [],
         [
@@ -278,7 +278,7 @@ describe('POST /api/roster/import — 匿名模式', () => {
 
 describe('POST /api/roster/import — 身份模式', () => {
   test('空板豁免：名册为空 + 无会话 → 200 导入（解开空板死锁）', async () => {
-    const store = new InMemoryGovStore(seedWith([]));
+    const store = new InMemoryPmRepository(seedWith([]));
     const app = buildTestHubServer({ store, identityMode: 'identity' });
     try {
       const csv = '姓名,年级,组\n首个队员,大三,机械\n';
@@ -296,7 +296,7 @@ describe('POST /api/roster/import — 身份模式', () => {
   });
 
   test('名册非空 + 已登录但非持旗成员 → 403', async () => {
-    const store = new InMemoryGovStore(
+    const store = new InMemoryPmRepository(
       seedWith([member({ id: 'm-plain', displayName: '普通成员', role: 'member' })]),
     );
     const app = buildTestHubServer({ store, identityMode: 'identity' });
@@ -317,7 +317,7 @@ describe('POST /api/roster/import — 身份模式', () => {
   });
 
   test('名册非空 + 持旗管理员登录 → 200 导入', async () => {
-    const store = new InMemoryGovStore(
+    const store = new InMemoryPmRepository(
       seedWith([member({ id: 'm-boss', displayName: '队长', projectManager: true })]),
     );
     const app = buildTestHubServer({ store, identityMode: 'identity' });
@@ -340,7 +340,7 @@ describe('POST /api/roster/import — 身份模式', () => {
   });
 
   test('名册非空 + 无会话 → 401（引导豁免只对空板生效）', async () => {
-    const store = new InMemoryGovStore(
+    const store = new InMemoryPmRepository(
       seedWith([member({ id: 'm-plain', displayName: '普通成员' })]),
     );
     const app = buildTestHubServer({ store, identityMode: 'identity' });
@@ -360,7 +360,7 @@ describe('POST /api/roster/import — 身份模式', () => {
 
 describe('POST /api/roster/preview — 只解析不落库（ROSTER-IMPORT-PREVIEW 刀⑦）', () => {
   test('解析返回 rows/failed，store 快照零变化（不落库）', async () => {
-    const store = new InMemoryGovStore(
+    const store = new InMemoryPmRepository(
       seedWith([member({ id: 'm-old', displayName: '老队员' })]),
     );
     const app = buildTestHubServer({ store });
@@ -401,7 +401,7 @@ describe('POST /api/roster/preview — 只解析不落库（ROSTER-IMPORT-PREVIE
       0xd0, 0xd5, 0xc3, 0xfb, 0x2c, 0xc4, 0xea, 0xbc, 0xb6, 0x2c, 0xd7, 0xe9, 0x0d, 0x0a, 0xc0,
       0xee, 0xcb, 0xc4, 0x2c, 0xb4, 0xf3, 0xc8, 0xfd, 0x2c, 0xb5, 0xe7, 0xbf, 0xd8, 0x0d, 0x0a,
     ]);
-    const store = new InMemoryGovStore(seedWith([]));
+    const store = new InMemoryPmRepository(seedWith([]));
     const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
@@ -424,7 +424,7 @@ describe('POST /api/roster/preview — 只解析不落库（ROSTER-IMPORT-PREVIE
   test('鉴权三态：空板匿名放行 / 非空无会话 401 / 非持旗 403（与 import 同律）', async () => {
     const csv = '姓名,年级,组\n谁,大三,机械\n';
     // ① 空板匿名（identity 模式、无会话）→ 200
-    const emptyStore = new InMemoryGovStore(seedWith([]));
+    const emptyStore = new InMemoryPmRepository(seedWith([]));
     const appEmpty = buildTestHubServer({ store: emptyStore, identityMode: 'identity' });
     try {
       const res = await appEmpty.inject({
@@ -439,7 +439,7 @@ describe('POST /api/roster/preview — 只解析不落库（ROSTER-IMPORT-PREVIE
     }
     // ② 非空 + 无会话 → 401
     const appNoSession = buildTestHubServer({
-      store: new InMemoryGovStore(seedWith([member({ id: 'm-plain', displayName: '普通成员' })])),
+      store: new InMemoryPmRepository(seedWith([member({ id: 'm-plain', displayName: '普通成员' })])),
       identityMode: 'identity',
     });
     try {
@@ -454,7 +454,7 @@ describe('POST /api/roster/preview — 只解析不落库（ROSTER-IMPORT-PREVIE
     }
     // ③ 非空 + 已登录但非持旗 → 403
     const appForbidden = buildTestHubServer({
-      store: new InMemoryGovStore(seedWith([member({ id: 'm-plain', displayName: '普通成员' })])),
+      store: new InMemoryPmRepository(seedWith([member({ id: 'm-plain', displayName: '普通成员' })])),
       identityMode: 'identity',
     });
     try {
@@ -495,8 +495,8 @@ describe('POST /api/roster/import — JSON body（刀⑦ 双收）', () => {
         line: 3,
       },
     ];
-    const appMultipart = buildTestHubServer({ store: new InMemoryGovStore(seedWith([])) });
-    const appJson = buildTestHubServer({ store: new InMemoryGovStore(seedWith([])) });
+    const appMultipart = buildTestHubServer({ store: new InMemoryPmRepository(seedWith([])) });
+    const appJson = buildTestHubServer({ store: new InMemoryPmRepository(seedWith([])) });
     try {
       const resMultipart = await appMultipart.inject({
         method: 'POST',
@@ -522,7 +522,7 @@ describe('POST /api/roster/import — JSON body（刀⑦ 双收）', () => {
   });
 
   test('JSON 非法 body（缺 rows / 年级非法）→ 400，不落库', async () => {
-    const store = new InMemoryGovStore(seedWith([]));
+    const store = new InMemoryPmRepository(seedWith([]));
     const app = buildTestHubServer({ store });
     try {
       const bad1 = await app.inject({
@@ -567,7 +567,7 @@ describe('POST /api/roster/import — JSON body（刀⑦ 双收）', () => {
     };
     // ① 空板匿名 → 200 导入
     const appEmpty = buildTestHubServer({
-      store: new InMemoryGovStore(seedWith([])),
+      store: new InMemoryPmRepository(seedWith([])),
       identityMode: 'identity',
     });
     try {
@@ -583,7 +583,7 @@ describe('POST /api/roster/import — JSON body（刀⑦ 双收）', () => {
     }
     // ② 非空 + 无会话 → 401
     const appNoSession = buildTestHubServer({
-      store: new InMemoryGovStore(seedWith([member({ id: 'm-plain', displayName: '普通成员' })])),
+      store: new InMemoryPmRepository(seedWith([member({ id: 'm-plain', displayName: '普通成员' })])),
       identityMode: 'identity',
     });
     try {
@@ -598,7 +598,7 @@ describe('POST /api/roster/import — JSON body（刀⑦ 双收）', () => {
     }
     // ③ 非空 + 非持旗 → 403
     const appForbidden = buildTestHubServer({
-      store: new InMemoryGovStore(seedWith([member({ id: 'm-plain', displayName: '普通成员' })])),
+      store: new InMemoryPmRepository(seedWith([member({ id: 'm-plain', displayName: '普通成员' })])),
       identityMode: 'identity',
     });
     try {
@@ -620,7 +620,7 @@ describe('写门 × writeToken（刀⑦ preview 豁免，照 authz-route 双轨�
   test('身份 + 配 writeToken：无 Bearer 调 preview 不被写门 401 挡在路由外（鉴权收敛路由内）', async () => {
     // 空板：写门放行（豁免面同 import），路由内空板豁免 → 200。若误被写门拦截会回 401 'unauthorized'。
     const appEmpty = buildTestHubServer({
-      store: new InMemoryGovStore(seedWith([])),
+      store: new InMemoryPmRepository(seedWith([])),
       identityMode: 'identity',
       writeToken: 'sekret',
     });
@@ -636,7 +636,7 @@ describe('写门 × writeToken（刀⑦ preview 豁免，照 authz-route 双轨�
     }
     // 非空 + 无会话：仍放行过写门，由路由判 401 'login required'（非写门的 'unauthorized'）。
     const appNonEmpty = buildTestHubServer({
-      store: new InMemoryGovStore(seedWith([member({ id: 'm-plain', displayName: '普通成员' })])),
+      store: new InMemoryPmRepository(seedWith([member({ id: 'm-plain', displayName: '普通成员' })])),
       identityMode: 'identity',
       writeToken: 'sekret',
     });

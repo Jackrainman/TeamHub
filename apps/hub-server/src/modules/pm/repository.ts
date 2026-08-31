@@ -68,9 +68,9 @@ export type DeleteGroupResult =
 
 /**
  * pm-core 域写入口（STORE-SPLIT-SQLITE，product-redefine-2026-07 §4.4 / §9-③）：项目计划表
- * 录入 + 受限状态机迁移 + 身份写路径——从原 god-interface `GovStore`（gov-store.ts:184 一带，
+ * 录入 + 受限状态机迁移 + 身份写路径——从原 god-interface `PmRepository`（gov-store.ts:184 一带，
  * 21 方法混 6 域）按语义拆出的第一个域接口，与 `ArtifactStore`/`ScheduleStore` 一起经交叉类型
- * 复合回 `GovStore`（见 gov-store.ts），三实现/消费点零行为变化。
+ * 复合回 `PmRepository`（见 gov-store.ts），三实现/消费点零行为变化。
  *
  * 读：`getSnapshot()`（D-040 首刀，已实现）——**留在本域**：GovernanceSnapshot 11 字段
  * （tasks/dependencies/needs/knowledgeNodes/artifacts/members/groups/projects/…）的核心真相载体，
@@ -148,7 +148,7 @@ export type SeasonDraft = Omit<Season, 'id' | 'status'>;
  *     （updateTaskStatus / waiveDependency）只在既有枚举上推进文档化的生命周期态。
  *   - **密钥纪律**：pinHash 只落盘、绝不经读视图外露（路由层回带走 MemberPublicSchema 剥离）。
  */
-export interface PmCoreStore {
+export interface PmRepository {
   getSnapshot(): Promise<GovernanceSnapshot>;
 
   createTask(draft: TaskDraft): Promise<Task>;

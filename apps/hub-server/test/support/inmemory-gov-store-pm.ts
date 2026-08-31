@@ -37,7 +37,7 @@ import {
   buildRosterMemberCreate,
   buildRosterMemberUpdate,
   buildCreatedGroup,
-} from '../../src/store/gov-store-logic.js';
+} from '../../src/modules/pm/logic.js';
 import { cloneArrayFields } from '../../src/store/clone-snapshot.js';
 import type {
   CreateGroupResult,
@@ -46,28 +46,28 @@ import type {
   GroupDraft,
   KnowledgeNodeDraft,
   NeedDraft,
-  PmCoreStore,
+  PmRepository,
   RenameGroupResult,
   RosterImportOutcome,
   SetProjectManagerResult,
   SeasonDraft,
   TaskDraft,
-} from '../../src/store/gov-store.js';
+} from '../../src/modules/pm/repository.js';
 import { nextSequentialId } from '../../src/store/id-sequence.js';
 import { GOVERNANCE_ARRAY_FIELDS } from './inmemory-gov-store-base.js';
-import type { InMemoryGovStoreBase } from './inmemory-gov-store-base.js';
+import type { InMemoryPmRepositoryBase } from './inmemory-gov-store-base.js';
 
 /**
- * pm-core 域方法 mixin（GOV-SPLIT）：PmCoreStore 全部方法（getSnapshot + PM 录入簇 + KB 结案 +
+ * pm-core 域方法 mixin（GOV-SPLIT）：PmRepository 全部方法（getSnapshot + PM 录入簇 + KB 结案 +
  * 受限状态机迁移 + 身份写路径 + 名册导入 + 组管理 + 挂单认领制窄写 + 赛季创建）叠到基座上。
- * 方法体逐字自原 InMemoryGovStore 搬迁（mock-gov-store.ts 单文件 862 行拆分），零行为变化。
+ * 方法体逐字自原 InMemoryPmRepository 搬迁（mock-gov-store.ts 单文件 862 行拆分），零行为变化。
  */
-type Base = new (...args: any[]) => InMemoryGovStoreBase;
+type Base = new (...args: any[]) => InMemoryPmRepositoryBase;
 
 export function PmCoreMixin<T extends Base>(
   BaseClass: T,
-): T & (new (...args: any[]) => PmCoreStore) {
-  return class InMemoryGovStorePm extends BaseClass {
+): T & (new (...args: any[]) => PmRepository) {
+  return class InMemoryPmRepositoryPm extends BaseClass {
     async getSnapshot(): Promise<GovernanceSnapshot> {
       // M7：返回浅拷贝（顶层对象 + 全 8 数组字段克隆，与构造期同一份克隆纪律），
       // 防外部读到 live 引用后 push/splice 绕过写白名单 mutate live store。
@@ -465,7 +465,7 @@ export function PmCoreMixin<T extends Base>(
 
     /**
      * 新建赛季（POST /api/seasons，SEASON-CREATE）：新赛季钉 status=`active`，同笔把既有 active
-     * 赛季原地转 `archived`（一届一个当前赛季，见 PmCoreStore.createSeason 注释）。原地替换保持
+     * 赛季原地转 `archived`（一届一个当前赛季，见 PmRepository.createSeason 注释）。原地替换保持
      * seasons 数组引用稳定（旧生产 Store 回滚按引用整体还原）。
      */
     async createSeason(draft: SeasonDraft): Promise<Season> {

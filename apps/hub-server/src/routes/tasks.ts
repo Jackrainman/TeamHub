@@ -29,13 +29,13 @@ import {
   isBigTask,
 } from '@teamhub/hub-contracts';
 import type { IdentityMode } from '@teamhub/hub-contracts';
-import type { GovStore } from '../store/gov-store.js';
+import type { PmRepository } from '../modules/pm/repository.js';
 import type { Clock } from '../clock.js';
 import { parseBody, parseQuery, requireSuperAdmin, sessionActor } from './helpers.js';
 import type { LarkIntegrationStore } from '../store/lark-integration-store.js';
 
 export interface TaskRouteDeps {
-  store: GovStore;
+  store: PmRepository;
   clock: Clock;
   identityMode: IdentityMode;
   larkStore?: LarkIntegrationStore;

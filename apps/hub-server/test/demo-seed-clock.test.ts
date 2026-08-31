@@ -7,11 +7,11 @@ import {
   governanceScenarioFixture,
 } from '@teamhub/hub-contracts';
 import type { GovernanceSnapshot } from '@teamhub/hub-contracts';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 import { InMemoryScheduleRepository } from './support/inmemory-schedule-store.js';
 import { FixedClock } from '../src/clock.js';
 import type { Clock } from '../src/clock.js';
-import type { TaskDraft } from '../src/store/gov-store.js';
+import type { TaskDraft } from '../src/modules/pm/repository.js';
 
 /**
  * K6（时钟与空板刀）回归门：坐实「演示态 = 冻结时钟 + 演示锚点，真实态 = 真实时钟 + 真空板」，
@@ -64,14 +64,14 @@ afterAll(async () => {
 
 describe('K6 演示态：冻结时钟 + 演示锚点（默认，现状零变化）', () => {
   test('demoSeed 缺省 → resources/resourceSessions 非空（演示车 + 排班仍在）', async () => {
-    // ARCH-UNIFY A4：schedule 三块已摘出 GovStore，归独立 InMemoryScheduleRepository。
+    // ARCH-UNIFY A4：schedule 三块已摘出 PmRepository，归独立 InMemoryScheduleRepository。
     const scheduleStore = new InMemoryScheduleRepository();
     expect((await scheduleStore.listResources()).length).toBeGreaterThan(0);
     expect((await scheduleStore.listResourceSessions()).length).toBeGreaterThan(0);
   });
 
   test('demoSeed 缺省 → createTask 的 createdAt 是冻结锚点 2026-06-11', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const task = await store.createTask(taskDraft('演示态任务'));
     expect(task.createdAt).toBe(GOVERNANCE_SCENARIO_NOW);
   });
@@ -86,7 +86,7 @@ describe('K6 真实态：真实时钟 + 真空板（demoSeed=false）', () => {
   });
 
   test('InMemory: createTask 的 createdAt 来自注入 clock、非冻结锚点（bug1 时钟不再冻结）', async () => {
-    const store = new InMemoryGovStore(EMPTY_SEED, realStandInClock);
+    const store = new InMemoryPmRepository(EMPTY_SEED, realStandInClock);
     const task = await store.createTask(taskDraft('真实态任务'));
     expect(task.createdAt).toBe(REAL_NOW_ISO);
     expect(task.createdAt).not.toBe(GOVERNANCE_SCENARIO_NOW);

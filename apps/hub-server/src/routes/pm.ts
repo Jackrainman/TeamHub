@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { IdentityMode } from '@teamhub/hub-contracts';
-import type { GovStore } from '../store/gov-store.js';
+import type { PmRepository } from '../modules/pm/repository.js';
 import type { BaselineService } from '../modules/baseline/service.js';
 import type { ChecklistService } from '../modules/checklist/service.js';
 import type { Clock } from '../clock.js';
@@ -14,7 +14,7 @@ import { registerTaskClaimRoutes } from './tasks-claim.js';
 import { registerChecklistRoutes } from '../modules/checklist/routes.js';
 
 export interface PmCoreRouteDeps {
-  store: GovStore;
+  store: PmRepository;
   clock: Clock;
   baselineService: BaselineService;
   checklistService: ChecklistService;

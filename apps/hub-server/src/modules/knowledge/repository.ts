@@ -5,13 +5,13 @@ import type {
   KbSnapshot,
   KnowledgeNode,
 } from '@teamhub/hub-contracts';
-// KnowledgeNodeDraft 归 pm 域（A5 拆 GovStore 时随 pm 迁出）；本模块只经窄口消费其类型。
-import type { KnowledgeNodeDraft } from '../../store/pm-core-store.js';
+// KnowledgeNodeDraft 归 pm 域（A5 拆 PmRepository 时随 pm 迁出）；本模块只经窄口消费其类型。
+import type { KnowledgeNodeDraft } from '../pm/repository.js';
 
 /**
  * 知识库域 repository port（ARCH-UNIFY A4；前身 store/gov-store.ts 的 KbStore）。
  *
- * **为何独立于 GovStore**：相似 bug 检索（`GET /api/kb/similar` 走 `rankSimilarIssues`）的排序语料
+ * **为何独立于 PmRepository**：相似 bug 检索（`GET /api/kb/similar` 走 `rankSimilarIssues`）的排序语料
  * （IssueCard/ErrorEntry/ArchiveDocument）不在 `GovernanceSnapshot` 内；结案派生 KnowledgeNode 那半
  * 走 `KnowledgeNodeCloseoutPort`（pm 域窄口）。
  */
@@ -53,7 +53,7 @@ export interface KbCloseoutAppend {
 
 /**
  * 结案派生知识节点的窄 port（§8.2 跨域写）：KnowledgeNode 在 pm 域（GovernanceSnapshot.knowledgeNodes），
- * knowledge 域只经本口回挂，不拿完整 GovStore。生产由 GovStore.closeoutKbNode 适配注入。
+ * knowledge 域只经本口回挂，不拿完整 PmRepository。生产由 PmRepository.closeoutKbNode 适配注入。
  */
 export interface KnowledgeNodeCloseoutPort {
   closeoutKbNode(draft: KnowledgeNodeDraft): Promise<KnowledgeNode>;

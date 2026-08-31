@@ -2,18 +2,18 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 
 /**
- * GovStore 组管理最小版（PROGRAM-GROUP-ABSTRACT，公测补强刀④）：三实现（mock/file/sqlite）同语义——
+ * PmRepository 组管理最小版（PROGRAM-GROUP-ABSTRACT，公测补强刀④）：三实现（mock/file/sqlite）同语义——
  * createGroup（同名 name-exists）/ renameGroup（仅叶子；not-found/not-leaf/name-exists）/
  * deleteGroup（仅叶子 + 防孤儿 has-members/has-tasks；哨兵与非叶子 not-leaf）；groups 是
  * GovernanceSnapshot 字段 → file/sqlite 落盘、重启不丢。
  */
 
-describe('GovStore 组管理 — InMemory 守卫', () => {
+describe('PmRepository 组管理 — InMemory 守卫', () => {
   test('createGroup：新建叶子组（id/seasonId/parentGroupId=null/kind 钉法同 importRoster）；同名 → name-exists', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const created = await store.createGroup({ name: '运营' });
     expect(created.ok).toBe(true);
     if (created.ok) {
@@ -28,7 +28,7 @@ describe('GovStore 组管理 — InMemory 守卫', () => {
   });
 
   test('renameGroup：叶子组可改；非叶子/哨兵 → not-leaf；撞名 → name-exists；不存在 → not-found', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const ok = await store.renameGroup('grp-mech', '机械结构');
     expect(ok.ok).toBe(true);
     expect(await store.renameGroup('grp-program', '新名')).toEqual({
@@ -50,7 +50,7 @@ describe('GovStore 组管理 — InMemory 守卫', () => {
   });
 
   test('deleteGroup：空叶子组可删（回带被删组）；有成员/有任务 → 对应 reason；非叶子/哨兵 → not-leaf', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const created = await store.createGroup({ name: '临时组' });
     if (!created.ok) throw new Error('unreachable');
     // 有任务引用 → has-tasks。

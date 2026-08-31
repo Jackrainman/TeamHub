@@ -16,7 +16,7 @@ const KB_ARRAY_FIELDS: (keyof KbSnapshot)[] = [
 
 /**
  * 知识库读语料内存实现（KB-CORE）：默认 seed `kbScenarioFixture`（跨赛季 CAN/3508/MicroROS 历史 bug），
- * 让 `GET /api/kb/similar` 从第一个请求起就能演示同类 bug 召回（与 InMemoryGovStore seed 治理 fixture 对称）。
+ * 让 `GET /api/kb/similar` 从第一个请求起就能演示同类 bug 召回（与 InMemoryPmRepository seed 治理 fixture 对称）。
  * 进程重启丢失为预期；持久层见 `旧生产 Store`（注入 `options.kbStore`），SQLite 随部署审批后接（AGENTS §8）。
  *
  * 写：`appendCloseout` 回灌结案派生物（AI+知识库闭环），让 closeout 上传后下次 similar 可召回。
@@ -25,7 +25,7 @@ export class InMemoryKbStore implements KnowledgeRepository {
   private readonly snapshot: KbSnapshot;
 
   constructor(seed: KbSnapshot = kbScenarioFixture) {
-    // 克隆被写入的数组：appendCloseout 追加时不污染共享 fixture（参考 InMemoryGovStore，复用 cloneArrayFields）。
+    // 克隆被写入的数组：appendCloseout 追加时不污染共享 fixture（参考 InMemoryPmRepository，复用 cloneArrayFields）。
     this.snapshot = cloneArrayFields(seed, KB_ARRAY_FIELDS);
   }
 

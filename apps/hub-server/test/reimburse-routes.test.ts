@@ -18,7 +18,7 @@ import type {
   Member,
 } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 import { InMemoryInvStore } from './support/inmemory-inv-store.js';
 import { InMemoryReimburseStore } from './support/inmemory-reimburse-store.js';
 
@@ -110,7 +110,7 @@ function buildTestApp() {
   const invStore = new InMemoryInvStore(seedInv());
   const reimburseStore = new InMemoryReimburseStore();
   const app = buildTestHubServer({
-    store: new InMemoryGovStore(seedGov()),
+    store: new InMemoryPmRepository(seedGov()),
     inventoryRepository: invStore,
     reimburseStore,
     identityMode: 'identity',
@@ -617,7 +617,7 @@ describe('报账 profile 与窄入库上下文', () => {
 describe('匿名模式（identityMode=anonymous）', () => {
   test('GET entries 回全量（无身份概念，与匿名可读一切一致）；POST → 400 须登录；批次端点 403', async () => {
     const app = buildTestHubServer({
-      store: new InMemoryGovStore(seedGov()),
+      store: new InMemoryPmRepository(seedGov()),
       inventoryRepository: new InMemoryInvStore(seedInv()),
       reimburseStore: new InMemoryReimburseStore(),
     });

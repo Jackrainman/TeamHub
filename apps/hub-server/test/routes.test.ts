@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { InMemoryArtifactRepository } from './support/inmemory-artifact-store.js';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 import { governanceScenarioFixture } from '@teamhub/hub-contracts';
 import type { GovernanceSnapshot } from '@teamhub/hub-contracts';
 import {
@@ -321,7 +321,7 @@ describe('hub-server routes', () => {
         { id: 'season-probe', name: '探针赛季', startsAt: '2026-01-01T00:00:00.000Z', endsAt: null, status: 'active' },
       ],
     };
-    const app2 = buildTestHubServer({ store: new InMemoryGovStore(custom) });
+    const app2 = buildTestHubServer({ store: new InMemoryPmRepository(custom) });
     try {
       const response = await app2.inject({
         method: 'GET',

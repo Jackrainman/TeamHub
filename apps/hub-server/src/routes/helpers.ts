@@ -1,6 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { SessionIdentity, ActorRef } from '@teamhub/hub-contracts';
-import type { GovStore } from '../store/gov-store.js';
+import type { PmRepository } from '../modules/pm/repository.js';
 import { isSuperAdmin } from '../authz.js';
 import { isApplicationError } from '../application/application-error.js';
 
@@ -55,7 +55,7 @@ export function parseQuery<T>(
 }
 
 export async function requireSuperAdmin(
-  store: GovStore,
+  store: PmRepository,
   request: FastifyRequest,
   reply: FastifyReply,
   detail = '该操作需管理员（superAdmin）',

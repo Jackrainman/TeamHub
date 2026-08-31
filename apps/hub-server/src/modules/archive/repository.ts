@@ -2,7 +2,7 @@ import type { ArtifactRef } from '@teamhub/hub-contracts';
 
 /**
  * 归档物域 repository port（ARCH-UNIFY A4；前身 store/artifact-store.ts 的 ArtifactStore +
- * GovStore.getSnapshot().artifacts 读路径）。
+ * PmRepository.getSnapshot().artifacts 读路径）。
  *
  * **append-only**：只追加/就地换文件指针，无 update-field/delete/list 全家桶（C3）。
  * **I0**：ArtifactRef 永无 person 字段——日志主键 = 组 + 赛季 + 车 + 机构 + 版本 + 归档物，永无 memberId。

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { CreateTaskResponseSchema } from '@teamhub/hub-contracts';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 
 const validBody = {
   projectId: 'prj-robots',
@@ -16,7 +16,7 @@ const validBody = {
 
 describe('POST /api/tasks', () => {
   test('单条任务录入 → 201 + server 补 id/时间戳/默认；持久到 store', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const before = (await store.getSnapshot()).tasks.length;
     const app = buildTestHubServer({ store });
     try {

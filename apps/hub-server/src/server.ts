@@ -16,7 +16,7 @@ import { SessionManager } from './identity/session-store.js';
 import { FixedClock } from './clock.js';
 import type { Clock } from './clock.js';
 import type { ReimburseRepository } from './modules/reimburse/repository.js';
-import type { GovStore } from './store/gov-store.js';
+import type { PmRepository } from './modules/pm/repository.js';
 import { BaselineService } from './modules/baseline/service.js';
 import type { BaselineRepository } from './modules/baseline/repository.js';
 import { ChecklistService } from './modules/checklist/service.js';
@@ -86,7 +86,7 @@ export interface SetupControl {
 export interface BuildHubServerOptions {
   consoleDistDir?: string;
   /** 治理读写出入口；生产与测试组合根都必须显式装配。 */
-  store: GovStore;
+  store: PmRepository;
   /**
    * 派生快照求值时刻。mock-first 阶段默认钉在 fixture 场景时间 GOVERNANCE_SCENARIO_NOW，
    * 让 real 模式 /api/dep-graph 与 hub-console mock 同口径；真实数据接入后注入 RealClock。
@@ -99,7 +99,7 @@ export interface BuildHubServerOptions {
    */
   knowledgeRepository: KnowledgeRepository;
   /**
-   * 排班域 repository（ARCH-UNIFY A4；原 ScheduleStore 交叉进 GovStore，已摘出）：
+   * 排班域 repository（ARCH-UNIFY A4；原 ScheduleStore 交叉进 PmRepository，已摘出）：
    * 共享资源车 + 占用窗口 + 接力交接线（不在 GovernanceSnapshot 内）。
    * 派生所需治理快照经窄口 PmSnapshotReadPort 由 `store` 适配注入。
    */
@@ -107,18 +107,18 @@ export interface BuildHubServerOptions {
   /**
    * 库存 / BOM repository（ARCH-UNIFY A4 库存域；原 InvStore 扩展点，D-042 决策 4）。
    * INV 是唯一需扩 schema 的支柱（InventorySnapshot 不在 GovernanceSnapshot 内），故走独立
-   * `InventoryRepository` port 而非复用 GovStore；由组合根注入（生产=SqliteInventoryRepository）。
+   * `InventoryRepository` port 而非复用 PmRepository；由组合根注入（生产=SqliteInventoryRepository）。
    */
   inventoryRepository: InventoryRepository;
   /**
-   * 倒排基准线读写出入口（BASELINE-CORE，S3 落地/S4 挂路由）。独立于 `GovStore`（`SeasonBaseline`
-   * 不进 `GovernanceSnapshot`），故走独立 `BaselineRepository` 而非扩 GovStore。
+   * 倒排基准线读写出入口（BASELINE-CORE，S3 落地/S4 挂路由）。独立于 `PmRepository`（`SeasonBaseline`
+   * 不进 `GovernanceSnapshot`），故走独立 `BaselineRepository` 而非扩 PmRepository。
    * 由 `GET/PATCH /api/baseline` + `POST /api/baseline/milestones/:milestoneId/pass` 消费
    * （registerPmCoreRoutes，与 seasonId 同域）。
    */
   baselineRepository: BaselineRepository;
   /**
-   * 门检查单 / 欠条读写出入口（GATE-CHECKLIST-IOU，D-087；本刀 C2 落地、C3 挂路由）。独立于 `GovStore`
+   * 门检查单 / 欠条读写出入口（GATE-CHECKLIST-IOU，D-087；本刀 C2 落地、C3 挂路由）。独立于 `PmRepository`
    * （`GateChecklistItem` 不进 `GovernanceSnapshot`），故走独立 `ChecklistRepository`。
    * 由组合根显式注入；C3 由 `GET/POST /api/checklist` +
    * `POST /api/checklist/:id/{clear,waive}` + `GET /api/checklist/templates` 消费。
@@ -163,13 +163,13 @@ export interface BuildHubServerOptions {
   /** 飞书集成配置持久化（LARK-INTEG-CONFIG）。给了才注册 /api/integrations/lark + /api/hermes/credential。 */
   larkStore?: import('./store/lark-integration-store.js').LarkIntegrationStore;
   /**
-   * 报账域读写出入口（REIMBURSE-PROC 一期）。独立于 `GovStore`（ReimburseEntry/ReimburseBatch 不进
+   * 报账域读写出入口（REIMBURSE-PROC 一期）。独立于 `PmRepository`（ReimburseEntry/ReimburseBatch 不进
    * GovernanceSnapshot，同 InvStore 先例）。由 `/api/reimburse/*` 消费
    * （registerReimburseRoutes，挂 ledger 模块下）。
    */
   reimburseStore: ReimburseRepository;
   /**
-   * 归档物域 repository（ARCH-UNIFY A4；原 GovStore.ArtifactStore + snapshot.artifacts 读路径）。
+   * 归档物域 repository（ARCH-UNIFY A4；原 PmRepository.ArtifactStore + snapshot.artifacts 读路径）。
    * 由 `/api/artifacts*` 消费（registerArchiveRoutes）+ baseline 证据引用存在性校验（窄口读）。
    */
   artifactRepository: ArtifactRepository;
@@ -199,7 +199,7 @@ declare module 'fastify' {
  * 遍历调用下方各 `registerXxxRoutes`，未启用模块的函数根本不被调用——端点整段不挂，非"挂了但鉴权拒绝"。
  */
 interface ModuleRouteCtx {
-  store: GovStore;
+  store: PmRepository;
   clock: Clock;
   inventoryRead: InventoryReadPort;
   // BASELINE-CORE：S4 起由 registerPmCoreRoutes 的 GET/PATCH /api/baseline + 过门路由消费。
@@ -331,7 +331,7 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
   registerSetupRoutes(app, { store, identityMode, setupControl: options.setupControl });
 
   // 装配外壳核心：遍历 enabledModules → 挂载各域路由。未启用模块的函数根本不被调用，端点整段不挂
-  // （§3.4-A；游戏工作室等租户可省 presence-schedule，此步无需拆 ScheduleStore——GovStore 的 schedule
+  // （§3.4-A；游戏工作室等租户可省 presence-schedule，此步无需拆 ScheduleStore——PmRepository 的 schedule
   // 方法对未启用租户单纯不被调用即可，是最便宜实现）。system/pm-core 虽标"核心常装/必装"，装配层仍统一走
   // enabledModules 判断、不写结构性例外——常装与否由 TenantConfig 的内容体现。
   if (moduleEnabled('system')) {

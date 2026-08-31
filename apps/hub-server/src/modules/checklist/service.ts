@@ -22,7 +22,7 @@ export interface ChecklistBaselinePort {
 }
 
 /**
- * 豁免权属判定的窄 port（§8.2；前身 GovStore.getSnapshot().members + isGateReviewer 全量依赖）。
+ * 豁免权属判定的窄 port（§8.2；前身 PmRepository.getSnapshot().members + isGateReviewer 全量依赖）。
  * 组合根用 pm 成员表适配注入；checklist 域不反向感知成员实体。
  */
 export interface GateReviewerPort {

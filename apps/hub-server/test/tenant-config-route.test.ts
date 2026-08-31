@@ -16,7 +16,7 @@ import type { TenantConfig } from '@teamhub/hub-contracts';
  * presence-schedule 的租户，断言：① 该模块整段路由未注册（404，非"挂了但拒绝"）；
  * ② 其余模块（pm-core/knowledge-base/ledger）路由正常；③ ledger 的 inventory 校验路径内部调
  * `store.listResources()`（server.ts registerLedgerRoutes）不因 presence-schedule 未注册而炸——
- * store 本身（InMemoryGovStore）不感知 tenantConfig，seed 与模块开关是两条独立的轴。
+ * store 本身（InMemoryPmRepository）不感知 tenantConfig，seed 与模块开关是两条独立的轴。
  */
 const GAME_STUDIO_LIKE_TENANT: TenantConfig = {
   enabledModules: ALL_MODULE_IDS.filter((id) => id !== 'presence-schedule'),

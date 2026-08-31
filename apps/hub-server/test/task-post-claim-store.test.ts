@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 import type { ActorRef } from '@teamhub/hub-contracts';
 
 // 挂单认领制窄写方法三实现对称（TASK-POST-CLAIM，D-088）：claimTask/assignTask/setTaskPartner/
@@ -15,9 +15,9 @@ const OWNER: ActorRef = { id: 'm-progB', displayName: '程序B', source: 'human'
 // t-r1-integration = fixture 无主（convergence，ownerId=null）：File/Sqlite 认领落盘用例的种子挂单。
 const POSTED_ID = 't-r1-integration';
 
-describe('InMemoryGovStore: 挂单认领制窄写字段簇 + 清空语义', () => {
+describe('InMemoryPmRepository: 挂单认领制窄写字段簇 + 清空语义', () => {
   test('claim（pending→inProgress）/ 已有主 → null / assign 清 claimedAt·搭档·跨组确认', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const posted = await store.createTask({
       projectId: 'prj-robots',
       groupId: 'grp-mech',
@@ -51,7 +51,7 @@ describe('InMemoryGovStore: 挂单认领制窄写字段簇 + 清空语义', () =
   });
 
   test('complete 清旧验收 / review accept 保持 done / reject 打回 inProgress + reviewNote', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const done = await store.completeTask('t-r1-newboard', OWNER, 't1');
     expect(done?.status).toBe('done');
     expect(done?.completedBy?.id).toBe('m-progB');
@@ -75,7 +75,7 @@ describe('InMemoryGovStore: 挂单认领制窄写字段簇 + 清空语义', () =
   });
 
   test('reviewNote 一律以本轮为准：reject 带理由后再 accept（无 note）→ 旧打回理由被清', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     await store.completeTask('t-r1-newboard', OWNER, 't1');
     const rejected = await store.reviewTask('t-r1-newboard', REVIEWER, 'reject', '虚焊，重焊', 't2');
     expect(rejected?.reviewNote).toBe('虚焊，重焊');
@@ -86,7 +86,7 @@ describe('InMemoryGovStore: 挂单认领制窄写字段簇 + 清空语义', () =
   });
 
   test('未知 id → 六方法皆 null', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     expect(await store.claimTask('t-nope', 'm-x', 'x')).toBeNull();
     expect(await store.assignTask('t-nope', 'm-x', 'r', LEAD, 'x')).toBeNull();
     expect(await store.setTaskPartner('t-nope', 'm-x', 'x')).toBeNull();

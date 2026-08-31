@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 import {
   governanceScenarioFixture,
   ClaimTaskResponseSchema,
@@ -130,7 +130,7 @@ describe('TASK-POST-CLAIM 路由：认领（claim）', () => {
 
 describe('TASK-POST-CLAIM 路由：指派 / 转派（assign）', () => {
   test('缺 reason → 400（schema 强制理由）', async () => {
-    const app = buildTestHubServer({ store: new InMemoryGovStore(withGroupLead('m-ecB')) });
+    const app = buildTestHubServer({ store: new InMemoryPmRepository(withGroupLead('m-ecB')) });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -158,7 +158,7 @@ describe('TASK-POST-CLAIM 路由：指派 / 转派（assign）', () => {
   });
 
   test('组长 → 200：assignReason / assignedBy 落卡；claimedAt 清空', async () => {
-    const store = new InMemoryGovStore(withGroupLead('m-ecB')); // m-ecB = grp-ec 组长
+    const store = new InMemoryPmRepository(withGroupLead('m-ecB')); // m-ecB = grp-ec 组长
     const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
@@ -178,7 +178,7 @@ describe('TASK-POST-CLAIM 路由：指派 / 转派（assign）', () => {
   });
 
   test('转派清搭档：先设本组搭档 → assign 换主后搭档失效', async () => {
-    const store = new InMemoryGovStore(withGroupLead('m-ecB'));
+    const store = new InMemoryPmRepository(withGroupLead('m-ecB'));
     const app = buildTestHubServer({ store });
     try {
       // 先给 t-r1-chassis(grp-ec) 设本组搭档 m-progA(grp-ec)
@@ -208,7 +208,7 @@ describe('TASK-POST-CLAIM 路由：指派 / 转派（assign）', () => {
   });
 
   test('缺 assignedBy（匿名无留名）→ 400', async () => {
-    const app = buildTestHubServer({ store: new InMemoryGovStore(withGroupLead('m-ecB')) });
+    const app = buildTestHubServer({ store: new InMemoryPmRepository(withGroupLead('m-ecB')) });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -222,7 +222,7 @@ describe('TASK-POST-CLAIM 路由：指派 / 转派（assign）', () => {
   });
 
   test('孤儿 ownerId（指派对象不在名册）→ 400（与 claim/partner 名册校验对称）', async () => {
-    const app = buildTestHubServer({ store: new InMemoryGovStore(withGroupLead('m-ecB')) });
+    const app = buildTestHubServer({ store: new InMemoryPmRepository(withGroupLead('m-ecB')) });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -297,7 +297,7 @@ describe('TASK-POST-CLAIM 路由：跨组确认（confirm-cross-claim）', () =>
   });
 
   test('组长 → 200；crossClaimConfirmedBy 落卡（事后留名，非启动闸）', async () => {
-    const app = buildTestHubServer({ store: new InMemoryGovStore(withGroupLead('m-ecB')) });
+    const app = buildTestHubServer({ store: new InMemoryPmRepository(withGroupLead('m-ecB')) });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -314,7 +314,7 @@ describe('TASK-POST-CLAIM 路由：跨组确认（confirm-cross-claim）', () =>
   });
 
   test('缺 confirmedBy → 400', async () => {
-    const app = buildTestHubServer({ store: new InMemoryGovStore(withGroupLead('m-ecB')) });
+    const app = buildTestHubServer({ store: new InMemoryPmRepository(withGroupLead('m-ecB')) });
     try {
       const res = await app.inject({
         method: 'POST',

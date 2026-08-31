@@ -7,7 +7,7 @@ import {
   CreateResourceSessionResponseSchema,
   SCENARIO_WINDOW_WEEKDAY,
 } from '@teamhub/hub-contracts';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 import { InMemoryScheduleRepository } from './support/inmemory-schedule-store.js';
 
 // SCHED-WIRE-EXISTING（D-029 差异化在场排班）：把已存在但零运行时引用的纯函数 derivePresenceSchedule
@@ -125,7 +125,7 @@ describe('在场排班读视图 + 录入', () => {
   });
 
   test('POST /api/resource-sessions → 201；server 钉 source=human + 补 id/createdAt；响应剥 confirmedBy（I0）', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const scheduleStore = new InMemoryScheduleRepository();
     const before = (await scheduleStore.listResourceSessions()).length;
     const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
@@ -162,7 +162,7 @@ describe('在场排班读视图 + 录入', () => {
   });
 
   test('POST 一条今晚的接力窗口后 GET /api/schedule?windowLabel=今晚 仍含派生建议（接出闭环）', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const scheduleStore = new InMemoryScheduleRepository();
     const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {

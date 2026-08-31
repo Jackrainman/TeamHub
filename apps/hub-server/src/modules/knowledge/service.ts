@@ -129,7 +129,7 @@ export class KnowledgeService {
    * POST /api/kb/closeout：buildCloseoutFromIssue 纯派生 → KnowledgeNode 回挂（pm 窄口）→ 语料回灌。
    * errorCode 序号 = 同日既有条目数 + 1（M9 防生日碰撞）。
    * **两步写非事务**（历史行为保留）：node 落库成功而语料回灌失败时由 route 记结构化日志
-   * （回灌是幂等 upsert，重试安全）；A5 拆 GovStore 后应评估并进同一 UoW。
+   * （回灌是幂等 upsert，重试安全）；A5 拆 PmRepository 后应评估并进同一 UoW。
    */
   async closeout(request: KbCloseoutRequest): Promise<{
     archiveDocument: ArchiveDocument;

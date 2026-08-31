@@ -4,7 +4,7 @@ import {
   SessionResponseSchema,
 } from '@teamhub/hub-contracts';
 import type { IdentityMode, SessionIdentity } from '@teamhub/hub-contracts';
-import type { GovStore } from '../store/gov-store.js';
+import type { PmRepository } from '../modules/pm/repository.js';
 import type { SessionManager } from '../identity/session-store.js';
 import { verifyPin } from '../identity/pin.js';
 import {
@@ -15,7 +15,7 @@ import {
 } from './helpers.js';
 
 export interface SessionRouteDeps {
-  store: GovStore;
+  store: PmRepository;
   identityMode: IdentityMode;
   sessions: SessionManager | null;
 }

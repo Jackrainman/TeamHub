@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { CreateSeasonResponseSchema, SeasonsResponseSchema } from '@teamhub/hub-contracts';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 
 /**
  * SEASON-CREATE 补链路（POST /api/seasons）：总览页空态文案"先在设置里建一个赛季"此前指向
@@ -19,7 +19,7 @@ const validBody = {
 
 describe('POST /api/seasons', () => {
   test('201 + server 补 id/钉 active；旧 active 同笔转 archived；GET 往返可见', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const priorActive = (await store.getSnapshot()).seasons.filter((s) => s.status === 'active');
     expect(priorActive.length).toBeGreaterThan(0); // fixture 种了一条 active，前提成立
     const app = buildTestHubServer({ store });

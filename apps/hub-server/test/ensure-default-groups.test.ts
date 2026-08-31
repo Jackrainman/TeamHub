@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { governanceScenarioFixture } from '@teamhub/hub-contracts';
 import type { GovernanceSnapshot } from '@teamhub/hub-contracts';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 
 /**
  * 空板默认组树（打磨轮刀⑤，onboarding-init-wizard-2026-07-25 §4；CONVERGENCE-TASK-ENTRY 修订）：
@@ -52,7 +52,7 @@ function expectDefaultTree(groups: GovernanceSnapshot['groups']): void {
 
 describe('ensureDefaultGroups — InMemory', () => {
   test('空板 → 预建四组 + 程序母组 + 联调哨兵组（id/链/kind 对齐 fixtures，seasonId=当前赛季）', async () => {
-    const store = new InMemoryGovStore(EMPTY_SEED);
+    const store = new InMemoryPmRepository(EMPTY_SEED);
     expect((await store.getSnapshot()).groups).toEqual([]);
     await store.ensureDefaultGroups();
     const groups = (await store.getSnapshot()).groups;
@@ -62,14 +62,14 @@ describe('ensureDefaultGroups — InMemory', () => {
   });
 
   test('幂等：二次调用组数不变', async () => {
-    const store = new InMemoryGovStore(EMPTY_SEED);
+    const store = new InMemoryPmRepository(EMPTY_SEED);
     await store.ensureDefaultGroups();
     await store.ensureDefaultGroups();
     expect((await store.getSnapshot()).groups).toHaveLength(DEFAULT_GROUP_IDS.length);
   });
 
   test('非空 store（默认 fixtures）→ 不动', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const before = (await store.getSnapshot()).groups;
     await store.ensureDefaultGroups();
     expect((await store.getSnapshot()).groups).toEqual(before);

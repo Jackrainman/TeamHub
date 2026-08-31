@@ -12,7 +12,7 @@ import type { IdSequence } from '../../src/store/id-sequence.js';
 
 /**
  * 归档物域内存 fake（ARCH-UNIFY A4；前身 inmemory-gov-store-artifact.ts 的 ArtifactMixin）。
- * 默认 seed = `buildArchiveSeed()`（图纸版本日志 fixture），与 InMemoryGovStore 缺省 seed 先例同律。
+ * 默认 seed = `buildArchiveSeed()`（图纸版本日志 fixture），与 InMemoryPmRepository 缺省 seed 先例同律。
  * 方法体语义与原 mixin 逐字一致：append-only push + setArtifactFile 就地 idx 改。
  */
 export class InMemoryArtifactRepository implements ArtifactRepository {

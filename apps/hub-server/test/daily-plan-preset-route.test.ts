@@ -5,7 +5,7 @@ import {
   SCENARIO_WINDOW_WEEKDAY,
   UpdateResourceDefaultPresetResponseSchema,
 } from '@teamhub/hub-contracts';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 import { InMemoryScheduleRepository } from './support/inmemory-schedule-store.js';
 
 // 今日计划：每车预设写回（PATCH /api/resources/:id/preset）+ 表格页批量确认落盘
@@ -16,7 +16,7 @@ const CONFIRMED_BY = { id: 'm-progA', displayName: '程序A', source: 'console' 
 
 describe('PATCH /api/resources/:id/preset：默认阵型写回 / 清除', () => {
   test('传对象 → 整体替换 defaultPreset', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const scheduleStore = new InMemoryScheduleRepository();
     const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
@@ -37,7 +37,7 @@ describe('PATCH /api/resources/:id/preset：默认阵型写回 / 清除', () => 
   });
 
   test('传 null → 清除既有 defaultPreset', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const scheduleStore = new InMemoryScheduleRepository();
     const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
@@ -105,7 +105,7 @@ describe('PATCH /api/resources/:id/preset：默认阵型写回 / 清除', () => 
 
 describe('POST /api/resource-sessions/batch：表格页【确认】批量原子落盘', () => {
   test('全部通过 → 201，逐条落盘，confirmedBy 由请求整体注入', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const scheduleStore = new InMemoryScheduleRepository();
     const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
@@ -157,7 +157,7 @@ describe('POST /api/resource-sessions/batch：表格页【确认】批量原子�
   });
 
   test('批内一条 orderInWindow 与既有 session 冲突 → 整批 400，一条都不落盘', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const scheduleStore = new InMemoryScheduleRepository();
     const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
@@ -205,7 +205,7 @@ describe('POST /api/resource-sessions/batch：表格页【确认】批量原子�
   });
 
   test('未知 holderGroupId → 整批 400，不落盘', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const scheduleStore = new InMemoryScheduleRepository();
     const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
@@ -239,7 +239,7 @@ describe('POST /api/resource-sessions/batch：表格页【确认】批量原子�
   });
 
   test('I0 双保险：请求夹带 invitedMemberIds 非空，仍强制落盘为 []', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const scheduleStore = new InMemoryScheduleRepository();
     const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {

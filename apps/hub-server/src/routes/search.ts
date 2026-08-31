@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import type { GovStore } from '../store/gov-store.js';
+import type { PmRepository } from '../modules/pm/repository.js';
 import type { InventoryReadPort } from '../modules/inventory/repository.js';
 import type { KnowledgeReadPort } from '../modules/knowledge/repository.js';
 import { parseQuery } from './helpers.js';
@@ -10,7 +10,7 @@ const SearchQuerySchema = z.object({
 });
 
 export interface SearchRouteDeps {
-  store: GovStore;
+  store: PmRepository;
   knowledgeRead: KnowledgeReadPort;
   inventoryRead: InventoryReadPort;
 }

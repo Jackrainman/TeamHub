@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import FormData from 'form-data';
 import { FleetPreviewResponseSchema } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 import { InMemoryScheduleRepository } from './support/inmemory-schedule-store.js';
 
 /**
@@ -38,7 +38,7 @@ describe('GET /api/resources/template', () => {
 
 describe('POST /api/resources/preview — 只解析不落库', () => {
   test('解析返回 rows/failed（中文编号/状态映射），车队快照零变化', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const scheduleStore = new InMemoryScheduleRepository();
     const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {

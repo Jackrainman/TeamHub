@@ -7,7 +7,7 @@ import {
   LarkCreateChatResponseSchema,
   deriveBaselineDrift,
 } from '@teamhub/hub-contracts';
-import type { GovStore } from '../store/gov-store.js';
+import type { PmRepository } from '../modules/pm/repository.js';
 import type { BaselineRepository } from '../modules/baseline/repository.js';
 import type { Clock } from '../clock.js';
 import type { LarkIntegrationStore } from '../store/lark-integration-store.js';
@@ -20,7 +20,7 @@ import {
 import { parseBody, isLoopbackOperator } from './helpers.js';
 
 export interface LarkRouteDeps {
-  store: GovStore;
+  store: PmRepository;
   clock: Clock;
   baselineRepository: Pick<BaselineRepository, 'getBaseline'>;
   larkStore: LarkIntegrationStore;

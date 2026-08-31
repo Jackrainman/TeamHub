@@ -7,7 +7,7 @@ import {
   type Member,
 } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 
 /**
  * 组端点（PROGRAM-GROUP-ABSTRACT，公测补强刀④）：
@@ -246,7 +246,7 @@ describe('组管理鉴权 — 身份模式', () => {
       ],
     };
     const app = buildTestHubServer({
-      store: new InMemoryGovStore(snapshot),
+      store: new InMemoryPmRepository(snapshot),
       identityMode: 'identity',
     });
     try {

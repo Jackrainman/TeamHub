@@ -7,7 +7,7 @@ import {
   CreateResourceSessionResponseSchema,
   SCENARIO_WINDOW_WEEKDAY,
 } from '@teamhub/hub-contracts';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 
 // R1 接力交接画布（队长可编辑）后端：PATCH 占用窗口（拖卡片排先后 orderInWindow / 选填 eta）+
 // GET /api/relay 富集读视图（接力站 + 站间交接线，**无成员维度**）+ POST/DELETE 接力交接线
@@ -61,7 +61,7 @@ describe('PATCH /api/resource-sessions/:id（接力画布编辑：排先后 + �
   });
 
   test('只改 eta（不传 order）→ order 保留旧值；eta 显式 null 可清空', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const app = buildTestHubServer({ store });
     try {
       // 先设 eta
@@ -154,7 +154,7 @@ describe('GET /api/relay（接力画布读视图，反监视红线无成员维�
   });
 
   test('I0：返回体（含 stages + handoffs）不含任何人维度字段（memberId/invitedMemberIds/displayName/confirmedBy）', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const app = buildTestHubServer({ store });
     try {
       // 录入第二窗 + 在两站间拉线，让返回体既有 stages 又有 handoffs（更全面覆盖红线）
@@ -212,7 +212,7 @@ describe('GET /api/relay（接力画布读视图，反监视红线无成员维�
 
 describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400）', () => {
   test('两站间拉线 → 201；server 钉 source=console；响应剥 confirmedBy；GET /api/relay 含该线', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const app = buildTestHubServer({ store });
     try {
       const from = 'sess-tonight-ec'; // seed
@@ -310,7 +310,7 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
   });
 
   test('成环（A→B 已存在，再建 B→A）→ 400', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const app = buildTestHubServer({ store });
     try {
       const a = 'sess-tonight-ec';
@@ -347,7 +347,7 @@ describe('POST/DELETE /api/relay-handoffs（接力交接线，自环/成环 400�
   });
 
   test('DELETE 命中 → 200；删后 GET /api/relay 不再含；再删同 id → 404', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const app = buildTestHubServer({ store });
     try {
       const a = 'sess-tonight-ec';

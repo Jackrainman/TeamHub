@@ -8,14 +8,14 @@ import {
   RosterPreviewResponseSchema,
 } from '@teamhub/hub-contracts';
 import type { IdentityMode, RosterImportFailure, RosterImportRow } from '@teamhub/hub-contracts';
-import type { GovStore } from '../store/gov-store.js';
+import type { PmRepository } from '../modules/pm/repository.js';
 import { isSuperAdmin } from '../authz.js';
 import { parseBody, readCsvUpload } from './helpers.js';
 
 const ROSTER_MAX_BYTES = 1024 * 1024;
 
 export interface RosterRouteDeps {
-  store: GovStore;
+  store: PmRepository;
   identityMode: IdentityMode;
 }
 

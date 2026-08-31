@@ -9,7 +9,7 @@ import {
 } from '@teamhub/hub-contracts';
 import { TasksResponseSchema } from '@teamhub/hub-contracts';
 import { InMemoryArtifactRepository } from './support/inmemory-artifact-store.js';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 
 describe('PM 读视图 + 依赖/缺口录入', () => {
   test('GET /api/tasks → 任务列表（I0 安全：Task 无 confirmedBy / 无完成量维度）', async () => {
@@ -29,7 +29,7 @@ describe('PM 读视图 + 依赖/缺口录入', () => {
   });
 
   test('POST /api/dependencies → 201；server clamp status=active（D-042 初始态）；持久化', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const before = (await store.getSnapshot()).dependencies.length;
     const app = buildTestHubServer({ store });
     try {
@@ -80,7 +80,7 @@ describe('PM 读视图 + 依赖/缺口录入', () => {
   });
 
   test('POST /api/artifacts → 201（v2）；server 钉 submittedVia=console + 派生 kind/versionNo/revision（C5）；落盘累积；夹带来源/派生字段被 omit', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const artifactRepository = new InMemoryArtifactRepository();
     const before = (await artifactRepository.listArtifacts()).length;
     const app = buildTestHubServer({ store, artifactRepository });
@@ -184,7 +184,7 @@ describe('PM 读视图 + 依赖/缺口录入', () => {
 describe('PM 受限状态机迁移：任务状态流转 + 连线作废', () => {
   test('POST /api/tasks/:id/status：inProgress→done → 200；statusSource clamp 为 console（C5）', async () => {
     // t-r1-dataset 原 statusSource='git'，人工流转后应被 server 钉为 'console'（最低优先源）。
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({
@@ -251,7 +251,7 @@ describe('PM 受限状态机迁移：任务状态流转 + 连线作废', () => {
   });
 
   test('POST /api/dependencies/:id/waive：已有边 → 200；status=waived；响应剥 confirmedBy（I0）', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const app = buildTestHubServer({ store });
     try {
       const res = await app.inject({

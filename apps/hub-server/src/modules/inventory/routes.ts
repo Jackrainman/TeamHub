@@ -30,8 +30,8 @@ export interface InventoryRouteDeps {
   identityMode: IdentityMode;
   /**
    * 超管鉴权（CSV 导入/预览）：身份模式下须 superAdmin，匿名模式放行。
-   * 由组合根把平台 authz（routes/helpers.requireSuperAdmin + GovStore 成员表）适配注入，
-   * 库存模块不反向依赖 GovStore。
+   * 由组合根把平台 authz（routes/helpers.requireSuperAdmin + PmRepository 成员表）适配注入，
+   * 库存模块不反向依赖 PmRepository。
    */
   requireSuperAdmin: (
     request: FastifyRequest & { identity?: SessionIdentity | null },

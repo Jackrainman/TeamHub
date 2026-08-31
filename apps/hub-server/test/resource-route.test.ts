@@ -8,7 +8,7 @@ import {
   CreateResourcesBatchResponseSchema,
   UpdateResourceResponseSchema,
 } from '@teamhub/hub-contracts';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 import { InMemoryScheduleRepository } from './support/inmemory-schedule-store.js';
 
 // R3 车管理（D-072 §3.2/§3.3）：建车（displayCode 派生、禁手写）/ 改状态（维修/退役 = 状态迁移、非物删）
@@ -16,7 +16,7 @@ import { InMemoryScheduleRepository } from './support/inmemory-schedule-store.js
 
 describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
   test('POST /api/resources → 201；displayCode 由 deriveDisplayCode 派生 = 26R2（禁手写）', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const scheduleStore = new InMemoryScheduleRepository();
     const before = (await scheduleStore.listResources()).length;
     const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
@@ -113,7 +113,7 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
   });
 
   test('PATCH /api/resources/:id/status → repair（带 statusReason）生效；statusSource clamp console', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const scheduleStore = new InMemoryScheduleRepository();
     const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
@@ -137,7 +137,7 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
   });
 
   test('PATCH /api/resources/:id/status → retired（退役 = 状态迁移，整车仍在列表，无物删）', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const scheduleStore = new InMemoryScheduleRepository();
     const before = (await scheduleStore.listResources()).length;
     const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
@@ -160,7 +160,7 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
   });
 
   test('PATCH /api/resources/:id/status：statusReason 省略 → 不动既有 reason', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const scheduleStore = new InMemoryScheduleRepository();
     const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
@@ -186,7 +186,7 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
   });
 
   test('PATCH /api/resources/:id/status：显式 null → 清空 statusReason', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const scheduleStore = new InMemoryScheduleRepository();
     const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
@@ -253,7 +253,7 @@ describe('R3 车管理路由：建车 / 改状态（无物删）', () => {
 
 describe('POST /api/resources/batch（FLEET-BATCH-INIT 车队批量初始化）', () => {
   test('三台全过 → 201；displayCode 派生（27/R1/2 → 27R1-v2）、kind 默认 robot、建时 clamp available', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const scheduleStore = new InMemoryScheduleRepository();
     const before = (await scheduleStore.listResources()).length;
     const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
@@ -292,7 +292,7 @@ describe('POST /api/resources/batch（FLEET-BATCH-INIT 车队批量初始化）'
   });
 
   test('行带 status=repair（+statusReason）→ 建后补迁移落库；statusSource 钉 console（照单台迁移钉法）', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const scheduleStore = new InMemoryScheduleRepository();
     const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
@@ -330,7 +330,7 @@ describe('POST /api/resources/batch（FLEET-BATCH-INIT 车队批量初始化）'
   });
 
   test('原子性：任一行坏（第 2 台缺 robotTarget）→ 400 整批不落，resources 快照零变化；detail 带第几台', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const scheduleStore = new InMemoryScheduleRepository();
     const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });
     try {
@@ -356,7 +356,7 @@ describe('POST /api/resources/batch（FLEET-BATCH-INIT 车队批量初始化）'
   });
 
   test('status 只收初始化四档：第 1 台 inUse → 400 整批不落', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const scheduleStore = new InMemoryScheduleRepository();
     const before = (await scheduleStore.listResources()).length;
     const app = buildTestHubServer({ store, scheduleRepository: scheduleStore });

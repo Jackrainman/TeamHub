@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { KbCloseoutResponseSchema } from '@teamhub/hub-contracts';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 import { InMemoryKbStore } from './support/inmemory-kb-store.js';
 
 const liveIssue = {
@@ -25,7 +25,7 @@ const liveIssue = {
 
 describe('POST /api/kb/closeout', () => {
   test('结案成功 → 归档+错误表+已归档卡+派生知识节点；节点持久到 store', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const before = (await store.getSnapshot()).knowledgeNodes.length;
     const app = buildTestHubServer({ store });
     try {
@@ -122,7 +122,7 @@ describe('POST /api/kb/closeout', () => {
   // KnowledgeNode 按 name dedup、errorEntry 按 id（err-${issue.id}）upsert、archiveDocument 按 issueId upsert、
   // issueCard 按 id upsert。两次结案后各计数仍是 +1。
   test('重复结案幂等（#2）：KnowledgeNode / errorEntry / archiveDocument / issueCard 主键不重复', async () => {
-    const store = new InMemoryGovStore();
+    const store = new InMemoryPmRepository();
     const kbStore = new InMemoryKbStore();
     const kbBefore = await kbStore.getKbSnapshot();
     const errBefore = kbBefore.errorEntries.length;

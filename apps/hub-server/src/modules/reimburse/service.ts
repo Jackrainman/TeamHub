@@ -58,7 +58,7 @@ export interface StockInReimburseEntryResult {
 }
 
 /**
- * 超管判定的窄 port（§8.2；前身 GovStore.getSnapshot().members + isSuperAdmin 全量依赖）。
+ * 超管判定的窄 port（§8.2；前身 PmRepository.getSnapshot().members + isSuperAdmin 全量依赖）。
  * 组合根用 pm 成员表适配注入；reimburse 域不反向感知成员实体。
  */
 export interface ReimburseAdminPort {

@@ -7,25 +7,25 @@ import {
   governanceScenarioFixture,
 } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 import { InMemoryKbStore } from './support/inmemory-kb-store.js';
 import { InMemoryInvStore } from './support/inmemory-inv-store.js';
-import type { GovStore } from '../src/store/gov-store.js';
+import type { PmRepository } from '../src/modules/pm/repository.js';
 import type { InventoryRepository } from '../src/modules/inventory/repository.js';
 
-// base 收口刀（D-042 决策 5①）：GovStore 写方法白名单 + kbStore/invStore 扩展点 + 持久化切换合约 stub。
+// base 收口刀（D-042 决策 5①）：PmRepository 写方法白名单 + kbStore/invStore 扩展点 + 持久化切换合约 stub。
 // 验证「接口先行、实现后置」=读路径活、写路径 throw（不静默吞、不过早成主录入口），且 kb/inv/sqlite 三方
 // 能插进同一底座而无需重建。
 
-describe('base 收口刀: GovStore 写白名单 + 扩展点 + 持久化切换合约', () => {
+describe('base 收口刀: PmRepository 写白名单 + 扩展点 + 持久化切换合约', () => {
   let sqliteDir = '';
   afterEach(async () => {
     if (sqliteDir) await rm(sqliteDir, { recursive: true, force: true });
     sqliteDir = '';
   });
 
-  test('InMemoryGovStore: 读路径已实现，写白名单签名齐且实现后置=throw', async () => {
-    const store = new InMemoryGovStore();
+  test('InMemoryPmRepository: 读路径已实现，写白名单签名齐且实现后置=throw', async () => {
+    const store = new InMemoryPmRepository();
 
     // 读路径（D-040 首刀）仍可用
     const snapshot = await store.getSnapshot();
@@ -89,8 +89,8 @@ describe('base 收口刀: GovStore 写白名单 + 扩展点 + 持久化切换合
   });
 
   test('closeoutKbNode 不污染共享 fixture：两个 store 各自独立', async () => {
-    const a = new InMemoryGovStore();
-    const b = new InMemoryGovStore();
+    const a = new InMemoryPmRepository();
+    const b = new InMemoryPmRepository();
     const baseLen = (await b.getSnapshot()).knowledgeNodes.length;
     await a.closeoutKbNode({ name: 'x', groupId: null, parentNodeId: null, resourceLinks: [] });
     // b 的快照不受 a 写入影响（构造时已克隆 knowledgeNodes 数组）
@@ -99,7 +99,7 @@ describe('base 收口刀: GovStore 写白名单 + 扩展点 + 持久化切换合
 
 
   test('kb / inv / sqlite 三方扩展同一底座、不重建：buildTestHubServer 接受各扩展点并仍服务', async () => {
-    const shared = new InMemoryGovStore(); // 治理读 + 结案派生 KnowledgeNode 复用同一 GovernanceSnapshot
+    const shared = new InMemoryPmRepository(); // 治理读 + 结案派生 KnowledgeNode 复用同一 GovernanceSnapshot
     const kbStore = new InMemoryKbStore(); // KB 相似检索语料独立 KbStore（IssueCard 不在治理快照内）
     const inventoryRepository: InventoryRepository = new InMemoryInvStore(); // INV 独立 repository（ARCH-UNIFY A4）
 
@@ -121,7 +121,7 @@ describe('base 收口刀: GovStore 写白名单 + 扩展点 + 持久化切换合
     }
   });
 
-  test('KbStore 独立于 GovStore：InMemoryKbStore 供相似检索语料（IssueCard 不在治理快照内）', async () => {
+  test('KbStore 独立于 PmRepository：InMemoryKbStore 供相似检索语料（IssueCard 不在治理快照内）', async () => {
     const kbStore = new InMemoryKbStore();
     const kb = await kbStore.getKbSnapshot();
     // 相似检索语料：跨赛季历史 bug（治理快照里没有 issueCards 字段）
@@ -145,8 +145,8 @@ describe('B2: GOVERNANCE_SNAPSHOT_ARRAY_KEYS 单源后克隆隔离仍生效（�
     if (dir) await rm(dir, { recursive: true, force: true });
   });
 
-  test('InMemoryGovStore.getSnapshot() 每个数组键与 seed fixture 引用不同', async () => {
-    const store = new InMemoryGovStore(); // seed = governanceScenarioFixture
+  test('InMemoryPmRepository.getSnapshot() 每个数组键与 seed fixture 引用不同', async () => {
+    const store = new InMemoryPmRepository(); // seed = governanceScenarioFixture
     const snap = await store.getSnapshot();
     for (const key of GOVERNANCE_SNAPSHOT_ARRAY_KEYS) {
       expect(snap[key]).not.toBe(governanceScenarioFixture[key]);

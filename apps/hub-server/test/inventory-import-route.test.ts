@@ -15,7 +15,7 @@ import {
   type Member,
 } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryGovStore } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 import { InMemoryInvStore } from './support/inmemory-inv-store.js';
 
 /**
@@ -318,7 +318,7 @@ describe('POST /api/inventory/import — 身份模式鉴权（无空板豁免，
 
   test('已登录但非持旗成员 → 403', async () => {
     const app = buildTestHubServer({
-      store: new InMemoryGovStore(seedGov([member({ id: 'm-plain', displayName: '普通成员' })])),
+      store: new InMemoryPmRepository(seedGov([member({ id: 'm-plain', displayName: '普通成员' })])),
       inventoryRepository: new InMemoryInvStore(emptyInv()),
       identityMode: 'identity',
     });
@@ -340,7 +340,7 @@ describe('POST /api/inventory/import — 身份模式鉴权（无空板豁免，
   test('持旗管理员登录 → 200 导入', async () => {
     const invStore = new InMemoryInvStore(emptyInv());
     const app = buildTestHubServer({
-      store: new InMemoryGovStore(
+      store: new InMemoryPmRepository(
         seedGov([member({ id: 'm-boss', displayName: '队长', projectManager: true })]),
       ),
       inventoryRepository: invStore,
@@ -364,7 +364,7 @@ describe('POST /api/inventory/import — 身份模式鉴权（无空板豁免，
 
   test('无会话 → 401（写门「须有会话」段先挡，无空板豁免）', async () => {
     const app = buildTestHubServer({
-      store: new InMemoryGovStore(seedGov([member({ id: 'm-plain', displayName: '普通成员' })])),
+      store: new InMemoryPmRepository(seedGov([member({ id: 'm-plain', displayName: '普通成员' })])),
       inventoryRepository: new InMemoryInvStore(emptyInv()),
       identityMode: 'identity',
     });
@@ -382,7 +382,7 @@ describe('POST /api/inventory/import — 身份模式鉴权（无空板豁免，
 
   test('preview 同律：非持旗 403', async () => {
     const app = buildTestHubServer({
-      store: new InMemoryGovStore(seedGov([member({ id: 'm-plain', displayName: '普通成员' })])),
+      store: new InMemoryPmRepository(seedGov([member({ id: 'm-plain', displayName: '普通成员' })])),
       inventoryRepository: new InMemoryInvStore(emptyInv()),
       identityMode: 'identity',
     });

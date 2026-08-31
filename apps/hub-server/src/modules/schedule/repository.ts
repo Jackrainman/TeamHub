@@ -9,7 +9,7 @@ import type {
 
 /**
  * schedule 域 repository port（ARCH-UNIFY A4；前身 store/schedule-store.ts 的 ScheduleStore，
- * 再前身 god-interface `GovStore` 按语义拆出的域接口）：共享物理资源（车）+ 差异化在场排班
+ * 再前身 god-interface `PmRepository` 按语义拆出的域接口）：共享物理资源（车）+ 差异化在场排班
  * （D-029 占用窗口 / R1 接力交接线）。**8 个排班方法**
  * （createResourceSession/createResourceSessionsBatch/updateResourceSession/deleteResourceSession/
  * listResourceSessions/createRelayHandoff/deleteRelayHandoff/listRelayHandoffs）此前**连 JSON 落盘先例
@@ -195,8 +195,8 @@ export type ScheduleReadPort = Pick<
 
 /**
  * 派生输入的治理快照读口（§8.2 跨域读）：derivePresenceSchedule / deriveRelayBoard / 批量窗口校验
- * 需要 GovernanceSnapshot（tasks/dependencies/groups/…）。生产由 GovStore.getSnapshot 适配注入；
- * A5 拆 GovStore 后归 pm 域读 port。
+ * 需要 GovernanceSnapshot（tasks/dependencies/groups/…）。生产由 PmRepository.getSnapshot 适配注入；
+ * A5 拆 PmRepository 后归 pm 域读 port。
  */
 export interface PmSnapshotReadPort {
   getSnapshot(): Promise<GovernanceSnapshot>;

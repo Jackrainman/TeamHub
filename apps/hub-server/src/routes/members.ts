@@ -17,14 +17,14 @@ import {
   GATE_REVIEWER_DEFAULT_GRADES,
 } from '@teamhub/hub-contracts';
 import type { IdentityMode, SessionIdentity } from '@teamhub/hub-contracts';
-import type { GovStore } from '../store/gov-store.js';
+import type { PmRepository } from '../modules/pm/repository.js';
 import type { SessionManager } from '../identity/session-store.js';
 import { isSuperAdmin, memberHasPmFlag } from '../authz.js';
 import { hashPin } from '../identity/pin.js';
 import { parseBody, isLoopbackOperator, buildSessionCookie } from './helpers.js';
 
 export interface MemberRouteDeps {
-  store: GovStore;
+  store: PmRepository;
   identityMode: IdentityMode;
   trustProxy: boolean | string;
   sessions: SessionManager | null;
