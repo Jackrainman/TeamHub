@@ -72,19 +72,13 @@ export const ProjectSchema = z.object({
 // ---------------------------------------------------------------------------
 
 /**
- * 已知组 kind（历史 fixtures 值 + 现存四组用到的字面量），仅供 UI 下拉 / 文档提示参考，
+ * 组 kind 取值提示（历史 fixtures 值 + 现存四组用到的字面量），仅供 UI 下拉 / 文档提示参考，
  * **非闭集校验依据**（AUDIT-DEBT-2026-07 §9-④）。`GroupKindSchema` 曾是焊死的四值 `z.enum`，
  * D-072「设置页可增减组」要求能新建闭集外的自定义组（如"宣传组"），故放宽为开放非空串——
  * 校验收紧下沉到未来"路由层 VocabularyRegistry 校验器"（同文件头部 RobotTarget 放宽先例的同一过渡态）。
  * 旧 gov.json 已落盘的四个字面量值仍是合法非空串，加载零改动（向后兼容）。
+ * （DEAD-CODE-AUDIT 2026-08-30：原 KNOWN_GROUP_KINDS 提示常量零引用已删，取值提示见本注释。）
  */
-export const KNOWN_GROUP_KINDS = [
-  'mechanical',
-  'electrical',
-  'program',
-  'custom',
-] as const;
-
 export const GroupKindSchema = z.string().min(1);
 
 export const GroupSchema = z.object({

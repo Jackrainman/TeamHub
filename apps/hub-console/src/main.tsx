@@ -20,7 +20,6 @@ import './styles/11-inv.css';
 import './styles/12-fleet.css';
 import './styles/13-relay-chain.css';
 import './styles/14-schedule.css';
-import './styles/15-fleet-tabs.css';
 import './styles/16-relay-canvas.css';
 import './styles/17-tech.css';
 import './styles/18-direction-starmap.css';

@@ -30,6 +30,6 @@ export type {
   ResourceStatus,
   ResourceKind,
   RobotTarget,
-  // 每车默认阵型（D-082）：FleetPage 的默认阵型编辑器用它标注本地编辑态类型。
+  // 每车默认阵型（D-082）：ResourcesPage（fleet 导航键渲染组件）的默认阵型编辑器用它标注本地编辑态类型。
   DefaultPreset,
 } from '@teamhub/hub-contracts';

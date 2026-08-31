@@ -1,5 +1,6 @@
 /* ===== viz 原语（VISUAL-VITALITY V0，visual-vitality.md §2）=====
-   微仪表三件：状态灯 .viz-dot / 进度环 .viz-ring / 趋势线 .viz-spark + 动效 keyframes。
+   微仪表两件：状态灯 .viz-dot / 进度环 .viz-ring + 动效 keyframes。
+   （趋势线 .viz-spark 随 Sparkline 尸体一并删除——DEAD-CODE-AUDIT 2026-08-30。）
    颜色只吃语义 var（四主题自动适配，§0 禁新 hex）；CSS 动效由全局 prefers-reduced-motion
    规则冻结（本文件上方 * 规则），JS 侧数字滚动在 useCountUp 内自查。 */
 .viz-dot {
@@ -38,43 +39,27 @@
   animation: vv-ring-in var(--motion-grow);
 }
 
-.viz-spark {
-  flex: none;
-}
-.viz-spark path {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: 1; /* 配 SVG pathLength=1：dashoffset 1→0 即「画出来」 */
-  animation: vv-draw var(--motion-grow);
-}
+/* .viz-spark 已删（Sparkline 尸体回收）。 */
 
-/* tone 轴（与 .badge 同一语义轴，design-language §3）：三件共用一组修饰符。 */
+/* tone 轴（与 .badge 同一语义轴，design-language §3）：两件共用一组修饰符。 */
 .viz-dot--green,
-.viz-ring--green,
-.viz-spark--green {
+.viz-ring--green {
   color: var(--green);
 }
 .viz-dot--amber,
-.viz-ring--amber,
-.viz-spark--amber {
+.viz-ring--amber {
   color: var(--amber);
 }
 .viz-dot--red,
-.viz-ring--red,
-.viz-spark--red {
+.viz-ring--red {
   color: var(--red);
 }
 .viz-dot--blue,
-.viz-ring--blue,
-.viz-spark--blue {
+.viz-ring--blue {
   color: var(--blue);
 }
 .viz-dot--neutral,
-.viz-ring--neutral,
-.viz-spark--neutral {
+.viz-ring--neutral {
   color: var(--muted);
 }
 
@@ -95,11 +80,7 @@
     stroke-dashoffset: var(--vv-ring-c);
   }
 }
-@keyframes vv-draw {
-  from {
-    stroke-dashoffset: 1;
-  }
-}
+/* vv-draw keyframes 已随 .viz-spark 一并删除。 */
 /* 被卡红脉动（V2 依赖图消费；V0 先定义齐 keyframes 家族）。 */
 @keyframes vv-pulse-alert {
   0%,
