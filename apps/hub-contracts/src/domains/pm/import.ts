@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { MemberGradeSchema, type MemberGrade } from './pm-core.js';
-import { UTF8_BOM, decodeCsvBytes, tokenizeCsv } from './csv-core.js';
+import { MemberGradeSchema, type MemberGrade } from './model.js';
+import { UTF8_BOM, decodeCsvBytes, tokenizeCsv } from '../../csv-core.js';
 
 // INV-BULK-IMPORT 刀⑪：编码探测 + CSV 记录切分抽成 csv-core 两域共用（库存导入同一套规则）。
 // `decodeRosterBytes` 保留原名 re-export，server/测试既有 import 零变化。
-export { decodeCsvBytes as decodeRosterBytes } from './csv-core.js';
+
 
 /**
  * 名册导入契约 + 纯解析器（ROSTER-IMPORT，K8——minor v0.25.0）。

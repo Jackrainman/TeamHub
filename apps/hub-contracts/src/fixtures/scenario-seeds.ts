@@ -1,10 +1,10 @@
-import type { GovernanceSnapshot } from '../attribution.js';
+import type { GovernanceSnapshot } from '../domains/pm/policies.js';
 import type { ScheduleSnapshot } from '../domains/schedule/index.js';
 import { deriveDisplayCode } from '../verticals/robotics.js';
 import { generateRoboconBaselineTemplate } from '../domains/baseline/index.js';
 import type { SeasonBaseline } from '../domains/baseline/index.js';
 import type { GateChecklistItem } from '../domains/checklist/index.js';
-import type { MemberKnowledge } from '../growth.js';
+import type { MemberKnowledge } from '../domains/pm/growth.js';
 import type { KbSnapshot } from '../domains/knowledge/index.js';
 import type { InventorySnapshot, TrackedPart } from '../domains/inventory/index.js';
 import { GOVERNANCE_SCENARIO_TIME, GOVERNANCE_SCENARIO_NOW, governanceScenarioFixture } from './pm-seed.js';

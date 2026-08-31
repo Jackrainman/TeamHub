@@ -6,7 +6,7 @@ import {
   WEEKLY_MINUTE_WINDOW_REFINE_MSG,
   WeeklyMinuteWindowBaseSchema,
   weeklyMinuteWindowRefine,
-} from './common.js';
+} from '../../common.js';
 
 /**
  * 成长轴（D-027，与治理主干并列）。MVP 只做"任务知识标注，树从标注长出"。

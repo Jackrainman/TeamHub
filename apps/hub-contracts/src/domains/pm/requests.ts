@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import { ActorRefSchema } from './common.js';
+import { ActorRefSchema } from '../../common.js';
 import {
   TaskSchema,
   TaskStatusSchema,
   DependencySchema,
   NeedSchema,
-} from './pm-core.js';
+} from './model.js';
 
 // PM 项目计划表「写侧请求契约」单一源（D-052 重复真相收口）。
 // 此前 hub-server/src/contracts.ts 与 hub-console/src/api/schemas/pm.ts 各从 hub-contracts

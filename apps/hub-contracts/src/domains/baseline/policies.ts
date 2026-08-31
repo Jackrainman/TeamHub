@@ -1,5 +1,5 @@
-import type { Task } from '../../pm-core.js';
-import type { TaskInvestment } from '../../investment.js';
+import type { Task } from '../pm/model.js';
+import type { TaskInvestment } from '../pm/model.js';
 import { STAGE_PIPELINE_STAGES } from './model.js';
 import type {
   BaselineAnchors,

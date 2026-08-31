@@ -3,19 +3,19 @@ import {
   deriveBlockAttributions,
   toDepGraphView,
   type GovernanceSnapshot,
-} from '../../attribution.js';
+} from '../pm/policies.js';
 import { canBoardResource, RelayHandoffSchema } from './model.js';
 import {
   CONVERGENCE_SCOPE_ALL_LEAF_GROUPS,
   CONVERGENCE_SENTINEL_GROUP_ID,
-} from '../../pm-core.js';
+} from '../pm/model.js';
 import type {
   Dependency,
   DepNodeKnowledge,
   Group,
   Member,
   Task,
-} from '../../pm-core.js';
+} from '../pm/model.js';
 import type {
   DefaultPreset,
   PresenceFeasibility,
@@ -27,7 +27,7 @@ import type {
   SharedResource,
   WindowDef,
 } from './model.js';
-import type { MemberAvailability } from '../../growth.js';
+import type { MemberAvailability } from '../pm/growth.js';
 
 /**
  * 差异化在场排班的纯派生函数（无 IO、可单测；D-029）。

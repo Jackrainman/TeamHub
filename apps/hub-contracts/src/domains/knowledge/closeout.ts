@@ -18,8 +18,8 @@ import type {
   InvestigationRecord,
   IssueCard,
 } from './model.js';
-import { KnowledgeNodeSchema } from '../../growth.js';
-import type { KnowledgeNode } from '../../growth.js';
+import { KnowledgeNodeSchema } from '../pm/growth.js';
+import type { KnowledgeNode } from '../pm/growth.js';
 
 /**
  * 结案闭环（KB-CORE）。从 Probe_Flash 移植 `buildCloseoutFromIssue` **纯函数**——把选中的

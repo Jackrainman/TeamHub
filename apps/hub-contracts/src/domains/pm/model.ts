@@ -1,8 +1,26 @@
 import { z } from 'zod';
 
-import { ActorRefSchema, isoDateTimeSchema } from './common.js';
-import { TaskInvestmentSchema } from './investment.js';
+import { ActorRefSchema, isoDateTimeSchema } from '../../common.js';
 
+
+// ─── 投入画像（自 investment.ts 并入，pm 词汇不入 shared kernel）───
+/** 高时间积累=需要"感觉"的技术（调参手感/装配经验），突击无效、只能早开始摊。 */
+export const InvestmentTimeAccumulationSchema = z.enum(['high', 'low']);
+/** 未来赛季×高价值（如 sim2real）=最容易被砍、重点保护对象。 */
+export const InvestmentHorizonSchema = z.enum(['season', 'future']);
+export const InvestmentValueSchema = z.enum(['high', 'low']);
+
+export type InvestmentTimeAccumulation = z.infer<typeof InvestmentTimeAccumulationSchema>;
+export type InvestmentHorizon = z.infer<typeof InvestmentHorizonSchema>;
+export type InvestmentValue = z.infer<typeof InvestmentValueSchema>;
+
+export const TaskInvestmentSchema = z.object({
+  horizon: InvestmentHorizonSchema,
+  value: InvestmentValueSchema,
+  timeAccumulation: InvestmentTimeAccumulationSchema,
+});
+
+export type TaskInvestment = z.infer<typeof TaskInvestmentSchema>;
 /**
  * 治理数据真相层（D-026 第①层）+ 阻塞归因派生输出 + DepGraph 前端视图契约。
  *

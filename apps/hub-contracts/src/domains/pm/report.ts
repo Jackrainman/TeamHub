@@ -7,11 +7,11 @@
 // 受众=老师，文案恒中文（不进 console i18n 体系）。
 // ---------------------------------------------------------------------------
 
-import type { SeasonBaseline } from './domains/baseline/model.js';
-import { deriveStageProgress, type StagePipelineStatus } from './domains/baseline/policies.js';
-import type { Group, Member, Task, TaskStatus } from './pm-core.js';
-import type { ResourceSession, SharedResource } from './domains/schedule/index.js';
-import { deriveInventoryLedger, deriveShortfalls, type InventorySnapshot } from './domains/inventory/index.js';
+import type { SeasonBaseline } from '../baseline/model.js';
+import { deriveStageProgress, type StagePipelineStatus } from '../baseline/policies.js';
+import type { Group, Member, Task, TaskStatus } from './model.js';
+import type { ResourceSession, SharedResource } from '../schedule/index.js';
+import { deriveInventoryLedger, deriveShortfalls, type InventorySnapshot } from '../inventory/index.js';
 
 export interface GovReportInput {
   generatedAt: string;

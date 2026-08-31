@@ -1,8 +1,8 @@
-import type { GovernanceSnapshot } from '../attribution.js';
+import type { GovernanceSnapshot } from '../domains/pm/policies.js';
 import type { ArtifactRef } from '../domains/artifacts/index.js';
-import type { Dependency, Group, Member, Need, Season, Task } from '../pm-core.js';
-import { CONVERGENCE_SENTINEL_GROUP_ID } from '../pm-core.js';
-import type { KnowledgeNode, TaskKnowledgeTag } from '../growth.js';
+import type { Dependency, Group, Member, Need, Season, Task } from '../domains/pm/model.js';
+import { CONVERGENCE_SENTINEL_GROUP_ID } from '../domains/pm/model.js';
+import type { KnowledgeNode, TaskKnowledgeTag } from '../domains/pm/growth.js';
 import { artifactVersionLogFixtures } from './api-contracts.js';
 
 export const GOVERNANCE_SCENARIO_TIME = '2026-06-09T00:00:00.000Z';

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { ActorRefSchema } from '../../common.js';
-import { RobotTargetSchema } from '../../pm-core.js';
+import { RobotTargetSchema } from '../pm/model.js';
 import {
   ResourceSessionSchema,
   RelayHandoffSchema,

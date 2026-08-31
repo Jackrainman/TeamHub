@@ -7,7 +7,7 @@ import {
   weeklyMinuteWindowRefine,
   WEEKLY_MINUTE_WINDOW_REFINE_MSG,
 } from '../../common.js';
-import { DepNodeKnowledgeSchema, GovActorSourceSchema, RobotTargetSchema } from '../../pm-core.js';
+import { DepNodeKnowledgeSchema, GovActorSourceSchema, RobotTargetSchema } from '../pm/model.js';
 
 /**
  * 共享物理资源 + 差异化在场排班（D-029）——机器人在场层基础设施

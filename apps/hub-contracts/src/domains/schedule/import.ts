@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { UTF8_BOM, tokenizeCsv } from '../../csv-core.js';
-import { RobotTargetSchema, type RobotTarget } from '../../pm-core.js';
+import { RobotTargetSchema, type RobotTarget } from '../pm/model.js';
 import { RESOURCE_INIT_STATUSES } from './requests.js';
 
 /**

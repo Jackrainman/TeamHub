@@ -80,10 +80,10 @@ export {
   InvestmentTimeAccumulationSchema,
   InvestmentValueSchema,
   TaskInvestmentSchema,
-} from '../../investment.js';
+} from '../pm/model.js';
 export type {
   InvestmentHorizon,
   InvestmentTimeAccumulation,
   InvestmentValue,
   TaskInvestment,
-} from '../../investment.js';
+} from '../pm/model.js';

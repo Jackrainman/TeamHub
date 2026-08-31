@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MemberGradeSchema, MemberPublicSchema, MemberRoleSchema } from './pm-core.js';
+import { MemberGradeSchema, MemberPublicSchema, MemberRoleSchema } from './domains/pm/model.js';
 
 /**
  * 轻身份登录契约（IDENTITY-LITE，D-083 §4.2 + 路线 v4 第 2 步）。

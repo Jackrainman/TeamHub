@@ -7,7 +7,7 @@ import {
   NeedSchema,
   SeasonSchema,
   TaskSchema,
-} from './pm-core.js';
+} from './model.js';
 import type {
   BlockAttribution,
   BlockAttributionReason,
@@ -26,7 +26,7 @@ import type {
   Season,
   Task,
   TaskComplexity,
-} from './pm-core.js';
+} from './model.js';
 import { KnowledgeNodeSchema, TaskKnowledgeTagSchema } from './growth.js';
 import type { KnowledgeNode, TaskKnowledgeTag } from './growth.js';
 
