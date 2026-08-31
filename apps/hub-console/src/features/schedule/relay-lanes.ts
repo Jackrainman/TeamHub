@@ -1,4 +1,4 @@
-import type { RelayStage } from '../../api/schemas/schedule';
+import type { RelayStage } from '@teamhub/hub-contracts';
 
 // 一条泳道：一台机器人 + 其名下按 orderInWindow 排好的工作卡。
 export type Lane = {

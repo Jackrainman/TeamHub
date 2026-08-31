@@ -24,7 +24,7 @@ import {
   type UpdateResourceDefaultPresetResponse,
   type CreateResourceSessionsBatchRequest,
   type CreateResourceSessionsBatchResponse,
-} from '../schemas/schedule';
+} from '@teamhub/hub-contracts';
 import {
   CreateResourceResponseSchema,
   CreateResourcesBatchResponseSchema,
@@ -35,10 +35,14 @@ import {
   type CreateResourcesBatchResponse,
   type UpdateResourceStatusRequest,
   type UpdateResourceResponse,
-} from '../schemas/resources';
-import type { HttpContext } from '../http';
-import { fetchJson, postJson, sendJson, DeletedResponseSchema } from '../http';
+} from '@teamhub/hub-contracts';
+import type { HttpContext } from '../../api/http';
+import { fetchJson, postJson, sendJson, DeletedResponseSchema } from '../../api/http';
 
+/**
+ * 排班域 API 分段（ARCH-UNIFY A4；前身 api/segments/schedule.ts）。端点对照 server modules/schedule/routes.ts。
+ * I0：读侧只拿组/资源/任务维度的派生视图，无任何按人聚合端点。
+ */
 export interface ScheduleSegment {
   getSchedule(windowLabel: string): Promise<PresenceScheduleResponse>;
   getResourceSessions(): Promise<ResourceSessionsResponse>;

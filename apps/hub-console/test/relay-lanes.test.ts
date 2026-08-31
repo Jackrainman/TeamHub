@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { buildLanes } from '../src/features/schedule/relay-lanes';
-import type { RelayStage } from '../src/api/schemas/schedule';
+import type { RelayStage } from '@teamhub/hub-contracts';
 
 // RelayStage 来自后端、结构上无人维度（sessionId/resourceId/groupId/orderInWindow）——测之不触人键信号。
 function stage(

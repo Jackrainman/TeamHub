@@ -1,5 +1,5 @@
 import type { TranslationKey } from '../../../i18n';
-import type { ResourceKind, ResourceStatus, RobotTarget } from '../../../api/schemas/resources';
+import type { ResourceKind, ResourceStatus, RobotTarget } from '@teamhub/hub-contracts';
 
 export const ROBOT_TARGETS: RobotTarget[] = ['R1', 'R2', 'shared'];
 export const KINDS: ResourceKind[] = ['robot', 'testRig', 'instrument'];

@@ -1,4 +1,4 @@
-import type { RelayStage } from '../../../api/schemas/schedule';
+import type { RelayStage } from '@teamhub/hub-contracts';
 import type { Handoff } from './WorkCard';
 
 type RawHandoff = { id: string; fromSessionId: string; toSessionId: string };

@@ -4,7 +4,7 @@ import type { HubApiClient } from '../../api/client';
 import { useI18n } from '../../i18n';
 import { useArtifacts } from './hooks';
 import { useSystemStatus } from '../settings/sub/useSettingsQueries';
-import { useResources } from '../../hooks/useSchedule';
+import { useResources } from '../schedule/hooks';
 import { segClass } from '../../utils';
 import { ArtifactRegisterForm } from './sub/ArtifactRegisterForm';
 import { ArchiveViewTab } from './sub/ArchiveViewTab';

@@ -6,7 +6,7 @@ import {
   type CreateResourceRequest,
   type ResourceKind,
   type RobotTarget,
-} from '../../../api/schemas/resources';
+} from '@teamhub/hub-contracts';
 import { useI18n } from '../../../i18n';
 import { useForm } from '../../../hooks/useForm';
 import { formActionsProps } from '../../../hooks/useFormActions';

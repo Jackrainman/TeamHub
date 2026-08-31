@@ -3,10 +3,9 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
-import { queryKeys } from '../../api/queryKeys';
-import { useResources } from '../../hooks/useSchedule';
+import { useRelay, useResources } from '../schedule/hooks';
 import { useTasks } from '../../hooks/useTasks';
 import { canBoardResource } from '@teamhub/hub-contracts';
 import { useI18n } from '../../i18n';
@@ -33,12 +32,7 @@ export function RelayCanvas({
 }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
-  const queryKey = useMemo(() => queryKeys.relay(windowLabel), [windowLabel]);
-
-  const query = useQuery({
-    queryKey,
-    queryFn: () => client.getRelay(windowLabel),
-  });
+  const query = useRelay(client, windowLabel);
   const resourcesQuery = useResources(client, 'relay');
 
   const [editingEtaId, setEditingEtaId] = useState<string | null>(null);

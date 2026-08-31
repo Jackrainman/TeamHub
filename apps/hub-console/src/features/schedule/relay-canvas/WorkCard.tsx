@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, GitBranch, X } from 'lucide-react';
-import type { RelayStage } from '../../../api/schemas/schedule';
+import type { RelayStage } from '@teamhub/hub-contracts';
 import { useI18n } from '../../../i18n';
 
 export type Handoff = { id: string; fromSessionId: string; toSessionId: string };

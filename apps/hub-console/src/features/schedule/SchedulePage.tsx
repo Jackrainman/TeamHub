@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import type { PresenceRecommendation } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
-import { queryKeys } from '../../api/queryKeys';
+import { useResourceSessions, useSchedulePresence } from './hooks';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { segClass } from '../../utils';
 import { RelayCanvas } from './RelayCanvas';
@@ -30,16 +29,10 @@ export function SchedulePage({
   // 三段（今天/明天/后天）在组件生命周期内固定，按挂载日算。
   const [segments] = useState(relativeSegments);
 
-  const query = useQuery({
-    queryKey: queryKeys.schedule(source, windowLabel),
-    queryFn: () => client.getSchedule(windowLabel),
-  });
+  const query = useSchedulePresence(client, source, windowLabel);
   // 空状态路由（D-082 §5）：这天 session 数=0 → 自动落表格页；否则落泳道图。
   // 与 TodayPlanTable 内部判「继续昨天」是否可用同一 queryKey（['resource-sessions']，无参数），react-query 去重。
-  const sessionsQuery = useQuery({
-    queryKey: queryKeys.resourceSessions(),
-    queryFn: () => client.getResourceSessions(),
-  });
+  const sessionsQuery = useResourceSessions(client);
   const todayCount =
     sessionsQuery.data?.sessions.filter((s) => s.windowLabel === windowLabel).length ?? null;
 

@@ -7,7 +7,7 @@ import type {
   ResourceStatus,
   SharedResource,
   UpdateResourceStatusRequest,
-} from '../../../api/schemas/resources';
+} from '@teamhub/hub-contracts';
 import type { Task } from '@teamhub/hub-contracts';
 import { useI18n } from '../../../i18n';
 import { humanizeFormError } from '../../../utils';

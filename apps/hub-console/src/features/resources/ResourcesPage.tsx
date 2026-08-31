@@ -4,7 +4,7 @@ import { deriveLeafGroups } from '@teamhub/hub-contracts';
 import { Bot } from 'lucide-react';
 import { EmptyState } from '../../shared/EmptyState';
 import type { HubApiClient } from '../../api/client';
-import { useResources } from '../../hooks/useSchedule';
+import { useResources } from '../schedule/hooks';
 import { useTasks } from '../../hooks/useTasks';
 import { useGroups } from '../../hooks/useRoster';
 import { useI18n } from '../../i18n';

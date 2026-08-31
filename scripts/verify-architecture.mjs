@@ -11,7 +11,6 @@ const SOURCE_EXTENSIONS = new Set(['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx',
 // 命中数减少或文件消失时检查会失败，要求在同一批次收缩/删除对应条目。
 export const ARCHITECTURE_BASELINE = Object.freeze([
   ['multi-domain-client-segment', 'apps/hub-console/src/api/segments/members.ts', 2],
-  ['multi-domain-client-segment', 'apps/hub-console/src/api/segments/schedule.ts', 2],
   ['multi-domain-client-segment', 'apps/hub-console/src/api/segments/system-pm.ts', 3],
   ['raw-react-query', 'apps/hub-console/src/App.tsx', 4],
   ['raw-react-query', 'apps/hub-console/src/features/dep-graph/DepGraphPage.tsx', 1],
@@ -22,13 +21,9 @@ export const ARCHITECTURE_BASELINE = Object.freeze([
   ['raw-react-query', 'apps/hub-console/src/features/pm/PmCreatePanel.tsx', 1],
   ['raw-react-query', 'apps/hub-console/src/features/resources/sub/CreateResourceForm.tsx', 1],
   ['raw-react-query', 'apps/hub-console/src/features/resources/sub/ResourceRow.tsx', 2],
-  ['raw-react-query', 'apps/hub-console/src/features/schedule/relay-canvas/useRelayMutations.ts', 5],
-  ['raw-react-query', 'apps/hub-console/src/features/schedule/RelayCanvas.tsx', 1],
-  ['raw-react-query', 'apps/hub-console/src/features/schedule/SchedulePage.tsx', 2],
   ['raw-react-query', 'apps/hub-console/src/features/settings/sub/useSettingsMutations.ts', 3],
   ['raw-react-query', 'apps/hub-console/src/features/settings/sub/useSettingsQueries.ts', 3],
   ['raw-react-query', 'apps/hub-console/src/hooks/useRoster.ts', 3],
-  ['raw-react-query', 'apps/hub-console/src/hooks/useSchedule.ts', 3],
   ['raw-react-query', 'apps/hub-console/src/hooks/useTasks.ts', 2],
 ].map(([rule, file, count]) => Object.freeze({ rule, file, count })));
 

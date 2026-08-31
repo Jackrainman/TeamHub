@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
-import { useResources, useResourceSessions } from '../../hooks/useSchedule';
+import { useResources, useResourceSessions } from '../schedule/hooks';
 import { useTasks } from '../../hooks/useTasks';
 import { useGroups } from '../../hooks/useRoster';
 import { deriveLeafGroups } from '@teamhub/hub-contracts';
 import type { CreateTaskRequest } from '../../api/schemas/pm';
-import { deriveTodayPlanFromPresets } from '../../api/schemas/schedule';
+import { deriveTodayPlanFromPresets } from '@teamhub/hub-contracts';
 import { useI18n } from '../../i18n';
 import { errorDetail } from '../../utils';
 import { FormBanner } from '../../components/FormBanner';

@@ -1,7 +1,10 @@
 import type { HttpContext } from './http';
 import { normalizeBaseUrl } from './http';
 import { createSystemPmSegment, type SystemPmSegment } from './segments/system-pm';
-import { createScheduleSegment, type ScheduleSegment } from './segments/schedule';
+import {
+  createScheduleSegment,
+  type ScheduleSegment,
+} from '../features/schedule/api';
 import { createMembersSegment, type MembersSegment } from './segments/members';
 import {
   createReimburseSegment,

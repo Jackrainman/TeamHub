@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useHubMutation } from '../../../hooks/useHubMutation';
 import type { QueryClient } from '@tanstack/react-query';
-import type { CreateResourceSessionRequest } from '../../../api/schemas/schedule';
+import type { CreateResourceSessionRequest } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../../api/client';
 import type { VocabularyKey } from '../../../i18n';
-import {
-  invalidateRelayOnly,
-  invalidateScheduleFamily,
-} from '../schedule-invalidation';
+import { invalidateScheduleFamily } from '../schedule-invalidation';
+
+/** session 族写动作的整族失效键（镜像 invalidateScheduleFamily，走平台 useHubMutation invalidateKeys）。 */
+const SCHEDULE_FAMILY_KEYS = [['schedule'], ['relay'], ['resource-sessions'], ['tasks'], ['dep-graph']];
+/** 接力手线窄失效键（镜像 invalidateRelayOnly）。 */
+const RELAY_ONLY_KEYS = [['relay']];
 
 export type BannerState = { kind: 'err' | 'ok'; text: string } | null;
 
@@ -32,14 +34,14 @@ export function useRelayMutations({
     invalidateScheduleFamily(queryClient);
   };
 
-  const updateMutation = useMutation({
+  const updateMutation = useHubMutation({
     mutationFn: (vars: {
       id: string;
       patch: { orderInWindow?: number; eta?: string | null };
     }) => client.updateResourceSession(vars.id, vars.patch),
+    invalidateKeys: SCHEDULE_FAMILY_KEYS,
     onSuccess: () => {
       setBanner(null);
-      refetch();
     },
     onError: (e) =>
       setBanner({
@@ -50,7 +52,7 @@ export function useRelayMutations({
       }),
   });
 
-  const createHandoffMutation = useMutation({
+  const createHandoffMutation = useHubMutation({
     mutationFn: (vars: {
       fromSessionId: string;
       toSessionId: string;
@@ -67,9 +69,9 @@ export function useRelayMutations({
           source: 'console',
         },
       }),
+    invalidateKeys: RELAY_ONLY_KEYS,
     onSuccess: () => {
       setBanner(null);
-      invalidateRelayOnly(queryClient);
     },
     onError: (e) =>
       setBanner({
@@ -80,11 +82,11 @@ export function useRelayMutations({
       }),
   });
 
-  const deleteHandoffMutation = useMutation({
+  const deleteHandoffMutation = useHubMutation({
     mutationFn: (id: string) => client.deleteRelayHandoff(id),
+    invalidateKeys: RELAY_ONLY_KEYS,
     onSuccess: () => {
       setBanner(null);
-      invalidateRelayOnly(queryClient);
     },
     onError: (e) =>
       setBanner({
@@ -95,11 +97,11 @@ export function useRelayMutations({
       }),
   });
 
-  const deleteSessionMutation = useMutation({
+  const deleteSessionMutation = useHubMutation({
     mutationFn: (id: string) => client.deleteResourceSession(id),
+    invalidateKeys: SCHEDULE_FAMILY_KEYS,
     onSuccess: () => {
       setBanner(null);
-      refetch();
     },
     onError: (e) =>
       setBanner({
@@ -110,13 +112,13 @@ export function useRelayMutations({
       }),
   });
 
-  const createSessionMutation = useMutation({
+  const createSessionMutation = useHubMutation({
     mutationFn: (req: CreateResourceSessionRequest) =>
       client.createResourceSession(req),
+    invalidateKeys: SCHEDULE_FAMILY_KEYS,
     onSuccess: () => {
       onSessionCreated();
       setBanner(null);
-      refetch();
     },
     onError: (e) =>
       setBanner({
