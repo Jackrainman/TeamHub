@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { GovStore, KbStore } from '../store/gov-store.js';
-import type { InvStore } from '../store/gov-store.js';
+import type { InventoryReadPort } from '../modules/inventory/repository.js';
 import { parseQuery } from './helpers.js';
 
 const SearchQuerySchema = z.object({
@@ -11,7 +11,7 @@ const SearchQuerySchema = z.object({
 export interface SearchRouteDeps {
   store: GovStore;
   kbStore: KbStore;
-  invStore: InvStore;
+  inventoryRead: InventoryReadPort;
 }
 
 export interface SearchResult {
@@ -22,7 +22,7 @@ export interface SearchResult {
 }
 
 export function registerSearchRoutes(app: FastifyInstance, deps: SearchRouteDeps): void {
-  const { store, kbStore, invStore } = deps;
+  const { store, kbStore, inventoryRead } = deps;
 
   app.get('/api/search', async (request, reply) => {
     const query = parseQuery(SearchQuerySchema, request, reply, 'q parameter required (1-100 chars)');
@@ -70,7 +70,7 @@ export function registerSearchRoutes(app: FastifyInstance, deps: SearchRouteDeps
       }
     }
 
-    const inv = await invStore.getInventorySnapshot();
+    const inv = await inventoryRead.getInventorySnapshot();
     for (const pt of inv.partTypes) {
       if (pt.name.toLowerCase().includes(q)) {
         results.push({

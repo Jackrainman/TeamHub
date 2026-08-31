@@ -1,11 +1,6 @@
 import {
   ArtifactsResponseSchema,
-  InventoryImportReportSchema,
-  InventoryPreviewResponseSchema,
   type ArtifactsResponse,
-  type InventoryImportReport,
-  type InventoryImportRow,
-  type InventoryPreviewResponse,
 } from '@teamhub/hub-contracts';
 import {
   KbSimilarResponseSchema,
@@ -24,16 +19,6 @@ import {
   type CreateArtifactResponse,
   type UploadArtifactResponse,
 } from '../schemas/pm';
-import {
-  InventoryResponseSchema,
-  CreatePartTypeResponseSchema,
-  CreatePartActionResponseSchema,
-  type InventoryResponse,
-  type CreatePartTypeRequest,
-  type CreatePartTypeResponse,
-  type CreatePartActionRequest,
-  type CreatePartActionResponse,
-} from '../schemas/inv';
 import type { HttpContext } from '../http';
 import { fetchJson, postJson, postFormData, postMultiFormData } from '../http';
 
@@ -44,12 +29,6 @@ export interface DomainSegment {
   getKbSimilar(params: KbSimilarParams): Promise<KbSimilarResponse>;
   closeoutKb(req: KbCloseoutRequest): Promise<KbCloseoutResponse>;
   importKbDocs(files: File[]): Promise<KbImportDocsReport>;
-  getInventory(): Promise<InventoryResponse>;
-  upsertPartType(req: CreatePartTypeRequest): Promise<CreatePartTypeResponse>;
-  recordPartAction(req: CreatePartActionRequest): Promise<CreatePartActionResponse>;
-  inventoryTemplateUrl(): string;
-  previewInventory(file: File): Promise<InventoryPreviewResponse>;
-  importInventoryRows(rows: InventoryImportRow[]): Promise<InventoryImportReport>;
 }
 
 export function createDomainSegment(ctx: HttpContext): DomainSegment {
@@ -80,24 +59,6 @@ export function createDomainSegment(ctx: HttpContext): DomainSegment {
     },
     async importKbDocs(files: File[]) {
       return postMultiFormData(`${baseUrl}/api/kb/import-docs`, files, KbImportDocsReportSchema, fetcher, writeToken);
-    },
-    async getInventory() {
-      return fetchJson(`${baseUrl}/api/inventory`, InventoryResponseSchema, fetcher);
-    },
-    async upsertPartType(req: CreatePartTypeRequest) {
-      return postJson(`${baseUrl}/api/inventory/part-types`, req, CreatePartTypeResponseSchema, fetcher, writeToken);
-    },
-    async recordPartAction(req: CreatePartActionRequest) {
-      return postJson(`${baseUrl}/api/inventory/actions`, req, CreatePartActionResponseSchema, fetcher, writeToken);
-    },
-    inventoryTemplateUrl() {
-      return `${baseUrl}/api/inventory/template`;
-    },
-    async previewInventory(file: File) {
-      return postFormData(`${baseUrl}/api/inventory/preview`, file, InventoryPreviewResponseSchema, fetcher, writeToken);
-    },
-    async importInventoryRows(rows: InventoryImportRow[]) {
-      return postJson(`${baseUrl}/api/inventory/import`, { rows }, InventoryImportReportSchema, fetcher, writeToken);
     },
   };
 }

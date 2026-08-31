@@ -7,7 +7,7 @@ import type {
 } from '@teamhub/hub-contracts';
 import {
   ROBOTICS_PART_CATEGORY_VALUES,
-} from '../../../api/schemas/inv';
+} from '@teamhub/hub-contracts';
 import { useStockInEntry } from '../hooks';
 import { useI18n, type TranslationKey } from '../../../i18n';
 import { SideDrawer } from '../../../components/SideDrawer';

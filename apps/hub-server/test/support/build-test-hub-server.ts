@@ -15,7 +15,7 @@ import { TestApplicationUnitOfWork } from './test-application-unit-of-work.js';
 type StoreOptionKey =
   | 'store'
   | 'kbStore'
-  | 'invStore'
+  | 'inventoryRepository'
   | 'baselineRepository'
   | 'checklistRepository'
   | 'reimburseStore'
@@ -35,7 +35,7 @@ export type BuildTestHubServerOptions =
  */
 export function buildTestHubServer(options: BuildTestHubServerOptions = {}) {
   const clock = options.clock ?? new FixedClock(new Date(GOVERNANCE_SCENARIO_NOW));
-  const invStore = options.invStore ?? new InMemoryInvStore(undefined, clock);
+  const inventoryRepository = options.inventoryRepository ?? new InMemoryInvStore(undefined, clock);
   const reimburseStore =
     options.reimburseStore ?? new InMemoryReimburseStore(undefined, clock);
 
@@ -46,14 +46,14 @@ export function buildTestHubServer(options: BuildTestHubServerOptions = {}) {
     identityMode: options.identityMode ?? 'anonymous',
     store: options.store ?? new InMemoryGovStore(undefined, clock),
     kbStore: options.kbStore ?? new InMemoryKbStore(),
-    invStore,
+    inventoryRepository,
     baselineRepository:
       options.baselineRepository ?? new InMemoryBaselineStore(),
     checklistRepository:
       options.checklistRepository ?? new InMemoryChecklistStore(),
     reimburseStore,
     inventoryStockInPort:
-      options.inventoryStockInPort ?? (invStore as InMemoryInvStore),
+      options.inventoryStockInPort ?? (inventoryRepository as InMemoryInvStore),
     reimburseStockInPort:
       options.reimburseStockInPort ?? (reimburseStore as InMemoryReimburseStore),
     unitOfWork: options.unitOfWork ?? new TestApplicationUnitOfWork(clock),

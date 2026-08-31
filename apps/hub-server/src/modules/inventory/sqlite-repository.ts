@@ -12,21 +12,26 @@ import type {
   PartType,
   TrackedPart,
 } from '@teamhub/hub-contracts';
-import { FixedClock } from '../clock.js';
-import type { Clock } from '../clock.js';
+import { FixedClock } from '../../clock.js';
+import type { Clock } from '../../clock.js';
 import type {
   InventoryStockInActionDraft,
   InventoryStockInPartDraft,
   InventoryStockInPort,
-} from '../modules/reimburse/service.js';
-import { createIdSequence, nextSequentialId } from './id-sequence.js';
-import type { IdSequence } from './id-sequence.js';
-import type { SqliteDatabase } from './sqlite-db.js';
-import type { InvStore, InventoryImportOutcome, PartActionDraft, PartTypeDraft } from './gov-store.js';
+} from '../reimburse/service.js';
+import { createIdSequence, nextSequentialId } from '../../store/id-sequence.js';
+import type { IdSequence } from '../../store/id-sequence.js';
+import type { SqliteDatabase } from '../../store/sqlite-db.js';
+import type {
+  InventoryImportOutcome,
+  InventoryRepository,
+  PartActionDraft,
+  PartTypeDraft,
+} from './repository.js';
 
 const INV_TABLES = ['inv_part_types', 'inv_tracked_parts', 'inv_actions'] as const;
 
-export class SqliteInvStore implements InvStore, InventoryStockInPort {
+export class SqliteInventoryRepository implements InventoryRepository, InventoryStockInPort {
   private readonly sdb: SqliteDatabase;
   private readonly clock: Clock;
   private partTypeSeq!: IdSequence;
@@ -42,7 +47,7 @@ export class SqliteInvStore implements InvStore, InventoryStockInPort {
     sdb: SqliteDatabase,
     seed: InventorySnapshot = inventoryScenarioFixture,
     clock?: Clock,
-  ): SqliteInvStore {
+  ): SqliteInventoryRepository {
     sdb.ensureEntityTables(INV_TABLES);
     if (sdb.getMeta('inv_projectId') === undefined) {
       sdb.tx(() => {
@@ -52,7 +57,7 @@ export class SqliteInvStore implements InvStore, InventoryStockInPort {
         sdb.bulkInsert('inv_actions', seed.actions);
       });
     }
-    return new SqliteInvStore(sdb, clock);
+    return new SqliteInventoryRepository(sdb, clock);
   }
 
   private resyncSequences(): void {

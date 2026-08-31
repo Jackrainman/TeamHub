@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import type { HubApiClient } from '../../../api/client';
-import type { PartCategory, CreatePartTypeRequest } from '../../../api/schemas/inv';
+import type { PartCategory } from '@teamhub/hub-contracts';
+import { useUpsertPartType } from '../hooks';
 import { useI18n, type TranslationKey } from '../../../i18n';
 import { humanizeFormError } from '../../../utils';
 import { Field } from '../../../components/Field';
@@ -30,12 +30,12 @@ const CATEGORY_OPTION_KEY: Record<PartCategory, TranslationKey> = {
 
 export function CreatePartTypeForm({
   client,
+  source,
   defaultProjectId,
-  onCreated,
 }: {
   client: HubApiClient;
+  source: string;
   defaultProjectId: string;
-  onCreated: () => void;
 }) {
   const { t } = useI18n();
   const [partNumber, setPartNumber] = useState('');
@@ -46,17 +46,12 @@ export function CreatePartTypeForm({
   const [lowStockThreshold, setLowStockThreshold] = useState('0');
   const [trackIndividually, setTrackIndividually] = useState(false);
 
-  const mutation = useMutation({
-    meta: { silent: true },
-    mutationFn: (req: CreatePartTypeRequest) => client.upsertPartType(req),
-    onSuccess: () => {
-      setPartNumber('');
-      setName('');
-      setTotalQuantity('0');
-      setLowStockThreshold('0');
-      setTrackIndividually(false);
-      onCreated();
-    },
+  const mutation = useUpsertPartType(client, source, () => {
+    setPartNumber('');
+    setName('');
+    setTotalQuantity('0');
+    setLowStockThreshold('0');
+    setTrackIndividually(false);
   });
 
   const total = Number.parseInt(totalQuantity, 10);

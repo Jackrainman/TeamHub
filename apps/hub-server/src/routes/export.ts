@@ -1,11 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import type { GovStore } from '../store/gov-store.js';
-import type { InvStore } from '../store/gov-store.js';
+import type { InventoryReadPort } from '../modules/inventory/repository.js';
 import { deriveInventoryLedger } from '@teamhub/hub-contracts';
 
 export interface ExportRouteDeps {
   store: GovStore;
-  invStore: InvStore;
+  inventoryRead: InventoryReadPort;
 }
 
 function csvEscape(val: string): string {
@@ -22,7 +22,7 @@ function toCsv(headers: string[], rows: string[][]): string {
 }
 
 export function registerExportRoutes(app: FastifyInstance, deps: ExportRouteDeps): void {
-  const { store, invStore } = deps;
+  const { store, inventoryRead } = deps;
 
   app.get('/api/export/roster', async (_request, reply) => {
     const snapshot = await store.getSnapshot();
@@ -62,7 +62,7 @@ export function registerExportRoutes(app: FastifyInstance, deps: ExportRouteDeps
   });
 
   app.get('/api/export/inventory', async (_request, reply) => {
-    const snapshot = await invStore.getInventorySnapshot();
+    const snapshot = await inventoryRead.getInventorySnapshot();
     const resources = await store.listResources();
     const ledger = deriveInventoryLedger(snapshot, resources);
     const rows = ledger.map((row) => [

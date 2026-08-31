@@ -100,7 +100,7 @@ describe('GET /api/inventory/template', () => {
 describe('POST /api/inventory/preview — 只解析不落库', () => {
   test('解析返回 rows/failed，库存快照零变化', async () => {
     const invStore = new InMemoryInvStore(emptyInv());
-    const app = buildTestHubServer({ invStore });
+    const app = buildTestHubServer({ inventoryRepository: invStore });
     try {
       const before = await invStore.getInventorySnapshot();
       const csv =
@@ -136,7 +136,7 @@ describe('POST /api/inventory/preview — 只解析不落库', () => {
 describe('POST /api/inventory/import — 匿名模式', () => {
   test('multipart 导入：新建 + 坏行进 failed 不中断', async () => {
     const invStore = new InMemoryInvStore(emptyInv());
-    const app = buildTestHubServer({ invStore });
+    const app = buildTestHubServer({ inventoryRepository: invStore });
     try {
       const csv =
         '件号,名称,类别,单位,总数,低储阈值\n' +
@@ -173,7 +173,7 @@ describe('POST /api/inventory/import — 匿名模式', () => {
   test('幂等重导不翻倍：同件号 → updated，totalQuantity 覆盖不累加，trackIndividually/allocations/lastCountedAt 不动', async () => {
     // fixture GM6020：trackIndividually=true、allocations 两台车占用、lastCountedAt=场景时刻。
     const invStore = new InMemoryInvStore(inventoryScenarioFixture);
-    const app = buildTestHubServer({ invStore });
+    const app = buildTestHubServer({ inventoryRepository: invStore });
     try {
       const before = await invStore.getInventorySnapshot();
       const gmBefore = before.partTypes.find((p) => p.partNumber === 'GM6020')!;
@@ -220,8 +220,8 @@ describe('POST /api/inventory/import — 匿名模式', () => {
         line: 2,
       },
     ];
-    const appMultipart = buildTestHubServer({ invStore: new InMemoryInvStore(emptyInv()) });
-    const appJson = buildTestHubServer({ invStore: new InMemoryInvStore(emptyInv()) });
+    const appMultipart = buildTestHubServer({ inventoryRepository: new InMemoryInvStore(emptyInv()) });
+    const appJson = buildTestHubServer({ inventoryRepository: new InMemoryInvStore(emptyInv()) });
     try {
       const resMultipart = await appMultipart.inject({
         method: 'POST',
@@ -246,7 +246,7 @@ describe('POST /api/inventory/import — 匿名模式', () => {
 
   test('JSON 非法 body（缺 rows / 负总数）→ 400，不落库', async () => {
     const invStore = new InMemoryInvStore(emptyInv());
-    const app = buildTestHubServer({ invStore });
+    const app = buildTestHubServer({ inventoryRepository: invStore });
     try {
       const bad1 = await app.inject({
         method: 'POST',
@@ -279,7 +279,7 @@ describe('POST /api/inventory/import — 匿名模式', () => {
       0x2c, 0x6d, 0x6f, 0x74, 0x6f, 0x72, 0x2c, 0xb8, 0xf6, 0x2c, 0x36, 0x2c, 0x0d, 0x0a,
     ]);
     const invStore = new InMemoryInvStore(emptyInv());
-    const app = buildTestHubServer({ invStore });
+    const app = buildTestHubServer({ inventoryRepository: invStore });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -298,7 +298,7 @@ describe('POST /api/inventory/import — 匿名模式', () => {
   });
 
   test('无法识别的编码 → 400', async () => {
-    const app = buildTestHubServer({ invStore: new InMemoryInvStore(emptyInv()) });
+    const app = buildTestHubServer({ inventoryRepository: new InMemoryInvStore(emptyInv()) });
     try {
       const bad = Buffer.from([0x41, 0xff, 0x42]); // UTF-8 与 GBK 皆非法
       const res = await app.inject({
@@ -320,7 +320,7 @@ describe('POST /api/inventory/import — 身份模式鉴权（无空板豁免，
   test('已登录但非持旗成员 → 403', async () => {
     const app = buildTestHubServer({
       store: new InMemoryGovStore(seedGov([member({ id: 'm-plain', displayName: '普通成员' })])),
-      invStore: new InMemoryInvStore(emptyInv()),
+      inventoryRepository: new InMemoryInvStore(emptyInv()),
       identityMode: 'identity',
     });
     try {
@@ -344,7 +344,7 @@ describe('POST /api/inventory/import — 身份模式鉴权（无空板豁免，
       store: new InMemoryGovStore(
         seedGov([member({ id: 'm-boss', displayName: '队长', projectManager: true })]),
       ),
-      invStore,
+      inventoryRepository: invStore,
       identityMode: 'identity',
     });
     try {
@@ -366,7 +366,7 @@ describe('POST /api/inventory/import — 身份模式鉴权（无空板豁免，
   test('无会话 → 401（写门「须有会话」段先挡，无空板豁免）', async () => {
     const app = buildTestHubServer({
       store: new InMemoryGovStore(seedGov([member({ id: 'm-plain', displayName: '普通成员' })])),
-      invStore: new InMemoryInvStore(emptyInv()),
+      inventoryRepository: new InMemoryInvStore(emptyInv()),
       identityMode: 'identity',
     });
     try {
@@ -384,7 +384,7 @@ describe('POST /api/inventory/import — 身份模式鉴权（无空板豁免，
   test('preview 同律：非持旗 403', async () => {
     const app = buildTestHubServer({
       store: new InMemoryGovStore(seedGov([member({ id: 'm-plain', displayName: '普通成员' })])),
-      invStore: new InMemoryInvStore(emptyInv()),
+      inventoryRepository: new InMemoryInvStore(emptyInv()),
       identityMode: 'identity',
     });
     try {
@@ -408,7 +408,7 @@ describe('写门 × writeToken（匿名模式走 Bearer，照名册双轨范式�
 
   test('匿名 + 配 writeToken：无 Bearer 401；带 Bearer 200', async () => {
     const app = buildTestHubServer({
-      invStore: new InMemoryInvStore(emptyInv()),
+      inventoryRepository: new InMemoryInvStore(emptyInv()),
       writeToken: 'sekret',
     });
     try {

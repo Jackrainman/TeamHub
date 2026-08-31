@@ -8,7 +8,7 @@ import {
 
 function hermesApp() {
   const invStore = new InMemoryInvStore(inventoryScenarioFixture);
-  const app = buildTestHubServer({ invStore });
+  const app = buildTestHubServer({ inventoryRepository: invStore });
   return { app, invStore };
 }
 
@@ -292,7 +292,7 @@ describe('POST /api/hermes/inbound — 边界', () => {
 
   test('写门鉴权：有 WRITE_TOKEN 时无 Bearer → 401', async () => {
     const gatedApp = buildTestHubServer({
-      invStore: new InMemoryInvStore(inventoryScenarioFixture),
+      inventoryRepository: new InMemoryInvStore(inventoryScenarioFixture),
       writeToken: 'test-secret',
     });
     try {
@@ -309,7 +309,7 @@ describe('POST /api/hermes/inbound — 边界', () => {
 
   test('写门鉴权：有 WRITE_TOKEN + Bearer → 200', async () => {
     const gatedApp = buildTestHubServer({
-      invStore: new InMemoryInvStore(inventoryScenarioFixture),
+      inventoryRepository: new InMemoryInvStore(inventoryScenarioFixture),
       writeToken: 'test-secret',
     });
     try {

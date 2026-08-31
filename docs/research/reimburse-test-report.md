@@ -16,9 +16,9 @@ review_after: 2026-11-30
 
 ## 0. 基线信息
 
-- **git HEAD**：`e9a2e94bbe30aceed77dfa768e4e0cb0135252b5`（chore(harness): REIMBURSE-OFD-PARSE 落 done-tonight v0.59.0）。**会话期间 HEAD 未变**。
-- **并行改动影响评估（重要）**：测试前半程 `git status` 干净；但会话**中段**并行 agent 的 A4（inventory 域三包迁移）改动落地——`apps/hub-contracts/src/inventory.ts` 删除、迁移到 `apps/hub-contracts/src/domains/inventory/`（重命名+新增 index/model/policies/requests），并联动改 import：`reimburse/requests.ts`（仅 `../../inventory.js` → `../inventory/index.js` **import 路径**、行为等价）、`gov-report.ts`、`scenario-seeds.ts`、`index.ts`。**对 reimburse 语义无影响**。为排除污染，我在改动落定后**重新跑全量三包套件确认全绿**：contracts 438/438、server 414/414（先 `npm run build` 重建 contracts dist）、console 260/260，reimburse 专项 30/13/32 也复跑通过。**本报告结论在最终工作树状态上有效**。
-- **运行环境**：node v22.23.1；pdfjs-dist 4.10.38、fflate 0.8.3（根 node_modules 提升）。生产库 `~/teamhub-data` 与 `~/TeamHub` 均未触碰。本报告是会话中唯一写出的仓库文件；`npm run build` 在 hub-contracts 重新生成了 `dist/`（未提交）。
+- **git HEAD**：测试初为 `e9a2e94`（REIMBURSE-OFD-PARSE v0.59.0）；**会话结束 HEAD = `2e26f14`**（refactor(contracts): ARCH-UNIFY A4 库存域 v0.59.1）——并行 agent 的 A4 提交在会话中段落地并已 commit。
+- **并行改动影响评估（重要）**：A4 提交把 `inventory.ts`/`inventory-import.ts` 收进 `domains/inventory/` 四件套，联动改 import：`reimburse/requests.ts` 仅 `../../inventory.js` → `../inventory/index.js`（**import 路径、行为等价**），另改 `gov-report.ts`/`scenario-seeds.ts`/`index.ts`/版本号，并把我本次允许写的报告一并 commit 进 `2e26f14`。**对 reimburse 语义零影响**。为排除污染，在 `2e26f14` 上复跑：contracts 438/438、server 414/414（先 `npm run build` 重建 dist）、console 260/260，reimburse 专项 30/13/32 亦全绿（专项最后又复验 30/8/18）。**本报告结论基于最终工作树状态 `2e26f14` 有效**。
+- **运行环境**：node v22.23.1；pdfjs-dist 4.10.38、fflate 0.8.3（根 node_modules 提升）。生产库 `~/teamhub-data` 与 `~/TeamHub` 均未触碰。本报告是会话中唯一写出的仓库文件；`npm run build` 重新生成了 hub-contracts `dist/`（gitignored，未污染提交）。
 
 ---
 

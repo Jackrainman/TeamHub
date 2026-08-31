@@ -10,7 +10,8 @@ import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { InMemoryGovStore } from './support/inmemory-gov-store.js';
 import { InMemoryKbStore } from './support/inmemory-kb-store.js';
 import { InMemoryInvStore } from './support/inmemory-inv-store.js';
-import type { GovStore, InvStore } from '../src/store/gov-store.js';
+import type { GovStore } from '../src/store/gov-store.js';
+import type { InventoryRepository } from '../src/modules/inventory/repository.js';
 
 // base 收口刀（D-042 决策 5①）：GovStore 写方法白名单 + kbStore/invStore 扩展点 + 持久化切换合约 stub。
 // 验证「接口先行、实现后置」=读路径活、写路径 throw（不静默吞、不过早成主录入口），且 kb/inv/sqlite 三方
@@ -100,9 +101,9 @@ describe('base 收口刀: GovStore 写白名单 + 扩展点 + 持久化切换合
   test('kb / inv / sqlite 三方扩展同一底座、不重建：buildTestHubServer 接受各扩展点并仍服务', async () => {
     const shared = new InMemoryGovStore(); // 治理读 + 结案派生 KnowledgeNode 复用同一 GovernanceSnapshot
     const kbStore = new InMemoryKbStore(); // KB 相似检索语料独立 KbStore（IssueCard 不在治理快照内）
-    const invStore: InvStore = new InMemoryInvStore(); // INV 独立扩展点（INV-BOM-CORE 已落地）
+    const inventoryRepository: InventoryRepository = new InMemoryInvStore(); // INV 独立 repository（ARCH-UNIFY A4）
 
-    const app = buildTestHubServer({ store: shared, kbStore, invStore });
+    const app = buildTestHubServer({ store: shared, kbStore, inventoryRepository });
     try {
       const health = await app.inject({ method: 'GET', url: '/health' });
       expect(health.statusCode).toBe(200);

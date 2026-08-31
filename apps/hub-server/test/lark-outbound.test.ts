@@ -59,7 +59,7 @@ function buildAppWithLark(cfg: { appId: string; appSecret: string; chatId: strin
   const app = buildTestHubServer({
     store: stores.gov,
     kbStore: stores.kb,
-    invStore: stores.inv,
+    inventoryRepository: stores.inv,
     baselineRepository: stores.baseline,
     checklistRepository: stores.checklist,
     larkStore,

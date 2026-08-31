@@ -21,11 +21,11 @@ import type {
 } from '../../src/modules/reimburse/service.js';
 import { cloneArrayFields } from '../../src/store/clone-snapshot.js';
 import type {
-  InvStore,
   InventoryImportOutcome,
+  InventoryRepository,
   PartActionDraft,
   PartTypeDraft,
-} from '../../src/store/gov-store.js';
+} from '../../src/modules/inventory/repository.js';
 
 /** 库存快照的三数组字段（写方法可能 push/replace 的集合）——构造期克隆隔离 + getInventorySnapshot 浅拷贝共用。 */
 const INVENTORY_ARRAY_FIELDS: (keyof InventorySnapshot)[] = [
@@ -43,7 +43,7 @@ const INVENTORY_ARRAY_FIELDS: (keyof InventorySnapshot)[] = [
  * （组合复用、零漂移，等同 旧生产 Store 复用 InMemoryGovStore）。非法迁移由 applyPartAction 抛
  * InvalidPartActionError，路由捕获后转 400。
  */
-export class InMemoryInvStore implements InvStore, InventoryStockInPort {
+export class InMemoryInvStore implements InventoryRepository, InventoryStockInPort {
   private readonly snapshot: InventorySnapshot;
   private readonly clock: Clock;
   // 单调自增计数器（构造期 = seed 数组 length）：createX 用 `++seq` 生成 id，永不回退。

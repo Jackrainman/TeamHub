@@ -16,7 +16,7 @@ import type { KbCloseoutRequest } from '../src/api/schemas/kb';
 import type {
   CreatePartTypeRequest,
   CreatePartActionRequest,
-} from '../src/api/schemas/inv';
+} from '@teamhub/hub-contracts';
 import { createHubApiClient } from '../src/api/client';
 import { OverviewSnapshotSchema } from '../src/api/schemas/system';
 

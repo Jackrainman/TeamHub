@@ -4,12 +4,13 @@ import {
   renderGovReportHtml,
   renderGovReportMarkdown,
 } from '@teamhub/hub-contracts';
-import type { GovStore, InvStore } from '../store/gov-store.js';
+import type { GovStore } from '../store/gov-store.js';
+import type { InventoryReadPort } from '../modules/inventory/repository.js';
 import type { BaselineRepository } from '../modules/baseline/repository.js';
 
 export interface GovReportRouteDeps {
   store: GovStore;
-  invStore: InvStore;
+  inventoryRead: InventoryReadPort;
   baselineRepository: BaselineRepository;
 }
 
@@ -19,7 +20,7 @@ export interface GovReportRouteDeps {
  * 数据全有：里程碑进度/任务完成/在场统计（I0 只到组与资源维度）/库存消耗。
  */
 export function registerGovReportRoutes(app: FastifyInstance, deps: GovReportRouteDeps): void {
-  const { store, invStore, baselineRepository } = deps;
+  const { store, inventoryRead, baselineRepository } = deps;
 
   app.get('/api/reports/governance', async (request, reply) => {
     const { format } = request.query as { format?: string };
@@ -30,7 +31,7 @@ export function registerGovReportRoutes(app: FastifyInstance, deps: GovReportRou
     const [resources, sessions, inventory] = await Promise.all([
       store.listResources(),
       store.listResourceSessions(),
-      invStore.getInventorySnapshot(),
+      inventoryRead.getInventorySnapshot(),
     ]);
 
     const report = buildGovReport({

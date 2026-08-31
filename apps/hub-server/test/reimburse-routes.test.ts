@@ -112,7 +112,7 @@ function buildTestApp() {
   const reimburseStore = new InMemoryReimburseStore();
   const app = buildTestHubServer({
     store: new InMemoryGovStore(seedGov()),
-    invStore,
+    inventoryRepository: invStore,
     reimburseStore,
     identityMode: 'identity',
   });
@@ -619,7 +619,7 @@ describe('匿名模式（identityMode=anonymous）', () => {
   test('GET entries 回全量（无身份概念，与匿名可读一切一致）；POST → 400 须登录；批次端点 403', async () => {
     const app = buildTestHubServer({
       store: new InMemoryGovStore(seedGov()),
-      invStore: new InMemoryInvStore(seedInv()),
+      inventoryRepository: new InMemoryInvStore(seedInv()),
       reimburseStore: new InMemoryReimburseStore(),
     });
     try {

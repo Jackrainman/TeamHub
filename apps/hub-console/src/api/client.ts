@@ -16,6 +16,10 @@ import {
   createBaselineSegment,
   type BaselineSegment,
 } from '../features/baseline/api';
+import {
+  createInventorySegment,
+  type InventorySegment,
+} from '../features/inv/api';
 
 export interface HubApiClientOptions {
   baseUrl?: string;
@@ -29,7 +33,8 @@ export type HubApiClient = SystemPmSegment &
   DomainSegment &
   ReimburseSegment &
   ChecklistSegment &
-  BaselineSegment;
+  BaselineSegment &
+  InventorySegment;
 
 export function createHubApiClient(options: HubApiClientOptions = {}): HubApiClient {
   const ctx: HttpContext = {
@@ -45,5 +50,6 @@ export function createHubApiClient(options: HubApiClientOptions = {}): HubApiCli
     ...createReimburseSegment(ctx),
     ...createChecklistSegment(ctx),
     ...createBaselineSegment(ctx),
+    ...createInventorySegment(ctx),
   };
 }

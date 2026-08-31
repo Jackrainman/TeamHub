@@ -3,7 +3,7 @@ import { EmptyState } from '../../shared/EmptyState';
 import { useQueryGuard } from '../../shared/QueryGate';
 import { useInventory } from './hooks';
 import type { HubApiClient } from '../../api/client';
-import type { PartAction, PartActionKind } from '../../api/schemas/inv';
+import type { PartAction, PartActionKind } from '@teamhub/hub-contracts';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { MetricTile } from '../../components/MetricTile';
 import { InvLedgerTable } from './InvLedgerTable';
@@ -127,17 +127,17 @@ export function InvPage({
 
       <CreatePartTypeForm
         client={client}
+        source={source}
         defaultProjectId={partTypes[0]?.projectId ?? DEFAULT_PROJECT_ID}
-        onCreated={refresh}
       />
 
       <InvImportSection client={client} onImported={refresh} />
 
       <InvQuickRecordForm
         client={client}
+        source={source}
         partTypes={partTypes}
         holderOptions={holderOptions}
-        onRecorded={refresh}
       />
 
       <section className="panel" aria-label={t('inv.ledger.title')}>

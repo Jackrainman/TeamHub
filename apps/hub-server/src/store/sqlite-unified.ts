@@ -26,7 +26,7 @@ import { SqliteBaselineRepository } from '../modules/baseline/sqlite-repository.
 import { SqliteChecklistRepository } from '../modules/checklist/sqlite-repository.js';
 import { SqliteDatabase } from './sqlite-db.js';
 import { SqliteGovRepository } from './sqlite-gov-repository.js';
-import { SqliteInvStore } from './sqlite-inv-store.js';
+import { SqliteInventoryRepository } from '../modules/inventory/sqlite-repository.js';
 import { SqliteKbStore } from './sqlite-kb-store.js';
 import { SqliteReimburseRepository } from '../modules/reimburse/sqlite-repository.js';
 
@@ -78,7 +78,7 @@ const TEAMHUB_BUSINESS_META_KEYS = [
 export interface UnifiedStores {
   gov: GovStore;
   kb: SqliteKbStore;
-  inv: SqliteInvStore;
+  inv: SqliteInventoryRepository;
   baseline: BaselineRepository;
   checklist: ChecklistRepository;
   reimburse: SqliteReimburseRepository;
@@ -185,7 +185,7 @@ function assembleStores(
   return {
     gov: SqliteGovRepository.fromSharedDb(db, seeds.gov, clock, seeds.demoSeed),
     kb: SqliteKbStore.fromSharedDb(db, seeds.kb),
-    inv: SqliteInvStore.fromSharedDb(db, seeds.inv, clock),
+    inv: SqliteInventoryRepository.fromSharedDb(db, seeds.inv, clock),
     baseline: SqliteBaselineRepository.fromSharedDb(db, seeds.baseline),
     checklist: SqliteChecklistRepository.fromSharedDb(
       db,

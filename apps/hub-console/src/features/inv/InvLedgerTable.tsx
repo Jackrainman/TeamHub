@@ -1,5 +1,5 @@
-import type { InventoryLedgerRow, PartAction, PartCategory } from '../../api/schemas/inv';
-import { derivePartAcquisition } from '../../api/schemas/inv';
+import type { InventoryLedgerRow, PartAction, PartCategory } from '@teamhub/hub-contracts';
+import { derivePartAcquisition } from '@teamhub/hub-contracts';
 import { useI18n, type TranslationKey } from '../../i18n';
 
 const CATEGORY_KEY: Record<PartCategory, TranslationKey> = {

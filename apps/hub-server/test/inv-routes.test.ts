@@ -30,7 +30,7 @@ describe('库存 / BOM 路由（INV-BOM-CORE）', () => {
 
   test('POST /api/inventory/actions：damage 一句话快记 → 201，总数减一', async () => {
     const store = new InMemoryInvStore();
-    const app = buildTestHubServer({ invStore: store });
+    const app = buildTestHubServer({ inventoryRepository: store });
     try {
       const before = (await store.getInventorySnapshot()).partTypes.find(
         (p) => p.id === 'parttype-gm6020',
@@ -66,7 +66,7 @@ describe('库存 / BOM 路由（INV-BOM-CORE）', () => {
 
   test('POST /api/inventory/actions：mount 到已知车 → 201；used +1', async () => {
     const store = new InMemoryInvStore();
-    const app = buildTestHubServer({ invStore: store });
+    const app = buildTestHubServer({ inventoryRepository: store });
     try {
       const res = await app.inject({
         method: 'POST',
@@ -178,7 +178,7 @@ describe('库存 / BOM 路由（INV-BOM-CORE）', () => {
 
   test('POST /api/inventory/part-types：带 id 命中 → 更新（调阈值）', async () => {
     const store = new InMemoryInvStore();
-    const app = buildTestHubServer({ invStore: store });
+    const app = buildTestHubServer({ inventoryRepository: store });
     try {
       const res = await app.inject({
         method: 'POST',

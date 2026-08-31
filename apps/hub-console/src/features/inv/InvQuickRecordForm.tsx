@@ -1,13 +1,12 @@
 import { useEffect } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
 import type {
-  CreatePartActionRequest,
   PartAcquisition,
   PartActionKind,
   PartType,
-} from '../../api/schemas/inv';
+} from '@teamhub/hub-contracts';
 import { useI18n, type TranslationKey } from '../../i18n';
+import { useRecordPartAction } from './hooks';
 import { useForm } from '../../hooks/useForm';
 import { formActionsProps } from '../../hooks/useFormActions';
 import { Field } from '../../components/Field';
@@ -62,14 +61,14 @@ interface InvFormFields {
 
 export function InvQuickRecordForm({
   client,
+  source,
   partTypes,
   holderOptions,
-  onRecorded,
 }: {
   client: HubApiClient;
+  source: string;
   partTypes: PartType[];
   holderOptions: HolderOption[];
-  onRecorded: () => void;
 }) {
   const { t } = useI18n();
 
@@ -95,13 +94,7 @@ export function InvQuickRecordForm({
     }
   }, [partTypes, form.values.partTypeId, form.patch]);
 
-  const mutation = useMutation({
-    mutationFn: (req: CreatePartActionRequest) => client.recordPartAction(req),
-    onSuccess: () => {
-      form.resetAfterSubmit();
-      onRecorded();
-    },
-  });
+  const mutation = useRecordPartAction(client, source, () => form.resetAfterSubmit());
 
   const { partTypeId, kind, quantity, holder, note, acquisition } = form.values;
   const project = partTypes.find((p) => p.id === partTypeId);

@@ -16,7 +16,7 @@ import { SessionManager } from './identity/session-store.js';
 import { FixedClock } from './clock.js';
 import type { Clock } from './clock.js';
 import type { ReimburseRepository } from './modules/reimburse/repository.js';
-import type { GovStore, InvStore, KbStore } from './store/gov-store.js';
+import type { GovStore, KbStore } from './store/gov-store.js';
 import { BaselineService } from './modules/baseline/service.js';
 import type { BaselineRepository } from './modules/baseline/repository.js';
 import { ChecklistService } from './modules/checklist/service.js';
@@ -28,7 +28,8 @@ import { registerSearchRoutes } from './routes/search.js';
 import { registerExportRoutes } from './routes/export.js';
 import { registerGovReportRoutes } from './routes/gov-report.js';
 import { registerKnowledgeBaseRoutes } from './routes/kb.js';
-import { registerLedgerRoutes } from './routes/ledger.js';
+import { registerInventoryRoutes, InventoryService } from './modules/inventory/index.js';
+import type { InventoryReadPort, InventoryRepository } from './modules/inventory/index.js';
 import { registerReimburseRoutes, ReimburseService } from './modules/reimburse/index.js';
 import { registerPresenceScheduleRoutes } from './routes/schedule.js';
 import { registerArchiveRoutes } from './routes/archive.js';
@@ -40,6 +41,7 @@ import { registerLarkRoutes } from './routes/lark.js';
 import {
   SESSION_TTL_MS,
   readSessionCookie,
+  requireSuperAdmin,
 } from './routes/helpers.js';
 import { registerWriteGate } from './middleware/write-gate.js';
 import type { AppSettingsService } from './store/sqlite-unified.js';
@@ -84,11 +86,11 @@ export interface BuildHubServerOptions {
    */
   kbStore: KbStore;
   /**
-   * 库存 / BOM 读写出入口扩展点（reserved，D-042 决策 4）。INV 是唯一需扩 schema 的支柱（PartStock 不在
-   * GovernanceSnapshot 内），故走独立 `InvStore` 而非复用 GovStore。本刀只钉扩展点、不建 PartStock；
-   * 由组合根注入实现 InvStore 的实例（对话记账 / 盘点 / 缺口汇报）。
+   * 库存 / BOM repository（ARCH-UNIFY A4 库存域；原 InvStore 扩展点，D-042 决策 4）。
+   * INV 是唯一需扩 schema 的支柱（InventorySnapshot 不在 GovernanceSnapshot 内），故走独立
+   * `InventoryRepository` port 而非复用 GovStore；由组合根注入（生产=SqliteInventoryRepository）。
    */
-  invStore: InvStore;
+  inventoryRepository: InventoryRepository;
   /**
    * 倒排基准线读写出入口（BASELINE-CORE，S3 落地/S4 挂路由）。独立于 `GovStore`（`SeasonBaseline`
    * 不进 `GovernanceSnapshot`），故走独立 `BaselineRepository` 而非扩 GovStore。
@@ -176,7 +178,7 @@ interface ModuleRouteCtx {
   store: GovStore;
   clock: Clock;
   kbStore: KbStore;
-  invStore: InvStore;
+  inventoryRead: InventoryReadPort;
   // BASELINE-CORE：S4 起由 registerPmCoreRoutes 的 GET/PATCH /api/baseline + 过门路由消费。
   baselineService: BaselineService;
   // GATE-CHECKLIST-IOU：C3 起由 registerPmCoreRoutes 的 /api/checklist 系列 + 过门硬闸消费（本刀先钉字段）。
@@ -219,7 +221,10 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
   // 组合根通常已 ensure；这里保留幂等兜底，确保所有显式注入实现具备默认组树。
   void store.ensureDefaultGroups();
   const kbStore = options.kbStore;
-  const invStore = options.invStore;
+  const inventoryRepository = options.inventoryRepository;
+  const inventoryService = new InventoryService(inventoryRepository, {
+    listResources: () => store.listResources(),
+  });
   const baselineRepository = options.baselineRepository;
   const checklistRepository = options.checklistRepository;
   const checklistService = new ChecklistService(
@@ -275,7 +280,7 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
     store,
     clock,
     kbStore,
-    invStore,
+    inventoryRead: inventoryRepository,
     baselineService,
     checklistService,
     artifactMaxBytes: options.artifactMaxBytes ?? ARTIFACT_MAX_BYTES,
@@ -315,7 +320,11 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
     registerKnowledgeBaseRoutes(app, { store, clock, kbStore, identityMode });
   }
   if (moduleEnabled('ledger')) {
-    registerLedgerRoutes(app, { store, invStore, identityMode });
+    registerInventoryRoutes(app, {
+      service: inventoryService,
+      identityMode,
+      requireSuperAdmin: (request, reply) => requireSuperAdmin(store, request, reply),
+    });
     // REIMBURSE-PROC：报账域挂 ledger 模块下（采购-报账-入库联动，与库存同支柱同开关）。
     registerReimburseRoutes(app, {
       service: reimburseService,
@@ -325,10 +334,10 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
     registerPresenceScheduleRoutes(app, { store, clock });
   }
 
-  registerSearchRoutes(app, { store, kbStore, invStore });
-  registerExportRoutes(app, { store, invStore });
+  registerSearchRoutes(app, { store, kbStore, inventoryRead: inventoryRepository });
+  registerExportRoutes(app, { store, inventoryRead: inventoryRepository });
   // GOV-REPORT：项目级汇报导出（拍板=B 文件形态，随 export 族常挂）
-  registerGovReportRoutes(app, { store, invStore, baselineRepository });
+  registerGovReportRoutes(app, { store, inventoryRead: inventoryRepository, baselineRepository });
 
   if (options.larkStore) {
     registerLarkRoutes(app, { store, clock, baselineRepository, larkStore: options.larkStore, trustProxy });
