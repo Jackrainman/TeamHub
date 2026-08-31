@@ -1,5 +1,4 @@
 import { useEffect, useMemo } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import type {
   Task,
   RobotTarget,
@@ -14,8 +13,7 @@ import {
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useMembers } from '../../features/identity/hooks';
-import { useGroups } from '../../features/pm/hooks';
-import type { CreateTaskRequest } from '@teamhub/hub-contracts';
+import { useCreateTask, useGroups } from '../../features/pm/hooks';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { parseList } from '../../utils';
@@ -167,12 +165,9 @@ export function PmCreatePanel({
     onDirtyChange?.(dirty);
   }, [dirty]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const mutation = useMutation({
-    mutationFn: (req: CreateTaskRequest) => client.createTask(req),
-    onSuccess: () => {
-      form.resetAfterSubmit();
-      onCreated();
-    },
+  const mutation = useCreateTask(client, () => {
+    form.resetAfterSubmit();
+    onCreated();
   });
 
   const writeLocked = !identity.canWrite;

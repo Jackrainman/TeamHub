@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { RefreshCw, X } from 'lucide-react';
 import type { AppSettings, VerticalId } from '@teamhub/hub-contracts';
 import { createHubApiClient, type HubApiClient } from './api/client';
-import { queryKeys } from './api/queryKeys';
+import { useSession, useBootstrapGateMembers } from './features/identity/hooks';
+import { useSetupState, useOverview } from './features/system/hooks';
 import { ConsoleLayout } from './components/layout/ConsoleLayout';
 import {
   CONSOLE_PAGES,
@@ -60,11 +60,7 @@ export function App() {
     [],
   );
 
-  const setupQuery = useQuery({
-    queryKey: queryKeys.setupState(),
-    queryFn: () => apiClient.getSetupState(),
-    retry: 1,
-  });
+  const setupQuery = useSetupState(apiClient);
 
   if (setupQuery.isLoading) return <SetupSplash />;
   if (setupQuery.error || !setupQuery.data) {
@@ -124,10 +120,7 @@ function ConsoleApp({ apiClient, settings }: { apiClient: HubApiClient; settings
 
   // 轻身份（IDENTITY-LITE，I2 console 接线）：两模式均可读，缺省 anonymous（GET /api/session
   // 报当前部署模式 + 当前身份），前端据此判断要不要渲染登录 UI / 收紧写门——不是另开一个开关。
-  const sessionQuery = useQuery({
-    queryKey: queryKeys.session(),
-    queryFn: () => apiClient.getSession(),
-  });
+  const sessionQuery = useSession(apiClient);
   const identityMode = sessionQuery.data?.mode ?? 'anonymous';
   const identitySession = sessionQuery.data?.session ?? null;
   const identity: PageIdentityCtx = {
@@ -140,10 +133,7 @@ function ConsoleApp({ apiClient, settings }: { apiClient: HubApiClient; settings
   // queryKey 身份维度（product-redefine §9-②）：拼进当前登录人 memberId（未登录/匿名模式归一
   // 'anon'）——身份切换后天然落进不同缓存桶，不会读到切换前那个人缓存下的数据。IdentityBar 登录/
   // 登出成功后另 invalidateQueries() 兜底刷新其它未按此维度分桶的查询（见该组件注释）。
-  const overviewQuery = useQuery({
-    queryKey: queryKeys.hubOverview(SOURCE, identityCacheKey(identitySession)),
-    queryFn: () => apiClient.getOverview(),
-  });
+  const overviewQuery = useOverview(apiClient, SOURCE, identityCacheKey(identitySession));
 
   // 全屏初始化门（SETUP-WIZARD-ROSTER 刀②）：identity 模式且名册无任何持「项目管理」旗标成员 →
   // 整屏换 BootstrapGate（①你是谁→bootstrap 一笔建人+授旗+PIN+登录态 ②导入 CSV ③确认组长 ④进 app），
@@ -152,11 +142,7 @@ function ConsoleApp({ apiClient, settings }: { apiClient: HubApiClient; settings
   // 门第①步已授旗——中途刷新则直接进 app，后续可经设置页补导入/确认）。
   const [gateDone, setGateDone] = useState(false);
   const gateShownRef = useRef(false);
-  const gateMembersQuery = useQuery({
-    queryKey: [...queryKeys.members(), 'bootstrap-gate'],
-    queryFn: () => apiClient.getMembers(),
-    enabled: identityMode === 'identity',
-  });
+  const gateMembersQuery = useBootstrapGateMembers(apiClient, identityMode === 'identity');
   const gateConditionMet =
     identityMode === 'identity' &&
     !gateDone &&

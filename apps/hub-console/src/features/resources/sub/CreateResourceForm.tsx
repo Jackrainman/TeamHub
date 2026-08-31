@@ -1,9 +1,8 @@
 import { useMemo } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import type { HubApiClient } from '../../../api/client';
+import { useCreateResource } from '../hooks';
 import {
   deriveDisplayCode,
-  type CreateResourceRequest,
   type ResourceKind,
   type RobotTarget,
 } from '@teamhub/hub-contracts';
@@ -49,12 +48,9 @@ export function CreateResourceForm({
     },
   });
 
-  const mutation = useMutation({
-    mutationFn: (req: CreateResourceRequest) => client.createResource(req),
-    onSuccess: () => {
-      form.resetAfterSubmit();
-      onCreated();
-    },
+  const mutation = useCreateResource(client, () => {
+    form.resetAfterSubmit();
+    onCreated();
   });
 
   const { season, robotTarget, name, kind, version } = form.values;

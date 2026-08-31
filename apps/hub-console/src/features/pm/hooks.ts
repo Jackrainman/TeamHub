@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import type { CreateTaskRequest, Season } from '@teamhub/hub-contracts';
+import type { CreateSeasonRequest, CreateTaskRequest, Season } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { queryKeys } from '../../api/queryKeys';
 import { useHubMutation } from '../../hooks/useHubMutation';
@@ -62,7 +62,7 @@ export function useGroupGaps(client: HubApiClient, source: string) {
 }
 
 /** PmCreatePanel 建任务（提交后由调用方 reset + 通知父级刷新）。 */
-export function useCreateTask(client: HubApiClient, onCreated: () => void) {
+export function useCreateTask(client: Pick<HubApiClient, 'createTask'>, onCreated: () => void) {
   return useHubMutation({
     meta: { silent: true },
     invalidateKeys: [queryKeys.tasks('pm')],
@@ -72,7 +72,7 @@ export function useCreateTask(client: HubApiClient, onCreated: () => void) {
 }
 
 /** BaselineStates 一键建赛季（建议名+区间由组件算好传入）。 */
-export function useCreateSeason(client: HubApiClient, req: { name: string; startsAt: string; endsAt: string | null }, onCreated: () => void) {
+export function useCreateSeason(client: { createSeason(req: CreateSeasonRequest): Promise<unknown> }, req: { name: string; startsAt: string; endsAt: string | null }, onCreated: () => void) {
   return useHubMutation({
     meta: { silent: true },
     invalidateKeys: [queryKeys.seasons()],

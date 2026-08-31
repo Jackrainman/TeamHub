@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import { Plus, X } from 'lucide-react';
 import type { HubApiClient } from '../../../api/client';
+import { useUpdateResourcePreset, useUpdateResourceStatus } from '../hooks';
 import type {
   DefaultPreset,
   ResourceStatus,
   SharedResource,
-  UpdateResourceStatusRequest,
 } from '@teamhub/hub-contracts';
 import type { Task } from '@teamhub/hub-contracts';
 import { useI18n } from '../../../i18n';
@@ -67,11 +66,7 @@ function DefaultPresetEditor({
       .sort((a, b) => a.name.localeCompare(b.name, 'zh'));
   }, [groupOptions, rows]);
 
-  const mutation = useMutation({
-    mutationFn: (defaultPreset: DefaultPreset | null) =>
-      client.updateResourceDefaultPreset(resource.id, { defaultPreset }),
-    onSuccess: onUpdated,
-  });
+  const mutation = useUpdateResourcePreset(client, resource.id, onUpdated);
 
   function updateRow(key: string, patch: Partial<PresetLineupRow>) {
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -212,13 +207,9 @@ export function ResourceRow({
   const [reason, setReason] = useState('');
   const [presetOpen, setPresetOpen] = useState(false);
 
-  const mutation = useMutation({
-    mutationFn: (patch: UpdateResourceStatusRequest) =>
-      client.updateResourceStatus(resource.id, patch),
-    onSuccess: () => {
-      setReason('');
-      onUpdated();
-    },
+  const mutation = useUpdateResourceStatus(client, resource.id, () => {
+    setReason('');
+    onUpdated();
   });
 
   function apply(event: FormEvent) {

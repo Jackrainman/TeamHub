@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LogIn, LogOut } from 'lucide-react';
 import type { IdentityMode, SessionIdentity } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
-import { queryKeys } from '../../api/queryKeys';
+import { useIdentityBarMembers, useSessionMutations } from './hooks';
 import { useI18n } from '../../i18n';
 import { useForm } from '../../hooks/useForm';
 import { Select } from '../../components/Select';
@@ -25,7 +24,6 @@ export function IdentityBar({
   session: SessionIdentity | null;
 }) {
   const { t } = useI18n();
-  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
 
   const form = useForm<LoginFormFields>({
@@ -36,29 +34,13 @@ export function IdentityBar({
     valid: (v) => Boolean(v.memberId),
   });
 
-  const membersQuery = useQuery({
-    queryKey: [...queryKeys.members(), 'identity-bar'],
-    queryFn: () => client.getMembers(),
-    enabled: mode === 'identity' && open,
-  });
+  const membersQuery = useIdentityBarMembers(client, mode === 'identity' && open);
 
-  function onIdentityChanged(next: { mode: IdentityMode; session: SessionIdentity | null }) {
-    queryClient.setQueryData(['session'], next);
-    void queryClient.invalidateQueries();
-  }
-
-  const loginMutation = useMutation({
-    mutationFn: () => client.login({ memberId: form.values.memberId, pin: form.values.pin.trim() || undefined }),
-    onSuccess: (data) => {
-      onIdentityChanged(data);
+  const { loginMutation, logoutMutation } = useSessionMutations(client, {
+    onLoggedIn: () => {
       setOpen(false);
       form.resetAll();
     },
-  });
-
-  const logoutMutation = useMutation({
-    mutationFn: () => client.logout(),
-    onSuccess: (data) => onIdentityChanged(data),
   });
 
   if (mode !== 'identity') {
@@ -109,7 +91,10 @@ export function IdentityBar({
       className="identity-bar identity-bar--form"
       onSubmit={form.handleSubmit(() => {
         if (loginMutation.isPending) return;
-        loginMutation.mutate();
+        loginMutation.mutate({
+          memberId: form.values.memberId,
+          pin: form.values.pin.trim() || undefined,
+        });
       })}
     >
       <Select

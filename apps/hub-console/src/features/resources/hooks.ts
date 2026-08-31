@@ -13,7 +13,7 @@ import { useHubMutation } from '../../hooks/useHubMutation';
  */
 
 /** 建车（CreateResourceForm）：成功后 reset 表单 + 通知父级。 */
-export function useCreateResource(client: HubApiClient, onCreated: () => void) {
+export function useCreateResource(client: Pick<HubApiClient, 'createResource'>, onCreated: () => void) {
   return useHubMutation({
     meta: { silent: true },
     invalidateKeys: [queryKeys.resources()],
@@ -23,7 +23,7 @@ export function useCreateResource(client: HubApiClient, onCreated: () => void) {
 }
 
 /** 改车状态（ResourceRow）：成功后由调用方清理由文本 + 通知父级。 */
-export function useUpdateResourceStatus(client: HubApiClient, resourceId: string, onUpdated: () => void) {
+export function useUpdateResourceStatus(client: Pick<HubApiClient, 'updateResourceStatus'>, resourceId: string, onUpdated: () => void) {
   return useHubMutation({
     meta: { silent: true },
     invalidateKeys: [queryKeys.resources()],
@@ -34,7 +34,7 @@ export function useUpdateResourceStatus(client: HubApiClient, resourceId: string
 }
 
 /** 默认阵型写回/清除（ResourceRow 预设编辑器）。 */
-export function useUpdateResourcePreset(client: HubApiClient, resourceId: string, onUpdated: () => void) {
+export function useUpdateResourcePreset(client: Pick<HubApiClient, 'updateResourceDefaultPreset'>, resourceId: string, onUpdated: () => void) {
   return useHubMutation({
     meta: { silent: true },
     invalidateKeys: [queryKeys.resources()],

@@ -10,15 +10,6 @@ const SOURCE_EXTENSIONS = new Set(['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx',
 // D-090 迁移基线不是永久豁免：每项都绑定“规则 + 文件 + 精确命中数”。
 // 命中数减少或文件消失时检查会失败，要求在同一批次收缩/删除对应条目。
 export const ARCHITECTURE_BASELINE = Object.freeze([
-  ['raw-react-query', 'apps/hub-console/src/App.tsx', 4],
-  ['raw-react-query', 'apps/hub-console/src/features/dep-graph/DepGraphPage.tsx', 1],
-  ['raw-react-query', 'apps/hub-console/src/features/direction/DirectionPage.tsx', 1],
-  ['raw-react-query', 'apps/hub-console/src/features/identity/IdentityBar.tsx', 3],
-  ['raw-react-query', 'apps/hub-console/src/features/myview/MyViewPage.tsx', 1],
-  ['raw-react-query', 'apps/hub-console/src/features/overview/sub/BaselineStates.tsx', 1],
-  ['raw-react-query', 'apps/hub-console/src/features/pm/PmCreatePanel.tsx', 1],
-  ['raw-react-query', 'apps/hub-console/src/features/resources/sub/CreateResourceForm.tsx', 1],
-  ['raw-react-query', 'apps/hub-console/src/features/resources/sub/ResourceRow.tsx', 2],
 ].map(([rule, file, count]) => Object.freeze({ rule, file, count })));
 
 function toPosix(value) {

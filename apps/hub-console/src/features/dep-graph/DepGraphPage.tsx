@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from '../../theme';
-import { useQuery } from '@tanstack/react-query';
+
 import { useHubMutation } from '../../hooks/useHubMutation';
 import { queryKeys } from '../../api/queryKeys';
 import dagre from '@dagrejs/dagre';
@@ -21,7 +21,7 @@ import {
   type TaskStatus,
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
-import { useTasks } from '../../features/pm/hooks';
+import { useDepGraph, useTasks } from '../../features/pm/hooks';
 import type { CreateDependencyRequest } from '@teamhub/hub-contracts';
 import { useI18n } from '../../i18n';
 import { MetricTile } from '../../components/MetricTile';
@@ -91,10 +91,7 @@ export function DepGraphPage({
         : theme === 'warm'
           ? '#e6ddca'
           : '#d8e0d6';
-  const query = useQuery({
-    queryKey: queryKeys.depGraph(source),
-    queryFn: () => client.getDepGraph(),
-  });
+  const query = useDepGraph(client, source);
   const tasksQuery = useTasks(client, source);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);

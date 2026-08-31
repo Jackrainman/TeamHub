@@ -1,11 +1,11 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import {
   generateRoboconBaselineTemplate,
   type CreateSeasonRequest,
 } from '@teamhub/hub-contracts';
 import type { BaselineSegment } from '../../baseline';
 import { useUpdateBaseline } from '../../baseline';
+import { useCreateSeason } from '../../pm/hooks';
 import { useI18n } from '../../../i18n';
 import { humanizeFormError, seasonRangeLabel, suggestSeason } from '../../../utils';
 import { Field } from '../../../components/Field';
@@ -25,10 +25,7 @@ export function NoSeasonState({
 }) {
   const { t } = useI18n();
   const suggestion = useMemo(() => suggestSeason(new Date()), []);
-  const mutation = useMutation({
-    mutationFn: () => client.createSeason(suggestion),
-    onSuccess: () => onCreated(),
-  });
+  const mutation = useCreateSeason(client, suggestion, onCreated);
 
   return (
     <section className="panel panel--hero baseline-hero">
