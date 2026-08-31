@@ -186,7 +186,68 @@ export * from './schedule.js';
 export * from './kb.js';
 export * from './kb-similar.js';
 export * from './kb-closeout.js';
-export * from './inventory.js';
+// 库存标准纵切模块：只从正式 domain public API 显式导出，不保留旧根文件转发层。
+export {
+  IDLE_HOLDER,
+  INVENTORY_TEMPLATE_HEADERS,
+  InventoryImportFailureSchema,
+  InventoryImportReportSchema,
+  InventoryImportRowSchema,
+  InventoryImportRowsRequestSchema,
+  InventoryLedgerPerResourceSchema,
+  InventoryLedgerRowSchema,
+  InventoryPreviewResponseSchema,
+  InventoryResponseSchema,
+  InventorySnapshotSchema,
+  InvalidPartActionError,
+  CreatePartActionRequestSchema,
+  CreatePartActionResponseSchema,
+  CreatePartTypeRequestSchema,
+  CreatePartTypeResponseSchema,
+  PartAcquisitionSchema,
+  PartActionKindSchema,
+  PartActionRecordedBySchema,
+  PartActionSchema,
+  PartActionSourceSchema,
+  PartAllocationSchema,
+  PartCategorySchema,
+  PartTypeSchema,
+  TrackedPartSchema,
+  applyPartAction,
+  buildInventoryTemplateCsv,
+  deriveInventoryLedger,
+  derivePartAcquisition,
+  deriveShortfalls,
+  parseInventoryCsv,
+} from './domains/inventory/index.js';
+export type {
+  InventoryImportFailure,
+  InventoryImportReport,
+  InventoryImportRow,
+  InventoryImportRowsRequest,
+  InventoryLedgerPerResource,
+  InventoryLedgerRow,
+  InventoryParseResult,
+  InventoryPreviewResponse,
+  InventoryResourceRef,
+  InventoryResponse,
+  InventorySnapshot,
+  CreatePartActionRequest,
+  CreatePartActionResponse,
+  CreatePartTypeRequest,
+  CreatePartTypeResponse,
+  PartAcquisition,
+  PartAcquisitionSummary,
+  PartAction,
+  PartActionEffect,
+  PartActionInput,
+  PartActionKind,
+  PartActionSource,
+  PartAllocation,
+  PartCategory,
+  PartType,
+  TrackedPart,
+} from './domains/inventory/index.js';
 export * from './gov-report.js';
 // 报账标准纵切模块：只从正式 domain public API 显式导出，不保留旧根文件转发层。
 export {
@@ -353,7 +414,6 @@ export * from './schedule-requests.js';
 export * from './resource-requests.js';
 // 名册导入（ROSTER-IMPORT，K8）：CSV 模板生成 + 编码探测 + 手写零依赖解析器 + 导入报告契约（纯，无状态）。
 export * from './roster-import.js';
-export * from './inventory-import.js';
 // 车队批量导入（FLEET-CSV-IMPORT）：CSV 模板生成 + 手写零依赖解析器 + 预览契约（纯，无状态；落库走既有批量端点）。
 export * from './fleet-import.js';
 export * from './csv-core.js';

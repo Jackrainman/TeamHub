@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { UTF8_BOM, tokenizeCsv } from './csv-core.js';
-import { PartCategorySchema } from './inventory.js';
+import { UTF8_BOM, tokenizeCsv } from '../../csv-core.js';
+import { PartCategorySchema } from './model.js';
 
 /**
  * 库存批量导入契约 + 纯解析器（INV-BULK-IMPORT 刀⑪，onboarding-init-wizard-2026-07-25 §4）——

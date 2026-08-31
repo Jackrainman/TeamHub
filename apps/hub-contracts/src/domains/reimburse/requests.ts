@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { PartActionSchema, PartTypeSchema } from '../../inventory.js';
+import { PartActionSchema, PartTypeSchema } from '../inventory/index.js';
 import {
   ReimburseBatchSchema,
   ReimburseBatchStatusSchema,

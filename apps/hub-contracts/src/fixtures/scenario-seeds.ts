@@ -6,7 +6,7 @@ import type { SeasonBaseline } from '../domains/baseline/index.js';
 import type { GateChecklistItem } from '../domains/checklist/index.js';
 import type { MemberKnowledge } from '../growth.js';
 import type { KbSnapshot } from '../kb.js';
-import type { InventorySnapshot, TrackedPart } from '../inventory.js';
+import type { InventorySnapshot, TrackedPart } from '../domains/inventory/index.js';
 import { GOVERNANCE_SCENARIO_TIME, GOVERNANCE_SCENARIO_NOW, governanceScenarioFixture } from './pm-seed.js';
 
 const BASELINE_DEMO_ANCHORS = {
