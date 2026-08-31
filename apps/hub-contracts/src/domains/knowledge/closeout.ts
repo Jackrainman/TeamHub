@@ -10,16 +10,16 @@ import {
   KB_LONG_TEXT_MAX,
   KB_MARKDOWN_MAX,
   KB_TEXT_MAX,
-} from './kb.js';
+} from './model.js';
 import type {
   ArchiveDocument,
   ArchiveGeneratedBy,
   ErrorEntry,
   InvestigationRecord,
   IssueCard,
-} from './kb.js';
-import { KnowledgeNodeSchema } from './growth.js';
-import type { KnowledgeNode } from './growth.js';
+} from './model.js';
+import { KnowledgeNodeSchema } from '../../growth.js';
+import type { KnowledgeNode } from '../../growth.js';
 
 /**
  * 结案闭环（KB-CORE）。从 Probe_Flash 移植 `buildCloseoutFromIssue` **纯函数**——把选中的

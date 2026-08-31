@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
-import { isoDateTimeSchema } from './common.js';
-import { IssueStatusSchema } from './kb.js';
-import type { ArchiveDocument, ErrorEntry, IssueCard } from './kb.js';
+import { isoDateTimeSchema } from '../../common.js';
+import { IssueStatusSchema } from './model.js';
+import type { ArchiveDocument, ErrorEntry, IssueCard } from './model.js';
 
 /**
  * 相似 bug 检索（KB-CORE 核心读派生）。从 Probe_Flash 移植 `rankSimilarIssues` **纯函数段**——

@@ -196,9 +196,65 @@ export * from './schedule-infra.js';
 export * from './growth.js';
 export * from './attribution.js';
 export * from './schedule.js';
-export * from './kb.js';
-export * from './kb-similar.js';
-export * from './kb-closeout.js';
+// 知识库标准纵切模块：只从正式 domain public API 显式导出，不保留旧根文件转发层。
+export {
+  ARCHIVE_FILE_NAME_PATTERN,
+  ArchiveDocumentSchema,
+  ArchiveGeneratedBySchema,
+  ERROR_CODE_PATTERN,
+  ErrorEntriesResponseSchema,
+  ErrorEntrySchema,
+  InvestigationRecordSchema,
+  InvestigationRecordTypeSchema,
+  IssueCardSchema,
+  IssueCardsResponseSchema,
+  IssueSeveritySchema,
+  IssueStatusSchema,
+  KB_ARRAY_MAX,
+  KB_DERIVED_PREVENTION_MAX,
+  KB_ID_MAX,
+  KB_LONG_TEXT_MAX,
+  KB_MARKDOWN_MAX,
+  KB_TAG_MAX,
+  KB_TEXT_MAX,
+  KB_TITLE_MAX,
+  KbCloseoutRequestSchema,
+  KbCloseoutResponseSchema,
+  KbImportDocIssueSchema,
+  KbImportDocRefSchema,
+  KbImportDocsReportSchema,
+  KbSimilarResponseSchema,
+  SimilarIssueMatchSchema,
+  buildCloseoutFromIssue,
+  deriveErrorCode,
+  deriveKnowledgeNodeFromIssue,
+  rankSimilarIssues,
+} from './domains/knowledge/index.js';
+export type {
+  ArchiveDocument,
+  ArchiveGeneratedBy,
+  CloseoutFailure,
+  CloseoutGeneratedBy,
+  CloseoutInput,
+  CloseoutOptions,
+  CloseoutResult,
+  CloseoutSuccess,
+  ErrorEntry,
+  InvestigationRecord,
+  InvestigationRecordType,
+  IssueCard,
+  IssueSeverity,
+  IssueStatus,
+  KbCloseoutRequest,
+  KbCloseoutResponse,
+  KbImportDocIssue,
+  KbImportDocRef,
+  KbImportDocsReport,
+  KbSimilarResponse,
+  KbSnapshot,
+  RankSimilarIssuesInput,
+  SimilarIssueMatch,
+} from './domains/knowledge/index.js';
 // 库存标准纵切模块：只从正式 domain public API 显式导出，不保留旧根文件转发层。
 export {
   IDLE_HOLDER,
