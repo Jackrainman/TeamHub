@@ -83,10 +83,20 @@ export type {
 
 export {
   cleanInvoiceItemName,
+  classifyInvoiceEntryKind,
+  INVOICE_ARCHIVE_LIMITS,
   parseInvoicePdfText,
+  parseInvoiceXbrlText,
   parseInvoiceXmlText,
+  planInvoiceArchive,
 } from './import.js';
-export type { ParsedInvoice } from './import.js';
+export type {
+  InvoiceArchiveLimits,
+  InvoiceArchivePlanEntry,
+  InvoiceArchiveSkipReason,
+  InvoiceEntryKind,
+  ParsedInvoice,
+} from './import.js';
 
 export {
   deriveBatchSummary,

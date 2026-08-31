@@ -12,8 +12,9 @@ import type {
 } from '@teamhub/hub-contracts';
 import { useHubMutation } from '../../hooks/useHubMutation';
 import {
-  analyzeInvoiceFile,
+  analyzeInvoiceFileDeep,
   draftFromParsedInvoice,
+  type ImportFailReason,
   type ImportOutcome,
 } from './reimburse-import';
 import { emptyEntryDraft, type EntryDraft } from './reimburse-utils';
@@ -159,7 +160,7 @@ interface ImportJob {
 export interface ReimburseImportFail {
   id: number;
   fileName: string;
-  reason: 'type' | 'read';
+  reason: ImportFailReason;
 }
 
 export interface ReimburseFormInitial {
@@ -182,16 +183,19 @@ export function useReimburseImportController() {
     setParsing(true);
     try {
       for (const file of files) {
-        const outcome = await analyzeInvoiceFile(file);
-        sequence.current += 1;
-        const id = sequence.current;
-        if (outcome.kind === 'failed') {
-          setFails((current) => [
-            ...current,
-            { id, fileName: outcome.fileName, reason: outcome.reason },
-          ]);
-        } else {
-          setJobs((current) => [...current, { id, outcome }]);
+        // 深度编排：zip 解包成多结局队列，ofd 走内嵌 XBRL，散件照旧单结局。
+        const outcomes = await analyzeInvoiceFileDeep(file);
+        for (const outcome of outcomes) {
+          sequence.current += 1;
+          const id = sequence.current;
+          if (outcome.kind === 'failed') {
+            setFails((current) => [
+              ...current,
+              { id, fileName: outcome.fileName, reason: outcome.reason },
+            ]);
+          } else {
+            setJobs((current) => [...current, { id, outcome }]);
+          }
         }
       }
     } finally {

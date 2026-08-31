@@ -130,6 +130,154 @@ export function parseInvoiceXmlText(xmlText: string): ParsedInvoice | null {
   };
 }
 
+// ---------------------------------------------------------------- XBRL（OFD 内嵌）
+
+/**
+ * OFD 电子发票内嵌 XBRL 实例文档 → 结构化字段（REIMBURSE-OFD-PARSE）。
+ * 识别口径：根元素 <xbrl>（容忍命名空间前缀）且取得到发票号才算 XBRL 发票，否则 null。
+ * 已验证真实样本 = 铁路电子客票（rai:* 命名空间，mof 2021-11-30 taxonomy，样例字段：
+ * ElectronicInvoiceRailwayETicketNumber/DateOfIssue/Fare/NameOfPurchaser/
+ * UnifiedSocialCreditCodeOfPurchaser/DepartureStation/DestinationStation/TrainNumber）；
+ * 通用数电票 XBRL 变体留了回退标签位（InvoiceNumber/IssueDate 等），遇新样本再扩。
+ * `xsi:nil="true"` 自闭合标签天然不匹配 `<tag>text</tag>` 提取 → 按缺失处理。
+ * 信任级别同 XML 数电票（税务结构化数据）→ recognitionSource: 'xml'。
+ */
+export function parseInvoiceXbrlText(xmlText: string): ParsedInvoice | null {
+  if (!/<(?:[A-Za-z_][\w.-]*:)?xbrl[\s>]/i.test(xmlText)) {
+    return null;
+  }
+  const invoiceNo =
+    xmlTagText(xmlText, 'ElectronicInvoiceRailwayETicketNumber') ||
+    xmlTagText(xmlText, 'InvoiceNumber');
+  if (!invoiceNo) {
+    return null;
+  }
+  const invoiceDate =
+    xmlTagText(xmlText, 'DateOfIssue') || xmlTagText(xmlText, 'IssueDate') || null;
+  const purchaserName =
+    xmlTagText(xmlText, 'NameOfPurchaser') || xmlTagText(xmlText, 'BuyerName') || null;
+  const purchaserTaxNo =
+    xmlTagText(xmlText, 'UnifiedSocialCreditCodeOfPurchaser') ||
+    xmlTagText(xmlText, 'BuyerTaxID') ||
+    null;
+  const totalAmountFen = yuanTextToFen(
+    xmlTagText(xmlText, 'Fare') ||
+      xmlTagText(xmlText, 'TotalTax-includedAmount') ||
+      xmlTagText(xmlText, 'TotalTaxIncludedAmount'),
+  );
+
+  // 铁路客票无 SellerName / Item 明细块：合成单条条目（票面种类 + 区间 + 车次），
+  // 金额=票价（价税合计）。通用变体有 Item 块的走数电票 XML 同款提取。
+  const items: ReimburseItem[] = [];
+  const voucherType = xmlTagText(xmlText, 'TypeOfVoucher');
+  if (voucherType && totalAmountFen !== null) {
+    const from = xmlTagText(xmlText, 'DepartureStation');
+    const to = xmlTagText(xmlText, 'DestinationStation');
+    const train = xmlTagText(xmlText, 'TrainNumber');
+    const route = [from && to ? `${from}→${to}` : '', train].filter(Boolean).join(' ');
+    const name = [voucherType, route].filter(Boolean).join(' ');
+    items.push({
+      name,
+      unit: null,
+      quantity: 1,
+      unitPriceFen: totalAmountFen,
+      amountFen: totalAmountFen,
+    });
+  }
+
+  return {
+    invoiceNo,
+    invoiceDate,
+    seller: null, // 铁路客票 XBRL 无销售方字段，不臆造
+    purchaserName,
+    purchaserTaxNo,
+    recognitionSource: 'xml',
+    totalAmountFen,
+    items,
+  };
+}
+
+// ---------------------------------------------------------------- 归档导入安全门
+
+/** 归档/容器导入硬上限（防 zip 炸弹炸浏览器内存、递归容器卡 CPU、海量条目冻 UI）。 */
+export interface InvoiceArchiveLimits {
+  /** 单个输入文件（zip/ofd/pdf…）字节上限——读取前就挡。 */
+  maxInputBytes: number;
+  /** 容器内条目数上限。 */
+  maxEntries: number;
+  /** 容器解压总量上限（累计未压缩字节，超限即中止）。 */
+  maxTotalUncompressedBytes: number;
+  /** 单条目未压缩字节上限。 */
+  maxSingleUncompressedBytes: number;
+}
+
+export const INVOICE_ARCHIVE_LIMITS: InvoiceArchiveLimits = {
+  maxInputBytes: 50 * 1024 * 1024,
+  maxEntries: 200,
+  maxTotalUncompressedBytes: 200 * 1024 * 1024,
+  maxSingleUncompressedBytes: 50 * 1024 * 1024,
+};
+
+export type InvoiceEntryKind = 'pdf' | 'xml' | 'ofd' | 'container' | 'other';
+
+/** 按扩展名分类（大小写不敏感）；目录占位（尾 /）归 other。 */
+export function classifyInvoiceEntryKind(fileName: string): InvoiceEntryKind {
+  const lower = fileName.toLowerCase();
+  if (lower.endsWith('/')) return 'other';
+  if (lower.endsWith('.pdf')) return 'pdf';
+  if (lower.endsWith('.xml')) return 'xml';
+  if (lower.endsWith('.ofd')) return 'ofd';
+  if (lower.endsWith('.zip')) return 'container';
+  return 'other';
+}
+
+export type InvoiceArchiveSkipReason =
+  | 'type' // 非发票文件（截图/说明文档等）
+  | 'tooLarge' // 单条目超上限
+  | 'quotaEntries' // 条目数预算耗尽
+  | 'quotaBytes' // 解压总量预算耗尽
+  | 'nestedContainer'; // 嵌套容器不自动展开（递归门）
+
+export interface InvoiceArchivePlanEntry {
+  name: string;
+  size: number;
+  kind: InvoiceEntryKind;
+  action: 'parse' | 'skip';
+  reason?: InvoiceArchiveSkipReason;
+}
+
+/**
+ * 容器成员清单 → 逐条处置计划（纯函数可测）。预算按清单顺序消耗：发票类条目（pdf/xml/ofd）
+ * 先到先得，超额条目 skip 并记原因——逐文件失败/跳过不拖垮整包。
+ */
+export function planInvoiceArchive(
+  members: ReadonlyArray<{ name: string; size: number }>,
+  limits: InvoiceArchiveLimits = INVOICE_ARCHIVE_LIMITS,
+): InvoiceArchivePlanEntry[] {
+  let parsedCount = 0;
+  let parsedBytes = 0;
+  return members.map((m) => {
+    const kind = classifyInvoiceEntryKind(m.name);
+    const base = { name: m.name, size: m.size, kind };
+    if (kind === 'other') return { ...base, action: 'skip' as const, reason: 'type' as const };
+    if (kind === 'container') {
+      return { ...base, action: 'skip' as const, reason: 'nestedContainer' as const };
+    }
+    if (m.size > limits.maxSingleUncompressedBytes) {
+      return { ...base, action: 'skip' as const, reason: 'tooLarge' as const };
+    }
+    if (parsedCount + 1 > limits.maxEntries) {
+      return { ...base, action: 'skip' as const, reason: 'quotaEntries' as const };
+    }
+    if (parsedBytes + m.size > limits.maxTotalUncompressedBytes) {
+      return { ...base, action: 'skip' as const, reason: 'quotaBytes' as const };
+    }
+    parsedCount += 1;
+    parsedBytes += m.size;
+    return { ...base, action: 'parse' as const };
+  });
+}
+
 // ---------------------------------------------------------------- PDF 文本行
 
 /** 明细区终止词（tidoc _SKIP_PREFIXES 精简版）：命中即非明细行。 */

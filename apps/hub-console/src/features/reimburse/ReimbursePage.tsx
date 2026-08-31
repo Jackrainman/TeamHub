@@ -94,12 +94,7 @@ export function ReimbursePage({
         <ul className="reimb-import__notices">
           {importController.fails.map((fail) => (
             <li key={fail.id} className="form-hint form-hint--warn" role="alert">
-              {t(
-                fail.reason === 'type'
-                  ? 'reimb.import.failed.type'
-                  : 'reimb.import.failed.read',
-                { file: fail.fileName },
-              )}
+              {t(`reimb.import.failed.${fail.reason}`, { file: fail.fileName })}
               <button
                 type="button"
                 className="btn btn--sm btn--ghost"

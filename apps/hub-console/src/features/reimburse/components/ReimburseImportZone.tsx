@@ -2,7 +2,7 @@ import { useRef, useState, type ClipboardEvent, type DragEvent } from 'react';
 import { FileUp } from 'lucide-react';
 import { useI18n } from '../../../i18n';
 
-const INVOICE_ACCEPT = '.pdf,.xml';
+const INVOICE_ACCEPT = '.pdf,.xml,.ofd,.zip';
 
 /**
  * 发票导入区（REIMBURSE-PROC 阶段 4）：点击选文件（隐藏 input）/ 拖拽 onDrop / 粘贴 onPaste

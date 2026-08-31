@@ -3,7 +3,7 @@ kind: canonical-domain
 status: active
 domain: reimburse
 truth_for: reimbursement-invoice-import-quality-batches-and-stock-in
-last_reviewed: 2026-08-15
+last_reviewed: 2026-08-31
 ---
 
 # Reimburse 领域
@@ -21,12 +21,12 @@ Reimburse 管采购/费用条目、发票元数据、材料清单、报账批次
 - goods 条目通过窄 stock-in context 选择库存候选；服务端在同一 SQLite UnitOfWork 内写结构化 `reimburseItemIndex`，前端不读完整库存或解析 note。
 - PDF/XML 会保留购买方名称、税号和识别来源；部署级 profile 默认校验哈尔滨工业大学抬头，双空值可跳过。
 - 卡片显式区分“需换抬头”和“需核对”，给出归档命名建议；批次按 gross/eligible/blocked/review 展示，blocked 条目阻止提交。
-- CURRENT 仍只接受 PDF/XML，尚无 ZIP/OFD、OCR 或真正的文件筛选下载导出。
+- 归档导入已落地（REIMBURSE-OFD-PARSE v0.59.0）：ZIP 解包队列 + OFD 内嵌 XBRL（铁路客票真实样本 4/4 通过），统一安全门（输入 50MB/条目 200/解压总量 200MB/嵌套不展开），包内发票号去重留结构化源；尚无 OCR 和真正的文件筛选下载导出。
 
 ## 3. 目标结构（TARGET）
 
 - 已冻结首个三包同构模板；后续只在域内扩展 parser、export adapter 和窄跨域 port。
-- ZIP/OFD 复用统一归档安全门；OCR 只有真实样本验证达标后才允许进入本地 import pipeline。
+- 统一归档安全门已落地（contracts planInvoiceArchive + console archive-extract）；OCR 只有真实样本验证达标后才允许进入本地 import pipeline。
 - 财务导出补筛选/选择和实际下载，不把发票文件上传服务器。
 
 ## 4. 领域不变式
@@ -53,6 +53,6 @@ Reimburse 管采购/费用条目、发票元数据、材料清单、报账批次
 ## 7. 未落地差异与 TODO
 
 - `ARCH-UNIFY`：本域模板已完成并由架构门冻结；下一域按 checklist → baseline 顺序迁移。
-- `REIMBURSE-OFD-PARSE`：用单一归档底座导入 ZIP/PDF/XML/OFD，并加文件数、总解压量和递归容器安全门。
+
 - `REIMBURSE-PM-EXPORT`：命名建议与四口径已完成；仍需筛选/选择和实际导出适配器。
 - `REIMBURSE-OCR-PROBE`：先用真实样本验证 tesseract.js 体积、耗时、内存和识别率，达标后再进入主流程。
