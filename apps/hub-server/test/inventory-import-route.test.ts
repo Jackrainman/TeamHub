@@ -15,6 +15,7 @@ import {
   type Member,
 } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
+import { CUSTOM_TEST_USERNAMES, usernameOf } from './support/login-helpers.js';
 import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 import { InMemoryInvStore } from './support/inmemory-inv-store.js';
 
@@ -74,7 +75,7 @@ function seedGov(members: Member[], groups: readonly Group[] = [GRP_MECH]): Gove
 
 /** 身份模式登录，回带 session cookie（member 无 pinHash 免 PIN）。 */
 async function login(app: ReturnType<typeof buildTestHubServer>, memberId: string): Promise<string> {
-  const res = await app.inject({ method: 'POST', url: '/api/session', payload: { memberId } });
+  const res = await app.inject({ method: 'POST', url: '/api/session', payload: { username: usernameOf(memberId, CUSTOM_TEST_USERNAMES) } });
   const cookie = res.cookies.find((c) => c.name === 'teamhub_session');
   expect(cookie?.value).toBeTruthy();
   const cookieHeader = `teamhub_session=${cookie!.value}`;

@@ -301,6 +301,7 @@ button,
   line-height: 1.6;
 }
 
+.auth-gate__username,
 .auth-gate__pin {
   width: 100%;
   padding: 9px 11px;
@@ -312,9 +313,11 @@ button,
   color: var(--text);
   transition: border-color var(--transition), box-shadow var(--transition);
 }
+.auth-gate__username:hover:not(:focus),
 .auth-gate__pin:hover:not(:focus) {
   border-color: var(--text);
 }
+.auth-gate__username:focus,
 .auth-gate__pin:focus {
   outline: 2px solid var(--blue);
   outline-offset: 1px;
@@ -435,6 +438,9 @@ button,
 
 .identity-bar__pin {
   width: 120px;
+}
+.identity-bar__username {
+  width: 140px;
 }
 .identity-bar--form select,
 .identity-bar--form input {

@@ -161,3 +161,4 @@
 - 2026-09-04 fix(console): UI 文案清理二批（~30 处中英，审计驱动）v0.71.1；报账端到端测试通过（本地实例+生产库副本）；发现 pinPlaintext 明文存储安全债转 AUTH-LOGIN-GATE
 - 2026-09-04 feat(auth): 公网认证加固全套（读闸/首登密码闸/密码min8/撤明文副本/登录锁定/Secure cookie env）v0.72.0；D-092 落 decisions
 - 2026-09-04 fix(console): 登录/首登设PIN界面随主题变色（auth-gate 原用未定义 token --panel/--bg/--line fallback 硬编码 #fff，改走 --surface/--border/--surface-raised 等主题 token，四套 [data-theme] 随动）v0.72.1；verify:all+architecture+docs 全绿
+- 2026-09-05 feat(auth): 登录自输用户名（displayName 唯一登录键+重名409）+ /api/members 移出预登录白名单（setup/state 加 hasPmMember 承接 BootstrapGate）+ 旧短 PIN 登录强制升级（会话标记+PUT pin 清标记）v0.73.0；D-093 落 decisions、TOTP 暂缓落 deferred ARC-DEF-004；三包 verify:all+architecture+docs 全绿（443/428/262）

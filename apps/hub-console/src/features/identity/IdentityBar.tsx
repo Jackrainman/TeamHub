@@ -2,15 +2,13 @@ import { useState } from 'react';
 import { LogIn, LogOut } from 'lucide-react';
 import type { IdentityMode, SessionIdentity } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
-import { useIdentityBarMembers, useSessionMutations } from './hooks';
+import { useSessionMutations } from './hooks';
 import { useI18n } from '../../i18n';
 import { useForm } from '../../hooks/useForm';
-import { Select } from '../../components/Select';
 import { FormBanner } from '../../components/FormBanner';
-import { memberOptionLabel } from '../../shared/lib/identity-utils';
 
 interface LoginFormFields {
-  memberId: string;
+  username: string;
   pin: string;
 }
 
@@ -28,13 +26,11 @@ export function IdentityBar({
 
   const form = useForm<LoginFormFields>({
     fields: {
-      memberId: { initial: '' },
+      username: { initial: '' },
       pin: { initial: '' },
     },
-    valid: (v) => Boolean(v.memberId),
+    valid: (v) => v.username.trim().length > 0,
   });
-
-  const membersQuery = useIdentityBarMembers(client, mode === 'identity' && open);
 
   const { loginMutation, logoutMutation } = useSessionMutations(client, {
     onLoggedIn: () => {
@@ -84,26 +80,24 @@ export function IdentityBar({
     );
   }
 
-  const members = membersQuery.data?.members ?? [];
-
   return (
     <form
       className="identity-bar identity-bar--form"
       onSubmit={form.handleSubmit(() => {
         if (loginMutation.isPending) return;
         loginMutation.mutate({
-          memberId: form.values.memberId,
+          username: form.values.username.trim(),
           pin: form.values.pin.trim() || undefined,
         });
       })}
     >
-      <Select
-        value={form.values.memberId}
-        onChange={(v) => form.set('memberId', v)}
-        options={members.map((m) => m.id)}
-        renderOption={(id) => memberOptionLabel(members, id)}
-        placeholder={t('identity.login.selectMember')}
-        ariaLabel={t('identity.login.selectMember')}
+      <input
+        className="identity-bar__username"
+        value={form.values.username}
+        onChange={(e) => form.set('username', e.target.value)}
+        placeholder={t('identity.login.usernamePlaceholder')}
+        aria-label={t('identity.login.usernamePlaceholder')}
+        autoComplete="username"
       />
       <input
         type="password"

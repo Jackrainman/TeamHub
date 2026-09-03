@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { HubApiClient } from '../../api/client';
-import { useMembers } from '../../features/identity/hooks';
+import { useMembers, useSession } from '../../features/identity/hooks';
 import { useGroups, useSeasons } from '../../features/pm/hooks';
 import { useI18n } from '../../i18n';
 import { GroupLeadConfirm } from '../settings/GroupLeadConfirm';
@@ -76,8 +76,12 @@ export function BootstrapGate({
     const idx = WIZARD_STEP_ORDER.indexOf(step);
     if (idx > 0) setStep(WIZARD_STEP_ORDER[idx - 1]);
   };
-  const membersQuery = useMembers(client, 'bootstrap-gate');
-  const groupsQuery = useGroups(client, 'bootstrap-gate');
+  // AUTH-LOGIN-USERNAME：GET /api/members 与 GET /api/groups 均未登录 401——①（你是谁）完成前
+  //（bootstrap 签发会话 cookie 前）不打这两个端点；①完成后已登录，onDone 里 invalidate 重取回显。
+  const sessionQuery = useSession(client);
+  const loggedIn = Boolean(sessionQuery.data?.session);
+  const membersQuery = useMembers(client, 'bootstrap-gate', loggedIn);
+  const groupsQuery = useGroups(client, 'bootstrap-gate', loggedIn);
   const seasonsQuery = useSeasons(client);
   const members = useMemo(
     () => membersQuery.data?.members ?? [],

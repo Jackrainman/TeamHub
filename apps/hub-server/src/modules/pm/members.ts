@@ -63,6 +63,8 @@ export function registerMemberRoutes(app: FastifyInstance, deps: MemberRouteDeps
       void reply.code(404).send({ detail: 'member not found' });
       return;
     }
+    // AUTH-LOGIN-USERNAME：新密码落库即清该成员所有在途会话的旧短 PIN 升级标记（同会话立即解禁）。
+    deps.sessions?.clearPinUpgrade(id);
     return SetPinResponseSchema.parse({ member: MemberPublicSchema.parse(updated) });
   });
 

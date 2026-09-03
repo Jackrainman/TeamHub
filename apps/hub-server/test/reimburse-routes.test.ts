@@ -18,6 +18,7 @@ import type {
   Member,
 } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
+import { usernameOf } from './support/login-helpers.js';
 import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 import { InMemoryInvStore } from './support/inmemory-inv-store.js';
 import { InMemoryReimburseStore } from './support/inmemory-reimburse-store.js';
@@ -99,8 +100,15 @@ function seedInv(): InventorySnapshot {
 }
 
 /** 身份模式登录，回带 session cookie（member 无 pinHash 免 PIN）。 */
+/** 本文件自建名册成员 id → displayName（login 助手用）。 */
+const REIMB_USERNAMES: Readonly<Record<string, string>> = {
+  'm-a': '成员A',
+  'm-b': '成员B',
+  'm-admin': '管理员',
+};
+
 async function login(app: FastifyInstance, memberId: string): Promise<string> {
-  const res = await app.inject({ method: 'POST', url: '/api/session', payload: { memberId } });
+  const res = await app.inject({ method: 'POST', url: '/api/session', payload: { username: usernameOf(memberId, REIMB_USERNAMES) } });
   const cookie = res.cookies.find((c) => c.name === 'teamhub_session');
   expect(cookie?.value).toBeTruthy();
   const cookieHeader = `teamhub_session=${cookie!.value}`;

@@ -141,6 +141,9 @@ export const MemberStatusSchema = z.enum([
 
 export const MemberObjectSchema = z.object({
   id: z.string().min(1),
+  // AUTH-LOGIN-USERNAME（2026-09-05 拍板）：displayName 同时是**登录用户名**——全名册唯一
+  // （新建/导入按名 upsert 不产生重名；登录端命中多个 → 409 数据损坏信号）。纯函数判定见
+  // policies.ts `lookupMemberByDisplayName`。
   displayName: z.string().min(1),
   role: MemberRoleSchema,
   grade: MemberGradeSchema,
@@ -595,7 +598,8 @@ export const DepNodeSchema = z.object({
   robotTarget: z.string().min(1).nullable(),
   ownerLabel: z.string().min(1).nullable(), // 仅显示名，无效率/完成量
   // MY-VIEW（product-redefine §4.3）：机读键，供本人视图按 session memberId 精确匹配
-  // "我负责的任务"（displayName 可能重名、不可靠）。非新增泄漏——ownerId 所指向的人本就已由
+  // "我负责的任务"（displayName 虽全名册唯一——AUTH-LOGIN-USERNAME 后是可靠登录键——但
+  // 任务归属仍走 memberId 外键，不吃可变的显示名）。非新增泄漏——ownerId 所指向的人本就已由
   // ownerLabel 显名暴露给第三方读视图，这里只是把同一公开事实换成机器可比对的键；不新增任何
   // 完成量/效率维度（I0）。
   ownerId: z.string().min(1).nullable(),

@@ -43,12 +43,15 @@ export const SessionIdentitySchema = z.object({
 export type SessionIdentity = z.infer<typeof SessionIdentitySchema>;
 
 /**
- * POST /api/session（登录）请求：选人 + 可选 PIN。
+ * POST /api/session（登录）请求：**自输用户名（= 名册 displayName）** + 可选 PIN
+ * （AUTH-LOGIN-USERNAME，2026-09-05 用户拍板：登录从「下拉选人」改「自己输入姓名」，
+ * displayName 由此升级为**全名册唯一**的登录键——新建/导入重名一律拒绝，登录端重名 → 409）。
  * 有 pinHash 的成员必须给 pin 且校验通过；无 pinHash 的成员免 PIN（pin 可省，给了也忽略）。
- * **防枚举**：任何失败（人不存在 / PIN 错 / 该给 PIN 没给）统一 401、不区分原因（路由层保证）。
+ * **防枚举**：任何失败（人不存在 / PIN 错 / 该给 PIN 没给）统一 401、不区分原因（路由层保证）；
+ * 唯一的非 401 是重名 409——那是数据损坏的运营信号，不构成枚举口（攻击者无法借此造出重名）。
  */
 export const SessionRequestSchema = z.object({
-  memberId: z.string().min(1),
+  username: z.string().min(1),
   pin: z.string().min(1).optional(),
 });
 export type SessionRequest = z.infer<typeof SessionRequestSchema>;
@@ -57,9 +60,12 @@ export type SessionRequest = z.infer<typeof SessionRequestSchema>;
  * GET /api/session / 登录成功 / 登出 的统一响应：报当前部署模式 + 当前身份（未登录 = null）。
  * 匿名模式恒 `{ mode: 'anonymous', session: null }`（明确禁用态）。
  *
- * `mustSetPin`（AUTH-GATE 公网加固）：当前会话成员**尚无 pinHash** → true。前端据此整屏强制设 PIN
- * 再进应用；服务端 auth-gate 同步拦该会话的一切业务请求（403 PIN_SETUP_REQUIRED），只放行
- * PUT 本人 pin / session 端点。匿名模式 / 未登录 / 已设 PIN 一律省略（视同 false）。
+ * `mustSetPin`（AUTH-GATE 公网加固 + AUTH-LOGIN-USERNAME 旧短 PIN 强制升级）：两种情形为 true——
+ *  ① 当前会话成员**尚无 pinHash**（首登）；② 本次登录用的是 <8 位的旧版短 PIN（散列看不出原长度，
+ *    只能登录当刻按明文长度判定，会话打 pinUpgradeRequired 标记）。
+ * 前端据此整屏强制设 PIN 再进应用；服务端 auth-gate 同步拦该会话的一切业务请求
+ * （403 PIN_SETUP_REQUIRED），只放行 PUT 本人 pin / session 端点——PUT pin 成功后服务端清
+ * 该成员的 pinUpgradeRequired 标记，同会话立即解禁。匿名模式 / 未登录 / 已合规一律省略（视同 false）。
  */
 export const SessionResponseSchema = z.object({
   mode: IdentityModeSchema,

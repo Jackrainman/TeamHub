@@ -9,6 +9,7 @@ import {
   type Member,
 } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
+import { CUSTOM_TEST_USERNAMES, usernameOf } from './support/login-helpers.js';
 import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 
 /**
@@ -65,7 +66,7 @@ async function login(app: ReturnType<typeof buildTestHubServer>, memberId: strin
   const res = await app.inject({
     method: 'POST',
     url: '/api/session',
-    payload: { memberId },
+    payload: { username: usernameOf(memberId, CUSTOM_TEST_USERNAMES) },
   });
   const cookie = res.cookies.find((c) => c.name === 'teamhub_session');
   expect(cookie?.value).toBeTruthy();

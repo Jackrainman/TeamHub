@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { usernameOf } from './support/login-helpers.js';
 
 /**
  * 权限地基路由端到端（K1 + MEMBER-PM-FLAG 公测补强刀②b）：
@@ -16,10 +17,11 @@ import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 
 /** 登录并回带 session cookie 头。免 PIN 成员省 pin。 */
 async function login(app: FastifyInstance, memberId: string, pin?: string): Promise<string> {
+  const username = usernameOf(memberId);
   const res = await app.inject({
     method: 'POST',
     url: '/api/session',
-    payload: pin === undefined ? { memberId } : { memberId, pin },
+    payload: pin === undefined ? { username } : { username, pin },
   });
   expect(res.statusCode).toBe(200);
   const cookie = res.cookies.find((c) => c.name === 'teamhub_session');
@@ -94,13 +96,13 @@ describe('POST /api/setup/super-admin（初始化首个管理员）', () => {
       const noPin = await app.inject({
         method: 'POST',
         url: '/api/session',
-        payload: { memberId: 'm-ecB' },
+        payload: { username: '电控B' },
       });
       expect(noPin.statusCode).toBe(401);
       const withPin = await app.inject({
         method: 'POST',
         url: '/api/session',
-        payload: { memberId: 'm-ecB', pin: '1234abcd' },
+        payload: { username: '电控B', pin: '1234abcd' },
       });
       expect(withPin.statusCode).toBe(200);
     } finally {
@@ -158,7 +160,7 @@ describe('POST /api/setup/super-admin — bootstrap 路径（SETUP-WIZARD-ROSTER
       const noPin = await app.inject({
         method: 'POST',
         url: '/api/session',
-        payload: { memberId: me.id },
+        payload: { username: me.displayName },
       });
       expect(noPin.statusCode).toBe(401);
       // 签发的会话可直接写（持旗）：改角色 200
@@ -432,7 +434,7 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
       const relogin = await app.inject({
         method: 'POST',
         url: '/api/session',
-        payload: { memberId: 'm-visionA' },
+        payload: { username: '视觉A' },
       });
       expect(relogin.statusCode).toBe(200);
     } finally {
@@ -501,7 +503,7 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
       const locked = await app.inject({
         method: 'POST',
         url: '/api/session',
-        payload: { memberId: 'm-visionA' },
+        payload: { username: '视觉A' },
       });
       expect(locked.statusCode).toBe(401);
 
@@ -522,7 +524,7 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
       const relogin = await app.inject({
         method: 'POST',
         url: '/api/session',
-        payload: { memberId: 'm-visionA' },
+        payload: { username: '视觉A' },
       });
       expect(relogin.statusCode).toBe(200);
 
@@ -538,13 +540,13 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
       const oldPin = await app.inject({
         method: 'POST',
         url: '/api/session',
-        payload: { memberId: 'm-visionA', pin: '9999abcd' },
+        payload: { username: '视觉A', pin: '9999abcd' },
       });
       expect(oldPin.statusCode).toBe(401);
       const newPin = await app.inject({
         method: 'POST',
         url: '/api/session',
-        payload: { memberId: 'm-visionA', pin: '5555abcd' },
+        payload: { username: '视觉A', pin: '5555abcd' },
       });
       expect(newPin.statusCode).toBe(200);
     } finally {
@@ -667,7 +669,7 @@ describe('H3 写门 × 身份模式（令牌/会话双轨，SETUP-WIZARD-TOKEN �
       const res = await app.inject({
         method: 'POST',
         url: '/api/session',
-        payload: { memberId: 'm-ecB' }, // 免 PIN 成员
+        payload: { username: '电控B' }, // 免 PIN 成员
       });
       expect(res.statusCode).toBe(200);
     } finally {

@@ -558,3 +558,28 @@ export function deriveDirectionGaps(
   }
   return gaps;
 }
+
+// ── AUTH-LOGIN-USERNAME：displayName = 登录用户名（全名册唯一）────────────────────────────
+
+/**
+ * displayName 查找结果三分支（登录路由与唯一性校验共用）：
+ *  - `none`：名册无此人——登录侧统一进 401 防枚举分支；
+ *  - `ok`：唯一命中——正常登录/认领；
+ *  - `duplicate`：数据损坏（结构上不应出现：导入按名 upsert、bootstrap 按名认领；
+ *    只可能来自历史脏数据）——登录侧回 409 运营信号，不进 401（重名不是攻击者能造出的情报）。
+ */
+export type DisplayNameLookup =
+  | { kind: 'none' }
+  | { kind: 'ok'; member: Member }
+  | { kind: 'duplicate'; count: number };
+
+/** 按 displayName 精确查找成员（大小写/空白敏感——姓名不匹配 trim/折叠，输入即事实）。 */
+export function lookupMemberByDisplayName(
+  members: readonly Member[],
+  displayName: string,
+): DisplayNameLookup {
+  const hits = members.filter((m) => m.displayName === displayName);
+  if (hits.length === 0) return { kind: 'none' };
+  if (hits.length > 1) return { kind: 'duplicate', count: hits.length };
+  return { kind: 'ok', member: hits[0] };
+}

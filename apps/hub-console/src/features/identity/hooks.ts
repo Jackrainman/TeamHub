@@ -9,10 +9,15 @@ import { useHubMutation } from '../../hooks/useHubMutation';
  * IdentityBar/App.tsx 的会话与 bootstrap 裸 hook）。
  */
 
-export function useMembers(client: Pick<HubApiClient, 'getMembers'>, tag = 'default') {
+export function useMembers(
+  client: Pick<HubApiClient, 'getMembers'>,
+  tag = 'default',
+  enabled = true,
+) {
   return useQuery({
     queryKey: [...queryKeys.members(), tag],
     queryFn: () => client.getMembers(),
+    enabled,
   });
 }
 
@@ -21,24 +26,6 @@ export function useSession(client: HubApiClient) {
   return useQuery({
     queryKey: queryKeys.session(),
     queryFn: () => client.getSession(),
-  });
-}
-
-/** App.tsx 全屏初始化门：identity 模式且无项目管理旗标成员 → BootstrapGate。 */
-export function useBootstrapGateMembers(client: HubApiClient, enabled: boolean) {
-  return useQuery({
-    queryKey: [...queryKeys.members(), 'bootstrap-gate'],
-    queryFn: () => client.getMembers(),
-    enabled,
-  });
-}
-
-/** IdentityBar 成员下拉（仅身份模式且展开时拉取）。 */
-export function useIdentityBarMembers(client: HubApiClient, enabled: boolean) {
-  return useQuery({
-    queryKey: [...queryKeys.members(), 'identity-bar'],
-    queryFn: () => client.getMembers(),
-    enabled,
   });
 }
 
@@ -55,8 +42,9 @@ export function useSessionMutations(
   const loginMutation = useHubMutation({
     meta: { silent: true },
     invalidateKeys: [],
-    mutationFn: (vars: { memberId: string; pin?: string }) =>
-      client.login({ memberId: vars.memberId, pin: vars.pin }),
+    // AUTH-LOGIN-USERNAME：登录键 = 自输用户名（名册 displayName），不再传 memberId。
+    mutationFn: (vars: { username: string; pin?: string }) =>
+      client.login({ username: vars.username, pin: vars.pin }),
     onSuccess: (data) => {
       applyIdentity(data);
       opts?.onLoggedIn?.(data);

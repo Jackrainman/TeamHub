@@ -8,18 +8,27 @@ import type { SessionIdentity } from '@teamhub/hub-contracts';
  * **密钥纪律**：token 是不可预测的 32 字节随机十六进制串；只存 memberId 投影身份（SessionIdentity，无
  * pinHash）；resolve 过 TTL 即删（惰性驱逐）。
  */
+interface SessionEntry {
+  identity: SessionIdentity;
+  expiresAt: number;
+  /** AUTH-LOGIN-USERNAME 旧短 PIN 强制升级：本次登录用的是 <8 位旧 PIN → true。
+   *  auth-gate 视其同 mustSetPin（只放行设 PIN/session）；PUT 本人 pin 成功后清标记。 */
+  pinUpgradeRequired: boolean;
+}
+
 export class SessionManager {
-  private readonly sessions = new Map<
-    string,
-    { identity: SessionIdentity; expiresAt: number }
-  >();
+  private readonly sessions = new Map<string, SessionEntry>();
 
   constructor(private readonly ttlMs: number) {}
 
   /** 登录成功签发：生成随机 token、登记身份 + 过期时刻，返回 token（写进 httpOnly cookie）。 */
-  create(identity: SessionIdentity): string {
+  create(identity: SessionIdentity, opts?: { pinUpgradeRequired?: boolean }): string {
     const token = randomBytes(32).toString('hex');
-    this.sessions.set(token, { identity, expiresAt: Date.now() + this.ttlMs });
+    this.sessions.set(token, {
+      identity,
+      expiresAt: Date.now() + this.ttlMs,
+      pinUpgradeRequired: opts?.pinUpgradeRequired ?? false,
+    });
     return token;
   }
 
@@ -37,5 +46,23 @@ export class SessionManager {
   /** 登出：销毁该 token（幂等——不存在也不报错）。 */
   destroy(token: string): void {
     this.sessions.delete(token);
+  }
+
+  /** 该 token 会话是否挂着「旧短 PIN 强制升级」标记（auth-gate / GET session 的 mustSetPin 判定用）。 */
+  isPinUpgradeRequired(token: string): boolean {
+    const entry = this.sessions.get(token);
+    if (!entry) return false;
+    if (Date.now() >= entry.expiresAt) {
+      this.sessions.delete(token);
+      return false;
+    }
+    return entry.pinUpgradeRequired;
+  }
+
+  /** PUT 本人 pin 成功后调用：清掉该成员**所有在途会话**的升级标记（同会话立即解禁）。 */
+  clearPinUpgrade(memberId: string): void {
+    for (const entry of this.sessions.values()) {
+      if (entry.identity.memberId === memberId) entry.pinUpgradeRequired = false;
+    }
   }
 }

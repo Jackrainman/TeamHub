@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
+import { usernameOf } from './support/login-helpers.js';
 import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
 
 /**
@@ -13,7 +14,7 @@ import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
  */
 
 async function login(app: FastifyInstance, memberId: string): Promise<string> {
-  const res = await app.inject({ method: 'POST', url: '/api/session', payload: { memberId } });
+  const res = await app.inject({ method: 'POST', url: '/api/session', payload: { username: usernameOf(memberId) } });
   expect(res.statusCode).toBe(200);
   const cookie = res.cookies.find((c) => c.name === 'teamhub_session');
   return `teamhub_session=${cookie!.value}`;
@@ -119,7 +120,12 @@ describe('密钥纪律：凭证绝不出读响应', () => {
         payload: { pin: '2468abcd' },
       });
 
-      const members = await app.inject({ method: 'GET', url: '/api/members' });
+      // AUTH-LOGIN-USERNAME：/api/members 已移出预登录白名单，需携会话读取
+      const members = await app.inject({
+        method: 'GET',
+        url: '/api/members',
+        headers: { cookie },
+      });
       expect(members.statusCode).toBe(200);
       expect(members.body).not.toContain('pinPlaintext');
       expect(members.body).not.toContain('pinHash');
@@ -175,14 +181,14 @@ describe('DELETE /api/members/:id/pin（重置密码）', () => {
       const oldLogin = await app.inject({
         method: 'POST',
         url: '/api/session',
-        payload: { memberId: 'm-visionA', pin: '2468abcd' },
+        payload: { username: '视觉A', pin: '2468abcd' },
       });
       expect(oldLogin.statusCode).toBe(200);
       expect(oldLogin.json().mustSetPin).toBe(true);
       const relogin = await app.inject({
         method: 'POST',
         url: '/api/session',
-        payload: { memberId: 'm-visionA' },
+        payload: { username: '视觉A' },
       });
       expect(relogin.statusCode).toBe(200);
       expect(relogin.json().mustSetPin).toBe(true);

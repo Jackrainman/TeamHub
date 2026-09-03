@@ -52,3 +52,13 @@ last_reviewed: 2026-08-15
 - 禁止照搬：不能把目录拆分或 feature flag 称为插件系统，也不能把旧 CASE base 提案直接当现行模块设计。
 - original_path: `docs/archive/core-plugin-architecture.md`, `docs/archive/team-hub-stack-decision.md`
 - source_sha: e0761d1c25c2f13306ef55e8afdaea9c4d12ec43
+
+<a id="arc-def-004"></a>
+## ARC-DEF-004 TOTP 二因子认证（2FA）
+
+- 挂起内容：登录第二因子 = 手机认证器 TOTP 动态码（每成员一份 base32 密钥落库，node:crypto 手搓 HMAC-SHA1 不引依赖；绑定时展示 otpauth:// 密钥文本；可选绑定或全员强制两档；丢手机由 superAdmin 重置）。
+- 为什么暂缓：现有防线（≥8 位密码 + scrypt 散列 + 登录连错 5 次锁 5 分钟 + 统一 401 防枚举 + 读闸）已使在线暴破在事实上不可行；TOTP 的边际收益只在「密码已泄露/跨站复用」场景，而 C3 小作坊轻量约束下多一步登录摩擦与恢复流程成本不低。2026-09-05 用户拍板 defer。
+- 当前替代：D-092（读闸 + 首登强制设密码 + 登录锁定）+ D-093（旧短 PIN 强制升级 ≥8 位）。
+- 复活触发：① 发生或疑似发生密码泄露/冒用事件；② 部署暴露面扩大（更多队员/更宽网络入口）；③ 队员规模或敏感数据量显著增长，用户重新拍板。实现时优先「可选绑定」档，评估成熟后再议强制。
+- 禁止照搬：不得引入重型认证框架（D-092 已拍板维持自建）；不得用短信/邮箱验证码替代 TOTP（无邮箱注册、短信成本高且更弱）。
+  - source_sha: d73628d4d402365e8631a60992d117f2c7d29610（拍板对话落 D-093 前的 HEAD；本无独立原稿，决策上下文在 .harness/decisions.md D-093）

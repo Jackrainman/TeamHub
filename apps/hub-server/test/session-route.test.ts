@@ -1,10 +1,13 @@
 import { describe, expect, test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
+import { governanceScenarioFixture } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { usernameOf } from './support/login-helpers.js';
+import { hashPin } from '../src/identity/pin.js';
 
 // IDENTITY-LITE（D-083 §4.2）会话 + 服务端 actor 注入端到端。红线：pinHash 永不出响应；防枚举失败不区分；
-// 匿名模式（默认）现状零变化。
+// 匿名模式（默认）现状零变化。AUTH-LOGIN-USERNAME：登录键 = 自输用户名（displayName），memberId 只活在会话里。
 
 /** 登录并回带 session cookie 头（供后续写请求携带）。member 无 pinHash 时 pin 可省。 */
 async function login(
@@ -12,10 +15,11 @@ async function login(
   memberId: string,
   pin?: string,
 ): Promise<string> {
+  const username = usernameOf(memberId);
   const res = await app.inject({
     method: 'POST',
     url: '/api/session',
-    payload: pin === undefined ? { memberId } : { memberId, pin },
+    payload: pin === undefined ? { username } : { username, pin },
   });
   expect(res.statusCode).toBe(200);
   const cookie = res.cookies.find((c) => c.name === 'teamhub_session');
@@ -50,7 +54,7 @@ describe('匿名模式（默认）：现状零变化', () => {
       const post = await app.inject({
         method: 'POST',
         url: '/api/session',
-        payload: { memberId: 'm-ecB' },
+        payload: { username: '电控B' },
       });
       expect(post.statusCode).toBe(404);
       const del = await app.inject({ method: 'DELETE', url: '/api/session' });
@@ -159,21 +163,21 @@ describe('身份模式：登录 / 登出 / 免 PIN / 错 PIN', () => {
       const wrong = await app.inject({
         method: 'POST',
         url: '/api/session',
-        payload: { memberId: 'm-visionA', pin: '0000' },
+        payload: { username: '视觉A', pin: '0000' },
       });
       expect(wrong.statusCode).toBe(401);
       // 该给 PIN 却没给 → 401（同样失败）
       const noPin = await app.inject({
         method: 'POST',
         url: '/api/session',
-        payload: { memberId: 'm-visionA' },
+        payload: { username: '视觉A' },
       });
       expect(noPin.statusCode).toBe(401);
       // 不存在的人 → 401，且 detail 与 PIN 错完全一致（防枚举）
       const unknown = await app.inject({
         method: 'POST',
         url: '/api/session',
-        payload: { memberId: 'm-nobody', pin: '2468abcd' },
+        payload: { username: '查无此人', pin: '2468abcd' },
       });
       expect(unknown.statusCode).toBe(401);
       expect(unknown.json().detail).toBe(wrong.json().detail);
@@ -182,7 +186,7 @@ describe('身份模式：登录 / 登出 / 免 PIN / 错 PIN', () => {
       const right = await app.inject({
         method: 'POST',
         url: '/api/session',
-        payload: { memberId: 'm-visionA', pin: '2468abcd' },
+        payload: { username: '视觉A', pin: '2468abcd' },
       });
       expect(right.statusCode).toBe(200);
     } finally {
@@ -313,7 +317,11 @@ describe('密钥纪律：pinHash 永不出响应', () => {
       expect(setRes.statusCode).toBe(200);
       expect(setRes.json().member).not.toHaveProperty('pinHash');
 
-      const members = await app.inject({ method: 'GET', url: '/api/members' });
+      const members = await app.inject({
+        method: 'GET',
+        url: '/api/members',
+        headers: { cookie },
+      });
       expect(members.statusCode).toBe(200);
       const body = members.json();
       expect(body.members.length).toBeGreaterThan(0);
@@ -322,6 +330,122 @@ describe('密钥纪律：pinHash 永不出响应', () => {
       }
       // 兜底：整个响应文本里不出现散列前缀
       expect(members.body).not.toContain('scrypt:');
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+describe('AUTH-LOGIN-USERNAME：用户名登录 / 重名 409 / 旧短 PIN 强制升级', () => {
+  test('自输用户名（displayName）登录 → 200；姓名精确匹配（带空格不命中 → 401）', async () => {
+    const app = buildTestHubServer({ identityMode: 'identity' });
+    try {
+      const ok = await app.inject({
+        method: 'POST',
+        url: '/api/session',
+        payload: { username: '电控B' },
+      });
+      expect(ok.statusCode).toBe(200);
+      expect(ok.json().session.memberId).toBe('m-ecB');
+      // 精确匹配：不 trim——' 电控B' 视同不存在的人，统一 401
+      const padded = await app.inject({
+        method: 'POST',
+        url: '/api/session',
+        payload: { username: ' 电控B' },
+      });
+      expect(padded.statusCode).toBe(401);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('名册重名（历史脏数据）→ 409 运营信号，不进 401 防枚举分支', async () => {
+    const dup = {
+      ...governanceScenarioFixture.members[0],
+      id: 'm-dupB',
+      displayName: '电控B',
+    };
+    const store = new InMemoryPmRepository({
+      ...governanceScenarioFixture,
+      members: [...governanceScenarioFixture.members, dup],
+    });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/session',
+        payload: { username: '电控B' },
+      });
+      expect(res.statusCode).toBe(409);
+      // 不重名的成员照常登录（重名只拦当事名）
+      const ok = await app.inject({
+        method: 'POST',
+        url: '/api/session',
+        payload: { username: '视觉A' },
+      });
+      expect(ok.statusCode).toBe(200);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('旧 4 位 PIN 登录 → 200 但 mustSetPin + 业务请求 403；重设 ≥8 位后同会话解禁', async () => {
+    const legacy = {
+      ...governanceScenarioFixture.members.find((m) => m.id === 'm-visionA')!,
+      pinHash: hashPin('1234'), // 旧版 4 位 PIN 散列
+    };
+    const store = new InMemoryPmRepository({
+      ...governanceScenarioFixture,
+      members: governanceScenarioFixture.members.map((m) =>
+        m.id === 'm-visionA' ? legacy : m,
+      ),
+    });
+    const app = buildTestHubServer({ identityMode: 'identity', store });
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/session',
+        payload: { username: '视觉A', pin: '1234' },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().mustSetPin).toBe(true);
+      const cookie = `teamhub_session=${res.cookies.find((c) => c.name === 'teamhub_session')!.value}`;
+
+      // GET /api/session 也报 mustSetPin
+      const me = await app.inject({ method: 'GET', url: '/api/session', headers: { cookie } });
+      expect(me.json().mustSetPin).toBe(true);
+      // 业务请求被首登/升级闸拦：403 PIN_SETUP_REQUIRED
+      const blocked = await app.inject({ method: 'GET', url: '/api/members', headers: { cookie } });
+      expect(blocked.statusCode).toBe(403);
+      expect(blocked.json().code).toBe('PIN_SETUP_REQUIRED');
+
+      // 重设 ≥8 位密码 → 200，同会话立即解禁
+      const set = await app.inject({
+        method: 'PUT',
+        url: '/api/members/m-visionA/pin',
+        headers: { cookie },
+        payload: { pin: 'newpass8' },
+      });
+      expect(set.statusCode).toBe(200);
+      const open = await app.inject({ method: 'GET', url: '/api/members', headers: { cookie } });
+      expect(open.statusCode).toBe(200);
+      const me2 = await app.inject({ method: 'GET', url: '/api/session', headers: { cookie } });
+      expect(me2.json().mustSetPin).toBeFalsy();
+
+      // 新密码可登录且无升级标记；旧 4 位不再通过
+      const relog = await app.inject({
+        method: 'POST',
+        url: '/api/session',
+        payload: { username: '视觉A', pin: 'newpass8' },
+      });
+      expect(relog.statusCode).toBe(200);
+      expect(relog.json().mustSetPin).toBeFalsy();
+      const oldPin = await app.inject({
+        method: 'POST',
+        url: '/api/session',
+        payload: { username: '视觉A', pin: '1234' },
+      });
+      expect(oldPin.statusCode).toBe(401);
     } finally {
       await app.close();
     }

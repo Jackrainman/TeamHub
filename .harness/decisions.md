@@ -97,3 +97,10 @@
 - **撤销刀⑧②明文副本例外**：绝不回存明文口令；pinPlaintext 字段从契约删除、「显示PIN」端点与 UI 删除、旧库启动清扫（SqlitePmRepository 构造期剥键重写）。忘密码 = 管理员/loopback DELETE 重置 → 首登重设。
 - **防在线暴破**：登录失败按 ip|memberId 计，连错 5 次锁 5 分钟（429）；cookie Secure 标记由 env TEAMHUB_COOKIE_SECURE 控制（HTTPS 部署须开）。
 - **遗留建议**：公网裸 HTTP（0.0.0.0:4177）下密码可被嗅探——建议改绑 tailnet/loopback 或加 HTTPS 反代（部署侧动作，非代码）。
+
+## D-093 — 登录自输用户名 + 名册下白名单 + 旧短 PIN 强制升级（AUTH-LOGIN-USERNAME，2026-09-05 用户拍板）
+
+- **登录键 = displayName（自己输入）**：登录/身份条的下拉选人退役，改文本输入姓名；displayName 升级为**全名册唯一**登录键（结构上由「导入按名 upsert + bootstrap 按名认领」保证不产生重名；登录端命中重名 → 409 数据损坏运营信号，不进 401 防枚举分支）。生产库 28 成员零重名（2026-09-05 实测），无需数据清洗。
+- **GET /api/members 移出预登录白名单**：公网不再能枚举全队名册；BootstrapGate「无持旗成员」判定改走 /api/setup/state 新增的 `hasPmMember` 字段（该端点本身在白名单）。登录页/身份条不再预登录拉名册。
+- **旧 4 位 PIN 登录后强制升级**：散列看不出原长度，在登录当刻按明文长度判定——<8 位登录成功则会话打 `pinUpgradeRequired` 标记，视同 mustSetPin（业务 403 PIN_SETUP_REQUIRED），PUT 本人 pin 成功即清标记、同会话解禁。
+- **2FA（TOTP）用户拍板暂缓**：现有防线（≥8 位密码 + scrypt + ip\|username 连错 5 锁 5 分钟 + 统一 401）已使在线暴破不可行；TOTP 的边际收益主要在「密码已泄露/复用」场景。挂起条目与复活条件见 `docs/archive/deferred.md` ARC-DEF-004。

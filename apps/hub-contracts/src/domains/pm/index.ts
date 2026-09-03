@@ -153,10 +153,12 @@ export {
   GovernanceSnapshotSchema,
   deriveBlockAttributions,
   deriveDirectionGaps,
+  lookupMemberByDisplayName,
   toDepGraphView,
   wouldCreateCycle,
 } from './policies.js';
 export type {
+  DisplayNameLookup,
   GovernanceSnapshot,
 } from './policies.js';
 export {

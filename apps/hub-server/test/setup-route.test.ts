@@ -5,6 +5,8 @@ import { join } from 'node:path';
 import { buildSetupServer, RESTART_EXIT_CODE } from '../src/build-setup-server.js';
 import { openUnifiedDb, type UnifiedDatabase } from '../src/store/sqlite-unified.js';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
+import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { governanceScenarioFixture } from '@teamhub/hub-contracts';
 
 const FIXED_NOW = new Date('2026-08-15T12:00:00.000Z');
 
@@ -95,6 +97,46 @@ describe('setup 与 app_settings 路由', () => {
       expect(invalid.statusCode).toBe(400);
     } finally {
       await app.close();
+    }
+  });
+
+  test('setup state 回带 hasPmMember（AUTH-LOGIN-USERNAME：BootstrapGate 判定源，名册已下白名单）', async () => {
+    database.initialize({ dataMode: 'demo', identityMode: 'identity' }, FIXED_NOW);
+    const setupControl = {
+      settingsService: database,
+      now: () => FIXED_NOW,
+      exit: () => {},
+      restartDelayMs: 0,
+    };
+    // fixture 名册有持旗成员（m-progA）→ true
+    const appWithPm = buildTestHubServer({
+      identityMode: 'identity',
+      store: new InMemoryPmRepository(),
+      setupControl,
+    });
+    try {
+      const state = await appWithPm.inject({ method: 'GET', url: '/api/setup/state' });
+      expect(state.statusCode).toBe(200);
+      expect(state.json().hasPmMember).toBe(true);
+    } finally {
+      await appWithPm.close();
+    }
+    // 名册无任何持旗成员 → false（触发 BootstrapGate 的条件）
+    const noPmStore = new InMemoryPmRepository({
+      ...governanceScenarioFixture,
+      members: governanceScenarioFixture.members.map((m) => ({ ...m, projectManager: undefined })),
+    });
+    const appNoPm = buildTestHubServer({
+      identityMode: 'identity',
+      store: noPmStore,
+      setupControl,
+    });
+    try {
+      const state = await appNoPm.inject({ method: 'GET', url: '/api/setup/state' });
+      expect(state.statusCode).toBe(200);
+      expect(state.json().hasPmMember).toBe(false);
+    } finally {
+      await appNoPm.close();
     }
   });
 

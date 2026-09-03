@@ -37,6 +37,8 @@ npm ci
 
 非 loopback 写端点必须满足身份会话或 `TEAMHUB_WRITE_TOKEN` 写门。反代后设置 `TEAMHUB_TRUST_PROXY=true`；直接暴露时保持 false。
 
+升级到 v0.73（AUTH-LOGIN-USERNAME）后：登录从下拉选人改为自输姓名（名册 displayName），会话是内存表，重启即全员重登——通知队友「输自己的名字 + 密码」即可；仍用旧 4 位 PIN 的账户登录后会被强制重设 ≥8 位密码。
+
 ## 4. 存储配置
 
 - `TEAMHUB_DB_FILE=~/teamhub-data/teamhub.sqlite` 是六个结构化数据域的唯一生产数据库；缺失时正常模式拒绝启动。

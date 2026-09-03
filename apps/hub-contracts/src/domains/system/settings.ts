@@ -57,6 +57,9 @@ export const SetupStateResponseSchema = z.discriminatedUnion('initialized', [
   z.object({
     initialized: z.literal(true),
     settings: AppSettingsSchema,
+    // AUTH-LOGIN-USERNAME：名册是否有持「项目管理」旗标成员——BootstrapGate 判定从
+    // GET /api/members（已移出预登录白名单）迁到本字段（本端点本身在白名单内）。optional：旧服务端省略视同未知。
+    hasPmMember: z.boolean().optional(),
   }).strict(),
 ]);
 export type SetupStateResponse = z.infer<typeof SetupStateResponseSchema>;

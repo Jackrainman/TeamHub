@@ -1,23 +1,26 @@
 import { describe, expect, test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
+import { usernameOf } from './support/login-helpers.js';
 
 /**
  * AUTH-GATE 公网加固端到端：
- *  - 读闸：身份模式未登录业务 GET 一律 401；白名单（session / members / setup / roster 导入预览）放行；
- *    匿名模式整体不启用。
+ *  - 读闸：身份模式未登录业务 GET 一律 401；白名单（session / setup / roster 导入预览）放行；
+ *    匿名模式整体不启用。AUTH-LOGIN-USERNAME：GET /api/members 已移出白名单（登录改自输用户名，
+ *    公网枚举名册的口子关掉）。
  *  - 首登 PIN 闸：无 pinHash 成员登录 → 响应 mustSetPin:true；该会话业务请求 403 PIN_SETUP_REQUIRED，
  *    只放行 PUT 本人 pin / session；设完 PIN 同会话立即解禁（读实时名册，不吃快照）。
- *  - 登录失败锁定：同 ip+memberId 连续错 5 次 → 429，锁期内连正确 PIN 也拒。
+ *  - 登录失败锁定：同 ip+username 连续错 5 次 → 429，锁期内连正确 PIN 也拒。
  *  - PUT pin 收紧：非本人非 loopback 设他人 PIN → 403（原 firstSetup 免登录认领通道已关）。
  *  - cookieSecure：开关开 → set-cookie 带 Secure。
  */
 
 async function loginRaw(app: FastifyInstance, memberId: string, pin?: string) {
+  const username = usernameOf(memberId);
   return app.inject({
     method: 'POST',
     url: '/api/session',
-    payload: pin === undefined ? { memberId } : { memberId, pin },
+    payload: pin === undefined ? { username } : { username, pin },
   });
 }
 
@@ -29,18 +32,19 @@ async function login(app: FastifyInstance, memberId: string): Promise<string> {
 }
 
 describe('读闸：身份模式未登录', () => {
-  test('业务 GET（任务/库存/报账）→ 401；白名单（session/members）放行', async () => {
+  test('业务 GET（任务/库存/报账/名册）→ 401；白名单（session/setup state）放行', async () => {
     const app = buildTestHubServer({ identityMode: 'identity' });
     try {
-      for (const url of ['/api/tasks', '/api/reimburse/entries', '/api/reimburse/profile']) {
+      // AUTH-LOGIN-USERNAME：/api/members 移出白名单——未登录读名册同业务端点一律 401
+      for (const url of ['/api/tasks', '/api/reimburse/entries', '/api/reimburse/profile', '/api/members']) {
         const res = await app.inject({ method: 'GET', url });
         expect(res.statusCode, url).toBe(401);
       }
       const session = await app.inject({ method: 'GET', url: '/api/session' });
       expect(session.statusCode).toBe(200);
       expect(session.json()).toEqual({ mode: 'identity', session: null });
-      const members = await app.inject({ method: 'GET', url: '/api/members' });
-      expect(members.statusCode).toBe(200);
+      // BootstrapGate 判定源 = /api/setup/state 的 hasPmMember（白名单内）——
+      // 该路由需 setupControl（app_settings 服务），hasPmMember 的用例见 setup-route.test.ts。
       // 登录端点本身放行（不然永远登不上）
       const loginRes = await loginRaw(app, 'm-ecB');
       expect(loginRes.statusCode).toBe(200);
@@ -130,7 +134,7 @@ describe('首登 PIN 闸（mustSetPin）', () => {
 });
 
 describe('登录失败锁定', () => {
-  test('同 memberId 连续错 PIN 5 次 → 429；锁期内正确 PIN 也拒', async () => {
+  test('同 username 连续错 PIN 5 次 → 429；锁期内正确 PIN 也拒', async () => {
     const app = buildTestHubServer({ identityMode: 'identity' });
     try {
       // 先给 m-visionA 设 PIN
@@ -149,7 +153,7 @@ describe('登录失败锁定', () => {
       // 第 6 次：连正确 PIN 也 429（锁定生效）
       const locked = await loginRaw(app, 'm-visionA', '2468abcd');
       expect(locked.statusCode).toBe(429);
-      // 不同 memberId 不受牵连（按 ip|memberId 分桶）
+      // 不同 username 不受牵连（按 ip|username 分桶）
       const other = await loginRaw(app, 'm-ecB');
       expect(other.statusCode).toBe(200);
     } finally {

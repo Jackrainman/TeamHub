@@ -24,7 +24,11 @@ export function registerSetupRoutes(app: FastifyInstance, deps: SetupRouteDeps):
     }
     const settings = setupControl.settingsService.getSettings();
     if (!settings) throw new Error('正常模式 app_settings 单例不存在');
-    return SetupStateResponseSchema.parse({ initialized: true, settings });
+    // AUTH-LOGIN-USERNAME：BootstrapGate 的「无持旗成员」判定改由本字段承载
+    //（GET /api/members 已移出预登录白名单，未登录不再能读名册）。
+    const snapshot = await store.getSnapshot();
+    const hasPmMember = snapshot.members.some((m) => m.projectManager === true);
+    return SetupStateResponseSchema.parse({ initialized: true, settings, hasPmMember });
   });
 
   app.post('/api/setup/init', async (_request, reply) => {

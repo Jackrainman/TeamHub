@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import {
   SessionRequestSchema,
   SessionResponseSchema,
+  lookupMemberByDisplayName,
 } from '@teamhub/hub-contracts';
 import type { IdentityMode, SessionIdentity } from '@teamhub/hub-contracts';
 import type { PmRepository } from '../pm/repository.js';
@@ -23,8 +24,8 @@ export interface SessionRouteDeps {
 }
 
 /**
- * 登录失败锁定（AUTH-GATE 公网加固）：按 `ip|memberId` 计数，连续失败 MAX_FAILS 次锁 LOCK_MS。
- * 防在线暴破 PIN——4 位 PIN 空间小，没锁定公网上几分钟就被试穿。成功登录即清零。
+ * 登录失败锁定（AUTH-GATE 公网加固）：按 `ip|username` 计数，连续失败 MAX_FAILS 次锁 LOCK_MS。
+ * 防在线暴破密码——没锁定公网上就被试穿。成功登录即清零。
  * 内存表、进程重启清零（与 SessionManager 同量级，不引外部存储）。
  */
 const LOGIN_MAX_FAILS = 5;
@@ -76,19 +77,23 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
   const cookieSecure = deps.cookieSecure ?? false;
   const limiter = createLoginLimiter();
 
-  /** 当前会话成员是否还没设 PIN（读实时名册，不吃会话快照——设完 PIN 同会话立即解禁）。 */
-  async function mustSetPin(identity: SessionIdentity | null): Promise<boolean | undefined> {
+  /** 当前会话是否须强制设/升密码（mustSetPin）：成员无 pinHash，或本会话挂着旧短 PIN 升级标记
+   * （读实时名册 + 实时会话标记，不吃快照——设完新 PIN 同会话立即解禁）。 */
+  async function mustSetPin(identity: SessionIdentity | null, token: string | null): Promise<boolean | undefined> {
     if (!identity) return undefined;
     const snapshot = await store.getSnapshot();
     const member = snapshot.members.find((m) => m.id === identity.memberId);
-    return member ? !member.pinHash : undefined;
+    if (!member) return undefined;
+    if (!member.pinHash) return true;
+    if (token && sessions?.isPinUpgradeRequired(token)) return true;
+    return false;
   }
 
   app.get('/api/session', async (request) => {
     return SessionResponseSchema.parse({
       mode: identityMode,
       session: request.identity ?? null,
-      mustSetPin: await mustSetPin(request.identity ?? null),
+      mustSetPin: await mustSetPin(request.identity ?? null, readSessionCookie(request)),
     });
   });
 
@@ -99,8 +104,8 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
     }
     const parsed = parseBody(SessionRequestSchema, request, reply);
     if (!parsed) return;
-    const { memberId, pin } = parsed;
-    const limitKey = `${request.ip}|${memberId}`;
+    const { username, pin } = parsed;
+    const limitKey = `${request.ip}|${username}`;
     const lockedMs = limiter.lockedForMs(limitKey);
     if (lockedMs > 0) {
       void reply
@@ -109,7 +114,14 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
       return;
     }
     const snapshot = await store.getSnapshot();
-    const member = snapshot.members.find((m) => m.id === memberId);
+    // AUTH-LOGIN-USERNAME：用户名 = displayName（全名册唯一）。重名 = 历史脏数据 → 409 运营信号
+    //（不进 401 防枚举分支：重名事实不是攻击者能利用的情报，而是必须人工修复的数据问题）。
+    const lookup = lookupMemberByDisplayName(snapshot.members, username);
+    if (lookup.kind === 'duplicate') {
+      void reply.code(409).send({ detail: '姓名重名，数据需管理员修复后才能登录' });
+      return;
+    }
+    const member = lookup.kind === 'ok' ? lookup.member : undefined;
     // 防枚举：人不存在 / PIN 错 / 该给 PIN 没给，统一 401 不区分原因。
     const authOk = member
       ? member.pinHash
@@ -130,12 +142,15 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
       gateReviewer: member.gateReviewer,
       projectManager: member.projectManager,
     };
-    const token = sessions.create(identity);
+    // 旧版短 PIN（<8 位）登录成功 → 会话打升级标记：mustSetPin 整屏强制重设 ≥8 位才放行
+    //（散列看不出原长度，只能在登录当刻按明文长度判定）。
+    const pinUpgradeRequired = Boolean(member.pinHash && pin !== undefined && pin.length < 8);
+    const token = sessions.create(identity, { pinUpgradeRequired });
     void reply.header('set-cookie', buildSessionCookie(token, { secure: cookieSecure }));
     return SessionResponseSchema.parse({
       mode: 'identity',
       session: identity,
-      mustSetPin: !member.pinHash,
+      mustSetPin: !member.pinHash || pinUpgradeRequired,
     });
   });
 

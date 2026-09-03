@@ -1,0 +1,10 @@
+# TeamHub 自签 HTTPS（过渡期，备案后切真证书）
+# 只绑定公网 IP 的 443，避免与 Tailscale(tailnet IP:443) 冲突
+{
+	email ubuntu@localhost
+}
+
+https://124.222.136.154:443 {
+	tls internal
+	reverse_proxy 127.0.0.1:4177
+}

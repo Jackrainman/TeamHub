@@ -307,6 +307,7 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
   registerAuthGate(app, {
     identityMode,
     trustProxy,
+    sessions,
     memberHasPin: async (memberId) => {
       const snapshot = await store.getSnapshot();
       const member = snapshot.members.find((m) => m.id === memberId);

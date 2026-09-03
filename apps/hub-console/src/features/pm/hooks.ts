@@ -24,10 +24,15 @@ export function useTasksSearch(client: HubApiClient, source: string, q: string) 
   });
 }
 
-export function useGroups(client: Pick<HubApiClient, 'getGroups'>, tag = 'default') {
+export function useGroups(
+  client: Pick<HubApiClient, 'getGroups'>,
+  tag = 'default',
+  enabled = true,
+) {
   return useQuery({
     queryKey: queryKeys.groups(tag),
     queryFn: () => client.getGroups(),
+    enabled,
   });
 }
 

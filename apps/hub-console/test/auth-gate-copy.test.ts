@@ -4,11 +4,12 @@ import { translations } from '../src/i18n/translations';
 /**
  * AUTH-GATE（公网加固 + PIN 升级密码）console 侧 i18n 键双语齐全：
  * 整屏登录闸 / 首登强制设密码闸 / 重置密码文案；「显示PIN」键随明文副本机制删除。
+ * AUTH-LOGIN-USERNAME：登录改自输用户名后，selectMember/membersError 键随下拉退役删除。
  */
 const KEYS = [
   'identity.gate.title',
   'identity.gate.subtitle',
-  'identity.gate.membersError',
+  'identity.login.usernamePlaceholder',
   'identity.pinGate.title',
   'identity.pinGate.desc',
   'identity.pinGate.field',
