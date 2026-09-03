@@ -198,11 +198,6 @@ function ReportCountdownSection({ client, source }: { client: HubApiClient; sour
               <CountdownDays milestone={next} nowMs={now.getTime()} />
             </span>
             <div className="workbench-countdown__meta">
-              <span className="workbench-countdown__kind">
-                {next.kind === 'gate'
-                  ? t('workbench.report.kind.gate')
-                  : t('workbench.report.kind.milestone')}
-              </span>
               <strong className="workbench-countdown__title">{next.title}</strong>
               <span className="workbench-countdown__date">
                 {next.plannedAt.slice(0, 10)}
@@ -223,11 +218,6 @@ function ReportCountdownSection({ client, source }: { client: HubApiClient; sour
               <ul>
                 {upcoming.map((m) => (
                   <li key={m.id}>
-                    <span className="workbench-countdown__kind">
-                      {m.kind === 'gate'
-                        ? t('workbench.report.kind.gate')
-                        : t('workbench.report.kind.milestone')}
-                    </span>{' '}
                     {m.title}
                     <span className="workbench-countdown__date"> {m.plannedAt.slice(0, 10)}</span>
                   </li>

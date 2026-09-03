@@ -6,7 +6,7 @@ export const zhWorkbench = {
   'toolbar.title.workbench': '首页 · 我这周要干什么',
   'toolbar.title.schedule': '每日在场 · 接力排班',
   'workbench.section.myWeek': '我这周要干什么',
-  'workbench.section.report': '汇报倒计时',
+  'workbench.section.report': 'deadline',
   'workbench.section.fleet': '整车进度',
   'workbench.myWeek.doable': '{n} 件可动手',
   'workbench.myWeek.blocked': '{n} 件被卡住',
@@ -43,7 +43,7 @@ export const zhWorkbench = {
   'workbench.stage.convergenceTasks': '联调任务 {done}/{total}',
   'workbench.stage.here': '{v} 当前在这：{title}',
   'workbench.stage.allPassed': '{v} 节点全过，等联调冲线',
-  'workbench.stage.legend': 'V1/V2 标记 = 该车当前所处阶段（由它下一个待过节点派生，不是手填状态）',
+  'workbench.stage.legend': 'V1/V2 = 该车当前所处阶段',
   'workbench.stage.empty': '还没有赛季编排，六阶段暂无投影。',
 };
 
@@ -55,7 +55,7 @@ export const enWorkbench = {
   'toolbar.title.workbench': 'Home · My Week',
   'toolbar.title.schedule': 'Daily Presence · Relay Schedule',
   'workbench.section.myWeek': 'My tasks this week',
-  'workbench.section.report': 'Reporting countdown',
+  'workbench.section.report': 'deadline',
   'workbench.section.fleet': 'Fleet progress',
   'workbench.myWeek.doable': '{n} doable',
   'workbench.myWeek.blocked': '{n} blocked',
@@ -92,6 +92,6 @@ export const enWorkbench = {
   'workbench.stage.convergenceTasks': 'Convergence tasks {done}/{total}',
   'workbench.stage.here': '{v} is here: {title}',
   'workbench.stage.allPassed': '{v} passed all checkpoints — awaiting final convergence',
-  'workbench.stage.legend': 'V1/V2 markers = each vehicle\'s current stage, derived from its next pending checkpoint (not a hand-filled status)',
+  'workbench.stage.legend': 'V1/V2 = each vehicle\'s current stage',
   'workbench.stage.empty': 'No season plan yet — stage projection unavailable.',
 };

@@ -102,7 +102,7 @@ describe('renderGovReportMarkdown / renderGovReportHtml', () => {
     expect(md).toContain('## 三、在场统计');
     expect(md).toContain('## 四、库存消耗');
     expect(md).toContain('| 节点 | 类型 | 计划日期 | 状态 | 车版 |');
-    expect(md).toContain('门 G1');
+    expect(md).toContain('G1：问题清单收敛（V2 设计拍板）');
   });
 
   test('HTML 自包含可打印：内联样式 + @media print + 表格转义', () => {

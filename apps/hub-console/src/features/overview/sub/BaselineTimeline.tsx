@@ -243,9 +243,6 @@ export function BaselineTimeline({
               <div className="baseline-ms__body">
                 <strong>{m.title}</strong>
                 <span className="baseline-ms__meta">
-                  <span className={`baseline-chip baseline-chip--${m.kind}`}>
-                    {t(m.kind === 'gate' ? 'enum.milestone.gate' : 'enum.milestone.milestone')}
-                  </span>
                   {m.robotVersion ? <span className="baseline-chip">{m.robotVersion}</span> : null}
                   {identity.canWrite ? (
                     <select

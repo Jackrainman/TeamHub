@@ -274,7 +274,7 @@ export function generateRoboconBaselineTemplate(anchors: {
   const milestones: BaselineMilestone[] = [
     {
       id: 'm-g1',
-      title: '门 G1：问题清单收敛（V2 设计拍板）',
+      title: 'G1：问题清单收敛（V2 设计拍板）',
       kind: 'gate',
       plannedAt: addWeeks(s, 11),
       stage: 'moduleDesign',
@@ -284,7 +284,7 @@ export function generateRoboconBaselineTemplate(anchors: {
     },
     {
       id: 'm-m1',
-      title: '里程碑 M1：sim2real 环境可用',
+      title: 'M1：sim2real 环境可用',
       kind: 'milestone',
       plannedAt: addWeeks(s, 21),
       stage: 'moduleTest',
@@ -293,7 +293,7 @@ export function generateRoboconBaselineTemplate(anchors: {
     },
     {
       id: 'm-g2',
-      title: '门 G2：V2 拼装完成',
+      title: 'G2：V2 拼装完成',
       kind: 'gate',
       plannedAt: addWeeks(s, 25), // 第二学期第 1–2 周
       stage: 'integratedAssembly',
@@ -302,7 +302,7 @@ export function generateRoboconBaselineTemplate(anchors: {
     },
     {
       id: 'm-g3',
-      title: '门 G3：V3 出车（冲奖、能完整闭环）',
+      title: 'G3：V3 出车（冲奖、能完整闭环）',
       kind: 'gate',
       plannedAt: addWeeks(c, -8), // 期中前
       stage: 'integratedAssembly',
@@ -311,7 +311,7 @@ export function generateRoboconBaselineTemplate(anchors: {
     },
     {
       id: 'm-g4',
-      title: '门 G4：整车试跑（含破坏性 / 极限工况）',
+      title: 'G4：整车试跑（含破坏性 / 极限工况）',
       kind: 'gate',
       plannedAt: tuningStart, // 赛日 −4 周
       stage: 'integratedTest',
@@ -320,7 +320,7 @@ export function generateRoboconBaselineTemplate(anchors: {
     },
     {
       id: 'm-m2',
-      title: '里程碑 M2：调参入场',
+      title: 'M2：调参入场',
       kind: 'milestone',
       plannedAt: addWeeks(c, -3), // 挂在 G4 之后
       stage: 'convergence',
