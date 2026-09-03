@@ -1,6 +1,12 @@
 {
   "focus": [
     {
+      "id": "REIMBURSE-AUTOFILL-RESEARCH",
+      "title": "报账自动填单调研（用户侧）：核心愿景=任意票据上传后自动填好绝大多数数据、只需微调；可打包为文件夹并归档到正确位置；自动提取信息导出 txt/word/excel；报账种类非常多，需先调研识别方案再评接入",
+      "note": "当前阶段最高优先=把报账系统做好；本项为调研前置，结论回来后再立项",
+      "owner": "user"
+    },
+    {
       "id": "AI-CHAT-UX",
       "title": "AI 聊天 UX（kimi-claw 抄来哪些能借）",
       "note": "交互体验向，待用户拉对齐；属产品决策",
@@ -28,14 +34,14 @@
   "blocked": [
     {
       "id": "HERMES-LARK-SKILL",
-      "reason": "卡飞书侧 skill 编写（用户侧）",
+      "reason": "用户 2026-09-03 反问：已有飞书 CLI（~/.local/bin/feishu）与飞书 skill，为何还要写飞书侧 skill——需先核对现有能力覆盖度再定是否仍有缺口，本条暂挂",
       "owner": "user"
     }
   ],
   "todo": [
     {
       "id": "REIMBURSE-PM-EXPORT",
-      "title": "项管视角全员发票筛选/选择与实际导出：命名建议、购买方状态、核对原因和 gross/eligible/blocked/review 已完成；剩余文件导出适配器仍须保持原件不上传，名字永不进治理聚合；见 docs/domains/reimburse.md",
+      "title": "项管视角全员发票筛选/选择与导出（命名建议、购买方状态、核对原因、gross/eligible/blocked/review 已完成）；用户 2026-09-03 拍板反转：报账文件需要上传留档（原\"文件本体永不上传\"红线作废）；存放位置待定——直接放服务器有安全顾虑（账单虽不值钱但不安全），待用户定存储方案后再动代码；见 docs/domains/reimburse.md",
       "tag": "code",
       "batch": "reimburse"
     },
@@ -67,7 +73,8 @@
       "id": "TIMELINE-EDITOR",
       "title": "基准线交互编排：/baseline/edit 全页路由，里程碑点击选偏移+实时 pace 反馈，segment 低频调整，不引拖拽库（~2.5 天，见 docs/domains/baseline.md）",
       "tag": "code",
-      "batch": "later"
+      "batch": "later",
+      "note": "用户 2026-09-03 拍板：暂缓，优先级让位报账系统；保留 todo 不删"
     },
     {
       "id": "REIMBURSE-TIDOC-UX",
@@ -85,7 +92,8 @@
       "id": "HERMES-CHAT-MVP",
       "title": "hermes 群聊记账最小闭环（设计已落稿 docs/domains/integrations.md §6，与 Hermes 侧对答案后）：库存 inv-query/inv-record 已落地；TeamHub 侧缺口=feishu_link 映射表（union_id→memberId）+ GET /api/links/me + presence-checkin/task-advance 两命令（parseHermesText 加正则分支）+ 名册角色指令级鉴权，预估 ~1 天；部署形态拍板=检测/外挂式不捆绑（同机走 /api/hermes/credential 零配置）；飞书 bot 已有（跑在 4177 上，hermes 管着，不用操心）。拍板进展 2026-08-30：①task-advance 鉴权拍板=补「须本人认领名下」校验，经 feishu_link 飞书↔teamhub 用户名映射在 inbound 接口层判定；②记在场指令发现硬缺口（ResourceSession.resourceId 必填，无纯成员在场模型，踩 I0 反监视红线），用户不熟此功能，缓做/倾向砍掉，待最终拍板；③路由 A（skill 只调 /api/hermes/inbound 适配层，推荐）vs B（skill 直连业务端点）待最终拍板——已向用户澄清 A 的本质=单端点命令分发器（类似 mini-CLI over HTTP）：hermes 把『自然语言原文或 {command,args}』POST 到这一个口，TeamHub 集中解析/schema 闸/鉴权/回执，skill 不需要懂各业务端点的 payload。Hermes 侧 skill 归 HERMES-LARK-SKILL（用户维护）",
       "tag": "code",
-      "batch": "later"
+      "batch": "later",
+      "note": "用户 2026-09-03 拍板：暂缓，优先级让位报账系统；保留 todo 不删"
     },
     {
       "id": "DUAL-DEPLOY",
@@ -125,6 +133,10 @@
     }
   ],
   "done-tonight": [
+    {
+      "id": "REIMBURSE-PANEL-SPACING",
+      "title": "记一笔垫付 UI 间距修复：裸 .panel 无 padding/gap 致表单贴边，补 .reimb-page .panel{padding:14px;gap:12px}（同 .inv-page .panel 先例），一记/条目列表/购买方/批次四区同愈（v0.70.2）"
+    },
     {
       "id": "REIMBURSE-DEFECTS-20260831",
       "title": "报账测试缺陷修复：#1 铁路 PDF 车次夹站名区间正则、#2 批次提交后快照锁、#3 GBK zip 文件名回退、#4 批次状态机顺向单向、#5 Create 请求可空键宽容、#6 发票号查重索引；#7 匿名 fail-closed 为文档行为不修（v0.70.0）"

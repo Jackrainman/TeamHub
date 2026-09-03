@@ -8,6 +8,14 @@
   gap: 16px;
 }
 
+/* 报账页面板补内边距 + 行间距（同 .inv-page .panel 先例）：裸 .panel 无 padding/gap，
+   记一笔垫付/条目列表/购买方信息/批次区此前全部贴边、头与表单零间距。 */
+.reimb-page .panel {
+  padding: 14px;
+  min-height: 0;
+  gap: 12px;
+}
+
 .reimb-entries,
 .reimb-batches {
   display: flex;

@@ -156,3 +156,4 @@
 **测试**：contracts 442（+4）/ server 418（+4：批次锁×2 + 索引×2）/ console 264（+4：decodeZipEntryName）全绿；npm run verify 门禁通过。
 
 **决策**：#2 锁粒度=整个条目（非仅 batchId）——提交后材料/备注也不许改，审计快照完整；改名仅限 collecting 阶段。
+- 2026-09-03 fix(reimburse): 报账页 .panel 补 padding/gap 修记一笔垫付贴边 v0.70.2；todo 台账更新（垫付留档反转/hermes+基准线暂缓/自动填单调研）
