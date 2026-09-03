@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
+import { ROBOTICS_TENANT_CONFIG, type AppSettings } from '@teamhub/hub-contracts';
+import type { AppSettingsService } from '../src/store/sqlite-unified.js';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { usernameOf } from './support/login-helpers.js';
 
@@ -9,7 +11,7 @@ import { usernameOf } from './support/login-helpers.js';
  *    匿名模式整体不启用。AUTH-LOGIN-USERNAME：GET /api/members 已移出白名单（登录改自输用户名，
  *    公网枚举名册的口子关掉）。
  *  - 首登 PIN 闸：无 pinHash 成员登录 → 响应 mustSetPin:true；该会话业务请求 403 PIN_SETUP_REQUIRED，
- *    只放行 PUT 本人 pin / session；设完 PIN 同会话立即解禁（读实时名册，不吃快照）。
+ *    只放行 PUT 本人 pin / session / GET setup/state（BUG-IDX-DEADLOCK：App 启动闸依赖它，拦截即死锁）；设完 PIN 同会话立即解禁（读实时名册，不吃快照）。
  *  - 登录失败锁定：同 ip+username 连续错 5 次 → 429，锁期内连正确 PIN 也拒。
  *  - PUT pin 收紧：非本人非 loopback 设他人 PIN → 403（原 firstSetup 免登录认领通道已关）。
  *  - cookieSecure：开关开 → set-cookie 带 Secure。
@@ -109,6 +111,47 @@ describe('首登 PIN 闸（mustSetPin）', () => {
       const relogin = await loginRaw(app, 'm-ecB', '4321abcd');
       expect(relogin.statusCode).toBe(200);
       expect(relogin.json().mustSetPin).toBe(false);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('BUG-IDX-DEADLOCK 回归：mustSetPin 会话放行 GET /api/setup/state（App 启动闸依赖它），业务端点仍 403', async () => {
+    const settings: AppSettings = {
+      schemaVersion: 1,
+      projectId: 'p-auth-gate',
+      dataMode: 'real',
+      identityMode: 'identity',
+      verticalId: 'robotics',
+      enabledModules: [...ROBOTICS_TENANT_CONFIG.enabledModules],
+      initializedAt: '2026-08-15T12:00:00.000Z',
+      updatedAt: '2026-08-15T12:00:00.000Z',
+    };
+    const settingsService: AppSettingsService = {
+      getSettings: () => settings,
+      getDatabaseState: () => 'initialized',
+      initialize: () => { throw new Error('not used'); },
+      updateIdentityMode: () => { throw new Error('not used'); },
+      graduateToReal: () => { throw new Error('not used'); },
+    };
+    const app = buildTestHubServer({ identityMode: 'identity', setupControl: { settingsService } });
+    try {
+      // m-ecB fixture 无 pinHash → 登录即 mustSetPin（首登死锁复现态）
+      const loginRes = await loginRaw(app, 'm-ecB');
+      expect(loginRes.statusCode).toBe(200);
+      expect(loginRes.json().mustSetPin).toBe(true);
+      const cookie = `teamhub_session=${loginRes.cookies.find((c) => c.name === 'teamhub_session')!.value}`;
+
+      // 启动闸探测放行：App.tsx 拿到 settings 才能渲染 ForcePinGate（修复前 403 → SetupStateUnavailable 死锁）
+      const state = await app.inject({ method: 'GET', url: '/api/setup/state', headers: { cookie } });
+      expect(state.statusCode).toBe(200);
+      expect(state.json().initialized).toBe(true);
+      expect(state.json().hasPmMember).toBe(true);
+
+      // 业务端点仍被首登闸拦（放行面未扩大）
+      const blocked = await app.inject({ method: 'GET', url: '/api/tasks', headers: { cookie } });
+      expect(blocked.statusCode).toBe(403);
+      expect(blocked.json().code).toBe('PIN_SETUP_REQUIRED');
     } finally {
       await app.close();
     }

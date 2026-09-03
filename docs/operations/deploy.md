@@ -81,3 +81,23 @@ curl -s http://127.0.0.1:4177/api/system/status
 - SSH、sudo、systemd、80/443、反代修改和真实数据迁移必须取得明确审批。
 - 重建、升级、切换数据库或改卷前必须先备份。
 - TeamHub 是单团队单实例产品，不按 SaaS 多租户方式暴露公网。
+
+## 9. HTTPS 反代（公网收口，2026-09-03 实测落地）
+
+公网链路固定为：`浏览器 ──https──▶ Caddy(8445) ──http──▶ TeamHub(127.0.0.1:4177)`，不允许 4177 直接暴露公网。配套 Caddyfile 在仓库根（工作副本，实际生效于 `/etc/caddy/Caddyfile`）。
+
+三个反代必需开关（缺一个就出生产事故）：
+
+- `HUB_HOST=127.0.0.1`：服务只听回环，公网明文入口由 Caddy 独占。
+- `TEAMHUB_TRUST_PROXY=true`：不设则 `isLoopbackOperator` 把公网访客当本机，本机专用端点（如 `/api/hermes/credential`）被误放行、写限流塌成全队单桶。
+- `TEAMHUB_COOKIE_SECURE=true`：HTTPS 反代下会话 cookie 必须带 Secure。
+- `TEAMHUB_WRITE_TOKEN` 必须固定写入 systemd 配置：`start-teamhub.sh` 默认每次重启随机生成，前端设置页无法跟随。存根放数据目录侧文件（0600），不进仓、不进日志。
+
+Caddy 侧踩过的坑（复排时先看这里）：
+
+- 云主机公网 IP 在网关 NAT 上，本机网卡没有这个地址，`bind` 公网 IP 会报 `cannot assign requested address`；只能 bind 内网 IP 或回环，公网入口由安全组 DNAT。
+- 站点必须同时列出全部 Host（内网 IP + 公网 IP）。DNAT 进来的请求 Host 头是公网 IP，不匹配站点会返回空 200 → 浏览器白屏。排查时对比 `content-length` 而非只看状态码，并用公网实际 Host 测。
+- 显式列 host + `auto_https disable_redirects` 比通配 `:port` 稳定（通配 + 自签在部分配置下握手失败）。
+- 防火墙默认 deny 时记得放行反代端口，并删除已收口的直连端口残留规则。
+
+验证清单：公网 HTTPS 200 且 content-length 与直连一致、`/health` buildId 非空、公网直连 4177 被拒、teamhub 与 caddy 均 active。备案+域名后：换真证书、切回标准 443。

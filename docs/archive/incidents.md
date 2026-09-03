@@ -85,3 +85,14 @@ last_reviewed: 2026-08-15
 - 当前防线：活文档登记、每域一份、五份 archive 白名单、稳定 ID + SHA 恢复、截图不入库；普通完成只留 Git commit。
 - original_path: `docs/archive/pre-slim/**`, `docs/archive/decisions-full-2026-07-26.md` D-030/D-070/D-073
 - source_sha: e0761d1c25c2f13306ef55e8afdaea9c4d12ec43
+
+<a id="arc-inc-008"></a>
+## ARC-INC-008 首登 PIN 闸拦截启动探测 → 公网首登死锁
+
+- 症状：公网 HTTPS 反代部署后，新成员登录成功（无 PIN 会话），App 启动闸 `GET /api/setup/state` 被首登闸拦成 403 PIN_SETUP_REQUIRED → 整屏「暂时无法读取设置」，ForcePinGate 永不渲染 → 永远设不了密码，死锁。
+- 根因：`auth-gate.ts` 的 `isPinSetupAllowed` 放行清单只含 PUT 本人 pin / session / super-admin bootstrap，漏了 `/api/setup/state`（它只在预登录白名单里，未登录反而 200）；而 App.tsx 启动闸只信该端点且 fail closed。
+- 当时错误假设：首登闸只需拦「业务请求」，启动探测端点在预登录白名单里就万事大吉——没把「已登录但无 PIN」这个中间态下前端启动链的实际依赖纳入放行面。
+- 修复原则：闸类中间件的放行清单必须逐一对照前端启动链（启动闸 / 登录闸 / 强制设密码门）实际请求的端点；fail-closed 前端启动闸与服务端闸叠加时，按「未登录 / 已登录无 PIN / 已登录有 PIN」矩阵逐格过一遍。
+- 当前防线：`isPinSetupAllowed` 放行 GET /api/setup/state；auth-gate.test.ts 回归用例（mustSetPin 会话 setup/state 200、业务端点仍 403）。
+- original_path: `docs/operations/https-deployment-investigation-20260903.md`（一次性排查稿，未入库，持久内容已并入 `docs/operations/deploy.md` §9）；含 bug 的 auth-gate.ts 可用 `git show <source_sha>:apps/hub-server/src/middleware/auth-gate.ts` 回查
+- source_sha: 175924927016df3296e8cf707b1619511ca85ab5

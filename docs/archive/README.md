@@ -63,6 +63,7 @@ git ls-tree -r --name-only e0761d1c25c2f13306ef55e8afdaea9c4d12ec43 docs/archive
 | ARC-INC-005 | H5、幻影 Postgres、compose | [事故](incidents.md#arc-inc-005) | `audits/code-audit-2026-06-14.md` | 运行栈只声明真实依赖 |
 | ARC-INC-006 | 版本号、lock 漂移、多 package | [事故](incidents.md#arc-inc-006) | `known-bugs-fixed.md`、`audits/rot-audit-2026-07-12.md` | 单 workspace/lock/VERSION 目标 |
 | ARC-INC-007 | 文档反弹、archive 堆积、上下文污染 | [事故](incidents.md#arc-inc-007) | `pre-slim/**`、`decisions-full-2026-07-26.md` | 五档案白名单 + 活文档登记门 |
+| ARC-INC-008 | 首登死锁、PIN_SETUP_REQUIRED、setup/state、auth-gate、反代 | [事故](incidents.md#arc-inc-008) | 排查稿未入库（已并入 deploy.md §9） | 闸放行清单对照前端启动链 + 回归测试 |
 | ARC-DEF-001 | D-032~D-035、GovernanceCue、治理 AI | [挂起方案](deferred.md#arc-def-001) | `governance-suspended-decisions.md`、`suspended-specs/**` | 当前 AI 只转译、不拍板 |
 | ARC-DEF-002 | 飞书深度接入、群消息、Hermes | [挂起方案](deferred.md#arc-def-002) | `lark-research/**`、`pre-pivot-plans/*lark*` | `docs/domains/integrations.md` |
 | ARC-DEF-003 | 广义“谁去学”、人员匹配、能力排序 | [挂起方案](deferred.md#arc-def-003) | `decisions-full-2026-07-26.md` D-069 | I0 与反监视边界 |

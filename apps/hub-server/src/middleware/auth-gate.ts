@@ -12,7 +12,7 @@ import type { SessionManager } from '../identity/session-store.js';
  *     需要名册，公网枚举全队名册的口子关掉；BootstrapGate 的「无持旗成员」判定改走
  *     /api/setup/state 的 hasPmMember 字段（本就在白名单）。
  *  ② **首登/升级 PIN 闸**：会话成员无 pinHash（首登）**或挂着旧短 PIN 升级标记**时，一切业务
- *     请求 403 PIN_SETUP_REQUIRED，只放行 PUT 本人 pin / session 端点——先设/升密码再进应用，
+ *     请求 403 PIN_SETUP_REQUIRED，只放行 PUT 本人 pin / session 端点 / GET setup/state（启动闸）——先设/升密码再进应用，
  *     服务端兜底不依赖前端自觉。PUT pin 成功即清标记（members.ts → sessions.clearPinUpgrade）。
  *
  * 匿名模式本闸门整体不启用（匿名部署无私密面，行为与既往一致）。
@@ -42,9 +42,13 @@ function isPreLoginAllowed(method: string, path: string): boolean {
   return false;
 }
 
-/** 首登/升级 PIN 闸放行口：设本人密码 + 会话端点（登出永远可用）。 */
+/** 首登/升级 PIN 闸放行口：设本人密码 + 会话端点（登出永远可用）。
+ *  BUG-IDX-DEADLOCK：GET /api/setup/state 也须放行——App.tsx 启动闸只信它，首登会话被拦 403
+ *  则整屏 SetupStateUnavailable，ForcePinGate 永远渲染不出来 → 死锁（公网 HTTPS 首登实测复现）。
+ *  该端点内容低敏（initialized 标记 + AppSettings + hasPmMember），本就在预登录白名单内。 */
 function isPinSetupAllowed(method: string, path: string, memberId: string): boolean {
   if (path === '/api/session') return true;
+  if (method === 'GET' && path === '/api/setup/state') return true; // 启动闸探测（解首登死锁）
   if (method === 'PUT' && path === `/api/members/${memberId}/pin`) return true;
   // bootstrap 初始化首个管理员：同笔设密码+授旗+发会话（路由自身有「已有持旗成员 → 409」护档）。
   if (method === 'POST' && path === '/api/setup/super-admin') return true;
