@@ -2,7 +2,7 @@
   "focus": [
     {
       "id": "PRE-COMMIT-FORCE-VERIFY",
-      "title": "已把 pre-commit.sh 第3步 verify 改成默认强制（D-xxx 强制测试门）：默认每次 commit 必跑三包 verify:all，失败拒提交；临时跳过用 PRE_COMMIT_SKIP_VERIFY=1；改脚本已生效且本体 262 测试全绿（约2分钟）。钩子体系真相：teamhub 仓库 local core.hooksPath=.git/hooks 优先，提交实跑 .git/hooks/pre-commit→scripts/pre-commit.sh；全局 ~/.githooks 版本围栏被 local 覆盖、teamhub 不生效（仅对无 local 仓库适用）。关键坑：所有 node 依赖检查（文档门/架构门/verify）依赖 PATH 含 ~/.hermes/node/bin，当前交互 shell 缺它会 command not found——正常用 teamhub.service 同款 PATH",
+      "title": "已把 pre-commit.sh 第3步 verify 改成默认强制（D-xxx 强制测试门）：默认每次 commit 必跑三包 verify:all，失败拒提交；临时跳过用 PRE_COMMIT_SKIP_VERIFY=1；改脚本已生效且本体 262 测试全绿；后又并行化（contracts 先单独 build 一次防 dist 并发写竞态，三包 verify:local 并行），2核4线程实测 ~75s（串行 ~85s，CPU 已饱和故提升有限）。钩子体系真相：teamhub 仓库 local core.hooksPath=.git/hooks 优先，提交实跑 .git/hooks/pre-commit→scripts/pre-commit.sh；全局 ~/.githooks 版本围栏被 local 覆盖、teamhub 不生效（仅对无 local 仓库适用）。关键坑：所有 node 依赖检查（文档门/架构门/verify）依赖 PATH 含 ~/.hermes/node/bin，当前交互 shell 缺它会 command not found——正常用 teamhub.service 同款 PATH",
       "owner": "agent",
       "priority": "P1",
       "tag": "code"
