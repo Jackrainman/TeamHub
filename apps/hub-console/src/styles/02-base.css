@@ -107,6 +107,17 @@ button,
   font-weight: var(--weight-heavy);
 }
 
+/* 战队旗帜图替代文本「TH」方标：保持 38×38 圆角框，object-fit 裁成方块（源图近方形）。 */
+.console-logo {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--sidebar-bg);
+  display: block;
+}
+
 .console-brand div {
   display: flex;
   flex-direction: column;

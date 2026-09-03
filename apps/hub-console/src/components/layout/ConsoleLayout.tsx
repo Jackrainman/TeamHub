@@ -33,7 +33,13 @@ export function ConsoleLayout({
     <div className="console-shell">
       <aside className="console-sidebar" aria-label={t('layout.sidebar.nav')}>
         <div className="console-brand">
-          <span className="brand-mark">TH</span>
+          <img
+            className="console-logo"
+            src="/logo-banner.png"
+            alt="Team Hub"
+            width={38}
+            height={38}
+          />
           <div>
             <strong>Team Hub</strong>
             <span>{t('brand.subtitle.real')}</span>
