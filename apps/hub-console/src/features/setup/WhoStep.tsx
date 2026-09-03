@@ -46,7 +46,7 @@ export function WhoStep({
   const valid =
     nameTrim.length > 0 &&
     (claiming || groupName.trim().length > 0) &&
-    pin.trim().length >= 4 &&
+    pin.trim().length >= 8 &&
     !pending;
 
   async function submit(event: FormEvent) {

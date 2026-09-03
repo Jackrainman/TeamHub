@@ -87,3 +87,13 @@
 - D-032~D-035（治理派生整簇）→ `docs/archive/deferred.md`
 - D-043/D-053/D-060/D-066/D-081（被取代的流程、UI、模块化方案）→ `docs/archive/decisions.md`
 - D-044~D-082 的普通实现账单不再常驻归档；从 `docs/archive/README.md` 的 legacy snapshot 按 Git SHA 恢复。
+
+## D-092 — 公网暴露认证加固（AUTH-GATE，2026-09-04 用户拍板）
+
+- **威胁模型升级**：实例暴露公网（原「内网家庭影院级」假设作废）。自建认证保留（scrypt 散列 + httpOnly cookie + 内存会话），不引外部框架。
+- **读闸**：身份模式未登录一律 401，白名单仅 session / GET members / setup/state / setup/super-admin / roster 导入预览模板 + loopback PIN 恢复口（middleware/auth-gate.ts）。**后台无「加后缀就进」的口**——setup 敏感写未登录 401 + 路由层 superAdmin 双闸。
+- **首登强制设密码**：无 pinHash 成员登录得 mustSetPin 会话，业务请求 403 PIN_SETUP_REQUIRED，只放行设本人密码；console 整屏 ForcePinGate。
+- **PIN 升级密码**：新设/重设 min 8 位（SetPin/SetupSuperAdmin schema）；旧 4 位散列兼容可登录，建议重设。
+- **撤销刀⑧②明文副本例外**：绝不回存明文口令；pinPlaintext 字段从契约删除、「显示PIN」端点与 UI 删除、旧库启动清扫（SqlitePmRepository 构造期剥键重写）。忘密码 = 管理员/loopback DELETE 重置 → 首登重设。
+- **防在线暴破**：登录失败按 ip|memberId 计，连错 5 次锁 5 分钟（429）；cookie Secure 标记由 env TEAMHUB_COOKIE_SECURE 控制（HTTPS 部署须开）。
+- **遗留建议**：公网裸 HTTP（0.0.0.0:4177）下密码可被嗅探——建议改绑 tailnet/loopback 或加 HTTPS 反代（部署侧动作，非代码）。

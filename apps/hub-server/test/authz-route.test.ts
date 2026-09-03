@@ -23,7 +23,15 @@ async function login(app: FastifyInstance, memberId: string, pin?: string): Prom
   });
   expect(res.statusCode).toBe(200);
   const cookie = res.cookies.find((c) => c.name === 'teamhub_session');
-  return `teamhub_session=${cookie!.value}`;
+  const cookieHeader = `teamhub_session=${cookie!.value}`;
+  // AUTH-GATE：无 pinHash 成员登录后是 mustSetPin 会话（业务请求 403）——测试补设 PIN 过闸。
+  await app.inject({
+    method: 'PUT',
+    url: `/api/members/${memberId}/pin`,
+    headers: { cookie: cookieHeader },
+    payload: { pin: '1234abcd' },
+  });
+  return cookieHeader;
 }
 
 /** fixtures 的 demo 持旗成员（m-progA）收旗——让「初始化首个管理员」流程有干净的零旗标起点。 */
@@ -38,7 +46,7 @@ describe('POST /api/setup/super-admin（初始化首个管理员）', () => {
       const res = await app.inject({
         method: 'POST',
         url: '/api/setup/super-admin',
-        payload: { pin: '1234' },
+        payload: { pin: '1234abcd' },
       });
       expect(res.statusCode).toBe(404);
     } finally {
@@ -54,7 +62,7 @@ describe('POST /api/setup/super-admin（初始化首个管理员）', () => {
       const res = await app.inject({
         method: 'POST',
         url: '/api/setup/super-admin',
-        payload: { pin: '1234' },
+        payload: { pin: '1234abcd' },
       });
       expect(res.statusCode).toBe(401);
     } finally {
@@ -72,7 +80,7 @@ describe('POST /api/setup/super-admin（初始化首个管理员）', () => {
         method: 'POST',
         url: '/api/setup/super-admin',
         headers: { cookie },
-        payload: { pin: '1234' },
+        payload: { pin: '1234abcd' },
       });
       expect(res.statusCode).toBe(200);
       expect(res.json().member.projectManager).toBe(true);
@@ -92,7 +100,7 @@ describe('POST /api/setup/super-admin（初始化首个管理员）', () => {
       const withPin = await app.inject({
         method: 'POST',
         url: '/api/session',
-        payload: { memberId: 'm-ecB', pin: '1234' },
+        payload: { memberId: 'm-ecB', pin: '1234abcd' },
       });
       expect(withPin.statusCode).toBe(200);
     } finally {
@@ -109,7 +117,7 @@ describe('POST /api/setup/super-admin（初始化首个管理员）', () => {
         method: 'POST',
         url: '/api/setup/super-admin',
         headers: { cookie },
-        payload: { pin: '1234' },
+        payload: { pin: '1234abcd' },
       });
       expect(res.statusCode).toBe(409);
     } finally {
@@ -127,7 +135,7 @@ describe('POST /api/setup/super-admin — bootstrap 路径（SETUP-WIZARD-ROSTER
       const res = await app.inject({
         method: 'POST',
         url: '/api/setup/super-admin',
-        payload: { displayName: '新队长', groupName: '机械', asGroupLead: true, pin: '1234' },
+        payload: { displayName: '新队长', groupName: '机械', asGroupLead: true, pin: '1234abcd' },
       });
       expect(res.statusCode).toBe(200);
       const body = res.json();
@@ -165,7 +173,7 @@ describe('POST /api/setup/super-admin — bootstrap 路径（SETUP-WIZARD-ROSTER
       const second = await app.inject({
         method: 'POST',
         url: '/api/setup/super-admin',
-        payload: { displayName: '另一个', groupName: '机械', pin: '5678' },
+        payload: { displayName: '另一个', groupName: '机械', pin: '5678abcd' },
       });
       expect(second.statusCode).toBe(409);
     } finally {
@@ -181,7 +189,7 @@ describe('POST /api/setup/super-admin — bootstrap 路径（SETUP-WIZARD-ROSTER
       const res = await app.inject({
         method: 'POST',
         url: '/api/setup/super-admin',
-        payload: { displayName: '研二队长', groupName: '电控', grade: 'grad2', pin: '1234' },
+        payload: { displayName: '研二队长', groupName: '电控', grade: 'grad2', pin: '1234abcd' },
       });
       expect(res.statusCode).toBe(200);
       const me = (await store.getSnapshot()).members.find((m) => m.displayName === '研二队长')!;
@@ -201,7 +209,7 @@ describe('POST /api/setup/super-admin — bootstrap 路径（SETUP-WIZARD-ROSTER
       const res = await app.inject({
         method: 'POST',
         url: '/api/setup/super-admin',
-        payload: { displayName: '电控B', pin: '1234' }, // fixtures 既有成员
+        payload: { displayName: '电控B', pin: '1234abcd' }, // fixtures 既有成员
       });
       expect(res.statusCode).toBe(200);
       expect(res.json().member.id).toBe('m-ecB');
@@ -222,14 +230,14 @@ describe('POST /api/setup/super-admin — bootstrap 路径（SETUP-WIZARD-ROSTER
       const bad = await app.inject({
         method: 'POST',
         url: '/api/setup/super-admin',
-        payload: { displayName: '没给组', pin: '1234' },
+        payload: { displayName: '没给组', pin: '1234abcd' },
       });
       expect(bad.statusCode).toBe(400);
 
       const noFlag = await app.inject({
         method: 'POST',
         url: '/api/setup/super-admin',
-        payload: { displayName: '普通队员', groupName: '视觉', projectManager: false, pin: '1234' },
+        payload: { displayName: '普通队员', groupName: '视觉', projectManager: false, pin: '1234abcd' },
       });
       expect(noFlag.statusCode).toBe(200);
       const me = (await store.getSnapshot()).members.find((m) => m.displayName === '普通队员')!;
@@ -239,7 +247,7 @@ describe('POST /api/setup/super-admin — bootstrap 路径（SETUP-WIZARD-ROSTER
       const next = await app.inject({
         method: 'POST',
         url: '/api/setup/super-admin',
-        payload: { displayName: '真队长', groupName: '机械', pin: '1234' },
+        payload: { displayName: '真队长', groupName: '机械', pin: '1234abcd' },
       });
       expect(next.statusCode).toBe(200);
       expect(next.json().member.projectManager).toBe(true);
@@ -335,7 +343,7 @@ describe('PUT /api/members/:id/role（成员角色维护）', () => {
         method: 'POST',
         url: '/api/setup/super-admin',
         headers: { cookie },
-        payload: { pin: '1234' },
+        payload: { pin: '1234abcd' },
       });
       const ok = await app.inject({
         method: 'PUT',
@@ -397,7 +405,7 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
         method: 'PUT',
         url: '/api/members/m-visionA/pin',
         headers: { cookie: userCookie },
-        payload: { pin: '9999' },
+        payload: { pin: '9999abcd' },
       });
 
       // ① 非持旗会话（m-ecB，role=member）经 loopback（inject 默认 127.0.0.1）→ 放行
@@ -441,7 +449,7 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
         method: 'PUT',
         url: '/api/members/m-visionA/pin',
         headers: { cookie: userCookie },
-        payload: { pin: '9999' },
+        payload: { pin: '9999abcd' },
       });
 
       // 裸 socket 非 loopback（反代），转发头为 loopback（SSH 隧道/本机反代客户端）→ request.ip=127.0.0.1 → 放行
@@ -480,14 +488,14 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
         method: 'POST',
         url: '/api/setup/super-admin',
         headers: { cookie: adminCookie },
-        payload: { pin: '1234' },
+        payload: { pin: '1234abcd' },
       });
       const userCookie = await login(app, 'm-visionA');
       await app.inject({
         method: 'PUT',
         url: '/api/members/m-visionA/pin',
         headers: { cookie: userCookie },
-        payload: { pin: '9999' },
+        payload: { pin: '9999abcd' },
       });
       // 确认已设：免 PIN 登录 m-visionA 失败
       const locked = await app.inject({
@@ -524,19 +532,19 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
         method: 'PUT',
         url: '/api/members/m-visionA/pin',
         headers: { cookie: cookie2 },
-        payload: { pin: '5555' },
+        payload: { pin: '5555abcd' },
       });
       expect(reset.statusCode).toBe(200);
       const oldPin = await app.inject({
         method: 'POST',
         url: '/api/session',
-        payload: { memberId: 'm-visionA', pin: '9999' },
+        payload: { memberId: 'm-visionA', pin: '9999abcd' },
       });
       expect(oldPin.statusCode).toBe(401);
       const newPin = await app.inject({
         method: 'POST',
         url: '/api/session',
-        payload: { memberId: 'm-visionA', pin: '5555' },
+        payload: { memberId: 'm-visionA', pin: '5555abcd' },
       });
       expect(newPin.statusCode).toBe(200);
     } finally {
@@ -554,7 +562,7 @@ describe('DELETE /api/members/:id/pin（重置 PIN，公测余项⑦）', () => 
         method: 'POST',
         url: '/api/setup/super-admin',
         headers: { cookie },
-        payload: { pin: '1234' },
+        payload: { pin: '1234abcd' },
       });
       const res = await app.inject({
         method: 'DELETE',
@@ -600,7 +608,7 @@ describe('敏感门收口：身份模式须持旗管理员（匿名不变）', (
         method: 'POST',
         url: '/api/setup/super-admin',
         headers: { cookie },
-        payload: { pin: '1234' },
+        payload: { pin: '1234abcd' },
       });
       const ok = await app.inject({
         method: 'PUT',
@@ -633,7 +641,7 @@ describe('敏感门收口：身份模式须持旗管理员（匿名不变）', (
         method: 'POST',
         url: '/api/setup/super-admin',
         headers: { cookie },
-        payload: { pin: '1234' },
+        payload: { pin: '1234abcd' },
       });
       const ok = await app.inject({
         method: 'POST',
@@ -697,14 +705,14 @@ describe('H3 写门 × 身份模式（令牌/会话双轨，SETUP-WIZARD-TOKEN �
       const res = await app.inject({
         method: 'POST',
         url: '/api/setup/super-admin',
-        payload: { displayName: '新队长', groupName: '机械', pin: '1234' },
+        payload: { displayName: '新队长', groupName: '机械', pin: '1234abcd' },
       });
       expect(res.statusCode).toBe(200);
       expect(res.json().member.projectManager).toBe(true);
       const second = await app.inject({
         method: 'POST',
         url: '/api/setup/super-admin',
-        payload: { displayName: '另一个', groupName: '机械', pin: '5678' },
+        payload: { displayName: '另一个', groupName: '机械', pin: '5678abcd' },
       });
       expect(second.statusCode).toBe(409);
     } finally {
@@ -722,7 +730,7 @@ describe('H3 写门 × 身份模式（令牌/会话双轨，SETUP-WIZARD-TOKEN �
         method: 'PUT',
         url: '/api/members/m-ecB/pin',
         headers: { cookie },
-        payload: { pin: '1234' },
+        payload: { pin: '1234abcd' },
       });
       const res = await app.inject({
         method: 'DELETE',

@@ -59,6 +59,8 @@ async function main(): Promise<void> {
   const identityMode = settings.identityMode;
   const writeToken = process.env.TEAMHUB_WRITE_TOKEN ?? larkStore.getWriteToken();
   const trustProxy = process.env.TEAMHUB_TRUST_PROXY === 'true';
+  // AUTH-GATE：HTTPS 反代后须开（会话 cookie 加 Secure）。裸 HTTP 部署别开——浏览器会拒存 Secure cookie。
+  const cookieSecure = process.env.TEAMHUB_COOKIE_SECURE === 'true';
   const tenantConfig: TenantConfig = {
     enabledModules: [...settings.enabledModules],
   };
@@ -97,6 +99,7 @@ async function main(): Promise<void> {
     unitOfWork,
     writeToken,
     trustProxy,
+    cookieSecure,
     identityMode,
     tenantConfig,
     deployment,

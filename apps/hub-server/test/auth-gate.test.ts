@@ -1,0 +1,222 @@
+import { describe, expect, test } from 'vitest';
+import type { FastifyInstance } from 'fastify';
+import { buildTestHubServer } from './support/build-test-hub-server.js';
+
+/**
+ * AUTH-GATE 公网加固端到端：
+ *  - 读闸：身份模式未登录业务 GET 一律 401；白名单（session / members / setup / roster 导入预览）放行；
+ *    匿名模式整体不启用。
+ *  - 首登 PIN 闸：无 pinHash 成员登录 → 响应 mustSetPin:true；该会话业务请求 403 PIN_SETUP_REQUIRED，
+ *    只放行 PUT 本人 pin / session；设完 PIN 同会话立即解禁（读实时名册，不吃快照）。
+ *  - 登录失败锁定：同 ip+memberId 连续错 5 次 → 429，锁期内连正确 PIN 也拒。
+ *  - PUT pin 收紧：非本人非 loopback 设他人 PIN → 403（原 firstSetup 免登录认领通道已关）。
+ *  - cookieSecure：开关开 → set-cookie 带 Secure。
+ */
+
+async function loginRaw(app: FastifyInstance, memberId: string, pin?: string) {
+  return app.inject({
+    method: 'POST',
+    url: '/api/session',
+    payload: pin === undefined ? { memberId } : { memberId, pin },
+  });
+}
+
+async function login(app: FastifyInstance, memberId: string): Promise<string> {
+  const res = await loginRaw(app, memberId);
+  expect(res.statusCode).toBe(200);
+  const cookie = res.cookies.find((c) => c.name === 'teamhub_session');
+  return `teamhub_session=${cookie!.value}`;
+}
+
+describe('读闸：身份模式未登录', () => {
+  test('业务 GET（任务/库存/报账）→ 401；白名单（session/members）放行', async () => {
+    const app = buildTestHubServer({ identityMode: 'identity' });
+    try {
+      for (const url of ['/api/tasks', '/api/reimburse/entries', '/api/reimburse/profile']) {
+        const res = await app.inject({ method: 'GET', url });
+        expect(res.statusCode, url).toBe(401);
+      }
+      const session = await app.inject({ method: 'GET', url: '/api/session' });
+      expect(session.statusCode).toBe(200);
+      expect(session.json()).toEqual({ mode: 'identity', session: null });
+      const members = await app.inject({ method: 'GET', url: '/api/members' });
+      expect(members.statusCode).toBe(200);
+      // 登录端点本身放行（不然永远登不上）
+      const loginRes = await loginRaw(app, 'm-ecB');
+      expect(loginRes.statusCode).toBe(200);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('匿名模式：读闸不启用（现状零变化）', async () => {
+    const app = buildTestHubServer();
+    try {
+      const res = await app.inject({ method: 'GET', url: '/api/tasks' });
+      expect(res.statusCode).toBe(200);
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+describe('首登 PIN 闸（mustSetPin）', () => {
+  test('无 pinHash 成员登录 → mustSetPin:true；业务请求 403；设 PIN 后同会话解禁', async () => {
+    const app = buildTestHubServer({ identityMode: 'identity' });
+    try {
+      // m-ecB fixture 无 pinHash
+      const loginRes = await loginRaw(app, 'm-ecB');
+      expect(loginRes.statusCode).toBe(200);
+      expect(loginRes.json().mustSetPin).toBe(true);
+      const cookie = `teamhub_session=${loginRes.cookies.find((c) => c.name === 'teamhub_session')!.value}`;
+
+      // GET /api/session 也回 mustSetPin:true
+      const session = await app.inject({ method: 'GET', url: '/api/session', headers: { cookie } });
+      expect(session.json().mustSetPin).toBe(true);
+
+      // 业务读/写全 403 PIN_SETUP_REQUIRED
+      const read = await app.inject({ method: 'GET', url: '/api/tasks', headers: { cookie } });
+      expect(read.statusCode).toBe(403);
+      expect(read.json().code).toBe('PIN_SETUP_REQUIRED');
+      const write = await app.inject({
+        method: 'POST',
+        url: '/api/dependencies',
+        headers: { cookie },
+        payload: {},
+      });
+      expect(write.statusCode).toBe(403);
+
+      // 闸内放行口：PUT 本人 pin
+      const setPin = await app.inject({
+        method: 'PUT',
+        url: '/api/members/m-ecB/pin',
+        headers: { cookie },
+        payload: { pin: '4321abcd' },
+      });
+      expect(setPin.statusCode).toBe(200);
+
+      // 设完同会话立即解禁（读实时名册）
+      const after = await app.inject({ method: 'GET', url: '/api/tasks', headers: { cookie } });
+      expect(after.statusCode).toBe(200);
+      const session2 = await app.inject({ method: 'GET', url: '/api/session', headers: { cookie } });
+      expect(session2.json().mustSetPin).toBe(false);
+
+      // 下次登录须带新 PIN，响应不再 mustSetPin
+      const relogin = await loginRaw(app, 'm-ecB', '4321abcd');
+      expect(relogin.statusCode).toBe(200);
+      expect(relogin.json().mustSetPin).toBe(false);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('已有 pinHash 成员登录 → 响应无 mustSetPin 负担（false）', async () => {
+    const app = buildTestHubServer({ identityMode: 'identity' });
+    try {
+      const cookie = await login(app, 'm-visionA');
+      await app.inject({
+        method: 'PUT',
+        url: '/api/members/m-visionA/pin',
+        headers: { cookie },
+        payload: { pin: '2468abcd' },
+      });
+      const res = await loginRaw(app, 'm-visionA', '2468abcd');
+      expect(res.statusCode).toBe(200);
+      expect(res.json().mustSetPin).toBe(false);
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+describe('登录失败锁定', () => {
+  test('同 memberId 连续错 PIN 5 次 → 429；锁期内正确 PIN 也拒', async () => {
+    const app = buildTestHubServer({ identityMode: 'identity' });
+    try {
+      // 先给 m-visionA 设 PIN
+      const cookie = await login(app, 'm-visionA');
+      await app.inject({
+        method: 'PUT',
+        url: '/api/members/m-visionA/pin',
+        headers: { cookie },
+        payload: { pin: '2468abcd' },
+      });
+      // 连错 5 次
+      for (let i = 0; i < 5; i++) {
+        const bad = await loginRaw(app, 'm-visionA', '0000');
+        expect(bad.statusCode).toBe(401);
+      }
+      // 第 6 次：连正确 PIN 也 429（锁定生效）
+      const locked = await loginRaw(app, 'm-visionA', '2468abcd');
+      expect(locked.statusCode).toBe(429);
+      // 不同 memberId 不受牵连（按 ip|memberId 分桶）
+      const other = await loginRaw(app, 'm-ecB');
+      expect(other.statusCode).toBe(200);
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+describe('PUT pin 收紧（firstSetup 免登录认领通道已关）', () => {
+  test('设他人 PIN：无会话 → 读闸 401；非本人会话（已设 PIN）→ 403；loopback 兜底放行（灾难恢复）', async () => {
+    const app = buildTestHubServer({ identityMode: 'identity' });
+    try {
+      // 无会话（读闸拦在路由之前）
+      const remote = await app.inject({
+        method: 'PUT',
+        url: '/api/members/m-ecB/pin',
+        remoteAddress: '10.0.0.5',
+        payload: { pin: '1234abcd' },
+      });
+      expect(remote.statusCode).toBe(401);
+      // 非本人会话：m-visionA 已设 PIN，从非 loopback 改 m-ecB 的 PIN → 403（只许本人）
+      const cookie = await login(app, 'm-visionA');
+      await app.inject({
+        method: 'PUT',
+        url: '/api/members/m-visionA/pin',
+        headers: { cookie },
+        payload: { pin: '2468abcd' },
+      });
+      const forbid = await app.inject({
+        method: 'PUT',
+        url: '/api/members/m-ecB/pin',
+        remoteAddress: '10.0.0.5',
+        headers: { cookie },
+        payload: { pin: '1234abcd' },
+      });
+      expect(forbid.statusCode).toBe(403);
+      // loopback 操作员兜底（PIN-DEADLOCK-RECOVERY 先例）
+      const loopback = await app.inject({
+        method: 'PUT',
+        url: '/api/members/m-ecB/pin',
+        payload: { pin: '1234abcd' },
+      });
+      expect(loopback.statusCode).toBe(200);
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+describe('cookie Secure 标记', () => {
+  test('cookieSecure 开 → set-cookie 带 Secure；关（默认）→ 不带', async () => {
+    const secureApp = buildTestHubServer({ identityMode: 'identity', cookieSecure: true });
+    try {
+      const res = await loginRaw(secureApp, 'm-ecB');
+      const raw = res.headers['set-cookie'];
+      expect(String(raw)).toContain('Secure');
+      expect(String(raw)).toContain('HttpOnly');
+      expect(String(raw)).toContain('SameSite=Lax');
+    } finally {
+      await secureApp.close();
+    }
+    const plainApp = buildTestHubServer({ identityMode: 'identity' });
+    try {
+      const res = await loginRaw(plainApp, 'm-ecB');
+      expect(String(res.headers['set-cookie'])).not.toContain('Secure');
+    } finally {
+      await plainApp.close();
+    }
+  });
+});

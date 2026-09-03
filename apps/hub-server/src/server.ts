@@ -59,6 +59,7 @@ import {
   requireSuperAdmin,
 } from './http/helpers.js';
 import { registerWriteGate } from './middleware/write-gate.js';
+import { registerAuthGate } from './middleware/auth-gate.js';
 import type { AppSettingsService } from './store/sqlite-unified.js';
 import type {
   InventoryStockInPort,
@@ -141,6 +142,8 @@ export interface BuildHubServerOptions {
   trustProxy?: boolean | string;
   /** 归档物上传单文件字节上限（默认 50MB）。测试可调小以触发 413、免造大文件。 */
   artifactMaxBytes?: number;
+  /** AUTH-GATE：HTTPS 部署下会话 cookie 加 Secure 标记（main.ts 由 TEAMHUB_COOKIE_SECURE 注入）。 */
+  cookieSecure?: boolean;
   /** SQLite app_settings 中的模块开关；生产与测试组合根都必须显式注入，禁止代码默认成为第二事实源。 */
   tenantConfig: TenantConfig;
   /**
@@ -299,6 +302,18 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
     });
   }
 
+  // AUTH-GATE 公网加固：读闸（身份模式未登录 401）+ 首登 PIN 闸（无 pinHash 会话只放行设 PIN）。
+  // 注册在身份解析钩子之后、写门之前——onRequest 按注册序执行。
+  registerAuthGate(app, {
+    identityMode,
+    trustProxy,
+    memberHasPin: async (memberId) => {
+      const snapshot = await store.getSnapshot();
+      const member = snapshot.members.find((m) => m.id === memberId);
+      return Boolean(member?.pinHash);
+    },
+  });
+
   registerWriteGate(app, {
     writeToken: options.writeToken,
     rateLimit: options.writeRateLimit ?? { max: 120, windowMs: 60_000 },
@@ -331,7 +346,7 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
     limits: { fileSize: ctx.artifactMaxBytes, files: 1 },
   });
 
-  registerSessionRoutes(app, { store, identityMode, sessions });
+  registerSessionRoutes(app, { store, identityMode, sessions, cookieSecure: options.cookieSecure });
   registerSetupRoutes(app, { store, identityMode, setupControl: options.setupControl });
 
   // 装配外壳核心：遍历 enabledModules → 挂载各域路由。未启用模块的函数根本不被调用，端点整段不挂

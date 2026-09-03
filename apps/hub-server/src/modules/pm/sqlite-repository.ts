@@ -146,6 +146,22 @@ export class SqlitePmRepository implements PmRepository {
     this.sdb = sdb;
     this.clock = clock ?? new FixedClock(new Date(GOVERNANCE_SCENARIO_NOW));
     this.resyncSequences();
+    this.scrubLegacyPinPlaintext();
+  }
+
+  /**
+   * AUTH-GATE 数据清扫（2026-09-04 撤销刀⑧②明文副本例外）：旧库 members 行 JSON 里可能残留
+   * `pinPlaintext` 键（「显示PIN」时代的可恢复副本）——启动时逐行剥掉重写。幂等，扫完即无。
+   */
+  private scrubLegacyPinPlaintext(): void {
+    const rows = this.sdb.allRows<Record<string, unknown>>('members');
+    for (const row of rows) {
+      if (row && typeof row === 'object' && 'pinPlaintext' in row) {
+        const cleaned = { ...row };
+        delete cleaned.pinPlaintext;
+        this.sdb.updateRow('members', String(row.id), cleaned);
+      }
+    }
   }
 
   static fromSharedDb(
@@ -295,12 +311,11 @@ export class SqlitePmRepository implements PmRepository {
   async setMemberPin(
     memberId: string,
     pinHash: string | null,
-    pinPlaintext?: string,
   ): Promise<Member | null> {
     return this.tx(() => {
       const prev = this.getRow<Member>('members', memberId);
       if (!prev) return null;
-      const updated = applyMemberPin(prev, pinHash, pinPlaintext, this.clock.now().toISOString());
+      const updated = applyMemberPin(prev, pinHash, this.clock.now().toISOString());
       this.updateRow('members', memberId, updated);
       return updated;
     });

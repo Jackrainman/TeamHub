@@ -77,7 +77,16 @@ async function login(app: ReturnType<typeof buildTestHubServer>, memberId: strin
   const res = await app.inject({ method: 'POST', url: '/api/session', payload: { memberId } });
   const cookie = res.cookies.find((c) => c.name === 'teamhub_session');
   expect(cookie?.value).toBeTruthy();
-  return `teamhub_session=${cookie!.value}`;
+  const cookieHeader = `teamhub_session=${cookie!.value}`;
+  // AUTH-GATE：无 pinHash 成员登录后是 mustSetPin 会话（业务请求 403）——测试补设 PIN 过闸。
+  const pinRes = await app.inject({
+    method: 'PUT',
+    url: `/api/members/${memberId}/pin`,
+    headers: { cookie: cookieHeader },
+    payload: { pin: '1234abcd' },
+  });
+  expect(pinRes.statusCode).toBe(200);
+  return cookieHeader;
 }
 
 describe('GET /api/inventory/template', () => {

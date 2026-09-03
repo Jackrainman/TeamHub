@@ -56,20 +56,27 @@ export type SessionRequest = z.infer<typeof SessionRequestSchema>;
 /**
  * GET /api/session / 登录成功 / 登出 的统一响应：报当前部署模式 + 当前身份（未登录 = null）。
  * 匿名模式恒 `{ mode: 'anonymous', session: null }`（明确禁用态）。
+ *
+ * `mustSetPin`（AUTH-GATE 公网加固）：当前会话成员**尚无 pinHash** → true。前端据此整屏强制设 PIN
+ * 再进应用；服务端 auth-gate 同步拦该会话的一切业务请求（403 PIN_SETUP_REQUIRED），只放行
+ * PUT 本人 pin / session 端点。匿名模式 / 未登录 / 已设 PIN 一律省略（视同 false）。
  */
 export const SessionResponseSchema = z.object({
   mode: IdentityModeSchema,
   session: SessionIdentitySchema.nullable(),
+  mustSetPin: z.boolean().optional(),
 });
 export type SessionResponse = z.infer<typeof SessionResponseSchema>;
 
 /**
- * PUT /api/members/:id/pin（设/改 PIN）请求：只收明文 pin（服务端 scrypt 散列后落库，不回存明文）。
- * 授权语义（路由层）：身份模式下须**本人会话**，或该 member **尚无 pinHash**（首次认领设置）。
- * 匿名模式此端点禁用（→ 404）。min 4 位（家庭影院级最低强度），上限防滥用。
+ * PUT /api/members/:id/pin（设/改登录密码）请求：只收明文 pin（服务端 scrypt 散列后落库，不回存明文）。
+ * 授权语义（路由层）：身份模式下须**本人会话**（公网加固后收紧：原「该 member 尚无 pinHash 即可认领」
+ * 预登录通道已关——任何路人都能抢注未设密成员是公网暴露下的洞）；本机 loopback 操作员兜底（灾难恢复）。
+ * 匿名模式此端点禁用（→ 404）。**min 8 位**（AUTH-GATE 升级为密码级强度；旧 4 位 PIN 散列仍可登录，
+ * 但新设/重设一律 ≥8），上限防滥用。
  */
 export const SetPinRequestSchema = z.object({
-  pin: z.string().min(4).max(64),
+  pin: z.string().min(8).max(64),
 });
 export type SetPinRequest = z.infer<typeof SetPinRequestSchema>;
 
@@ -83,8 +90,8 @@ export type SetPinResponse = z.infer<typeof SetPinResponseSchema>;
  * DELETE /api/members/:id/pin（重置 PIN，公测余项⑦ PIN-RESET）响应：回带该成员**公开视图**（剥 pinHash，
  * 密钥纪律）。**请求无体**。授权语义（路由层）：身份模式 only（匿名 → 404，照 PUT pin 先例）+ 须
  * superAdmin（403）——解决「忘 PIN 后连管理员也无产品通道、只能手工清落盘 pinHash」的缺口。效果 = 清除
- * 目标成员 pinHash：该成员回到「无 pinHash 免 PIN」态，下次登录后经既有 PUT pin 首设流程（firstSetup）
- * 自行重设——重置口本身**绝不代收新 PIN 明文**（管理员不经手他人口令，密钥纪律延续）。
+ * 目标成员 pinHash：该成员回到「未设密码」态，下次登录后走首登强制设密码流程（mustSetPin）
+ * 自行重设——重置口本身**绝不代收新密码明文**（管理员不经手他人口令，密钥纪律延续）。
  */
 export const ClearPinResponseSchema = z.object({
   member: MemberPublicSchema,
@@ -92,20 +99,13 @@ export const ClearPinResponseSchema = z.object({
 export type ClearPinResponse = z.infer<typeof ClearPinResponseSchema>;
 
 /**
- * GET /api/members/:id/pin（显示 PIN，打磨轮刀⑧② pinPlaintext 可恢复存储的唯一透出口）响应：
- * 单条明文回带。**身份模式 only**（匿名 → 404，照 PUT pin 先例）。授权语义（路由层自判——
- * 读端点不过写门）：**本人会话或持旗管理员**（isSuperAdmin 读实时名册）→ 200；非本人非管理员 → 403；
- * 成员不存在 → 404；无 pinPlaintext（从未设 / 旧数据）→ 404「未设置 PIN」。
- * **I0**：单条读取出口，绝无列表批量出口（防一屏全队 PIN）。
+ * AUTH-GATE（2026-09-04 用户拍板）：「显示 PIN」端点已随 pinPlaintext 明文副本一起**删除**——
+ * 口令不可恢复，忘记走 DELETE pin 重置 + 首登强制重设。
  */
-export const MemberPinResponseSchema = z.object({
-  pin: z.string().min(4),
-});
-export type MemberPinResponse = z.infer<typeof MemberPinResponseSchema>;
 
 /**
  * POST /api/setup/super-admin（初始化首个管理员，K1 权限地基 + MEMBER-PM-FLAG 旗标化 + SETUP-WIZARD-ROSTER
- * 刀② bootstrap 扩展）请求：pin 明文必填（min4 max64，家庭影院级最低强度，服务端 scrypt 散列后落库、
+ * 刀② bootstrap 扩展）请求：pin 明文必填（min8 max64，密码级最低强度，服务端 scrypt 散列后落库、
  * 不回存明文）。**身份模式 only**（匿名 → 404，照 PUT pin 先例）。
  *
  * 授权/前置（路由层）：名册尚无任何持「项目管理」旗标成员——否则 409（一次性初始化门；已有管理员后
@@ -121,7 +121,7 @@ export type MemberPinResponse = z.infer<typeof MemberPinResponseSchema>;
  * 响应回带该成员公开视图（MemberPublicSchema 剥 pinHash，密钥纪律）。
  */
 export const SetupSuperAdminRequestSchema = z.object({
-  pin: z.string().min(4).max(64),
+  pin: z.string().min(8).max(64),
   // 见上 bootstrap 路径：四字段皆 optional，只在「先问你是谁」初始化门给。
   displayName: z.string().min(1).optional(),
   groupName: z.string().min(1).optional(),

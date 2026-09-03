@@ -221,27 +221,22 @@ export function buildCreatedSeason(draft: SeasonDraft, id: string): Season {
 
 /**
  * 设/改成员 PIN（IDENTITY-LITE）的就地更新对象。**安全敏感，三实现单源**：
- * `pinHash === null` = 清除（删 pinHash + pinPlaintext，成员回免 PIN 态）；否则写 pinHash，
- * 明文副本 pinPlaintext 传了同笔落、未传则清旧副本（防 hash/明文错位）。updatedBy 钉 console。
- * 密钥纪律：pinHash/pinPlaintext 只落内存/落盘，读视图剥离（路由回 MemberPublicSchema）。
+ * `pinHash === null` = 清除（删 pinHash，成员回未设密码态 → 首登强制重设）；否则写 pinHash。
+ * 密钥纪律（AUTH-GATE）：只存 scrypt 散列，绝不回存明文（刀⑧②明文副本例外 2026-09-04 用户拍板撤销）；
+ * pinHash 只落内存/落盘，读视图剥离（路由回 MemberPublicSchema）。
  */
 export function applyMemberPin(
   prev: Member,
   pinHash: string | null,
-  pinPlaintext: string | undefined,
   now: string,
 ): Member {
   const updated: Member = { ...prev, updatedBy: MEMBER_PIN_UPDATED_BY, updatedAt: now };
+  // AUTH-GATE（撤销刀⑧②明文副本例外）：任何 PIN 写路径都顺手剥掉旧落盘里可能残留的 pinPlaintext。
+  delete (updated as Record<string, unknown>).pinPlaintext;
   if (pinHash === null) {
     delete updated.pinHash;
-    delete updated.pinPlaintext;
   } else {
     updated.pinHash = pinHash;
-    if (pinPlaintext !== undefined) {
-      updated.pinPlaintext = pinPlaintext;
-    } else {
-      delete updated.pinPlaintext;
-    }
   }
   return updated;
 }

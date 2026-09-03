@@ -20,7 +20,16 @@ async function login(
   expect(res.statusCode).toBe(200);
   const cookie = res.cookies.find((c) => c.name === 'teamhub_session');
   expect(cookie?.value).toBeTruthy();
-  return `teamhub_session=${cookie!.value}`;
+  const cookieHeader = `teamhub_session=${cookie!.value}`;
+  // AUTH-GATE：无 pinHash 成员登录后是 mustSetPin 会话（业务请求 403）——测试补设 PIN 过闸。
+  const pinRes = await app.inject({
+    method: 'PUT',
+    url: `/api/members/${memberId}/pin`,
+    headers: { cookie: cookieHeader },
+    payload: { pin: '1234abcd' },
+  });
+  expect(pinRes.statusCode).toBe(200);
+  return cookieHeader;
 }
 
 describe('匿名模式（默认）：现状零变化', () => {
@@ -81,7 +90,7 @@ describe('匿名模式（默认）：现状零变化', () => {
       const res = await app.inject({
         method: 'PUT',
         url: '/api/members/m-ecB/pin',
-        payload: { pin: '1234' },
+        payload: { pin: '1234abcd' },
       });
       expect(res.statusCode).toBe(404);
     } finally {
@@ -140,7 +149,7 @@ describe('身份模式：登录 / 登出 / 免 PIN / 错 PIN', () => {
         method: 'PUT',
         url: '/api/members/m-visionA/pin',
         headers: { cookie },
-        payload: { pin: '2468' },
+        payload: { pin: '2468abcd' },
       });
       expect(set.statusCode).toBe(200);
       // 登出
@@ -164,7 +173,7 @@ describe('身份模式：登录 / 登出 / 免 PIN / 错 PIN', () => {
       const unknown = await app.inject({
         method: 'POST',
         url: '/api/session',
-        payload: { memberId: 'm-nobody', pin: '2468' },
+        payload: { memberId: 'm-nobody', pin: '2468abcd' },
       });
       expect(unknown.statusCode).toBe(401);
       expect(unknown.json().detail).toBe(wrong.json().detail);
@@ -173,7 +182,7 @@ describe('身份模式：登录 / 登出 / 免 PIN / 错 PIN', () => {
       const right = await app.inject({
         method: 'POST',
         url: '/api/session',
-        payload: { memberId: 'm-visionA', pin: '2468' },
+        payload: { memberId: 'm-visionA', pin: '2468abcd' },
       });
       expect(right.statusCode).toBe(200);
     } finally {
@@ -181,7 +190,7 @@ describe('身份模式：登录 / 登出 / 免 PIN / 错 PIN', () => {
     }
   });
 
-  test('设他人 PIN：非本人会话且他人已有 pinHash → 403', async () => {
+  test('设他人 PIN：非本人会话 → 403（非 loopback 客户端）；loopback 操作员兜底放行（灾难恢复口）', async () => {
     const app = buildTestHubServer({ identityMode: 'identity' });
     try {
       // m-visionA 免 PIN 登入后给自己设 PIN（此后 m-visionA 有 pinHash）
@@ -190,18 +199,27 @@ describe('身份模式：登录 / 登出 / 免 PIN / 错 PIN', () => {
         method: 'PUT',
         url: '/api/members/m-visionA/pin',
         headers: { cookie: cookieA },
-        payload: { pin: '1111' },
+        payload: { pin: '1111abcd' },
       });
       expect(setA.statusCode).toBe(200);
-      // m-ecB 免 PIN 登入，试图改 m-visionA（已有 pinHash）的 PIN → 403（非本人、非首次设置）
+      // m-ecB 免 PIN 登入，从非 loopback 地址试图改 m-visionA 的 PIN → 403（只许本人）
       const cookieB = await login(app, 'm-ecB');
       const forbid = await app.inject({
         method: 'PUT',
         url: '/api/members/m-visionA/pin',
+        remoteAddress: '10.0.0.5',
         headers: { cookie: cookieB },
-        payload: { pin: '9999' },
+        payload: { pin: '9999abcd' },
       });
       expect(forbid.statusCode).toBe(403);
+      // 同一请求从 loopback 发出 → 200（PIN-DEADLOCK-RECOVERY 先例：本机操作员即运维）
+      const loopback = await app.inject({
+        method: 'PUT',
+        url: '/api/members/m-visionA/pin',
+        headers: { cookie: cookieB },
+        payload: { pin: '9999abcd' },
+      });
+      expect(loopback.statusCode).toBe(200);
     } finally {
       await app.close();
     }
@@ -290,7 +308,7 @@ describe('密钥纪律：pinHash 永不出响应', () => {
         method: 'PUT',
         url: '/api/members/m-visionA/pin',
         headers: { cookie },
-        payload: { pin: '1357' },
+        payload: { pin: '1357abcd' },
       });
       expect(setRes.statusCode).toBe(200);
       expect(setRes.json().member).not.toHaveProperty('pinHash');

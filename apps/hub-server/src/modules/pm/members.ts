@@ -5,7 +5,6 @@ import {
   SetPinRequestSchema,
   SetPinResponseSchema,
   ClearPinResponseSchema,
-  MemberPinResponseSchema,
   SetGateReviewerRequestSchema,
   SetGateReviewerResponseSchema,
   SetMemberRoleRequestSchema,
@@ -22,7 +21,6 @@ import type { SessionManager } from '../../identity/session-store.js';
 import { isSuperAdmin, memberHasPmFlag } from '../../authz.js';
 import { hashPin } from '../../identity/pin.js';
 import { parseBody, isLoopbackOperator, buildSessionCookie } from '../../http/helpers.js';
-
 export interface MemberRouteDeps {
   store: PmRepository;
   identityMode: IdentityMode;
@@ -53,41 +51,19 @@ export function registerMemberRoutes(app: FastifyInstance, deps: MemberRouteDeps
       return;
     }
     const isSelf = request.identity?.memberId === id;
-    const firstSetup = !target.pinHash;
-    if (!isSelf && !firstSetup) {
+    // AUTH-GATE 公网加固：原「firstSetup（无 pinHash 即可认领）」预登录通道已关——公网暴露下任何
+    // 路人都能抢注未设 PIN 成员。首设走「免 PIN 登录 → mustSetPin 会话 → 本人 PUT pin」（auth-gate
+    // 只放行这一路）；本机 loopback 操作员留灾难恢复口（与 DELETE pin 先例一致）。
+    if (!isSelf && !isLoopbackOperator(request, deps.trustProxy)) {
       void reply.code(403).send({ detail: '只能设置本人 PIN' });
       return;
     }
-    const updated = await store.setMemberPin(id, hashPin(pinData.pin), pinData.pin);
+    const updated = await store.setMemberPin(id, hashPin(pinData.pin));
     if (!updated) {
       void reply.code(404).send({ detail: 'member not found' });
       return;
     }
     return SetPinResponseSchema.parse({ member: MemberPublicSchema.parse(updated) });
-  });
-
-  app.get<{ Params: { id: string } }>('/api/members/:id/pin', async (request, reply) => {
-    if (identityMode !== 'identity') {
-      void reply.code(404).send({ detail: '身份模式未启用' });
-      return;
-    }
-    const { id } = request.params;
-    const snapshot = await store.getSnapshot();
-    const target = snapshot.members.find((m) => m.id === id);
-    if (!target) {
-      void reply.code(404).send({ detail: 'member not found' });
-      return;
-    }
-    const isSelf = request.identity?.memberId === id;
-    if (!isSelf && !isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
-      void reply.code(403).send({ detail: '只能查看本人 PIN' });
-      return;
-    }
-    if (!target.pinPlaintext) {
-      void reply.code(404).send({ detail: '未设置 PIN' });
-      return;
-    }
-    return MemberPinResponseSchema.parse({ pin: target.pinPlaintext });
   });
 
   app.delete<{ Params: { id: string } }>('/api/members/:id/pin', async (request, reply) => {
@@ -177,7 +153,7 @@ export function registerMemberRoutes(app: FastifyInstance, deps: MemberRouteDeps
       }
       memberId = selfId;
     }
-    const pinned = await store.setMemberPin(memberId, hashPin(parsed.pin), parsed.pin);
+    const pinned = await store.setMemberPin(memberId, hashPin(parsed.pin));
     if (!pinned) {
       void reply.code(404).send({ detail: 'member not found' });
       return;

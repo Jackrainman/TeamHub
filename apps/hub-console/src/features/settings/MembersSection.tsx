@@ -6,11 +6,10 @@ import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
 import { GRADE_KEY } from '../../shared/roster';
 import { Select } from '../../components/Select';
-import { canShowMemberPin } from './pin-visibility';
 import { humanizeFormError } from '../../utils';
 import { MEMBER_ROLE_OPTIONS, ROLE_KEY } from './settings-constants';
 import { sectionPermission } from './section-permission';
-import { MemberPinReveal, SetupAdminCard, RosterImportBlock } from './sub/MembersSubComponents';
+import { SetupAdminCard, RosterImportBlock } from './sub/MembersSubComponents';
 import { useMemberMutations } from './hooks';
 
 export function MembersPermissionsSection({
@@ -124,9 +123,6 @@ export function MembersPermissionsSection({
                     <span className="badge badge--wide badge--green">
                       {t('settings.reviewers.badge.auto')}
                     </span>
-                  ) : null}
-                  {identity.mode === 'identity' && canShowMemberPin(identity, member.id) ? (
-                    <MemberPinReveal client={client} memberId={member.id} />
                   ) : null}
                   {identity.mode === 'identity' ? (
                     <button

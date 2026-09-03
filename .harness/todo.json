@@ -7,18 +7,6 @@
       "priority": "P0"
     },
     {
-      "id": "AUTH-LOGIN-GATE",
-      "title": "登录闸门+公网加固：①未登录必须登录才能查看任何页面 ②账号首次登录强制先设 PIN 再进入 ③公网暴露加固（PIN 校验限流/失败锁定、cookie Secure 标记、HTTPS 确认、session TTL 复核——现状注释写死『内网家庭影院级威胁模型』，与公网暴露事实不符，需升级）④成员数据存 PIN 明文副本（查源码=pm/logic.ts 有意设计：admin 可找回 PIN，读视图经 MemberPublicSchema 剥离；但公网暴露下威胁模型需重估此项）；用户纠结自建 vs 成熟框架（怕公网任何人进来、怕 2FA 麻烦），倾向待我出结论",
-      "owner": "agent",
-      "priority": "P0"
-    },
-    {
-      "id": "AUTH-FRAMEWORK-EVAL",
-      "title": "登录框架评估：用户担心自己写登录易成屎山，想引现成框架；现状=自建 scrypt PIN + 内存 SessionManager（httpOnly cookie，identity/pin.ts + session-store.ts，~百行，有明确威胁模型）；评估 better-auth/Lucia 等是否适配本项目形态（SQLite 单实例内网、无 OAuth 需求）",
-      "owner": "agent",
-      "priority": "P0"
-    },
-    {
       "id": "REIMBURSE-AUTOFILL-RESEARCH",
       "title": "报账自动填单调研（用户侧）：核心愿景=任意票据上传后自动填好绝大多数数据、只需微调；可打包为文件夹并归档到正确位置；自动提取信息导出 txt/word/excel；报账种类非常多，需先调研识别方案再评接入",
       "note": "当前阶段最高优先=把报账系统做好；本项为调研前置，结论回来后再立项",
@@ -151,6 +139,14 @@
     }
   ],
   "done-tonight": [
+    {
+      "id": "AUTH-GATE",
+      "title": "公网认证加固全套（D-092）：读闸（未登录 401 + 最小白名单，无加后缀进后台的口）+ 首登强制设密码（mustSetPin 会话 403 PIN_SETUP_REQUIRED + 整屏 ForcePinGate/LoginGate）+ PIN 升级密码（新设 min 8，旧 4 位散列兼容）+ 撤销刀⑧②明文副本（契约删 pinPlaintext、显示PIN 端点/UI 删除、旧库启动清扫）+ 登录失败锁定（ip|memberId 连错 5 锁 5 分钟）+ cookie Secure env 开关；server 424+console 265 全绿 + 生产库副本活体 12 项全过"
+    },
+    {
+      "id": "AUTH-FRAMEWORK-EVAL",
+      "title": "登录框架评估结论：维持自建（百行、规矩、可维护），不引 better-auth/Lucia——闸门是产品流程非密码学，框架不白送；用户拍板 go-full"
+    },
     {
       "id": "UI-TEXT-CLEANUP",
       "title": "前端解释性文字清理：子 agent 全仓审计（报告 /tmp/ui-text-audit.md），按『能删就删』尺度清两批——首批 depgraph.entry.note / pool.search.note / pool.list.intro（v0.71.0），二批 ~30 处中英 key：depgraph.detail.ownerNote/blockedByValue、pm.create.subtitle、schedule.note/intro、direction.note/intro×2、kb.empty、inv.record.subtitle、reimb.batch.subtitle、settings.members/roster/deployment.desc、setup 两处、pool.action 系列 hint 等；残留=ROBOTICS_LEARNING_MAP 学习内容文案（在 contracts 层，随 NAV-REGROUP 学习方向去留一起定）"

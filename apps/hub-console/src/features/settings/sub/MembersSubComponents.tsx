@@ -19,56 +19,6 @@ import {
   useRosterImportMutation,
 } from '../hooks';
 
-export function MemberPinReveal({ client, memberId }: { client: HubApiClient; memberId: string }) {
-  const { t } = useI18n();
-  const [pin, setPin] = useState<string | null>(null);
-  const [state, setState] = useState<'idle' | 'loading' | 'unset' | 'error'>('idle');
-
-  async function reveal() {
-    setState('loading');
-    try {
-      const data = await client.getMemberPin(memberId);
-      setPin(data.pin);
-      setState('idle');
-    } catch (err) {
-      setState(err instanceof Error && err.message.startsWith('404') ? 'unset' : 'error');
-    }
-  }
-
-  if (state === 'unset') {
-    return <span className="settings-member__pin">{t('settings.members.showPin.unset')}</span>;
-  }
-  if (pin !== null) {
-    return (
-      <span className="settings-member__pin">
-        <code>{t('settings.members.showPin.revealed', { pin })}</code>
-        <button
-          type="button"
-          className="btn btn--secondary btn--sm"
-          onClick={() => setPin(null)}
-        >
-          {t('settings.members.showPin.hide')}
-        </button>
-      </span>
-    );
-  }
-  return (
-    <span className="settings-member__pin">
-      <button
-        type="button"
-        className="btn btn--secondary btn--sm"
-        disabled={state === 'loading'}
-        onClick={() => void reveal()}
-      >
-        {t('settings.members.showPin')}
-      </button>
-      {state === 'error' ? (
-        <span className="form-hint form-hint--warn">{t('settings.members.showPin.error')}</span>
-      ) : null}
-    </span>
-  );
-}
-
 export function SetupAdminCard({
   client,
   writeLocked,
@@ -84,7 +34,7 @@ export function SetupAdminCard({
     setPin('');
     onDone();
   });
-  const valid = pin.trim().length >= 4 && !writeLocked;
+  const valid = pin.trim().length >= 8 && !writeLocked;
 
   function submit(event: FormEvent) {
     event.preventDefault();

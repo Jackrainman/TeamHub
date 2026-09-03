@@ -16,6 +16,8 @@ import { setVocabularyOverrides, useI18n } from './i18n';
 import { ROBOTICS_VOCAB_OVERRIDES } from './verticals/robotics';
 import { APIBASE_KEY, SETUP_LANDING_KEY, WRITE_TOKEN_KEY } from './constants';
 import { IdentityBar } from './features/identity/IdentityBar';
+import { LoginGate } from './features/identity/LoginGate';
+import { ForcePinGate } from './features/identity/ForcePinGate';
 import { SetupWizard } from './features/setup/SetupWizard';
 import { BootstrapGate } from './features/setup/BootstrapGate';
 import { ChecklistQuickRecord } from './features/checklist';
@@ -153,6 +155,16 @@ function ConsoleApp({ apiClient, settings }: { apiClient: HubApiClient; settings
   const needsBootstrapGate = gateConditionMet || (gateShownRef.current && !gateDone);
   if (needsBootstrapGate) {
     return <BootstrapGate client={apiClient} onDone={() => { gateShownRef.current = false; setGateDone(true); }} />;
+  }
+
+  // AUTH-GATE 公网加固：身份模式下未登录 → 整屏登录闸（看不到任何业务页；服务端读闸 401 兜底）；
+  // 已登录但 mustSetPin（无 pinHash 首登）→ 整屏强制设 PIN（服务端 403 PIN_SETUP_REQUIRED 兜底）。
+  // 匿名模式两闸都不出现（匿名部署无私密面）。
+  if (identityMode === 'identity' && !sessionQuery.isLoading) {
+    if (!identitySession) return <LoginGate client={apiClient} />;
+    if (sessionQuery.data?.mustSetPin) {
+      return <ForcePinGate client={apiClient} session={identitySession} />;
+    }
   }
 
   // 页面注册表（console-pages.tsx）驱动渲染 + 标题——不再是 if-else 链（HUB-MODULARIZATION 第2步）。

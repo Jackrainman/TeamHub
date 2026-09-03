@@ -1,7 +1,6 @@
 export {
   ClearPinResponseSchema,
   IdentityModeSchema,
-  MemberPinResponseSchema,
   SessionIdentitySchema,
   SessionRequestSchema,
   SessionResponseSchema,
@@ -13,7 +12,6 @@ export {
 export type {
   ClearPinResponse,
   IdentityMode,
-  MemberPinResponse,
   SessionIdentity,
   SessionRequest,
   SessionResponse,

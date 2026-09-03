@@ -22,7 +22,7 @@ export const zhSetup = {
   'setup.real.desc': '空白开始，录你们战队真实的任务和数据。正式用，选这个。',
   'setup.real.identity.question': '写操作要登录吗？',
   'setup.real.identity.identity': '登录制（推荐）',
-  'setup.real.identity.identityHint': '认领 / 验收都留名。不设 PIN 就是点名字即登录，想要密码再补。',
+  'setup.real.identity.identityHint': '认领 / 验收都留名。首次登录后须先设密码（至少 8 位）。',
   'setup.real.identity.anon': '匿名共用（最省事）',
   'setup.real.identity.anonHint':
     '不用登录，谁都能改、写操作不留名。暴露到内网时需要共享一个写口令。',
@@ -66,7 +66,7 @@ export const enSetup = {
   'setup.real.identity.question': 'Require login to write?',
   'setup.real.identity.identity': 'Login (recommended)',
   'setup.real.identity.identityHint':
-    'Claims and reviews are attributed. With no PIN, picking your name logs you in; add a password later if you want.',
+    'Claims and reviews are attributed. On first login you set a password (8+ characters).',
   'setup.real.identity.anon': 'Anonymous (simplest)',
   'setup.real.identity.anonHint':
     "No login — anyone can edit and writes aren't attributed. Needs a shared write passphrase when exposed on a LAN.",

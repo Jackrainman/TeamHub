@@ -178,15 +178,12 @@ export interface PmRepository {
    * 走 MemberPublicSchema 剥离）。旧 JSON decorator 落 governance.json（members 是 GovernanceSnapshot 字段，
    * persist 失败按 idx 原地还原，镜像 updateTaskStatus）。
    * **`pinHash = null`（公测余项⑦ PIN-RESET）= 清除 pinHash**（DELETE /api/members/:id/pin 消费）：
-   * 成员回到「无 pinHash 免 PIN」态，下次登录后经 firstSetup 流程自行重设。授权（须 superAdmin）在路由层判。
-   * **pinPlaintext 双写双清（打磨轮刀⑧②，用户拍板的密钥纪律例外）**：设值路径须同笔传明文副本
-   * （供 GET /api/members/:id/pin「显示PIN」单条读取）；未传则连同旧副本一并清（防 hash/明文错位）；
-   * `pinHash = null` 清除路径明文副本同笔清。
+   * 成员回到「未设密码」态，下次登录后走首登强制设密码流程（mustSetPin）。授权（须 superAdmin）在路由层判。
+   * **绝不回存明文**（AUTH-GATE 2026-09-04 撤销刀⑧②明文副本例外）：只落 scrypt 散列。
    */
   setMemberPin(
     memberId: string,
     pinHash: string | null,
-    pinPlaintext?: string,
   ): Promise<Member | null>;
 
   /**

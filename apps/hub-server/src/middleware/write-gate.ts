@@ -27,7 +27,7 @@ export function registerWriteGate(app: FastifyInstance, opts: WriteGateOptions):
     const isSetupBootstrap =
       path === '/api/setup/super-admin' && request.method === 'POST';
     const isPinRecovery =
-      request.method === 'DELETE' &&
+      (request.method === 'DELETE' || request.method === 'PUT') &&
       /^\/api\/members\/[^/]+\/pin$/.test(path) &&
       isLoopbackOperator(request, trustProxy);
     const sessionAuthed = identityMode === 'identity' && request.identity != null;

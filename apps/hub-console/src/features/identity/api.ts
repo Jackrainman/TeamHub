@@ -1,6 +1,5 @@
 import {
   ClearPinResponseSchema,
-  MemberPinResponseSchema,
   MembersResponseSchema,
   RosterImportReportSchema,
   RosterPreviewResponseSchema,
@@ -10,13 +9,15 @@ import {
   SetProjectManagerResponseSchema,
   SetupSuperAdminResponseSchema,
   type ClearPinResponse,
-  type MemberPinResponse,
   type MemberPublic,
   type RosterImportReport,
   type RosterImportRow,
   type RosterPreviewResponse,
+  SetPinResponseSchema,
   type SessionRequest,
   type SessionResponse,
+  type SetPinRequest,
+  type SetPinResponse,
   type SetGateReviewerRequest,
   type SetGateReviewerResponse,
   type SetMemberRoleRequest,
@@ -38,12 +39,12 @@ export interface IdentitySegment {
   getSession(): Promise<SessionResponse>;
   login(req: SessionRequest): Promise<SessionResponse>;
   logout(): Promise<SessionResponse>;
+  setMemberPin(id: string, req: SetPinRequest): Promise<SetPinResponse>;
   setMemberGateReviewer(id: string, req: SetGateReviewerRequest): Promise<SetGateReviewerResponse>;
   setMemberRole(id: string, req: SetMemberRoleRequest): Promise<SetMemberRoleResponse>;
   setMemberProjectManager(id: string, req: SetProjectManagerRequest): Promise<SetProjectManagerResponse>;
   setupSuperAdmin(req: SetupSuperAdminRequest): Promise<SetupSuperAdminResponse>;
   clearMemberPin(id: string): Promise<ClearPinResponse>;
-  getMemberPin(id: string): Promise<MemberPinResponse>;
   rosterTemplateUrl(): string;
   importRoster(file: File): Promise<RosterImportReport>;
   previewRoster(file: File): Promise<RosterPreviewResponse>;
@@ -65,6 +66,9 @@ export function createIdentitySegment(ctx: HttpContext): IdentitySegment {
     async logout() {
       return sendJson('DELETE', `${baseUrl}/api/session`, undefined, SessionResponseSchema, fetcher, writeToken);
     },
+    async setMemberPin(id: string, req: SetPinRequest) {
+      return sendJson('PUT', `${baseUrl}/api/members/${encodeURIComponent(id)}/pin`, req, SetPinResponseSchema, fetcher, writeToken);
+    },
     async setMemberGateReviewer(id: string, req: SetGateReviewerRequest) {
       return sendJson('PUT', `${baseUrl}/api/members/${encodeURIComponent(id)}/gate-reviewer`, req, SetGateReviewerResponseSchema, fetcher, writeToken);
     },
@@ -79,9 +83,6 @@ export function createIdentitySegment(ctx: HttpContext): IdentitySegment {
     },
     async clearMemberPin(id: string) {
       return sendJson('DELETE', `${baseUrl}/api/members/${encodeURIComponent(id)}/pin`, undefined, ClearPinResponseSchema, fetcher, writeToken);
-    },
-    async getMemberPin(id: string) {
-      return fetchJson(`${baseUrl}/api/members/${encodeURIComponent(id)}/pin`, MemberPinResponseSchema, fetcher);
     },
     rosterTemplateUrl() {
       return `${baseUrl}/api/roster/template`;

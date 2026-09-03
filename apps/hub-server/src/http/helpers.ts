@@ -153,10 +153,12 @@ export function readSessionCookie(request: { headers: { cookie?: string } }): st
   return null;
 }
 
-export function buildSessionCookie(token: string): string {
-  return `${SESSION_COOKIE}=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${SESSION_TTL_SECONDS}`;
+export function buildSessionCookie(token: string, opts?: { secure?: boolean }): string {
+  const secure = opts?.secure ? '; Secure' : '';
+  return `${SESSION_COOKIE}=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${SESSION_TTL_SECONDS}${secure}`;
 }
 
-export function clearSessionCookie(): string {
-  return `${SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0`;
+export function clearSessionCookie(opts?: { secure?: boolean }): string {
+  const secure = opts?.secure ? '; Secure' : '';
+  return `${SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0${secure}`;
 }

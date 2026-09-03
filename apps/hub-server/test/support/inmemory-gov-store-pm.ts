@@ -170,22 +170,20 @@ export function PmCoreMixin<T extends Base>(
     }
 
     /**
-     * 设 / 改成员登录 PIN 散列（PUT /api/members/:id/pin，IDENTITY-LITE）。就地改 members[idx].pinHash
+     * 设 / 改成员登录密码散列（PUT /api/members/:id/pin，IDENTITY-LITE）。就地改 members[idx].pinHash
      * （scrypt 串，路由层散列后传入）+ bump updatedAt、钉 updatedBy=`console`。id 不存在 → null（路由转 404）。
-     * **`pinHash = null`（公测余项⑦ PIN-RESET）= 清除 pinHash**（DELETE pin 消费）：成员回到免 PIN 态。
-     * **pinPlaintext 双写双清（刀⑧②）**：设值同笔落明文副本（未传则清旧副本，防 hash/明文错位）；
-     * 清除路径明文副本一并清。**密钥纪律**：pinHash/pinPlaintext 只落内存 / 落盘，读视图剥离
-     * （路由回带走 MemberPublicSchema；明文唯一透出口 = GET /api/members/:id/pin）。
+     * **`pinHash = null`（公测余项⑦ PIN-RESET）= 清除 pinHash**（DELETE pin 消费）：成员回到未设密码态。
+     * **密钥纪律（AUTH-GATE）**：绝不回存明文（刀⑧②明文副本例外已撤销）；pinHash 只落内存 / 落盘，
+     * 读视图剥离（路由回带走 MemberPublicSchema）。
      */
     async setMemberPin(
       memberId: string,
       pinHash: string | null,
-      pinPlaintext?: string,
     ): Promise<Member | null> {
       const idx = this.snapshot.members.findIndex((m) => m.id === memberId);
       if (idx === -1) return null;
       const now = this.clock.now().toISOString();
-      const updated = applyMemberPin(this.snapshot.members[idx], pinHash, pinPlaintext, now);
+      const updated = applyMemberPin(this.snapshot.members[idx], pinHash, now);
       this.snapshot.members[idx] = updated;
       return updated;
     }

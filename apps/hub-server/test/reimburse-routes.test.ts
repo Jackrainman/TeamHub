@@ -103,7 +103,16 @@ async function login(app: FastifyInstance, memberId: string): Promise<string> {
   const res = await app.inject({ method: 'POST', url: '/api/session', payload: { memberId } });
   const cookie = res.cookies.find((c) => c.name === 'teamhub_session');
   expect(cookie?.value).toBeTruthy();
-  return `teamhub_session=${cookie!.value}`;
+  const cookieHeader = `teamhub_session=${cookie!.value}`;
+  // AUTH-GATE：无 pinHash 成员登录后是 mustSetPin 会话（业务请求 403）——测试补设 PIN 过闸。
+  const pinRes = await app.inject({
+    method: 'PUT',
+    url: `/api/members/${memberId}/pin`,
+    headers: { cookie: cookieHeader },
+    payload: { pin: '1234abcd' },
+  });
+  expect(pinRes.statusCode).toBe(200);
+  return cookieHeader;
 }
 
 function buildTestApp() {
@@ -571,7 +580,11 @@ describe('报账 profile 与窄入库上下文', () => {
       const entryA = await createEntry(app, cookieA);
       await createEntry(app, cookieB);
 
-      const profile = await app.inject({ method: 'GET', url: '/api/reimburse/profile' });
+      const profile = await app.inject({
+        method: 'GET',
+        url: '/api/reimburse/profile',
+        headers: { cookie: cookieA }, // AUTH-GATE：读闸后 profile 也须登录
+      });
       expect(GetReimburseProfileResponseSchema.parse(profile.json()).profile)
         .toMatchObject({ expectedPurchaserName: '哈尔滨工业大学' });
       const forbidden = await app.inject({

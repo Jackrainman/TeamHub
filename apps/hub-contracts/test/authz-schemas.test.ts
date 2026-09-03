@@ -93,12 +93,20 @@ describe('MemberSchema：旧数据 role:superAdmin 加载归一（MEMBER-PM-FLAG
   });
 });
 
-describe('SetupSuperAdminRequestSchema：PIN min4 max64', () => {
-  test('4–64 位合法；<4 拒绝；>64 拒绝；缺 pin 拒绝', () => {
-    expect(SetupSuperAdminRequestSchema.safeParse({ pin: '1234' }).success).toBe(true);
+describe('SetupSuperAdminRequestSchema：密码 min8 max64（AUTH-GATE 升级）', () => {
+  test('8–64 位合法；<8 拒绝；>64 拒绝；缺 pin 拒绝', () => {
+    expect(SetupSuperAdminRequestSchema.safeParse({ pin: '1234abcd' }).success).toBe(true);
     expect(SetupSuperAdminRequestSchema.safeParse({ pin: 'x'.repeat(64) }).success).toBe(true);
-    expect(SetupSuperAdminRequestSchema.safeParse({ pin: '123' }).success).toBe(false);
+    expect(SetupSuperAdminRequestSchema.safeParse({ pin: '1234567' }).success).toBe(false);
     expect(SetupSuperAdminRequestSchema.safeParse({ pin: 'x'.repeat(65) }).success).toBe(false);
     expect(SetupSuperAdminRequestSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe('SetPinRequestSchema：密码 min8（AUTH-GATE）', () => {
+  test('<8 拒绝；≥8 合法', async () => {
+    const { SetPinRequestSchema } = await import('../src/index.js');
+    expect(SetPinRequestSchema.safeParse({ pin: '1234' }).success).toBe(false);
+    expect(SetPinRequestSchema.safeParse({ pin: '12345678' }).success).toBe(true);
   });
 });

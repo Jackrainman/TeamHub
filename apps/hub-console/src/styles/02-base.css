@@ -259,6 +259,51 @@ button,
   margin-left: 10px;
 }
 
+/* ===== AUTH-GATE：整屏登录闸 / 首登强制设 PIN 闸 ===== */
+.auth-gate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.auth-gate__card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 380px;
+  padding: 28px 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--panel, #fff);
+}
+
+.auth-gate__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: var(--text-lg, 18px);
+}
+
+.auth-gate__subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.auth-gate__pin {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  background: var(--bg, #fff);
+  color: inherit;
+}
+
 /* U1 修复（UX 扫描：classic/warm/dark "看不出在哪页"）：下方 `.console-nav .nav-item`
    的 background: transparent（0,2,0）一直压过本规则（0,1,0）——tech 靠 :root[data-theme]
    （0,3,0）侥幸存活，其余三主题 active 全灭。抬到同级 + 补全主题通用左轨。 */
