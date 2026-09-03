@@ -122,6 +122,8 @@ export interface ConsolePageDescriptor {
   titleKey: TranslationKey;
   icon: typeof Home;
   section: ConsoleSection;
+  /** 内测标记：导航项与页头标题旁显示「内测中」徽标（功能未定型，先小范围试用）。 */
+  beta?: boolean;
   render: (ctx: PageRenderCtx) => ReactElement | null;
   // 页面归属模块（§3.3 模块清单表逐字对照）：过滤/降级判定的唯一依据，非重复真相——
   // 加一页时这一个字段就决定它在哪些租户下出现，不须另开一张映射表。
@@ -208,6 +210,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     titleKey: 'toolbar.title.schedule',
     icon: CalendarDays,
     section: 'work',
+    beta: true,
     moduleId: 'presence-schedule',
     render: (ctx) => <SchedulePage client={ctx.apiClient} source={ctx.source} />,
   },
@@ -217,6 +220,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     titleKey: 'toolbar.title.knowledge',
     icon: BookOpen,
     section: 'manage',
+    beta: true,
     moduleId: 'knowledge-base',
     render: (ctx) => <KbSearchPage client={ctx.apiClient} source={ctx.source} />,
   },
@@ -226,6 +230,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     titleKey: 'toolbar.title.archive',
     icon: FileStack,
     section: 'manage',
+    beta: true,
     moduleId: 'archive',
     render: (ctx) => <ArchivePage client={ctx.apiClient} source={ctx.source} />,
   },

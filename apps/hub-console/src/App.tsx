@@ -186,6 +186,7 @@ function ConsoleApp({ apiClient, settings }: { apiClient: HubApiClient; settings
               : disabledPage
                 ? t('module.disabled.title')
                 : null}
+            {activePage?.beta ? <span className="beta-badge">{t('beta.badge')}</span> : null}
           </h1>
         </div>
         <div className="console-toolbar__actions">

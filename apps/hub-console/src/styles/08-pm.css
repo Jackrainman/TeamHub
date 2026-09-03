@@ -365,13 +365,8 @@
 .dep-graph-topbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
-}
-
-.dep-graph-topbar__note {
-  color: var(--muted);
-  font-size: var(--text-sm);
 }
 
 .detail-note {

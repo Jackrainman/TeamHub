@@ -1,6 +1,48 @@
 {
   "focus": [
     {
+      "id": "UI-TEXT-CLEANUP",
+      "title": "前端解释性文字清理（观感）：把内部设计原则/红线说明从用户可见 UI 里拿掉——已知 ①depgraph.entry.note『图上只显任务、组和卡点，不排个人』②pool.search.note『找到做过的人，自己去联系（搜索只列事实卡，不做技能画像/花名册）』③pool.list.intro『挂单池 · 无主待领的活（按滞留时长排，挂最久排最前）』；打法=派子 agent 全仓扫描同类问题（i18n locales + 页面组件里的说教式/辩护式文案），主 agent 统一修；尺度拍板=能删就删，只留功能性提示",
+      "owner": "agent",
+      "priority": "P0"
+    },
+    {
+      "id": "POOL-RENAME",
+      "title": "挂单池更名『领任务』——用户已拍板；牵连 i18n 值、project.view.pool tab、pool.list.aria、MyView 空态、workbench 文案等约 10 处，只改值不动 key",
+      "owner": "user",
+      "priority": "P0"
+    },
+    {
+      "id": "REIMBURSE-TEST",
+      "title": "报账模块全面测试（流程级：记一笔→条目→购买方→批次提交/导出/快照锁；含上轮 v0.70.0 修的 7 个缺陷回归）",
+      "owner": "agent",
+      "priority": "P0"
+    },
+    {
+      "id": "BETA-BADGES",
+      "title": "内测标记：排障档案、图纸档案、每日在场 三个入口/页头加『内测中』徽标",
+      "owner": "agent",
+      "priority": "P0"
+    },
+    {
+      "id": "NAV-REGROUP",
+      "title": "导航归类讨论：学习方向、时间线不作为顶级大项——用户拍板『先看项目整体思路再归』（两项同），暂不动，待整体信息架构讨论",
+      "owner": "user",
+      "priority": "P0"
+    },
+    {
+      "id": "AUTH-LOGIN-GATE",
+      "title": "登录闸门+公网加固：①未登录必须登录才能查看任何页面 ②账号首次登录强制先设 PIN 再进入 ③公网暴露加固（PIN 校验限流/失败锁定、cookie Secure 标记、HTTPS 确认、session TTL 复核——现状注释写死『内网家庭影院级威胁模型』，与公网暴露事实不符，需升级）；用户纠结自建 vs 成熟框架（怕公网任何人进来、怕 2FA 麻烦），倾向待我出结论",
+      "owner": "agent",
+      "priority": "P0"
+    },
+    {
+      "id": "AUTH-FRAMEWORK-EVAL",
+      "title": "登录框架评估：用户担心自己写登录易成屎山，想引现成框架；现状=自建 scrypt PIN + 内存 SessionManager（httpOnly cookie，identity/pin.ts + session-store.ts，~百行，有明确威胁模型）；评估 better-auth/Lucia 等是否适配本项目形态（SQLite 单实例内网、无 OAuth 需求）",
+      "owner": "agent",
+      "priority": "P0"
+    },
+    {
       "id": "REIMBURSE-AUTOFILL-RESEARCH",
       "title": "报账自动填单调研（用户侧）：核心愿景=任意票据上传后自动填好绝大多数数据、只需微调；可打包为文件夹并归档到正确位置；自动提取信息导出 txt/word/excel；报账种类非常多，需先调研识别方案再评接入",
       "note": "当前阶段最高优先=把报账系统做好；本项为调研前置，结论回来后再立项",

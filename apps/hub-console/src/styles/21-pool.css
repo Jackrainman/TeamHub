@@ -32,12 +32,6 @@
 .pool-search__box input:focus {
   outline: none;
 }
-.pool-search__note {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--faint);
-  line-height: 1.5;
-}
 .pool-results {
   display: flex;
   flex-direction: column;

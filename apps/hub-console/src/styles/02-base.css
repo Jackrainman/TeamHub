@@ -240,6 +240,25 @@ button,
   text-decoration: none;
 }
 
+/* 「内测中」徽标：导航项与页头标题共用（BETA-BADGES）。 */
+.beta-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--amber, #b8860b);
+  color: var(--amber, #b8860b);
+  font-size: var(--text-xs, 11px);
+  font-weight: var(--weight-bold);
+  line-height: 1.4;
+  vertical-align: middle;
+  opacity: 0.85;
+}
+
+.console-toolbar h1 .beta-badge {
+  margin-left: 10px;
+}
+
 /* U1 修复（UX 扫描：classic/warm/dark "看不出在哪页"）：下方 `.console-nav .nav-item`
    的 background: transparent（0,2,0）一直压过本规则（0,1,0）——tech 靠 :root[data-theme]
    （0,3,0）侥幸存活，其余三主题 active 全灭。抬到同级 + 补全主题通用左轨。 */

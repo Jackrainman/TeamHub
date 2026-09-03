@@ -32,7 +32,6 @@ export function PoolSearch({
           aria-label={t('pool.search.aria')}
         />
       </div>
-      <p className="pool-search__note">{t('pool.search.note')}</p>
       {q.length > 0 ? (
         searchQuery.isLoading ? (
           <p className="gaps-note">{t('pm.loading')}</p>

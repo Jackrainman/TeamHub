@@ -243,7 +243,6 @@ export function DepGraphPage({
   return (
     <div className="dep-graph-page">
       <div className="dep-graph-topbar">
-        <span className="dep-graph-topbar__note">{t('depgraph.entry.note')}</span>
         {onNewTask ? (
           <button type="button" className="btn btn--primary" onClick={onNewTask}>
             <Plus size={14} aria-hidden="true" /> {t('depgraph.toolbar.newTask')}

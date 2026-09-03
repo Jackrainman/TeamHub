@@ -112,8 +112,8 @@ export const zhOverview = {
   'overview.checklist.warn.title': '欠条到期示警',
   'overview.checklist.warn.overdue': '{title}：已过期 {days} 天',
   'overview.checklist.warn.pendingCount': '还有 {count} 项欠条未清',
-  'myview.empty.pool': '没有进行中的任务，挂单池里有 {n} 个活——没把握就去问问学长。',
-  'myview.empty.goPool': '去挂单池看看',
+  'myview.empty.pool': '没有进行中的任务，「领任务」里还有 {n} 个活。',
+  'myview.empty.goPool': '去领任务看看',
 };
 
 export const enOverview = {
@@ -237,6 +237,6 @@ export const enOverview = {
   'overview.checklist.warn.title': 'IOU due warnings',
   'overview.checklist.warn.overdue': '{title}: {days} day(s) overdue',
   'overview.checklist.warn.pendingCount': '{count} IOU(s) still pending',
-  'myview.empty.pool': 'No in-progress tasks. The pool has {n} open item(s) — if unsure, go ask a senior.',
-  'myview.empty.goPool': 'Go to the pool',
+  'myview.empty.pool': 'No in-progress tasks — {n} open item(s) under "Claim tasks".',
+  'myview.empty.goPool': 'Go claim a task',
 };
