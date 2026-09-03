@@ -8,7 +8,7 @@
     },
     {
       "id": "AUTH-LOGIN-GATE",
-      "title": "登录闸门+公网加固：①未登录必须登录才能查看任何页面 ②账号首次登录强制先设 PIN 再进入 ③公网暴露加固（PIN 校验限流/失败锁定、cookie Secure 标记、HTTPS 确认、session TTL 复核——现状注释写死『内网家庭影院级威胁模型』，与公网暴露事实不符，需升级）④顺手发现的安全债：成员数据里存了 pinPlaintext 明文（pin.ts 注释自称『绝不存明文』，生产库 member-new-1 实测带 pinPlaintext:'1234'），需查来源并清除；用户纠结自建 vs 成熟框架（怕公网任何人进来、怕 2FA 麻烦），倾向待我出结论",
+      "title": "登录闸门+公网加固：①未登录必须登录才能查看任何页面 ②账号首次登录强制先设 PIN 再进入 ③公网暴露加固（PIN 校验限流/失败锁定、cookie Secure 标记、HTTPS 确认、session TTL 复核——现状注释写死『内网家庭影院级威胁模型』，与公网暴露事实不符，需升级）④成员数据存 PIN 明文副本（查源码=pm/logic.ts 有意设计：admin 可找回 PIN，读视图经 MemberPublicSchema 剥离；但公网暴露下威胁模型需重估此项）；用户纠结自建 vs 成熟框架（怕公网任何人进来、怕 2FA 麻烦），倾向待我出结论",
       "owner": "agent",
       "priority": "P0"
     },
