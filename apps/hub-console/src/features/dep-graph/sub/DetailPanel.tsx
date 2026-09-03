@@ -84,7 +84,6 @@ export function DetailPanel({
           label={t('depgraph.detail.ownerGroup')}
           value={`${node.ownerLabel ?? t('depgraph.node.unassigned')} · ${node.groupName}`}
         />
-        <p className="detail-note">{t('depgraph.detail.ownerNote')}</p>
         <DetailRow
           label={t('depgraph.detail.robotComplexity')}
           value={[node.robotTarget, t(complexityKey(node.intrinsicComplexity))]

@@ -1,30 +1,6 @@
 {
   "focus": [
     {
-      "id": "UI-TEXT-CLEANUP",
-      "title": "前端解释性文字清理（观感）：把内部设计原则/红线说明从用户可见 UI 里拿掉——已知 ①depgraph.entry.note『图上只显任务、组和卡点，不排个人』②pool.search.note『找到做过的人，自己去联系（搜索只列事实卡，不做技能画像/花名册）』③pool.list.intro『挂单池 · 无主待领的活（按滞留时长排，挂最久排最前）』；打法=派子 agent 全仓扫描同类问题（i18n locales + 页面组件里的说教式/辩护式文案），主 agent 统一修；尺度拍板=能删就删，只留功能性提示",
-      "owner": "agent",
-      "priority": "P0"
-    },
-    {
-      "id": "POOL-RENAME",
-      "title": "挂单池更名『领任务』——用户已拍板；牵连 i18n 值、project.view.pool tab、pool.list.aria、MyView 空态、workbench 文案等约 10 处，只改值不动 key",
-      "owner": "user",
-      "priority": "P0"
-    },
-    {
-      "id": "REIMBURSE-TEST",
-      "title": "报账模块全面测试（流程级：记一笔→条目→购买方→批次提交/导出/快照锁；含上轮 v0.70.0 修的 7 个缺陷回归）",
-      "owner": "agent",
-      "priority": "P0"
-    },
-    {
-      "id": "BETA-BADGES",
-      "title": "内测标记：排障档案、图纸档案、每日在场 三个入口/页头加『内测中』徽标",
-      "owner": "agent",
-      "priority": "P0"
-    },
-    {
       "id": "NAV-REGROUP",
       "title": "导航归类讨论：学习方向、时间线不作为顶级大项——用户拍板『先看项目整体思路再归』（两项同），暂不动，待整体信息架构讨论",
       "owner": "user",
@@ -32,7 +8,7 @@
     },
     {
       "id": "AUTH-LOGIN-GATE",
-      "title": "登录闸门+公网加固：①未登录必须登录才能查看任何页面 ②账号首次登录强制先设 PIN 再进入 ③公网暴露加固（PIN 校验限流/失败锁定、cookie Secure 标记、HTTPS 确认、session TTL 复核——现状注释写死『内网家庭影院级威胁模型』，与公网暴露事实不符，需升级）；用户纠结自建 vs 成熟框架（怕公网任何人进来、怕 2FA 麻烦），倾向待我出结论",
+      "title": "登录闸门+公网加固：①未登录必须登录才能查看任何页面 ②账号首次登录强制先设 PIN 再进入 ③公网暴露加固（PIN 校验限流/失败锁定、cookie Secure 标记、HTTPS 确认、session TTL 复核——现状注释写死『内网家庭影院级威胁模型』，与公网暴露事实不符，需升级）④顺手发现的安全债：成员数据里存了 pinPlaintext 明文（pin.ts 注释自称『绝不存明文』，生产库 member-new-1 实测带 pinPlaintext:'1234'），需查来源并清除；用户纠结自建 vs 成熟框架（怕公网任何人进来、怕 2FA 麻烦），倾向待我出结论",
       "owner": "agent",
       "priority": "P0"
     },
@@ -175,6 +151,22 @@
     }
   ],
   "done-tonight": [
+    {
+      "id": "UI-TEXT-CLEANUP",
+      "title": "前端解释性文字清理：子 agent 全仓审计（报告 /tmp/ui-text-audit.md），按『能删就删』尺度清两批——首批 depgraph.entry.note / pool.search.note / pool.list.intro（v0.71.0），二批 ~30 处中英 key：depgraph.detail.ownerNote/blockedByValue、pm.create.subtitle、schedule.note/intro、direction.note/intro×2、kb.empty、inv.record.subtitle、reimb.batch.subtitle、settings.members/roster/deployment.desc、setup 两处、pool.action 系列 hint 等；残留=ROBOTICS_LEARNING_MAP 学习内容文案（在 contracts 层，随 NAV-REGROUP 学习方向去留一起定）"
+    },
+    {
+      "id": "POOL-RENAME",
+      "title": "挂单池更名「领任务」：10 处 i18n 值（中英）+ e2e 标签同步（v0.71.0）"
+    },
+    {
+      "id": "BETA-BADGES",
+      "title": "内测徽标：ConsolePageDescriptor.beta 字段 + 导航项/页头「内测中」胶囊，schedule/knowledge/archive 三页置位（v0.71.0）"
+    },
+    {
+      "id": "REIMBURSE-TEST",
+      "title": "报账模块测试：单测 server 17 + console 36 全绿；起本地实例（生产库副本，4877）走通端到端——登录鉴权、profile 读写、记一笔（完整/可空键宽容）、发票号查重、建批/挂条、质量门拦截（材料不全+购买方不符→blocked 分类）、提交、快照锁（submitted 后改条目/改名均拒）、状态机顺向单向（跳级/逆向均拒）、入库 newPart 联动库存；未发现问题。顺带发现成员数据存 pinPlaintext 明文（转 AUTH-LOGIN-GATE）"
+    },
     {
       "id": "REIMBURSE-PANEL-SPACING",
       "title": "记一笔垫付 UI 间距修复：裸 .panel 无 padding/gap 致表单贴边，补 .reimb-page .panel{padding:14px;gap:12px}（同 .inv-page .panel 先例），一记/条目列表/购买方/批次四区同愈（v0.70.2）"

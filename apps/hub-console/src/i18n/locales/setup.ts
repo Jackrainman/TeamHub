@@ -6,10 +6,10 @@ export const zhSetup = {
     '第一次打开 TeamHub，选一种方式开始。选完自动配置，几秒后就绪；之后随时能在设置里改。',
   'setup.unclaimed.title': '检测到未认领的业务数据',
   'setup.unclaimed.desc':
-    '这个数据库里已有业务事实，但还没有 app_settings。为了避免把旧数据误认领到新部署，TeamHub 不会继续初始化。请先由管理员备份并处理数据库，然后重新加载。',
+    '检测到数据库里已有业务数据，但还没有部署配置。为了避免把旧数据误认领到新部署，初始化已暂停。请先由管理员备份并处理数据库，然后重新加载。',
   'setup.stateUnavailable.title': '暂时无法读取 TeamHub 设置',
   'setup.stateUnavailable.desc':
-    '未能从服务端读到 app_settings 状态。为避免用错模块或垂直包，界面不会使用本地默认值继续。',
+    '未能从服务端读取配置状态。为避免加载错误的模块，界面不会使用本地默认值继续。',
   'setup.stateUnavailable.retry': '重新读取',
   'setup.demo.title': '先试试（演示数据）',
   'setup.demo.desc': '带一套演示任务、机器人和排班，随便点不心疼。想先摸清楚它能干嘛，选这个。',
@@ -47,10 +47,10 @@ export const enSetup = {
     'First time opening TeamHub. Choose a way to begin; it configures itself and is ready in seconds. Change this anytime in Settings.',
   'setup.unclaimed.title': 'Unclaimed business data detected',
   'setup.unclaimed.desc':
-    'This database already contains business facts but has no app_settings. To avoid claiming old data into a new deployment by mistake, TeamHub will not initialize it. Ask an administrator to back up and resolve the database, then reload.',
+    'This database already contains business data but has no deployment configuration. To avoid claiming old data into a new deployment by mistake, initialization is paused. Ask an administrator to back up and resolve the database, then reload.',
   'setup.stateUnavailable.title': 'Unable to read TeamHub settings',
   'setup.stateUnavailable.desc':
-    'The app_settings state could not be read from the server. To avoid loading the wrong modules or vertical package, the console will not continue with local defaults.',
+    'The configuration state could not be read from the server. To avoid loading the wrong modules, the console will not continue with local defaults.',
   'setup.stateUnavailable.retry': 'Read again',
   'setup.demo.title': 'Try it first (demo data)',
   'setup.demo.desc':

@@ -12,7 +12,7 @@ export const zhInv = {
   'inv.ledger.empty.body': '先盘点建底：录闲置件数量，机器人上装了多少后面再补。',
   'inv.shortfall.badge': '缺料',
   'inv.record.title': '一句话快记',
-  'inv.record.subtitle': '选零件记一笔，AI 助手以后也走这个接口自动填。',
+  'inv.record.subtitle': '选零件记一笔。',
   'inv.record.field.partType': '零件',
   'inv.record.field.kind': '动作',
   'inv.record.field.quantity': '本次数量',
@@ -66,7 +66,7 @@ export const zhInv = {
   'inv.create.error': '新建失败：{detail}',
   'inv.import.title': '批量导入',
   'inv.import.desc':
-    '用 CSV 一张表建库存：件号 / 名称 / 类别 / 单位 / 总数 / 低储阈值（阈值可留空）。同件号覆盖更新，绝不删已有零件。',
+    '用 CSV 一张表建库存：件号 / 名称 / 类别 / 单位 / 总数 / 低储阈值（阈值可留空）。同件号覆盖更新，不会删除已有零件。',
   'inv.import.downloadTemplate': '下载模板',
   'inv.import.upload': '上传 CSV',
   'inv.import.importing': '正在导入…',
@@ -97,7 +97,7 @@ export const zhInv = {
   'inv.catopt.electronic': '电子件（线缆 / 模块）',
   'inv.catopt.other': '其他',
   'inv.track.individual.tag': '序号件',
-  'inv.track.individual.hint': '单件追踪：贵重件逐个体记血缘（电机 / 电调 / 主控）。',
+  'inv.track.individual.hint': '单件追踪：贵重件逐个记录拆装历史（电机 / 电调 / 主控）。',
 };
 
 export const enInv = {
@@ -115,8 +115,7 @@ export const enInv = {
     'Start with a stocktake: enter idle quantities; per-robot allocations can be filled in later.',
   'inv.shortfall.badge': 'Low',
   'inv.record.title': 'Quick log',
-  'inv.record.subtitle':
-    'Pick a part and log one entry; the agent will later call the same endpoint automatically.',
+  'inv.record.subtitle': 'Pick a part and log one entry.',
   'inv.record.field.partType': 'Part',
   'inv.record.field.kind': 'Action',
   'inv.record.field.quantity': 'Quantity this time',
@@ -171,7 +170,7 @@ export const enInv = {
   'inv.create.error': 'Create failed: {detail}',
   'inv.import.title': 'Bulk import',
   'inv.import.desc':
-    'Build the inventory from one CSV: part number / name / category / unit / total / low-stock threshold (threshold optional). Same part number overwrites; existing parts are never deleted.',
+    'Build the inventory from one CSV: part number / name / category / unit / total / low-stock threshold (threshold optional). Same part number overwrites; existing parts are kept.',
   'inv.import.downloadTemplate': 'Download template',
   'inv.import.upload': 'Upload CSV',
   'inv.import.importing': 'Importing…',
@@ -203,5 +202,5 @@ export const enInv = {
   'inv.catopt.electronic': 'Electronic (cables / modules)',
   'inv.catopt.other': 'Other',
   'inv.track.individual.tag': 'Serialized',
-  'inv.track.individual.hint': 'Tracked per item: serialized lineage for valuable parts (motor / ESC / controller).',
+  'inv.track.individual.hint': 'Tracked per item: per-unit history for valuable parts (motor / ESC / controller).',
 };

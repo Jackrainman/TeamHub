@@ -48,7 +48,7 @@ export const zhKb = {
   'kb.search.tagsPlaceholder': '例如 CAN, 电机, 底盘',
   'kb.search.submit': '检索相似历史',
   'kb.empty':
-    '输入症状来查：把以前几个赛季碰过的同类 bug 按匹配度列出来。候选而已，用不用你来判断。',
+    '输入症状来查：把以前几个赛季碰过的同类 bug 按匹配度列出来。',
   'kb.loading': '正在检索相似历史…',
   'kb.error': '检索失败（后端没连上？检查后端地址或服务是否在线）',
   'kb.noResults': '没有命中的历史记录（可放宽标签或换个说法再试）。',
@@ -160,7 +160,7 @@ export const enKb = {
   'kb.search.tagsPlaceholder': 'e.g. CAN, motor, chassis',
   'kb.search.submit': 'Search history',
   'kb.empty':
-    'Type a symptom to search: it pulls up similar bugs from past seasons, ranked by how well they match. These are only candidates; you decide which one fits.',
+    'Type a symptom to search: it pulls up similar bugs from past seasons, ranked by how well they match.',
   'kb.loading': 'Searching similar history…',
   'kb.error': 'Search failed (backend not reachable? check the backend address or whether the service is up)',
   'kb.noResults': 'No matching history (loosen tags or rephrase and retry).',

@@ -47,7 +47,7 @@ export const zhSettings = {
   'settings.about.unavailable': '后端状态不可用（未连上？）',
   'settings.section.deployment': '部署信息',
   'settings.deployment.desc':
-    '这台服务器的运行信息。结构化业务事实和产品设置都在统一 SQLite 中，登录模式和启用模块以 app_settings 为准。',
+    '这台服务器的运行信息。业务数据和产品设置都在服务器的 SQLite 数据库中。',
   'settings.deployment.unavailable': '这台后端没提供部署信息（版本较旧？）。',
   'settings.deployment.storage.title': '数据落盘',
   'settings.deployment.domain.gov': '任务与进度',
@@ -171,7 +171,7 @@ export const zhSettings = {
   'settings.section.connection': '连接',
   'settings.section.members': '成员与权限',
   'settings.members.desc':
-    '管理每位成员的角色、项目管理旗标与门验收人资格。项目管理旗标决定谁能改敏感设置（授旗/收旗、建赛季等）；角色决定谁是组长（可指派本组任务）；验收人（大三）可签字豁免欠条。名单只做权限，不做任何按人统计。',
+    '管理每位成员的角色、项目管理旗标与门验收人资格。项目管理旗标决定谁能改敏感设置（授旗/收旗、建赛季等）；角色决定谁是组长（可指派本组任务）；验收人（大三）可签字豁免欠条。',
   'settings.members.empty': '暂无成员。',
   'settings.members.role.label': '角色',
   'settings.members.role.groupAdmin': '组长',
@@ -211,7 +211,7 @@ export const zhSettings = {
   'settings.permission.adminOnly': '此操作需要管理员（项目管理旗标）权限。',
   'settings.roster.title': '名册导入',
   'settings.roster.desc':
-    '用 CSV 批量导入 / 更新成员。列：姓名、年级（大一/大二/大三/大四/研究生）、组（组名，不存在会自动新建）。以姓名为准：已有则更新、没有则新建；库里有但表里没有的成员只提示、绝不删除。验收人按年级自动标（大三及以上）；导入完成后逐组确认组长。',
+    '用 CSV 批量导入 / 更新成员。列：姓名、年级（大一/大二/大三/大四/研究生）、组（组名，不存在会自动新建）。以姓名为准：已有则更新、没有则新建；库里有但表里没有的成员只提示、不会删除。验收人按年级自动标（大三及以上）；导入完成后逐组确认组长。',
   'settings.leads.title': '确认各组组长',
   'settings.leads.desc':
     '逐组从该组成员里选一名组长（有成员的组必选，已按现任组长或第一行成员预填建议）。没录入人的组不出现，可稍后再任命。',
@@ -298,7 +298,7 @@ export const enSettings = {
   'settings.about.unavailable': 'Backend status unavailable (not connected?)',
   'settings.section.deployment': 'Deployment',
   'settings.deployment.desc':
-    "How this server is running. Structured business facts and product settings share the unified SQLite database; login mode and enabled modules come from app_settings.",
+    "How this server is running. Business data and product settings live in the server's SQLite database.",
   'settings.deployment.unavailable': 'This backend did not report deployment info (older version?).',
   'settings.deployment.storage.title': 'Data persistence',
   'settings.deployment.domain.gov': 'Tasks & progress',
@@ -426,7 +426,7 @@ export const enSettings = {
   'settings.section.connection': 'Connection',
   'settings.section.members': 'Members & permissions',
   'settings.members.desc':
-    "Manage each member's role, project-management flag and gate-reviewer status. The project-management flag decides who can change sensitive settings (granting flags, creating seasons); roles decide who is a group lead (may assign their group's tasks); reviewers (juniors) may sign off IOU waivers. The roster is permissions only — no per-person tallies.",
+    "Manage each member's role, project-management flag and gate-reviewer status. The project-management flag decides who can change sensitive settings (granting flags, creating seasons); roles decide who is a group lead (may assign their group's tasks); reviewers (juniors) may sign off IOU waivers.",
   'settings.members.empty': 'No members yet.',
   'settings.members.role.label': 'Role',
   'settings.members.role.groupAdmin': 'Group lead',
@@ -467,7 +467,7 @@ export const enSettings = {
   'settings.permission.adminOnly': 'This action requires admin (project-management flag) permission.',
   'settings.roster.title': 'Roster import',
   'settings.roster.desc':
-    'Bulk import / update members from CSV. Columns: name, grade (freshman/sophomore/junior/senior/graduate), group (group name; auto-created if missing). Keyed by name: existing rows are updated, new ones created; members in the roster but not in the sheet are only reported, never deleted. Reviewers are auto-marked by grade (junior and above); after import, confirm a lead for each group.',
+    'Bulk import / update members from CSV. Columns: name, grade (freshman/sophomore/junior/senior/graduate), group (group name; auto-created if missing). Keyed by name: existing rows are updated, new ones created; members in the roster but not in the sheet are only reported, not deleted. Reviewers are auto-marked by grade (junior and above); after import, confirm a lead for each group.',
   'settings.leads.title': 'Confirm group leads',
   'settings.leads.desc':
     'Pick one lead per group from that group’s members (required for groups with members; pre-filled with the current lead or first member). Groups with no members are not shown — you can appoint later.',

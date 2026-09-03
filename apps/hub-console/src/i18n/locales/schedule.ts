@@ -1,8 +1,7 @@
 export const zhSchedule = {
   'schedule.loading': '正在算这天谁在场…',
   'schedule.error': '在场安排打不开（后端没连上？检查后端地址或服务是否在线）',
-  'schedule.intro': '哪个组今天要到、哪个组不用来，是按任务进度和机器人状态算的，不是手排的。',
-  'schedule.note': '只到组这一级，不往下到人：知道哪个组要到就够了，不点名，也不记出勤次数。',
+  'schedule.intro': '每日在场安排按任务进度和机器人状态自动生成。',
   'schedule.empty.title': '这天还没有安排',
   'schedule.empty.body': '队长还没录这天的用机器人安排，或者这个时段跟你们组没关系。',
   'schedule.mode.present': '在场',
@@ -68,7 +67,7 @@ export const zhSchedule = {
   'schedule.relay.carryConfirm': '这天已经排了，沿用上一天会再叠一份，确定？',
   'schedule.relay.carryEmpty': '上一天也没排，没东西可沿用。',
   'schedule.relay.carryDone': '已沿用上一天的 {n} 棒。',
-  'schedule.relay.carryError': '没沿用上，整批都没落盘（原子提交，要么全成要么全不成），直接重试就行：{detail}',
+  'schedule.relay.carryError': '没沿用上，未做任何改动，直接重试即可：{detail}',
   'schedule.relay.addEmptyRobot': '还没有可上场的机器人，先在上面新建一台。',
   'schedule.relay.addEmptyTask': '还没有任务可排，先去项目看板建一条任务。',
   'schedule.relay.addTaskExisting': '选已有任务',
@@ -107,7 +106,7 @@ export const zhSchedule = {
   'resources.loading': '正在加载机器人队…',
   'resources.error': '机器人队打不开（后端没连上？检查后端地址或服务在不在线）',
   'resources.intro':
-    '管整台机器人：新建机器人、改状态（空着 / 在用 / 在修 / 退役 / 拆了）。编号按赛季和编号位自动生成，不用手填。退役只改状态，机器人不删——历史排班还指着它呢。',
+    '管整台机器人：新建机器人、改状态（空着 / 在用 / 在修 / 退役 / 拆了）。编号按赛季和编号位自动生成。退役只改状态，不删除机器人，历史排班记录仍可追溯。',
   'resources.summary.total': '机器人总数',
   'resources.summary.active': '还能上场的',
   'resources.empty': '还没有机器人——初始化第一台车从这里开始。',
@@ -173,8 +172,7 @@ export const zhSchedule = {
 export const enSchedule = {
   'schedule.loading': 'Working out who is in…',
   'schedule.error': "Can't open the presence plan (backend offline? check address/service)",
-  'schedule.intro': 'Which groups need to come in and which can sit it out, worked out automatically from task progress and rig status, not hand-assigned.',
-  'schedule.note': 'By group, never by name: it just says which group should show up, with no names and no attendance counts.',
+  'schedule.intro': 'Daily presence is generated automatically from task progress and rig status.',
   'schedule.empty.title': 'Nothing scheduled',
   'schedule.empty.body': "The lead hasn't logged the day's rig plan yet, or this time slot doesn't involve your group.",
   'schedule.mode.present': 'Present',
@@ -248,7 +246,7 @@ export const enSchedule = {
   'schedule.relay.carryEmpty': 'The previous day is empty too — nothing to copy.',
   'schedule.relay.carryDone': 'Copied {n} leg(s) from the previous day.',
   'schedule.relay.carryError':
-    "Couldn't copy — nothing was saved (all-or-nothing submit), so it's safe to just retry: {detail}",
+    "Couldn't copy — nothing was changed, so it's safe to just retry: {detail}",
   'schedule.relay.addEmptyRobot': 'No robot available yet — add one above first.',
   'schedule.relay.addEmptyTask':
     'No task to schedule yet — create one on the project board first.',
@@ -295,7 +293,7 @@ export const enSchedule = {
   'resources.error':
     "Can't open the fleet (backend offline? check the address or whether the service is up)",
   'resources.intro':
-    "This is where you manage whole robots: create a new one, change its status (free / in use / in repair / retired / taken apart). The code is auto-generated from the season and slot — no typing it by hand. Retiring doesn't delete a robot; the whole thing stays, since old schedules still point at it.",
+    "This is where you manage whole robots: create a new one, change its status (free / in use / in repair / retired / taken apart). The code is auto-generated from the season and slot. Retiring doesn't delete a robot; past schedules keep pointing at it.",
   'resources.summary.total': 'Robots total',
   'resources.summary.active': 'Still raceable',
   'resources.empty': 'No robots yet — initialize your first robot here.',

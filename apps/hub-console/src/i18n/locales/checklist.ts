@@ -105,14 +105,14 @@ export const zhChecklist = {
   'gate.season.skip': '跳过，进 app 后再建',
   'gate.season.error': '创建赛季失败：{detail}',
   'gate.inv.desc':
-    '用 CSV 一张表把库存建起来：件号 / 名称 / 类别 / 单位 / 总数 / 低储阈值（阈值可留空）。上传后先预览、可逐行改，确认才真正导入；同件号覆盖更新，绝不删已有零件。没有库存要录可直接跳过。',
+    '用 CSV 一张表把库存建起来：件号 / 名称 / 类别 / 单位 / 总数 / 低储阈值（阈值可留空）。上传后先预览、可逐行改，确认才真正导入；同件号覆盖更新，不会删除已有零件。没有库存要录可直接跳过。',
   'gate.inv.skip': '没有库存要录，跳过',
   'gate.inv.next': '下一步',
   'gate.kb.desc':
     '把团队的排障积累沉淀进排障档案，之后相似检索能查到。分两段：批量导入历年 markdown 笔记；单个 bug 进应用后再录。没有要导的可直接跳过。',
   'gate.kb.notes.title': '排障笔记',
   'gate.kb.notes.desc':
-    '把历年的 markdown 文档（赛季总结、调试记录、设计笔记……）一次性导进排障档案。只收 .md / .markdown 文件，单文件 ≤1MB、一次至多 20 个；同名文档不会重复导入。AI 分析暂不做。',
+    '把历年的 markdown 文档（赛季总结、调试记录、设计笔记……）一次性导进排障档案。只收 .md / .markdown 文件，单文件 ≤1MB、一次至多 20 个；同名文档不会重复导入。',
   'gate.kb.bug.title': 'Bug 快速记录',
   'gate.kb.bug.hint':
     '单个 bug 不用急在这一步——进入应用后，在「排障档案」页随时录入（症状 / 严重度 / 根因 / 处理方式），下次撞到同样症状就能搜出来。',
@@ -236,12 +236,12 @@ export const enChecklist = {
   'gate.inv.next': 'Next',
   'gate.kb.notes.title': 'Debug notes',
   'gate.kb.notes.desc':
-    'Import your archive of markdown documents (season retros, debug notes, design notes…) into the debug archive in one go, so similar-bug search can find them later. Only .md / .markdown files, up to 1MB each and 20 per batch; documents with the same title are not imported twice. No AI analysis for now.',
+    'Import your archive of markdown documents (season retros, debug notes, design notes…) into the debug archive in one go, so similar-bug search can find them later. Only .md / .markdown files, up to 1MB each and 20 per batch; documents with the same title are not imported twice.',
   'gate.kb.bug.title': 'Quick bug entry',
   'gate.kb.bug.hint':
     'No rush to log individual bugs here — once inside the app, use the Debug Archive page to record them anytime (symptom / severity / root cause / fix). Next time you hit the same symptom, you can search for it.',
   'gate.kb.desc':
-    'Import your archive of markdown documents (season retros, debug notes, design notes…) into the knowledge base in one go, so similar-bug search can find them later. Only .md / .markdown files, up to 1MB each and 20 per batch; documents with the same title are not imported twice. No AI analysis for now. Skip if there is nothing to import.',
+    'Import your archive of markdown documents (season retros, debug notes, design notes…) into the knowledge base in one go, so similar-bug search can find them later. Only .md / .markdown files, up to 1MB each and 20 per batch; documents with the same title are not imported twice. Skip if there is nothing to import.',
   'gate.kb.pick': 'Choose .md files',
   'gate.kb.uploading': 'Importing…',
   'gate.kb.report': 'Imported {imported} · skipped {skipped} · failed {failed}',

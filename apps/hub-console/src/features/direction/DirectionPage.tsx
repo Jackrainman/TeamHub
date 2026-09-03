@@ -129,7 +129,6 @@ export function DirectionPage({
           ? t('direction.intro.personalized', { group: t(GROUP_LABEL_KEY[myColumn.discipline]) })
           : t('direction.intro.generic')}
       </p>
-      <p className="gaps-note">{t('direction.note')}</p>
 
       <div className="direction-crosscut">
         <span className="direction-crosscut__label">{t('direction.aiBoundary.label')}</span>

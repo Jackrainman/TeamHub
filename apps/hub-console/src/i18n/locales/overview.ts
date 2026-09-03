@@ -64,9 +64,8 @@ export const zhOverview = {
   'overview.baseline.empty.error': '生成失败：{detail}',
   'direction.loading': '正在加载学习方向…',
   'direction.error': '学习方向不可用（后端没连上？检查后端地址或服务是否在线）',
-  'direction.intro.generic': '跨工种学习地图 × 队内缺口：路标摆在这里，学不学是自己的事。',
-  'direction.intro.personalized': '你在【{group}】组，以下把你的组排到了最前——仅供参考，学不学、学多少还是你自己定。',
-  'direction.note': '缺口只到组、不到人：是"哪个组缺什么方向"，不是"谁该来"，没有具体人；地图本身是静态资产，不随缺口变化。',
+  'direction.intro.generic': '跨工种学习地图 × 队内缺口。',
+  'direction.intro.personalized': '你在【{group}】组，你的组已排到最前。',
   'direction.aiBoundary.label': 'AI 边界（各工种通用）',
   'direction.column.mine': '你的组',
   'direction.column.gaps.title': '队内实时缺口',
@@ -185,11 +184,9 @@ export const enOverview = {
   'direction.error':
     'Learning direction unavailable — check the backend address or service status.',
   'direction.intro.generic':
-    'Cross-discipline learning map × team gaps: the signpost is here, whether to follow it is up to you.',
+    'Cross-discipline learning map × team gaps.',
   'direction.intro.personalized':
-    'You are in the {group} group — it is pinned first below, for reference only. How much you follow it is still your call.',
-  'direction.note':
-    'Gaps are grouped, never tied to a person — it shows which group needs what, not who should come, no individuals named; the map itself is a static asset and does not change with the gaps.',
+    'You are in the {group} group — it is pinned first below.',
   'direction.aiBoundary.label': 'AI boundary (same question for every discipline)',
   'direction.column.mine': 'Your group',
   'direction.column.gaps.title': 'Live team gaps',

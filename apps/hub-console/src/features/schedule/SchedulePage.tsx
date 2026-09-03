@@ -63,7 +63,6 @@ export function SchedulePage({
   return (
     <div>
       <p className="gaps-intro">{t('schedule.intro')}</p>
-      <p className="gaps-note">{t('schedule.note')}</p>
 
       {/* 日期选择器：左=今天/明天/后天分段，右=查找特定日期（windowLabel = 'YYYY-MM-DD'）。 */}
       <div className="schedule-date-bar">
