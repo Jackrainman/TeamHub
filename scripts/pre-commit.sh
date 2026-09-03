@@ -48,11 +48,18 @@ if ! bash scripts/check-version-bump.sh; then
   fail=1
 fi
 
-# 3) 可选总闸：三包 verify:all（typecheck + test + build）。
-if [[ "${PRE_COMMIT_VERIFY:-0}" == "1" ]]; then
+# 3) 强制总闸：三包 verify:all（typecheck + test + build）。
+#    默认每次 commit 必跑（D-xxx 强制测试门；防止「改了 src 不验证就提交」）。
+#    万一需要临时跳过（CI 已跑过/验证耗时长）→ PRE_COMMIT_SKIP_VERIFY=1。
+#    任一 verify 失败（exit 非0 → set -e 中断，fail 置１）即拒提交。
+#    若后续某包 verify 脚本本身报错，走 verify 脚本升级（见 todo）而不是放宽本门。
+if [[ "${PRE_COMMIT_SKIP_VERIFY:-0}" != "1" ]]; then
   for pkg in hub-contracts hub-server hub-console; do
     echo "== verify:all $pkg"
-    npm --prefix "apps/$pkg" run verify:all
+    if ! npm --prefix "apps/$pkg" run verify:all; then
+      echo "✗ .pkg($pkg) verify:all 失败，拒绝提交" >&2
+      fail=1
+    fi
   done
 fi
 
