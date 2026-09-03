@@ -259,7 +259,11 @@ button,
   margin-left: 10px;
 }
 
-/* ===== AUTH-GATE：整屏登录闸 / 首登强制设 PIN 闸 ===== */
+/* ===== AUTH-GATE：整屏登录闸 / 首登强制设 PIN 闸 =====
+   主题对齐（BUG-LOGIN-THEME）：原 .card 用 var(--panel, #fff)/var(--bg, #fff)/var(--line) 取色，
+   这三条 token 在 01-tokens.css 无定义——卡片与输入框恒为硬编码白底，dark/tech 等深色主题下不随动。
+   现改为消费 .card（B4）与 .gate-field input 同一套主题 token：--surface/--border/--border-strong/
+   --surface-raised/--text/--shadow-sm，四套 [data-theme] 自动随动，零硬编码。 */
 .auth-gate {
   display: flex;
   align-items: center;
@@ -275,9 +279,10 @@ button,
   width: 100%;
   max-width: 380px;
   padding: 28px 24px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg, 12px);
-  background: var(--panel, #fff);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .auth-gate__title {
@@ -285,7 +290,8 @@ button,
   align-items: center;
   gap: 8px;
   margin: 0;
-  font-size: var(--text-lg, 18px);
+  color: var(--text);
+  font-size: var(--text-lg);
 }
 
 .auth-gate__subtitle {
@@ -296,12 +302,22 @@ button,
 }
 
 .auth-gate__pin {
-  padding: 8px 10px;
-  border: 1px solid var(--line);
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
+  font: inherit;
   font-size: var(--text-base);
-  background: var(--bg, #fff);
-  color: inherit;
+  background: var(--surface-raised);
+  color: var(--text);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.auth-gate__pin:hover:not(:focus) {
+  border-color: var(--text);
+}
+.auth-gate__pin:focus {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
 }
 
 /* U1 修复（UX 扫描：classic/warm/dark "看不出在哪页"）：下方 `.console-nav .nav-item`
