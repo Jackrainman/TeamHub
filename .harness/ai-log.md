@@ -159,3 +159,4 @@
 - 2026-09-03 fix(reimburse): 报账页 .panel 补 padding/gap 修记一笔垫付贴边 v0.70.2；todo 台账更新（垫付留档反转/hermes+基准线暂缓/自动填单调研）
 - 2026-09-04 feat(console): 领任务更名+解释性文案首批清理+三页内测徽标 v0.71.0；todo 入 7 条 P0（公网暴露登录加固在列）
 - 2026-09-04 fix(console): UI 文案清理二批（~30 处中英，审计驱动）v0.71.1；报账端到端测试通过（本地实例+生产库副本）；发现 pinPlaintext 明文存储安全债转 AUTH-LOGIN-GATE
+- 2026-09-04 feat(auth): 公网认证加固全套（读闸/首登密码闸/密码min8/撤明文副本/登录锁定/Secure cookie env）v0.72.0；D-092 落 decisions
