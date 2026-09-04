@@ -1,22 +1,15 @@
 {
   "focus": [
     {
-      "id": "PRE-COMMIT-FORCE-VERIFY",
-      "title": "已把 pre-commit.sh 第3步 verify 改成默认强制（D-xxx 强制测试门）：默认每次 commit 必跑三包 verify:all，失败拒提交；临时跳过用 PRE_COMMIT_SKIP_VERIFY=1；改脚本已生效且本体 262 测试全绿；后又并行化（contracts 先单独 build 一次防 dist 并发写竞态，三包 verify:local 并行），2核4线程实测 ~75s（串行 ~85s，CPU 已饱和故提升有限）。钩子体系真相：teamhub 仓库 local core.hooksPath=.git/hooks 优先，提交实跑 .git/hooks/pre-commit→scripts/pre-commit.sh；全局 ~/.githooks 版本围栏被 local 覆盖、teamhub 不生效（仅对无 local 仓库适用）。关键坑：所有 node 依赖检查（文档门/架构门/verify）依赖 PATH 含 ~/.hermes/node/bin，当前交互 shell 缺它会 command not found——正常用 teamhub.service 同款 PATH",
-      "owner": "agent",
-      "priority": "P1",
-      "tag": "code"
-    },
-    {
       "id": "VERIFY-SCRIPT-UPGRADE",
-      "title": "把部分三包 verify 脚本（verify:all）从脚本级升级为更完善的测试总闸：现状 pre-commit 强制 lock in；下一轮给 hub-console 加「全新成员首登设密码」e2e（登录→ForcePinGate→设PIN→进应用），给 hub-server 加授权矩阵测试（匿名/已登录/首登无PIN/超管 × 每 /api/* 断言 200/401/403），并治 auth-gate isPinSetupAllowed 漏放行 GET /api/setup/state 的 BUG-IDX-DEADLOCK 同类矩阵死角；修复方向见 docs/operations/https-deployment-investigation-20260903.md",
+      "title": "测试总闸补强（2026-09-04 盘点后收窄）：已覆盖=auth-gate.test.ts 场景测试（读闸/首登PIN闸/锁定/cookie）+ authz-route.test.ts 敏感路由专项 + setup/state 漏放行 BUG 已修（v0.73.1）；仍缺=①hub-console「全新成员首登设密码」e2e（登录→ForcePinGate→设PIN→进应用）②hub-server 授权矩阵扫描（匿名/已登录/首登无PIN/超管 × 每 /api/* 断言 200/401/403，现为抽样式场景测试非全路由矩阵）；修复方向见 docs/operations/https-deployment-investigation-20260903.md",
       "owner": "agent",
       "priority": "P1",
       "tag": "code"
     },
     {
       "id": "NAV-REGROUP",
-      "title": "导航归类讨论：用户拍板进展 2026-09-04——①产品核心逻辑更新为『让所有人知道自己该干什么、可以干什么』；②防AI传话筒=每周开会人工判断，产品侧不留机制位（双主轴不进导航，已拍板）；③报账=高频功能，升入干活层并标「公测中」；④分层拍板：只分「每天干活 / 不常用」两层，细分后续看情况；⑤时间线拍板：收进总览页做「编辑」按钮/标签页（管理员向，数据层不动仍读写 baselines 表）；⑥学习方向暂不动：AI 辅助方向=预制内容可 AI 辅助、布置任务必须是人，AI 教学太远，挂起想清楚再议；⑦待落地项=导航两层分组+组名大白话+报账升层与公测徽标+时间线编辑入口收总览；用户痛点是『功能忘了放哪』（可发现性）与『数据表混乱』，已给数据明白账；简报 /tmp/ia-discussion-brief.md",
+      "title": "导航归类讨论：用户拍板进展 2026-09-04——①产品核心逻辑更新为『让所有人知道自己该干什么、可以干什么』；②防AI传话筒=每周开会人工判断，产品侧不留机制位（双主轴不进导航，已拍板）；③报账=高频功能，升入干活层并标「公测中」【已落地 v0.74.0：reimburse section manage→work（排在每日在场后），beta 徽标扩展 'beta'|'public-beta' 双文案】；④分层拍板：只分「每天干活 / 不常用」两层，细分后续看情况；⑤时间线拍板：收进总览页做「编辑」按钮/标签页（管理员向，数据层不动仍读写 baselines 表）；⑥学习方向暂不动：AI 辅助方向=预制内容可 AI 辅助、布置任务必须是人，AI 教学太远，挂起想清楚再议；⑦剩余待落地=导航两层分组改名（work/manage→「每天干活/不常用」大白话）+时间线编辑入口收总览——用户说导航先不着急，待继续讨论；用户痛点是『功能忘了放哪』（可发现性）与『数据表混乱』，已给数据明白账；简报 /tmp/ia-discussion-brief.md",
       "owner": "user",
       "priority": "P0"
     },

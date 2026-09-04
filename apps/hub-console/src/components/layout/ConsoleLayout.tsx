@@ -69,7 +69,11 @@ export function ConsoleLayout({
                     >
                       <Icon aria-hidden="true" size={17} />
                       <span>{t(item.labelKey)}</span>
-                      {item.beta ? <span className="beta-badge">{t('beta.badge')}</span> : null}
+                      {item.beta ? (
+                        <span className="beta-badge">
+                          {t(item.beta === 'public-beta' ? 'beta.badge.public' : 'beta.badge')}
+                        </span>
+                      ) : null}
                     </button>
                   );
                 })}

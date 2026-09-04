@@ -61,7 +61,7 @@ export type ConsolePage =
  * 导航分组（IA-RESTRUCTURE demo）：三层信息架构——
  *   home = 首页工作台（萌新落地页，单独置顶，无分组标题；风格预览已降级收进设置页外观区——
  *          风格选型是设置项不占导航，见 settings/StylePreviewSection）
- *   work = 高频工作区（我的视图 / 项目 / 每日在场）
+ *   work = 高频工作区（我的视图 / 项目 / 每日在场 / 报账）
  *   manage = 低频管理杂货（运维总览 / 机器人清单 / 报销库存等）
  */
 export type ConsoleSection = 'home' | 'work' | 'manage';
@@ -106,8 +106,8 @@ export interface ConsolePageDescriptor {
   titleKey: TranslationKey;
   icon: typeof Home;
   section: ConsoleSection;
-  /** 内测标记：导航项与页头标题旁显示「内测中」徽标（功能未定型，先小范围试用）。 */
-  beta?: boolean;
+  /** 试用标记：导航项与页头标题旁显示徽标——'beta' = 「内测中」（功能未定型），'public-beta' = 「公测中」（高频功能开放全队试用，NAV-REGROUP ③）。 */
+  beta?: 'beta' | 'public-beta';
   render: (ctx: PageRenderCtx) => ReactElement | null;
   // 页面归属模块（§3.3 模块清单表逐字对照）：过滤/降级判定的唯一依据，非重复真相——
   // 加一页时这一个字段就决定它在哪些租户下出现，不须另开一张映射表。
@@ -117,7 +117,7 @@ export interface ConsolePageDescriptor {
   onRefresh?: (ctx: PageRenderCtx) => void;
 }
 
-// 顺序即导航顺序（IA-RESTRUCTURE demo 三层重排：首页 → 工作区[我的视图/项目/每日在场] → 管理[总览/机器人清单/学习方向/知识库/图纸档案/库存/报账/时间线/设置]）：
+// 顺序即导航顺序（IA-RESTRUCTURE demo 三层重排：首页 → 工作区[我的视图/项目/每日在场/报账] → 管理[总览/机器人清单/学习方向/知识库/图纸档案/库存/时间线/设置]）：
 // 每日在场从机器人队 Tab 提升为顶级入口；fleet 页降为纯机器人清单（管理组）；风格预览收进设置页。
 export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
   {
@@ -192,9 +192,28 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     titleKey: 'toolbar.title.schedule',
     icon: CalendarDays,
     section: 'work',
-    beta: true,
+    beta: 'beta',
     moduleId: 'presence-schedule',
     render: (ctx) => <SchedulePage client={ctx.apiClient} source={ctx.source} />,
+  },
+  {
+    key: 'reimburse',
+    labelKey: 'nav.reimburse',
+    titleKey: 'toolbar.title.reimburse',
+    icon: ReceiptText,
+    // 报账=高频功能，升入干活层并标「公测中」（NAV-REGROUP ③）。
+    section: 'work',
+    beta: 'public-beta',
+    // 报账属「库存-BOM」支柱的采购-报账-入库联动（REIMBURSE-PROC），随 ledger 模块开关。
+    moduleId: 'ledger',
+    render: (ctx) => (
+      <ReimbursePage
+        client={ctx.apiClient}
+        source={ctx.source}
+        identity={ctx.identity}
+        projectId={ctx.projectId}
+      />
+    ),
   },
   {
     key: 'knowledge',
@@ -202,7 +221,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     titleKey: 'toolbar.title.knowledge',
     icon: BookOpen,
     section: 'manage',
-    beta: true,
+    beta: 'beta',
     moduleId: 'knowledge-base',
     render: (ctx) => <KbSearchPage client={ctx.apiClient} source={ctx.source} />,
   },
@@ -212,7 +231,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     titleKey: 'toolbar.title.archive',
     icon: FileStack,
     section: 'manage',
-    beta: true,
+    beta: 'beta',
     moduleId: 'archive',
     render: (ctx) => <ArchivePage client={ctx.apiClient} source={ctx.source} />,
   },
@@ -224,23 +243,6 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     section: 'manage',
     moduleId: 'ledger',
     render: (ctx) => <InvPage client={ctx.apiClient} source={ctx.source} />,
-  },
-  {
-    key: 'reimburse',
-    labelKey: 'nav.reimburse',
-    titleKey: 'toolbar.title.reimburse',
-    icon: ReceiptText,
-    section: 'manage',
-    // 报账属「库存-BOM」支柱的采购-报账-入库联动（REIMBURSE-PROC），随 ledger 模块开关。
-    moduleId: 'ledger',
-    render: (ctx) => (
-      <ReimbursePage
-        client={ctx.apiClient}
-        source={ctx.source}
-        identity={ctx.identity}
-        projectId={ctx.projectId}
-      />
-    ),
   },
   {
     key: 'fleet',
