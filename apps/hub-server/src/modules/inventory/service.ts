@@ -142,6 +142,7 @@ export class InventoryService {
       matched = matched.filter((p) => p.category.toLowerCase().includes(lower));
     }
     if (robot) {
+      // 车匹配三路：编号 displayCode / 车号 robotTarget 精确等值，name 允许子串（口头叫法也能命中）。
       const res = resources.find((r) => r.displayCode?.toLowerCase() === robot.toLowerCase() || r.name.toLowerCase().includes(robot.toLowerCase()) || r.robotTarget.toLowerCase() === robot.toLowerCase());
       if (!res) {
         return { ok: false, text: `没找到叫「${robot}」的机器人。` };
@@ -184,6 +185,7 @@ export class InventoryService {
     if (!partType) {
       return { ok: false, text: `没找到叫「${name}」的件，无法记账。` };
     }
+    // 同上的三路车匹配：编号/车号精确等值，名字允许子串。
     const findResource = (label: string) => resources.find((res) => res.displayCode?.toLowerCase() === label.toLowerCase() || res.name.toLowerCase().includes(label.toLowerCase()) || res.robotTarget.toLowerCase() === label.toLowerCase());
     if (action === 'add') {
       await this.repository.recordPartAction({ projectId: partType.projectId, partTypeId: partType.id, trackedPartId: null, kind: 'restock', quantityDelta: quantity, fromHolder: null, toHolder: null, note: note ?? `Hermes 入库 +${quantity}`, source: 'hermes' });

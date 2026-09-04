@@ -173,10 +173,8 @@ export function OverviewPage({
 
       <ActivityFeed client={client} source={source} />
 
-      {/* 成员状态面板（逐人 空闲/在忙/被卡/离线）已隐藏（2026-06-18，用户决定，I0）：
-          逐人状态广播给所有人 = 与「不抓摸鱼」原则冲突；属三支柱之前的旧脚手架、非主线。
-          后续若做「登录/权限区分各人能力并显著标明」再评估恢复。
-          GET /api/bridge/members 端点+schema 保留但已无消费方（部署前若不恢复应一并移除）。 */}
+      {/* 成员状态面板已隐藏（2026-06-18 用户决定，I0：逐人状态广播与「不抓摸鱼」原则冲突）。
+          GET /api/bridge/members 端点+schema 暂保留但已无消费方。 */}
 
       <section className="panel">
         <PanelHeader

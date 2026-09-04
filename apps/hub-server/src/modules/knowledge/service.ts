@@ -67,6 +67,8 @@ function kbImportSlug(title: string): string {
     .replace(/-+$/g, '');
 }
 
+// djb2 字符串哈希：把标题折成稳定的 8 位十六进制短串，作导入幂等 id（iss-md-<slug>-<hash>）的后缀；
+// 非加密用途，碰撞可接受。
 function kbImportTitleHash(title: string): string {
   let h = 5381;
   for (let i = 0; i < title.length; i++) {

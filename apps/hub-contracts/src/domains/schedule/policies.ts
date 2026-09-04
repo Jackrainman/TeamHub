@@ -127,12 +127,6 @@ function indexBy<T>(items: T[], key: (item: T) => string): Map<string, T> {
 }
 
 /**
- * 收敛哨兵组 id（PRESENCE-RECONCILE-LOCK 路线 C）：仅承载总联调收敛任务的归属，
- * 无成员、**绝不进派生在场输出**（render 循环显式跳过）、不算叶子组。
- * 常量单源已上提 `pm-core.ts`（CONVERGENCE-TASK-ENTRY，路由层校验同用）。
- */
-
-/**
  * 叶子组派生（PRESENCE-RECONCILE-LOCK 决定）：组树中**没有子组的节点** = 叶子组，
  * 剔除收敛哨兵组（无成员、不进派生）。当前 fixture → [grp-mech, grp-circuit, grp-ec, grp-vision]
  * （grp-program 有子组 grp-ec/grp-vision 故非叶子；grp-convergence 是哨兵故剔除；

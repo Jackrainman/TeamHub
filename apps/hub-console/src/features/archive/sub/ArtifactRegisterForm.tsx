@@ -164,8 +164,7 @@ export function ArtifactRegisterForm({
       <form className="pm-form" onSubmit={submit}>
         {/* 顶部一行：组别（4 seg）｜ 赛季（组合框）｜ 适配机器人（组合框：候选+手填）*/}
         <div className="archive-top-row">
-          {/* 组别 seg → SegToggle（FORM-UNIFY B3）：吐同款 div.seg[role=group] + seg__btn(segClass)，像素零变；
-              外层 Field（默认 label）保留 <label class="kb-field archive-field--group"><span> 外壳逐字一致。 */}
+          {/* 组别 seg 用 SegToggle，外层 Field 与原 label 外壳逐字一致（DOM/类像素零变）。 */}
           <Field label={t('archive.form.group')} className="archive-field--group">
             <SegToggle
               value={ownerGroup}
@@ -202,9 +201,8 @@ export function ArtifactRegisterForm({
           </label>
         </div>
 
-        {/* 电路子类型 seg → SegToggle（FORM-UNIFY B3）：吐同款 div.seg + seg__btn(segClass)，像素零变。
-            hint 仍走 archive-file-hint 子节点（非 Field.hint：archive-file-hint 与 kb-field__hint 字号/字重不同，
-            用 Field.hint 会换类致像素变），故作 Field 的子节点排在 SegToggle 之后、顺序与原 label 一致。 */}
+        {/* 电路子类型 seg 用 SegToggle（像素零变）；hint 保持 archive-file-hint 子节点——
+            它与 Field.hint 样式不同，换用会致像素变。 */}
         {ownerGroup === 'electrical' ? (
           <Field label={t('archive.form.subType')}>
             <SegToggle
@@ -220,9 +218,7 @@ export function ArtifactRegisterForm({
           </Field>
         ) : null}
 
-        {/* 机构：新机构勾选框切文本 / 否则下拉。外层 div.kb-field → Field as="div"（FORM-UNIFY B3）：
-            Field as="div" 吐 <div class="kb-field"><span>label</span>{children}</div>，与原 DOM/类逐字一致、像素零变；
-            内层 archive-mechanism-row（含 checkbox 行）原样作子节点。 */}
+        {/* 机构：新机构勾选框切文本 / 否则下拉。Field as="div" 保持原 div.kb-field DOM 结构（像素零变）。 */}
         <Field label={t('archive.form.mechanism')} as="div" required>
           <div className="archive-mechanism-row">
             {/* 该组合下无既有机构时已强制走文本框（usingTextInput 恒真），勾选框无实际作用只造成
@@ -286,10 +282,9 @@ export function ArtifactRegisterForm({
           />
         </label>
 
-        {/* 「来源」一组：云端链接(uri) 与 本地文件可同时填——本地存 + 云端引用双保险，合并减少独立行数。
-            fieldset/legend → Field as="fieldset"（FORM-UNIFY B3）：吐 <fieldset class="kb-field archive-source-group">
-            + <legend>label</legend>{children}，与原 DOM/类逐字一致、像素零变。sourceHint 仍走 archive-file-hint
-            子节点（非 Field.hint：字号/字重不同），顺序排在栅格之后与原 fieldset 一致。 */}
+        {/* 「来源」一组：云端链接(uri) 与本地文件可同时填（本地存 + 云端引用双保险）。
+            Field as="fieldset" 保持原 fieldset/legend DOM（像素零变）；sourceHint 走 archive-file-hint
+            子节点（与 Field.hint 样式不同）。 */}
         <Field
           label={t('archive.form.source')}
           as="fieldset"

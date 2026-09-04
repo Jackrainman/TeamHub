@@ -91,6 +91,7 @@ export type ReimburseFinancialSummary = z.infer<typeof ReimburseFinancialSummary
 export type ReimburseBatchSummary = z.infer<typeof ReimburseBatchSummarySchema>;
 export type ReimburseProfile = z.infer<typeof ReimburseProfileSchema>;
 
+// 默认报销抬头（队伍所属单位），仅作初始值；实际生效抬头可经 PUT /api/reimburse/profile 修改。
 export const DEFAULT_REIMBURSE_PROFILE: ReimburseProfile = {
   expectedPurchaserName: '哈尔滨工业大学',
   expectedPurchaserTaxNo: '12100000400000456B',

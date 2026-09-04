@@ -13,11 +13,8 @@ import type {
  * 新建 / 受限状态迁移的「clamp 初始态默认值」单一定义（D-042 clamp 初始态纪律 + C5 来源 seam
  * server 钉，product-redefine-2026-07 §4.4 / §9-③）。
  *
- * **为何抽出**：这些字面量（`'pending'`/`'console'`/`'active'`/`'open'`/`'available'`/`'human'`）此前
- * 各在 `测试 fake`（test/support fake:160 一带）每个 create/update 方法内联出现——三实现
- * （mock/file/sqlite）里只有 mock 真正定义，file 靠组合 mock 才没漂移，sqlite stub 未接线。
- * 集中到本文件后，SQLite 实现（SS3 后续刀）接线时直接复用同一份策略常量，杜绝「同一默认值
- * 三处各写一份、迁移时漏抄或悄悄改动」。
+ * **为何抽出**：这些字面量（`'pending'`/`'console'`/`'active'`/`'open'`/`'available'`/`'human'`）集中在
+ * 本文件单一定义，生产 SQLite 实现与测试 fake 复用同一份策略常量，杜绝两处各写一份、悄悄漂移。
  *
  * 只收「跨调用点固定不变」的常量；随请求变化的字段（如 `clock.now()` 时间戳、`draft` 携带的人本字段）
  * 不进本文件——那些仍由各 Store 实现在调用处组装。
@@ -46,10 +43,6 @@ export const MANUAL_TASK_STATUS_SOURCE: Task['statusSource'] = 'console';
  * 共用一个常量避免两处各写一份字面量。
  */
 export const RESOURCE_STATUS_SOURCE: SharedResource['statusSource'] = 'console';
-
-// --- artifact：提交日志来源 seam（C5：请求不收，server 钉） ---
-
-/** 图纸/归档物提交日志追加（POST /api/artifacts）钉的 submittedVia。 */
 
 // --- schedule：新建资源 / 占用窗口 / 接力交接线 clamp（D-029 / D-072） ---
 

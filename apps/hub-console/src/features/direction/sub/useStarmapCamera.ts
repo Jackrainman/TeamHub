@@ -77,6 +77,7 @@ export function useStarmapCamera(starmap: Starmap) {
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      // 缩放范围 0.55–2.1 倍，每格滚轮约 ±8%（0.925≈1/1.08，上下对称；手感调参非计算值）。
       setZoom((z) => Math.min(2.1, Math.max(0.55, z * (e.deltaY < 0 ? 1.08 : 0.925))));
     };
     el.addEventListener('wheel', onWheel, { passive: false });
@@ -123,6 +124,7 @@ export function useStarmapCamera(starmap: Starmap) {
     const y0 = yaw;
     const p0 = pitch;
     let start: number | null = null;
+    // 对焦补间：320ms smoothstep 缓动（tt²(3−2t)），时长为手感调参。
     const step = (now: number) => {
       if (start === null) start = now;
       const tt = Math.min(1, (now - start) / 320);
@@ -187,6 +189,7 @@ export function useStarmapCamera(starmap: Starmap) {
     const dx = e.movementX * ratio;
     const dy = e.movementY * ratio;
     if (session.mode === 'rotate') {
+      // 拖拽旋转灵敏度 0.006 rad/px（手感调参）。
       setYaw((y) => y + dx * 0.006);
       setPitch((p) => Math.min(PITCH_LIMIT, Math.max(-PITCH_LIMIT, p - dy * 0.006)));
       return;

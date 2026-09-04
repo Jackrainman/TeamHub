@@ -206,12 +206,6 @@ export function buildCreatedKbNode(draft: KnowledgeNodeDraft, id: string, now: s
   return { ...draft, id, createdAt: now };
 }
 
-/** 建车：displayCode 在 store 内派生（禁手写）——给了 season 才有，否则 undefined（读视图回退 name）。 */
-
-
-/** 批量原子创建：逐条补 id + 钉 source，**invitedMemberIds 恒强制清空 []**（I0 双保险，不信任 draft）。 */
-
-
 export function buildCreatedSeason(draft: SeasonDraft, id: string): Season {
   return { ...draft, id, status: 'active' };
 }
@@ -248,12 +242,6 @@ export function applyMemberGateReviewer(prev: Member, gateReviewer: boolean, now
 export function applyMemberRole(prev: Member, role: Member['role'], now: string): Member {
   return { ...prev, role, updatedBy: MEMBER_ROLE_UPDATED_BY, updatedAt: now };
 }
-
-/** 车状态迁移：statusReason 未传（undefined）保留旧值、显式 null 清空、给值改写；statusSource 钉 console。 */
-
-/** 车默认阵型整体写回：preset===null → 整条不含 defaultPreset 键（schema .optional() 非 .nullable()）。 */
-
-/** 占用窗口受限编辑：只改 orderInWindow / eta（传了才改、eta 显式 null=清空）。 */
 
 /** 软删除依赖边：转 status=waived，保留 confirmedBy/createdAt（G2 可审计）。 */
 export function applyDependencyWaive(prev: Dependency, now: string): Dependency {

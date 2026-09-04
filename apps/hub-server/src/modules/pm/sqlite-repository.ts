@@ -225,7 +225,7 @@ export class SqlitePmRepository implements PmRepository {
   // ── 读 ────────────────────────────────────────────────────────────────────────────
 
   async getSnapshot(): Promise<GovernanceSnapshot> {
-    // 每次现从表重建 → 天然是新对象（无共享可变引用，等价 InMemory/File 的克隆隔离纪律）。
+    // 每次现从表重建 → 天然是新对象（无共享可变引用，无需额外克隆隔离）。
     // 标量 `?? ''`：正常库恒有（seed/迁移写入）；若缺则 '' 会在 create() 的 schema.parse(min 1) 处 fail-closed。
     return {
       seasonId: this.getMeta('seasonId') ?? '',
@@ -242,7 +242,7 @@ export class SqlitePmRepository implements PmRepository {
     };
   }
 
-  // ── pm-core 域写（对象构造单源 gov-store-logic.ts builder；本类只持 tx/insertRow 持久化外壳）─────
+  // ── pm-core 域写（对象构造单源 logic.ts builder；本类只持 tx/insertRow 持久化外壳）─────
 
   async createTask(draft: TaskDraft): Promise<Task> {
     const now = this.clock.now().toISOString();
@@ -369,7 +369,7 @@ export class SqlitePmRepository implements PmRepository {
 
   /**
    * 名册批量导入（ROSTER-IMPORT，K8 + 刀③ 不写 role + 刀④ 拒抽象组）：整批在一个事务里应用到
-   * members + groups（半程崩溃回滚，无「建了组没建人」中间态）。成员/组对象构造单源 gov-store-logic.ts
+   * members + groups（半程崩溃回滚，无「建了组没建人」中间态）。成员/组对象构造单源 logic.ts
    *（buildRosterMemberCreate/Update、buildCreatedGroup），与 测试 fake 共享同一份字段语义；本类只持
    * 组按 name 匹配现有 / 本批已建、否则自动建（`grp-new-N` + kind 默认 + 当前赛季）；成员按 displayName
    * 幂等 upsert（新建 `member-new-N` role 恒 'member' / 命中更新 grade·groupId·gateReviewer，
@@ -447,7 +447,7 @@ export class SqlitePmRepository implements PmRepository {
     });
   }
 
-  // ── 组管理最小版（PROGRAM-GROUP-ABSTRACT 刀④）：守卫单源 gov-store-logic.ts（validateGroupRename/Deletion），
+  // ── 组管理最小版（PROGRAM-GROUP-ABSTRACT 刀④）：守卫单源 logic.ts（validateGroupRename/Deletion），
   // 建组走共享 buildCreatedGroup；本类只持一个事务读-判-写（半程崩溃回滚）。
 
   /** 新建叶子组（POST /api/groups）：同名 → name-exists；其余字段钉法同 importRoster 自动建组。 */
@@ -505,7 +505,7 @@ export class SqlitePmRepository implements PmRepository {
     });
   }
 
-  // ── 挂单认领制窄写（TASK-POST-CLAIM，D-088）：字段簇构造单源 gov-store-logic.ts（buildClaimedTask/
+  // ── 挂单认领制窄写（TASK-POST-CLAIM，D-088）：字段簇构造单源 logic.ts（buildClaimedTask/
   // AssignedTask/CompletedTask/ReviewedTask）；整实体 JSON 就地重写（文档式行存），一个事务读-判-写。
 
   async claimTask(taskId: string, ownerId: string, claimedAt: string, claimer?: ActorRef): Promise<Task | null> {

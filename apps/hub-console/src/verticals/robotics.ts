@@ -2,15 +2,9 @@ import type { TranslationKey } from '../i18n';
 import type { VocabularyOverrides } from '../i18n/vocabulary-overrides';
 
 /**
- * robotics 垂直包（console 侧，HUB-MODULARIZATION 第 6 步：词汇注入收口）。
- *
- * 只装「机器人战队租户」的前端词汇 + 词汇相关派生 helper，不含核心逻辑——通用组件层
- * （`components/SeasonSelect.tsx` 等）已把机器人专属规则委托给本文件的函数；核心组件本身
- * 除了调用这里的注入值外不再直接内嵌机器人词汇。游戏工作室等其它垂直包应在自己的
- * `verticals/*.ts` 平行放一份同形文件，不改动本文件、不改动核心组件。
- *
- * 当前边界见 docs/design/software-architecture.md 与 docs/domains/system.md；
- * 对应契约层参考表见 `@teamhub/hub-contracts` 的 `verticals/robotics.ts`。
+ * robotics 垂直包（console 侧）：只装「机器人战队租户」的前端词汇 + 词汇相关派生 helper——
+ * 通用组件层把机器人专属规则委托给本文件的函数，核心组件不直接内嵌机器人词汇。
+ * 边界见 docs/design/software-architecture.md；契约层对应 `@teamhub/hub-contracts` 的 verticals/robotics.ts。
  */
 
 // ---------------------------------------------------------------------------

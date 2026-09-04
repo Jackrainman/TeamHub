@@ -229,6 +229,7 @@ export class ScheduleService {
     const created: SharedResource[] = [];
     for (const row of parsed.resources) {
       const resource = await this.repository.createResource({
+        // 整车统一挂在机器人项目下（当前单项目形态；多项目化时此字段应收进请求）。
         projectId: 'prj-robots',
         name: row.name,
         kind: row.kind,

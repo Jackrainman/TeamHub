@@ -94,6 +94,7 @@ async function sendFile(
 ): Promise<void> {
   const ext = path.extname(filePath);
   reply.type(MIME_TYPES[ext] ?? 'application/octet-stream');
+  // Vite 产物带内容哈希且固定落在 assets/ 下 → 长缓存 immutable；其余（index.html 等）禁缓存，发版即生效。
   reply.header(
     'cache-control',
     filePath.includes(`${path.sep}assets${path.sep}`)

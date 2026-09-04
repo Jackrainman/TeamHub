@@ -163,7 +163,7 @@ export class SqliteScheduleRepository implements ScheduleRepository {
     return this.sdb.tx(() => {
       if (this.sdb.deleteRow('resource_sessions', id) === 0) return false;
       // 级联删除引用该 session 的接力交接线（fromSessionId/toSessionId 命中，避免悬空箭头）——
-      // 与本 session 删除同一事务原子落盘（消除 InMemory 注释里「session 没了但 handoff 悬空」的分叉窗口）。
+      // 与本 session 删除同一事务原子落盘（避免「session 没了但 handoff 悬空」的中间态）。
       const handoffs = this.sdb.allRows<RelayHandoff>('relay_handoffs');
       for (const h of handoffs) {
         if (h.fromSessionId === id || h.toSessionId === id) {

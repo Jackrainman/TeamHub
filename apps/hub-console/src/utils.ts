@@ -12,9 +12,6 @@ export function parseList(csv: string): string[] {
     .filter((s) => s.length > 0);
 }
 
-/**
- * Extract a human-readable message from an unknown thrown value.
- */
 export function errorDetail(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -74,11 +71,6 @@ export function seasonRangeLabel(season: { startsAt: string; endsAt: string }): 
   return `${sy}.${Number(sm)}–${ey}.${Number(em)}`;
 }
 
-/**
- * Return the CSS class string for a segmented-control button.
- * active=true  → 'seg__btn seg__btn--active'
- * active=false → 'seg__btn'
- */
 export function segClass(active: boolean): string {
   return active ? 'seg__btn seg__btn--active' : 'seg__btn';
 }

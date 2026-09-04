@@ -1,5 +1,3 @@
-// 事件总线/适配器/Agent 后端等系统契约（原 schemas.ts）已迁 domains/system/events.ts，显式导出见文末 system 段。
-
 // 归档物实体契约（治理域，CONTRACTS-SCHEMAS 自 schemas.ts 析出）。
 // 归档物标准纵切模块：只从正式 domain public API 显式导出，不保留旧根文件转发层。
 export {
@@ -129,13 +127,7 @@ export type {
   UpdateBaselineRequest,
   UpdateBaselineResponse,
 } from './domains/baseline/index.js';
-// （pm-core 已迁 domains/pm/model.ts）
-// 轻身份登录契约（IDENTITY-LITE，D-083 §4.2）：session / setPin，依赖 pm-core 的 MemberPublicSchema，故其后导出。
-// 轻身份登录契约已迁 domains/system/identity.ts（显式导出见文件头 system 段）
 // schedule 域四件套显式导出见下方 domains/schedule 段（schedule-infra 已并入 model.ts）
-// （growth 已迁 domains/pm/growth.ts）
-// （attribution 已迁 domains/pm/policies.ts）
-// （schedule.js 已迁 domains/schedule/policies.ts）
 // 知识库标准纵切模块：只从正式 domain public API 显式导出，不保留旧根文件转发层。
 export {
   ARCHIVE_FILE_NAME_PATTERN,
@@ -257,7 +249,6 @@ export type {
   PartType,
   TrackedPart,
 } from './domains/inventory/index.js';
-// （gov-report 已迁 domains/pm/report.ts）
 // 报账标准纵切模块：只从正式 domain public API 显式导出，不保留旧根文件转发层。
 export {
   DEFAULT_REIMBURSE_PROFILE,
@@ -387,14 +378,7 @@ export type {
   WaiveChecklistItemRequest,
   WaiveChecklistItemResponse,
 } from './domains/checklist/index.js';
-// 跨端单一源（D-052 重复真相收口）：系统状态契约 / PM 写请求契约（errorCode 派生已并入 kb-closeout.ts）
-// （system-status 已迁 domains/system/status.ts）
-// SQLite app_settings + setup 端点契约：显式列出公共 API，禁止旧 DeployConfig 兼容出口回流。
-// （app-settings 已迁 domains/system/settings.ts，显式导出见文末 system 段）
-// （pm-requests 已迁 domains/pm/requests.ts）
-// （schedule-requests/resource-requests 已并 domains/schedule/requests.ts）
 // 名册导入（ROSTER-IMPORT，K8）：CSV 模板生成 + 编码探测 + 手写零依赖解析器 + 导入报告契约（纯，无状态）。
-// （roster-import 已迁 domains/pm/import.ts）
 export { decodeRosterBytes } from './domains/pm/index.js';
 // pm 域（治理主轴：任务/依赖/需求/知识节点/组/成员/赛季 + 快照归因 + 成长轴 + 汇报 + 名册导入）：
 // 显式导出正式 domain API；investment 已并入 model.ts。
@@ -620,7 +604,6 @@ export type {
   RosterPreviewResponse,
 } from './domains/pm/index.js';
 // 车队批量导入（FLEET-CSV-IMPORT）：CSV 模板生成 + 手写零依赖解析器 + 预览契约（纯，无状态；落库走既有批量端点）。
-// （fleet-import 已迁 domains/schedule/import.ts）
 // 在场排班/接力标准纵切模块（含资源车 + 车队 CSV 导入）：只从正式 domain public API 显式导出。
 export {
   canBoardResource,
@@ -714,14 +697,8 @@ export type {
   FleetPreviewResponse,
 } from './domains/schedule/index.js';
 export * from './csv-core.js';
-// 装配契约（HUB-MODULARIZATION 第2步）：ModuleDescriptor / TenantConfig / VocabularyRegistry，只接口不实现。
-// （assembly 已迁 domains/system/assembly.ts）
 // robotics 垂直包（HUB-MODULARIZATION 第6步）：词汇 + 词汇相关派生函数，只此一个已注册垂直包。
 export * from './verticals/robotics.js';
-// Hermes 入站命令契约（HUB-HERMES-ADAPTER 最小链路）：命令枚举 + 参数 schema + 原始文本规则匹配（纯，无 I/O）。
-// （hermes 已迁 domains/integrations/hermes.ts）
-// 飞书集成配置（LARK-INTEG-CONFIG）：配置 CRUD 契约 + Hermes credential 端点契约。
-// （lark-integration 已迁 domains/integrations/lark.ts）
 
 // system 域（身份/设置/状态/装配/事件总线契约）：显式导出正式 domain API。
 export {

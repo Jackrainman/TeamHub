@@ -59,11 +59,6 @@ export function canBoardResource(status: ResourceStatus): boolean {
   return BOARDABLE_STATUSES.has(status);
 }
 
-// deriveDisplayCode（机器人编号派生，D-072 §3.2 决定 K）已移至 `verticals/robotics.ts`
-// （HUB-MODULARIZATION 第6步）：presence-schedule 模块本就 robotics-only（§3.3 模块清单），本函数
-// 随词汇一起搬到垂直包更贴合归属。签名/行为不变，消费点仍从包入口 `@teamhub/hub-contracts` 导入，
-// 本文件内不再需要它（唯一调用点在 fixtures.ts，已改从 './verticals/robotics.js' 导入）。
-
 /**
  * 每车默认阵型（D-082，daily-plan-presets §6 D2）：队长「使用预设」一键铺今日计划的基线来源。
  * `lineup` 通常 1 条（单组常驻，如电控独占）、可多条（多组接力/并行，如电控+视觉两条 session）。

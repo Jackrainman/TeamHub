@@ -32,16 +32,12 @@ export type TaskInvestment = z.infer<typeof TaskInvestmentSchema>;
  *
  * 本文件 = PM 通用 CASE 层实体（HUB-MODULARIZATION 第3步，从 governance.ts 纯搬移）：
  * Season/Project/Group/Member/Task/Dependency/Need + 其枚举 + 派生归因/DepGraph 视图契约。
- * 机器人在场层（SharedResource/ResourceSession/RelayHandoff/Presence*）已迁至 `schedule-infra.ts`。
+ * 机器人在场层（SharedResource/ResourceSession/RelayHandoff/Presence*）在 `domains/schedule/`。
  *
- * **HUB-MODULARIZATION 第4步（RobotTarget 去渗透）**：`Task.robotTarget` / `Project.robotTargets`
- * 由必填改 `.optional()`——核心（无机器人租户）不再强制填写机器人枚举；新增中性泛化槽
- * `Task.targetLabel?: string` 承载"目标标签"这一更通用的语义（robotics 垂直仍显示 R1/R2/shared，
- * 由 step6 词汇注入层把 `targetLabel` 收紧回 `RobotTargetSchema` 三值枚举；本步 UI/表单暂留
- * `robotTarget` 硬编码下拉作为 fallback，不等 step6）。**放弃的编译期保证**：`robotTarget` 曾是
- * `z.enum` 强校验，非法值在 schema parse 阶段就被拒；改 optional 后，闭集校验下沉到"路由层
- * VocabularyRegistry 校验器"（尚未实现，见 docs/domains/system.md），
- * 在该校验器补齐前，服务器对 `targetLabel` 自由字符串**不做闭集校验**，只能靠测试兜底。
+ * `Task.robotTarget` / `Project.robotTargets` 为 `.optional()`：核心层不强制机器人枚举；
+ * 中性泛化槽 `Task.targetLabel?: string` 承载更通用的"目标标签"（robotics 垂直包仍显示
+ * R1/R2/shared）。**注意**：`targetLabel` 自由字符串目前**不做闭集校验**（路由层
+ * VocabularyRegistry 校验器未实现，见 docs/domains/system.md），只能靠测试兜底。
  */
 
 // ---------------------------------------------------------------------------
@@ -90,12 +86,8 @@ export const ProjectSchema = z.object({
 // ---------------------------------------------------------------------------
 
 /**
- * 组 kind 取值提示（历史 fixtures 值 + 现存四组用到的字面量），仅供 UI 下拉 / 文档提示参考，
- * **非闭集校验依据**（AUDIT-DEBT-2026-07 §9-④）。`GroupKindSchema` 曾是焊死的四值 `z.enum`，
- * D-072「设置页可增减组」要求能新建闭集外的自定义组（如"宣传组"），故放宽为开放非空串——
- * 校验收紧下沉到未来"路由层 VocabularyRegistry 校验器"（同文件头部 RobotTarget 放宽先例的同一过渡态）。
- * 旧 gov.json 已落盘的四个字面量值仍是合法非空串，加载零改动（向后兼容）。
- * （DEAD-CODE-AUDIT 2026-08-30：原 KNOWN_GROUP_KINDS 提示常量零引用已删，取值提示见本注释。）
+ * 组 kind 为开放非空串（D-072「设置页可增减组」：允许新建闭集外的自定义组如"宣传组"），
+ * 常见取值（现存四组字面量）仅供 UI 下拉 / 文档提示参考，**非闭集校验依据**（AUDIT-DEBT-2026-07 §9-④）。
  */
 export const GroupKindSchema = z.string().min(1);
 

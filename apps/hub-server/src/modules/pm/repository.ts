@@ -67,14 +67,9 @@ export type DeleteGroupResult =
     };
 
 /**
- * pm-core 域写入口（STORE-SPLIT-SQLITE，product-redefine-2026-07 §4.4 / §9-③）：项目计划表
- * 录入 + 受限状态机迁移 + 身份写路径——从原 god-interface `PmRepository`（gov-store.ts:184 一带，
- * 21 方法混 6 域）按语义拆出的第一个域接口，与 `ArtifactStore`/`ScheduleStore` 一起经交叉类型
- * 复合回 `PmRepository`（见 gov-store.ts），三实现/消费点零行为变化。
- *
- * 读：`getSnapshot()`（D-040 首刀，已实现）——**留在本域**：GovernanceSnapshot 11 字段
- * （tasks/dependencies/needs/knowledgeNodes/artifacts/members/groups/projects/…）的核心真相载体，
- * 本质是 pm-core 的读出口（resources/resourceSessions 不在其内，见 ScheduleStore 独立读口注释）。
+ * pm-core 域接口（D-040/D-042，product-redefine-2026-07 §4.4 / §9-③）：项目计划表录入 +
+ * 受限状态机迁移 + 身份写路径。读出口 `getSnapshot()` 也留在本域——GovernanceSnapshot 的核心
+ * 真相载体是 pm-core 数据（resources/resourceSessions 不在其内，走 schedule 域独立读口）。
  */
 
 /**
@@ -128,11 +123,11 @@ export type SeasonDraft = Omit<Season, 'id' | 'status'>;
 /**
  * 战队项目计划表核心读写出入口（pm-core 域；D-040/D-042/D-041）。
  *
- * 写（白名单，实现见 测试 fake / 旧 JSON decorator / SqliteGovRepository）：
+ * 写（白名单，生产实现见本域 sqlite-repository.ts，测试 fake 见 test/support）：
  *   - `createTask` / `createDependency` / `createNeed`：PM 项目计划表 C1 兜底录入（任务、依赖图人手建边、缺口暴露）。
  *   - `closeoutKbNode`：KB-CORE 结案派生 `KnowledgeNode`（POST /api/kb/closeout 消费）。**D-042 决策 1**：
  *     结案派生 + `knowledgeNodes/taskKnowledgeTags` 读路径复用同一 `GovernanceSnapshot`（不必扩本 interface）——
- *     相似 bug 检索的 IssueCard 语料**不在本快照内**，已收窄到独立 `KbStore`（见 gov-store.ts）。
+ *     相似 bug 检索的 IssueCard 语料**不在本快照内**，已收窄到独立 knowledge 域接口。
  *   - `updateTaskStatus` / `waiveDependency`：受限状态机迁移（非 CRUD，只在既有枚举内推进生命周期态）。
  *   - `setMemberPin`：登录身份写路径（IDENTITY-LITE，D-083 §4.2）——members 是 GovernanceSnapshot 字段，
  *     故留本域而非独立域。
@@ -175,8 +170,7 @@ export interface PmRepository {
    * 设 / 改成员登录 PIN 散列（PUT /api/members/:id/pin，IDENTITY-LITE，D-083 §4.2）。就地改 members[idx]
    * 的 `pinHash`（scrypt 格式串，**由路由层散列后传入**）+ bump updatedAt、钉 updatedBy=`console`。
    * id 不存在 → 返回 null（路由层转 404）。**密钥纪律**：pinHash 只落盘、绝不经读视图外露（路由层回带
-   * 走 MemberPublicSchema 剥离）。旧 JSON decorator 落 governance.json（members 是 GovernanceSnapshot 字段，
-   * persist 失败按 idx 原地还原，镜像 updateTaskStatus）。
+   * 走 MemberPublicSchema 剥离）。
    * **`pinHash = null`（公测余项⑦ PIN-RESET）= 清除 pinHash**（DELETE /api/members/:id/pin 消费）：
    * 成员回到「未设密码」态，下次登录后走首登强制设密码流程（mustSetPin）。授权（须 superAdmin）在路由层判。
    * **绝不回存明文**（AUTH-GATE 2026-09-04 撤销刀⑧②明文副本例外）：只落 scrypt 散列。
@@ -191,8 +185,7 @@ export interface PmRepository {
    * 就地改 members[idx] 的 `gateReviewer` 布尔位（照 setMemberPin 范式）+ bump updatedAt、钉 updatedBy=`console`。
    * **每年换届更新**（验收人=大三，换届交接门的一项，gate-checklist-iou.md §3）。授权（须现任验收人 /
    * 管理员）在路由层判。id 不存在 → 返回 null（路由层转 404）。**I0**：资格布尔而已，绝不做按人聚合/排行。
-   * 旧 JSON decorator 落 governance.json（members 是 GovernanceSnapshot 字段，persist 失败按 idx 原地还原，
-   * 镜像 setMemberPin）。响应回带走 MemberPublicSchema 剥 pinHash（路由层，密钥纪律）。
+   * 响应回带走 MemberPublicSchema 剥 pinHash（路由层，密钥纪律）。
    */
   setMemberGateReviewer(
     memberId: string,
@@ -205,8 +198,7 @@ export interface PmRepository {
    * 授权（匿名=写门即可 / 身份=须持旗管理员）在**路由层**判。MEMBER-PM-FLAG 后 role 不再承载管理员权限
    * （原 superAdmin 档 → projectManager 旗标），故本写口无降级保护——降级保护随权限移到 setProjectManager。
    * id 不存在 → 返回 null（路由层转 404）。**I0**：只改一个枚举位，绝不做按人聚合/排行。
-   * 旧 JSON decorator 落 governance.json（members 是 GovernanceSnapshot 字段，persist 失败按 idx 原地还原，
-   * 镜像 setMemberGateReviewer）。响应回带走 MemberPublicSchema 剥 pinHash（路由层，密钥纪律）。
+   * 响应回带走 MemberPublicSchema 剥 pinHash（路由层，密钥纪律）。
    */
   setMemberRole(memberId: string, role: MemberRole): Promise<Member | null>;
 
@@ -218,8 +210,7 @@ export interface PmRepository {
    * `opts.guardLastProjectManager` 开启时，判「至多 1 个持旗成员」与写在同一 store 调用内完成，堵住路由层
    * 先读后写的并发窗口）。结果走 `SetProjectManagerResult` 判别联合（ok / not-found /
    * last-projectmanager），路由层映射 200 / 404 / 409。**I0**：只改一个布尔位，绝不做按人聚合/排行。
-   * 旧 JSON decorator 落 governance.json（persist 失败按 idx 原地还原，镜像 setMemberRole）。响应回带走
-   * MemberPublicSchema 剥 pinHash（路由层，密钥纪律）。
+   * 响应回带走 MemberPublicSchema 剥 pinHash（路由层，密钥纪律）。
    */
   setProjectManager(
     memberId: string,
@@ -249,8 +240,7 @@ export interface PmRepository {
   // ── 组管理最小版（PROGRAM-GROUP-ABSTRACT 刀④，D-072「设置页可增减组」前置缺口）─────────────────
   // 「可选组 = 叶子组且非哨兵」由 `deriveLeafGroups` 结构派生（parentGroupId 链，零 Group schema 改动）；
   // 授权（匿名=写门即可 / 身份=须持旗管理员）在**路由层**判，守卫全收进本方法同一临界区（照
-  // setProjectManager TOCTOU 先例）。旧 JSON decorator 落 governance.json（groups 是 GovernanceSnapshot
-  // 字段；create=append 类回滚、rename=idx 类、delete=写前存整条失败时原位插回）。
+  // setProjectManager TOCTOU 先例）。
 
   /**
    * 新建叶子组（POST /api/groups）：只有 name（id/seasonId/parentGroupId=null/kind=custom 由实现钉，
@@ -275,8 +265,7 @@ export interface PmRepository {
    * （四组 + 程序母组 + grp-convergence 收敛哨兵组——CONVERGENCE-TASK-ENTRY 起空板预建哨兵组，
    * 总联调任务才有合法挂靠组）。**临界区内判空幂等**：groups 已非空
    * （demo seed / 既有数据）→ 什么都不做；空 → 一次性插入整棵树（seasonId 取当前 active ?? 顶层，
-   * 照 createGroup 钉法）。旧 JSON decorator 落 governance.json（groups 是 GovernanceSnapshot 字段，
-   * persist 失败整组还原，镜像 importRoster）；SqliteGovRepository 单事务读-判-写。
+   * 照 createGroup 钉法）。生产 SQLite 实现在单事务内读-判-写。
    */
   ensureDefaultGroups(): Promise<void>;
 

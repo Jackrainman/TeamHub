@@ -19,10 +19,8 @@ export const translations: Record<Lang, Record<TranslationKey, string>> = {
   en,
 };
 
-// AUDIT-DEBT-2026-07 §9-④ 审计债⑥：key 类型从闭集 TranslationKey 放宽为 VocabularyKey
-// （TranslationKey | 任意新字符串）——巨表里没有的全新 key 也能传进来，走"无巨表值 → 若有覆盖
-// 用覆盖、否则原样返回 key 本身"的既有兜底路径（下方 `?? key`，行为早已存在，只是此前类型不让
-// 调用方合法传入巨表外的 key）。已知 TranslationKey 调用点行为逐字不变。
+// key 放宽为 VocabularyKey（TranslationKey | 任意新字符串）：巨表外的新 key 走兜底——
+// 有覆盖用覆盖，否则原样返回 key 本身（下方 `?? key`）。
 export function translate(
   lang: Lang,
   key: VocabularyKey,

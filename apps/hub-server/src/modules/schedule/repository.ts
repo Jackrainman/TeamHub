@@ -8,15 +8,8 @@ import type {
 } from '@teamhub/hub-contracts';
 
 /**
- * schedule 域 repository port（ARCH-UNIFY A4；前身 store/schedule-store.ts 的 ScheduleStore，
- * 再前身 god-interface `PmRepository` 按语义拆出的域接口）：共享物理资源（车）+ 差异化在场排班
- * （D-029 占用窗口 / R1 接力交接线）。**8 个排班方法**
- * （createResourceSession/createResourceSessionsBatch/updateResourceSession/deleteResourceSession/
- * listResourceSessions/createRelayHandoff/deleteRelayHandoff/listRelayHandoffs）此前**连 JSON 落盘先例
- * 都没有**（仅走内存，D-029 粗粒度临时、重启回 seed）——**SCHEDULE-PERSIST 已补齐**：旧 JSON decorator 落盘到
- * 独立 schedule-sessions.json（resourceSessions + relayHandoffs 合一，见 旧 JSON decorator
- * ScheduleSessionsFileSchema 注释）；测试 fake 仍仅走内存（进程重启回 seed，符合 D-029 粗粒度临时
- * 语义）。SS3 迁 SQLite 时本域接口签名不变，只换第三实现。
+ * schedule 域 repository port（D-029 占用窗口 / R1 接力交接线 / R3 车管理）：共享物理资源（车）
+ * + 差异化在场排班。排班八方法 + 资源三方法，生产实现为统一 SQLite repository。
  *
  * **为何独立读口**：SharedResource / ResourceSession 不在 GovernanceSnapshot 内（GovernanceSnapshot 是
  * 11 字段、无这两块）、且**不扩**它（扩会牵动 GovernanceSnapshotSchema +
@@ -75,8 +68,6 @@ export type ResourceSessionDraft = Omit<
  * updateResourceSession 入参（R1 接力画布编辑）：队长拖卡片排先后 / 选填预估完成时间。
  * 只两字段可改——`orderInWindow`（画布内拖动排序）+ `eta`（可空预估完成时间，nullable）；
  * 都 optional（拖卡只动 order、改 eta 只动 eta）。其余字段不开 update 口子（C3 受限编辑）。
- * 旧 JSON decorator 落盘到 schedule-sessions.json（SCHEDULE-PERSIST，与 resourceSessions 同落）；
- * 测试 fake 仅改内存数组（D-029：占用窗口粗粒度临时，重启回 seed）。
  */
 export type ResourceSessionPatch = Partial<
   Pick<ResourceSession, 'orderInWindow' | 'eta'>
@@ -86,8 +77,7 @@ export type ResourceSessionPatch = Partial<
  * createRelayHandoff 入参（R1 接力画布拉线）：队长在两卡间拉「接力交接线」——先后交接、**非**任务依赖。
  * Store 补 id/createdAt、钉 `source='console'`（C5 来源 seam server 钉），故 draft 仅 Omit id/source/createdAt。
  * `confirmedBy` 随请求传入（拉线即确认拍板，类比 ResourceSession/Dependency 内部凭证），保留在 draft。
- * 旧 JSON decorator 落盘到 schedule-sessions.json（SCHEDULE-PERSIST，与 session 同落）；测试 fake
- * 仅改内存数组（D-029）。**反监视红线**：主键只 session/资源/组，永无 memberId。
+ * **反监视红线**：主键只 session/资源/组，永无 memberId。
  */
 export type RelayHandoffDraft = Omit<
   RelayHandoff,
@@ -112,8 +102,7 @@ export interface ScheduleRepository {
    * 建一台共享资源（POST /api/resources，R3 车管理 / D-072 §3.2）。Store 补 id + updatedAt、
    * **钉 status=`available` / statusReason=null / statusSource=`console`**（C5 来源 seam）。
    * displayCode 由 **Store 内部**经 deriveDisplayCode 派生（**禁手写**，调用方绝不传，D-072 §3.2 决定 K）。
-   * **持久化（R3 核心）**：旧 JSON decorator 落盘到独立 resources.json（不入 GovernanceSnapshot）；
-   * 测试 fake 仅改内存数组。**I0**：SharedResource 无成员维度，绝不引入 memberId / 出勤。
+   * **I0**：SharedResource 无成员维度，绝不引入 memberId / 出勤。
    */
   createResource(resource: ResourceDraft): Promise<SharedResource>;
   /**
@@ -121,7 +110,7 @@ export interface ScheduleRepository {
    * 流转（维修 / 退役 / 拆解 / 回 available）。**退役 = 改 status→retired、非物删**（整车留展示，
    * ResourceSession 仍引用 resourceId；故无 delete 口子）。statusReason optional+nullable（省略=不动、
    * 显式 null=清空、非空串=改写）；Store 钉 statusSource=`console`（C5）、bump updatedAt。
-   * id 不存在 → 返回 null（路由层转 404）。旧 JSON decorator 改 inner 后原子写 resources.json。
+   * id 不存在 → 返回 null（路由层转 404）。
    */
   updateResourceStatus(
     id: string,
@@ -130,7 +119,7 @@ export interface ScheduleRepository {
   /**
    * 既有车默认阵型写回（PATCH /api/resources/:id/preset，D-082 §6 D2「使用预设」铺底基线）。
    * 整体替换 `defaultPreset`（传对象=设/改，传 `null`=清除）；不开局部 lineup 增量合并口子（C3）。
-   * id 不存在 → 返回 null（路由层转 404）。旧 JSON decorator 与 status 同落 resources.json（同一持久化面）。
+   * id 不存在 → 返回 null（路由层转 404）。
    */
   setResourceDefaultPreset(
     id: string,
@@ -157,8 +146,7 @@ export interface ScheduleRepository {
   ): Promise<ResourceSession[]>;
   /**
    * 占用窗口受限编辑（PATCH /api/resource-sessions/:id，R1 接力画布）。只改 orderInWindow / eta
-   * （C3 受限编辑、非通用字段 update）。id 不存在 → null（路由层转 404）。旧 JSON decorator 落盘到
-   * schedule-sessions.json（SCHEDULE-PERSIST）；测试 fake 仅改内存数组。
+   * （C3 受限编辑、非通用字段 update）。id 不存在 → null（路由层转 404）。
    */
   updateResourceSession(
     id: string,
@@ -167,9 +155,8 @@ export interface ScheduleRepository {
   /**
    * 删一棒（DELETE /api/resource-sessions/:id，A2 接力画布「删除一棒」）。删该 session 本体，并**级联删除
    * 引用它的接力交接线**（relayHandoffs 中 fromSessionId===id 或 toSessionId===id 的边——避免删卡后悬空箭头）。
-   * 命中（删了 session）返回 true、不存在 false（路由转 404）。旧 JSON decorator 把 session + 级联删除的
-   * handoffs 一并落盘到 schedule-sessions.json（SCHEDULE-PERSIST，同一次原子写）；测试 fake 仅改
-   * 内存数组（重启回 seed）。**注意**与 deleteResource 不同：ResourceSession 是粗粒度临时占用窗口、可物删；
+   * 命中（删了 session）返回 true、不存在 false（路由转 404）。级联删除与删 session 在同一事务内原子落盘。
+   * **注意**与 deleteResource 不同：ResourceSession 是粗粒度临时占用窗口、可物删；
    * SharedResource 因被 session 引用故只退役不物删（见 updateResourceStatus 注释）。
    */
   deleteResourceSession(id: string): Promise<boolean>;
@@ -178,8 +165,6 @@ export interface ScheduleRepository {
   /**
    * 接力交接线录入（POST /api/relay-handoffs，R1 画布拉线）。Store 补 id + createdAt、**钉 source=`console`**
    * （C5：来源 seam server 钉，请求不收）。confirmedBy 随 draft 传入（拉线即确认拍板）。自环/成环校验在路由层。
-   * 旧 JSON decorator 落盘到 schedule-sessions.json（SCHEDULE-PERSIST）；测试 fake 仅改内存数组
-   * （D-029，重启回 seed=空）。
    */
   createRelayHandoff(draft: RelayHandoffDraft): Promise<RelayHandoff>;
   /** 删一条接力交接线（DELETE /api/relay-handoffs/:id）。命中删除返回 true，不存在 false（路由转 404）。 */

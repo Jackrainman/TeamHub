@@ -1,8 +1,6 @@
 import type { InvoiceRecognitionSource, ReimburseItem } from './model.js';
 
-/** 浏览器本地解析结果；文件本体永不进入此契约。 */
-
-/** 解析结果（表单预填用，瞬态不落库）：字段识别不出为 null，整体识别不出返回 null。 */
+/** 解析结果（表单预填用，瞬态不落库）：字段识别不出为 null，整体识别不出返回 null。文件本体永不进入此契约。 */
 export interface ParsedInvoice {
   invoiceNo: string;
   invoiceDate: string | null;

@@ -39,7 +39,3 @@ export function nextArtifactVersionNo(
   }
   return max + 1;
 }
-
-// deriveArtifactKind（kind 派生：机械组→report、电路驱动/电控/视觉→firmware）已移至
-// `verticals/robotics.ts`（HUB-MODULARIZATION 第6步）：该函数的 ec/vision→firmware 分支是机器人
-// 专属词汇判断，非核心逻辑。签名/行为不变，消费点仍从包入口 `@teamhub/hub-contracts` 导入，零改动。
