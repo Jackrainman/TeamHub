@@ -164,3 +164,4 @@
 - 2026-09-05 feat(auth): 登录自输用户名（displayName 唯一登录键+重名409）+ /api/members 移出预登录白名单（setup/state 加 hasPmMember 承接 BootstrapGate）+ 旧短 PIN 登录强制升级（会话标记+PUT pin 清标记）v0.73.0；D-093 落 decisions、TOTP 暂缓落 deferred ARC-DEF-004；三包 verify:all+architecture+docs 全绿（443/428/262）
 - 2026-09-05 fix(auth): 首登死锁修复（BUG-IDX-DEADLOCK）——isPinSetupAllowed 放行 GET /api/setup/state（App 启动闸唯一依赖，拦截即 SetupStateUnavailable 死锁）；auth-gate 回归测试（mustSetPin 会话 setup/state 200+业务仍403）v0.73.1；HTTPS 反代部署要点并入 deploy.md §9、一次性排查稿删除、事故归档 ARC-INC-008；server verify:all（429）+architecture+docs+pre-commit 全绿
 - 2026-09-04 NAV-REGROUP③ 落地：报账升 work 层+「公测中」徽标（beta 变体 'beta'|'public-beta'），v0.74.0；顺手删已完成 PRE-COMMIT-FORCE-VERIFY、收窄 VERIFY-SCRIPT-UPGRADE（矩阵死角 BUG 已于 v0.73.1 修复）
+- 2026-09-04 VERIFY-SCRIPT-UPGRADE 收口：授权矩阵扫描（printRoutes 枚举 ×100 路由 × 4 身份，未归类新路由自动纳入）+ 首登设密码 e2e（e2e/suite/first-login-pin.cjs 自备 server 生命周期），pre-commit 新增 3.5 串行 e2e 闸；纯测试零 src 变化不 bump
