@@ -246,8 +246,8 @@ button,
   margin-left: 6px;
   padding: 1px 6px;
   border-radius: 999px;
-  border: 1px solid var(--amber, #b8860b);
-  color: var(--amber, #b8860b);
+  border: 1px solid var(--amber);
+  color: var(--amber);
   font-size: var(--text-xs, 11px);
   font-weight: var(--weight-bold);
   line-height: 1.4;

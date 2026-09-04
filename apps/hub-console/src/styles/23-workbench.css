@@ -197,7 +197,7 @@
 .workbench-progress__bar {
   height: 100%;
   border-radius: 999px;
-  background: var(--green, #3d9a50);
+  background: var(--green);
   min-width: 0;
   transition: width 0.3s ease;
 }
@@ -256,24 +256,24 @@
 }
 
 .workbench-tl-stage--done::before {
-  background: var(--green, #3d9a50);
+  background: var(--green);
 }
 .workbench-tl-stage--done .workbench-tl-dot {
-  border-color: var(--green, #3d9a50);
-  background: var(--green, #3d9a50);
+  border-color: var(--green);
+  background: var(--green);
 }
 .workbench-tl-stage--done .workbench-tl-name {
-  color: var(--green, #3d9a50);
+  color: var(--green);
 }
 
 .workbench-tl-stage--current .workbench-tl-dot {
-  border-color: var(--accent, #4f7fd0);
-  background: var(--accent, #4f7fd0);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent, #4f7fd0) 22%, transparent);
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 .workbench-tl-stage--current .workbench-tl-name {
   font-weight: 600;
-  color: var(--accent, #4f7fd0);
+  color: var(--accent);
 }
 
 .workbench-tl-stage--upcoming {
@@ -314,14 +314,14 @@
   font-size: 0.72rem;
   font-weight: 600;
   color: #fff;
-  background: var(--accent, #4f7fd0);
+  background: var(--accent);
   cursor: default;
 }
 
 .workbench-robot-chip--passed {
-  color: var(--green, #3d9a50);
-  background: color-mix(in srgb, var(--green, #3d9a50) 14%, transparent);
-  border: 1px solid var(--green, #3d9a50);
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 14%, transparent);
+  border: 1px solid var(--green);
 }
 
 .workbench-tl-legend {

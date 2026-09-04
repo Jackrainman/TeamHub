@@ -28,6 +28,10 @@
   --blue: #2f6f9f;
   --blue-soft: #dceaf2;
   --shadow: 0 14px 32px rgba(32, 43, 36, 0.08);
+  /* --accent/--card-bg 是 02-base（global-search/activity-row）与 19-timeline 的消费槽：
+     必须在 :root 定义，否则 classic/dark/warm/tech 四主题下 var() 无值 → 背景透明/颜色继承。 */
+  --accent: var(--blue);
+  --card-bg: var(--surface);
   /* 阴影分三档（2026-06-23 视觉打磨）：原单一 --shadow 把小控件/卡片/浮层压成同一夸张 32px 投影，
      既不精致也无纵深。xs=小控件(icon/seg active)、sm=卡片、md=浮层/选中(=旧 --shadow)。warm 见下方覆盖。 */
   --shadow-xs: 0 1px 2px rgba(32, 43, 36, 0.06);
@@ -229,9 +233,6 @@
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
-  /* 存量未定义变量的补齐（02-base.css 里 global-search/activity-row 消费但全站零定义的死槽）。 */
-  --accent: var(--blue);
-  --card-bg: var(--surface);
 }
 
 /* ===== Notion 夜航（notion-dark，STYLE-PICK 拍板 2026-08-30：默认 Notion 风 + 黑白可变）=====
@@ -266,8 +267,6 @@
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
-  --accent: var(--blue);
-  --card-bg: var(--surface);
 }
 
 /* ===== Linear 风（linear，风格画廊候选）——第 6 套主题 · 深色现代 SaaS =====
@@ -302,8 +301,6 @@
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
-  --accent: var(--blue);
-  --card-bg: var(--surface);
 }
 
 /* 深色主题的原生控件 scheme（2026-08-03 bug 修复，背景见 :root 处注释）：日期选择器弹窗/日历指示

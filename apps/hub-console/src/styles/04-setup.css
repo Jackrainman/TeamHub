@@ -303,12 +303,12 @@
 
 .setup-rail__item--current .setup-rail__name {
   font-weight: 600;
-  color: var(--accent, #4f7fd0);
+  color: var(--accent);
 }
 
 .setup-rail__item--done .setup-rail__name::before {
   content: '✓ ';
-  color: var(--green, #3d9a50);
+  color: var(--green);
 }
 
 .setup-rail__value {
@@ -348,12 +348,12 @@
 }
 
 .setup-chip:hover {
-  border-color: var(--accent, #4f7fd0);
+  border-color: var(--accent);
 }
 
 .setup-chip--active {
-  border-color: var(--accent, #4f7fd0);
-  background: color-mix(in srgb, var(--accent, #4f7fd0) 14%, transparent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
   font-weight: 600;
 }
 
