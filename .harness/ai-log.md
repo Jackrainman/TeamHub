@@ -166,3 +166,4 @@
 - 2026-09-04 NAV-REGROUP③ 落地：报账升 work 层+「公测中」徽标（beta 变体 'beta'|'public-beta'），v0.74.0；顺手删已完成 PRE-COMMIT-FORCE-VERIFY、收窄 VERIFY-SCRIPT-UPGRADE（矩阵死角 BUG 已于 v0.73.1 修复）
 - 2026-09-04 VERIFY-SCRIPT-UPGRADE 收口：授权矩阵扫描（printRoutes 枚举 ×100 路由 × 4 身份，未归类新路由自动纳入）+ 首登设密码 e2e（e2e/suite/first-login-pin.cjs 自备 server 生命周期），pre-commit 新增 3.5 串行 e2e 闸；纯测试零 src 变化不 bump
 - 2026-09-04 报销页 UX：报账→报销全仓改名、批次+校验标准收 SideDrawer、首访引导（出厂默认抬头时提示管理员），v0.75.0
+- 2026-09-04 UI 视觉审计（子 agent 中道夭折）：已修跨主题 token bug（--accent/--card-bg 移 :root，v0.75.1），剩余线索收 UI-VISUAL-AUDIT todo P3
