@@ -17,9 +17,9 @@
     "test:local": "vitest run",
     "test:watch": "vitest",
     "health-check": "node e2e/health-check.cjs",
-    "e2e:smoke": "node e2e/runner.cjs",
+    "test:e2e": "node e2e/suite/first-login-pin.cjs",
     "verify:local": "npm run typecheck:local && npm run test:local && npm run build:local",
-    "verify:all": "npm run build:contracts && npm run verify:local"
+    "verify:all": "npm run build:contracts && npm run verify:local && npm --prefix ../hub-server run build:local && npm run test:e2e"
   },
   "engines": {
     "node": ">=24"

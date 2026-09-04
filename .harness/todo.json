@@ -1,13 +1,6 @@
 {
   "focus": [
     {
-      "id": "VERIFY-SCRIPT-UPGRADE",
-      "title": "测试总闸补强（2026-09-04 盘点后收窄）：已覆盖=auth-gate.test.ts 场景测试（读闸/首登PIN闸/锁定/cookie）+ authz-route.test.ts 敏感路由专项 + setup/state 漏放行 BUG 已修（v0.73.1）；仍缺=①hub-console「全新成员首登设密码」e2e（登录→ForcePinGate→设PIN→进应用）②hub-server 授权矩阵扫描（匿名/已登录/首登无PIN/超管 × 每 /api/* 断言 200/401/403，现为抽样式场景测试非全路由矩阵）；修复方向见 docs/operations/https-deployment-investigation-20260903.md",
-      "owner": "agent",
-      "priority": "P1",
-      "tag": "code"
-    },
-    {
       "id": "NAV-REGROUP",
       "title": "导航归类讨论：用户拍板进展 2026-09-04——①产品核心逻辑更新为『让所有人知道自己该干什么、可以干什么』；②防AI传话筒=每周开会人工判断，产品侧不留机制位（双主轴不进导航，已拍板）；③报账=高频功能，升入干活层并标「公测中」【已落地 v0.74.0：reimburse section manage→work（排在每日在场后），beta 徽标扩展 'beta'|'public-beta' 双文案】；④分层拍板：只分「每天干活 / 不常用」两层，细分后续看情况；⑤时间线拍板：收进总览页做「编辑」按钮/标签页（管理员向，数据层不动仍读写 baselines 表）；⑥学习方向暂不动：AI 辅助方向=预制内容可 AI 辅助、布置任务必须是人，AI 教学太远，挂起想清楚再议；⑦剩余待落地=导航两层分组改名（work/manage→「每天干活/不常用」大白话）+时间线编辑入口收总览——用户说导航先不着急，待继续讨论；用户痛点是『功能忘了放哪』（可发现性）与『数据表混乱』，已给数据明白账；简报 /tmp/ia-discussion-brief.md",
       "owner": "user",

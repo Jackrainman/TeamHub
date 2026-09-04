@@ -81,6 +81,18 @@ if [[ "${PRE_COMMIT_SKIP_VERIFY:-0}" != "1" ]]; then
   fi
 fi
 
+# 3.5) 端到端闸：console e2e（真浏览器 + 真 server 进程，首登强制设密码场景）。
+#      串行排在三包并行 verify 之后：e2e 直接跑 hub-server/dist 产物，须等上面 build 完，
+#      不与三包并行 tsc 抢 dist（contracts 并发写竞态同款教训）。
+if [[ "${PRE_COMMIT_SKIP_VERIFY:-0}" != "1" && "$fail" == "0" ]]; then
+  if npm --silent --prefix apps/hub-console run test:e2e; then
+    echo "✓ console e2e 通过"
+  else
+    echo "✗ console e2e 失败（上方日志）" >&2
+    fail=1
+  fi
+fi
+
 if [[ "$fail" == "0" ]]; then
   echo "✓ pre-commit 通过"
 else
