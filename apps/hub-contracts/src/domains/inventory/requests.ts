@@ -43,7 +43,7 @@ export const CreatePartTypeResponseSchema = z.object({ partType: PartTypeSchema 
  * 预留=reserve/release）。**recordedBy 不由客户端给**——server 钉 source=human（C5 来源 seam；I0 绝无 memberId）。
  * Hermes 将来调同一接口自动填（源走 hermes，仍无 memberId）。
  * REIMBURSE-PROC：`acquisition`/`reimburseEntryId` 随 PartActionSchema 自动带入写契约（不在 omit 列表），
- * restock 时可钉来源；报账联动落账走 server 内部调用（acquisition='selfPurchase'）。
+ * restock 时可钉来源；报销联动落账走 server 内部调用（acquisition='selfPurchase'）。
  */
 export const CreatePartActionRequestSchema = PartActionBaseSchema.omit({
   id: true,

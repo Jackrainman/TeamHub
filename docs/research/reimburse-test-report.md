@@ -7,7 +7,7 @@ checked_at: 2026-08-31
 review_after: 2026-11-30
 ---
 
-# Reimburse 报账模块测试与缺陷调查报告
+# Reimburse 报销模块测试与缺陷调查报告
 
 > 测试范围：`apps/hub-contracts/src/domains/reimburse/`、`apps/hub-server/src/modules/reimburse/`、`apps/hub-console/src/features/reimburse/`
 > 领域文档：`docs/domains/reimburse.md`（ARCH-UNIFY A3 首个三包纵切模板，v0.47.0–0.59.0）
@@ -152,7 +152,7 @@ review_after: 2026-11-30
 - **现象**：批次提交后，成员仍可 PATCH 条目 `batchId`（装批/移出）或改 materials/note；超管仍可改批次名/状态（含从 submitted 改回 collecting）。聚合 summaries 每次实时重算，提交后批次数字会悄悄变化且**无再审批**。
 - **复现**：`PATCH /api/reimburse/batches/:id {status:'submitted'}` 成功后再 `PATCH /api/reimburse/entries/:id {batchId:null}` 或 `{status:'collecting'}`——均 200。
 - **根因**：`apps/hub-server/src/modules/reimburse/service.ts` `updateEntry` 只校验 `patch.batchId` 是否存在，不查批次状态；`updateBatch` 只在**进入** submitted 时跑质量门，之后无状态机约束（`collecting/submitted/reimbursed` 任意互转）。路由测试未覆盖提交后变更路径。
-- **影响**：报账审计完整性——提交后的财务快照可被改写而无留痕/重审。建议：submitted 后锁定条目归属（batchId 只允许超管在 collecting 阶段改），或记录提交快照。
+- **影响**：报销审计完整性——提交后的财务快照可被改写而无留痕/重审。建议：submitted 后锁定条目归属（batchId 只允许超管在 collecting 阶段改），或记录提交快照。
 
 ### #3 [中低] 非 UTF-8（GBK/Windows）zip 文件名乱码
 - **现象**：`打车报销.zip`（Windows 压缩，中文目录/文件名，GBK 编码）经 console 真实解包路径 `extractZipEntries`（fflate Unzip）解出 `´ò³µ±¨Ïú/07-16 À¶Áì…µç×Ó·¢Æ±….pdf` 乱码。

@@ -10,7 +10,7 @@ last_reviewed: 2026-08-30
 
 ## 1. 职责与边界
 
-Integrations 管飞书、Hermes、Git 等外部触点的配置、鉴权、事件转换和出站通知。它不拥有 PM、KB、库存或报账规则，只把外部输入转成明确 use case，并把结构结果投影回触点。
+Integrations 管飞书、Hermes、Git 等外部触点的配置、鉴权、事件转换和出站通知。它不拥有 PM、KB、库存或报销规则，只把外部输入转成明确 use case，并把结构结果投影回触点。
 
 ## 2. 当前行为（CURRENT）
 
@@ -110,4 +110,4 @@ Hermes 侧（用户维护，`HERMES-LARK-SKILL`）：skill 话术/触发词路�
 - `ARCH-UNIFY` A0：旧三包已经删除；后续只收敛 TeamHub 主程序内现有 integration route/config。
 - `HERMES-LARK-SKILL`：Hermes 侧 skill 由用户维护，TeamHub 只稳定公开 use case。
 - CLI/独立长连接不在当前实现范围；未来有真实运行需求时重新立项并做目标环境 probe。
-- `REIMBURSE-LARK-BITABLE` 已明确挂起；不得破坏报账“不存文件”和 I0 边界。
+- `REIMBURSE-LARK-BITABLE` 已明确挂起；不得破坏报销“不存文件”和 I0 边界。

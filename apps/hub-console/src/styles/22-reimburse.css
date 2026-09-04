@@ -1,4 +1,4 @@
-/* 报账页（REIMBURSE-PROC 阶段 3）：卡片/空态/表单字段走 .card/.empty-state/.kb-field 基类与
+/* 报销页（REIMBURSE-PROC 阶段 3）：卡片/空态/表单字段走 .card/.empty-state/.kb-field 基类与
    .btn 族，本文件只补布局与少量无基类覆盖的控件（Field 外壳外的行内输入件，镜像
    .kb-field input 的 token 写法，先例同 02-base 的 .detail-status-select select）。 */
 
@@ -8,7 +8,7 @@
   gap: 16px;
 }
 
-/* 报账页面板补内边距 + 行间距（同 .inv-page .panel 先例）：裸 .panel 无 padding/gap，
+/* 报销页面板补内边距 + 行间距（同 .inv-page .panel 先例）：裸 .panel 无 padding/gap，
    记一笔垫付/条目列表/购买方信息/批次区此前全部贴边、头与表单零间距。 */
 .reimb-page .panel {
   padding: 14px;
@@ -313,4 +313,38 @@
   display: flex;
   justify-content: flex-end;
   margin-top: 12px;
+}
+
+/* 页头行：intro 左 + 管理员「报销管理」入口右（批次/校验标准收进抽屉，主页面只留条目动线）。 */
+.reimb-page__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.reimb-page__head .gaps-intro {
+  flex: 1;
+  margin: 0;
+}
+
+.reimb-page__head .btn {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* 管理员首访引导（校验标准仍是出厂默认时显示）：虚线卡片提示去「报销管理」确认抬头。 */
+.reimb-admin-guide {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+/* 管理抽屉内的区块堆叠间距（批次区 + 校验标准两面板）。 */
+.reimb-admin-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }

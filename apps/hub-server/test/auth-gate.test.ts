@@ -34,7 +34,7 @@ async function login(app: FastifyInstance, memberId: string): Promise<string> {
 }
 
 describe('读闸：身份模式未登录', () => {
-  test('业务 GET（任务/库存/报账/名册）→ 401；白名单（session/setup state）放行', async () => {
+  test('业务 GET（任务/库存/报销/名册）→ 401；白名单（session/setup state）放行', async () => {
     const app = buildTestHubServer({ identityMode: 'identity' });
     try {
       // AUTH-LOGIN-USERNAME：/api/members 移出白名单——未登录读名册同业务端点一律 401

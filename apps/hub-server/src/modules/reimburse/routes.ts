@@ -42,7 +42,7 @@ export function registerReimburseRoutes(app: FastifyInstance, { service }: Reimb
   app.post('/api/reimburse/entries', async (request, reply) => {
     const body = parseBody(CreateReimburseEntryRequestSchema, request, reply);
     if (!body) return;
-    const actor = requireActor(request, reply, undefined, '报账录入须先登录');
+    const actor = requireActor(request, reply, undefined, '报销录入须先登录');
     if (!actor) return;
     return present(reply, () => {
       const entry = service.createEntry({ ...body, memberId: actor.id, batchId: null });
@@ -54,7 +54,7 @@ export function registerReimburseRoutes(app: FastifyInstance, { service }: Reimb
   app.patch('/api/reimburse/entries/:id', async (request, reply) => {
     const body = parseBody(UpdateReimburseEntryRequestSchema, request, reply);
     if (!body) return;
-    const actor = requireActor(request, reply, undefined, '改报账条目须先登录');
+    const actor = requireActor(request, reply, undefined, '改报销条目须先登录');
     if (!actor) return;
     const { id } = request.params as { id: string };
     return present(reply, async () => UpdateReimburseEntryResponseSchema.parse({

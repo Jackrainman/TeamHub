@@ -249,7 +249,7 @@ export type {
   PartType,
   TrackedPart,
 } from './domains/inventory/index.js';
-// 报账标准纵切模块：只从正式 domain public API 显式导出，不保留旧根文件转发层。
+// 报销标准纵切模块：只从正式 domain public API 显式导出，不保留旧根文件转发层。
 export {
   DEFAULT_REIMBURSE_PROFILE,
   CreateReimburseBatchRequestSchema,

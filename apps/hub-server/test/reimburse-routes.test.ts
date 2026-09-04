@@ -24,7 +24,7 @@ import { InMemoryInvStore } from './support/inmemory-inv-store.js';
 import { InMemoryReimburseStore } from './support/inmemory-reimburse-store.js';
 
 /**
- * 报账域路由端到端（REIMBURSE-PROC 一期，计划 taskmaster-impulse-steel 阶段 2）：
+ * 报销域路由端到端（REIMBURSE-PROC 一期，计划 taskmaster-impulse-steel 阶段 2）：
  *  - GET entries 服务端过滤（普通成员只见自己 / 超管见全部 / 未登录 401）；匿名模式回全量。
  *  - POST entries 钉 memberId=sessionActor（客户端给了一律覆盖）+ 发票号查重 409（空号跳过）。
  *  - PATCH 本人或超管（越权 403 / 未知 404 / 悬空批次 400）。
@@ -464,7 +464,7 @@ describe('POST /api/reimburse/entries/:id/stock-in — 入库联动', () => {
       const linked = snap.actions.filter((a) => a.reimburseEntryId === entry.id);
       expect(linked).toHaveLength(2);
       expect(linked.find((a) => a.partTypeId === 'parttype-m3')?.reimburseItemIndex).toBe(0);
-      expect(linked.find((a) => a.partTypeId === 'parttype-m3')?.note).toBe('报账入库·M3×8 螺丝');
+      expect(linked.find((a) => a.partTypeId === 'parttype-m3')?.note).toBe('报销入库·M3×8 螺丝');
 
       // 行0 剩余 10：申请 11 → 400（防重复入库）
       const over = await app.inject({
@@ -578,7 +578,7 @@ describe('POST /api/reimburse/entries/:id/stock-in — 入库联动', () => {
   });
 });
 
-describe('报账 profile 与窄入库上下文', () => {
+describe('报销 profile 与窄入库上下文', () => {
   test('profile 默认值可读且仅超管可改；context 只聚合当前可见条目与候选投影', async () => {
     const { app } = buildTestApp();
     try {

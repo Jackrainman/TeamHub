@@ -32,7 +32,7 @@ export type ReimburseBatchDraft = Omit<
 export type ReimburseEntryPatch = UpdateReimburseEntryRequest;
 export type ReimburseBatchPatch = UpdateReimburseBatchRequest;
 
-/** 报账域唯一 repository port；生产仅由统一 SQLite 实现，测试 fake 位于 test/support。 */
+/** 报销域唯一 repository port；生产仅由统一 SQLite 实现，测试 fake 位于 test/support。 */
 export interface ReimburseRepository {
   listEntries(): ReimburseEntry[];
   getEntry(id: string): ReimburseEntry | undefined;

@@ -71,7 +71,7 @@ export function ReimburseBatchSection({
     <section className="panel" aria-label={t('reimb.batch.title')}>
       <header className="pm-create__head">
         <div>
-          <h2>{t('reimb.batch.title')}</h2>
+          <h3>{t('reimb.batch.title')}</h3>
           <p className="pm-create__note">{t('reimb.batch.subtitle')}</p>
         </div>
       </header>

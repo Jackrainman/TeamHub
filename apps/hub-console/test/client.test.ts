@@ -729,7 +729,7 @@ describe('hub console API client', () => {
     expect(headers['content-type']).toBeUndefined();
   });
 
-  test('报账购买方 profile 与窄入库上下文走本域端点', async () => {
+  test('报销购买方 profile 与窄入库上下文走本域端点', async () => {
     const profile = {
       expectedPurchaserName: '哈尔滨工业大学',
       expectedPurchaserTaxNo: '12100000400000456B',

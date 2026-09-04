@@ -10,7 +10,7 @@ import type {
 import { openUnifiedDb } from '../src/store/sqlite-unified.js';
 
 /**
- * 测试 fake 与生产统一 SQLite 复跑同一条报账 Store 行为契约。
+ * 测试 fake 与生产统一 SQLite 复跑同一条报销 Store 行为契约。
  */
 
 function entryDraft(over: Partial<ReimburseEntryDraft> = {}): ReimburseEntryDraft {

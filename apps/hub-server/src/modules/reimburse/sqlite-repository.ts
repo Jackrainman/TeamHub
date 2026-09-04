@@ -51,7 +51,7 @@ export class SqliteReimburseRepository implements ReimburseRepository, Reimburse
         sdb.insertRow(REIMBURSE_PROFILE_TABLE, PROFILE_ID, ReimburseProfileSchema.parse(seed.profile));
       });
     } else if (sdb.getRow(REIMBURSE_PROFILE_TABLE, PROFILE_ID) === undefined) {
-      throw new Error('报账域已初始化但 reimburse_profile 单例缺失');
+      throw new Error('报销域已初始化但 reimburse_profile 单例缺失');
     }
     return new SqliteReimburseRepository(sdb, clock);
   }

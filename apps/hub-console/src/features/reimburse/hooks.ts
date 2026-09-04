@@ -20,7 +20,7 @@ import {
 import { emptyEntryDraft, type EntryDraft } from './reimburse-utils';
 
 /**
- * 报账域 hooks（REIMBURSE-PROC 阶段 3）。组件一律走本文件，不直接写 useQuery/useMutation。
+ * 报销域 hooks（REIMBURSE-PROC 阶段 3）。组件一律走本文件，不直接写 useQuery/useMutation。
  *
  * enabled 门：
  *  - entries：匿名模式可读（server 匿名回全量）；身份模式须登录（未登录 server 401）——

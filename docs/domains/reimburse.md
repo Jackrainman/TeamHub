@@ -10,7 +10,7 @@ last_reviewed: 2026-08-31
 
 ## 1. 职责与边界
 
-Reimburse 管采购/费用条目、发票元数据、材料清单、报账批次、付款/查验状态和入库关联。发票、付款截图、查验单文件本体始终留在用户设备；服务器只存结构化元数据。
+Reimburse 管采购/费用条目、发票元数据、材料清单、报销批次、付款/查验状态和入库关联。发票、付款截图、查验单文件本体始终留在用户设备；服务器只存结构化元数据。
 
 ## 2. 当前行为（CURRENT）
 
@@ -39,10 +39,10 @@ Reimburse 管采购/费用条目、发票元数据、材料清单、报账批次
 
 ## 5. 跨域接口
 
-- inventory 只暴露零件匹配和 stock-in port；报账不读取库存完整 snapshot。
-- system 通过 `AppSettings.projectId` 提供项目上下文；报账 profile 由本域 singleton repository 持有。
+- inventory 只暴露零件匹配和 stock-in port；报销不读取库存完整 snapshot。
+- system 通过 `AppSettings.projectId` 提供项目上下文；报销 profile 由本域 singleton repository 持有。
 - 本地 import pipeline 复用统一归档安全门；导出使用共享 export/filename 基础设施。
-- PM 可查看有权限的报账事实和导出，但名字不得进入治理聚合。
+- PM 可查看有权限的报销事实和导出，但名字不得进入治理聚合。
 
 ## 6. 已知陷阱
 

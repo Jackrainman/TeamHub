@@ -87,7 +87,7 @@ export class ReimburseService {
     const entries = this.repository.listEntries();
     if (this.identityMode !== 'identity') return entries;
     if (!identity) {
-      throw new ApplicationError('unauthorized', 'REIMBURSE_LOGIN_REQUIRED', '登录后查看报账条目');
+      throw new ApplicationError('unauthorized', 'REIMBURSE_LOGIN_REQUIRED', '登录后查看报销条目');
     }
     return (await this.isAdmin(identity.memberId))
       ? entries
@@ -112,7 +112,7 @@ export class ReimburseService {
         throw new ApplicationError(
           'conflict',
           'REIMBURSE_INVOICE_DUPLICATE',
-          `发票号 ${draft.invoiceNo} 已录入过（条目 ${duplicate.id}），勿重复报账`,
+          `发票号 ${draft.invoiceNo} 已录入过（条目 ${duplicate.id}），勿重复报销`,
         );
       }
     }
@@ -130,7 +130,7 @@ export class ReimburseService {
       throw new ApplicationError(
         'conflict',
         'REIMBURSE_BATCH_LOCKED',
-        `批次「${batch.name}」已${batch.status === 'submitted' ? '提交' : '完成报账'}，快照不可变`,
+        `批次「${batch.name}」已${batch.status === 'submitted' ? '提交' : '完成报销'}，快照不可变`,
         { batchId: batch.id, status: batch.status },
       );
     }
@@ -143,7 +143,7 @@ export class ReimburseService {
   ): Promise<ReimburseEntry> {
     const entry = this.requireEntry(id);
     if (entry.memberId !== actor.id && !(await this.isAdmin(actor.id))) {
-      throw new ApplicationError('forbidden', 'REIMBURSE_ENTRY_FORBIDDEN', '只有条目本人或管理员能改报账条目');
+      throw new ApplicationError('forbidden', 'REIMBURSE_ENTRY_FORBIDDEN', '只有条目本人或管理员能改报销条目');
     }
     if (patch.batchId && !this.repository.getBatch(patch.batchId)) {
       throw new ApplicationError('validation', 'REIMBURSE_BATCH_NOT_FOUND', `未知批次: ${patch.batchId}`);
@@ -250,7 +250,7 @@ export class ReimburseService {
     return this.unitOfWork.run(command.actor, (context) => {
       const entry = this.reimburseStockIn.readEntryForStockIn(command.entryId);
       if (!entry) {
-        throw new ApplicationError('not_found', 'REIMBURSE_ENTRY_NOT_FOUND', `未知报账条目: ${command.entryId}`);
+        throw new ApplicationError('not_found', 'REIMBURSE_ENTRY_NOT_FOUND', `未知报销条目: ${command.entryId}`);
       }
       if (entry.memberId !== command.actor.id && !command.canManageAll) {
         throw new ApplicationError('forbidden', 'REIMBURSE_STOCK_IN_FORBIDDEN', '只有条目本人或管理员能确认入库');
@@ -288,7 +288,7 @@ export class ReimburseService {
           quantityDelta: line.quantity,
           fromHolder: null,
           toHolder: null,
-          note: `报账入库·${item.name}`,
+          note: `报销入库·${item.name}`,
           acquisition: 'selfPurchase',
           reimburseEntryId: entry.id,
           reimburseItemIndex: line.itemIndex,
@@ -333,13 +333,13 @@ export class ReimburseService {
 
   private requireEntry(id: string): ReimburseEntry {
     const entry = this.repository.getEntry(id);
-    if (!entry) throw new ApplicationError('not_found', 'REIMBURSE_ENTRY_NOT_FOUND', `未知报账条目: ${id}`);
+    if (!entry) throw new ApplicationError('not_found', 'REIMBURSE_ENTRY_NOT_FOUND', `未知报销条目: ${id}`);
     return entry;
   }
 
   private async requireAdmin(identity: SessionIdentity | null): Promise<void> {
     if (!identity || !(await this.isAdmin(identity.memberId))) {
-      throw new ApplicationError('forbidden', 'REIMBURSE_ADMIN_REQUIRED', '仅超管可操作报账批次或配置');
+      throw new ApplicationError('forbidden', 'REIMBURSE_ADMIN_REQUIRED', '仅超管可操作报销批次或配置');
     }
   }
 

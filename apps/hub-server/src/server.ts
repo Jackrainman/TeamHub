@@ -167,7 +167,7 @@ export interface BuildHubServerOptions {
   /** 飞书集成配置持久化（LARK-INTEG-CONFIG）。给了才注册 /api/integrations/lark + /api/hermes/credential。 */
   larkStore?: import('./modules/integrations/lark-store.js').LarkIntegrationStore;
   /**
-   * 报账域读写出入口（REIMBURSE-PROC 一期）。独立于 `PmRepository`（ReimburseEntry/ReimburseBatch 不进
+   * 报销域读写出入口（REIMBURSE-PROC 一期）。独立于 `PmRepository`（ReimburseEntry/ReimburseBatch 不进
    * GovernanceSnapshot，同 InvStore 先例）。由 `/api/reimburse/*` 消费
    * （registerReimburseRoutes，挂 ledger 模块下）。
    */
@@ -179,9 +179,9 @@ export interface BuildHubServerOptions {
   artifactRepository: ArtifactRepository;
   /** 跨 repository 写的唯一事务边界；生产必须是 SQLite UoW。 */
   unitOfWork: ApplicationUnitOfWork;
-  /** 报账只依赖库存域的窄同步入库 port，不拿完整 repository 做跨域编排。 */
+  /** 报销只依赖库存域的窄同步入库 port，不拿完整 repository 做跨域编排。 */
   inventoryStockInPort: InventoryStockInPort;
-  /** 报账条目同步读取窄 port，与库存写共享同一 UoW。 */
+  /** 报销条目同步读取窄 port，与库存写共享同一 UoW。 */
   reimburseStockInPort: ReimburseStockInPort;
 }
 
@@ -379,7 +379,7 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
       identityMode,
       requireSuperAdmin: (request, reply) => requireSuperAdmin(store, request, reply),
     });
-    // REIMBURSE-PROC：报账域挂 ledger 模块下（采购-报账-入库联动，与库存同支柱同开关）。
+    // REIMBURSE-PROC：报销域挂 ledger 模块下（采购-报销-入库联动，与库存同支柱同开关）。
     registerReimburseRoutes(app, {
       service: reimburseService,
     });

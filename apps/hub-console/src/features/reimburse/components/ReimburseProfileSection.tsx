@@ -34,7 +34,7 @@ export function ReimburseProfileSection({
 
   return (
     <section className="panel" aria-label={t('reimb.profile.title')}>
-      <h2>{t('reimb.profile.title')}</h2>
+      <h3>{t('reimb.profile.title')}</h3>
       <p className="pm-create__note">{t('reimb.profile.hint')}</p>
       <form className="pm-form" onSubmit={submit}>
         <div className="reimb-batch-create">

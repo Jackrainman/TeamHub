@@ -79,7 +79,7 @@ export function InvQuickRecordForm({
       quantity: { initial: '1' },
       holder: { initial: holderOptions[0]?.id ?? IDLE_HOLDER, sticky: true },
       note: { initial: '' },
-      // 入库来源（REIMBURSE-PROC 阶段 5）：仅 restock 有意义，默认自购；赞助入库不关联报账条目。
+      // 入库来源（REIMBURSE-PROC 阶段 5）：仅 restock 有意义，默认自购；赞助入库不关联报销条目。
       acquisition: { initial: 'selfPurchase' as PartAcquisition, sticky: true },
     },
     valid: (v) => {

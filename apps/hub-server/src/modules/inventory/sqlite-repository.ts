@@ -208,7 +208,7 @@ export class SqliteInventoryRepository implements InventoryRepository, Inventory
       fromHolder: draft.fromHolder,
       toHolder: draft.toHolder,
       note: draft.note,
-      // REIMBURSE-PROC：入库来源 + 关联报账条目（仅 restock 有意义；optional，旧调用方不传则无此键）。
+      // REIMBURSE-PROC：入库来源 + 关联报销条目（仅 restock 有意义；optional，旧调用方不传则无此键）。
       acquisition: draft.acquisition,
       reimburseEntryId: draft.reimburseEntryId,
       reimburseItemIndex: draft.reimburseItemIndex,

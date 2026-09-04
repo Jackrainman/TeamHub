@@ -11,7 +11,7 @@
 
 ## 0. 为什么现在必须收口
 
-TeamHub 已从单一机器人协作工具长成知识库、项目管理、库存、基准线、检查单、报账、飞书集成等
+TeamHub 已从单一机器人协作工具长成知识库、项目管理、库存、基准线、检查单、报销、飞书集成等
 多域系统。当前主要风险不是功能缺失，而是同一职责存在多条“都能工作”的路径：
 
 - 生产持久化同时存在内存、分域 JSON、旧 gov-only SQLite、统一 SQLite；
@@ -163,7 +163,7 @@ apps/hub-console/src/features/reimburse/
 只有被三个及以上领域稳定复用、且没有业务词汇的内容才能进入 shared：
 
 - ISO 时间、ActorRef、分页、通用 CSV tokenize 等属于 shared kernel；
-- “零件匹配”“报账核对原因”“里程碑漂移”属于各自领域；
+- “零件匹配”“报销核对原因”“里程碑漂移”属于各自领域；
 - 两个调用方不构成共享抽象的充分理由；先重复两处，第三处出现且语义相同再上提。
 
 ## 6. 模块注册与组合根
@@ -208,7 +208,7 @@ TEAMHUB_DB_FILE → openUnifiedDb() → module repositories
 **启动配置（env）**：数据库路径、监听地址/端口、写 token、反代信任、外部服务凭证。它们决定进程
 能否启动或包含秘密，不由 UI 写。
 
-**产品配置（SQLite `app_settings`）**：启用模块、身份模式、垂直包、报账抬头、词汇覆盖等。它们由
+**产品配置（SQLite `app_settings`）**：启用模块、身份模式、垂直包、报销抬头、词汇覆盖等。它们由
 受权 UI 修改、可备份、可审计。
 
 删除第三类：不再同时维护 `config.json`、env 模块列表和代码常量默认值。首次启动向导负责创建
@@ -240,7 +240,7 @@ Route 不允许：读写两个 repository、计算状态、构造领域实体、
 
 - 一个方法对应一个用户用例，如 `submitReimburseBatch()`、`stockInReimburseEntry()`。
 - 跨域动作只能在这里发生，并由一个显式事务包裹。
-- 跨域依赖通过窄 port 注入，例如报账只依赖 `InventoryStockInPort`，不依赖完整 InventoryRepository。
+- 跨域依赖通过窄 port 注入，例如报销只依赖 `InventoryStockInPort`，不依赖完整 InventoryRepository。
 - 业务失败返回判别联合/领域错误，不在深层抛随意字符串供 route 猜。
 
 ### 8.3 Repository
@@ -356,7 +356,7 @@ AI 不得以“兼容旧代码”为默认理由保留双轨。用户已明确�
 | A0 文档与护栏 | D-090/D-091 生效；旧稿蒸馏删除；单版本/lock；架构门先禁新增违规 | `docs/README.md` 为唯一入口，仓库依赖图单一 |
 | A1 仓库与运行时（完成） | 旧飞书三包、JSON/gov-only/生产 InMemory/旧 env 已删除；生产强制统一 SQLite | main 只有一个 DB 装配路径，不写旧数据双读迁移 |
 | A2 平台设施（配置已完成） | `app_settings` 与同步 SQLite 事务已落地；继续统一错误、导出、文件 intake、Clock/Actor 和 application UoW | 配置单源，跨域写具有显式事务 |
-| A3 模板试点 | reimburse 三包纵切并实现购买方质量门和“报账→库存”事务 | 模板承载真实业务后冻结，不再产生第二套模板 |
+| A3 模板试点 | reimburse 三包纵切并实现购买方质量门和“报销→库存”事务 | 模板承载真实业务后冻结，不再产生第二套模板 |
 | A4 全域迁移 | checklist → baseline → inventory → archive → knowledge → schedule → PM/system/integrations/reporting | 已完成：全域三包就位、GovStore 归零、console 每域 features/<domain>/{api,hooks}、架构门禁白名单清零 |
 | A5 归零 | 删除 god files、旧 Store/client/hook/config/文档，架构白名单归零 | 根验证、SQLite 重启、compose 行为均满足目标 |
 
@@ -379,7 +379,7 @@ AI 不得以“兼容旧代码”为默认理由保留双轨。用户已明确�
 - 短期会暂停功能增长，并产生一轮破坏性重构；这是主动支付复杂度本金。
 - 测试需要从“三 Store 对称”改为“SQLite 真实性 + service fake 隔离”，数量可能先减少但有效性提高。
 - 某些历史设计文档和注释会失效，迁移每刀必须同步归档，避免 AI 读到两套真相。
-- 报账购买方校验不再为旧条目设计 `legacy/default` 兼容字段；新 schema 直接成为唯一事实。
+- 报销购买方校验不再为旧条目设计 `legacy/default` 兼容字段；新 schema 直接成为唯一事实。
 - 完成后新增功能的自由度变小，但定位、测试、删除和 AI 修改的确定性显著提高。
 
 ## 19. 现存结构处置表

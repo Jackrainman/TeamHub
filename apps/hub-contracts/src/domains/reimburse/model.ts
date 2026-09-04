@@ -72,7 +72,7 @@ export const ReimburseBatchSummarySchema = z.object({
   financial: ReimburseFinancialSummarySchema,
 });
 
-/** 报账域单例配置；任一期望值为空字符串时跳过该字段校验，两者都空即完全跳过。 */
+/** 报销域单例配置；任一期望值为空字符串时跳过该字段校验，两者都空即完全跳过。 */
 export const ReimburseProfileSchema = z.object({
   expectedPurchaserName: z.string().trim(),
   expectedPurchaserTaxNo: z.string().trim(),

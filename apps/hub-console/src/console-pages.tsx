@@ -61,7 +61,7 @@ export type ConsolePage =
  * 导航分组（IA-RESTRUCTURE demo）：三层信息架构——
  *   home = 首页工作台（萌新落地页，单独置顶，无分组标题；风格预览已降级收进设置页外观区——
  *          风格选型是设置项不占导航，见 settings/StylePreviewSection）
- *   work = 高频工作区（我的视图 / 项目 / 每日在场 / 报账）
+ *   work = 高频工作区（我的视图 / 项目 / 每日在场 / 报销）
  *   manage = 低频管理杂货（运维总览 / 机器人清单 / 报销库存等）
  */
 export type ConsoleSection = 'home' | 'work' | 'manage';
@@ -117,7 +117,7 @@ export interface ConsolePageDescriptor {
   onRefresh?: (ctx: PageRenderCtx) => void;
 }
 
-// 顺序即导航顺序（IA-RESTRUCTURE demo 三层重排：首页 → 工作区[我的视图/项目/每日在场/报账] → 管理[总览/机器人清单/学习方向/知识库/图纸档案/库存/时间线/设置]）：
+// 顺序即导航顺序（IA-RESTRUCTURE demo 三层重排：首页 → 工作区[我的视图/项目/每日在场/报销] → 管理[总览/机器人清单/学习方向/知识库/图纸档案/库存/时间线/设置]）：
 // 每日在场从机器人队 Tab 提升为顶级入口；fleet 页降为纯机器人清单（管理组）；风格预览收进设置页。
 export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
   {
@@ -201,10 +201,10 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     labelKey: 'nav.reimburse',
     titleKey: 'toolbar.title.reimburse',
     icon: ReceiptText,
-    // 报账=高频功能，升入干活层并标「公测中」（NAV-REGROUP ③）。
+    // 报销=高频功能，升入干活层并标「公测中」（NAV-REGROUP ③）。
     section: 'work',
     beta: 'public-beta',
-    // 报账属「库存-BOM」支柱的采购-报账-入库联动（REIMBURSE-PROC），随 ledger 模块开关。
+    // 报销属「库存-BOM」支柱的采购-报销-入库联动（REIMBURSE-PROC），随 ledger 模块开关。
     moduleId: 'ledger',
     render: (ctx) => (
       <ReimbursePage

@@ -6,7 +6,7 @@ import type {
 } from '@teamhub/hub-contracts';
 
 /**
- * 报账域纯函数（REIMBURSE-PROC 阶段 3）——金额分↔元格式化、新建表单草稿校验/装配。
+ * 报销域纯函数（REIMBURSE-PROC 阶段 3）——金额分↔元格式化、新建表单草稿校验/装配。
  * 零 React / fetch，照 myview-utils / identity-utils「测逻辑不测 DOM」先例由 test/reimburse.test.ts 覆盖。
  */
 
@@ -96,7 +96,7 @@ function optionalText(value: string): string | null {
 
 /**
  * 草稿 → POST 请求体；任一必填/已填字段非法 → null（表单据此算 valid，不给服务端递坏数据）。
- * 规则：totalYuan 必须可解析且 ≥0（金额是报账唯一硬字段）；goods 的非空明细行每行须
+ * 规则：totalYuan 必须可解析且 ≥0（金额是报销唯一硬字段）；goods 的非空明细行每行须
  * 名称非空 + 数量>0 + 金额可解析；全空行直接丢弃（允许先建无明细草稿，状态派生会标 partial）。
  */
 export function buildCreateEntryRequest(

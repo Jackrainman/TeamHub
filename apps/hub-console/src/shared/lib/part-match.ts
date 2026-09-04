@@ -1,5 +1,5 @@
 /**
- * 入库确认的件号模糊匹配（REIMBURSE-PROC 阶段 5）：报账明细行品名 → 已有 PartType 候选列表。
+ * 入库确认的件号模糊匹配（REIMBURSE-PROC 阶段 5）：报销明细行品名 → 已有 PartType 候选列表。
  * 纯函数零 React，照 shared/lib 惯例由 test/part-match.test.ts 覆盖（「测逻辑不测 DOM」）。
  *
  * 打分（includes 模糊，越高越像）：

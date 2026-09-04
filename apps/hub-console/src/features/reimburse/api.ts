@@ -28,7 +28,7 @@ import type { HttpContext } from '../../api/http';
 import { fetchJson, postJson, sendJson } from '../../api/http';
 
 /**
- * 报账域 API 分段（REIMBURSE-PROC 阶段 3，照 segments/domain.ts 模式）。
+ * 报销域 API 分段（REIMBURSE-PROC 阶段 3，照 segments/domain.ts 模式）。
  * 端点对照 server modules/reimburse/routes.ts：
  *  - GET entries 服务端已按 actor 过滤（普通成员只回本人，超管回全部）——前端不做二次过滤；
  *  - batches 三端点超管限定（调用侧用 enabled 门控，未授权不发请求）；

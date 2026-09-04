@@ -32,7 +32,7 @@ import type {
  * 库存域 application service（ARCH-UNIFY A4）：用例编排唯一落点——库存总表派生、holder 资源校验、
  * CSV 预览/导入、Hermes 对话记账（inv-query / inv-record）。route 只 parse/auth/映射 HTTP。
  *
- * 跨域只经窄口：资源清单走 `InventoryResourcePort`（不拿完整 PmRepository）；报账入库联动反向走
+ * 跨域只经窄口：资源清单走 `InventoryResourcePort`（不拿完整 PmRepository）；报销入库联动反向走
  * reimburse 侧 `InventoryStockInPort`（由同一 SQLite repository 兼任，见 modules/reimburse/service.ts）。
  */
 export class InventoryService {

@@ -19,10 +19,10 @@ import { isoDateTimeSchema } from '../../common.js';
  *  - **C3 / D-072 §3.4**：个体件拆装只移 `currentHolder`、**绝不删 TrackedPart**（保血缘）；
  *    写白名单仅 upsertPartType / recordPartAction，无通用 delete。
  *
- * REIMBURSE-PROC 扩展（报账联动一期）：`PartAction` 加 optional `acquisition`（入库来源：
+ * REIMBURSE-PROC 扩展（报销联动一期）：`PartAction` 加 optional `acquisition`（入库来源：
  * selfPurchase=垫付自购 / sponsored=赞助，仅 restock 有意义）+ `reimburseEntryId`（关联的
- * 报账条目）+ `reimburseItemIndex`（关联的发票明细下标）。**PartType 不加来源/价格字段**——同件号可混合来源、不同批次不同价：来源在动作上，
- * 价格在报账条目上；来源构成由 `derivePartAcquisition` 从动作日志派生。旧动作行无新字段 →
+ * 报销条目）+ `reimburseItemIndex`（关联的发票明细下标）。**PartType 不加来源/价格字段**——同件号可混合来源、不同批次不同价：来源在动作上，
+ * 价格在报销条目上；来源构成由 `derivePartAcquisition` 从动作日志派生。旧动作行无新字段 →
  * optional parse 天然通过，三实现零迁移；无 acquisition 的老动作不计入任一来源桶（历史来源不可考，不伪造）。
  */
 
@@ -52,8 +52,8 @@ export const PartActionSourceSchema = z.enum([
 ]);
 
 /**
- * 入库来源（REIMBURSE-PROC，仅 kind='restock' 有意义）：selfPurchase=成员垫付自购（报账联动
- * 落账）/ sponsored=赞助入库（不关联报账条目）。旧动作无此字段 → 来源未知，不计入任何桶。
+ * 入库来源（REIMBURSE-PROC，仅 kind='restock' 有意义）：selfPurchase=成员垫付自购（报销联动
+ * 落账）/ sponsored=赞助入库（不关联报销条目）。旧动作无此字段 → 来源未知，不计入任何桶。
  */
 export const PartAcquisitionSchema = z.enum(['selfPurchase', 'sponsored']);
 
@@ -113,7 +113,7 @@ const PartActionBaseSchema = z.object({
   note: z.string().min(1).nullable(), // 一句话快记："坏了一个3508、烧了"
   recordedBy: PartActionRecordedBySchema, // I0：绝无 memberId
   recordedAt: isoDateTimeSchema,
-  // REIMBURSE-PROC：入库来源 + 关联报账条目（仅 restock 有意义；optional 向后兼容，见文件头）。
+  // REIMBURSE-PROC：入库来源 + 关联报销条目（仅 restock 有意义；optional 向后兼容，见文件头）。
   acquisition: PartAcquisitionSchema.optional(),
   reimburseEntryId: z.string().min(1).optional(),
   reimburseItemIndex: z.number().int().nonnegative().optional(),
@@ -139,7 +139,7 @@ function validateReimburseActionLink(
     context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['reimburseEntryId'],
-      message: '报账关联只允许用于 selfPurchase restock 动作',
+      message: '报销关联只允许用于 selfPurchase restock 动作',
     });
   }
   if (!hasEntry) {
@@ -153,7 +153,7 @@ function validateReimburseActionLink(
     context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['reimburseItemIndex'],
-      message: '报账入库动作必须关联结构化明细下标',
+      message: '报销入库动作必须关联结构化明细下标',
     });
   }
 }

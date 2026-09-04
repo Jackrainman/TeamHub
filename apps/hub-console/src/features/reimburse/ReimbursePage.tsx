@@ -1,6 +1,9 @@
-import { ReceiptText } from 'lucide-react';
+import { ReceiptText, Settings2 } from 'lucide-react';
+import { useState } from 'react';
+import { DEFAULT_REIMBURSE_PROFILE } from '@teamhub/hub-contracts';
 import { EmptyState } from '../../shared/EmptyState';
 import { useQueryGuard } from '../../shared/QueryGate';
+import { SideDrawer } from '../../components/SideDrawer';
 import {
   useReimburseBatches,
   useReimburseEntries,
@@ -18,7 +21,7 @@ import { ReimburseImportZone } from './components/ReimburseImportZone';
 import { ReimburseProfileSection } from './components/ReimburseProfileSection';
 
 /**
- * 报账页（REIMBURSE-PROC 阶段 3，计划 taskmaster-impulse-steel）：
+ * 报销页（REIMBURSE-PROC 阶段 3，计划 taskmaster-impulse-steel）：
  * 我的垫付条目（发票号/销售方/金额/派生状态徽标/材料 checklist）+ 手动录入表单 +
  * 超管批次区（批次列表/新建/三档流转/装批移出）。
  *
@@ -50,8 +53,10 @@ export function ReimbursePage({
   const entriesQuery = useReimburseEntries(client, source, entriesEnabled);
   const batchesQuery = useReimburseBatches(client, source, isSuperAdmin);
   const profileQuery = useReimburseProfile(client, source, entriesEnabled);
-  // 窄上下文失败只隐藏入库区，不拖垮报账页本体。
+  // 窄上下文失败只隐藏入库区，不拖垮报销页本体。
   const stockInContextQuery = useReimburseStockInContext(client, source, entriesEnabled);
+  // 管理员抽屉（批次 + 购买方校验标准）：默认收起，主页面只留「我的条目」动线。
+  const [adminOpen, setAdminOpen] = useState(false);
 
   // 发票本地解析、失败通知与待确认队列由本域 controller 统一编排。
   const importController = useReimburseImportController();
@@ -84,10 +89,30 @@ export function ReimbursePage({
   );
   const batches = batchesQuery.data?.batches ?? [];
   const profile = profileGate.data.profile;
+  // 首次引导：校验标准仍是出厂默认（哈工大）→ 提醒管理员确认/修改；改任意一项后即消失。
+  const profileUntouched =
+    profile.expectedPurchaserName === DEFAULT_REIMBURSE_PROFILE.expectedPurchaserName &&
+    profile.expectedPurchaserTaxNo === DEFAULT_REIMBURSE_PROFILE.expectedPurchaserTaxNo;
 
   return (
     <div className="reimb-page">
-      <p className="gaps-intro">{t('reimb.intro')}</p>
+      <div className="reimb-page__head">
+        <p className="gaps-intro">{t('reimb.intro')}</p>
+        {isSuperAdmin ? (
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            onClick={() => setAdminOpen(true)}
+          >
+            <Settings2 size={14} aria-hidden="true" /> {t('reimb.admin.open')}
+          </button>
+        ) : null}
+      </div>
+      {isSuperAdmin && profileUntouched ? (
+        <p className="reimb-admin-guide" role="note">
+          {t('reimb.admin.guide')}
+        </p>
+      ) : null}
 
       <ReimburseImportZone onFiles={importController.importFiles} busy={importController.parsing} />
       {importController.fails.length > 0 ? (
@@ -159,17 +184,23 @@ export function ReimbursePage({
       </section>
 
       {isSuperAdmin ? (
-        <>
-          <ReimburseProfileSection client={client} source={source} profile={profile} />
-          <ReimburseBatchSection
-            client={client}
-            source={source}
-            projectId={projectId}
-            batches={batches}
-            entries={entries}
-            profile={profile}
-          />
-        </>
+        <SideDrawer
+          open={adminOpen}
+          onClose={() => setAdminOpen(false)}
+          title={t('reimb.admin.open')}
+        >
+          <div className="reimb-admin-stack">
+            <ReimburseBatchSection
+              client={client}
+              source={source}
+              projectId={projectId}
+              batches={batches}
+              entries={entries}
+              profile={profile}
+            />
+            <ReimburseProfileSection client={client} source={source} profile={profile} />
+          </div>
+        </SideDrawer>
       ) : null}
     </div>
   );

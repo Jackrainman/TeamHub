@@ -7,7 +7,7 @@ import {
   type EntryDraft,
 } from '../src/features/reimburse/reimburse-utils';
 
-// 报账域纯函数单测（REIMBURSE-PROC 阶段 3）——不测 DOM/RTL（本仓「测逻辑不测 DOM」
+// 报销域纯函数单测（REIMBURSE-PROC 阶段 3）——不测 DOM/RTL（本仓「测逻辑不测 DOM」
 // 风格同 myview.test.ts / identity.test.ts）。
 
 function draft(overrides: Partial<EntryDraft>): EntryDraft {

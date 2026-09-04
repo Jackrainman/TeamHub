@@ -37,7 +37,7 @@ const REVIEW_REASON_KEY: Record<ReimburseReviewReason, TranslationKey> = {
 };
 
 /**
- * 单条报账条目卡片：发票要素 + deriveReimburseStatus 派生徽标（无手工状态机）+
+ * 单条报销条目卡片：发票要素 + deriveReimburseStatus 派生徽标（无手工状态机）+
  * 材料 checklist 两勾（点了即 PATCH）+ actualItemName/note 就地编辑 + 超管装批/移出。
  * 错误一律交全局 MutationCache.onError toast（checklist/装批无内联错误位，不标 silent）。
  */
@@ -58,7 +58,7 @@ export function ReimburseEntryCard({
   isSuperAdmin: boolean;
   canWrite: boolean;
   profile: ReimburseProfile;
-  /** 报账域窄入库上下文；不再读取库存完整快照。 */
+  /** 报销域窄入库上下文；不再读取库存完整快照。 */
   stockInContext: StockInContextResponse | null;
 }) {
   const { t } = useI18n();

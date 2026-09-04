@@ -10,7 +10,7 @@ last_reviewed: 2026-08-15
 
 ## 1. 职责与边界
 
-Inventory 管零件类型、重要单件、append-only 动作日志、机器人占用/预留、盘点、缺料和 CSV 导入。它记录 as-built 物料事实；不拥有机器人生命周期、采购报账审批或个人操作统计。
+Inventory 管零件类型、重要单件、append-only 动作日志、机器人占用/预留、盘点、缺料和 CSV 导入。它记录 as-built 物料事实；不拥有机器人生命周期、采购报销审批或个人操作统计。
 
 ## 2. 当前行为（CURRENT）
 
@@ -19,13 +19,13 @@ Inventory 管零件类型、重要单件、append-only 动作日志、机器人�
 - `PartAction` 统一承载 stocktake/restock/mount/dismount/reserve/release/damage，并保留来源。
 - `deriveInventoryLedger` 派生“零件×机器人”矩阵；`deriveShortfalls` 派生低储告警。
 - API 支持建/更新零件类型、记录动作、模板/预览/导入和 Hermes 入站动作。
-- 报账条目可经 stock-in 动作联动库存，但 CURRENT 关联仍部分隐藏在 note 前缀。
+- 报销条目可经 stock-in 动作联动库存，但 CURRENT 关联仍部分隐藏在 note 前缀。
 
 ## 3. 目标结构（TARGET）
 
 - inventory 领域拥有 model/policies/import 和独立 repository；生产只实现统一 SQLite。
 - service 暴露窄的 stock-in、record-action、import 和 query use case。
-- 报账通过 `InventoryStockInPort` 和同一 UnitOfWork 写入，不读取完整库存实体。
+- 报销通过 `InventoryStockInPort` 和同一 UnitOfWork 写入，不读取完整库存实体。
 - BOM 缺口、库存水位和装箱核对保持纯派生，不新增第二本账。
 
 ## 4. 领域不变式
@@ -46,7 +46,7 @@ Inventory 管零件类型、重要单件、append-only 动作日志、机器人�
 ## 6. 已知陷阱
 
 - 生产持久化已收成统一 SQLite，测试 fake 已物理移入 `test/support`；下一步是把 route/store 形状迁为领域 module/repository。
-- 报账入库已改用结构化 `reimburseItemIndex`；其他跨域入口迁移时不得再把关联键藏进 note。
+- 报销入库已改用结构化 `reimburseItemIndex`；其他跨域入口迁移时不得再把关联键藏进 note。
 - BOM 需求事实尚不完整，因而“从未买过/下一版不够”不能在没有上游时强推。
 - 历史“对话记账作为主路径”已被否决；Hermes 只适合作为低频补录和草稿入口。
 

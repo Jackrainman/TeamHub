@@ -25,7 +25,7 @@ last_reviewed: 2026-08-15
 | 资源 | `domains/resources.md` | 机器人、资源与接力 |
 | 排班 | `domains/schedule.md` | 关键窗口排班 |
 | 图纸档案 | `domains/artifacts.md` | 图纸元数据与文件旁路 |
-| 报账 | `domains/reimburse.md` | 本地票据解析、批次和库存联动 |
+| 报销 | `domains/reimburse.md` | 本地票据解析、批次和库存联动 |
 | 集成 | `domains/integrations.md` | 飞书/Hermes 边界 |
 
 ## 使用与运维
