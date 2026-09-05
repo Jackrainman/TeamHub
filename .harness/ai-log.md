@@ -167,3 +167,4 @@
 - 2026-09-04 VERIFY-SCRIPT-UPGRADE 收口：授权矩阵扫描（printRoutes 枚举 ×100 路由 × 4 身份，未归类新路由自动纳入）+ 首登设密码 e2e（e2e/suite/first-login-pin.cjs 自备 server 生命周期），pre-commit 新增 3.5 串行 e2e 闸；纯测试零 src 变化不 bump
 - 2026-09-04 报销页 UX：报账→报销全仓改名、批次+校验标准收 SideDrawer、首访引导（出厂默认抬头时提示管理员），v0.75.0
 - 2026-09-04 UI 视觉审计（子 agent 中道夭折）：已修跨主题 token bug（--accent/--card-bg 移 :root，v0.75.1），剩余线索收 UI-VISUAL-AUDIT todo P3
+- 2026-09-05 REIMBURSE-EVIDENCE 设计矛盾收口（D-094）：查明「文件本体永不上传」红线把「解析留浏览器」（架构）与「原件不进服务器」（隐私）焊成一句，12 处断言互相打架且 9-03 反转从未登记 decisions.md，是用户「思路混乱」的根源；archive 回查零命中=该红线无历史否决挡路。按读者链（本人→战队财务→学校老师，且腾讯填表旧流程本就上传 PDF+截图）作废隐私侧、保留解析侧，替换为条目级访问不变式；对齐 AGENTS.md/decisions.md/reimburse.md/product.md/software-architecture.md/release.md/todo.json 六源，新增 REIMBURSE-EVIDENCE-STORE 待办。诚实边界：零代码改动（当前仍无上传端点），纯文档不 bump；verify:docs 24 活文档绿 + git diff --check 净

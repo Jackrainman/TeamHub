@@ -61,7 +61,7 @@ TeamHub 已从单一机器人协作工具长成知识库、项目管理、库存
 | UI 图标 | lucide-react | 禁第二套图标库 |
 | 样式 | 原生 CSS + 全局 token + feature CSS | 禁 CSS-in-JS 与组件内大段 style |
 | 测试 | Vitest + Fastify `app.inject` + Playwright E2E | 不增第二测试框架 |
-| 文件解析 | 浏览器本地 adapter + contracts 纯解析器 | 发票原件不上传；容器统一 `fflate` |
+| 文件解析 | 浏览器本地 adapter + contracts 纯解析器 | 服务器不装解析依赖；原件留档口径见 D-094；容器统一 `fflate` |
 | 导出 | 服务端共享 CSV 基础设施 | XLSX 只有真实模板需求时再立 ADR |
 
 新增运行时依赖必须同时满足：现有栈无法合理完成、作用域明确、按需加载可行、测试策略存在，并在

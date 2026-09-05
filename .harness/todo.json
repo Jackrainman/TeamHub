@@ -66,13 +66,20 @@
     },
     {
       "id": "REIMBURSE-PM-EXPORT",
-      "title": "项管视角全员发票筛选/选择与导出（命名建议、购买方状态、核对原因、gross/eligible/blocked/review 已完成）；用户 2026-09-03 拍板反转：报账文件需要上传留档（原\"文件本体永不上传\"红线作废）；存放位置待定——直接放服务器有安全顾虑（账单虽不值钱但不安全），待用户定存储方案后再动代码；见 docs/domains/reimburse.md",
+      "title": "项管视角全员发票筛选/选择与导出（命名建议、购买方状态、核对原因、gross/eligible/blocked/review 已完成）；实测缺口=导出今天根本不下载文件——contracts reimburse/export.ts 只有算量与 suggestReimburseFilename，全仓无 Blob/createObjectURL，server 无 export 路由，而设置页 reporting 模块已有可抄的 CSV 下载先例；凭证存储口径由 D-094 拍板（不再待决），附件通道另立 REIMBURSE-EVIDENCE-STORE；见 docs/domains/reimburse.md",
+      "tag": "code",
+      "batch": "reimburse"
+    },
+    {
+      "id": "REIMBURSE-EVIDENCE-STORE",
+      "title": "凭证附件受控通道（D-094 拍板后立项）：条目级上传发票 PDF/付款截图/查验单原件 + 鉴权下载 + 下载留操作者痕迹 + 随批次打包交财务；附件永不进列表/聚合/无鉴权静态路径；待决子项=「财务」是否需要独立权限旗（现仅超管/PM 旗）与存放目录（部署动作）；用户手上已有一批含付款截图的真实票据可作验收样本；见 docs/domains/reimburse.md §7",
       "tag": "code",
       "batch": "reimburse"
     },
     {
       "id": "REIMBURSE-OCR-PROBE",
-      "title": "扫描票本地 OCR 技术验证：真实样本测 tesseract.js 资源体积、单页耗时、低性能设备内存与核心字段识别率；达标后才评估接主流程，结果必须人工确认且原件不上传；见 docs/domains/reimburse.md",
+      "title": "扫描票本地 OCR 技术验证：真实样本测 tesseract.js 资源体积、单页耗时、低性能设备内存与核心字段识别率；达标后才评估接主流程，结果必须人工确认；解析全程留浏览器属 D-094 不变式①，与附件留档（D-094②）互不牵动；见 docs/domains/reimburse.md",
+      "note": "用户 2026-09-05 已拿到真实发票+付款截图样本，本项前置条件已满足，可即时开做",
       "tag": "research",
       "batch": "later"
     },

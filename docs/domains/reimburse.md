@@ -3,14 +3,14 @@ kind: canonical-domain
 status: active
 domain: reimburse
 truth_for: reimbursement-invoice-import-quality-batches-and-stock-in
-last_reviewed: 2026-08-31
+last_reviewed: 2026-09-05
 ---
 
 # Reimburse 领域
 
 ## 1. 职责与边界
 
-Reimburse 管采购/费用条目、发票元数据、材料清单、报销批次、付款/查验状态和入库关联。发票、付款截图、查验单文件本体始终留在用户设备；服务器只存结构化元数据。
+Reimburse 管采购/费用条目、发票元数据、材料清单、报销批次、付款/查验状态和入库关联。票据解析始终在浏览器本地运行；凭证原件当前仍留在用户设备，受控留档通道按 D-094 待立项（见 §7）。
 
 ## 2. 当前行为（CURRENT）
 
@@ -27,11 +27,12 @@ Reimburse 管采购/费用条目、发票元数据、材料清单、报销批次
 
 - 已冻结首个三包同构模板；后续只在域内扩展 parser、export adapter 和窄跨域 port。
 - 统一归档安全门已落地（contracts planInvoiceArchive + console archive-extract）；OCR 只有真实样本验证达标后才允许进入本地 import pipeline。
-- 财务导出补筛选/选择和实际下载，不把发票文件上传服务器。
+- 财务导出补筛选/选择和实际下载；凭证留档按 D-094 走受控附件通道（鉴权上传与下载留痕），解析仍留浏览器。
 
 ## 4. 领域不变式
 
-- 发票、付款截图、查验单文件本体永不上传；OCR/解包/解析均在浏览器本地运行。
+- 票据解析（PDF/XML/ZIP/OFD）与 OCR 始终在浏览器本地运行；服务器不装票据解析依赖，无 multipart 入口。
+- 凭证附件（发票/付款截图/查验单原件）若进入留档，按 D-094 只对提交本人与承担财务职责的成员可读，永不进列表、聚合、统计或无鉴权静态路径，下载留痕；AI/OCR 结果仍是需人工确认的草稿。
 - 金额以分为整数；不能精确表达时显式标记需核对，不制造小数精度。
 - 条目人键只回本人和项目管理员；批次聚合无按报销人明细或统计。
 - 抬头不匹配、信息缺失和人工/OCR 补录必须给结构化核对原因。
@@ -56,3 +57,4 @@ Reimburse 管采购/费用条目、发票元数据、材料清单、报销批次
 
 - `REIMBURSE-PM-EXPORT`：命名建议与四口径已完成；仍需筛选/选择和实际导出适配器。
 - `REIMBURSE-OCR-PROBE`：先用真实样本验证 tesseract.js 体积、耗时、内存和识别率，达标后再进入主流程。
+- `REIMBURSE-EVIDENCE-STORE`：按 D-094 建受控附件通道——条目级上传、鉴权下载、下载留痕、随批次打包交财务。范围含「财务」是否需要独立权限旗（现在只有超管/PM 旗）。在通道落地前，`materials` 的 `paymentShot`/`inspection` 布尔语义仍是**本人自证已备**，不是文件已归档的凭据。
