@@ -168,3 +168,16 @@
 - 2026-09-04 报销页 UX：报账→报销全仓改名、批次+校验标准收 SideDrawer、首访引导（出厂默认抬头时提示管理员），v0.75.0
 - 2026-09-04 UI 视觉审计（子 agent 中道夭折）：已修跨主题 token bug（--accent/--card-bg 移 :root，v0.75.1），剩余线索收 UI-VISUAL-AUDIT todo P3
 - 2026-09-05 REIMBURSE-EVIDENCE 设计矛盾收口（D-094）：查明「文件本体永不上传」红线把「解析留浏览器」（架构）与「原件不进服务器」（隐私）焊成一句，12 处断言互相打架且 9-03 反转从未登记 decisions.md，是用户「思路混乱」的根源；archive 回查零命中=该红线无历史否决挡路。按读者链（本人→战队财务→学校老师，且腾讯填表旧流程本就上传 PDF+截图）作废隐私侧、保留解析侧，替换为条目级访问不变式；对齐 AGENTS.md/decisions.md/reimburse.md/product.md/software-architecture.md/release.md/todo.json 六源，新增 REIMBURSE-EVIDENCE-STORE 待办。诚实边界：零代码改动（当前仍无上传端点），纯文档不 bump；verify:docs 24 活文档绿 + git diff --check 净
+
+## 2026-09-06（续）：REIMBURSE-PM-EXPORT 收口——项管视角全员发票导出真正下载文件（v0.75.1 → v0.76.0）
+
+**用户指令**：接中断任务——contracts 导出链路接线 + 前端落地 Blob 下载；红线=条目人键只回本人+超管、不碰凭证附件（REIMBURSE-EVIDENCE-STORE）。
+
+**改动**：
+- contracts：`csv-core.ts` 新增 `escapeCsvCell`/`buildCsv`（BOM+CRLF+RFC4180 转义，reporting 旧 toCsv 语义一致）；`domains/reimburse/export.ts` 新增 `REIMBURSE_EXPORT_COLUMNS`（16 列）/`ReimburseExportRow`/`deriveReimburseExportRow`（派生与卡片/批次同源）/`buildReimburseCsv`/`ReimburseExportOptions`（resolveMemberName/resolveBatchName，缺省回退 memberId/batchId）；根 `index.ts` 报销段补接线（此前 TS2305 未导出）；`test/reimburse-export.test.ts` 8 测全绿
+- console：新增 `reimburse-export.ts` 纯函数层（表头逐列 t()、枚举本地化、日期化文件名建议，可单测不碰 DOM）+ `components/ReimburseExportSection.tsx`（管理抽屉内=超管视角：列表数据 → deriveReimburseExportRow 逐条 → localize → buildReimburseCsv → Blob+createObjectURL 触发下载）；`ReimbursePage.tsx` client 类型扩到 `Pick<HubApiClient,'getMembers'>`（名册名解析）；i18n reimburse.ts 加导出区/表头 16 列/枚举文案（中英）；`test/reimburse-export.test.ts` 5 测全绿
+- 鉴权：导出按钮只在报销管理抽屉（`isSuperAdmin`）出现；导出数据=当前全量 entries（server 对超管回全量，普通成员只回本人）——沿用既有口径，未新增任何读取口；不碰凭证附件通道
+
+**验证**：contracts verify:all 451 绿 / console verify:all（typecheck+test+build+e2e first-login-pin）绿 / verify:architecture 绿 / pre-commit 绿 / git diff --check 净。
+
+**版本**：feature → MINOR，0.75.1 → 0.76.0（bump-version.sh）。commit：`feat(reimburse): PM-view all-invoice CSV export downloads a real file v0.76.0`（英文 message 按任务指示）。
