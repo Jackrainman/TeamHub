@@ -12,12 +12,14 @@ import {
   useReimburseStockInContext,
 } from './hooks';
 import type { ReimburseSegment } from './api';
+import type { HubApiClient } from '../../api/client';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
 import { ReimburseEntryForm } from './components/ReimburseEntryForm';
 import { ReimburseEntryCard } from './components/ReimburseEntryCard';
 import { ReimburseBatchSection } from './components/ReimburseBatchSection';
 import { ReimburseImportZone } from './components/ReimburseImportZone';
+import { ReimburseExportSection } from './components/ReimburseExportSection';
 import { ReimburseProfileSection } from './components/ReimburseProfileSection';
 
 /**
@@ -39,7 +41,7 @@ export function ReimbursePage({
   identity,
   projectId,
 }: {
-  client: ReimburseSegment;
+  client: ReimburseSegment & Pick<HubApiClient, 'getMembers'>;
   source: string;
   identity: PageIdentityCtx;
   projectId: string;
@@ -190,6 +192,13 @@ export function ReimbursePage({
           title={t('reimb.admin.open')}
         >
           <div className="reimb-admin-stack">
+            <ReimburseExportSection
+              client={client}
+              source={source}
+              entries={entries}
+              batches={batches}
+              profile={profile}
+            />
             <ReimburseBatchSection
               client={client}
               source={source}

@@ -9,9 +9,10 @@ declare const TextDecoder: {
 };
 
 /**
- * CSV 导入共用核（ROSTER-IMPORT 刀⑦ 起名册专用，INV-BULK-IMPORT 刀⑪ 抽成两域共用）：
- * 编码探测（`decodeCsvBytes`）+ 手写零依赖记录切分（`tokenizeCsv`）。名册（roster-import）与
- * 库存（inventory-import）的解码/切分规则一字不差，抽这里单一来源；行→域草稿的校验映射仍各域自持。
+ * CSV 共用核（ROSTER-IMPORT 刀⑦ 起名册专用，INV-BULK-IMPORT 刀⑪ 抽成两域共用）：
+ * 编码探测（`decodeCsvBytes`）+ 手写零依赖记录切分（`tokenizeCsv`）+ 导出序列化（`buildCsv`）。
+ * 名册（roster-import）与库存（inventory-import）的解码/切分规则一字不差，抽这里单一来源；
+ * 行→域草稿的校验映射仍各域自持；导出侧由报销全员发票导出（REIMBURSE-PM-EXPORT）首个使用。
  */
 
 // UTF-8 BOM（U+FEFF）：Excel 直接双击打开 CSV 时据此识别 UTF-8（否则中文乱码）。
@@ -118,4 +119,21 @@ export function tokenizeCsv(text: string): CsvRecord[] {
   // 末条无换行结尾（field 或已积累的 fields 非空）。
   if (field !== '' || fields.length > 0) pushRecord();
   return records;
+}
+
+/** 单个 CSV 单元格转义（RFC4180）：含逗号/引号/换行时用双引号包裹，内部引号翻倍。 */
+export function escapeCsvCell(value: string): string {
+  if (value.includes(',') || value.includes('"') || value.includes('\n') || value.includes('\r')) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+/**
+ * CSV 导出序列化（REIMBURSE-PM-EXPORT 首用；reporting 导出侧旧 toCsv 语义一致）：
+ * UTF-8 BOM + CRLF 行尾 + 逐格转义，保证 Excel 直接双击打开中文不乱码。
+ */
+export function buildCsv(headers: string[], rows: string[][]): string {
+  const lines = [headers, ...rows].map((row) => row.map(escapeCsvCell).join(','));
+  return UTF8_BOM + lines.join('\r\n');
 }

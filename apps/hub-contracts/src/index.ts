@@ -299,6 +299,9 @@ export {
   parseInvoiceXmlText,
   planInvoiceArchive,
   suggestReimburseFilename,
+  REIMBURSE_EXPORT_COLUMNS,
+  buildReimburseCsv,
+  deriveReimburseExportRow,
 } from './domains/reimburse/index.js';
 export type {
   CreateReimburseBatchRequest,
@@ -339,6 +342,10 @@ export type {
   UpdateReimburseEntryResponse,
   UpdateReimburseProfileRequest,
   UpdateReimburseProfileResponse,
+  ReimburseExportColumn,
+  ReimburseExportCsvRow,
+  ReimburseExportOptions,
+  ReimburseExportRow,
 } from './domains/reimburse/index.js';
 // 门检查单标准纵切：显式导出正式 domain API；checklist 不再反向 import baseline 整域。
 export {

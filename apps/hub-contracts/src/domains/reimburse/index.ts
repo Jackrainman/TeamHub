@@ -99,7 +99,16 @@ export type {
 } from './import.js';
 
 export {
+  buildReimburseCsv,
   deriveBatchSummary,
+  deriveReimburseExportRow,
   deriveReimburseFinancialSummary,
+  REIMBURSE_EXPORT_COLUMNS,
   suggestReimburseFilename,
+} from './export.js';
+export type {
+  ReimburseExportColumn,
+  ReimburseExportCsvRow,
+  ReimburseExportOptions,
+  ReimburseExportRow,
 } from './export.js';
