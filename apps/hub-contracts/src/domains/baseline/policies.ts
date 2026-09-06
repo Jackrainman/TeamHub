@@ -196,6 +196,59 @@ export function deriveTimeAccumulationFlags(tasks: Task[]): TimeAccumulationFlag
 }
 
 // ---------------------------------------------------------------------------
+// 时间线编辑器派生（TIMELINE-EDITOR）：pace 反馈 + 段边界校验。
+// 纯函数、无 IO，前后端共用——console 编辑器实时预览与 server PATCH 校验吃同一份实现。
+// ---------------------------------------------------------------------------
+
+/**
+ * 节奏反馈（TIMELINE-EDITOR「实时 pace 反馈」）：剩余 pending 里程碑数 / 距赛日周数 /
+ * 每周需推进数。规则保持人人能心算（§4 同口径），不做加权。
+ * 无 competitionDate 锚点 → null（数据不足不制造结论，同不变式「数据不足时不制造黄/红」）。
+ */
+export interface BaselinePace {
+  /** status==='pending' 的里程碑数（passed/missed 已有结论，不进剩余）。 */
+  remaining: number;
+  /** 距比赛日的周数（下限钳 1 周：赛日已过/就在本周时分母不为零），保留 1 位小数。 */
+  weeksLeft: number;
+  /** 每周需推进的里程碑数 = remaining / weeksLeft，向上取到 0.1（宁可高估不可宽慰）。 */
+  perWeek: number;
+}
+
+export function deriveBaselinePace(
+  baseline: Pick<SeasonBaseline, 'anchors' | 'milestones'>,
+  now: Date,
+): BaselinePace | null {
+  const competitionDate = baseline.anchors.competitionDate;
+  if (!competitionDate) return null;
+  const remaining = baseline.milestones.filter((m) => m.status === 'pending').length;
+  const weeksLeft = Math.max(1, (new Date(competitionDate).getTime() - now.getTime()) / MS_PER_WEEK);
+  return {
+    remaining,
+    weeksLeft: Math.round(weeksLeft * 10) / 10,
+    perWeek: Math.ceil((remaining / weeksLeft) * 10) / 10,
+  };
+}
+
+/**
+ * 段边界校验（TIMELINE-EDITOR「segment 低频调整」）：每段 startsAt 必须早于 endsAt、
+ * 日期可解析。返回 null = 合法；否则返回人话 detail（哪一段反了）。
+ * server upsert 与 console 保存按钮禁用共用这一条，不两处各写。
+ */
+export function validateBaselineSegments(segments: readonly BaselineSegment[]): string | null {
+  for (const segment of segments) {
+    const start = new Date(segment.startsAt).getTime();
+    const end = new Date(segment.endsAt).getTime();
+    if (Number.isNaN(start) || Number.isNaN(end)) {
+      return `时间段「${segment.label}」的日期无法解析`;
+    }
+    if (end <= start) {
+      return `时间段「${segment.label}」的结束必须晚于开始`;
+    }
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Robocon 三版车节奏模板 v1（baseline-design.md §2）：两锚点 → 相对周展开。
 // 纯函数、无 IO；产物直接喂 `PATCH /api/baseline`（返回体 = UpdateBaselineRequest 的四字段，
 // 不含 id/seasonId——那两个由 store 按 seasonId 派生/钉死）。

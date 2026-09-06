@@ -87,6 +87,48 @@ describe('倒排基准线路由（BASELINE-CORE，S4）', () => {
     }
   });
 
+  test('PATCH /api/baseline：segment 低频调整的边界兜底——结束早于开始 → 400 BASELINE_SEGMENT_RANGE_INVALID；合法段 → 200', async () => {
+    const app = buildTestHubServer();
+    try {
+      const bad = await app.inject({
+        method: 'PATCH',
+        url: `/api/baseline?seasonId=${seasonId}`,
+        payload: {
+          segments: [
+            {
+              kind: 'vacuum',
+              startsAt: '2027-02-01T00:00:00.000Z',
+              endsAt: '2027-01-01T00:00:00.000Z',
+              label: '反了的段',
+            },
+          ],
+        },
+      });
+      expect(bad.statusCode).toBe(400);
+      expect(bad.json().code).toBe('BASELINE_SEGMENT_RANGE_INVALID');
+
+      const good = await app.inject({
+        method: 'PATCH',
+        url: `/api/baseline?seasonId=${seasonId}`,
+        payload: {
+          segments: [
+            {
+              kind: 'semester',
+              startsAt: '2026-09-01T00:00:00.000Z',
+              endsAt: '2026-12-01T00:00:00.000Z',
+              label: '第一学期',
+            },
+          ],
+        },
+      });
+      expect(good.statusCode).toBe(200);
+      const body = UpdateBaselineResponseSchema.parse(good.json());
+      expect(body.baseline.segments).toHaveLength(1);
+    } finally {
+      await app.close();
+    }
+  });
+
   test('POST /milestones/:id/pass：证据引用不存在的 artifactId → 400（避孤儿引用）', async () => {
     const app = buildTestHubServer();
     try {

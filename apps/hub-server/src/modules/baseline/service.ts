@@ -1,8 +1,9 @@
-import type {
-  ActorRef,
-  PassMilestoneRequest,
-  SeasonBaseline,
-  UpdateBaselineRequest,
+import {
+  validateBaselineSegments,
+  type ActorRef,
+  type PassMilestoneRequest,
+  type SeasonBaseline,
+  type UpdateBaselineRequest,
 } from '@teamhub/hub-contracts';
 import { ApplicationError } from '../../application/application-error.js';
 import type { GateChecklistPort } from '../checklist/repository.js';
@@ -28,6 +29,14 @@ export class BaselineService {
     seasonId: string,
     patch: UpdateBaselineRequest,
   ): Promise<SeasonBaseline> {
+    // TIMELINE-EDITOR 开放 segment 低频调整后，段边界（开始<结束）入库前在服务端兜底校验，
+    // 与 console 保存按钮禁用吃同一个 contracts 纯函数。
+    if (patch.segments) {
+      const invalid = validateBaselineSegments(patch.segments);
+      if (invalid) {
+        throw new ApplicationError('validation', 'BASELINE_SEGMENT_RANGE_INVALID', invalid);
+      }
+    }
     return this.repository.upsertBaseline(seasonId, patch);
   }
 

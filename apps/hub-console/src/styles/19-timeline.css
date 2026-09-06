@@ -103,3 +103,40 @@
   font-size: var(--text-sm);
   color: var(--faint);
 }
+.timeline-editor__preview {
+  flex-basis: 100%;
+  margin: 4px 0 0;
+  font-size: var(--text-xs);
+  color: var(--accent);
+}
+.timeline-editor__preview--overrun {
+  color: var(--red);
+}
+.timeline-editor__hint {
+  flex-basis: 100%;
+  margin: 4px 0 0;
+  font-size: var(--text-xs);
+  color: var(--faint);
+}
+/* segment 低频调整：骨架级改动刻意收进折叠卡（details.card），不占主动线视觉 */
+.timeline-editor__segments {
+  margin-top: 16px;
+  display: block;
+}
+.timeline-editor__segments summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--faint);
+}
+.timeline-editor__segment-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+.timeline-editor__segment-label {
+  flex-basis: 100%;
+  font-size: var(--text-sm);
+  color: var(--text);
+}

@@ -3,7 +3,7 @@ kind: canonical-domain
 status: active
 domain: baseline
 truth_for: season-baseline-milestones-gates-and-drift
-last_reviewed: 2026-08-15
+last_reviewed: 2026-09-06
 ---
 
 # Baseline 领域
@@ -20,6 +20,7 @@ Baseline 管赛季级倒排基准线、阶段、里程碑、验证门、漂移�
 - 门可记录 evidence artifact 引用和验收事实；公开响应剥离 `passedBy`。
 - 投资任务用 horizon/value/timeAccumulation 表达“未来高价值”和“需要提前积累”，不改任务 dueDate。
 - 总览显示倒计时、时间轴、当前阶段、里程碑漂移和投资提示。
+- 时间线编辑器（`timeline` 页，TIMELINE-EDITOR）：里程碑点击选偏移档位（±天/周、今天完成），悬停实时预览新日期与 pace 反馈（越过赛日标红）；segment 边界低频调整收进折叠卡，开始必须早于结束（前后端共用 validateBaselineSegments 拦截）；刻意不引拖拽库。pace 规则本体是 contracts 的 deriveBaselinePace。
 
 ## 3. 目标结构（TARGET）
 
@@ -48,11 +49,10 @@ Baseline 管赛季级倒排基准线、阶段、里程碑、验证门、漂移�
 - CURRENT baseline 文件仍描述独立 Store 和环境变量，与 D-090 目标冲突。
 - 模板只有两个锚点，无法精确定位所有学期真空段；短赛季需人工覆盖。
 - 2026 真实赛季时间线尚未赛后回填，模板仍是相对周 v1。
-- timeline 编辑器没有完整交互，现阶段以生成模板和整段覆盖为主。
+- 时间线编辑器是离散档位调整（点击选偏移/日期输入），非拖拽；相邻段联动（改一段边界是否顺延邻段）尚未做，需人工逐段对齐。
 
 ## 7. 未落地差异与 TODO
 
 - `ARCH-UNIFY`：迁入标准 module 和统一 SQLite，通过 checklist port 完成过门事务。
-- `TIMELINE-EDITOR`：全页编辑、里程碑选偏移和实时 pace 反馈，保持无拖拽库方案。
 - 赛后补充真实规则发布、方案冻结、备馆、赛日和实际达成时间，生成模板 v2。
 - G4 破坏性/极限工况子项应来自复盘模板，不在 baseline 模型硬编码。

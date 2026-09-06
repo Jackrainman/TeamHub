@@ -278,6 +278,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
         client={ctx.apiClient}
         seasonsClient={ctx.apiClient}
         source={ctx.source}
+        identity={ctx.identity}
       />
     ),
   },

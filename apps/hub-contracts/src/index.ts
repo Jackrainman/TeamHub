@@ -87,6 +87,7 @@ export {
   UpdateBaselineRequestSchema,
   UpdateBaselineResponseSchema,
   deriveBaselineDrift,
+  deriveBaselinePace,
   deriveGroupsBehind,
   deriveInvestmentWarnings,
   deriveRobotStageMarkers,
@@ -94,6 +95,7 @@ export {
   deriveStageProgress,
   deriveTimeAccumulationFlags,
   generateRoboconBaselineTemplate,
+  validateBaselineSegments,
   MilestoneStageSchema,
   STAGE_PIPELINE_STAGES,
 } from './domains/baseline/index.js';
@@ -101,6 +103,7 @@ export type {
   BaselineAnchors,
   BaselineMilestone,
   BaselineMilestonePublic,
+  BaselinePace,
   BaselinePhase,
   BaselinePhaseType,
   BaselineResponse,

@@ -53,6 +53,7 @@ export {
   TEMPLATE_NOTE_M2,
   TIME_ACCUMULATION_LABEL,
   deriveBaselineDrift,
+  deriveBaselinePace,
   deriveGroupsBehind,
   deriveInvestmentWarnings,
   deriveRobotStageMarkers,
@@ -60,9 +61,11 @@ export {
   deriveStageProgress,
   deriveTimeAccumulationFlags,
   generateRoboconBaselineTemplate,
+  validateBaselineSegments,
   STAGE_PIPELINE_STAGES,
 } from './policies.js';
 export type {
+  BaselinePace,
   GroupBehindSummary,
   InvestmentWarning,
   MilestoneDrift,

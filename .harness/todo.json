@@ -83,13 +83,6 @@
       "batch": "later"
     },
     {
-      "id": "TIMELINE-EDITOR",
-      "title": "基准线交互编排：/baseline/edit 全页路由，里程碑点击选偏移+实时 pace 反馈，segment 低频调整，不引拖拽库（~2.5 天，见 docs/domains/baseline.md）",
-      "tag": "code",
-      "batch": "later",
-      "note": "用户 2026-09-03 拍板：暂缓，优先级让位报账系统；保留 todo 不删"
-    },
-    {
       "id": "REIMBURSE-TIDOC-UX",
       "title": "报账页 UI/交互参照 tidoc web 前端打磨（github.com/totok22/tidoc 的 tidoc/web/，成熟产品可大幅参照：条目卡片材料快捷按钮、批次栏文件夹式入口、多栏列表+Shift范围选择、识别提醒视图）；REIMBURSE-PROC 一期落地后再做",
       "tag": "code",

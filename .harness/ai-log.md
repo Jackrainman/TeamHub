@@ -226,3 +226,21 @@
 **验证**：hub-console verify:all 绿（typecheck + 267 tests + build + e2e first-login）/ verify:architecture 绿 / pre-commit 绿（含 e2e 闸 + 密钥扫描）/ git diff --check 净（无 docs 改动故未跑 verify:docs）。
 
 **版本**：纯样式/标记修复 → PATCH，0.77.0 → 0.77.1。commit：`style(console): archive mechanism sub-header spacing + panel-header h3 base rules v0.77.1`。
+
+## 2026-09-06：TIMELINE-EDITOR 基准线交互编排落地（v0.77.1 → v0.78.0）
+
+**用户指令**：完成 todo.json 的 TIMELINE-EDITOR（用户 2026-09-03 曾拍板暂缓，本次指令即解除暂缓）：/baseline/edit 全页路由 + 里程碑点击选偏移 + 实时 pace 反馈 + segment 低频调整 + 不引拖拽库。
+
+**落地前现状**：`timeline` 页已在 console-pages 注册（全页路由=内存页态，console 无 react-router），TimelineEditorPage 已有「点击里程碑→偏移按钮→立即 PATCH」雏形；缺口 = ① pace 只反映已提交态、无预览反馈 ② 无 segment 调整通道 ③ pace 规则写死在组件里（违「纯函数放契约包」）。
+
+**改动**：
+- contracts：`deriveBaselinePace`（剩余 pending/距赛日周数/perWeek 向上取 0.1，无赛日锚点→null）+ `validateBaselineSegments`（开始<结束、日期可解析）落 policies.ts，前后端共用；导出经 domains/baseline/index.ts + 根 index.ts 显式清单。
+- server：upsertBaseline 入库前段边界兜底校验（BASELINE_SEGMENT_RANGE_INVALID 400），与前端禁用吃同一纯函数。
+- console：features/timeline/lib.ts 纯变换（applyMilestoneOffsetDays / setSegmentBoundary）；TimelineEditorPage 重构——悬停/聚焦偏移档位实时预览（新日期 + 预览 pace + 越过赛日标红），点击才落库；segment 低频调整收进 `details.card` 折叠卡（date input 定点改，倒挂/未改动禁用保存）；接 identity.canWrite 写闸（复用 identity.writeHint）。不引拖拽库：离散档位 + 日期输入。
+- 测试：contracts baseline-pace.test.ts 9 条；server baseline-route 段边界 400/200；console timeline-editor.test.ts 7 条（含预览→deriveBaselinePace 联动链）。
+
+**验证门**：三包 verify:all 全 exit 0（contracts 460 / server 432 / console 274 tests + e2e first-login PASS）+ verify:docs + verify:architecture + git diff --check 全绿。中途一处测试边界值自伤（+14 天恰等赛日，断言 `>` 不成立）→ 改 +15 天修复，非产品代码问题。
+
+**文档**：docs/domains/baseline.md §2 补编辑器行为、§6 陷阱更新（离散档位/相邻段不联动）、§7 移除 TIMELINE-EDITOR TODO。
+
+**版本**：feature → MINOR，0.77.1 → 0.78.0。
