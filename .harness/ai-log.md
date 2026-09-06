@@ -196,3 +196,19 @@
 **验证**：console verify:all 绿（31 files / 267 tests + build + e2e first-login-pin）/ verify:architecture 绿 / pre-commit 绿（含 e2e 闸）。
 
 **版本**：feature → MINOR，0.76.0 → 0.77.0。commit：`feat(nav): split navigation into board/tool groups by nature, gray internal-beta badge v0.77.0`。
+
+## 2026-09-06：BUG-REDIRECT-APP 排查——验收驳回后跳 /app 未复现（代码路径正常）
+
+**用户指令**：排班验收驳回后前端跳 /app 疑似带错 payload；用户已忘复现步骤，子 agent 自行读代码路径 + 必要时起实例复现排查。
+
+**排查过程（静态为主）**：
+- 全仓 grep：`navigate(` / `useNavigate` / `<Navigate>` / `history` / `location.assign` / `window.open` / `react-router` 在 `apps/hub-console/src` 零命中（仅 `window.location.reload()` 四处：setup/settings 属整页重载非导航）。console 是无路由 SPA——App.tsx 用 `useState<ConsolePage>` 内存页态，唯一切换机制 `onNavigate(page)` 只传页 key，且 `CONSOLE_PAGES` 联合类型无 `'app'` 键，`onNavigate('app')` 在 TS 层即不可编译。
+- `features/schedule/`：grep review/approve/reject/验收 零命中。排班在场/今日计划表/接力画布均无验收概念；TodayPlanTable「确认」成功只 `setManualView('lanes')`（本页内视图切换，非跳转）。
+- 全 app 唯一验收流 = pm 域任务验收：`features/pm/sub/TaskActionsPanel.tsx`（accept/reject 两钮）→ `useTaskActions.ts` 的 `reviewMutation` → `POST /api/tasks/:id/review`（server `modules/pm/tasks-claim.ts:138`）。`reviewMutation.onSuccess` 只调 `resetState()`（清本地表单态），**无任何跳转、无路由 state/query、不携带 payload**，TaskDetailDrawer 保持打开。server 端为纯 JSON 响应无 redirect。
+- git 全史复核：`-S` 搜 `onNavigate('workbench')` / `setPage('workbench')` / `navigate('/app')` / `'app'` 页键 / `react-router` 全零命中——console 自诞生起就是无路由 SPA，验收后跳转代码从未存在过。`~/TeamHub` 生产部署由本仓 rsync，不存在历史遗留旧前端版本差异。
+
+**结论**：代码路径正确，未复现。用户报告的三要素（排班×验收×跳 /app 带 payload）在现有代码中无法同时成立：排班域无验收、验收域无跳转、console 无 /app 路由与 payload 概念。推测为记忆偏差或把别的产品/旧版行为记到 TeamHub 上。按任务指示不硬改，todo 条目 note 记结论、owner 交回 user，待用户再遇到时抓现场（浏览器 URL/Network/控制台）。
+
+**验证**：verify:docs 绿 + git diff --check 净（docs/harness 类改动）。
+
+**版本**：无代码改动，不 bump。

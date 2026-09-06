@@ -21,8 +21,8 @@
     {
       "id": "BUG-REDIRECT-APP",
       "title": "验收驳回后前端跳 /app 疑似带错 payload 的 bug",
-      "note": "排班验收驳回后跳转异常；用户 2026-09-06 表示无复现步骤（已忘），由子 agent 自行读代码路径+起实例复现排查",
-      "owner": "agent"
+      "note": "2026-09-06 子 agent 排查结论：代码路径正常，未复现。console 是无路由 SPA（无 react-router/无 /app 路径，唯一导航 onNavigate 只切内存页态且 CONSOLE_PAGES 无 'app' 键）；schedule 特性零 review/approve/reject 代码；全 app 唯一验收流在 pm 域 TaskActionsPanel→POST /api/tasks/:id/review，驳回 onSuccess 只 resetState() 清本地表单态、不跳转、不携带任何 payload，抽屉保持打开；git 全史（-S 搜 onNavigate('workbench')/setPage('workbench')/navigate('/app')/react-router/'app' 键）均无此代码。待用户再遇到时抓现场（浏览器 URL/Network/控制台）。",
+      "owner": "user"
     },
     {
       "id": "UI-VISUAL-AUDIT",
