@@ -212,3 +212,17 @@
 **验证**：verify:docs 绿 + git diff --check 净（docs/harness 类改动）。
 
 **版本**：无代码改动，不 bump。
+
+## 2026-09-06：UI-VISUAL-AUDIT 续审收尾——archive 子表头收编 + panel-header h3 补全（v0.77.0 → v0.77.1）
+
+**用户指令**：续审全仓视觉审计剩余 4 条线索（2026-09-04 中道停止的 UI-VISUAL-AUDIT）：① ArchiveViewTab 嵌套 panel-header 内联 paddingTop 0.5rem hack + mechanism 组间无间距；② panel-header h3 规则缺口（base 只盖 h2，ActivityFeed/ArchiveViewTab 两处 h3）；③ 各页面根容器 flex/gap 审计；④ 按主题截图比对（可选）。
+
+**逐条结论**：
+1. **修了**。ArchiveViewTab 内联 `style={{ paddingTop: '0.5rem' }}` 删除；`.archive-view .panel { gap: 8px }` 收编组间距（07-archive.css）。为何不用子类覆盖 `.panel-header` padding：notion 主题 `:root[data-theme^='notion'] .panel-header { padding: 12px 16px }` 特异度 (0,3,0) 且 24-notion.css 在 07-archive.css 之后导入，普通 (0,1,0) 子类压不过——段级 flex gap 天然无特异度战争。gap 让段头→首组、组与组统一 8px。DOM 实测：抬升机构组列表底 533 → 底盘组表头顶 541、底盘列表底 945 → 夹爪表头顶 953，均为整 8px；三主题（notion/dark/tech）一致。
+2. **修了**。02-base.css 两条 base 规则扩展到 `.panel-header h3`（margin:0/color/font-title/letter-spacing + font-size:text-md），ActivityFeed h3 不再吃浏览器默认（1.17em + 1em 边距导致表头被撑高、字号大于 h2）。07-archive.css `.archive-mechanism-title` 升为 `h3.archive-mechanism-title` 保子表头 muted/base 档（与新 base 规则同特异度、07 后源序赢回）。实测三主题 h3 与 h2 计算样式全等（fs 15px / mt 0 / 同色同字族）。
+3. **无需修**。13 个 CONSOLE_PAGES 页根：11 个 `*-page` 均有 flex col + gap；overview 用 overview-grid（grid + gap 14px）；仅 schedule（裸 div + 分散 margin）与 timeline（timeline-editor padding + margin）无统一 flex 根，但间距靠各自 margin/padding 已成立、无贴边缺陷——统一化属重构，AGENTS.md 红线（无审批不做大规模 UI 重构）不碰。
+4. **跑了**。health-check.cjs 在仓；起临时 demo 库（dataMode=demo + 匿名模式）伺服新构建 dist，按主题（notion/dark/tech）截图总览+图纸档案页，0 console 错误；另存 before/after 对比对（before = 注入旧式 gap:0+squeeze CSS）。本人（当前模型）不能看位图，截图留 `/tmp/teamhub-audit-shots/` 供人工比对；正确性以 DOM 计算样式/几何探针为准。
+
+**验证**：hub-console verify:all 绿（typecheck + 267 tests + build + e2e first-login）/ verify:architecture 绿 / pre-commit 绿（含 e2e 闸 + 密钥扫描）/ git diff --check 净（无 docs 改动故未跑 verify:docs）。
+
+**版本**：纯样式/标记修复 → PATCH，0.77.0 → 0.77.1。commit：`style(console): archive mechanism sub-header spacing + panel-header h3 base rules v0.77.1`。

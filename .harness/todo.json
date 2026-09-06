@@ -25,13 +25,6 @@
       "owner": "user"
     },
     {
-      "id": "UI-VISUAL-AUDIT",
-      "title": "全仓视觉审计（2026-09-04 子 agent 中道狰额，已完成部分+线索在此）：已修=--accent/--card-bg 跨主题缺失（仅 notion/linear 系定义，classic/dark/warm/tech 下 var() 无值，02-base global-search/activity-row 与 19-timeline 消费；v0.75.1 移到 :root 并清死兜底 #4f7fd0/#b8860b/#3d9a50）。未审完的线索：①ArchiveViewTab 嵌套 panel-header 内联 style paddingTop 0.5rem（hack）+ mechanism 组间无间距；②panel-header 里 h3 只有 ActivityFeed/ArchiveViewTab 两处，base 规则只盖 h2；③各页面根容器 gap 审计刚开个头（features/* 的 *-page 根是否都有 flex+gap）；④health-check.cjs 可按主题跑一轮截图人工比对。需要时重派子 agent 续审",
-      "owner": "agent",
-      "priority": "P3",
-      "tag": "code"
-    },
-    {
       "id": "ARCH-FOLLOWUPS",
       "title": "架构统一后的跟进小项：test/support 文件名仍叫 inmemory-gov-store*（类已改名，文件改名纯 churn）；OverviewSnapshot 是 console 聚合（暂留 features/system/api.ts，§10 加域条件成熟后归 system 模块）",
       "owner": "agent",

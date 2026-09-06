@@ -372,7 +372,8 @@ button,
 }
 
 .console-toolbar h1,
-.panel-header h2 {
+.panel-header h2,
+.panel-header h3 {
   margin: 0;
   color: var(--text);
   font-family: var(--font-title);
@@ -623,7 +624,8 @@ button,
   background: var(--surface-raised);
 }
 
-.panel-header h2 {
+.panel-header h2,
+.panel-header h3 {
   font-size: var(--text-md);
 }
 

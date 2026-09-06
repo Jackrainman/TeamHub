@@ -240,10 +240,18 @@
   font-size: var(--text-sm);
   color: var(--muted);
 }
-/* 学科组小标题（原 ArchivePage h3 内联 style 0.95em/opacity，提取为 token 类）。 */
-.archive-mechanism-title {
+/* 学科组小标题（原 ArchivePage h3 内联 style 0.95em/opacity，提取为 token 类）。
+   h3 前缀保住 muted/base 档：base 层 .panel-header h3 会给 text-md/text 色，此处须同特异度、后源序
+   赢回子表头的 muted/base 观感（同 02-base 后导入顺序保证）。 */
+h3.archive-mechanism-title {
   margin: 0;
   font-size: var(--text-base);
   font-weight: var(--weight-bold);
   color: var(--muted);
+}
+/* 机构组子表头间距（view tab）：段头与首组、组与组之间留出呼吸——原内联 paddingTop
+   hack 收编为段级 gap（不碰面板内 padding：主题层 .panel-header 会改 padding，子类压不过
+   notion 的 :root[data-theme^='notion'] 特异度，故用段级 flex gap 统一解决组间无间距）。 */
+.archive-view .panel {
+  gap: 8px;
 }
