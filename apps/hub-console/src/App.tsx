@@ -202,7 +202,11 @@ function ConsoleApp({ apiClient, settings }: { apiClient: HubApiClient; settings
                 ? t('module.disabled.title')
                 : null}
             {activePage?.beta ? (
-              <span className="beta-badge">
+              <span
+                className={
+                  activePage.beta === 'public-beta' ? 'beta-badge beta-badge--public' : 'beta-badge'
+                }
+              >
                 {t(activePage.beta === 'public-beta' ? 'beta.badge.public' : 'beta.badge')}
               </span>
             ) : null}

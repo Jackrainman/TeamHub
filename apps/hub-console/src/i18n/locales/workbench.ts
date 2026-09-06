@@ -1,8 +1,8 @@
 export const zhWorkbench = {
   'nav.workbench': '首页',
   'nav.schedule': '每日在场',
-  'nav.section.work': '工作区',
-  'nav.section.manage': '管理',
+  'nav.section.board': '战队看板',
+  'nav.section.tool': '小工具',
   'toolbar.title.workbench': '首页 · 我这周要干什么',
   'toolbar.title.schedule': '每日在场 · 接力排班',
   'workbench.section.myWeek': '我这周要干什么',
@@ -50,8 +50,8 @@ export const zhWorkbench = {
 export const enWorkbench = {
   'nav.workbench': 'Home',
   'nav.schedule': 'Daily Presence',
-  'nav.section.work': 'Work',
-  'nav.section.manage': 'Manage',
+  'nav.section.board': 'Team Boards',
+  'nav.section.tool': 'Tools',
   'toolbar.title.workbench': 'Home · My Week',
   'toolbar.title.schedule': 'Daily Presence · Relay Schedule',
   'workbench.section.myWeek': 'My tasks this week',

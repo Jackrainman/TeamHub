@@ -240,19 +240,33 @@ button,
   text-decoration: none;
 }
 
-/* 「内测中」徽标：导航项与页头标题共用（BETA-BADGES）。 */
+/* 「内测/公测」徽标：导航项与页头标题共用（BETA-BADGES）。
+   内测 'beta' = 灰色系低调（NAV-REGROUP 拍板）；公测 'public-beta' = 橙色强调（保持 v0.74 视觉）。 */
 .beta-badge {
   display: inline-block;
   margin-left: 6px;
   padding: 1px 6px;
   border-radius: 999px;
-  border: 1px solid var(--amber);
-  color: var(--amber);
+  border: 1px solid var(--border-strong);
+  color: var(--muted);
   font-size: var(--text-xs, 11px);
   font-weight: var(--weight-bold);
   line-height: 1.4;
   vertical-align: middle;
   opacity: 0.85;
+}
+
+/* 导航项里的内测徽标：classic/warm 深色侧栏上 --muted 偏深不可读，随侧栏次级文字走（全主题自适应）。 */
+.nav-item .beta-badge {
+  border-color: var(--sidebar-text-muted);
+  color: var(--sidebar-text-muted);
+}
+
+/* 公测中：橙色描边 + 橙字（保持公测=开放全队试用的信号强度）。
+   双类名 + 声明在侧栏灰规则之后，保证导航项里的公测徽标也保持橙色。 */
+.beta-badge.beta-badge--public {
+  border-color: var(--amber);
+  color: var(--amber);
 }
 
 .console-toolbar h1 .beta-badge {

@@ -22,11 +22,11 @@ export function ConsoleLayout({
 }: PropsWithChildren<ConsoleLayoutProps>) {
   const { t } = useI18n();
 
-  // 三层导航分组（IA-RESTRUCTURE demo）：home 置顶无标题，work/manage 带分组标题。
-  const sections: { key: ConsoleSection; labelKey?: 'nav.section.work' | 'nav.section.manage' }[] = [
+  // 导航分组（NAV-REGROUP）：home 置顶无标题，board/tool 带分组标题。
+  const sections: { key: ConsoleSection; labelKey?: 'nav.section.board' | 'nav.section.tool' }[] = [
     { key: 'home' },
-    { key: 'work', labelKey: 'nav.section.work' },
-    { key: 'manage', labelKey: 'nav.section.manage' },
+    { key: 'board', labelKey: 'nav.section.board' },
+    { key: 'tool', labelKey: 'nav.section.tool' },
   ];
 
   return (
@@ -70,7 +70,13 @@ export function ConsoleLayout({
                       <Icon aria-hidden="true" size={17} />
                       <span>{t(item.labelKey)}</span>
                       {item.beta ? (
-                        <span className="beta-badge">
+                        <span
+                          className={
+                            item.beta === 'public-beta'
+                              ? 'beta-badge beta-badge--public'
+                              : 'beta-badge'
+                          }
+                        >
                           {t(item.beta === 'public-beta' ? 'beta.badge.public' : 'beta.badge')}
                         </span>
                       ) : null}
