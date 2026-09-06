@@ -181,3 +181,18 @@
 **验证**：contracts verify:all 451 绿 / console verify:all（typecheck+test+build+e2e first-login-pin）绿 / verify:architecture 绿 / pre-commit 绿 / git diff --check 净。
 
 **版本**：feature → MINOR，0.75.1 → 0.76.0（bump-version.sh）。commit：`feat(reimburse): PM-view all-invoice CSV export downloads a real file v0.76.0`（英文 message 按任务指示）。
+
+## 2026-09-06：NAV-REGROUP 落地——导航按性质分两类 + 徽标配色区分（v0.76.0 → v0.77.0）
+
+**用户指令**：导航不按使用频率分层，改按**性质**分两类；工作台保持单独顶部；徽标内测=灰色、公测=保持橙色。
+
+**改动**（全在 hub-console）：
+- `console-pages.tsx`：`ConsoleSection` 改 `'home' | 'board' | 'tool'`；战队看板类=overview/myview/project/schedule/direction/timeline，小工具类=reimburse/knowledge/archive/inv/fleet/settings，workbench 保持 home
+- `ConsoleLayout.tsx`：分组标题 i18n key `nav.section.work/manage` → `nav.section.board/tool`；徽标按 beta 类型挂 `beta-badge--public` 修饰类
+- `App.tsx`：页头徽标同逻辑挂修饰类
+- `i18n/locales/workbench.ts`：zh=「战队看板/小工具」，en=「Team Boards/Tools」
+- `styles/02-base.css`：`.beta-badge` 默认灰（--muted/--border-strong），`.beta-badge--public` 橙（--amber）；导航项内灰徽标随 `--sidebar-text-muted` 走（classic/warm 深侧栏可读）；public 规则声明序在 nav 灰规则之后保证导航项公测徽标仍橙
+
+**验证**：console verify:all 绿（31 files / 267 tests + build + e2e first-login-pin）/ verify:architecture 绿 / pre-commit 绿（含 e2e 闸）。
+
+**版本**：feature → MINOR，0.76.0 → 0.77.0。commit：`feat(nav): split navigation into board/tool groups by nature, gray internal-beta badge v0.77.0`。
