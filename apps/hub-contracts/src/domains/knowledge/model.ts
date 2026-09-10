@@ -149,8 +149,8 @@ export const ArchiveDocumentSchema = z.object({
 
 /**
  * 知识库读快照（与 `GovernanceSnapshot` 对称）：相似检索（kb-similar）的排序语料。
- * **不在 `GovernanceSnapshot` 内**——故 KbStore 独立于 GovStore（承接 base 收口刀对抗核实结论，
- * 见 gov-store.ts KbStore；knowledgeNodes/taskKnowledgeTags 那半仍复用 GovernanceSnapshot）。
+ * **不在 `GovernanceSnapshot` 内**——故 KnowledgeRepository 独立于 PmRepository
+ *（knowledgeNodes/taskKnowledgeTags 那半仍复用 GovernanceSnapshot）。
  */
 export interface KbSnapshot {
   projectId: string;

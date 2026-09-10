@@ -14,7 +14,7 @@ import {
 } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { CUSTOM_TEST_USERNAMES, usernameOf } from './support/login-helpers.js';
-import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-pm-repository.js';
 import { InMemoryKbStore } from './support/inmemory-kb-store.js';
 
 /**

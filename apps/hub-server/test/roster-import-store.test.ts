@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { RosterImportRow } from '@teamhub/hub-contracts';
-import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-pm-repository.js';
 
 /**
  * PmRepository.importRoster（ROSTER-IMPORT，K8 持久层）：三实现（mock/file/sqlite）同语义——

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import FormData from 'form-data';
 import { FleetPreviewResponseSchema } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-pm-repository.js';
 import { InMemoryScheduleRepository } from './support/inmemory-schedule-store.js';
 
 /**

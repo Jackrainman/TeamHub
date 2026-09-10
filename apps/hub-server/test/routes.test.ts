@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { InMemoryArtifactRepository } from './support/inmemory-artifact-store.js';
-import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-pm-repository.js';
 import { governanceScenarioFixture } from '@teamhub/hub-contracts';
 import type { GovernanceSnapshot } from '@teamhub/hub-contracts';
 import {

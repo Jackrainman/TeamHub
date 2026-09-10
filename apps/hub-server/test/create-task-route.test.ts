@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { CreateTaskResponseSchema } from '@teamhub/hub-contracts';
-import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-pm-repository.js';
 
 const validBody = {
   projectId: 'prj-robots',

@@ -19,7 +19,7 @@ import type {
 } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { usernameOf } from './support/login-helpers.js';
-import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-pm-repository.js';
 import { InMemoryInvStore } from './support/inmemory-inv-store.js';
 import { InMemoryReimburseStore } from './support/inmemory-reimburse-store.js';
 

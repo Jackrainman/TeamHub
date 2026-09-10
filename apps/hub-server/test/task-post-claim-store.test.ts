@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-pm-repository.js';
 import type { ActorRef } from '@teamhub/hub-contracts';
 
 // 挂单认领制窄写方法三实现对称（TASK-POST-CLAIM，D-088）：claimTask/assignTask/setTaskPartner/

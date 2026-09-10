@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { usernameOf } from './support/login-helpers.js';
-import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-pm-repository.js';
 
 /**
  * 登录密码路由端到端（AUTH-GATE 2026-09-04：PIN 升级为密码，撤销刀⑧② pinPlaintext 明文副本例外）：

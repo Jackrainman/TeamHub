@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { buildSetupServer, RESTART_EXIT_CODE } from '../src/build-setup-server.js';
 import { openUnifiedDb, type UnifiedDatabase } from '../src/store/sqlite-unified.js';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-pm-repository.js';
 import { governanceScenarioFixture } from '@teamhub/hub-contracts';
 
 const FIXED_NOW = new Date('2026-08-15T12:00:00.000Z');

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
-import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-pm-repository.js';
 
 // AUDIT-FIXES 部署前必修的路由层回归（H1 / M6 / H4 / H3）。
 // H2 旧 JSON 写链事故已随生产 File Store 删除；M9（errorCode 单调）见 kb-closeout-route.test.ts。

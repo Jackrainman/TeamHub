@@ -5,7 +5,7 @@ import {
   SCENARIO_WINDOW_WEEKDAY,
   UpdateResourceDefaultPresetResponseSchema,
 } from '@teamhub/hub-contracts';
-import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-pm-repository.js';
 import { InMemoryScheduleRepository } from './support/inmemory-schedule-store.js';
 
 // 今日计划：每车预设写回（PATCH /api/resources/:id/preset）+ 表格页批量确认落盘

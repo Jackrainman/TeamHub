@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-pm-repository.js';
 
 // setMemberRole + setProjectManager（K1 权限地基持久层 + MEMBER-PM-FLAG 公测补强刀②b）：role 枚举位
 // （groupAdmin/member 两档，不再承载管理员权限）与 projectManager 旗标（原 superAdmin 的正交化）就地改

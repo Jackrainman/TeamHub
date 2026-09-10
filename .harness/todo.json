@@ -23,12 +23,6 @@
       "title": "验收驳回后前端跳 /app 疑似带错 payload 的 bug",
       "note": "2026-09-06 子 agent 排查结论：代码路径正常，未复现。console 是无路由 SPA（无 react-router/无 /app 路径，唯一导航 onNavigate 只切内存页态且 CONSOLE_PAGES 无 'app' 键）；schedule 特性零 review/approve/reject 代码；全 app 唯一验收流在 pm 域 TaskActionsPanel→POST /api/tasks/:id/review，驳回 onSuccess 只 resetState() 清本地表单态、不跳转、不携带任何 payload，抽屉保持打开；git 全史（-S 搜 onNavigate('workbench')/setPage('workbench')/navigate('/app')/react-router/'app' 键）均无此代码。待用户再遇到时抓现场（浏览器 URL/Network/控制台）。",
       "owner": "user"
-    },
-    {
-      "id": "ARCH-FOLLOWUPS",
-      "title": "架构统一后的跟进小项：test/support 文件名仍叫 inmemory-gov-store*（类已改名，文件改名纯 churn）；OverviewSnapshot 是 console 聚合（暂留 features/system/api.ts，§10 加域条件成熟后归 system 模块）",
-      "owner": "agent",
-      "priority": "P3"
     }
   ],
   "blocked": [
@@ -139,6 +133,10 @@
     }
   ],
   "done-tonight": [
+    {
+      "id": "ARCH-FOLLOWUPS",
+      "title": "test/support 三文件按类名改名（inmemory-gov-store{,-base,-pm}.ts → inmemory-pm-repository{,-base}.ts / pm-core-mixin.ts），37 处 import 同步；清理悬空注释（inmemory-pm-repository.ts 头注、knowledge/model.ts KbSnapshot 注）；OverviewSnapshot 维持暂留 features/system/api.ts（§10 system 模块条件未成熟）；server 432 测全绿"
+    },
     {
       "id": "AUTH-LOGIN-USERNAME",
       "title": "登录自输用户名（displayName 全名册唯一，下拉退役）+ GET /api/members 移出预登录白名单（公网枚举名册口子关闭，BootstrapGate 改走 setup/state.hasPmMember）+ 旧 4 位 PIN 登录强制升级 ≥8 位（会话 pinUpgradeRequired 标记，PUT pin 即清）；重名 409 运营信号；2FA(TOTP) 用户拍板暂缓 → deferred.md ARC-DEF-004；D-093 落 decisions；生产库 28 成员实测零重名无需清洗（v0.73.0）"

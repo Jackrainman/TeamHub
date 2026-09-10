@@ -9,7 +9,7 @@ import {
 } from '@teamhub/hub-contracts';
 import { TasksResponseSchema } from '@teamhub/hub-contracts';
 import { InMemoryArtifactRepository } from './support/inmemory-artifact-store.js';
-import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-pm-repository.js';
 
 describe('PM 读视图 + 依赖/缺口录入', () => {
   test('GET /api/tasks → 任务列表（I0 安全：Task 无 confirmedBy / 无完成量维度）', async () => {

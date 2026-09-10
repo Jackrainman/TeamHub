@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-pm-repository.js';
 
 // setMemberGateReviewer（GATE-CHECKLIST-IOU 验收人名单持久层，D-087 拍板②）：gateReviewer 布尔位就地改
 // members[idx]，落 governance.json、重启不丢；未知 id → null；updatedBy 钉 console。**I0**：资格布尔而已，

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { KbCloseoutResponseSchema } from '@teamhub/hub-contracts';
-import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-pm-repository.js';
 import { InMemoryKbStore } from './support/inmemory-kb-store.js';
 
 const liveIssue = {

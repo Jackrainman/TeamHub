@@ -8,7 +8,7 @@ import {
   CreateResourcesBatchResponseSchema,
   UpdateResourceResponseSchema,
 } from '@teamhub/hub-contracts';
-import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-pm-repository.js';
 import { InMemoryScheduleRepository } from './support/inmemory-schedule-store.js';
 
 // R3 车管理（D-072 §3.2/§3.3）：建车（displayCode 派生、禁手写）/ 改状态（维修/退役 = 状态迁移、非物删）

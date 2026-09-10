@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-pm-repository.js';
 import { hashPin, verifyPin } from '../src/identity/pin.js';
 import { SqliteDatabase } from '../src/store/sqlite-db.js';
 import { SqlitePmRepository } from '../src/modules/pm/sqlite-repository.js';

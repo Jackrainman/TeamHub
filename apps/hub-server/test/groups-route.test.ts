@@ -8,7 +8,7 @@ import {
 } from '@teamhub/hub-contracts';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
 import { CUSTOM_TEST_USERNAMES, usernameOf } from './support/login-helpers.js';
-import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-pm-repository.js';
 
 /**
  * 组端点（PROGRAM-GROUP-ABSTRACT，公测补强刀④）：

@@ -54,8 +54,8 @@ import type {
   TaskDraft,
 } from '../../src/modules/pm/repository.js';
 import { nextSequentialId } from '../../src/store/id-sequence.js';
-import { GOVERNANCE_ARRAY_FIELDS } from './inmemory-gov-store-base.js';
-import type { InMemoryPmRepositoryBase } from './inmemory-gov-store-base.js';
+import { GOVERNANCE_ARRAY_FIELDS } from './inmemory-pm-repository-base.js';
+import type { InMemoryPmRepositoryBase } from './inmemory-pm-repository-base.js';
 
 /**
  * pm-core 域方法 mixin（GOV-SPLIT）：PmRepository 全部方法（getSnapshot + PM 录入簇 + KB 结案 +

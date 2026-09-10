@@ -7,7 +7,7 @@ import {
   governanceScenarioFixture,
 } from '@teamhub/hub-contracts';
 import type { GovernanceSnapshot } from '@teamhub/hub-contracts';
-import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-pm-repository.js';
 import { InMemoryScheduleRepository } from './support/inmemory-schedule-store.js';
 import { FixedClock } from '../src/clock.js';
 import type { Clock } from '../src/clock.js';

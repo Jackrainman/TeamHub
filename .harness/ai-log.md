@@ -244,3 +244,5 @@
 **文档**：docs/domains/baseline.md §2 补编辑器行为、§6 陷阱更新（离散档位/相邻段不联动）、§7 移除 TIMELINE-EDITOR TODO。
 
 **版本**：feature → MINOR，0.77.1 → 0.78.0。
+--- ai-log ---
+- ARCH-FOLLOWUPS: renamed test/support inmemory-gov-store* → inmemory-pm-repository*/pm-core-mixin (37 imports), cleaned dangling comments, server 432 tests green, no version bump (test-support + comments only).

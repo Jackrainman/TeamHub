@@ -6,7 +6,7 @@ import {
   RelayHandoffResponseSchema,
   SCENARIO_WINDOW_WEEKDAY,
 } from '@teamhub/hub-contracts';
-import { InMemoryPmRepository } from './support/inmemory-gov-store.js';
+import { InMemoryPmRepository } from './support/inmemory-pm-repository.js';
 import { InMemoryScheduleRepository } from './support/inmemory-schedule-store.js';
 
 // A2 接力画布「加/删一棒」后端：POST /api/resource-sessions（建一棒，R1 已存在，这里验「加」入口端到端）
