@@ -2,6 +2,8 @@ import {
   StockInContextResponseSchema,
   deriveBatchSummary,
 } from '@teamhub/hub-contracts';
+import { extname } from 'node:path';
+
 import type {
   ActorRef,
   InventorySnapshot,
@@ -10,6 +12,9 @@ import type {
   PartType,
   ReimburseBatch,
   ReimburseEntry,
+  ReimburseEvidence,
+  ReimburseEvidenceDownload,
+  ReimburseEvidenceKind,
   ReimburseProfile,
   SessionIdentity,
   StockInContextResponse,
@@ -23,6 +28,7 @@ import type {
   ReimburseBatchDraft,
   ReimburseEntryDraft,
   ReimburseEntryInput,
+  ReimburseEvidenceStorage,
   ReimburseRepository,
 } from './repository.js';
 
@@ -73,6 +79,28 @@ export interface ReimburseAdminPort {
   isSuperAdmin(memberId: string): Promise<boolean>;
 }
 
+/** 凭证允许的后缀 → 下载 contentType（D-094：发票 PDF + 付款/查验截图）。 */
+const EVIDENCE_ALLOWED_EXT = new Map<string, string>([
+  ['.pdf', 'application/pdf'],
+  ['.png', 'image/png'],
+  ['.jpg', 'image/jpeg'],
+  ['.jpeg', 'image/jpeg'],
+]);
+
+/** 单条目共证人最多 12 份（防误传堆积；真实场景一张发票+一张付款截图+查验单 ≤3）。 */
+const EVIDENCE_MAX_PER_ENTRY = 12;
+
+/** D-094「永不进列表」：条目对象出 HTTP 前把 evidence 剥成空数组，原件元数据只走凭证专属端点。 */
+function withoutEvidence(entry: ReimburseEntry): ReimburseEntry {
+  return entry.evidence?.length ? { ...entry, evidence: [] } : entry;
+}
+
+export interface ReimburseEvidenceDownloadResult {
+  downloadName: string;
+  contentType: string;
+  content: Buffer;
+}
+
 export class ReimburseService {
   constructor(
     private readonly repository: ReimburseRepository,
@@ -81,21 +109,24 @@ export class ReimburseService {
     private readonly inventory: InventoryStockInPort,
     private readonly unitOfWork: ApplicationUnitOfWork,
     private readonly identityMode: 'anonymous' | 'identity',
+    private readonly evidenceStorage: ReimburseEvidenceStorage,
   ) {}
 
   async listEntries(identity: SessionIdentity | null): Promise<ReimburseEntry[]> {
     const entries = this.repository.listEntries();
-    if (this.identityMode !== 'identity') return entries;
+    if (this.identityMode !== 'identity') return entries.map(withoutEvidence);
     if (!identity) {
       throw new ApplicationError('unauthorized', 'REIMBURSE_LOGIN_REQUIRED', '登录后查看报销条目');
     }
-    return (await this.isAdmin(identity.memberId))
+    const visible = (await this.isAdmin(identity.memberId))
       ? entries
       : entries.filter((entry) => entry.memberId === identity.memberId);
+    return visible.map(withoutEvidence);
   }
 
   createEntry(input: ReimburseEntryInput): ReimburseEntry {
     // 可空键缺省规整为 null（REIMBURSE-DEFECTS #5：Create 请求允许省略 nullable 键）。
+    // 凭证元数据不在 draft 类型里（ReimburseEntryDraft 已 omit），只能走 uploadEvidence。
     const draft: ReimburseEntryDraft = {
       ...input,
       invoiceNo: input.invoiceNo ?? null,
@@ -116,7 +147,7 @@ export class ReimburseService {
         );
       }
     }
-    return this.repository.createEntry(draft);
+    return withoutEvidence(this.repository.createEntry(draft));
   }
 
   /**
@@ -150,7 +181,7 @@ export class ReimburseService {
     }
     this.assertBatchMutable(entry.batchId);
     this.assertBatchMutable(patch.batchId);
-    return this.repository.updateEntry(id, patch)!;
+    return withoutEvidence(this.repository.updateEntry(id, patch)!);
   }
 
   getProfile(): ReimburseProfile {
@@ -303,6 +334,139 @@ export class ReimburseService {
 
   async canManageAll(memberId: string): Promise<boolean> {
     return this.isAdmin(memberId);
+  }
+
+  /**
+   * 凭证上传（D-094 受控留档）：仅条目本人可传（超管也只能看不能代传）；批次提交后快照锁
+   * 同条目字段口径。字节先落卷（原子写），元数据再回写条目行；回写失败删刚落的文件防孤儿。
+   */
+  async uploadEvidence(
+    entryId: string,
+    kind: ReimburseEvidenceKind,
+    upload: { filename?: string; buf: Buffer },
+    actor: ActorRef,
+  ): Promise<ReimburseEvidence> {
+    const dir = this.evidenceStorage.dir();
+    if (!dir) {
+      throw new ApplicationError('validation', 'REIMBURSE_EVIDENCE_STORAGE_UNCONFIGURED', '未配置凭证留档目录');
+    }
+    const entry = this.requireEntry(entryId);
+    if (entry.memberId !== actor.id) {
+      throw new ApplicationError('forbidden', 'REIMBURSE_EVIDENCE_FORBIDDEN', '只有条目本人能上传凭证');
+    }
+    this.assertBatchMutable(entry.batchId);
+    if ((entry.evidence ?? []).length >= EVIDENCE_MAX_PER_ENTRY) {
+      throw new ApplicationError(
+        'validation',
+        'REIMBURSE_EVIDENCE_LIMIT',
+        `单个条目最多留档 ${EVIDENCE_MAX_PER_ENTRY} 份凭证`,
+      );
+    }
+    const ext = extname(upload.filename ?? '').toLowerCase();
+    if (!EVIDENCE_ALLOWED_EXT.has(ext)) {
+      throw new ApplicationError(
+        'validation',
+        'REIMBURSE_EVIDENCE_UNSUPPORTED_EXT',
+        `不支持的凭证类型：${ext || '（无后缀）'}（仅 PDF/PNG/JPG）`,
+      );
+    }
+    // 原始名剥路径只留基名，下载时回用它做 content-disposition。
+    const originalName = (upload.filename ?? `evidence${ext}`).split(/[\\/]/).pop()!.trim() || `evidence${ext}`;
+    const sha256 = this.evidenceStorage.sha256(upload.buf);
+    const draft = {
+      kind,
+      originalName,
+      ext,
+      sizeBytes: upload.buf.length,
+      sha256,
+      uploadedBy: actor.id,
+      uploadedAt: new Date().toISOString(),
+    };
+    // 先占一个 id 才能落卷（文件名 = <evidenceId><ext>）：让 repository 先写元数据会产生
+    // 「有指针无字节」窗口，故这里用 append-then-write、写失败回滚元数据的顺序。
+    const appended = this.repository.appendEntryEvidence(entryId, draft);
+    if (!appended) {
+      throw new ApplicationError('not_found', 'REIMBURSE_ENTRY_NOT_FOUND', `未知报销条目: ${entryId}`);
+    }
+    try {
+      await this.evidenceStorage.write(dir, appended.evidence.id, ext, upload.buf);
+    } catch (err) {
+      this.repository.removeEntryEvidence(entryId, appended.evidence.id);
+      throw err; // 基础设施故障：route 映射 500
+    }
+    return appended.evidence;
+  }
+
+  /** 凭证清单：条目级专属读端点（D-094「永不进列表」——原件元数据只从这里流出）。 */
+  async listEvidence(entryId: string, actor: ActorRef): Promise<ReimburseEvidence[]> {
+    const entry = this.requireEntry(entryId);
+    await this.assertEvidenceReadable(entry, actor);
+    return entry.evidence ?? [];
+  }
+
+  /** 凭证下载：本人或超管可读（D-094 读者链），每次下载留操作者痕迹。 */
+  async downloadEvidence(
+    entryId: string,
+    evidenceId: string,
+    actor: ActorRef,
+  ): Promise<ReimburseEvidenceDownloadResult> {
+    const dir = this.evidenceStorage.dir();
+    if (!dir) {
+      throw new ApplicationError('not_found', 'REIMBURSE_EVIDENCE_STORAGE_UNCONFIGURED', '未配置凭证留档目录');
+    }
+    const entry = this.requireEntry(entryId);
+    await this.assertEvidenceReadable(entry, actor);
+    const evidence = (entry.evidence ?? []).find((item) => item.id === evidenceId);
+    if (!evidence) {
+      throw new ApplicationError('not_found', 'REIMBURSE_EVIDENCE_NOT_FOUND', `未知凭证: ${evidenceId}`);
+    }
+    let file: { filename: string; ext: string; content: Buffer } | null;
+    try {
+      file = await this.evidenceStorage.read(dir, evidenceId);
+    } catch {
+      throw new ApplicationError('validation', 'REIMBURSE_EVIDENCE_ILLEGAL_PATH', '非法路径');
+    }
+    if (!file) {
+      throw new ApplicationError('not_found', 'REIMBURSE_EVIDENCE_FILE_MISSING', '该凭证文件缺失（元数据在、字节不在）');
+    }
+    this.repository.appendEvidenceDownload({ entryId, evidenceId, actorId: actor.id });
+    return {
+      downloadName: evidence.originalName,
+      contentType: EVIDENCE_ALLOWED_EXT.get(evidence.ext) ?? 'application/octet-stream',
+      content: file.content,
+    };
+  }
+
+  /** 凭证删除：本人或超管；批次锁同上传口径。先剥元数据再删字节（顺序无所谓原子性，删失败留孤儿字节可容忍）。 */
+  async deleteEvidence(
+    entryId: string,
+    evidenceId: string,
+    actor: ActorRef,
+  ): Promise<ReimburseEvidence[]> {
+    const entry = this.requireEntry(entryId);
+    await this.assertEvidenceReadable(entry, actor);
+    this.assertBatchMutable(entry.batchId);
+    const updated = this.repository.removeEntryEvidence(entryId, evidenceId);
+    if (!updated) {
+      throw new ApplicationError('not_found', 'REIMBURSE_EVIDENCE_NOT_FOUND', `未知凭证: ${evidenceId}`);
+    }
+    const dir = this.evidenceStorage.dir();
+    if (dir) await this.evidenceStorage.remove(dir, evidenceId).catch(() => {});
+    return updated.evidence ?? [];
+  }
+
+  /** 下载留痕查询：本人或超管（D-094 审计面，不进任何聚合）。 */
+  async listEvidenceDownloads(entryId: string, actor: ActorRef): Promise<ReimburseEvidenceDownload[]> {
+    const entry = this.requireEntry(entryId);
+    await this.assertEvidenceReadable(entry, actor);
+    return this.repository.listEvidenceDownloads(entryId);
+  }
+
+  /** D-094 读者链：条目本人或超管（「承担财务职责的成员」拍板沿用超管旗）。 */
+  private async assertEvidenceReadable(entry: ReimburseEntry, actor: ActorRef): Promise<void> {
+    if (entry.memberId !== actor.id && !(await this.isAdmin(actor.id))) {
+      throw new ApplicationError('forbidden', 'REIMBURSE_EVIDENCE_FORBIDDEN', '只有条目本人或管理员能读凭证');
+    }
   }
 
   private validateLines(entry: ReimburseEntry, lines: StockInRequest['lines'], snapshot: InventoryStockInState): void {

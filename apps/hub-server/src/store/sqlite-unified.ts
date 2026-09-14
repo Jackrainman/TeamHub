@@ -67,6 +67,7 @@ export const TEAMHUB_BUSINESS_TABLES = [
   'reimburse_entries',
   'reimburse_batches',
   'reimburse_profile',
+  'reimburse_evidence_downloads',
 ] as const;
 
 /** 业务域的初始化标记；graduate 会清掉，重启后由 real 空种子重建。 */

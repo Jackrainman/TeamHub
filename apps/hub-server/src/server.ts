@@ -35,7 +35,11 @@ import {
 import type { KnowledgeRepository } from './modules/knowledge/index.js';
 import { registerInventoryRoutes, InventoryService } from './modules/inventory/index.js';
 import type { InventoryReadPort, InventoryRepository } from './modules/inventory/index.js';
-import { registerReimburseRoutes, ReimburseService } from './modules/reimburse/index.js';
+import {
+  LocalEvidenceFileStorage,
+  registerReimburseRoutes,
+  ReimburseService,
+} from './modules/reimburse/index.js';
 import {
   ScheduleService,
   registerScheduleRoutes,
@@ -284,6 +288,7 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
     options.inventoryStockInPort,
     options.unitOfWork,
     options.identityMode,
+    new LocalEvidenceFileStorage(),
   );
   const tenantConfig = options.tenantConfig;
 

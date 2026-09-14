@@ -24,6 +24,33 @@ export const ReimburseMaterialsSchema = z.object({
   inspection: z.boolean(),
 });
 
+/** 凭证附件种类（D-094 受控留档）：发票原件 / 付款截图 / 查验单。 */
+export const ReimburseEvidenceKindSchema = z.enum(['invoice', 'paymentShot', 'inspection']);
+
+/**
+ * 凭证附件元数据（D-094）：字节存受控目录（TEAMHUB_EVIDENCE_FILES_DIR），库内只留指针。
+ * 只对条目本人与超管可见；永不进批次聚合/统计/导出。
+ */
+export const ReimburseEvidenceSchema = z.object({
+  id: z.string().min(1),
+  kind: ReimburseEvidenceKindSchema,
+  originalName: z.string().min(1),
+  ext: z.string().min(1),
+  sizeBytes: z.number().int().nonnegative(),
+  sha256: z.string().min(1),
+  uploadedBy: z.string().min(1),
+  uploadedAt: isoDateTimeSchema,
+});
+
+/** 凭证下载留痕（D-094：下载留操作者痕迹）；仅条目本人与超管可查。 */
+export const ReimburseEvidenceDownloadSchema = z.object({
+  id: z.string().min(1),
+  entryId: z.string().min(1),
+  evidenceId: z.string().min(1),
+  actorId: z.string().min(1),
+  at: isoDateTimeSchema,
+});
+
 export const ReimburseEntrySchema = z.object({
   id: z.string().min(1),
   projectId: z.string().min(1),
@@ -41,6 +68,10 @@ export const ReimburseEntrySchema = z.object({
   actualItemName: z.string().min(1).nullable(),
   materials: ReimburseMaterialsSchema,
   note: z.string().min(1).nullable(),
+  // 留档上线前的存量行无此键，反序列化时补空数组（免数据迁移）。
+  // 该键是**存储与专属端点**用的：服务端出 HTTP 前把条目上的 evidence 剥成空数组（D-094「永不进列表」），
+  // 原件清单只经 GET /entries/:id/evidence 流动。
+  evidence: z.array(ReimburseEvidenceSchema).default([]),
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
 });
@@ -84,6 +115,9 @@ export type ReimburseEntryStatus = z.infer<typeof ReimburseEntryStatusSchema>;
 export type InvoiceRecognitionSource = z.infer<typeof InvoiceRecognitionSourceSchema>;
 export type ReimburseItem = z.infer<typeof ReimburseItemSchema>;
 export type ReimburseMaterials = z.infer<typeof ReimburseMaterialsSchema>;
+export type ReimburseEvidenceKind = z.infer<typeof ReimburseEvidenceKindSchema>;
+export type ReimburseEvidence = z.infer<typeof ReimburseEvidenceSchema>;
+export type ReimburseEvidenceDownload = z.infer<typeof ReimburseEvidenceDownloadSchema>;
 export type ReimburseEntry = z.infer<typeof ReimburseEntrySchema>;
 export type ReimburseBatch = z.infer<typeof ReimburseBatchSchema>;
 export type ReimburseAmountBucket = z.infer<typeof ReimburseAmountBucketSchema>;

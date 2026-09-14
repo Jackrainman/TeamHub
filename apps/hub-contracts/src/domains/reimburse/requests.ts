@@ -6,15 +6,19 @@ import {
   ReimburseBatchStatusSchema,
   ReimburseBatchSummarySchema,
   ReimburseEntrySchema,
+  ReimburseEvidenceDownloadSchema,
+  ReimburseEvidenceSchema,
   ReimburseMaterialsSchema,
   ReimburseProfileSchema,
 } from './model.js';
 
 // 可空键宽容缺省（REIMBURSE-DEFECTS #5）：裸 API 客户端可省略 null 键，服务端规整为 null。
+// evidence 一并 omit：凭证只能经受控上传端点 append，创建体带进来会在 parse 时被剥掉（D-094）。
 export const CreateReimburseEntryRequestSchema = ReimburseEntrySchema.omit({
   id: true,
   memberId: true,
   batchId: true,
+  evidence: true,
   createdAt: true,
   updatedAt: true,
 }).partial({
@@ -35,6 +39,19 @@ export const UpdateReimburseEntryRequestSchema = z.object({
   batchId: z.string().min(1).nullable().optional(),
 });
 export const UpdateReimburseEntryResponseSchema = z.object({ entry: ReimburseEntrySchema });
+
+// 凭证附件（D-094）：**条目对象在 HTTP 面上永不含 evidence**（不进列表），原件清单/留痕只走本域专属端点，
+// 下载与删除的回执直接给最新清单，省一次往返。
+export const ReimburseEvidenceListResponseSchema = z.object({
+  evidence: z.array(ReimburseEvidenceSchema),
+});
+export const UploadReimburseEvidenceResponseSchema = z.object({
+  evidence: ReimburseEvidenceSchema,
+});
+export const DeleteReimburseEvidenceResponseSchema = ReimburseEvidenceListResponseSchema;
+export const ReimburseEvidenceDownloadsResponseSchema = z.object({
+  downloads: z.array(ReimburseEvidenceDownloadSchema),
+});
 
 export const StockInLineSchema = z.object({
   itemIndex: z.number().int().nonnegative(),
@@ -108,6 +125,10 @@ export type CreateReimburseEntryRequest = z.infer<typeof CreateReimburseEntryReq
 export type CreateReimburseEntryResponse = z.infer<typeof CreateReimburseEntryResponseSchema>;
 export type UpdateReimburseEntryRequest = z.infer<typeof UpdateReimburseEntryRequestSchema>;
 export type UpdateReimburseEntryResponse = z.infer<typeof UpdateReimburseEntryResponseSchema>;
+export type ReimburseEvidenceListResponse = z.infer<typeof ReimburseEvidenceListResponseSchema>;
+export type UploadReimburseEvidenceResponse = z.infer<typeof UploadReimburseEvidenceResponseSchema>;
+export type DeleteReimburseEvidenceResponse = z.infer<typeof DeleteReimburseEvidenceResponseSchema>;
+export type ReimburseEvidenceDownloadsResponse = z.infer<typeof ReimburseEvidenceDownloadsResponseSchema>;
 export type StockInLine = z.infer<typeof StockInLineSchema>;
 export type StockInRequest = z.infer<typeof StockInRequestSchema>;
 export type StockInResponse = z.infer<typeof StockInResponseSchema>;

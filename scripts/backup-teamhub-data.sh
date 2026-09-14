@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # TeamHub 结构化数据备份：对唯一生产 SQLite 执行 VACUUM INTO，并从备份文件读回校验。
-# artifact 字节不在 SQLite 中，本脚本不会复制它们；必须按末尾提示单独备份。
+# artifact 与报销凭证字节不在 SQLite 中，本脚本不会复制它们；必须按末尾提示单独备份。
 #
 # 用法：
 #   ./scripts/backup-teamhub-data.sh
@@ -11,6 +11,7 @@ set -euo pipefail
 
 DB_FILE="${TEAMHUB_DB_FILE:-${HOME}/teamhub-data/teamhub.sqlite}"
 ARTIFACT_DIR="${TEAMHUB_ARTIFACT_FILES_DIR:-${HOME}/teamhub-data/artifacts}"
+EVIDENCE_DIR="${TEAMHUB_EVIDENCE_FILES_DIR:-${HOME}/teamhub-data/evidence}"
 BACKUP_DIR="${TEAMHUB_BACKUP_DIR:-${HOME}/teamhub-data/backups}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 DST="${BACKUP_DIR}/teamhub.sqlite.${STAMP}"
@@ -83,7 +84,9 @@ cat <<EOF
 
 结构化数据备份完成。
 artifact 不包含在上述 SQLite 备份中：${ARTIFACT_DIR}
-请单独使用 tar/rsync 备份 artifact，并对归档执行列表或解包校验。
+报销凭证原件（D-094）不包含在上述 SQLite 备份中：${EVIDENCE_DIR}
+  —— 库里只有元数据指针，字节丢了留档即失效，必须与 SQLite 同批备份。
+请单独使用 tar/rsync 备份 artifact 与凭证，并对归档执行列表或解包校验。
 
 Compose 部署对应卷：
   - hub_data：SQLite（含 app_settings 与全部结构化业务事实；应用运行时应使用 VACUUM INTO）

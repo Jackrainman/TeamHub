@@ -43,6 +43,7 @@ npm ci
 
 - `TEAMHUB_DB_FILE=~/teamhub-data/teamhub.sqlite` 是六个结构化数据域的唯一生产数据库；缺失时正常模式拒绝启动。
 - `TEAMHUB_ARTIFACT_FILES_DIR` 保存图纸/证据字节；它必须与数据库一起备份。
+- `TEAMHUB_EVIDENCE_FILES_DIR` 保存报销凭证原件字节（D-094 受控留档）；未配置时报账页的上传入口按 400 拒绝，元数据指针在 `reimburse_entries.evidence`，字节丢了留档即失效，故必须与数据库同批备份。
 - `app_settings` 与六域业务事实同在 `TEAMHUB_DB_FILE`，不再有独立 config 文件或配置卷。
 - 已删除的 `TEAMHUB_BACKEND`、`TEAMHUB_GOV_*` 和各域 `*_DATA_FILE` 不再产生任何运行行为。
 

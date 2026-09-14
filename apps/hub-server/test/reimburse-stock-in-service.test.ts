@@ -9,6 +9,7 @@ import {
   type InventoryStockInPort,
 } from '../src/modules/reimburse/service.js';
 import { SqliteApplicationUnitOfWork } from '../src/infrastructure/sqlite-application-unit-of-work.js';
+import { LocalEvidenceFileStorage } from '../src/modules/reimburse/index.js';
 import { openUnifiedDb, type UnifiedDatabase } from '../src/store/sqlite-unified.js';
 
 const NOW = new Date('2026-08-15T08:00:00.000Z');
@@ -60,6 +61,7 @@ describe('ReimburseService + SQLite ApplicationUnitOfWork', () => {
       stores.inv,
       new SqliteApplicationUnitOfWork(database.db, clock),
       'identity',
+      new LocalEvidenceFileStorage(),
     );
 
     const result = await service.stockIn({
@@ -126,6 +128,7 @@ describe('ReimburseService + SQLite ApplicationUnitOfWork', () => {
       failingInventory,
       new SqliteApplicationUnitOfWork(database.db, clock),
       'identity',
+      new LocalEvidenceFileStorage(),
     );
 
     expect(() =>
