@@ -246,3 +246,4 @@
 **版本**：feature → MINOR，0.77.1 → 0.78.0。
 --- ai-log ---
 - ARCH-FOLLOWUPS: renamed test/support inmemory-gov-store* → inmemory-pm-repository*/pm-core-mixin (37 imports), cleaned dangling comments, server 432 tests green, no version bump (test-support + comments only).
+- REIMBURSE-EVIDENCE-STORE（续 v0.79.0 后端 + v0.80.0 前端入口）: 条目卡片新增「凭证留档」区（ReimburseEvidenceSection，收起零请求 / queryKey 带 entryId / 上传删除只对本人开放 / 下载是 cookie 鉴权 <a download>）；后缀白名单与 20MB·12 份上限从 server 本地常量收进 contracts policies 做前后端同源口径，新增 contracts reimburse-evidence-policy.test.ts 7 条 + console 预检/格式化/分组 4 条；postFormData 加 fields（kind 先于 file，busboy 顺序敏感）。真实浏览器全链路验过一遍（预检拒收→上传落盘 revd-*.pdf→下载 200 字节一致 + 留痕 1 条→列表响应无凭证元数据→刷新存活→删除清盘但留痕保留），临时脚本跑完即删。文档 reimburse.md §2/§7 更新为「剩 随批次打包 + 存放目录 两节」，todo 不删。三包 verify:all（contracts 467 / server 451 / console 278 + e2e PASS）+ verify:docs + verify:architecture + pre-commit 全绿。
