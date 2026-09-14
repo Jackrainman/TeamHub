@@ -24,16 +24,18 @@ import { ReimburseProfileSection } from './components/ReimburseProfileSection';
 
 /**
  * 报销页（REIMBURSE-PROC 阶段 3，计划 taskmaster-impulse-steel）：
- * 我的垫付条目（发票号/销售方/金额/派生状态徽标/材料 checklist）+ 手动录入表单 +
+ * 我的垫付条目（发票号/销售方/金额/派生状态徽标/材料 checklist/凭证留档）+ 手动录入表单 +
  * 超管批次区（批次列表/新建/三档流转/装批移出）。
  *
  * 红线落点：
- *  - 发票/截图/查验单**文件本体永不上传**——本页只有结构化字段与 checklist 布尔；
+ *  - 发票**解析**在浏览器本地（服务端不装解析依赖）；凭证原件按 D-094 走条目级受控通道，
+ *    只在「本人→财务」这条读者链上可见，永不进列表/聚合——所以条目列表里没有凭证元数据；
  *  - GET entries 过滤在服务端（普通成员只见本人，超管见全部=财务视角），前端不做二次过滤；
  *  - 批次聚合只用服务端 summaries（count/总额/未齐计数），无按人明细、无排行（I0）。
  *
  * 身份门（照 MyViewPage 先例）：身份模式未登录 → 登录引导（条目是个人财务事实，fail-closed）；
- * 匿名模式可读（server 匿名回全量，与「匿名可读一切」一致），批次区仍按超管旗标隐藏。
+ * 匿名模式可读（server 匿名回全量，与「匿名可读一切」一致），批次区仍按超管旗标隐藏，
+ * 凭证区同样隐藏（服务端凭证端点恒需认人，匿名没有可读的原件）。
  */
 export function ReimbursePage({
   client,
@@ -89,6 +91,8 @@ export function ReimbursePage({
   const entries = [...gate.data.entries].sort((a, b) =>
     b.createdAt.localeCompare(a.createdAt),
   );
+  // 凭证读者：匿名模式没有可认的人（服务端凭证端点恒需登录），故 null=整区隐藏、零请求。
+  const myMemberId = identity.mode === 'identity' ? session?.memberId ?? null : null;
   const batches = batchesQuery.data?.batches ?? [];
   const profile = profileGate.data.profile;
   // 首次引导：校验标准仍是出厂默认（哈工大）→ 提醒管理员确认/修改；改任意一项后即消失。
@@ -179,6 +183,8 @@ export function ReimbursePage({
                 canWrite={identity.canWrite}
                 profile={profile}
                 stockInContext={stockInContextQuery.data ?? null}
+                canViewEvidence={myMemberId !== null}
+                isOwner={entry.memberId === myMemberId}
               />
             ))}
           </div>

@@ -124,3 +124,37 @@ export function isReimburseEntryBlocked(
     purchaserStatus === 'missing'
   );
 }
+
+/**
+ * 凭证留档口径（D-094）：服务器是唯一闸门，浏览器拿同一份常量只做提前拦截，
+ * 故两处不会各写一套上限/后缀（前后端不得重新实现）。
+ */
+export const REIMBURSE_EVIDENCE_MAX_BYTES = 20 * 1024 * 1024;
+export const REIMBURSE_EVIDENCE_MAX_PER_ENTRY = 12;
+
+/** 允许后缀 → 下载 contentType（发票 PDF + 付款/查验截图）。 */
+export const REIMBURSE_EVIDENCE_CONTENT_TYPES: Record<string, string> = {
+  '.pdf': 'application/pdf',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+};
+
+/** 文件选择框的 accept 串（顺序即界面口径，与上表同源）。 */
+export const REIMBURSE_EVIDENCE_ACCEPT = Object.keys(REIMBURSE_EVIDENCE_CONTENT_TYPES).join(',');
+
+/** 取小写后缀（无后缀/点开头/目录段一律回 ''），浏览器与 node 共用一份实现。 */
+export function evidenceExtOf(filename: string | undefined): string {
+  const base = (filename ?? '').split(/[\\/]/).pop() ?? '';
+  const dot = base.lastIndexOf('.');
+  if (dot <= 0) return '';
+  return base.slice(dot).toLowerCase();
+}
+
+export function isEvidenceExtAllowed(ext: string): boolean {
+  return Object.hasOwn(REIMBURSE_EVIDENCE_CONTENT_TYPES, ext);
+}
+
+export function evidenceContentType(ext: string): string {
+  return REIMBURSE_EVIDENCE_CONTENT_TYPES[ext] ?? 'application/octet-stream';
+}

@@ -1,8 +1,11 @@
 import {
+  REIMBURSE_EVIDENCE_MAX_PER_ENTRY,
   StockInContextResponseSchema,
   deriveBatchSummary,
+  evidenceContentType,
+  evidenceExtOf,
+  isEvidenceExtAllowed,
 } from '@teamhub/hub-contracts';
-import { extname } from 'node:path';
 
 import type {
   ActorRef,
@@ -78,17 +81,6 @@ export interface StockInReimburseEntryResult {
 export interface ReimburseAdminPort {
   isSuperAdmin(memberId: string): Promise<boolean>;
 }
-
-/** 凭证允许的后缀 → 下载 contentType（D-094：发票 PDF + 付款/查验截图）。 */
-const EVIDENCE_ALLOWED_EXT = new Map<string, string>([
-  ['.pdf', 'application/pdf'],
-  ['.png', 'image/png'],
-  ['.jpg', 'image/jpeg'],
-  ['.jpeg', 'image/jpeg'],
-]);
-
-/** 单条目共证人最多 12 份（防误传堆积；真实场景一张发票+一张付款截图+查验单 ≤3）。 */
-const EVIDENCE_MAX_PER_ENTRY = 12;
 
 /** D-094「永不进列表」：条目对象出 HTTP 前把 evidence 剥成空数组，原件元数据只走凭证专属端点。 */
 function withoutEvidence(entry: ReimburseEntry): ReimburseEntry {
@@ -355,15 +347,15 @@ export class ReimburseService {
       throw new ApplicationError('forbidden', 'REIMBURSE_EVIDENCE_FORBIDDEN', '只有条目本人能上传凭证');
     }
     this.assertBatchMutable(entry.batchId);
-    if ((entry.evidence ?? []).length >= EVIDENCE_MAX_PER_ENTRY) {
+    if ((entry.evidence ?? []).length >= REIMBURSE_EVIDENCE_MAX_PER_ENTRY) {
       throw new ApplicationError(
         'validation',
         'REIMBURSE_EVIDENCE_LIMIT',
-        `单个条目最多留档 ${EVIDENCE_MAX_PER_ENTRY} 份凭证`,
+        `单个条目最多留档 ${REIMBURSE_EVIDENCE_MAX_PER_ENTRY} 份凭证`,
       );
     }
-    const ext = extname(upload.filename ?? '').toLowerCase();
-    if (!EVIDENCE_ALLOWED_EXT.has(ext)) {
+    const ext = evidenceExtOf(upload.filename);
+    if (!isEvidenceExtAllowed(ext)) {
       throw new ApplicationError(
         'validation',
         'REIMBURSE_EVIDENCE_UNSUPPORTED_EXT',
@@ -371,7 +363,8 @@ export class ReimburseService {
       );
     }
     // 原始名剥路径只留基名，下载时回用它做 content-disposition。
-    const originalName = (upload.filename ?? `evidence${ext}`).split(/[\\/]/).pop()!.trim() || `evidence${ext}`;
+    const originalName =
+      (upload.filename ?? '').split(/[\\/]/).pop()!.trim() || `evidence${ext}`;
     const sha256 = this.evidenceStorage.sha256(upload.buf);
     const draft = {
       kind,
@@ -432,7 +425,7 @@ export class ReimburseService {
     this.repository.appendEvidenceDownload({ entryId, evidenceId, actorId: actor.id });
     return {
       downloadName: evidence.originalName,
-      contentType: EVIDENCE_ALLOWED_EXT.get(evidence.ext) ?? 'application/octet-stream',
+      contentType: evidenceContentType(evidence.ext),
       content: file.content,
     };
   }

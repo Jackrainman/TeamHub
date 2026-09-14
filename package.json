@@ -1,7 +1,7 @@
 {
   "name": "teamhub",
   "private": true,
-  "version": "0.79.0",
+  "version": "0.80.0",
   "workspaces": [
     "apps/hub-contracts",
     "apps/hub-server",

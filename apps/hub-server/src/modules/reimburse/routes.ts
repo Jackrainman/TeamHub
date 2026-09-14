@@ -11,6 +11,7 @@ import {
   ReimburseEvidenceDownloadsResponseSchema,
   ReimburseEvidenceKindSchema,
   ReimburseEvidenceListResponseSchema,
+  REIMBURSE_EVIDENCE_MAX_BYTES,
   StockInContextResponseSchema,
   StockInRequestSchema,
   StockInResponseSchema,
@@ -29,8 +30,8 @@ export interface ReimburseRouteDeps {
   service: ReimburseService;
 }
 
-/** 凭证单文件上限 20MB（发票 PDF/截图真实体积 << 此值；per-request 覆盖插件级 50MB 默认）。 */
-const EVIDENCE_MAX_BYTES = 20 * 1024 * 1024;
+/** per-request 覆盖插件级 50MB 默认；上限口径与 contracts 同源（发票 PDF/截图真实体积 << 此值）。 */
+const EVIDENCE_MAX_MB = REIMBURSE_EVIDENCE_MAX_BYTES / 1024 / 1024;
 
 /** 凭证上传错误特例：非法后缀按 HTTP 语义回 415（照 archive 上传先例），其余交 sendApplicationError。 */
 function sendEvidenceUploadError(error: unknown, reply: FastifyReply): boolean {
@@ -129,7 +130,7 @@ export function registerReimburseRoutes(app: FastifyInstance, { service }: Reimb
     if (!actor) return;
     let data;
     try {
-      data = await request.file({ limits: { fileSize: EVIDENCE_MAX_BYTES } });
+      data = await request.file({ limits: { fileSize: REIMBURSE_EVIDENCE_MAX_BYTES } });
     } catch {
       void reply.code(400).send({ detail: '请求体不是 multipart 表单' });
       return reply;
@@ -152,14 +153,14 @@ export function registerReimburseRoutes(app: FastifyInstance, { service }: Reimb
       buf = await data.toBuffer();
     } catch (err) {
       if ((err as { code?: string })?.code === 'FST_REQ_FILE_TOO_LARGE') {
-        void reply.code(413).send({ detail: '文件过大（上限 20MB）' });
+        void reply.code(413).send({ detail: `文件过大（上限 ${EVIDENCE_MAX_MB}MB）` });
         return reply;
       }
       void reply.code(400).send({ detail: '读取文件失败' });
       return reply;
     }
     if (data.file.truncated) {
-      void reply.code(413).send({ detail: '文件过大（上限 20MB）' });
+      void reply.code(413).send({ detail: `文件过大（上限 ${EVIDENCE_MAX_MB}MB）` });
       return reply;
     }
     const { id } = request.params as { id: string };

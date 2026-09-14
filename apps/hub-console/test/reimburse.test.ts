@@ -2,10 +2,14 @@ import { describe, expect, test } from 'vitest';
 import {
   buildCreateEntryRequest,
   emptyItemDraft,
+  evidenceRejectReasonFor,
   formatAmountFen,
+  formatEvidenceSize,
+  groupEvidenceByKind,
   yuanTextToFen,
   type EntryDraft,
 } from '../src/features/reimburse/reimburse-utils';
+import { REIMBURSE_EVIDENCE_MAX_BYTES, type ReimburseEvidence } from '@teamhub/hub-contracts';
 
 // 报销域纯函数单测（REIMBURSE-PROC 阶段 3）——不测 DOM/RTL（本仓「测逻辑不测 DOM」
 // 风格同 myview.test.ts / identity.test.ts）。
@@ -181,5 +185,63 @@ describe('buildCreateEntryRequest：草稿校验与装配', () => {
       'prj-robots',
     );
     expect(req!.items).toEqual([]);
+  });
+});
+
+function evidenceFile(name: string, size: number): File {
+  return { name, size } as File;
+}
+
+describe('evidenceRejectReasonFor：上传前本地预检（口径取自 contracts）', () => {
+  test('四类允许后缀放行，边界值不拒', () => {
+    expect(evidenceRejectReasonFor(evidenceFile('发票.pdf', 1024))).toBeNull();
+    expect(evidenceRejectReasonFor(evidenceFile('shot.PNG', 1024))).toBeNull();
+    expect(evidenceRejectReasonFor(evidenceFile('a.jpg', 1024))).toBeNull();
+    expect(evidenceRejectReasonFor(evidenceFile('a.jpeg', 1024))).toBeNull();
+    expect(
+      evidenceRejectReasonFor(evidenceFile('a.pdf', REIMBURSE_EVIDENCE_MAX_BYTES)),
+    ).toBeNull();
+  });
+
+  test('超限先于后缀判定（大文件报"过大"而不是"格式不支持"）', () => {
+    expect(
+      evidenceRejectReasonFor(evidenceFile('a.pdf', REIMBURSE_EVIDENCE_MAX_BYTES + 1)),
+    ).toBe('too-large');
+    expect(evidenceRejectReasonFor(evidenceFile('a.exe', 1024))).toBe('ext-unsupported');
+    expect(evidenceRejectReasonFor(evidenceFile('no-extension', 1024))).toBe('ext-unsupported');
+  });
+});
+
+describe('formatEvidenceSize：字节数 → 展示文本', () => {
+  test('<1KB 用 B，<1MB 取整 KB，其余一位小数 MB', () => {
+    expect(formatEvidenceSize(0)).toBe('0 B');
+    expect(formatEvidenceSize(69)).toBe('69 B');
+    expect(formatEvidenceSize(1023)).toBe('1023 B');
+    expect(formatEvidenceSize(100 * 1024)).toBe('100 KB');
+    expect(formatEvidenceSize(1024 * 1024)).toBe('1.0 MB');
+    expect(formatEvidenceSize(3.5 * 1024 * 1024)).toBe('3.5 MB');
+  });
+});
+
+describe('groupEvidenceByKind：清单 → 三档分组', () => {
+  test('缺项回空数组，未知顺序不影响分桶', () => {
+    const item = (id: string, kind: ReimburseEvidence['kind']): ReimburseEvidence => ({
+      id,
+      kind,
+      originalName: `${id}.${kind === 'invoice' ? 'pdf' : 'png'}`,
+      ext: kind === 'invoice' ? '.pdf' : '.png',
+      sizeBytes: 1,
+      sha256: 'x',
+      uploadedBy: 'mem-1',
+      uploadedAt: '2026-09-14T10:00:00.000Z',
+    });
+    const grouped = groupEvidenceByKind([
+      item('revd-2', 'inspection'),
+      item('revd-1', 'invoice'),
+    ]);
+    expect(grouped.invoice.map((e) => e.id)).toEqual(['revd-1']);
+    expect(grouped.inspection.map((e) => e.id)).toEqual(['revd-2']);
+    expect(grouped.paymentShot).toEqual([]);
+    expect(groupEvidenceByKind([]).invoice).toEqual([]);
   });
 });

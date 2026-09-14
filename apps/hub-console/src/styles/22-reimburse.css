@@ -348,3 +348,87 @@
   flex-direction: column;
   gap: 14px;
 }
+
+/* 凭证留档区（D-094）：收起只有一行按钮，展开三档 kind + 各自的清单。 */
+.reimb-evidence {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+
+.reimb-evidence__toggle {
+  align-self: flex-start;
+}
+
+.reimb-evidence__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reimb-evidence__hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.reimb-evidence__kind {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reimb-evidence__kind-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.reimb-evidence__kind-title {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.reimb-evidence__none {
+  margin: 0;
+  color: var(--faint);
+  font-size: var(--text-xs);
+}
+
+.reimb-evidence__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reimb-evidence__list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reimb-evidence__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 46%;
+}
+
+.reimb-evidence__meta {
+  color: var(--faint);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+/* 下载/删除两个动作贴右（复用 .btn 基类，不再自造下划线链接样式）。 */
+.reimb-evidence__ops {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}

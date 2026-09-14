@@ -9,6 +9,7 @@ import type {
   UpdateReimburseBatchRequest,
   StockInRequest,
   UpdateReimburseProfileRequest,
+  ReimburseEvidenceKind,
 } from '@teamhub/hub-contracts';
 import { useHubMutation } from '../../hooks/useHubMutation';
 import {
@@ -82,6 +83,46 @@ export function useReimburseStockInContext(
     queryKey: queryKeys.reimburse.stockInContext(source),
     queryFn: () => client.getReimburseStockInContext(),
     enabled,
+  });
+}
+
+/**
+ * 凭证清单（D-094）：只在卡片展开「凭证留档」时发请求（enabled 门=收起零网络），
+ * key 带 entryId 故永不与列表缓存同桶。服务端已按读者链鉴权（他人条目 403）。
+ */
+export function useReimburseEvidence(
+  client: ReimburseSegment,
+  source: string,
+  entryId: string,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: queryKeys.reimburse.evidence(source, entryId),
+    queryFn: () => client.getReimburseEvidence(entryId),
+    enabled,
+  });
+}
+
+export function useUploadReimburseEvidence(
+  client: ReimburseSegment,
+  source: string,
+  entryId: string,
+) {
+  return useHubMutation({
+    invalidateKeys: [queryKeys.reimburse.evidence(source, entryId)],
+    mutationFn: (vars: { kind: ReimburseEvidenceKind; file: File }) =>
+      client.uploadReimburseEvidence(entryId, vars.kind, vars.file),
+  });
+}
+
+export function useDeleteReimburseEvidence(
+  client: ReimburseSegment,
+  source: string,
+  entryId: string,
+) {
+  return useHubMutation({
+    invalidateKeys: [queryKeys.reimburse.evidence(source, entryId)],
+    mutationFn: (evidenceId: string) => client.deleteReimburseEvidence(entryId, evidenceId),
   });
 }
 
@@ -171,7 +212,7 @@ export interface ReimburseFormInitial {
 
 /**
  * 浏览器本地导入 controller：统一管理顺序解析、失败通知、待确认队列和队首草稿。
- * 文件只交给 analyzeInvoiceFile 在浏览器内读取，永不上传。
+ * 发票文件只交给 analyzeInvoiceFile 在浏览器内读取，这条通道不上传发票（原件留档走 evidence 端点）。
  */
 export function useReimburseImportController() {
   const [jobs, setJobs] = useState<ImportJob[]>([]);

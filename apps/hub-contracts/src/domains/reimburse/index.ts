@@ -40,7 +40,14 @@ export {
   derivePurchaserCheckStatus,
   deriveReimburseReviewReasons,
   deriveReimburseStatus,
+  evidenceContentType,
+  evidenceExtOf,
+  isEvidenceExtAllowed,
   isReimburseEntryBlocked,
+  REIMBURSE_EVIDENCE_ACCEPT,
+  REIMBURSE_EVIDENCE_CONTENT_TYPES,
+  REIMBURSE_EVIDENCE_MAX_BYTES,
+  REIMBURSE_EVIDENCE_MAX_PER_ENTRY,
 } from './policies.js';
 export type { PurchaserCheckStatus, ReimburseReviewReason } from './policies.js';
 

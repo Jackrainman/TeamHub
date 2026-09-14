@@ -22,7 +22,7 @@ Reimburse 管采购/费用条目、发票元数据、材料清单、报销批次
 - PDF/XML 会保留购买方名称、税号和识别来源；部署级 profile 默认校验哈尔滨工业大学抬头，双空值可跳过。
 - 卡片显式区分“需换抬头”和“需核对”，给出归档命名建议；批次按 gross/eligible/blocked/review 展示，blocked 条目阻止提交。
 - 归档导入已落地（REIMBURSE-OFD-PARSE v0.59.0）：ZIP 解包队列 + OFD 内嵌 XBRL（铁路客票真实样本 4/4 通过），统一安全门（输入 50MB/条目 200/解压总量 200MB/嵌套不展开），包内发票号去重留结构化源；尚无 OCR 和真正的文件筛选下载导出。
-- 凭证受控留档通道已落地（REIMBURSE-EVIDENCE-STORE）：条目级 `POST/GET/DELETE /api/reimburse/entries/:id/evidence[/:evidenceId]` 与 `.../download`、`.../evidence-downloads`；只收 PDF/PNG/JPG（单文件 20MB、单条目 12 份），字节落 `TEAMHUB_EVIDENCE_FILES_DIR` 本地卷（原子写 tmp→rename），库内 `reimburse_entries.evidence` 只留元数据指针（含 sha256）。上传只认条目本人（超管不得代传），下载/删除/留痕走「本人→超管」读者链且每次成功下载记一条 `reimburse_evidence_downloads`；批次提交后快照锁同样锁凭证。
+- 凭证受控留档通道已落地（REIMBURSE-EVIDENCE-STORE）：条目级 `POST/GET/DELETE /api/reimburse/entries/:id/evidence[/:evidenceId]` 与 `.../download`、`.../evidence-downloads`；只收 PDF/PNG/JPG（单文件 20MB、单条目 12 份），字节落 `TEAMHUB_EVIDENCE_FILES_DIR` 本地卷（原子写 tmp→rename），库内 `reimburse_entries.evidence` 只留元数据指针（含 sha256）。上传只认条目本人（超管不得代传），下载/删除/留痕走「本人→超管」读者链且每次成功下载记一条 `reimburse_evidence_downloads`；批次提交后快照锁同样锁凭证。前端入口在条目卡片的「凭证留档」区（`ReimburseEvidenceSection`）：收起时零请求，展开才取清单；后缀/大小在浏览器按 contracts 同一口径预检，下载是 cookie 鉴权的 `<a download>`（无静态路径）。
 
 ## 3. 目标结构（TARGET）
 
@@ -58,4 +58,4 @@ Reimburse 管采购/费用条目、发票元数据、材料清单、报销批次
 
 - `REIMBURSE-PM-EXPORT`：命名建议与四口径已完成；仍需筛选/选择和实际导出适配器。
 - `REIMBURSE-OCR-PROBE`：先用真实样本验证 tesseract.js 体积、耗时、内存和识别率，达标后再进入主流程。
-- `REIMBURSE-EVIDENCE-STORE`：受控附件通道的**后端已落地**（条目级上传、鉴权下载、下载留痕、按 D-094 读者链、字节留 `TEAMHUB_EVIDENCE_FILES_DIR`）。剩余三节：① 前端入口（记一笔卡片上的上传/清单/下载，及 `materials` 布尔与「已归档」的关系怎么表达）；② 随批次打包交财务（无按人明细的导出侧zip 通道）；③ 存放目录本身属部署动作。在前端入口落地前，`materials` 的 `paymentShot`/`inspection` 布尔语义仍是**本人自证已备**，不是文件已归档的凭据。
+- `REIMBURSE-EVIDENCE-STORE`：受控附件通道的**后端与前端入口均已落地**（条目级上传、鉴权下载、下载留痕、按 D-094 读者链、字节留 `TEAMHUB_EVIDENCE_FILES_DIR`；条目卡片「凭证留档」区=收起零请求的展开式清单 + 三档上传 + 下载/删除，上传与删除入口只对条目本人开放）。剩余两节：① 随批次打包交财务（无按人明细的导出侧 zip 通道）；② 存放目录本身属部署动作。`materials` 的 `paymentShot`/`inspection` 布尔语义仍是**本人自证已备**（纸面留底），不是文件已归档的凭据——归档与否看该条目 `.../evidence` 清单，两者不做联动。

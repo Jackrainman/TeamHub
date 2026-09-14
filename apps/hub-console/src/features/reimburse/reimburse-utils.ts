@@ -1,3 +1,10 @@
+import {
+  REIMBURSE_EVIDENCE_MAX_BYTES,
+  evidenceExtOf,
+  isEvidenceExtAllowed,
+  type ReimburseEvidence,
+  type ReimburseEvidenceKind,
+} from '@teamhub/hub-contracts';
 import type {
   CreateReimburseEntryRequest,
   InvoiceRecognitionSource,
@@ -6,7 +13,8 @@ import type {
 } from '@teamhub/hub-contracts';
 
 /**
- * 报销域纯函数（REIMBURSE-PROC 阶段 3）——金额分↔元格式化、新建表单草稿校验/装配。
+ * 报销域纯函数（REIMBURSE-PROC 阶段 3）——金额分↔元格式化、新建表单草稿校验/装配，
+ * 以及凭证留档的本地预检/展示（上限与后缀口径取自 contracts，不在此重说一遍）。
  * 零 React / fetch，照 myview-utils / identity-utils「测逻辑不测 DOM」先例由 test/reimburse.test.ts 覆盖。
  */
 
@@ -157,4 +165,42 @@ export function buildCreateEntryRequest(
     materials: { paymentShot: false, inspection: false }, // 新条目材料恒未备，在卡片上勾
     note: optionalText(draft.note),
   };
+}
+
+/** 上传前本地预检的拒收原因（服务端同一口径兜底，这里只是省一次往返 + 说人话）。 */
+export type EvidenceRejectReason = 'too-large' | 'ext-unsupported';
+
+/** 待上传文件 → 拒收原因（null=可传）。后缀与字节上限都取 contracts 的单一口径。 */
+export function evidenceRejectReasonFor(file: File): EvidenceRejectReason | null {
+  if (file.size > REIMBURSE_EVIDENCE_MAX_BYTES) {
+    return 'too-large';
+  }
+  return isEvidenceExtAllowed(evidenceExtOf(file.name)) ? null : 'ext-unsupported';
+}
+
+/** 凭证字节数 → 展示文本（<1KB 用 B，<1MB 取整 KB，其余一位小数 MB）。 */
+export function formatEvidenceSize(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  const kb = bytes / 1024;
+  if (kb < 1024) {
+    return `${Math.round(kb)} KB`;
+  }
+  return `${(kb / 1024).toFixed(1)} MB`;
+}
+
+/** 凭证清单按 kind 分组（缺项回空数组）——卡片三档 UI 只读这一个结构。 */
+export function groupEvidenceByKind(
+  evidence: readonly ReimburseEvidence[],
+): Record<ReimburseEvidenceKind, ReimburseEvidence[]> {
+  const grouped: Record<ReimburseEvidenceKind, ReimburseEvidence[]> = {
+    invoice: [],
+    paymentShot: [],
+    inspection: [],
+  };
+  for (const item of evidence) {
+    grouped[item.kind].push(item);
+  }
+  return grouped;
 }

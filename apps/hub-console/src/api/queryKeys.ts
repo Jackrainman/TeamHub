@@ -21,6 +21,9 @@ export const queryKeys = {
     batches: (source: string) => ['reimburse', source, 'batches'] as const,
     profile: (source: string) => ['reimburse', source, 'profile'] as const,
     stockInContext: (source: string) => ['reimburse', source, 'stock-in-context'] as const,
+    // 凭证清单是条目级私有事实：key 带 entryId，永不挂到 entries 列表 key 下（D-094）。
+    evidence: (source: string, entryId: string) =>
+      ['reimburse', source, 'entries', entryId, 'evidence'] as const,
   },
   baseline: {
     all: (source: string) => ['baseline', source] as const,

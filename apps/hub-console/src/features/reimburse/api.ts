@@ -8,6 +8,9 @@ import {
   UpdateReimburseProfileResponseSchema,
   StockInContextResponseSchema,
   StockInResponseSchema,
+  ReimburseEvidenceListResponseSchema,
+  UploadReimburseEvidenceResponseSchema,
+  DeleteReimburseEvidenceResponseSchema,
   type CreateReimburseEntryRequest,
   type CreateReimburseEntryResponse,
   type UpdateReimburseEntryRequest,
@@ -23,16 +26,21 @@ import {
   type StockInContextResponse,
   type StockInRequest,
   type StockInResponse,
+  type ReimburseEvidenceKind,
+  type ReimburseEvidenceListResponse,
+  type UploadReimburseEvidenceResponse,
+  type DeleteReimburseEvidenceResponse,
 } from '@teamhub/hub-contracts';
 import type { HttpContext } from '../../api/http';
-import { fetchJson, postJson, sendJson } from '../../api/http';
+import { fetchJson, postFormData, postJson, sendJson } from '../../api/http';
 
 /**
  * 报销域 API 分段（REIMBURSE-PROC 阶段 3，照 segments/domain.ts 模式）。
  * 端点对照 server modules/reimburse/routes.ts：
  *  - GET entries 服务端已按 actor 过滤（普通成员只回本人，超管回全部）——前端不做二次过滤；
  *  - batches 三端点超管限定（调用侧用 enabled 门控，未授权不发请求）；
- *  - stock-in 入库联动由服务端应用层编排（鉴权=条目本人或超管）。
+ *  - stock-in 入库联动由服务端应用层编排（鉴权=条目本人或超管）；
+ *  - evidence 四端点是凭证唯一通道（D-094）：条目对象上永远没有凭证元数据，字节只走鉴权下载链接。
  */
 export interface ReimburseSegment {
   getReimburseEntries(): Promise<ReimburseEntriesResponse>;
@@ -55,6 +63,18 @@ export interface ReimburseSegment {
     req: UpdateReimburseBatchRequest,
   ): Promise<ReimburseBatchResponse>;
   stockInEntry(id: string, req: StockInRequest): Promise<StockInResponse>;
+  getReimburseEvidence(id: string): Promise<ReimburseEvidenceListResponse>;
+  uploadReimburseEvidence(
+    id: string,
+    kind: ReimburseEvidenceKind,
+    file: File,
+  ): Promise<UploadReimburseEvidenceResponse>;
+  deleteReimburseEvidence(
+    id: string,
+    evidenceId: string,
+  ): Promise<DeleteReimburseEvidenceResponse>;
+  /** 凭证下载链接（cookie 鉴权的 GET，同 artifacts 下载先例）——没有静态路径。 */
+  reimburseEvidenceDownloadUrl(id: string, evidenceId: string): string;
 }
 
 export function createReimburseSegment(ctx: HttpContext): ReimburseSegment {
@@ -128,6 +148,36 @@ export function createReimburseSegment(ctx: HttpContext): ReimburseSegment {
         fetcher,
         writeToken,
       );
+    },
+    async getReimburseEvidence(id: string) {
+      return fetchJson(
+        `${baseUrl}/api/reimburse/entries/${encodeURIComponent(id)}/evidence`,
+        ReimburseEvidenceListResponseSchema,
+        fetcher,
+      );
+    },
+    async uploadReimburseEvidence(id: string, kind: ReimburseEvidenceKind, file: File) {
+      return postFormData(
+        `${baseUrl}/api/reimburse/entries/${encodeURIComponent(id)}/evidence`,
+        file,
+        UploadReimburseEvidenceResponseSchema,
+        fetcher,
+        writeToken,
+        { kind },
+      );
+    },
+    async deleteReimburseEvidence(id: string, evidenceId: string) {
+      return sendJson(
+        'DELETE',
+        `${baseUrl}/api/reimburse/entries/${encodeURIComponent(id)}/evidence/${encodeURIComponent(evidenceId)}`,
+        undefined,
+        DeleteReimburseEvidenceResponseSchema,
+        fetcher,
+        writeToken,
+      );
+    },
+    reimburseEvidenceDownloadUrl(id: string, evidenceId: string) {
+      return `${baseUrl}/api/reimburse/entries/${encodeURIComponent(id)}/evidence/${encodeURIComponent(evidenceId)}/download`;
     },
   };
 }

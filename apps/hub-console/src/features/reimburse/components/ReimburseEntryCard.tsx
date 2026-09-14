@@ -15,6 +15,7 @@ import {
 import { useUpdateReimburseEntry } from '../hooks';
 import { useI18n, type TranslationKey } from '../../../i18n';
 import { formatAmountFen } from '../reimburse-utils';
+import { ReimburseEvidenceSection } from './ReimburseEvidenceSection';
 import { StockInDialog } from './StockInDialog';
 
 const STATUS_BADGE: Record<ReimburseEntryStatus, { tone: string; key: TranslationKey }> = {
@@ -38,7 +39,7 @@ const REVIEW_REASON_KEY: Record<ReimburseReviewReason, TranslationKey> = {
 
 /**
  * 单条报销条目卡片：发票要素 + deriveReimburseStatus 派生徽标（无手工状态机）+
- * 材料 checklist 两勾（点了即 PATCH）+ actualItemName/note 就地编辑 + 超管装批/移出。
+ * 材料 checklist 两勾（点了即 PATCH）+ 凭证留档区 + actualItemName/note 就地编辑 + 超管装批/移出。
  * 错误一律交全局 MutationCache.onError toast（checklist/装批无内联错误位，不标 silent）。
  */
 export function ReimburseEntryCard({
@@ -50,6 +51,8 @@ export function ReimburseEntryCard({
   canWrite,
   profile,
   stockInContext,
+  canViewEvidence,
+  isOwner,
 }: {
   client: ReimburseSegment;
   source: string;
@@ -60,6 +63,10 @@ export function ReimburseEntryCard({
   profile: ReimburseProfile;
   /** 报销域窄入库上下文；不再读取库存完整快照。 */
   stockInContext: StockInContextResponse | null;
+  /** 凭证读者门：未登录 / 匿名模式下服务端不认人，整区隐藏（不发请求）。 */
+  canViewEvidence: boolean;
+  /** 本条目是否当前登录人自己的（凭证上传/删除只对本人开放）。 */
+  isOwner: boolean;
 }) {
   const { t } = useI18n();
   const updateMutation = useUpdateReimburseEntry(client, source);
@@ -248,6 +255,15 @@ export function ReimburseEntryCard({
           {t('reimb.entry.materials.inspection')}
         </label>
       </div>
+
+      {canViewEvidence ? (
+        <ReimburseEvidenceSection
+          client={client}
+          source={source}
+          entry={entry}
+          isOwner={isOwner}
+        />
+      ) : null}
 
       <div className="reimb-entry__edit">
         <input

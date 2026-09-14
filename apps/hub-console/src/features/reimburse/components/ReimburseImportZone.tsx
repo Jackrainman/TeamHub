@@ -7,7 +7,7 @@ const INVOICE_ACCEPT = '.pdf,.xml,.ofd,.zip';
 /**
  * 发票导入区（REIMBURSE-PROC 阶段 4）：点击选文件（隐藏 input）/ 拖拽 onDrop / 粘贴 onPaste
  * 三入口，原生事件不引拖拽库；多文件照 KbStep 先例（Array.from + multiple）。
- * 文件只交给 onFiles 在浏览器本地解析——**本体永不上传**。
+ * 文件只交给 onFiles 在浏览器本地解析——这条通道不上传发票（原件留档走条目卡片的凭证区）。
  */
 export function ReimburseImportZone({
   onFiles,

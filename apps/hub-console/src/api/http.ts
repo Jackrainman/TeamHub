@@ -68,14 +68,20 @@ export async function sendJson<T>(
   return schema.parse(await response.json());
 }
 
+/**
+ * 单文件 multipart 上传。`fields` 里的文本字段**先于**文件 append——busboy 只把
+ * 文件分片之前出现的字段挂到 `file.fields`，反序会让服务端读到空字段。
+ */
 export async function postFormData<T>(
   url: string,
   file: File,
   schema: { parse(value: unknown): T },
   fetcher: FetchLike,
   writeToken?: string,
+  fields?: Record<string, string>,
 ): Promise<T> {
   const form = new FormData();
+  for (const [name, value] of Object.entries(fields ?? {})) form.append(name, value);
   form.append('file', file);
   const headers: Record<string, string> = {};
   if (writeToken) headers.authorization = `Bearer ${writeToken}`;
