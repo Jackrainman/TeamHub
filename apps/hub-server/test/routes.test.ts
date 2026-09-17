@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'vitest';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { buildTestHubServer } from './support/build-test-hub-server.js';
@@ -482,6 +482,32 @@ describe('hub-server routes', () => {
 });
 
 describe('hub-server static console', () => {
+  test('serves an aliased root but rejects links escaping that root', async () => {
+    const temp = await mkdtemp(path.join(tmpdir(), 'teamhub-static-alias-'));
+    const root = path.join(temp, 'real');
+    const outside = path.join(temp, 'outside');
+    const alias = path.join(temp, 'alias');
+    await mkdir(root);
+    await mkdir(outside);
+    await writeFile(path.join(root, 'index.html'), '<div>aliased console</div>');
+    await writeFile(path.join(outside, 'private.txt'), 'must not be served');
+    // junction 不要求 Windows 开发者模式，也能覆盖 CI 短路径/目录别名的 realpath 差异。
+    await symlink(root, alias, 'junction');
+    await symlink(outside, path.join(root, 'escape'), 'junction');
+    const app = buildTestHubServer({ consoleDistDir: alias });
+    try {
+      const response = await app.inject({ method: 'GET', url: '/' });
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain('aliased console');
+      const escaped = await app.inject({ method: 'GET', url: '/escape/private.txt' });
+      expect(escaped.statusCode).toBe(404);
+      expect(escaped.body).not.toContain('must not be served');
+    } finally {
+      await app.close();
+      await rm(temp, { force: true, recursive: true });
+    }
+  });
+
   test('serves built console assets when a dist directory is configured', async () => {
     const consoleDistDir = await mkdtemp(path.join(tmpdir(), 'teamhub-console-'));
     await mkdir(path.join(consoleDistDir, 'assets'));

@@ -109,6 +109,7 @@ async function post(url, body, cookie) {
   console.log(`[e2e:first-login] 临时库：${tmp}（端口 ${PORT}）`);
 
   let kill = () => {};
+  let browser;
   const errors = [];
   try {
     kill = await startServer(path.join(tmp, 'teamhub.sqlite'));
@@ -146,7 +147,7 @@ async function post(url, body, cookie) {
     console.log('[e2e:first-login] 置备完成：管理员 1 + 无 PIN 新成员 1');
 
     // ── 浏览器：新成员首登 → ForcePinGate → 设密码 → 进应用 ──
-    const browser = await chromium.launch({ channel: process.env.E2E_BROWSER_CHANNEL || undefined });
+    browser = await chromium.launch({ channel: process.env.E2E_BROWSER_CHANNEL || undefined });
     const page = await (await browser.newContext({ viewport: { width: 1440, height: 1000 } })).newPage();
     page.on('console', (m) => {
       if (m.type() !== 'error') return;
@@ -164,8 +165,9 @@ async function post(url, body, cookie) {
     await page.click('.auth-gate button[type=submit]');
 
     // 首登 → 整屏 ForcePinGate（两个密码框：新密码 + 再输一遍）
-    await page.waitForSelector('.auth-gate__pin', { timeout: 10_000 });
     const pinBoxes = page.locator('.auth-gate__pin');
+    // 登录页本身已有一个密码框；等待第二个出现，才能确认切换到了首登设密页。
+    await pinBoxes.nth(1).waitFor({ state: 'visible', timeout: 10_000 });
     if ((await pinBoxes.count()) !== 2) throw new Error('ForcePinGate 应有两个密码框');
     await pinBoxes.nth(0).fill(NEWBIE.pin);
     await pinBoxes.nth(1).fill(NEWBIE.pin);
@@ -180,10 +182,10 @@ async function post(url, body, cookie) {
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForSelector('.nav-item', { timeout: 10_000 });
 
-    await browser.close();
   } catch (e) {
     fail(String(e && e.message ? e.message : e));
   } finally {
+    await browser?.close();
     await kill();
     if (!KEEP) rmSync(tmp, { recursive: true, force: true });
   }

@@ -42,6 +42,10 @@ last_reviewed: 2026-08-15
 
 ## 5. 发布与部署分离
 
+标准流程：本地 `npm run verify` → push/PR 触发 Verify Action → Windows 与 Ubuntu 两项检查均成功（Ubuntu 含 Compose smoke）→ Ubuntu 隔离测试实例验收 → 经授权正式部署。任一 CI 检查失败不进入部署阶段；失败详情在对应 job 的日志与错误注解中。
+
+Action 只操作 GitHub 临时 runner，不连接服务器、不读取生产秘密、不发布版本、不自动部署。GitHub 分支保护是另一项仓库设置，未配置前 CI 失败不会自动禁止直接推送 master；不能把“有 Action”等同于“已有强制合并门”。
+
 创建 tag/Release 是外部写操作，需要明确授权。发布物验证完成不等于允许部署真实服务器；systemd、反代和真实数据变更另走部署审批。
 
 ## 6. 回滚要求

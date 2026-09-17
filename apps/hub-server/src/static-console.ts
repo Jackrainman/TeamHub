@@ -68,7 +68,8 @@ function resolveAssetPath(root: string, pathname: string): string | null {
 }
 
 function isWithinRoot(root: string, candidate: string): boolean {
-  return candidate === root || candidate.startsWith(`${root}${path.sep}`);
+  const relative = path.relative(root, candidate);
+  return relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
 }
 
 /**
@@ -80,8 +81,9 @@ function isWithinRoot(root: string, candidate: string): boolean {
 async function isFileWithinRoot(root: string, filePath: string): Promise<boolean> {
   try {
     if (!(await stat(filePath)).isFile()) return false;
-    const real = await realpath(filePath);
-    return isWithinRoot(root, real);
+    // 两端都解析别名，避免 Windows 短路径或目录链接被误判为越界；文件链接仍不能逃出真实根目录。
+    const [realRoot, realFile] = await Promise.all([realpath(root), realpath(filePath)]);
+    return isWithinRoot(realRoot, realFile);
   } catch {
     return false;
   }
