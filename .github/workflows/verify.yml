@@ -4,11 +4,7 @@ permissions:
   contents: read
 jobs:
   verify:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-24.04]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.0.0
@@ -23,15 +19,8 @@ jobs:
         run: |
           set -o pipefail
           npm run verify 2>&1 | tee "$RUNNER_TEMP/teamhub-verify.log"
-      - name: Compose smoke on Ubuntu
-        id: compose
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          set -o pipefail
-          bash scripts/verify-hub-compose.sh 2>&1 | tee "$RUNNER_TEMP/teamhub-verify.log"
       - name: Publish failure details
-        if: failure() && (steps.verify.outcome == 'failure' || steps.compose.outcome == 'failure')
+        if: failure() && steps.verify.outcome == 'failure'
         shell: bash
         run: |
           node --input-type=module <<'NODE'

@@ -35,7 +35,7 @@
   "todo": [
     {
       "id": "UBUNTU-DEV-ACCEPTANCE",
-      "title": "跨平台开发收口后的 Ubuntu 验收：确认双平台 CI（含 Compose smoke），在服务器隔离测试实例执行部署与真实附件恢复演练",
+      "title": "跨平台开发收口后的 Ubuntu 验收：确认 Ubuntu CI 绿，在服务器隔离测试实例执行 Compose smoke、部署与真实附件恢复演练",
       "tag": "ops",
       "note": "Windows npm ci、三包检查（467/451/278）、Edge 首登 E2E、12 项工具测试、开发启动/初始化重启与完整备份实测通过；本机 Docker 引擎未启动，服务器操作尚未执行。",
       "dod": "Ubuntu CI exit 0；隔离实例 /health buildId 正确；恢复后业务数据与两类附件可读"

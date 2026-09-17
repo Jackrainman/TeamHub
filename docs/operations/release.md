@@ -21,7 +21,7 @@ last_reviewed: 2026-08-15
 
 - 工作树无非预期修改，根版本与三个 Hub 包一致。
 - 三个 Hub 包的 verify 全绿，部署行为通过 e2e 和 `/health.buildId` 检查。
-- 本地统一 `npm run verify`（含浏览器 E2E）；Windows 与 Ubuntu 24.04 CI 均从 `npm ci` 开始，Ubuntu 另跑 Compose smoke。CI 尚未执行时不能宣称双平台验证通过。
+- 本地统一 `npm run verify`（含浏览器 E2E）；CI 在 Ubuntu 24.04 干净环境从 `npm ci` 开始全量验证。Windows 由开发机本地 pre-commit 覆盖，CI 不跑 Windows job；Compose smoke 挪到服务器部署前执行，不进 CI。
 - 当前数据库、artifact 与报销凭证备份能够读回；完整备份命令及停写要求只以 runbook.md 为准。
 - release notes 只描述用户可见变化、兼容性和已知限制，不伪造“已验证”。
 - 安全边界、I0 和报销凭证边界（D-094：解析留浏览器 + 附件不对读者链外泄露）有明确回归场景。
@@ -42,7 +42,7 @@ last_reviewed: 2026-08-15
 
 ## 5. 发布与部署分离
 
-标准流程：本地 `npm run verify` → push/PR 触发 Verify Action → Windows 与 Ubuntu 两项检查均成功（Ubuntu 含 Compose smoke）→ Ubuntu 隔离测试实例验收 → 经授权正式部署。任一 CI 检查失败不进入部署阶段；失败详情在对应 job 的日志与错误注解中。
+标准流程：本地 `npm run verify` → push/PR 触发 Verify Action → Ubuntu 24.04 检查成功 → Ubuntu 隔离测试实例验收（含 Compose smoke，脚本 `scripts/verify-hub-compose.sh`）→ 经授权正式部署。CI 失败不进入部署阶段；失败详情在 job 日志与错误注解中。
 
 Action 只操作 GitHub 临时 runner，不连接服务器、不读取生产秘密、不发布版本、不自动部署。GitHub 分支保护是另一项仓库设置，未配置前 CI 失败不会自动禁止直接推送 master；不能把“有 Action”等同于“已有强制合并门”。
 

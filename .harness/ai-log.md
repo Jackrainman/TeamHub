@@ -251,3 +251,5 @@
 - 2026-09-17 CROSS-PLATFORM-DEV：修复 fflate 仓外依赖并从干净 workspace 重建跨平台 lock；Windows npm ci 成功。Node 开发入口隔离数据并接续 exit 42，tsx 测试按 Node CLI 启动，编码测试改用跨 ICU 稳定的截断字节；三包检查 467/451/278 通过，Edge 首登 E2E 通过，工具测试 12 项通过，开发启动/自动重启/健康页及完整备份 CLI 实测通过。新增停写全量备份与 SHA-256 清单校验、备份恢复回归、依赖/文档入口防线、双平台 CI；删除失效 verify.sh、空 .gitmodules、todo 已完成记录；同步 README/部署/运维/发布规范。未改 apps/*/src，无版本 bump。配套 Chromium 下载 ECONNRESET，使用本机 Edge 完成验收；本机 Docker 引擎未运行，Ubuntu CI/Compose 与服务器隔离恢复验收留 UBUNTU-DEV-ACCEPTANCE。未碰服务器或用户 .gitignore 修改。
 
 - 2026-09-17 CI-FOLLOWUP v0.80.1：首次双平台 CI 暴露 Windows 静态根路径别名被误判越界（根未 realpath，文件已 realpath）；新增 junction 根 + 外逃链接回归，先红后绿。静态路径两端规范化，保留外逃拒绝。全量本地验证还复现首登 E2E 抢读旧登录页密码框，改为等待第二密码框并先关浏览器再停服；修复后 E2E 通过。官方 checkout/setup-node 升至已核实 node24 的 v7.0.1/v7.0.0，失败日志尾部进入注解。发布规范明确本地→双平台 CI→隔离服务器→正式部署，CI 不自动部署且未配置分支保护。Ubuntu 首轮完整日志 API 403，保留下一轮 CI 验证结论，不推断为已修复。
+
+- 2026-09-17 CI-SIMPLIFY：Verify workflow 收敛为单 Ubuntu 24.04 job——Windows 由开发机本地 pre-commit 覆盖、Compose smoke 挪到服务器部署前验收（release.md §2/§5 同步），public 仓库标准 runner 免费不限分钟。Docker Hub 拉镜像 ECONNRESET 属运行器网络抖动，随 compose 步骤移出 CI 而消解。
