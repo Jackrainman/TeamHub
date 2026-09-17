@@ -34,6 +34,13 @@
   ],
   "todo": [
     {
+      "id": "UBUNTU-DEV-ACCEPTANCE",
+      "title": "跨平台开发收口后的 Ubuntu 验收：确认双平台 CI（含 Compose smoke），在服务器隔离测试实例执行部署与真实附件恢复演练",
+      "tag": "ops",
+      "note": "Windows npm ci、三包检查（467/451/278）、Edge 首登 E2E、12 项工具测试、开发启动/初始化重启与完整备份实测通过；本机 Docker 引擎未启动，服务器操作尚未执行。",
+      "dod": "Ubuntu CI exit 0；隔离实例 /health buildId 正确；恢复后业务数据与两类附件可读"
+    },
+    {
       "id": "TASK-TEMPLATE-IMPORT",
       "title": "任务模板/批量导入讨论（用户 2026-09-04）：手填一大堆任务极其痛苦→需模板或 Excel 式批量录入；用户口述造车阶段骨架（稳定可预制）：机械设计(机械主电控视觉辅,电路走线)→模块测试(电控视觉主机械电路辅)→全车装配(机械电路主)→全车调试(电控先视觉后可同步,全流程受制于视觉)+电路并行测试线(画主控板/电控测试)；阶段骨架可预制、具体任务不可预制（与 INIT-BURDEN 缓做理由不冲突：不可预判的是任务不是骨架）；机器人清单应纳入基线/赛季设置流程",
       "tag": "discussion",
@@ -130,60 +137,6 @@
       "title": "确认 git 用法：代码用 git（历史/回滚/对比/协作），内容文档用 DB；主分支只放稳定版，功能走开发分支；停掉后缀式版本管理",
       "tag": "ops",
       "batch": "later"
-    }
-  ],
-  "done-tonight": [
-    {
-      "id": "ARCH-FOLLOWUPS",
-      "title": "test/support 三文件按类名改名（inmemory-gov-store{,-base,-pm}.ts → inmemory-pm-repository{,-base}.ts / pm-core-mixin.ts），37 处 import 同步；清理悬空注释（inmemory-pm-repository.ts 头注、knowledge/model.ts KbSnapshot 注）；OverviewSnapshot 维持暂留 features/system/api.ts（§10 system 模块条件未成熟）；server 432 测全绿"
-    },
-    {
-      "id": "AUTH-LOGIN-USERNAME",
-      "title": "登录自输用户名（displayName 全名册唯一，下拉退役）+ GET /api/members 移出预登录白名单（公网枚举名册口子关闭，BootstrapGate 改走 setup/state.hasPmMember）+ 旧 4 位 PIN 登录强制升级 ≥8 位（会话 pinUpgradeRequired 标记，PUT pin 即清）；重名 409 运营信号；2FA(TOTP) 用户拍板暂缓 → deferred.md ARC-DEF-004；D-093 落 decisions；生产库 28 成员实测零重名无需清洗（v0.73.0）"
-    },
-    {
-      "id": "AUTH-GATE",
-      "title": "公网认证加固全套（D-092）：读闸（未登录 401 + 最小白名单，无加后缀进后台的口）+ 首登强制设密码（mustSetPin 会话 403 PIN_SETUP_REQUIRED + 整屏 ForcePinGate/LoginGate）+ PIN 升级密码（新设 min 8，旧 4 位散列兼容）+ 撤销刀⑧②明文副本（契约删 pinPlaintext、显示PIN 端点/UI 删除、旧库启动清扫）+ 登录失败锁定（ip|memberId 连错 5 锁 5 分钟）+ cookie Secure env 开关；server 424+console 265 全绿 + 生产库副本活体 12 项全过"
-    },
-    {
-      "id": "AUTH-FRAMEWORK-EVAL",
-      "title": "登录框架评估结论：维持自建（百行、规矩、可维护），不引 better-auth/Lucia——闸门是产品流程非密码学，框架不白送；用户拍板 go-full"
-    },
-    {
-      "id": "UI-TEXT-CLEANUP",
-      "title": "前端解释性文字清理：子 agent 全仓审计（报告 /tmp/ui-text-audit.md），按『能删就删』尺度清两批——首批 depgraph.entry.note / pool.search.note / pool.list.intro（v0.71.0），二批 ~30 处中英 key：depgraph.detail.ownerNote/blockedByValue、pm.create.subtitle、schedule.note/intro、direction.note/intro×2、kb.empty、inv.record.subtitle、reimb.batch.subtitle、settings.members/roster/deployment.desc、setup 两处、pool.action 系列 hint 等；残留=ROBOTICS_LEARNING_MAP 学习内容文案（在 contracts 层，随 NAV-REGROUP 学习方向去留一起定）"
-    },
-    {
-      "id": "POOL-RENAME",
-      "title": "挂单池更名「领任务」：10 处 i18n 值（中英）+ e2e 标签同步（v0.71.0）"
-    },
-    {
-      "id": "BETA-BADGES",
-      "title": "内测徽标：ConsolePageDescriptor.beta 字段 + 导航项/页头「内测中」胶囊，schedule/knowledge/archive 三页置位（v0.71.0）"
-    },
-    {
-      "id": "REIMBURSE-TEST",
-      "title": "报账模块测试：单测 server 17 + console 36 全绿；起本地实例（生产库副本，4877）走通端到端——登录鉴权、profile 读写、记一笔（完整/可空键宽容）、发票号查重、建批/挂条、质量门拦截（材料不全+购买方不符→blocked 分类）、提交、快照锁（submitted 后改条目/改名均拒）、状态机顺向单向（跳级/逆向均拒）、入库 newPart 联动库存；未发现问题。顺带发现成员数据存 pinPlaintext 明文（转 AUTH-LOGIN-GATE）"
-    },
-    {
-      "id": "REIMBURSE-PANEL-SPACING",
-      "title": "记一笔垫付 UI 间距修复：裸 .panel 无 padding/gap 致表单贴边，补 .reimb-page .panel{padding:14px;gap:12px}（同 .inv-page .panel 先例），一记/条目列表/购买方/批次四区同愈（v0.70.2）"
-    },
-    {
-      "id": "REIMBURSE-DEFECTS-20260831",
-      "title": "报账测试缺陷修复：#1 铁路 PDF 车次夹站名区间正则、#2 批次提交后快照锁、#3 GBK zip 文件名回退、#4 批次状态机顺向单向、#5 Create 请求可空键宽容、#6 发票号查重索引；#7 匿名 fail-closed 为文档行为不修（v0.70.0）"
-    },
-    {
-      "id": "ARCH-UNIFY",
-      "title": "三包/模块/控制台分层收口（A1-A5）：全域 modules 三包就位，GovStore 归零，console 每域 api+hooks，架构门禁白名单 25→0（v0.60.0-v0.69.0）"
-    },
-    {
-      "id": "HOOKS-1-TAIL",
-      "title": "裸 useQuery/useMutation 收口：16 处清零，features/{pm,identity,system,settings,resources}/hooks.ts 就位（v0.69.0）"
-    },
-    {
-      "id": "SPLIT-1-TAIL",
-      "title": "GateChecklistCard/TodayPlanTable/DirectionStarmap 三组件拆小（控制器/sub 抽出，383/388/389→273/187/190 行，v0.69.1）"
     }
   ],
   "directions": [

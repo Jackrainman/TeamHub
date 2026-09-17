@@ -1,0 +1,33 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import { backupData, verifyBackup } from '../backup-teamhub-data.mjs';
+
+test('backs up and restores database plus both attachment trees; detects missing bytes', (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'teamhub-backup-test-'));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const database = path.join(root, 'source.sqlite');
+  const db = new DatabaseSync(database);
+  db.exec("PRAGMA user_version=1; CREATE TABLE meta(key TEXT, value TEXT); INSERT INTO meta VALUES ('schema_kind','unified'); CREATE TABLE facts(value TEXT); INSERT INTO facts VALUES ('测试件');");
+  db.close();
+  const artifacts = path.join(root, 'artifacts'); const evidence = path.join(root, 'evidence');
+  fs.mkdirSync(artifacts); fs.mkdirSync(evidence);
+  fs.writeFileSync(path.join(artifacts, '图纸.txt'), 'artifact');
+  fs.writeFileSync(path.join(evidence, '测试凭证.pdf'), 'test bytes');
+  const destination = path.join(root, 'backup');
+  assert.throws(() => backupData({ database, artifacts, evidence, destination }), /停止写入/);
+  backupData({ database, artifacts, evidence, destination, stopped: true });
+  assert.throws(() => backupData({ database, artifacts, evidence, destination, stopped: true }), /EEXIST/);
+  const restored = path.join(root, 'restored');
+  fs.cpSync(destination, restored, { recursive: true });
+  verifyBackup(restored);
+  const recovered = new DatabaseSync(path.join(restored, 'teamhub.sqlite'), { readOnly: true });
+  assert.equal(recovered.prepare('SELECT value FROM facts').get().value, '测试件');
+  recovered.close();
+  assert.equal(fs.readFileSync(path.join(restored, 'evidence/测试凭证.pdf'), 'utf8'), 'test bytes');
+  fs.unlinkSync(path.join(restored, 'evidence/测试凭证.pdf'));
+  assert.throws(() => verifyBackup(restored), /ENOENT/);
+});

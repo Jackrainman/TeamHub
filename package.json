@@ -12,10 +12,16 @@
     "verify:architecture": "node scripts/verify-architecture.mjs",
     "test:docs": "node --test scripts/test/verify-docs-architecture.test.mjs",
     "test:architecture": "node --test scripts/test/verify-architecture.test.mjs",
-    "verify": "npm run verify:docs && npm run verify:architecture && npm run test:docs && npm run test:architecture && npm run verify:all -w apps/hub-contracts && npm run verify:local -w apps/hub-server && npm run verify:local -w apps/hub-console",
+    "verify": "npm run verify:local && npm run test:e2e -w apps/hub-console",
     "typecheck": "npm run typecheck -w apps/hub-contracts && npm run build -w apps/hub-contracts && npm run typecheck:local -w apps/hub-server && npm run typecheck:local -w apps/hub-console",
     "test": "npm run build -w apps/hub-contracts && npm run test -w apps/hub-contracts && npm run test:local -w apps/hub-server && npm run test:local -w apps/hub-console",
-    "build": "npm run build -w apps/hub-contracts && npm run build:local -w apps/hub-console && npm run build:local -w apps/hub-server"
+    "build": "npm run build -w apps/hub-contracts && npm run build:local -w apps/hub-console && npm run build:local -w apps/hub-server",
+    "dev": "node scripts/dev.mjs",
+    "verify:local": "npm run verify:docs && npm run verify:architecture && npm run test:tools && npm run verify:all -w apps/hub-contracts && npm run verify:local -w apps/hub-server && npm run verify:local -w apps/hub-console",
+    "test:e2e": "npm run build && npm run test:e2e -w apps/hub-console",
+    "test:tools": "node --test scripts/test/*.test.mjs",
+    "browser:install": "npm exec -w apps/hub-console -- playwright install chromium",
+    "backup": "node scripts/backup-teamhub-data.mjs"
   },
   "engines": {
     "node": ">=24"

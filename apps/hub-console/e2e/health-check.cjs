@@ -34,7 +34,7 @@ const MIN_BODY = 80; // 正文短于此判为疑似白屏
 
 (async () => {
   mkdirSync(OUT, { recursive: true });
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ channel: process.env.E2E_BROWSER_CHANNEL || undefined });
   const page = await (await browser.newContext({ viewport: { width: 1440, height: 1000 } })).newPage();
 
   const errors = [];

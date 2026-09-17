@@ -309,7 +309,7 @@ describe('POST /api/inventory/import — 匿名模式', () => {
   test('无法识别的编码 → 400', async () => {
     const app = buildTestHubServer({ inventoryRepository: new InMemoryInvStore(emptyInv()) });
     try {
-      const bad = Buffer.from([0x41, 0xff, 0x42]); // UTF-8 与 GBK 皆非法
+      const bad = Buffer.from([0x41, 0x81]); // 截断序列在 UTF-8/GBK 均非法，不依赖 ICU 对 0xFF 的映射
       const res = await app.inject({
         method: 'POST',
         url: '/api/inventory/import',

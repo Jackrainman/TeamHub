@@ -147,6 +147,22 @@ export function verifyDocsArchitecture(repoRoot = process.cwd()) {
   const errors = [];
   const allowedActive = new Set(ACTIVE_MARKDOWN);
   const allowedArchive = new Set(ARCHIVE_MARKDOWN);
+  // 操作入口随代码验证，避免文档继续引用已删除的脚本或不存在的根命令。
+  const packageFile = path.join(absoluteRoot, 'package.json');
+  if (fs.existsSync(packageFile)) {
+    const scripts = JSON.parse(fs.readFileSync(packageFile, 'utf8')).scripts ?? {};
+    for (const file of ['README.md', 'AGENTS.md', 'docs/operations/deploy.md', 'docs/operations/runbook.md', 'docs/operations/release.md']) {
+      const full = path.join(absoluteRoot, file);
+      if (!fs.existsSync(full)) continue;
+      const content = fs.readFileSync(full, 'utf8');
+      for (const match of content.matchAll(/npm run ([\w:-]+)/g)) {
+        if (!scripts[match[1]]) errors.push(`${file}: 根 npm 命令不存在：${match[1]}`);
+      }
+      for (const match of content.matchAll(/scripts\/[\w-]+\.(?:sh|mjs)\b/g)) {
+        if (!fs.existsSync(path.join(absoluteRoot, match[0]))) errors.push(`${file}: 脚本不存在：${match[0]}`);
+      }
+    }
+  }
 
   if (!fs.existsSync(docsRoot)) {
     return { errors: ['docs: 目录不存在'], summary: { active: 0, archive: 0, canonical: 0 } };

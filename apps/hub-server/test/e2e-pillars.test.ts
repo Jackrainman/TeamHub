@@ -4,6 +4,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import { createServer } from 'node:net';
 import {
   CreateTaskResponseSchema,
@@ -22,7 +23,7 @@ import { openUnifiedDb } from '../src/store/sqlite-unified.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serverRoot = join(here, '..');
-const tsxBin = join(serverRoot, 'node_modules', '.bin', 'tsx');
+const tsxCli = createRequire(import.meta.url).resolve('tsx/cli');
 const mainTs = join(serverRoot, 'src', 'main.ts');
 
 // projectId 对齐 seed 快照 projectId，避免（可能的）按 projectId 过滤把 e2e 任务排除在 dep-graph 外。
@@ -49,7 +50,7 @@ async function startServer(
   env: Record<string, string>,
   port: number,
 ): Promise<ChildProcess> {
-  const proc = spawn(tsxBin, [mainTs], {
+  const proc = spawn(process.execPath, [tsxCli, mainTs], {
     cwd: serverRoot,
     env: {
       ...process.env,
@@ -61,12 +62,15 @@ async function startServer(
     stdio: 'pipe',
   });
   procs.add(proc);
+  let spawnError: Error | undefined;
+  proc.once('error', (error) => { spawnError = error; });
   let stderr = '';
   proc.stderr?.on('data', (d) => (stderr += String(d)));
   proc.once('exit', () => procs.delete(proc));
 
   const deadline = Date.now() + 25_000;
   while (Date.now() < deadline) {
+    if (spawnError) throw spawnError;
     if (proc.exitCode !== null) {
       throw new Error(`server exited early (code ${proc.exitCode}): ${stderr}`);
     }

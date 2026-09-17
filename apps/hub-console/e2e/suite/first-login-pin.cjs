@@ -10,10 +10,10 @@
  * 后自动重启正常模式）→ bootstrap 首个管理员 → 管理员 API 导入一名无 PIN 新成员 → 浏览器开打。
  *
  * 前置：hub-server 与 hub-console 均已 build（需要 ../hub-server/dist/main.js 与 ./dist 静态站）；
- * 浏览器二进制在 ~/.cache/ms-playwright（pin playwright@1.61.0）。npm script test:e2e 已串好构建。
+ * 根 npm run browser:install 安装对应浏览器；根 npm run test:e2e 包含构建。
  *
  * 用法：
- *   npm run test:e2e                 # 构建依赖后跑本场景
+ *   npm run test:e2e                 # 从仓库根构建依赖后跑本场景
  *   E2E_PORT=5001 node e2e/suite/first-login-pin.cjs
  *   E2E_KEEP=1 node ...              # 保留临时数据目录与截图（排查用）
  */
@@ -50,7 +50,7 @@ async function waitUp(timeoutMs = 30_000) {
   }
 }
 
-/** 起服；setup/init 会退 42 触发重启，这里捕获后自动再起一次（与 start 脚本/compose 同语义）。 */
+/** 退出 42 时重启；清理必须等子进程退出，避免 Windows 占用 SQLite 文件。 */
 function startServer(dbFile) {
   return new Promise((resolve, reject) => {
     const env = {
@@ -60,22 +60,28 @@ function startServer(dbFile) {
       TEAMHUB_DB_FILE: dbFile,
       TEAMHUB_CONSOLE_DIST_DIR: CONSOLE_DIST,
     };
-    let child = spawn(process.execPath, [SERVER_MAIN], { env, stdio: ['ignore', 'pipe', 'pipe'] });
-    child.stderr.on('data', (d) => process.stderr.write(`[server] ${d}`));
-    child.on('exit', (code) => {
-      if (code === 42) {
-        child = spawn(process.execPath, [SERVER_MAIN], { env, stdio: ['ignore', 'pipe', 'pipe'] });
-        child.stderr.on('data', (d) => process.stderr.write(`[server] ${d}`));
-        resolve(kill); // 重启后由 waitUp 确认就绪
-        return;
-      }
-      reject(new Error(`server 意外退出 code=${code}`));
-    });
+    let child;
+    let stopping = false;
+    function launch() {
+      child = spawn(process.execPath, [SERVER_MAIN], { env, stdio: ['ignore', 'ignore', 'pipe'] });
+      child.on('error', reject);
+      child.stderr.on('data', (d) => process.stderr.write(`[server] ${d}`));
+      child.on('exit', (code) => {
+        if (code === 42 && !stopping) launch();
+        else if (!stopping) reject(new Error(`server 意外退出 code=${code}`));
+      });
+    }
+    launch();
     waitUp()
       .then(() => resolve(kill))
-      .catch(reject);
-    function kill() {
-      try { child.kill('SIGTERM'); } catch { /* 已退 */ }
+      .catch(async (error) => { await kill(); reject(error); });
+    async function kill() {
+      stopping = true;
+      if (child.exitCode !== null || child.signalCode !== null) return;
+      await new Promise((done) => {
+        child.once('exit', done);
+        child.kill('SIGTERM');
+      });
     }
   });
 }
@@ -140,7 +146,7 @@ async function post(url, body, cookie) {
     console.log('[e2e:first-login] 置备完成：管理员 1 + 无 PIN 新成员 1');
 
     // ── 浏览器：新成员首登 → ForcePinGate → 设密码 → 进应用 ──
-    const browser = await chromium.launch();
+    const browser = await chromium.launch({ channel: process.env.E2E_BROWSER_CHANNEL || undefined });
     const page = await (await browser.newContext({ viewport: { width: 1440, height: 1000 } })).newPage();
     page.on('console', (m) => {
       if (m.type() !== 'error') return;
@@ -178,7 +184,7 @@ async function post(url, body, cookie) {
   } catch (e) {
     fail(String(e && e.message ? e.message : e));
   } finally {
-    kill();
+    await kill();
     if (!KEEP) rmSync(tmp, { recursive: true, force: true });
   }
 

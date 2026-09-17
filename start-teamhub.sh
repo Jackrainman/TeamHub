@@ -32,6 +32,7 @@ HUB_HOST="${HUB_HOST:-127.0.0.1}"
 HUB_PORT="${HUB_PORT:-4177}"
 TEAMHUB_DB_FILE="${TEAMHUB_DB_FILE:-${HOME}/teamhub-data/teamhub.sqlite}"
 TEAMHUB_ARTIFACT_FILES_DIR="${TEAMHUB_ARTIFACT_FILES_DIR:-${HOME}/teamhub-data/artifacts}"
+TEAMHUB_EVIDENCE_FILES_DIR="${TEAMHUB_EVIDENCE_FILES_DIR:-${HOME}/teamhub-data/evidence}"
 TEAMHUB_WRITE_TOKEN="${TEAMHUB_WRITE_TOKEN:-}"
 # 活体戳：注入 git short SHA 进 /health.buildId，重启后一行 curl 即知在服哪个构建（feiyue ?v= 校验等价）。
 TEAMHUB_BUILD_ID="${TEAMHUB_BUILD_ID:-$(git -C "${ROOT_DIR}" rev-parse --short HEAD 2>/dev/null || echo nogit)}"
@@ -65,7 +66,7 @@ if [[ ! -d "${ROOT_DIR}/node_modules" ]]; then
 fi
 
 # 唯一数据库与 artifact 两个持久化落点就位。
-mkdir -p "$(dirname "${TEAMHUB_DB_FILE}")" "${TEAMHUB_ARTIFACT_FILES_DIR}"
+mkdir -p "$(dirname "${TEAMHUB_DB_FILE}")" "${TEAMHUB_ARTIFACT_FILES_DIR}" "${TEAMHUB_EVIDENCE_FILES_DIR}"
 
 if [[ "${SKIP_BUILD}" != "1" ]]; then
   echo "构建 TeamHub workspaces（contracts → console → server）…"
@@ -75,6 +76,7 @@ fi
 # console 静态产物交给 server 单端口托管
 export TEAMHUB_CONSOLE_DIST_DIR="${CONSOLE_DIR}/dist"
 export TEAMHUB_DB_FILE TEAMHUB_ARTIFACT_FILES_DIR HUB_HOST HUB_PORT TEAMHUB_WRITE_TOKEN TEAMHUB_BUILD_ID
+export TEAMHUB_EVIDENCE_FILES_DIR
 
 echo "──────────────────────────────────────────────"
 echo " Team Hub v${TEAMHUB_VERSION} 启动 → http://${HUB_HOST}:${HUB_PORT}  (console + API 同端口)"

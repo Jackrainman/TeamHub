@@ -16,7 +16,23 @@ last_reviewed: 2026-08-15
 ./scripts/backup-teamhub-data.sh
 ```
 
-必须确认脚本 exit code 为 0，且 `VACUUM INTO` 产物通过 `integrity_check`、schema 版本与 `schema_kind=unified` 读回。`app_settings` 已包含在数据库中；artifact 文件目录仍须另行 tar/rsync 并校验。
+这个 Bash 脚本只完成数据库在线快照，exit 0 不代表附件已备份。完整备份包含 SQLite（含 app_settings）、图纸目录、报销凭证目录；附件与数据库必须来自同一停止写入的时间点。
+
+完整备份流程（Windows / Ubuntu 相同；停止实例本身是单独的运维动作）：
+
+1. 停止目标实例写入，确认三个源路径属于该实例，准备一个不存在的新备份目录。
+2. 执行 `npm run backup -- <SQLite路径> <图纸目录> <凭证目录> <新备份目录> --stopped`。`--stopped` 是操作者对停写状态的确认，脚本不会停止服务。
+3. 确认 exit 0：数据库经 VACUUM INTO、完整性和 schema 校验，两类附件复制后逐文件 SHA-256 校验；备份失败保留现场，不视为成功。
+4. 执行 `npm run backup -- --verify <备份目录>` 可再次校验数据库与全部文件清单。
+
+开发测试示例（先结束 `npm run dev`）：
+
+```text
+npm run backup -- tmp/dev-data/teamhub.sqlite tmp/dev-data/artifacts tmp/dev-data/evidence tmp/backups/test-001 --stopped
+npm run backup -- --verify tmp/backups/test-001
+```
+
+恢复演练：将备份中的 teamhub.sqlite、artifacts、evidence 复制到一个全新恢复目录，以独立端口和显式路径启动测试实例，确认业务条目可读、图纸与报销凭证可下载。不得覆盖唯一原始数据，也不要在有写入的恢复目录继续校验旧清单。启动秘密配置另行受控保存，备份工具不读取它们。仅有测试件时仍保留数据，真实使用前必须完成一次应用级恢复演练。
 
 ## 2. 日常启动与观察
 
@@ -72,7 +88,7 @@ loopback 豁免必须基于真实 socket 地址，不信任远端伪造的转发
 - 禁止把 `docker compose down --volumes` 用于真实项目。
 - 不删除用户数据，不做破坏性迁移，不在没有恢复演练时合并数据清理与代码升级。
 - 备份集合为统一 SQLite、artifact 目录和必要秘密/启动配置；结构化数据库必须使用在线安全的 `VACUUM INTO`，不要直接复制正在写入的 SQLite 文件。
-- 发票等报销文件从不在服务端，因此不属于 TeamHub 备份集。
+- 报销凭证原件按 D-094 在服务端受控留档，必须与数据库同批备份；票据解析仍在浏览器本地。
 
 ## 8. 需要审批的操作
 

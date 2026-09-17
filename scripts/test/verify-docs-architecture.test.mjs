@@ -45,6 +45,17 @@ test('accepts the exact target documentation structure', (context) => {
   assert.equal(result.summary.archive, 5);
 });
 
+test('rejects stale operational npm commands and deleted script references', (context) => {
+  const root = validFixture();
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  write(root, 'package.json', JSON.stringify({ scripts: { dev: 'node scripts/dev.mjs' } }));
+  write(root, 'README.md', '`npm run dev`\n`npm run vanished`\n`scripts/removed.sh`\n');
+  const errors = verifyDocsArchitecture(root).errors;
+  assert.equal(errors.length, 2);
+  assert.match(errors.join('\n'), /vanished/);
+  assert.match(errors.join('\n'), /removed.sh/);
+});
+
 test('reports structural, naming, metadata, archive and link violations together', (context) => {
   const root = validFixture();
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));

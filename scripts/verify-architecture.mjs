@@ -16,6 +16,38 @@ function toPosix(value) {
   return value.split(path.sep).join('/');
 }
 
+export function verifyPortableDependencies(root, manifests, lock) {
+  const errors = [];
+  for (const [directory, manifest] of manifests) {
+    for (const field of ['dependencies', 'devDependencies', 'optionalDependencies']) {
+      for (const [name, spec] of Object.entries(manifest?.[field] ?? {})) {
+        if (!spec.startsWith('file:')) continue;
+        const target = path.resolve(root, directory, spec.slice(5));
+        const relative = path.relative(root, target);
+        if (relative.startsWith('..') || path.isAbsolute(relative) || !fs.existsSync(target)) {
+          errors.push(`${directory}/package.json: ${name} 本地依赖必须存在且位于仓库内`);
+        }
+      }
+    }
+  }
+  const entries = lock?.packages ?? {};
+  for (const [location, entry] of Object.entries(entries)) {
+    if (entry.resolved?.startsWith('file:')) {
+      const target = path.resolve(root, entry.resolved.slice(5));
+      const relative = path.relative(root, target);
+      if (relative.startsWith('..') || path.isAbsolute(relative)) errors.push(`${location}: lock 本地依赖越出仓库`);
+    }
+    if (!/node_modules\/(esbuild|rollup)$/.test(location)) continue;
+    for (const [name, version] of Object.entries(entry.optionalDependencies ?? {})) {
+      if (!name.startsWith('@esbuild/') && !name.startsWith('@rollup/')) continue;
+      if (!Object.entries(entries).some(([key, value]) => key.endsWith(`/node_modules/${name}`) && value.version === version || key === `node_modules/${name}` && value.version === version)) {
+        errors.push(`${location}: lock 缺少平台依赖 ${name}@${version}`);
+      }
+    }
+  }
+  return errors;
+}
+
 function listFiles(directory, { skip = new Set() } = {}) {
   if (!fs.existsSync(directory)) return [];
   const files = [];
@@ -335,6 +367,8 @@ export function verifyArchitecture(repoRoot = process.cwd(), options = {}) {
   const hubPackages = ['apps/hub-contracts', 'apps/hub-server', 'apps/hub-console'].filter((directory) =>
     fs.existsSync(path.join(root, directory, 'package.json')),
   );
+  errors.push(...verifyPortableDependencies(root, new Map([['', rootPackage], ...packageManifests]),
+    readJson(path.join(root, 'package-lock.json'), errors, 'package-lock.json')));
   for (const packageDirectory of hubPackages) {
     const manifest = packageManifests.get(packageDirectory);
     for (const field of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']) {

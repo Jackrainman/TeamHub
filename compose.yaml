@@ -16,6 +16,7 @@ services:
       TEAMHUB_DB_FILE: /var/lib/teamhub/data/teamhub.sqlite
       # 图纸等允许服务端持久化的二进制制品使用独立 artifact 卷。
       TEAMHUB_ARTIFACT_FILES_DIR: /var/lib/teamhub/artifacts
+      TEAMHUB_EVIDENCE_FILES_DIR: /var/lib/teamhub/data/evidence
       TEAMHUB_WRITE_TOKEN: ${TEAMHUB_WRITE_TOKEN:-change-me-before-exposing}
     ports:
       - "${TEAMHUB_HOST_PORT:-4177}:4177"

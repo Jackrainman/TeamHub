@@ -10,7 +10,15 @@ last_reviewed: 2026-08-15
 
 ## 1. 支持范围
 
-TeamHub 当前支持 Node.js ≥24 的 Linux/macOS/WSL 主机和 Docker Compose，两者均由 hub-server 在单端口 4177 托管 console 与 API。默认先绑定 `127.0.0.1`，完成初始化后再决定是否暴露内网。
+开发支持 Windows PowerShell 与 Ubuntu，统一使用 Node.js 24.x、Git 和根 npm workspace。部署目标为 Ubuntu 24 Server；Docker Compose 是可选路径。hub-server 在单端口 4177 托管 console 与 API，默认先绑定 `127.0.0.1`。
+
+本地开发：`npm ci` → `npm run dev`。默认数据在仓库 `tmp/dev-data/`（SQLite、artifacts、evidence），修改代码后重新运行；初始化退出 42 自动重启。前端热更新可另开终端运行 `npm run dev -w apps/hub-console`。后端改端口时，两个终端设置相同 `HUB_PORT`：PowerShell 用 `$env:HUB_PORT='4277'`，Ubuntu 用 `export HUB_PORT=4277`。
+
+本地测试：首次 `npm run browser:install`，随后 `npm run verify`。`verify:local` 省略浏览器 E2E，不能代替最终验收。无需 WSL、Docker 或外部 SQLite 服务；现有版本脚本和提交钩子在 Windows 使用 Git Bash。不要跨系统复制 node_modules。
+
+若 Chromium 下载受限，可使用已安装的 Edge：PowerShell 设置 `$env:E2E_BROWSER_CHANNEL='msedge'` 后执行验证。默认不设置该变量，使用 Playwright 配套浏览器；CI 固定安装 Chromium。
+
+服务器测试实例必须使用独立端口和数据目录，例如端口 4277、`~/teamhub-test-data/`，显式配置数据库、图纸、凭证三个路径；禁止复用正式实例路径。开发验证与 Ubuntu 测试部署通过后才进入正式部署流程。
 
 本指南只描述仓库当前可用路径。生产组合根已按 D-090 收成统一 SQLite，不再支持分域 JSON、gov-only SQLite 或生产内存回退。
 
@@ -25,7 +33,7 @@ npm ci
 
 浏览器打开 `http://127.0.0.1:4177`。首次启动进入向导，选择演示/真实和匿名/身份；配置写入数据目录后服务自动重启。
 
-`start-teamhub.sh` 会从根 workspace 构建 console/server，并默认使用 `~/teamhub-data/teamhub.sqlite`。只重启已构建产物可设 `TEAMHUB_SKIP_BUILD=1`。
+`start-teamhub.sh` 会从根 workspace 构建 console/server，默认使用 `~/teamhub-data/teamhub.sqlite`、`~/teamhub-data/artifacts` 和 `~/teamhub-data/evidence`。只重启已构建产物可设 `TEAMHUB_SKIP_BUILD=1`。
 
 ## 3. 初始化与开放顺序
 
@@ -53,7 +61,7 @@ npm ci
 docker compose up -d --build hub
 ```
 
-Compose 只声明 `hub_data` 与 `hub_artifacts` 两个卷。禁止对真实项目执行 `docker compose down --volumes`；仓库 smoke 脚本只允许名称含 `smoke` 的隔离项目，并会验证 buildId、六域同库及写入后重启读回。
+Compose 声明 `hub_data`（SQLite 与 evidence 子目录）和 `hub_artifacts`（图纸）两个卷。禁止对真实项目执行 `docker compose down --volumes`；仓库 smoke 脚本只允许名称含 `smoke` 的隔离项目，并会验证 buildId、六域同库及写入后重启读回。
 
 ## 6. 无头初始化
 

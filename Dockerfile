@@ -32,10 +32,8 @@ WORKDIR /opt/teamhub
 COPY --from=build /workspace/package.json /workspace/package-lock.json ./
 COPY --from=build /workspace/node_modules node_modules
 COPY --from=build /workspace/apps/hub-contracts/package.json apps/hub-contracts/package.json
-COPY --from=build /workspace/apps/hub-contracts/node_modules apps/hub-contracts/node_modules
 COPY --from=build /workspace/apps/hub-contracts/dist apps/hub-contracts/dist
 COPY --from=build /workspace/apps/hub-server/package.json apps/hub-server/package.json
-COPY --from=build /workspace/apps/hub-server/node_modules apps/hub-server/node_modules
 COPY --from=build /workspace/apps/hub-server/dist apps/hub-server/dist
 COPY --from=build /workspace/apps/hub-console/dist console
 

@@ -73,8 +73,8 @@ describe('decodeRosterBytes', () => {
 
   test('两种编码都失败（乱字节）→ null', () => {
     // 单个 0xFF 在 UTF-8 非法、在 GBK 也非法尾随 → 替换字符两处皆现。
-    const bytes = new Uint8Array([0x41, 0xff, 0x42]);
-    // 0xFF 在 GBK 是非法 lead → 替换字符 → null。
+    // 截断双字节序列在 UTF-8/GBK 均非法；0xFF 在部分 ICU 版本会映射到私用字符。
+    const bytes = new Uint8Array([0x41, 0x81]);
     expect(decodeRosterBytes(bytes)).toBeNull();
   });
 });

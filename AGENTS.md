@@ -57,9 +57,13 @@ npm --prefix apps/hub-server   run verify:all
 npm --prefix apps/hub-console  run verify:all
 npm run verify:docs                             # 活文档单源 + 五份 archive + 无截图/状态稿
 npm run verify:architecture                     # 单 workspace/lock/version + 依赖方向 + 迁移基线
+npm run dev                                     # Windows/Ubuntu 隔离开发实例
+npm run browser:install                         # 首次安装 Chromium
+npm run verify                                  # 三包检查 + 构建 + 浏览器 E2E
+npm run verify:local                            # 不含浏览器 E2E，非最终验收
 npx vitest run <file>                            # 单测（在各包目录下）
 ./start-teamhub.sh                                # 单端口 4177
-./scripts/backup-teamhub-data.sh                  # 重启/重建前必跑
+./scripts/backup-teamhub-data.sh                  # 仅数据库在线快照；完整备份见 runbook
 npm --prefix apps/hub-server run test:local -- e2e-pillars  # 端到端
 bash scripts/pre-commit.sh                        # 提交门（密钥扫描+空白）
 curl -s http://127.0.0.1:4177/health | grep buildId  # 活体

@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { verifyArchitecture } from '../verify-architecture.mjs';
+import { verifyArchitecture, verifyPortableDependencies } from '../verify-architecture.mjs';
 
 function write(root, relativePath, content) {
   const absolutePath = path.join(root, relativePath);
@@ -29,6 +29,21 @@ function fixture() {
   write(root, 'apps/hub-console/src/features/tasks/hooks.ts', "import { useQuery } from '@tanstack/react-query';\nexport const useTasks = () => useQuery({ queryKey: ['tasks'] });\n");
   return root;
 }
+
+test('rejects machine-local dependencies and incomplete native platform lock entries', (context) => {
+  const root = fixture();
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const manifests = new Map([['apps/hub-console', { dependencies: {
+    fflate: 'file:../../../../tmp/fflate.tgz',
+    '@teamhub/hub-contracts': 'file:../hub-contracts',
+  } }]]);
+  const errors = verifyPortableDependencies(root, manifests, { packages: {
+    'node_modules/rollup': { optionalDependencies: { '@rollup/rollup-win32-x64-msvc': '4.0.0' } },
+  } });
+  assert.equal(errors.length, 2);
+  assert.match(errors.join('\n'), /fflate.*仓库内/);
+  assert.match(errors.join('\n'), /缺少平台依赖/);
+});
 
 test('accepts a single workspace graph and intended package dependency direction', (context) => {
   const root = fixture();

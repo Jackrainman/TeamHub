@@ -21,7 +21,8 @@ last_reviewed: 2026-08-15
 
 - 工作树无非预期修改，根版本与三个 Hub 包一致。
 - 三个 Hub 包的 verify 全绿，部署行为通过 e2e 和 `/health.buildId` 检查。
-- 当前数据库与 artifact 备份能够读回。
+- 本地统一 `npm run verify`（含浏览器 E2E）；Windows 与 Ubuntu 24.04 CI 均从 `npm ci` 开始，Ubuntu 另跑 Compose smoke。CI 尚未执行时不能宣称双平台验证通过。
+- 当前数据库、artifact 与报销凭证备份能够读回；完整备份命令及停写要求只以 runbook.md 为准。
 - release notes 只描述用户可见变化、兼容性和已知限制，不伪造“已验证”。
 - 安全边界、I0 和报销凭证边界（D-094：解析留浏览器 + 附件不对读者链外泄露）有明确回归场景。
 

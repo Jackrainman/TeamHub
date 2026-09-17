@@ -6,8 +6,8 @@ import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 
 // 本地开发：console(5174) 通过 proxy 把 /api 与 /health 转到本地 hub-server(4177)，
-// 真实模式用相对路径同源访问、免 CORS。改端口直接改这里。
-const API_TARGET = 'http://127.0.0.1:4177';
+// 真实模式用相对路径同源访问、免 CORS；与开发服务共享 HUB_PORT。
+const API_TARGET = `http://127.0.0.1:${process.env.HUB_PORT || '4177'}`;
 
 const CONSOLE_DIR = path.dirname(fileURLToPath(import.meta.url));
 // pdf.js 按名动态 fetch 的资源（CMap/标准字体）——12306 铁路电子客票等用中文 CID 字体的

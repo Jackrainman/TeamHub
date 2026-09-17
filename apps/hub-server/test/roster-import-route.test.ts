@@ -230,7 +230,7 @@ describe('POST /api/roster/import — 匿名模式', () => {
     const store = new InMemoryPmRepository(seedWith([]));
     const app = buildTestHubServer({ store });
     try {
-      const bad = Buffer.from([0x41, 0xff, 0x42]); // UTF-8 与 GBK 皆非法
+      const bad = Buffer.from([0x41, 0x81]); // 截断序列在 UTF-8/GBK 均非法，不依赖 ICU 对 0xFF 的映射
       const res = await app.inject({
         method: 'POST',
         url: '/api/roster/import',

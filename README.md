@@ -9,7 +9,7 @@
 ![Tag](https://img.shields.io/github/v/tag/Jackrainman/TeamHub?label=version&color=blue)
 ![Status](https://img.shields.io/badge/status-public%20beta-brightgreen)
 ![Node](https://img.shields.io/badge/node-%E2%89%A524-informational)
-![Data](https://img.shields.io/badge/data-JSON%20%E8%90%BD%E7%9B%98%C2%B7%E9%9B%B6%E5%A4%96%E9%83%A8%E6%95%B0%E6%8D%AE%E5%BA%93-success)
+![Data](https://img.shields.io/badge/data-SQLite-success)
 
 </div>
 
@@ -25,24 +25,28 @@
 
 ## 五分钟跑起来
 
-需要 Node.js ≥ 24 和 git，不需要数据库、不需要公网。
+Windows PowerShell / Ubuntu 均使用 Node.js 24.x 和 Git。SQLite 内置于 Node，无需单独安装数据库或 WSL；首次安装依赖和测试浏览器需要联网。
 
 ```bash
 git clone https://github.com/Jackrainman/TeamHub.git
 cd TeamHub
-npm --prefix apps/hub-contracts install
-npm --prefix apps/hub-server install
-npm --prefix apps/hub-console install
-./start-teamhub.sh
+npm ci
+npm run dev
 ```
 
 浏览器打开 <http://127.0.0.1:4177>。第一次打开会有个**向导**问你「先试试（演示数据）还是直接安装（正式使用）」——选「先试试」就进演示态：自带一套示例任务、车辆和排班，随便点不心疼。
 
+开发数据默认放在被忽略的 `tmp/dev-data/`，与服务器数据隔离。该命令先构建再启动；修改代码后重新运行，初始化请求的重启自动处理。需要前端热更新时另开终端执行 `npm run dev -w apps/hub-console`。
+
+首次测试先运行 `npm run browser:install`，然后 `npm run verify`（三包类型检查、单测、构建及浏览器 E2E）。`npm run verify:local` 不含浏览器 E2E。两平台必须各自 `npm ci`，不要复制 `node_modules`；Git Bash 仅用于现有提交钩子和版本脚本。
+
+浏览器下载受限且已安装 Edge 时，PowerShell 可先设 `$env:E2E_BROWSER_CHANNEL='msedge'` 再运行验证；CI 使用 Playwright 配套 Chromium。
+
 ## 给战队正式部署
 
-正式部署不用配任何模式环境变量：第一次打开的向导里，选「**直接安装**」（真实空板），顺手选登录方式——**登录制**（推荐，谁都能看、登录才能写，操作自动留名，队长设 PIN 成为管理员）或**匿名共用**（全队共用一个写口令，写操作不留名）。选完自动配置，几秒后就绪。
+Ubuntu 24 Server 使用 `./start-teamhub.sh`，按部署指南指定实例目录和访问边界。首次向导选择演示/真实与身份模式；身份模式要求登录后访问业务数据。
 
-已经在演示态摸熟、想转正式？打开 **设置 → 部署配置**，点「结束试驾，转正式」——演示数据会归档到数据目录下的 `demo-archive` 文件夹（挪走不删、可手工找回），服务以真实空板重启。登录方式也在同一处随时切换，改完自动重启生效。
+更改模式、升级或重建前，先按运维指南备份并验证恢复。测试实例与正式实例使用不同端口、数据库、图纸及凭证目录；不要把服务器正式实例当作日常测试环境。
 
 第一次启动怎么导入队员名册（设置页下载 CSV 模板 → Excel 填好 → 上传）、怎么初始化管理员、什么时候才暴露到内网，都在部署指南里：
 
@@ -70,7 +74,7 @@ npm --prefix apps/hub-console install
 
 ## 技术形态
 
-三个包：`hub-contracts`（Zod 契约，前后端共享）、`hub-server`（Fastify，**单端口 4177** 同时托管 API 和前端静态站）、`hub-console`（React + Vite，中英双语）。数据全部落 `~/teamhub-data/` 下的 JSON 文件（治理域可选 SQLite），重启不丢、备份就是拷文件。不抢 80/443，不依赖外部数据库。
+三个包：`hub-contracts`（Zod 契约，前后端共享）、`hub-server`（Fastify，**单端口 4177** 同时托管 API 和前端静态站）、`hub-console`（React + Vite，中英双语）。结构化数据统一使用 SQLite；图纸与报销凭证存独立目录。完整备份包含数据库和两类附件，不能直接复制正在写入的 SQLite。不抢 80/443，不依赖外部数据库。
 
 ## 更多文档
 

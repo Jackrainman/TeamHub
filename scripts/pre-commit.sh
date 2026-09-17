@@ -5,7 +5,7 @@
 # 安装为 git 钩子：  bash scripts/install-hooks.sh   （clone 后跑一次；幂等）
 # 手动跑：          bash scripts/pre-commit.sh
 #
-# 默认（快，钩子用）：1) 暂存新增行密钥扫描   2) git diff --check 空白错误   3) 文档/软件架构门   4) 版本哨兵   5) 三包 verify（默认强制，并行 ~40s）
+# 默认（快，钩子用）：1) 暂存新增行密钥扫描   2) git diff --check 空白错误   3) 文档/软件架构门   4) 版本哨兵   5) 根 npm run verify（含浏览器 E2E）
 # PRE_COMMIT_SKIP_VERIFY=1：临时跳过第 5 步（CI 已跑过等场景；AGENTS §4 验证门）
 #
 set -euo pipefail
@@ -48,47 +48,9 @@ if ! bash scripts/check-version-bump.sh; then
   fail=1
 fi
 
-# 3) 强制总闸：三包 verify（typecheck + test + build），并行跑。
-#    默认每次 commit 必跑（D-xxx 强制测试门；防止「改了 src 不验证就提交」）。
-#    万一需要临时跳过（CI 已跑过/验证耗时长）→ PRE_COMMIT_SKIP_VERIFY=1。
-#    并行化为什么安全：contracts/dist 是 server/console 的 import 来源
-#    （package.json main: dist/index.js），故 contracts 先单独 build 一次，三包再并行——
-#    并行期谁都不写 contracts/dist，杜绝两个 tsc 并发截断 dist 让别的包测试挂掉的竞态。
-#    并行各步 = 各包 verify:all 减去 build:contracts（用包自带的 verify:local 脚本，单源）；
-#    contracts 本体跑 typecheck + test（build 已在上面做过）。
-#    任一失败即拒提交，失败包的完整日志打到 stderr。
-if [[ "${PRE_COMMIT_SKIP_VERIFY:-0}" != "1" ]]; then
-  echo "== build contracts（三包共用产物，只跑一次）"
-  if ! npm --silent --prefix apps/hub-contracts run build; then
-    echo "✗ hub-contracts build 失败，拒绝提交" >&2
-    fail=1
-  else
-    verify_tmp="$(mktemp -d)"
-    ( npm --silent --prefix apps/hub-contracts run typecheck && npm --silent --prefix apps/hub-contracts run test; echo $? >"$verify_tmp/hub-contracts.exit" ) >"$verify_tmp/hub-contracts.log" 2>&1 &
-    ( npm --silent --prefix apps/hub-server run verify:local; echo $? >"$verify_tmp/hub-server.exit" ) >"$verify_tmp/hub-server.log" 2>&1 &
-    ( npm --silent --prefix apps/hub-console run verify:local; echo $? >"$verify_tmp/hub-console.exit" ) >"$verify_tmp/hub-console.log" 2>&1 &
-    wait
-    for pkg in hub-contracts hub-server hub-console; do
-      if [[ "$(cat "$verify_tmp/$pkg.exit")" != "0" ]]; then
-        echo "✗ $pkg verify 失败，完整日志：" >&2
-        cat "$verify_tmp/$pkg.log" >&2
-        fail=1
-      else
-        echo "✓ $pkg verify 通过"
-      fi
-    done
-    rm -rf "$verify_tmp"
-  fi
-fi
-
-# 3.5) 端到端闸：console e2e（真浏览器 + 真 server 进程，首登强制设密码场景）。
-#      串行排在三包并行 verify 之后：e2e 直接跑 hub-server/dist 产物，须等上面 build 完，
-#      不与三包并行 tsc 抢 dist（contracts 并发写竞态同款教训）。
+# 3) 根验证入口是类型、测试、构建与浏览器 E2E 的唯一编排。
 if [[ "${PRE_COMMIT_SKIP_VERIFY:-0}" != "1" && "$fail" == "0" ]]; then
-  if npm --silent --prefix apps/hub-console run test:e2e; then
-    echo "✓ console e2e 通过"
-  else
-    echo "✗ console e2e 失败（上方日志）" >&2
+  if ! npm run verify; then
     fail=1
   fi
 fi
