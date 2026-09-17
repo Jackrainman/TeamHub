@@ -23,8 +23,15 @@ jobs:
         run: |
           set -o pipefail
           npm run verify 2>&1 | tee "$RUNNER_TEMP/teamhub-verify.log"
+      - name: Compose smoke on Ubuntu
+        id: compose
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -o pipefail
+          bash scripts/verify-hub-compose.sh 2>&1 | tee "$RUNNER_TEMP/teamhub-verify.log"
       - name: Publish failure details
-        if: failure() && steps.verify.outcome == 'failure'
+        if: failure() && (steps.verify.outcome == 'failure' || steps.compose.outcome == 'failure')
         shell: bash
         run: |
           node --input-type=module <<'NODE'
@@ -35,6 +42,3 @@ jobs:
           const escaped = tail.replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
           console.log(`::error title=Verification failure details::${escaped}`);
           NODE
-      - name: Compose smoke on Ubuntu
-        if: runner.os == 'Linux'
-        run: bash scripts/verify-hub-compose.sh
