@@ -10,6 +10,8 @@ import {
   ConfirmCrossClaimResponseSchema,
   ReviewTaskRequestSchema,
   ReviewTaskResponseSchema,
+  ReleaseTaskRequestSchema,
+  ReleaseTaskResponseSchema,
   SetTaskPartnerRequestSchema,
   SetTaskPartnerResponseSchema,
 } from '@teamhub/hub-contracts';
@@ -85,6 +87,29 @@ export function registerTaskClaimRoutes(app: FastifyInstance, deps: TaskRouteDep
       reply,
       await service.assignTask(taskId, parsed.ownerId, parsed.reason, actor),
       (assigned) => AssignTaskResponseSchema.parse({ task: assigned }),
+    );
+  });
+
+  app.post('/api/tasks/:taskId/release', async (request, reply) => {
+    const { taskId } = request.params as { taskId: string };
+    const parsed = parseBody(ReleaseTaskRequestSchema, request, reply);
+    if (!parsed) return;
+    const actor = requireActor(request, reply, parsed.releasedBy, '退池必须留名（releasedBy）');
+    if (!actor) return;
+    const snapshot = await store.getSnapshot();
+    const task = snapshot.tasks.find((t) => t.id === taskId);
+    if (!task) {
+      void reply.code(404).send({ detail: 'task not found' });
+      return;
+    }
+    if (task.ownerId !== actor.id && !isGroupLeadOf(snapshot.members, actor.id, task.groupId)) {
+      void reply.code(403).send({ detail: '退池权属当前完成人或本组组长' });
+      return;
+    }
+    return sendOutcome(
+      reply,
+      await service.releaseTask(taskId, actor, parsed.reason),
+      (released) => ReleaseTaskResponseSchema.parse({ task: released }),
     );
   });
 

@@ -160,6 +160,76 @@ export function TaskActionsPanel({
             </div>
           ) : null}
 
+          {task.status === 'inProgress' && task.ownerId ? (
+            <div className="task-detail__panel">
+              {actions.releaseOpen ? (
+                <>
+                  {!actions.isIdentity
+                    ? renderOperatorPicker(
+                        actions.releaseCandidates,
+                        actions.releaseActorId,
+                        actions.setReleaseActorId,
+                        t('pool.release.operator'),
+                        t('pool.release.operatorHint'),
+                        t('pool.gate.noReleaseActor'),
+                      )
+                    : null}
+                  <Field label={t('pool.release.reason')} hint={t('pool.release.reasonHint')}>
+                    <textarea
+                      rows={2}
+                      value={actions.releaseReason}
+                      onChange={(e) => actions.setReleaseReason(e.target.value)}
+                    />
+                  </Field>
+                  <div className="task-detail__panel-btns">
+                    <button
+                      type="button"
+                      className="btn btn--secondary btn--sm"
+                      disabled={
+                        actions.releaseMutation.isPending ||
+                        (actions.isIdentity ? !actions.canRelease : !actions.releaseActorId)
+                      }
+                      title={
+                        actions.isIdentity && !actions.canRelease
+                          ? t('pool.gate.releaseNeedsOwnerOrLead')
+                          : undefined
+                      }
+                      onClick={() =>
+                        actions.releaseMutation.mutate({
+                          reason: actions.releaseReason.trim() || undefined,
+                          actor: actions.releaseActor(),
+                        })
+                      }
+                    >
+                      {t('pool.release.confirm')}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      onClick={() => actions.setReleaseOpen(false)}
+                    >
+                      {t('pool.cancel')}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  disabled={actions.isIdentity && !actions.canRelease}
+                  title={
+                    actions.isIdentity && !actions.canRelease
+                      ? t('pool.gate.releaseNeedsOwnerOrLead')
+                      : undefined
+                  }
+                  onClick={() => actions.setReleaseOpen(true)}
+                >
+                  {t('pool.release.button')}
+                </button>
+              )}
+            </div>
+          ) : null}
+
           {acceptance === 'awaitingReview' || acceptance === 'selfDone' ? (
             <div className="task-detail__panel">
               {!actions.isIdentity

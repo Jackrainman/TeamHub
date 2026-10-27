@@ -115,3 +115,11 @@
 - **备份口径**：附件目录与 `teamhub.sqlite` 同进 `scripts/backup-teamhub-data.sh` 的备份/恢复范围；实际存放位置属部署动作，不在本域代码内拍板。
 - **财务权限旗（2026-09-06 拍板）**：不单独立「财务」权限旗——「承担财务职责的成员」沿用现有超管/PM 旗判定，REIMBURSE-EVIDENCE-STORE 落地时按此实现。
 - **诚实边界**：本决定只改规则，不改代码。**当前仍无任何上传端点**，前端「文件本体不用上传」文案与 `materials` checklist 布尔描述的是现状、不是承诺，在 REIMBURSE-EVIDENCE-STORE 落地前不得对外声称已可留档。
+
+## D-095 — 进行中任务退回任务池与历任完成人（TASK-POOL-RELEASE，2026-10-27 用户拍板）
+
+- **单一 Task**：任务池仍是 `ownerId=null` 的未完成任务视图；退回不是新任务类型或新状态，不复制 Task。本刀只允许 `inProgress` 且有当前完成人的任务退回，`done/shelved/pending/blocked` 不扩围。
+- **权限与结果**：当前完成人或本组组长可执行 `POST /api/tasks/:taskId/release`；理由可选。退回后 `ownerId=null`、`status=pending`，保留任务进度与结构事实，状态 transition 与归属事件在同一次 SQLite 更新中落库。
+- **归属事实单源**：Task 追加 `ownershipEvents`，统一记录 `claimed/assigned/released` 的 `fromOwnerId/toOwnerId/at/by/reason?`；认领、指派、退回都必须追加。历任完成人由契约纯函数按事件派生并排除当前完成人，**不落盘维护 `previousOwnerIds` 数组**，现有状态 transitions 不冒充归属历史。
+- **当前归属字段**：退回时清理当前认领/指派留名字段，避免池卡把上一任误显示为当前完成人；搭档与验收事实不在本刀重写。
+- **读侧与 I0**：`GET /api/tasks` 的逐任务 meta 可附派生的历任完成人 ID；任务池卡和任务事实卡显示“曾经执行”名单，只作对接事实，不做按人次数、时长、排名或产能统计。

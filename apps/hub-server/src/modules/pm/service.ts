@@ -3,6 +3,7 @@ import {
   CONVERGENCE_SENTINEL_GROUP_ID,
   deriveDirectionGaps,
   deriveLeafGroups,
+  derivePreviousOwnerIds,
   isBigTask,
   toDepGraphView,
   wouldCreateCycle,
@@ -20,6 +21,7 @@ import type {
   Season,
   Task,
   TaskStatus,
+  TaskWithMeta,
 } from '@teamhub/hub-contracts';
 import type { Clock } from '../../clock.js';
 import type { PmRepository } from './repository.js';
@@ -140,8 +142,8 @@ export class PmService {
     return ok(await this.repository.createTask(parsed));
   }
 
-  /** 任务列表（q 大小写不敏感标题/摘要匹配）+ isBig 投影（读模型增肥，不入库）。 */
-  async listTasks(q?: string): Promise<(Task & { isBig: boolean })[]> {
+  /** 任务列表（q 大小写不敏感标题/摘要匹配）+ isBig / 历任完成人投影（读模型增肥，不入库）。 */
+  async listTasks(q?: string): Promise<TaskWithMeta[]> {
     const snapshot = await this.repository.getSnapshot();
     const needle = q?.toLowerCase();
     const matched = needle
@@ -149,7 +151,11 @@ export class PmService {
           (t) => t.title.toLowerCase().includes(needle) || t.rawSummary.toLowerCase().includes(needle),
         )
       : snapshot.tasks;
-    return matched.map((task) => ({ ...task, isBig: isBigTask(task, snapshot.dependencies) }));
+    return matched.map((task) => ({
+      ...task,
+      isBig: isBigTask(task, snapshot.dependencies),
+      previousOwnerIds: derivePreviousOwnerIds(task),
+    }));
   }
 
   async transitionTaskStatus(
@@ -234,6 +240,27 @@ export class PmService {
     );
     if (!assigned) return fail(404, 'task not found');
     return ok(assigned);
+  }
+
+  /** D-095：退池只接受进行中且有当前完成人的任务；操作权限由 route 按本人/本组组长判定。 */
+  async releaseTask(
+    taskId: string,
+    actor: ActorRef,
+    reason?: string,
+  ): Promise<PmOutcome<Task>> {
+    const snapshot = await this.repository.getSnapshot();
+    const task = snapshot.tasks.find((t) => t.id === taskId);
+    if (!task) return fail(404, 'task not found');
+    if (task.status !== 'inProgress') return fail(409, '仅进行中的任务可退回任务池');
+    if (task.ownerId === null) return fail(409, '无主任务无需退回任务池');
+    const released = await this.repository.releaseTask(
+      taskId,
+      actor,
+      this.clock.now().toISOString(),
+      reason,
+    );
+    if (!released) return fail(409, '任务状态已变化，请刷新后重试');
+    return ok(released);
   }
 
   /** 设搭档：搭档在名册 + 同组（跨组是学习通道，不是甩锅通道）。 */

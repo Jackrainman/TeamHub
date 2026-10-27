@@ -84,6 +84,7 @@ export function PoolCard({
   const days = stalenessDays(task.createdAt, now);
   const stale = isStalePosted(days);
   const groupName = groups.find((g) => g.id === task.groupId)?.name ?? task.groupId;
+  const previousOwnerNames = task.previousOwnerIds.map((id) => memberOptionLabel(members, id));
 
   const onClaimClick = () => {
     if (writeLocked) return;
@@ -117,6 +118,11 @@ export function PoolCard({
         </span>
       </div>
       <p className="pool-card__summary">{task.rawSummary}</p>
+      {previousOwnerNames.length > 0 ? (
+        <p className="task-detail__hint">
+          {t('pool.card.previousOwners', { names: previousOwnerNames.join('、') })}
+        </p>
+      ) : null}
       <div className="pool-card__badges">
         <span className="badge">{groupName}</span>
         {task.isBig ? (

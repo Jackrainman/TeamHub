@@ -253,3 +253,5 @@
 - 2026-09-17 CI-FOLLOWUP v0.80.1：首次双平台 CI 暴露 Windows 静态根路径别名被误判越界（根未 realpath，文件已 realpath）；新增 junction 根 + 外逃链接回归，先红后绿。静态路径两端规范化，保留外逃拒绝。全量本地验证还复现首登 E2E 抢读旧登录页密码框，改为等待第二密码框并先关浏览器再停服；修复后 E2E 通过。官方 checkout/setup-node 升至已核实 node24 的 v7.0.1/v7.0.0，失败日志尾部进入注解。发布规范明确本地→双平台 CI→隔离服务器→正式部署，CI 不自动部署且未配置分支保护。Ubuntu 首轮完整日志 API 403，保留下一轮 CI 验证结论，不推断为已修复。
 
 - 2026-09-17 CI-SIMPLIFY：Verify workflow 收敛为单 Ubuntu 24.04 job——Windows 由开发机本地 pre-commit 覆盖、Compose smoke 挪到服务器部署前验收（release.md §2/§5 同步），public 仓库标准 runner 免费不限分钟。Docker Hub 拉镜像 ECONNRESET 属运行器网络抖动，随 compose 步骤移出 CI 而消解。
+
+- 2026-10-27 PM-TASK-RELEASE-POOL v0.81.0：按 D-095 新增进行中任务退池端点与本人/本组组长权限；认领、指派/转派、退池统一追加 ownershipEvents，退池状态 transition 与 released 事件同次 SQLite 更新并重启存活；contracts 派生 previousOwnerIds，任务池卡和任务事实卡展示“曾经执行”。三包 verify:all（contracts 472 / server 462 / console 283 + first-login E2E）及 verify:architecture、verify:docs、git diff --check 全绿。

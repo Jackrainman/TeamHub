@@ -95,7 +95,7 @@ export function buildClaimedTask(
   prev: Task,
   ownerId: string,
   claimedAt: string,
-  claimer?: ActorRef,
+  claimer: ActorRef,
 ): Task | null {
   if (prev.ownerId !== null) return null;
   const promoting = prev.status === 'pending';
@@ -106,11 +106,15 @@ export function buildClaimedTask(
     status: promoting ? 'inProgress' : prev.status,
     statusSource: promoting ? MANUAL_TASK_STATUS_SOURCE : prev.statusSource,
     updatedAt: claimedAt,
+    ownershipEvents: [
+      ...(prev.ownershipEvents ?? []),
+      { kind: 'claimed', fromOwnerId: prev.ownerId, toOwnerId: ownerId, at: claimedAt, by: claimer },
+    ],
     ...(promoting
       ? {
           transitions: [
             ...(prev.transitions ?? []),
-            { from: prev.status ?? null, to: 'inProgress' as const, at: claimedAt, ...(claimer ? { by: claimer } : {}) },
+            { from: prev.status ?? null, to: 'inProgress' as const, at: claimedAt, by: claimer },
           ],
         }
       : {}),
@@ -125,7 +129,50 @@ export function buildAssignedTask(
   at: string,
 ): Task {
   const { claimedAt: _c, partnerMemberId: _p, crossClaimConfirmedBy: _x, ...rest } = prev;
-  return { ...rest, ownerId, assignReason: reason, assignedBy, updatedAt: at };
+  return {
+    ...rest,
+    ownerId,
+    assignReason: reason,
+    assignedBy,
+    updatedAt: at,
+    ownershipEvents: [
+      ...(prev.ownershipEvents ?? []),
+      { kind: 'assigned', fromOwnerId: prev.ownerId, toOwnerId: ownerId, at, by: assignedBy, reason },
+    ],
+  };
+}
+
+/** D-095：退池在同一 Task 对象里同时追加状态流转与 released 归属事件，由 repository 一次更新落库。 */
+export function buildReleasedTask(
+  prev: Task,
+  releasedBy: ActorRef,
+  at: string,
+  reason?: string,
+): Task | null {
+  if (prev.status !== 'inProgress' || prev.ownerId === null) return null;
+  const { claimedAt: _c, assignReason: _r, assignedBy: _a, ...rest } = prev;
+  return {
+    ...rest,
+    ownerId: null,
+    status: 'pending',
+    statusSource: MANUAL_TASK_STATUS_SOURCE,
+    updatedAt: at,
+    transitions: [
+      ...(prev.transitions ?? []),
+      { from: prev.status, to: 'pending', at, by: releasedBy },
+    ],
+    ownershipEvents: [
+      ...(prev.ownershipEvents ?? []),
+      {
+        kind: 'released',
+        fromOwnerId: prev.ownerId,
+        toOwnerId: null,
+        at,
+        by: releasedBy,
+        ...(reason !== undefined ? { reason } : {}),
+      },
+    ],
+  };
 }
 
 export function buildCompletedTask(prev: Task, completedBy: ActorRef, at: string): Task {

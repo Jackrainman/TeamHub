@@ -22,6 +22,7 @@ import {
   buildProjectManagerUpdate,
   buildClaimedTask,
   buildAssignedTask,
+  buildReleasedTask,
   buildCompletedTask,
   buildReviewedTask,
   buildCreatedTask,
@@ -380,7 +381,7 @@ export function PmCoreMixin<T extends Base>(
      * 认领挂单（§3）。仅当现 ownerId===null 才写（已有主 → null，路由据快照转 409）；写 ownerId + claimedAt，
      * pending→inProgress 提升（有主即开工，非 pending 不动）。id 不存在 → null（路由转 404）。
      */
-    async claimTask(taskId: string, ownerId: string, claimedAt: string, claimer?: ActorRef): Promise<Task | null> {
+    async claimTask(taskId: string, ownerId: string, claimedAt: string, claimer: ActorRef): Promise<Task | null> {
       const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
       if (idx === -1) return null;
       const updated = buildClaimedTask(this.snapshot.tasks[idx], ownerId, claimedAt, claimer);
@@ -403,6 +404,20 @@ export function PmCoreMixin<T extends Base>(
       const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
       if (idx === -1) return null;
       const updated = buildAssignedTask(this.snapshot.tasks[idx], ownerId, reason, assignedBy, at);
+      this.snapshot.tasks[idx] = updated;
+      return updated;
+    }
+
+    async releaseTask(
+      taskId: string,
+      releasedBy: ActorRef,
+      at: string,
+      reason?: string,
+    ): Promise<Task | null> {
+      const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
+      if (idx === -1) return null;
+      const updated = buildReleasedTask(this.snapshot.tasks[idx], releasedBy, at, reason);
+      if (!updated) return null;
       this.snapshot.tasks[idx] = updated;
       return updated;
     }

@@ -29,14 +29,14 @@ describe('InMemoryPmRepository: 挂单认领制窄写字段簇 + 清空语义', 
     });
     expect(posted.status).toBe('pending');
 
-    const claimed = await store.claimTask(posted.id, 'm-mechD', '2026-06-11T00:00:00.000Z');
+    const claimed = await store.claimTask(posted.id, 'm-mechD', '2026-06-11T00:00:00.000Z', OWNER);
     expect(claimed?.ownerId).toBe('m-mechD');
     expect(claimed?.claimedAt).toBe('2026-06-11T00:00:00.000Z');
     expect(claimed?.status).toBe('inProgress'); // pending → inProgress
     expect(claimed?.statusSource).toBe('console'); // status 变 → statusSource 钉 console（C5）
 
     // 已有主 → null（路由据快照转 409）
-    expect(await store.claimTask(posted.id, 'm-visionA', 'x')).toBeNull();
+    expect(await store.claimTask(posted.id, 'm-visionA', 'x', OWNER)).toBeNull();
 
     // 设搭档 + 跨组确认，再 assign → 换主清空三者
     await store.setTaskPartner(posted.id, 'm-mechC', 't1');
@@ -85,10 +85,11 @@ describe('InMemoryPmRepository: 挂单认领制窄写字段簇 + 清空语义', 
     expect(accepted?.reviewedBy?.id).toBe('m-progA');
   });
 
-  test('未知 id → 六方法皆 null', async () => {
+  test('未知 id → 七个窄写方法皆 null', async () => {
     const store = new InMemoryPmRepository();
-    expect(await store.claimTask('t-nope', 'm-x', 'x')).toBeNull();
+    expect(await store.claimTask('t-nope', 'm-x', 'x', LEAD)).toBeNull();
     expect(await store.assignTask('t-nope', 'm-x', 'r', LEAD, 'x')).toBeNull();
+    expect(await store.releaseTask('t-nope', LEAD, 'x')).toBeNull();
     expect(await store.setTaskPartner('t-nope', 'm-x', 'x')).toBeNull();
     expect(await store.confirmCrossClaim('t-nope', LEAD, 'x')).toBeNull();
     expect(await store.completeTask('t-nope', LEAD, 'x')).toBeNull();

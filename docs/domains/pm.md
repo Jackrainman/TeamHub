@@ -3,7 +3,7 @@ kind: canonical-domain
 status: active
 domain: pm
 truth_for: projects-tasks-dependencies-needs-claims-and-project-views
-last_reviewed: 2026-08-15
+last_reviewed: 2026-10-27
 ---
 
 # PM 领域
@@ -16,8 +16,10 @@ PM 管赛季项目中的 Task、Dependency、Need、挂单认领、指派、搭�
 
 - Task 有待启动、进行中、卡住、完成、搁置等状态，支持 owner、group、robotTarget、里程碑和投资属性。
 - Dependency 是确认后才参与归因的有向边；Need 归到 provider group，不被转换为对个人派单。
-- API 已支持任务/依赖/Need 创建、状态流转、依赖豁免、任务认领/指派/搭档、跨组确认、完成和复核。
+- API 已支持任务/依赖/Need 创建、状态流转、依赖豁免、任务认领/指派/退池/搭档、跨组确认、完成和复核。
 - 挂单允许无 owner；认领即生效。直接指派要求理由并在事实时间线留痕。
+- 进行中且有当前完成人的任务可由本人或本组组长退回任务池（`POST /api/tasks/:taskId/release`），理由可选；退回后 `ownerId=null`、`status=pending`，保留任务结构与进度事实，清理当前认领/指派字段，状态 transition 与 released 归属事件在同一次 SQLite 更新中落库。
+- Task 以追加式 `ownershipEvents` 分别记录 claimed/assigned/released 归属事实；历任完成人由 contracts 纯函数按首次接任顺序去重、排除当前完成人，`GET /api/tasks` 以 `previousOwnerIds` 读模型附加，不落盘维护该数组。任务池卡与任务事实卡只显示“曾经执行”名单，不做按人统计。
 - 跨组认领由依赖/门结构判定风险，并可要求本组搭档；不建立个人能力排行榜。
 - 依赖图和阻塞归因从 contracts 纯函数派生；第三方读视图不暴露 `confirmedBy`。
 

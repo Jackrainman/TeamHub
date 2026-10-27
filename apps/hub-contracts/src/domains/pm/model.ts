@@ -269,6 +269,15 @@ export const CONVERGENCE_SCOPE_ALL_LEAF_GROUPS = 'allLeafGroups' as const;
  */
 export const CONVERGENCE_SENTINEL_GROUP_ID = 'grp-convergence' as const;
 
+export const TaskOwnershipEventSchema = z.object({
+  kind: z.enum(['claimed', 'assigned', 'released']),
+  fromOwnerId: z.string().min(1).nullable(),
+  toOwnerId: z.string().min(1).nullable(),
+  at: isoDateTimeSchema,
+  by: ActorRefSchema,
+  reason: z.string().min(1).optional(),
+});
+
 export const TaskSchema = z.object({
   id: z.string().min(1),
   projectId: z.string().min(1),
@@ -343,6 +352,8 @@ export const TaskSchema = z.object({
     at: isoDateTimeSchema,
     by: ActorRefSchema.optional(),
   })).optional(),
+  // D-095：归属历史独立追加，不能用状态 transitions 反推。旧任务无此字段时按空历史读取。
+  ownershipEvents: z.array(TaskOwnershipEventSchema).optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -417,6 +428,24 @@ export function isPostedTask(task: Pick<Task, 'ownerId' | 'status'>): boolean {
     task.status !== 'done' &&
     task.status !== 'shelved'
   );
+}
+
+/**
+ * D-095：历任完成人只从归属事件派生，按首次接任顺序去重并排除当前完成人。
+ * released 事件记录的是离任人，claimed/assigned 记录的是接任人；不落盘维护第二份 ID 数组。
+ */
+export function derivePreviousOwnerIds(
+  task: Pick<Task, 'ownerId' | 'ownershipEvents'>,
+): string[] {
+  const previous: string[] = [];
+  const seen = new Set<string>();
+  for (const event of task.ownershipEvents ?? []) {
+    const ownerId = event.kind === 'released' ? event.fromOwnerId : event.toOwnerId;
+    if (ownerId === null || ownerId === task.ownerId || seen.has(ownerId)) continue;
+    seen.add(ownerId);
+    previous.push(ownerId);
+  }
+  return previous;
 }
 
 // ---------------------------------------------------------------------------
@@ -690,13 +719,13 @@ export const MembersResponseSchema = z.object({
   members: z.array(MemberPublicSchema),
 });
 /**
- * GET /api/tasks 逐任务读视图元信息（TASK-POST-CLAIM，体检 D5 债）：base `Task` + `isBig`——
- * 大任务判定**下沉后端**（board 视图不查依赖图边，边只在 dep-graph 查询可见，故判定后端用
- * `isBigTask(task, dependencies)` 算好吐前端，前端直接用，不再各视图重复挂一份 dep-graph 查询；
- * 照 DepNode.isConvergenceTask 后端投影先例）。**`isBig` 是派生元信息、非落盘字段**：只在读响应
- * 出现，不进 `TaskSchema` 本体（TaskSchema 仍是落盘真相，`isBig` 每次读时现算）。
+ * GET /api/tasks 逐任务读视图元信息（TASK-POST-CLAIM + D-095）：base `Task` + 派生的 `isBig` 与
+ * `previousOwnerIds`。两者都只在读响应出现、每次现算，不作为第二份事实落盘。
  */
-export const TaskWithMetaSchema = TaskSchema.extend({ isBig: z.boolean() });
+export const TaskWithMetaSchema = TaskSchema.extend({
+  isBig: z.boolean(),
+  previousOwnerIds: z.array(z.string().min(1)),
+});
 
 /**
  * GET /api/tasks 响应：逐任务带 `isBig` 元信息（TaskWithMetaSchema）。server 路由用
@@ -753,6 +782,7 @@ export type GroupsResponse = z.infer<typeof GroupsResponseSchema>;
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 export type TaskComplexity = z.infer<typeof TaskComplexitySchema>;
 export type Task = z.infer<typeof TaskSchema>;
+export type TaskOwnershipEvent = z.infer<typeof TaskOwnershipEventSchema>;
 export type TaskConvergenceScope = NonNullable<Task['convergenceScope']>;
 export type TaskWithMeta = z.infer<typeof TaskWithMetaSchema>;
 export type TasksQuery = z.infer<typeof TasksQuerySchema>;

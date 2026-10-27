@@ -20,19 +20,25 @@ export function useTaskActions(
   const [confirmActorId, setConfirmActorId] = useState('');
   const [completeActorId, setCompleteActorId] = useState('');
   const [reviewActorId, setReviewActorId] = useState('');
+  const [releaseActorId, setReleaseActorId] = useState('');
   const [partnerOpen, setPartnerOpen] = useState(false);
   const [partnerId, setPartnerId] = useState('');
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectNote, setRejectNote] = useState('');
+  const [releaseOpen, setReleaseOpen] = useState(false);
+  const [releaseReason, setReleaseReason] = useState('');
 
   const resetState = () => {
     setPartnerOpen(false);
     setPartnerId('');
     setRejectOpen(false);
     setRejectNote('');
+    setReleaseOpen(false);
+    setReleaseReason('');
     setConfirmActorId('');
     setCompleteActorId('');
     setReviewActorId('');
+    setReleaseActorId('');
   };
 
   const invalidateKeys = [queryKeys.tasks(source), queryKeys.depGraph(source)];
@@ -65,12 +71,19 @@ export function useTaskActions(
       }),
     onSuccess: resetState,
   });
+  const releaseMutation = useHubMutation({
+    invalidateKeys,
+    mutationFn: (vars: { reason?: string; actor?: ActorRef }) =>
+      client.releaseTask(task.id, { reason: vars.reason, releasedBy: vars.actor }),
+    onSuccess: resetState,
+  });
 
   const actionError =
     partnerMutation.error ??
     confirmMutation.error ??
     completeMutation.error ??
     reviewMutation.error ??
+    releaseMutation.error ??
     null;
 
   const groupLeads = members.filter(
@@ -80,6 +93,12 @@ export function useTaskActions(
   const canConfirmLead =
     identity.session?.role === 'groupAdmin' && identity.session?.groupId === task.groupId;
   const canReview = identity.session?.gateReviewer === true;
+  const canRelease =
+    identity.session?.memberId === task.ownerId ||
+    (identity.session?.role === 'groupAdmin' && identity.session?.groupId === task.groupId);
+  const releaseCandidates = members.filter(
+    (m) => m.id === task.ownerId || groupLeads.some((lead) => lead.id === m.id),
+  );
 
   const confirmActor = (): ActorRef | undefined =>
     isIdentity ? undefined : toActor(members, confirmActorId);
@@ -87,6 +106,8 @@ export function useTaskActions(
     isIdentity ? undefined : toActor(members, completeActorId);
   const reviewActor = (): ActorRef | undefined =>
     isIdentity ? undefined : toActor(members, reviewActorId);
+  const releaseActor = (): ActorRef | undefined =>
+    isIdentity ? undefined : toActor(members, releaseActorId);
 
   const partnerWanted = needsPartner(task, members);
   const crossWanted = needsCrossClaimConfirm(task, task.isBig, members);
@@ -100,8 +121,10 @@ export function useTaskActions(
     sameGroupMembers,
     groupLeads,
     reviewers,
+    releaseCandidates,
     canConfirmLead,
     canReview,
+    canRelease,
     actionError,
     partnerOpen,
     setPartnerOpen,
@@ -111,18 +134,26 @@ export function useTaskActions(
     setRejectOpen,
     rejectNote,
     setRejectNote,
+    releaseOpen,
+    setReleaseOpen,
+    releaseReason,
+    setReleaseReason,
     confirmActorId,
     setConfirmActorId,
     completeActorId,
     setCompleteActorId,
     reviewActorId,
     setReviewActorId,
+    releaseActorId,
+    setReleaseActorId,
     partnerMutation,
     confirmMutation,
     completeMutation,
     reviewMutation,
+    releaseMutation,
     confirmActor,
     completeActor,
     reviewActor,
+    releaseActor,
   };
 }

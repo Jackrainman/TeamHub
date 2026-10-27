@@ -12,6 +12,7 @@ import {
   GroupResponseSchema,
   GroupsResponseSchema,
   ReviewTaskResponseSchema,
+  ReleaseTaskResponseSchema,
   SeasonsResponseSchema,
   SetTaskPartnerResponseSchema,
   TasksResponseSchema,
@@ -40,6 +41,8 @@ import {
   type RenameGroupRequest,
   type ReviewTaskRequest,
   type ReviewTaskResponse,
+  type ReleaseTaskRequest,
+  type ReleaseTaskResponse,
   type Season,
   type SetTaskPartnerRequest,
   type SetTaskPartnerResponse,
@@ -76,6 +79,7 @@ export interface PmSegment {
   confirmCrossClaim(taskId: string, req: ConfirmCrossClaimRequest): Promise<ConfirmCrossClaimResponse>;
   completeTask(taskId: string, req: CompleteTaskRequest): Promise<CompleteTaskResponse>;
   reviewTask(taskId: string, req: ReviewTaskRequest): Promise<ReviewTaskResponse>;
+  releaseTask(taskId: string, req: ReleaseTaskRequest): Promise<ReleaseTaskResponse>;
 }
 
 export function createPmSegment(ctx: HttpContext): PmSegment {
@@ -154,6 +158,9 @@ export function createPmSegment(ctx: HttpContext): PmSegment {
     },
     async reviewTask(taskId: string, req: ReviewTaskRequest) {
       return postJson(`${baseUrl}/api/tasks/${encodeURIComponent(taskId)}/review`, req, ReviewTaskResponseSchema, fetcher, writeToken);
+    },
+    async releaseTask(taskId: string, req: ReleaseTaskRequest) {
+      return postJson(`${baseUrl}/api/tasks/${encodeURIComponent(taskId)}/release`, req, ReleaseTaskResponseSchema, fetcher, writeToken);
     },
   };
 }

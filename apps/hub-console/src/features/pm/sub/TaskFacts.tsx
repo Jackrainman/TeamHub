@@ -18,6 +18,7 @@ export function TaskFacts({
 }) {
   const { t } = useI18n();
   const ownerName = task.ownerId ? memberOptionLabel(members, task.ownerId) : null;
+  const previousOwnerNames = task.previousOwnerIds.map((id) => memberOptionLabel(members, id));
   const rejected =
     task.status !== 'done' && task.reviewNote != null && task.reviewedBy != null;
 
@@ -27,6 +28,12 @@ export function TaskFacts({
         <div className="task-detail__fact">
           <dt>{t('pool.fact.owner')}</dt>
           <dd>{ownerName}</dd>
+        </div>
+      ) : null}
+      {previousOwnerNames.length > 0 ? (
+        <div className="task-detail__fact">
+          <dt>{t('pool.fact.previousOwners')}</dt>
+          <dd>{previousOwnerNames.join('、')}</dd>
         </div>
       ) : null}
       {task.claimedAt ? (

@@ -3,9 +3,11 @@ import {
   TaskSchema,
   isBigTask,
   deriveTaskAcceptance,
+  derivePreviousOwnerIds,
   isPostedTask,
   AssignTaskRequestSchema,
   ReviewTaskRequestSchema,
+  ReleaseTaskRequestSchema,
   ClaimTaskRequestSchema,
   TasksQuerySchema,
 } from '../src/index.js';
@@ -253,5 +255,50 @@ describe('TasksQuerySchema — "看谁做过"子串搜索（§3）', () => {
 
   test('q 空串 → 拒绝（min(1)）', () => {
     expect(TasksQuerySchema.safeParse({ q: '' }).success).toBe(false);
+  });
+});
+
+describe('derivePreviousOwnerIds — D-095 归属历史派生', () => {
+  const at = '2026-07-02T10:00:00.000Z';
+  const by = reviewer;
+  const ownershipEvents = [
+    { kind: 'claimed' as const, fromOwnerId: null, toOwnerId: 'm-a', at, by },
+    { kind: 'assigned' as const, fromOwnerId: 'm-a', toOwnerId: 'm-b', at, by, reason: '转派' },
+    { kind: 'released' as const, fromOwnerId: 'm-b', toOwnerId: null, at, by },
+    { kind: 'claimed' as const, fromOwnerId: null, toOwnerId: 'm-a', at, by },
+    { kind: 'assigned' as const, fromOwnerId: 'm-a', toOwnerId: 'm-c', at, by, reason: '再转派' },
+    { kind: 'assigned' as const, fromOwnerId: 'm-c', toOwnerId: 'm-b', at, by, reason: '回派' },
+  ];
+
+  test('按首次接任顺序去重并排除当前完成人', () => {
+    expect(derivePreviousOwnerIds({ ownerId: 'm-b', ownershipEvents })).toEqual(['m-a', 'm-c']);
+    expect(derivePreviousOwnerIds({ ownerId: 'm-a', ownershipEvents })).toEqual(['m-b', 'm-c']);
+    expect(derivePreviousOwnerIds({ ownerId: null, ownershipEvents })).toEqual(['m-a', 'm-b', 'm-c']);
+  });
+
+  test('旧任务没有事件时为空，状态 transitions 不参与派生', () => {
+    expect(derivePreviousOwnerIds({ ownerId: null, ownershipEvents: undefined })).toEqual([]);
+  });
+
+  test('仅有 released 历史时也能保留离任人', () => {
+    expect(
+      derivePreviousOwnerIds({
+        ownerId: null,
+        ownershipEvents: [{ kind: 'released', fromOwnerId: 'm-old', toOwnerId: null, at, by }],
+      }),
+    ).toEqual(['m-old']);
+  });
+});
+
+describe('ReleaseTaskRequestSchema — D-095 退池理由可选', () => {
+  test('空 body 与带 ActorRef/理由均通过', () => {
+    expect(ReleaseTaskRequestSchema.safeParse({}).success).toBe(true);
+    expect(
+      ReleaseTaskRequestSchema.safeParse({ reason: '需要交接', releasedBy: reviewer }).success,
+    ).toBe(true);
+  });
+
+  test('理由空串拒绝', () => {
+    expect(ReleaseTaskRequestSchema.safeParse({ reason: '' }).success).toBe(false);
   });
 });

@@ -127,6 +127,16 @@ export const AssignTaskRequestSchema = z.object({
 export const AssignTaskResponseSchema = z.object({ task: TaskSchema });
 
 /**
+ * POST /api/tasks/:taskId/release（D-095）：仅进行中有主任务可退回任务池；理由可选。
+ * 身份模式由 session 注入操作人，匿名模式沿用 ActorRef 留名范式。
+ */
+export const ReleaseTaskRequestSchema = z.object({
+  reason: z.string().min(1).optional(),
+  releasedBy: ActorRefSchema.optional(),
+});
+export const ReleaseTaskResponseSchema = z.object({ task: TaskSchema });
+
+/**
  * POST /api/tasks/:taskId/partner（§4 本组搭档位）：外组认领后本组补位（师傅/对接人）——"跨组是
  * 学习通道不是甩锅通道"。显式缺口黄标"待本组搭档"，**不硬阻塞干活**（A1 先例）。落地 = 写 Task
  * 一个 optional 字段 `partnerMemberId`，不建新域（§4 明示）。
@@ -202,6 +212,8 @@ export type ClaimTaskRequest = z.infer<typeof ClaimTaskRequestSchema>;
 export type ClaimTaskResponse = z.infer<typeof ClaimTaskResponseSchema>;
 export type AssignTaskRequest = z.infer<typeof AssignTaskRequestSchema>;
 export type AssignTaskResponse = z.infer<typeof AssignTaskResponseSchema>;
+export type ReleaseTaskRequest = z.infer<typeof ReleaseTaskRequestSchema>;
+export type ReleaseTaskResponse = z.infer<typeof ReleaseTaskResponseSchema>;
 export type SetTaskPartnerRequest = z.infer<typeof SetTaskPartnerRequestSchema>;
 export type SetTaskPartnerResponse = z.infer<
   typeof SetTaskPartnerResponseSchema
