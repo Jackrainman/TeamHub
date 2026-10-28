@@ -255,3 +255,5 @@
 - 2026-09-17 CI-SIMPLIFY：Verify workflow 收敛为单 Ubuntu 24.04 job——Windows 由开发机本地 pre-commit 覆盖、Compose smoke 挪到服务器部署前验收（release.md §2/§5 同步），public 仓库标准 runner 免费不限分钟。Docker Hub 拉镜像 ECONNRESET 属运行器网络抖动，随 compose 步骤移出 CI 而消解。
 
 - 2026-10-27 PM-TASK-RELEASE-POOL v0.81.0：按 D-095 新增进行中任务退池端点与本人/本组组长权限；认领、指派/转派、退池统一追加 ownershipEvents，退池状态 transition 与 released 事件同次 SQLite 更新并重启存活；contracts 派生 previousOwnerIds，任务池卡和任务事实卡展示“曾经执行”。三包 verify:all（contracts 472 / server 462 / console 283 + first-login E2E）及 verify:architecture、verify:docs、git diff --check 全绿。
+
+- 2026-10-28 SESSION-PERSISTENCE v0.82.0（50209df，已推送）：统一 SQLite sessions + v2→v3 显式事务迁移；30 天 TTL、剩余不足 15 天滑动续期；保留 PIN 升级标记与 cookie Secure；修复 Fastify 追加 Set-Cookie 导致登录/登出与续期冲突。测试覆盖关库重开、原 cookie 跨真实进程重启、登出撤销、迁移业务数据不变、阈值与过期边界。server verify:all 60 文件/475 测试、e2e-pillars 4 测试、architecture/docs/diff/pre-commit 均 exit 0（提交门复用已完成的任务验证，PRE_COMMIT_SKIP_VERIFY=1）。本机受限连接 EACCES，经授权在允许 loopback 的环境验证通过。D-096 与 system 文档同步，任务条目已清除。自查，未进行独立代理评审。与附件的一处差异：保留 GET session 的 200/null 预登录探测契约，以受保护业务 GET 401 验证登出失效，避免破坏前端与 auth-gate；首次上线仍需重新登录一次。未触及生产环境。
