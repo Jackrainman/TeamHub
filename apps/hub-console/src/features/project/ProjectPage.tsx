@@ -10,7 +10,7 @@ import { SideDrawer } from '../../components/SideDrawer';
 import { PmBoardPage } from '../pm/PmBoardPage';
 import { PmCreatePanel } from '../pm/PmCreatePanel';
 import { PoolPage } from '../pool/PoolPage';
-import { consumeProjectView, type ProjectView } from '../../shared/lib/project-nav';
+type ProjectView = 'board' | 'graph' | 'pool';
 
 // 依赖图重依赖（@xyflow/react + @dagrejs/dagre）按需加载：拆成独立 chunk，
 // 只在打开依赖图视图时拉取，总览/知识库/库存首屏不再背这坨（修 build chunk>500kB 警告）。
@@ -48,8 +48,7 @@ export function ProjectPage({
   const { t } = useI18n();
   const queryClient = useQueryClient();
   // 依赖图为项目页默认视图（用户拍板）：先看「卡在哪/谁空着」的结构图，看板退第二。
-  // 挂载时消费一次性视图意图（MyView 空态"跳挂单池"经 project-nav 传入）：有意图则以它为初始视图。
-  const [view, setView] = useState<ProjectView>(() => consumeProjectView() ?? 'graph');
+  const [view, setView] = useState<ProjectView>('graph');
   // 看板「在依赖图看此节点」目标 id：DepGraphPage 加载后选中并消费掉（页内、不跨页）。
   const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
   // 新建任务抽屉开关（看板 / 依赖图共享）。

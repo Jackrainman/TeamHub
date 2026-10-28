@@ -15,7 +15,7 @@ import type {
 /**
  * 报销域纯函数（REIMBURSE-PROC 阶段 3）——金额分↔元格式化、新建表单草稿校验/装配，
  * 以及凭证留档的本地预检/展示（上限与后缀口径取自 contracts，不在此重说一遍）。
- * 零 React / fetch，照 myview-utils / identity-utils「测逻辑不测 DOM」先例由 test/reimburse.test.ts 覆盖。
+ * 零 React / fetch，照 identity-utils「测逻辑不测 DOM」先例由 test/reimburse.test.ts 覆盖。
  */
 
 /** 分 → 展示文本（¥1,234.56；负数 -¥0.88）。 */

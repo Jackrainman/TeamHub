@@ -9,7 +9,7 @@ import { MetricTile } from '../../components/MetricTile';
 import { CountUpNumber } from '../../components/viz/CountUpNumber';
 import { ProgressRing } from '../../components/viz/ProgressRing';
 import { StatusDot, type VizTone } from '../../components/viz/StatusDot';
-import { BaselineOverview } from './BaselineOverview';
+import { SeasonOverview } from './components/SeasonOverview';
 import { ActivityFeed } from './ActivityFeed';
 
 // 后端枚举 → 文案键（类型安全：枚举变更会在此处编译报错）。仅翻译状态/类型等「界面语义」，
@@ -77,16 +77,7 @@ export function OverviewPage({
 }: OverviewPageProps) {
   const { t } = useI18n();
 
-  // 首屏第一眼 = 倒排基准线「基准线 vs 实际」（BASELINE-CORE S6）：自带 season/baseline/tasks 查询与
-  // 加载/空态，独立于下方运维快照（snapshot）——即便快照未就绪，基准线仍先渲染，反之亦然。
-  const baselineHero = (
-    <BaselineOverview
-      client={client}
-      baselineClient={client}
-      source={source}
-      identity={identity}
-    />
-  );
+  const baselineHero = <SeasonOverview client={client} source={source} identity={identity} onNavigate={onNavigate} />;
 
   if (isLoading) {
     return (

@@ -33,6 +33,7 @@ import {
   type CreateNeedResponse,
   type CreateSeasonRequest,
   type CreateTaskRequest,
+  type SelfReportTaskRequest,
   type CreateTaskResponse,
   type DepGraph,
   type Group,
@@ -61,13 +62,15 @@ import { fetchJson, postJson, sendJson } from '../../api/http';
 export interface PmSegment {
   getDepGraph(): Promise<DepGraph>;
   getGroupGaps(): Promise<GroupGapsResponse>;
-  getTasks(query?: { q?: string }): Promise<{ tasks: TaskWithMeta[] }>;
+  getTasks(query?: { q?: string }): Promise<{ tasks: TaskWithMeta[]; currentWeek?: string }>;
   getSeasons(): Promise<{ seasons: Season[] }>;
   createSeason(req: CreateSeasonRequest): Promise<{ season: Season }>;
   getGroups(): Promise<{ groups: Group[]; assignableGroupIds: string[] }>;
   createGroup(req: CreateGroupRequest): Promise<GroupResponse>;
   renameGroup(id: string, req: RenameGroupRequest): Promise<GroupResponse>;
   deleteGroup(id: string): Promise<GroupResponse>;
+  selfReportTask(weekKey: string, req: SelfReportTaskRequest): Promise<CreateTaskResponse>;
+  linkTaskWeek(taskId: string, weekKey: string): Promise<CreateTaskResponse>;
   createTask(req: CreateTaskRequest): Promise<CreateTaskResponse>;
   createDependency(req: CreateDependencyRequest): Promise<CreateDependencyResponse>;
   createNeed(req: CreateNeedRequest): Promise<CreateNeedResponse>;
@@ -113,6 +116,12 @@ export function createPmSegment(ctx: HttpContext): PmSegment {
     },
     async deleteGroup(id: string): Promise<GroupResponse> {
       return sendJson('DELETE', `${baseUrl}/api/groups/${encodeURIComponent(id)}`, undefined, GroupResponseSchema, fetcher, writeToken);
+    },
+    async selfReportTask(weekKey, req) {
+      return postJson(`${baseUrl}/api/weeks/${encodeURIComponent(weekKey)}/tasks`, req, CreateTaskResponseSchema, fetcher, writeToken);
+    },
+    async linkTaskWeek(taskId, weekKey) {
+      return postJson(`${baseUrl}/api/tasks/${encodeURIComponent(taskId)}/weeks`, { weekKey }, CreateTaskResponseSchema, fetcher, writeToken);
     },
     async createTask(req: CreateTaskRequest) {
       return postJson(`${baseUrl}/api/tasks`, req, CreateTaskResponseSchema, fetcher, writeToken);

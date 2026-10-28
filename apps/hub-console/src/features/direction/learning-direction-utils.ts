@@ -12,7 +12,7 @@ import { deriveGroupDiscipline, type OwnerGroup } from '../../verticals/robotics
  * 恒用地图静态顺序，不做任何按人区分。不认识的组（程序汇报组 / 总联调哨兵组等）不挂进任何
  * discipline 列，落进 `unmatchedGaps`（沉默优先精神：宁可不归类，不瞎归类）。
  *
- * 抽成纯函数便于单测（本仓「测逻辑不测 DOM」风格，同 myview-utils.ts）。
+ * 抽成纯函数便于单测（本仓「测逻辑不测 DOM」风格，同 identity-utils.ts）。
  */
 
 export interface DirectionColumnGap {

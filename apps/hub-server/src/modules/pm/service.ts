@@ -1,4 +1,4 @@
-import { isCurrentWeek, canReviewWeekTask } from '@teamhub/hub-contracts';
+import { getWeekKey, isCurrentWeek, canReviewWeekTask } from '@teamhub/hub-contracts';
 import type { SelfReportTaskRequest } from '@teamhub/hub-contracts';
 import {
   CONVERGENCE_SCOPE_ALL_LEAF_GROUPS,
@@ -145,6 +145,8 @@ export class PmService {
   }
 
   /** 任务列表（q 大小写不敏感标题/摘要匹配）+ isBig / 历任完成人投影（读模型增肥，不入库）。 */
+  currentWeek(): string { return getWeekKey(this.clock.now()); }
+
   async listTasks(q?: string): Promise<TaskWithMeta[]> {
     const snapshot = await this.repository.getSnapshot();
     const needle = q?.toLowerCase();

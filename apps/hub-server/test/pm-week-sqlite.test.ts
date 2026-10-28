@@ -20,7 +20,8 @@ test('claim and week link survive reopen, release preserves history, continuatio
     expect(claimed?.weekLinks?.[0]).toEqual({ weekKey: '2026-W44', linkedAt: at, linkedBy: a });
     expect(await repo.claimTask(created.id, b.id, at, b, '2026-W44')).toBeNull();
     await repo.releaseTask(created.id, a, at);
-    expect((await repo.claimTask(created.id, a.id, at, a, '2026-W44'))?.weekLinks).toHaveLength(1);
+    const reclaimed = await repo.claimTask(created.id, a.id, '2026-10-29T00:00:00.000Z', a, '2026-W44');
+    expect(reclaimed?.weekLinks).toEqual([{ weekKey: '2026-W44', linkedAt: at, linkedBy: a }]);
     await repo.linkTaskWeek(created.id, '2026-W45', at, a);
     expect((await repo.linkTaskWeek(created.id, '2026-W45', at, a))?.weekLinks).toHaveLength(2);
     await repo.completeTask(created.id, a, at);

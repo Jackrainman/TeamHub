@@ -35,7 +35,7 @@ const MIN_BODY = 80; // 正文短于此判为疑似白屏
 (async () => {
   mkdirSync(OUT, { recursive: true });
   const browser = await chromium.launch({ channel: process.env.E2E_BROWSER_CHANNEL || undefined });
-  const page = await (await browser.newContext({ viewport: { width: 1440, height: 1000 } })).newPage();
+  const page = await (await browser.newContext({ viewport: { width: 1440, height: 1000 }, storageState: process.env.HEALTH_STORAGE_STATE || undefined })).newPage();
 
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push('[console] ' + m.text().slice(0, 240)); });
@@ -82,6 +82,10 @@ const MIN_BODY = 80; // 正文短于此判为疑似白屏
   }
 
   const navCount = await page.locator('.nav-item').count();
+  if (!navCount) {
+    await browser.close();
+    throw new Error('No navigation found; provide an authenticated HEALTH_STORAGE_STATE for identity mode');
+  }
   console.log(`[health] 导航项 ${navCount} 个`);
 
   const rows = [];

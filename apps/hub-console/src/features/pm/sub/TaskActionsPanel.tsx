@@ -133,7 +133,7 @@ export function TaskActionsPanel({
             </div>
           ) : null}
 
-          {task.status !== 'done' && task.status !== 'shelved' ? (
+          {task.status !== 'done' && task.status !== 'shelved' && actions.canComplete !== false ? (
             <div className="task-detail__panel">
               {!actions.isIdentity ? (
                 <Field label={t('pool.action.operator')} hint={t('pool.action.operatorHint')}>
@@ -230,7 +230,7 @@ export function TaskActionsPanel({
             </div>
           ) : null}
 
-          {acceptance === 'awaitingReview' || acceptance === 'selfDone' ? (
+          {acceptance === 'awaitingReview' || acceptance === 'selfDone' || (task.weekLinks?.length && acceptance === 'accepted') ? (
             <div className="task-detail__panel">
               {!actions.isIdentity
                 ? renderOperatorPicker(
@@ -250,7 +250,7 @@ export function TaskActionsPanel({
                     actions.reviewMutation.isPending || (actions.isIdentity ? !actions.canReview : !actions.reviewActorId)
                   }
                   title={
-                    actions.isIdentity && !actions.canReview ? t('pool.gate.reviewNeedsReviewer') : undefined
+                    actions.isIdentity && !actions.canReview ? t(task.weekLinks?.length ? 'week.peerRequired' : 'pool.gate.reviewNeedsReviewer') : undefined
                   }
                   onClick={() =>
                     actions.reviewMutation.mutate({ outcome: 'accept', actor: actions.reviewActor() })
@@ -280,7 +280,7 @@ export function TaskActionsPanel({
                       }
                       title={
                         actions.isIdentity && !actions.canReview
-                          ? t('pool.gate.reviewNeedsReviewer')
+                          ? t(task.weekLinks?.length ? 'week.peerRequired' : 'pool.gate.reviewNeedsReviewer')
                           : undefined
                       }
                       onClick={() =>
@@ -308,7 +308,7 @@ export function TaskActionsPanel({
                   className="btn btn--secondary btn--sm"
                   disabled={actions.isIdentity && !actions.canReview}
                   title={
-                    actions.isIdentity && !actions.canReview ? t('pool.gate.reviewNeedsReviewer') : undefined
+                    actions.isIdentity && !actions.canReview ? t(task.weekLinks?.length ? 'week.peerRequired' : 'pool.gate.reviewNeedsReviewer') : undefined
                   }
                   onClick={() => actions.setRejectOpen(true)}
                 >

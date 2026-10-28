@@ -6,7 +6,7 @@ import {
 import { overdueDays } from '../src/shared/lib/date-utils';
 
 // 门检查单 / 欠条（GATE-CHECKLIST-IOU，D-087）界面层纯函数单测——不测 DOM/RTL（本仓「测逻辑不
-// 测 DOM」风格，同 identity.test.ts / myview.test.ts）。
+// 测 DOM」风格，同 identity.test.ts）。
 
 function milestone(overrides: Partial<BaselineMilestonePublic>): BaselineMilestonePublic {
   return {

@@ -104,7 +104,8 @@ export function buildClaimedTask(
     ...prev,
     ownerId,
     claimedAt,
-    ...(weekKey ? { weekLinks: [...(prev.weekLinks ?? []).filter(link => link.weekKey !== weekKey), { weekKey, linkedAt: claimedAt, linkedBy: claimer }] } : {}),
+    ...(weekKey && !prev.weekLinks?.some(link => link.weekKey === weekKey)
+      ? { weekLinks: [...(prev.weekLinks ?? []), { weekKey, linkedAt: claimedAt, linkedBy: claimer }] } : {}),
     status: promoting ? 'inProgress' : prev.status,
     statusSource: promoting ? MANUAL_TASK_STATUS_SOURCE : prev.statusSource,
     updatedAt: claimedAt,

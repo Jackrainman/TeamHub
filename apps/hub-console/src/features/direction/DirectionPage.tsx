@@ -144,7 +144,7 @@ export function DirectionPage({
 
       {view.unmatchedGaps.length > 0 ? (
         <section>
-          <h2 className="myview-section-title">{t('direction.unmatched.title')}</h2>
+          <h2 className="direction-section-title">{t('direction.unmatched.title')}</h2>
           <div className="gaps-list">
             {view.unmatchedGaps.map((gap) => (
               <UnmatchedGapCard gap={gap} key={gap.id} />

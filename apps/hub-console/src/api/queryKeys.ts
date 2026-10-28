@@ -1,4 +1,6 @@
 export const queryKeys = {
+  allTasks: () => ['tasks'] as const,
+  allDepGraphs: () => ['dep-graph'] as const,
   tasks: (source: string) => ['tasks', source] as const,
   tasksOverview: (source: string) => ['tasks', 'overview', source] as const,
   tasksSearch: (source: string, q: string) => ['tasks', source, 'search', q] as const,

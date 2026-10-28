@@ -164,7 +164,7 @@ export function registerTaskRoutes(app: FastifyInstance, deps: TaskRouteDeps): v
   app.get('/api/tasks', async (request, reply) => {
     const query = parseQuery(TasksQuerySchema, request, reply);
     if (!query) return;
-    return TasksResponseSchema.parse({ tasks: await service.listTasks(query.q) });
+    return TasksResponseSchema.parse({ tasks: await service.listTasks(query.q), currentWeek: service.currentWeek() });
   });
 
   app.post('/api/tasks/:taskId/status', async (request, reply) => {

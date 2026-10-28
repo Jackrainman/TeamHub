@@ -1,3 +1,4 @@
+import { canReviewWeekTask } from '@teamhub/hub-contracts';
 import { useState } from 'react';
 import type { ActorRef, MemberPublic, TaskWithMeta } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../../api/client';
@@ -9,13 +10,13 @@ import { needsCrossClaimConfirm, needsPartner } from '../../../shared/lib/pool-u
 
 export function useTaskActions(
   client: HubApiClient,
-  source: string,
+  _source: string,
   task: TaskWithMeta,
   members: MemberPublic[],
   identity: PageIdentityCtx,
 ) {
   const isIdentity = identity.mode === 'identity' && identity.session != null;
-  const writeLocked = !identity.canWrite;
+  const writeLocked = !identity.canWrite || (!!task.weekLinks?.length && !isIdentity);
 
   const [confirmActorId, setConfirmActorId] = useState('');
   const [completeActorId, setCompleteActorId] = useState('');
@@ -41,7 +42,7 @@ export function useTaskActions(
     setReleaseActorId('');
   };
 
-  const invalidateKeys = [queryKeys.tasks(source), queryKeys.depGraph(source)];
+  const invalidateKeys = [queryKeys.allTasks(), queryKeys.allDepGraphs()];
 
   const partnerMutation = useHubMutation({
     invalidateKeys,
@@ -92,7 +93,10 @@ export function useTaskActions(
   const reviewers = members.filter((m) => m.gateReviewer);
   const canConfirmLead =
     identity.session?.role === 'groupAdmin' && identity.session?.groupId === task.groupId;
-  const canReview = identity.session?.gateReviewer === true;
+  const canReview = task.weekLinks?.length
+    ? !!identity.session && canReviewWeekTask(task, identity.session.memberId)
+    : identity.session?.gateReviewer === true;
+  const canComplete = !task.weekLinks?.length || identity.session?.memberId === task.ownerId;
   const canRelease =
     identity.session?.memberId === task.ownerId ||
     (identity.session?.role === 'groupAdmin' && identity.session?.groupId === task.groupId);
@@ -124,6 +128,7 @@ export function useTaskActions(
     releaseCandidates,
     canConfirmLead,
     canReview,
+    canComplete,
     canRelease,
     actionError,
     partnerOpen,

@@ -92,3 +92,5 @@
   flex-direction: column;
   gap: 5px;
 }
+
+.direction-section-title { font-size: var(--text-md); margin: 0 0 var(--space-3); }

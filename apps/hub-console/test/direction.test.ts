@@ -4,7 +4,7 @@ import { buildDirectionView } from '../src/features/direction/learning-direction
 
 /**
  * 学习方向页（LEARN-DIRECTION-REDESIGN）纯函数单测——不测 DOM/RTL（本仓「测逻辑不测 DOM」
- * 风格同 myview.test.ts / console-pages.test.ts）。
+ * 风格同 console-pages.test.ts）。
  */
 
 const MAP: LearningDirectionEntry[] = [

@@ -1,3 +1,4 @@
+import { zhWeek, enWeek } from './week';
 import { zhBase, enBase } from './base';
 import { zhSettings, enSettings } from './settings';
 import { zhPm, enPm } from './pm';
@@ -11,6 +12,6 @@ import { zhReimburse, enReimburse } from './reimburse';
 import { zhWorkbench, enWorkbench } from './workbench';
 import { zhStyleGallery, enStyleGallery } from './stylegallery';
 
-export const zh = { ...zhBase, ...zhSettings, ...zhPm, ...zhSchedule, ...zhInv, ...zhKb, ...zhOverview, ...zhChecklist, ...zhSetup, ...zhReimburse, ...zhWorkbench, ...zhStyleGallery };
+export const zh = { ...zhWeek, ...zhBase, ...zhSettings, ...zhPm, ...zhSchedule, ...zhInv, ...zhKb, ...zhOverview, ...zhChecklist, ...zhSetup, ...zhReimburse, ...zhWorkbench, ...zhStyleGallery };
 
-export const en = { ...enBase, ...enSettings, ...enPm, ...enSchedule, ...enInv, ...enKb, ...enOverview, ...enChecklist, ...enSetup, ...enReimburse, ...enWorkbench, ...enStyleGallery };
+export const en = { ...enWeek, ...enBase, ...enSettings, ...enPm, ...enSchedule, ...enInv, ...enKb, ...enOverview, ...enChecklist, ...enSetup, ...enReimburse, ...enWorkbench, ...enStyleGallery };

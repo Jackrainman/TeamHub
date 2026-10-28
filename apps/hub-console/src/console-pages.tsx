@@ -10,7 +10,6 @@ import {
   FileStack,
   Home,
   LayoutGrid,
-  ListChecks,
   ReceiptText,
   Settings,
 } from 'lucide-react';
@@ -30,7 +29,6 @@ import { InvPage } from './features/inv/InvPage';
 import { ReimbursePage } from './features/reimburse';
 import { DirectionPage } from './features/direction/DirectionPage';
 import { TimelineEditorPage } from './features/timeline/TimelineEditorPage';
-import { MyViewPage } from './features/myview/MyViewPage';
 import { SettingsPage } from './features/settings/SettingsPage';
 
 /**
@@ -45,7 +43,6 @@ import { SettingsPage } from './features/settings/SettingsPage';
 export type ConsolePage =
   | 'workbench'
   | 'overview'
-  | 'myview'
   | 'project'
   | 'schedule'
   | 'knowledge'
@@ -61,7 +58,7 @@ export type ConsolePage =
  * 导航分组（NAV-REGROUP，2026-09-06 拍板）：不按使用频率分层，改按**性质**分两类——
  *   home = 工作台（单独置顶，无分组标题；风格预览已降级收进设置页外观区——
  *          风格选型是设置项不占导航，见 settings/StylePreviewSection）
- *   board = 战队看板类：对准战队运转的事（总览 / 我的视图 / 项目 / 排班在场 / 学习方向 / 时间线）
+ *   board = 战队看板类：对准战队运转的事（总览 / 项目 / 排班在场 / 学习方向 / 时间线）
  *   tool = 小工具类：拿来即用的工具（报账 / 知识库 / 档案 / 库存 / fleet / 设置）
  */
 export type ConsoleSection = 'home' | 'board' | 'tool';
@@ -95,6 +92,7 @@ export interface PageRenderCtx {
   source: string;
   /** SQLite app_settings 中的当前项目事实，禁止页面自行默认或从业务列表猜测。 */
   projectId: string;
+  availablePages?: ConsolePage[];
   onNavigate: (page: ConsolePage) => void;
   overview: OverviewView;
   identity: PageIdentityCtx;
@@ -117,7 +115,7 @@ export interface ConsolePageDescriptor {
   onRefresh?: (ctx: PageRenderCtx) => void;
 }
 
-// 顺序即导航顺序（NAV-REGROUP 重排：首页 → 战队看板[总览/我的视图/项目/排班在场/学习方向/时间线] →
+// 顺序即导航顺序（NAV-REGROUP 重排：首页 → 战队看板[总览/项目/排班在场/学习方向/时间线] →
 // 小工具[报账/知识库/档案/库存/fleet/设置]）；每日在场从机器人队 Tab 提升为顶级入口；
 // fleet 页是纯机器人清单；风格预览收进设置页。
 export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
@@ -130,6 +128,8 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     moduleId: 'pm-core',
     render: (ctx) => (
       <WorkbenchPage
+        projectId={ctx.projectId}
+        availablePages={ctx.availablePages}
         client={ctx.apiClient}
         source={ctx.source}
         identity={ctx.identity}
@@ -156,23 +156,6 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
         snapshot={ctx.overview.data}
         onNavigate={ctx.onNavigate}
         identity={ctx.identity}
-      />
-    ),
-  },
-  {
-    key: 'myview',
-    labelKey: 'nav.myview',
-    titleKey: 'toolbar.title.myview',
-    icon: ListChecks,
-    section: 'board',
-    // pm-core：我的视图是任务(Task)的个人化投影，随 pm-core 模块一起开关，与 project/direction 同口径。
-    moduleId: 'pm-core',
-    render: (ctx) => (
-      <MyViewPage
-        client={ctx.apiClient}
-        source={ctx.source}
-        identity={ctx.identity}
-        onNavigate={ctx.onNavigate}
       />
     ),
   },

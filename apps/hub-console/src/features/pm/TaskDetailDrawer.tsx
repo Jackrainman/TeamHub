@@ -15,6 +15,7 @@ export function TaskDetailDrawer({
   members,
   groups,
   identity,
+  readOnly = false,
 }: {
   client: HubApiClient;
   source: string;
@@ -22,6 +23,7 @@ export function TaskDetailDrawer({
   members: MemberPublic[];
   groups: Group[];
   identity: PageIdentityCtx;
+  readOnly?: boolean;
 }) {
   const actions = useTaskActions(client, source, task, members, identity);
 
@@ -40,7 +42,7 @@ export function TaskDetailDrawer({
       />
       <TaskFacts task={task} members={members} acceptance={acceptance} />
       <TaskTimeline task={task} />
-      <TaskActionsPanel actions={actions} task={task} members={members} acceptance={acceptance} />
+      {!readOnly && <TaskActionsPanel actions={actions} task={task} members={members} acceptance={acceptance} />}
     </div>
   );
 }

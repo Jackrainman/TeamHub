@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { getWeekKey, type SelfReportTaskRequest, type TaskStatus } from '@teamhub/hub-contracts';
 import { useQuery } from '@tanstack/react-query';
 import type { CreateSeasonRequest, CreateTaskRequest, Season } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
@@ -6,12 +8,13 @@ import { useHubMutation } from '../../hooks/useHubMutation';
 
 /**
  * pm 域远端状态唯一消费点（§10；前身 hooks/useTasks.ts + hooks/useRoster.ts 的组/赛季半 +
- * DepGraphPage/DirectionPage/MyViewPage/PmCreatePanel 的裸 hook）。写侧走平台 useHubMutation。
+ * DepGraphPage/DirectionPage/PmCreatePanel 的裸 hook）。写侧走平台 useHubMutation。
  */
 
 export function useTasks(client: HubApiClient, source: string) {
   return useQuery({
     queryKey: queryKeys.tasks(source),
+    refetchInterval: 30_000,
     queryFn: () => client.getTasks(),
   });
 }
@@ -43,7 +46,7 @@ export function useSeasons(client: Pick<HubApiClient, 'getSeasons'>) {
   });
 }
 
-/** 依赖图。opts.cacheKey：MyView 按会话身份分缓存；opts.enabled：身份门（未登录不发请求）。 */
+/** 依赖图。opts.cacheKey：首页 按会话身份分缓存；opts.enabled：身份门（未登录不发请求）。 */
 export function useDepGraph(
   client: HubApiClient,
   source: string,
@@ -90,3 +93,30 @@ export type { Season };
 
 export type GroupsClient = Pick<HubApiClient, 'getGroups'>;
 export type SeasonsClient = Pick<HubApiClient, 'getSeasons'>;
+
+export function useCurrentWeek() {
+  const [week, setWeek] = useState(() => getWeekKey(new Date()));
+  useEffect(() => {
+    const timer = setInterval(() => setWeek(getWeekKey(new Date())), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+  return week;
+}
+
+export function useWeekActions(client: HubApiClient, onCreated: () => void) {
+  const invalidateKeys = [queryKeys.allTasks(), queryKeys.allDepGraphs()];
+  const create = useHubMutation({ invalidateKeys,
+    mutationFn: ({ weekKey, input }: { weekKey: string; input: SelfReportTaskRequest }) => client.selfReportTask(weekKey, input),
+    onSuccess: onCreated,
+  });
+  const claim = useHubMutation({ invalidateKeys,
+    mutationFn: ({ taskId, weekKey }: { taskId: string; weekKey: string }) => client.claimTask(taskId, { weekKey }),
+  });
+  const link = useHubMutation({ invalidateKeys,
+    mutationFn: ({ taskId, weekKey }: { taskId: string; weekKey: string }) => client.linkTaskWeek(taskId, weekKey),
+  });
+  const status = useHubMutation({ invalidateKeys,
+    mutationFn: ({ taskId, status }: { taskId: string; status: TaskStatus }) => client.updateTaskStatus(taskId, status),
+  });
+  return { create, claim, link, status };
+}

@@ -741,6 +741,7 @@ export const TaskWithMetaSchema = TaskSchema.extend({
  * `Task[]` 消费点协变兼容，零破坏）。
  */
 export const TasksResponseSchema = z.object({
+  currentWeek: z.string().refine(isValidWeekKey).optional(),
   tasks: z.array(TaskWithMetaSchema),
 });
 /**

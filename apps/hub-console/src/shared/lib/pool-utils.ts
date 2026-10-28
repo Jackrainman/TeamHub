@@ -3,8 +3,8 @@ import { isPostedTask } from '@teamhub/hub-contracts';
 
 /**
  * 挂单池（TASK-POST-CLAIM，D-088 / `docs/domains/pm.md`）界面层纯函数集。
- * 被 PoolPage.tsx / PmBoardPage.tsx / TaskDetailDrawer.tsx / MyViewPage.tsx 共用，抽出来单测
- * （不测 DOM/RTL，符合本仓「测逻辑不测 DOM」风格，同 checklist-utils.ts / myview-utils.ts）。
+ * 被 PoolPage.tsx / PmBoardPage.tsx / TaskDetailDrawer.tsx 共用，抽出来单测
+ * （不测 DOM/RTL，符合本仓「测逻辑不测 DOM」风格，同 checklist-utils.ts）。
  * 本文件不含任何 React / fetch，零副作用。
  *
  * 红线（D-085 名字三层）：本文件只做**对事**的派生（滞留时长 / 结构缺口判定），**永不**按人聚合、

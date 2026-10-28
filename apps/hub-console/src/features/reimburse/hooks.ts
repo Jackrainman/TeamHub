@@ -25,7 +25,7 @@ import { emptyEntryDraft, type EntryDraft } from './reimburse-utils';
  *
  * enabled 门：
  *  - entries：匿名模式可读（server 匿名回全量）；身份模式须登录（未登录 server 401）——
- *    由调用方传 `enabled`（照 MyViewPage 身份门先例，未授权零网络请求）。
+ *    由调用方传 `enabled`（照 ReimbursePage 身份门先例，未授权零网络请求）。
  *  - batches：三端点超管限定，仅 `isSuperAdmin` 时启用（同 sectionPermission 的
  *    session.projectManager===true 判定点）。
  *

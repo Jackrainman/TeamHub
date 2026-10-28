@@ -17,7 +17,6 @@ describe('console-pages: filterConsolePages', () => {
     expect(pages.map((p) => p.key)).toEqual([
       'workbench',
       'overview',
-      'myview',
       'project',
       'schedule',
       'reimburse',
@@ -43,14 +42,14 @@ describe('console-pages: filterConsolePages', () => {
     );
   });
 
-  test('关掉 pm-core：project / direction / myview 三页一起消失（MY-VIEW 是任务的个人化投影，同挂 pm-core）', () => {
+  test('关掉 pm-core：workbench / project / direction 三页一起消失（WEEK-WORKBENCH 是任务的个人化投影，同挂 pm-core）', () => {
     const tenant: TenantConfig = {
       enabledModules: ALL_MODULE_IDS.filter((id) => id !== 'pm-core'),
     };
     const keys = filterConsolePages(CONSOLE_PAGES, tenant).map((p) => p.key);
     expect(keys).not.toContain('project');
     expect(keys).not.toContain('direction');
-    expect(keys).not.toContain('myview');
+    expect(keys).not.toContain('workbench');
     // 其余非 pm-core 页不受影响
     expect(keys).toContain('overview');
     expect(keys).toContain('fleet');

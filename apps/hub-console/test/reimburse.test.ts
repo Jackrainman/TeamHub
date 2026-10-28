@@ -12,7 +12,7 @@ import {
 import { REIMBURSE_EVIDENCE_MAX_BYTES, type ReimburseEvidence } from '@teamhub/hub-contracts';
 
 // 报销域纯函数单测（REIMBURSE-PROC 阶段 3）——不测 DOM/RTL（本仓「测逻辑不测 DOM」
-// 风格同 myview.test.ts / identity.test.ts）。
+// 风格同 identity.test.ts）。
 
 function draft(overrides: Partial<EntryDraft>): EntryDraft {
   return {

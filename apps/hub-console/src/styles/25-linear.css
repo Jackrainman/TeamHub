@@ -48,15 +48,6 @@
   letter-spacing: 0.01em;
 }
 
-:root[data-theme='linear'] .workbench-myweek__row {
-  background: var(--surface-muted);
-  border-color: var(--border);
-}
-
-:root[data-theme='linear'] .workbench-myweek__row:hover {
-  border-color: var(--border-strong);
-}
-
 :root[data-theme='linear'] .workbench-countdown {
   background: var(--surface-muted);
   border-color: var(--border);

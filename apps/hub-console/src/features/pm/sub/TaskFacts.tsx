@@ -1,3 +1,4 @@
+import { factTime } from '../week/format';
 import type {
   MemberPublic,
   TaskAcceptanceState,
@@ -65,17 +66,17 @@ export function TaskFacts({
           <dd>{task.crossClaimConfirmedBy.displayName}</dd>
         </div>
       ) : null}
-      {acceptance === 'selfDone' && task.completedBy ? (
+      {task.status === 'done' && task.completedBy ? (
         <div className="task-detail__fact">
           <dt>{t('pool.fact.completed')}</dt>
-          <dd>{task.completedBy.displayName}</dd>
+          <dd>{task.completedBy.displayName} {task.transitions?.filter(tr => tr.to === 'done').at(-1)?.at && factTime(task.transitions.filter(tr => tr.to === 'done').at(-1)!.at)}</dd>
         </div>
       ) : null}
       {acceptance === 'accepted' && task.reviewedBy ? (
         <div className="task-detail__fact">
           <dt>{t('pool.fact.reviewed')}</dt>
           <dd>
-            {task.reviewedBy.displayName}
+            {task.reviewedBy.displayName} {task.reviewedAt && factTime(task.reviewedAt)}
             {task.reviewNote ? ` · ${task.reviewNote}` : ''}
           </dd>
         </div>

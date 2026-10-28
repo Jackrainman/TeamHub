@@ -17,6 +17,7 @@ test('self report, owner-only progress, peer acceptance, reject and recomplete',
   try {
     const a = await login(app, 'm-circuitD');
     const b = await login(app, 'm-ecB');
+    expect((await app.inject({ method: 'GET', url: '/api/tasks', headers: { cookie: a } })).json().currentWeek).toBe('2026-W44');
     const post = (url: string, cookie: string, payload: object = {}) => app.inject({ method: 'POST', url, headers: { cookie }, payload });
     const draft = { projectId: 'prj-robots', groupId: 'grp-circuit', title: 'week task', rawSummary: 'test', intrinsicComplexity: 'normal', ownerId: 'm-ecB', reviewedBy: { id: 'm-ecB', displayName: 'fake', source: 'console' } };
     for (const key of ['2026-W43', '2026-W45', '2021-W53']) {

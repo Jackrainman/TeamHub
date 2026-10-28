@@ -15,7 +15,6 @@ import './styles/06-kb.css';
 import './styles/07-archive.css';
 import './styles/08-pm.css';
 import './styles/09-direction.css';
-import './styles/10-myview.css';
 import './styles/11-inv.css';
 import './styles/12-fleet.css';
 import './styles/13-relay-chain.css';
