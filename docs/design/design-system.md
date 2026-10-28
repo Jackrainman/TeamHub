@@ -3,7 +3,7 @@ kind: canonical-design
 status: active
 domain: design-system
 truth_for: console-visual-and-interaction-language
-last_reviewed: 2026-08-15
+last_reviewed: 2026-10-28
 ---
 
 # TeamHub 控制台设计系统
@@ -16,7 +16,7 @@ last_reviewed: 2026-08-15
 
 ## 2. Token 与主题
 
-- CURRENT：四主题通过 `[data-theme]` 和 `:root` 语义变量实现，token 位于 `src/styles/01-tokens.css`。
+- CURRENT：七主题通过 `[data-theme]` 和 `:root` 语义变量实现：classic、warm、dark、tech、notion、notion-dark、linear；默认 notion 浅色，token 位于 `src/styles/01-tokens.css`。
 - 颜色、圆角、阴影、间距、字号和动效必须消费 token；业务样式不得新增硬编码色值或重复 border/radius/shadow 组合。
 - `classic`、`warm`、`dark` 使用克制表面；仅 `tech` 可在明确的越界层使用少量辉光。
 - 所有动效必须响应 `prefers-reduced-motion`；每屏最多 2–3 个持续或入场动效。
@@ -26,6 +26,9 @@ last_reviewed: 2026-08-15
 
 - 页面题使用最高一级页面字号；面板标题低两档。
 - 每页至多一个 `.panel--hero` 或等价主角区域。
+- 首页唯一视觉主角为本周任务，周切换、自报、三视图与我的/全队范围在工作区内完成。右栏常用功能和队伍近况保持弱层级；近况仅展示规划说明，不放不可用发布控件。
+- 倒计时、车辆/赛季进度、六阶段和完整基准线集中在总览，不在首页重复。战队看板顺序为总览、项目、每日在场、学习方向、时间线；删除独立我的视图。
+- 周历史明确标注“关联任务的最新结果”，历史详情只读，未完成任务可延续到本周。任务事实卡显示承担、完成和验收，不显示按人计数或排行。
 - 卡片使用 `.card`，可点击卡片附加 `.card--interactive`；禁止业务 CSS 重造卡片外观。
 - 页级空态、列表空态和表单前置不足是不同层级，不能用同一条错误横幅代替。
 - 窄屏允许关键画布横向滚动；不得通过压缩文字和控件破坏可读性。
@@ -76,6 +79,6 @@ placeholder 只放示例，不承担说明。格式、风险和约束写进 `Fie
 
 ## 9. 迁移状态
 
-- CURRENT：设计语言、表单原语、四主题、可视化原语、CSS 分文件和 i18n 分域已经落地。
+- CURRENT：设计语言、表单原语、七主题、可视化原语、CSS 分文件和 i18n 分域已经落地；首页完成桌面周工作台收口，未进行全站换皮。
 - TARGET：页面、hook、API segment 和领域组件随 D-090 收入各自 feature；设计原语保持共享。
 - PLANNED：逐域迁移时清理裸 query key、跨 feature import、一次性 CSS 壳和仍在 `sub/` 的组件；不另建功能级视觉设计稿。
