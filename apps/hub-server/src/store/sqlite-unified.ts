@@ -34,7 +34,7 @@ import { SqliteKnowledgeRepository } from '../modules/knowledge/sqlite-repositor
 import { SqliteReimburseRepository } from '../modules/reimburse/sqlite-repository.js';
 import { SqliteScheduleRepository } from '../modules/schedule/sqlite-repository.js';
 
-export const TEAMHUB_UNIFIED_SCHEMA_VERSION = 2;
+export const TEAMHUB_UNIFIED_SCHEMA_VERSION = 3;
 
 const APP_SETTINGS_TABLE = 'app_settings';
 const APP_SETTINGS_ID = 'singleton';
@@ -326,6 +326,16 @@ export function openUnifiedDb(filePath: string): UnifiedDatabase {
       db.tx(() => {
         db.setMeta('schema_kind', 'unified');
         db.ensureSingletonEntityTable(APP_SETTINGS_TABLE, APP_SETTINGS_ID);
+        db.ensureSessionTable();
+        db.setUserVersion(TEAMHUB_UNIFIED_SCHEMA_VERSION);
+      });
+    } else if (userVersion === 2) {
+      if (db.getMeta('schema_kind') !== 'unified') {
+        throw new Error('SQLite 库缺少 schema_kind=unified 标记，拒绝迁移');
+      }
+      // D-096：v2→v3 仅增加会话表，版本与 DDL 原子提交，业务数据不变。
+      db.tx(() => {
+        db.ensureSessionTable();
         db.setUserVersion(TEAMHUB_UNIFIED_SCHEMA_VERSION);
       });
     } else if (userVersion === TEAMHUB_UNIFIED_SCHEMA_VERSION) {
@@ -333,6 +343,7 @@ export function openUnifiedDb(filePath: string): UnifiedDatabase {
         throw new Error('SQLite 库缺少 schema_kind=unified 标记，拒绝按 TeamHub 统一库打开');
       }
       db.ensureSingletonEntityTable(APP_SETTINGS_TABLE, APP_SETTINGS_ID);
+      db.ensureSessionTable();
     } else {
       throw new Error(
         `SQLite 库 schema 版本 ${userVersion} 不受支持；本版本不迁移旧数据，请使用新的统一库文件`,

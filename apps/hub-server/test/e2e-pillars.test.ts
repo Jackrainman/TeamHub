@@ -66,6 +66,7 @@ async function startServer(
   proc.once('error', (error) => { spawnError = error; });
   let stderr = '';
   proc.stderr?.on('data', (d) => (stderr += String(d)));
+  let healthFailure = '';
   proc.once('exit', () => procs.delete(proc));
 
   const deadline = Date.now() + 25_000;
@@ -77,12 +78,14 @@ async function startServer(
     try {
       const r = await fetch(`http://127.0.0.1:${port}/health`);
       if (r.ok) return proc;
-    } catch {
+      healthFailure = `HTTP ${r.status}: ${await r.text()}`;
+    } catch (error) {
+      healthFailure = `${error}: ${error instanceof Error ? String(error.cause ?? '') : ''}`;
       // 还没起来
     }
     await delay(200);
   }
-  throw new Error(`server did not become healthy on ${port}: ${stderr}`);
+  throw new Error(`server did not become healthy on ${port}: ${healthFailure}\n${stderr}`);
 }
 
 async function stopServer(proc: ChildProcess): Promise<void> {
@@ -173,6 +176,42 @@ const hasEdge = (
 ) => body.edges.some((e) => e.source === from && e.target === to);
 
 describe('e2e: 真 HTTP + 真落盘 + 真重启（驱动 src/main.ts）', () => {
+  test('session cookie survives process restart and logout revokes it', async () => {
+    const { database } = await makeDataDir();
+    const unified = openUnifiedDb(database);
+    unified.updateIdentityMode('identity', new Date());
+    unified.close();
+    const env = { TEAMHUB_DB_FILE: database, TEAMHUB_WRITE_TOKEN: 'e2e-session-token' };
+    const port1 = await freePort();
+    const first = await startServer(env, port1);
+    const bootstrap = await post(port1, '/api/setup/super-admin', {
+      displayName: 'Session operator', groupName: 'Session group', pin: 'persistent-pin-123',
+    });
+    expect(bootstrap.status).toBe(200);
+    const login = await post(port1, '/api/session', {
+      username: 'Session operator', pin: 'persistent-pin-123',
+    });
+    expect(login.status).toBe(200);
+    const identity = (await login.json() as { session: { memberId: string } }).session;
+    const cookie = login.headers.get('set-cookie')!.split(';')[0];
+    expect(cookie).toMatch(/^teamhub_session=[a-f0-9]{64}$/);
+    await stopServer(first);
+    const port2 = await freePort();
+    const second = await startServer(env, port2);
+    const me = await fetch(`http://127.0.0.1:${port2}/api/session`, { headers: { cookie } });
+    expect(me.status).toBe(200);
+    expect((await me.json() as { session: unknown }).session).toEqual(identity);
+    expect((await getJson(port2, '/health')).buildId).toBeTruthy();
+    const logout = await fetch(`http://127.0.0.1:${port2}/api/session`, {
+      method: 'DELETE', headers: { cookie },
+    });
+    expect(logout.status).toBe(200);
+    const out = await fetch(`http://127.0.0.1:${port2}/api/session`, { headers: { cookie } });
+    expect((await out.json() as { session: unknown }).session).toBeNull();
+    expect((await fetch(`http://127.0.0.1:${port2}/api/members`, { headers: { cookie } })).status).toBe(401);
+    await stopServer(second);
+  }, 60_000);
+
   test('KB 结案 → 杀进程重启 → 同症状仍从统一 SQLite 召回', async () => {
     const { database } = await makeDataDir();
     const token = 'e2e-kb-token';

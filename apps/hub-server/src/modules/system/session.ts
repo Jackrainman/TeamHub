@@ -26,7 +26,7 @@ export interface SessionRouteDeps {
 /**
  * 登录失败锁定（AUTH-GATE 公网加固）：按 `ip|username` 计数，连续失败 MAX_FAILS 次锁 LOCK_MS。
  * 防在线暴破密码——没锁定公网上就被试穿。成功登录即清零。
- * 内存表、进程重启清零（与 SessionManager 同量级，不引外部存储）。
+ * 登录失败计数仍是内存表，进程重启清零；与持久会话分开维护。
  */
 const LOGIN_MAX_FAILS = 5;
 const LOGIN_LOCK_MS = 5 * 60 * 1000;
@@ -146,6 +146,8 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
     //（散列看不出原长度，只能在登录当刻按明文长度判定）。
     const pinUpgradeRequired = Boolean(member.pinHash && pin !== undefined && pin.length < 8);
     const token = sessions.create(identity, { pinUpgradeRequired });
+    // Fastify 会追加 Set-Cookie；登录结果应替换请求钩子为旧会话写入的续期 cookie。
+    reply.removeHeader('set-cookie');
     void reply.header('set-cookie', buildSessionCookie(token, { secure: cookieSecure }));
     return SessionResponseSchema.parse({
       mode: 'identity',
@@ -161,6 +163,7 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
     }
     const token = readSessionCookie(request);
     if (token) sessions.destroy(token);
+    reply.removeHeader('set-cookie');
     void reply.header('set-cookie', clearSessionCookie({ secure: cookieSecure }));
     return SessionResponseSchema.parse({ mode: 'identity', session: null });
   });

@@ -12,7 +12,7 @@ import type {
   DeploymentInfo,
 } from '@teamhub/hub-contracts';
 import { isModuleEnabled } from '@teamhub/hub-contracts';
-import { SessionManager } from './identity/session-store.js';
+import { SessionManager, type SessionStore } from './identity/session-store.js';
 import { FixedClock } from './clock.js';
 import type { Clock } from './clock.js';
 import type { ReimburseRepository } from './modules/reimburse/repository.js';
@@ -59,6 +59,7 @@ import { registerSetupRoutes } from './modules/system/setup.js';
 import { registerLarkRoutes } from './modules/integrations/lark.js';
 import {
   SESSION_TTL_MS,
+  buildSessionCookie,
   readSessionCookie,
   requireSuperAdmin,
 } from './http/helpers.js';
@@ -156,6 +157,8 @@ export interface BuildHubServerOptions {
    * `'identity'` = 匿名可读一切 + 登录才能写：session 端点启用、写路由须携有效会话（否则 401）+ actor 服务端注入。
    */
   identityMode: IdentityMode;
+  /** 与业务仓储共用数据库的会话窄口；内存实现仅用于测试。 */
+  sessionStore: SessionStore;
   /**
    * 部署信息（K3 部署信息刀）。main.ts 启动时收集「每域走哪种 store + 路径 / 启用模块 / 图纸开关 /
    * 构建标识 / 身份模式」这批运维定位事实，经此透传，由 `GET /api/system/status` 原样回显——设置页
@@ -222,7 +225,7 @@ interface ModuleRouteCtx {
   // PIN-DEADLOCK-RECOVERY：反代信任设置（= BuildHubServerOptions.trustProxy 缺省 false），
   // 供 isLoopbackOperator 决定信裸 socket 还是 request.ip（见该函数注释）。
   trustProxy: boolean | string;
-  // SETUP-WIZARD-ROSTER 刀②：内存会话表（匿名模式 null）——POST /api/setup/super-admin 的 bootstrap
+  // 会话管理器（匿名模式 null）——POST /api/setup/super-admin 的 bootstrap
   // 路径一笔落库后签发会话 cookie（建人+授旗+设 PIN+登录态），免操作者再登一次。
   sessions: SessionManager | null;
   larkStore?: import('./modules/integrations/lark-store.js').LarkIntegrationStore;
@@ -293,17 +296,20 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
   const tenantConfig = options.tenantConfig;
 
   // ── 轻身份登录（IDENTITY-LITE，D-083 §4.2）─────────────────────────────────────────────────
-  // identity 模式才建内存会话表 + 挂身份解析钩子 + 写门加会话要求。
+  // identity 模式才装配会话管理器、身份解析钩子和会话写门。
   const identityMode: IdentityMode = options.identityMode;
   const sessions =
-    identityMode === 'identity' ? new SessionManager(SESSION_TTL_MS) : null;
+    identityMode === 'identity' ? new SessionManager(options.sessionStore, SESSION_TTL_MS) : null;
   // 全请求默认 identity=null（decorate 一次）；身份模式钩子据 cookie 解析覆盖，匿名模式恒 null。
   app.decorateRequest('identity', null);
   if (identityMode === 'identity' && sessions) {
     // 身份解析钩子（**注册在写门钩子之前**，onRequest 按注册序执行，故写门钩子读到已解析的 request.identity）。
-    app.addHook('onRequest', async (request) => {
+    app.addHook('onRequest', async (request, reply) => {
       const token = readSessionCookie(request);
       request.identity = token ? sessions.resolve(token) : null;
+      if (token && request.identity && sessions.touch(token)) {
+        void reply.header('set-cookie', buildSessionCookie(token, { secure: options.cookieSecure }));
+      }
     });
   }
 

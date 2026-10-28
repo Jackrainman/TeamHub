@@ -135,7 +135,7 @@ export function isLoopbackOperator(
 }
 
 export const SESSION_COOKIE = 'teamhub_session';
-export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const SESSION_TTL_SECONDS = Math.floor(SESSION_TTL_MS / 1000);
 
 export function readSessionCookie(request: { headers: { cookie?: string } }): string | null {

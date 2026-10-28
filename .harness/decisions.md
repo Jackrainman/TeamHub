@@ -90,7 +90,7 @@
 
 ## D-092 — 公网暴露认证加固（AUTH-GATE，2026-09-04 用户拍板）
 
-- **威胁模型升级**：实例暴露公网（原「内网家庭影院级」假设作废）。自建认证保留（scrypt 散列 + httpOnly cookie + 内存会话），不引外部框架。
+- **威胁模型升级**：实例暴露公网（原「内网家庭影院级」假设作废）。自建认证保留（scrypt 散列 + httpOnly cookie + 统一 SQLite 会话，见 D-096），不引外部框架。
 - **读闸**：身份模式未登录一律 401，白名单仅 session / GET members / setup/state / setup/super-admin / roster 导入预览模板 + loopback PIN 恢复口（middleware/auth-gate.ts）。**后台无「加后缀就进」的口**——setup 敏感写未登录 401 + 路由层 superAdmin 双闸。
 - **首登强制设密码**：无 pinHash 成员登录得 mustSetPin 会话，业务请求 403 PIN_SETUP_REQUIRED，只放行设本人密码；console 整屏 ForcePinGate。
 - **PIN 升级密码**：新设/重设 min 8 位（SetPin/SetupSuperAdmin schema）；旧 4 位散列兼容可登录，建议重设。
@@ -123,3 +123,11 @@
 - **归属事实单源**：Task 追加 `ownershipEvents`，统一记录 `claimed/assigned/released` 的 `fromOwnerId/toOwnerId/at/by/reason?`；认领、指派、退回都必须追加。历任完成人由契约纯函数按事件派生并排除当前完成人，**不落盘维护 `previousOwnerIds` 数组**，现有状态 transitions 不冒充归属历史。
 - **当前归属字段**：退回时清理当前认领/指派留名字段，避免池卡把上一任误显示为当前完成人；搭档与验收事实不在本刀重写。
 - **读侧与 I0**：`GET /api/tasks` 的逐任务 meta 可附派生的历任完成人 ID；任务池卡和任务事实卡显示“曾经执行”名单，只作对接事实，不做按人次数、时长、排名或产能统计。
+
+## D-096 — SQLite 持久会话与 30 天滑动续期（SESSION-PERSISTENCE，2026-10-28）
+
+- **持久化**：会话从内存 Map 改存统一 SQLite 的 sessions 表，复用已打开的数据库句柄；测试内存 fake 仅在 test/support。32 字节随机 token 与 SessionIdentity 投影入库，不存 PIN 散列，不进入聚合/统计。
+- **迁移**：schema v2→v3 显式事务仅增加会话表、member_id 索引和版本；新库同时建表，已知 v3 校验后 ensure；v1 与更高未知版本继续 fail-closed，不引通用迁移框架。
+- **续期**：服务端与 cookie TTL 同为 30 天；请求解析到有效会话且剩余不足半个 TTL 时，续至当前时间后 30 天并重发同 token 的 cookie，Secure 沿用启动配置。登录、登出及 bootstrap 响应替换旧会话的续期 cookie。
+- **撤销语义不变**：登出只删除当前 token；过期按需删除；续期保留 PIN 升级标记，修改本人 PIN 成功后清除该成员各会话标记。GET session 的 200/null 探测契约保持不变，受保护业务接口未登录仍为 401。
+- **上线边界**：首次上线需重登一次，此后有效会话不因部署重启失效。生产迁移仍由部署流程先备份再执行；本任务只改源码与临时测试库。

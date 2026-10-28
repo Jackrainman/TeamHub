@@ -32,6 +32,7 @@ describe('统一 SQLite + app_settings', () => {
       expect(database.getSettings()).toBeUndefined();
       expect(database.db.readUserVersion()).toBe(TEAMHUB_UNIFIED_SCHEMA_VERSION);
       expect(database.db.getMeta('schema_kind')).toBe('unified');
+      expect(database.db.tableExists('sessions')).toBe(true);
       expect(TEAMHUB_BUSINESS_TABLES.every((table) => !database.db.tableExists(table))).toBe(true);
     } finally {
       database.close();
@@ -128,6 +129,67 @@ describe('统一 SQLite + app_settings', () => {
     } finally {
       database.close();
     }
+  });
+
+  it('v2 migration preserves business rows and settings', () => {
+    const old = SqliteDatabase.open(dbPath);
+    old.ensureMetaTable();
+    old.setMeta('schema_kind', 'unified');
+    old.setMeta('seasonId', 'existing-season');
+    old.ensureSingletonEntityTable('app_settings', 'singleton');
+    old.ensureEntityTables(['tasks']);
+    const task = { id: 'persist', title: 'Existing task', nested: { progress: 42 } };
+    old.insertRow('tasks', task.id, task);
+    old.setUserVersion(2);
+    old.close();
+    const migrated = openUnifiedDb(dbPath);
+    try {
+      expect(migrated.db.readUserVersion()).toBe(3);
+      expect(migrated.db.tableExists('sessions')).toBe(true);
+      expect(migrated.db.rowCount('sessions')).toBe(0);
+      expect(migrated.db.allRows('tasks')).toEqual([task]);
+      expect(migrated.db.getMeta('seasonId')).toBe('existing-season');
+      expect(migrated.getSettings()).toBeUndefined();
+      expect(migrated.getDatabaseState()).toBe('unclaimed');
+    } finally {
+      migrated.close();
+    }
+  });
+
+  it('v2 without unified marker is rejected without migration', () => {
+    const old = SqliteDatabase.open(dbPath);
+    old.ensureMetaTable();
+    old.setUserVersion(2);
+    old.close();
+    expect(() => openUnifiedDb(dbPath)).toThrow(/schema_kind/);
+    const unchanged = SqliteDatabase.open(dbPath);
+    try {
+      expect(unchanged.readUserVersion()).toBe(2);
+      expect(unchanged.tableExists('sessions')).toBe(false);
+    } finally {
+      unchanged.close();
+    }
+  });
+
+  it('initialized v2 keeps settings and every business row after migration and reopen', () => {
+    const old = openUnifiedDb(dbPath);
+    const settings = old.initialize({ dataMode: 'demo', identityMode: 'identity' }, NOW);
+    const rows = TEAMHUB_BUSINESS_TABLES.map((table) => old.db.allRows(table));
+    old.db.prepare('DROP TABLE sessions').run();
+    old.db.setUserVersion(2);
+    old.close();
+    const migrated = openUnifiedDb(dbPath);
+    try {
+      expect(migrated.db.readUserVersion()).toBe(3);
+      expect(migrated.getSettings()).toEqual(settings);
+      expect(TEAMHUB_BUSINESS_TABLES.map((table) => migrated.db.allRows(table))).toEqual(rows);
+      expect(migrated.db.rowCount('sessions')).toBe(0);
+    } finally { migrated.close(); }
+    const reopened = openUnifiedDb(dbPath);
+    try {
+      expect(reopened.getSettings()).toEqual(settings);
+      expect(reopened.db.tableExists('sessions')).toBe(true);
+    } finally { reopened.close(); }
   });
 
   it('fail-closed：更高 user_version 与 v1 旧库均拒绝打开，不做静默迁移', () => {

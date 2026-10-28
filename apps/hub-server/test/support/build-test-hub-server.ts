@@ -13,6 +13,7 @@ import { InMemoryKbStore } from './inmemory-kb-store.js';
 import { InMemoryReimburseStore } from './inmemory-reimburse-store.js';
 import { InMemoryScheduleRepository } from './inmemory-schedule-store.js';
 import { TestApplicationUnitOfWork } from './test-application-unit-of-work.js';
+import { InMemorySessionStore } from './inmemory-session-store.js';
 
 type StoreOptionKey =
   | 'store'
@@ -27,7 +28,8 @@ type StoreOptionKey =
   | 'reimburseStockInPort'
   | 'unitOfWork'
   | 'tenantConfig'
-  | 'identityMode';
+  | 'identityMode'
+  | 'sessionStore';
 
 export type BuildTestHubServerOptions =
   Omit<BuildHubServerOptions, StoreOptionKey>
@@ -48,6 +50,7 @@ export function buildTestHubServer(options: BuildTestHubServerOptions = {}) {
     clock,
     tenantConfig: options.tenantConfig ?? ROBOTICS_TENANT_CONFIG,
     identityMode: options.identityMode ?? 'anonymous',
+    sessionStore: options.sessionStore ?? new InMemorySessionStore(),
     store: options.store ?? new InMemoryPmRepository(undefined, clock),
     artifactRepository:
       options.artifactRepository ?? new InMemoryArtifactRepository(undefined, clock),

@@ -25,6 +25,23 @@ export class SqliteDatabase {
     return new SqliteDatabase(new DatabaseSyncCtor(filePath));
   }
 
+  prepare(sql: string) {
+    return this.db.prepare(sql);
+  }
+
+  ensureSessionTable(): void {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        token TEXT PRIMARY KEY,
+        member_id TEXT NOT NULL,
+        identity TEXT NOT NULL,
+        expires_at INTEGER NOT NULL,
+        pin_upgrade_required INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE INDEX IF NOT EXISTS idx_sessions_member ON sessions (member_id);
+    `);
+  }
+
   allRows<T>(table: string): T[] {
     const rows = this.db
       .prepare(`SELECT data FROM "${table}" ORDER BY rowid`)

@@ -1,68 +1,70 @@
 import { randomBytes } from 'node:crypto';
-import type { SessionIdentity } from '@teamhub/hub-contracts';
+import { SessionIdentitySchema, type SessionIdentity } from '@teamhub/hub-contracts';
 
-/**
- * 服务端内存会话表（IDENTITY-LITE，D-083 §4.2）。**家庭影院级重量**：随机 token → 身份映射，带 TTL；
- * 存在**内存**——进程重启 = 全员重登（可接受，小作坊内网单实例；不引 Redis / 不落盘 token）。
- *
- * **密钥纪律**：token 是不可预测的 32 字节随机十六进制串；只存 memberId 投影身份（SessionIdentity，无
- * pinHash）；resolve 过 TTL 即删（惰性驱逐）。
- */
-interface SessionEntry {
+export interface SessionEntry {
   identity: SessionIdentity;
   expiresAt: number;
-  /** AUTH-LOGIN-USERNAME 旧短 PIN 强制升级：本次登录用的是 <8 位旧 PIN → true。
-   *  auth-gate 视其同 mustSetPin（只放行设 PIN/session）；PUT 本人 pin 成功后清标记。 */
   pinUpgradeRequired: boolean;
 }
 
+export interface SessionStore {
+  create(token: string, entry: SessionEntry): void;
+  find(token: string): SessionEntry | undefined;
+  delete(token: string): void;
+  clearPinUpgrade(memberId: string): void;
+  touch(token: string, expiresAt: number): void;
+}
+
+/** D-096：生产会话存入统一 SQLite，重启后保留身份与 PIN 升级标记。 */
 export class SessionManager {
-  private readonly sessions = new Map<string, SessionEntry>();
+  constructor(
+    private readonly store: SessionStore,
+    private readonly ttlMs: number,
+    private readonly now: () => number = () => Date.now(),
+  ) {}
 
-  constructor(private readonly ttlMs: number) {}
-
-  /** 登录成功签发：生成随机 token、登记身份 + 过期时刻，返回 token（写进 httpOnly cookie）。 */
   create(identity: SessionIdentity, opts?: { pinUpgradeRequired?: boolean }): string {
     const token = randomBytes(32).toString('hex');
-    this.sessions.set(token, {
-      identity,
-      expiresAt: Date.now() + this.ttlMs,
+    this.store.create(token, {
+      // 只持久化公开身份投影，即使调用方误传成员对象也不会落盘 pinHash。
+      identity: SessionIdentitySchema.parse(identity),
+      expiresAt: this.now() + this.ttlMs,
       pinUpgradeRequired: opts?.pinUpgradeRequired ?? false,
     });
     return token;
   }
 
-  /** 解析 token → 当前身份；不存在 / 已过期 → null（过期条目惰性删除）。 */
   resolve(token: string): SessionIdentity | null {
-    const entry = this.sessions.get(token);
-    if (!entry) return null;
-    if (Date.now() >= entry.expiresAt) {
-      this.sessions.delete(token);
-      return null;
-    }
-    return entry.identity;
+    return this.findActive(token)?.identity ?? null;
   }
 
-  /** 登出：销毁该 token（幂等——不存在也不报错）。 */
   destroy(token: string): void {
-    this.sessions.delete(token);
+    this.store.delete(token);
   }
 
-  /** 该 token 会话是否挂着「旧短 PIN 强制升级」标记（auth-gate / GET session 的 mustSetPin 判定用）。 */
   isPinUpgradeRequired(token: string): boolean {
-    const entry = this.sessions.get(token);
-    if (!entry) return false;
-    if (Date.now() >= entry.expiresAt) {
-      this.sessions.delete(token);
-      return false;
-    }
-    return entry.pinUpgradeRequired;
+    return this.findActive(token)?.pinUpgradeRequired ?? false;
   }
 
-  /** PUT 本人 pin 成功后调用：清掉该成员**所有在途会话**的升级标记（同会话立即解禁）。 */
   clearPinUpgrade(memberId: string): void {
-    for (const entry of this.sessions.values()) {
-      if (entry.identity.memberId === memberId) entry.pinUpgradeRequired = false;
+    this.store.clearPinUpgrade(memberId);
+  }
+
+  /** 剩余不足半个 TTL 才写库；返回 true 时调用方须同步重发 cookie。 */
+  touch(token: string): boolean {
+    const now = this.now();
+    const entry = this.findActive(token, now);
+    if (!entry || entry.expiresAt - now >= this.ttlMs / 2) return false;
+    this.store.touch(token, now + this.ttlMs);
+    return true;
+  }
+
+  private findActive(token: string, now = this.now()): SessionEntry | undefined {
+    const entry = this.store.find(token);
+    if (entry && now >= entry.expiresAt) {
+      this.store.delete(token);
+      return undefined;
     }
+    return entry;
   }
 }

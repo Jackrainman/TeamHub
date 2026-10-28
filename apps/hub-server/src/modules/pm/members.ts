@@ -179,6 +179,7 @@ export function registerMemberRoutes(app: FastifyInstance, deps: MemberRouteDeps
         projectManager: member.projectManager,
       };
       const token = deps.sessions.create(identity);
+      reply.removeHeader('set-cookie');
       void reply.header('set-cookie', buildSessionCookie(token));
     }
     return SetupSuperAdminResponseSchema.parse({

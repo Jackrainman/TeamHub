@@ -7,6 +7,7 @@ import type { Clock } from './clock.js';
 import { buildHubServer } from './server.js';
 import { LarkIntegrationStore } from './modules/integrations/lark-store.js';
 import { openUnifiedDb } from './store/sqlite-unified.js';
+import { SqliteSessionStore } from './identity/sqlite-session-store.js';
 import { resolveBuildId } from './status.js';
 import { SqliteApplicationUnitOfWork } from './infrastructure/sqlite-application-unit-of-work.js';
 
@@ -102,6 +103,7 @@ async function main(): Promise<void> {
     cookieSecure,
     identityMode,
     tenantConfig,
+    sessionStore: new SqliteSessionStore(database.db),
     deployment,
     larkStore,
     setupControl: { settingsService: database },
