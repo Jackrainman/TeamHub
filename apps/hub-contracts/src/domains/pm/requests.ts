@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidWeekKey } from './week.js';
 import { ActorRefSchema } from '../../common.js';
 import {
   TaskSchema,
@@ -34,6 +35,8 @@ export const CreateTaskRequestSchema = TaskSchema.omit({
   lastProgressAt: true,
   createdAt: true,
   updatedAt: true,
+  weekLinks: true,
+  reviewedAt: true,
 }).extend({
   // H4（AUDIT-FIXES 部署前必修）：写端点信任边界。客户端只能建「未启动 / 进行中」任务，
   // statusSource 只能是真实录入渠道（lark/git/console）。**不收 `done`/`shelved`（跳过工作伪造完成）
@@ -107,7 +110,19 @@ export const TransitionTaskStatusResponseSchema = z.object({ task: TaskSchema })
  * `memberId` **optional**——身份模式服务端从 session 取认领人（本人领本人）；匿名模式 body 选人。
  * **无 reason**：认领零摩擦（与指派"多一格理由"对立，摩擦力就是制度，§3）。
  */
+export const WeekKeySchema = z.string().refine(isValidWeekKey, { message: 'Invalid ISO week' });
+export const LinkTaskWeekRequestSchema = z.object({ weekKey: WeekKeySchema });
+export const SelfReportTaskRequestSchema = z.object({
+  projectId: z.string().min(1),
+  groupId: z.string().min(1),
+  title: z.string().trim().min(1),
+  rawSummary: z.string().trim().min(1),
+  robotTarget: TaskSchema.shape.robotTarget,
+  intrinsicComplexity: TaskSchema.shape.intrinsicComplexity,
+});
+export type SelfReportTaskRequest = z.infer<typeof SelfReportTaskRequestSchema>;
 export const ClaimTaskRequestSchema = z.object({
+  weekKey: WeekKeySchema.optional(),
   memberId: z.string().min(1).optional(),
 });
 export const ClaimTaskResponseSchema = z.object({ task: TaskSchema });

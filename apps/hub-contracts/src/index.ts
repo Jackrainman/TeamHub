@@ -895,3 +895,7 @@ export type {
   LarkCreateChatResponse,
   LarkPushReminderResponse,
 } from './domains/integrations/index.js';
+export { getWeekKey, isValidWeekKey, isCurrentWeek, shiftWeek, selectWeekTasks, canReviewWeekTask } from './domains/pm/week.js';
+export type { WeekView, WeekScope } from './domains/pm/week.js';
+export { WeekKeySchema, SelfReportTaskRequestSchema, LinkTaskWeekRequestSchema } from './domains/pm/requests.js';
+export type { SelfReportTaskRequest } from './domains/pm/requests.js';

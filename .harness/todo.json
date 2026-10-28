@@ -34,6 +34,18 @@
   ],
   "todo": [
     {
+      "id": "WEEK-WORKBENCH",
+      "title": "Implement weekly workbench and peer acceptance per supplied 2026-10-28 plan",
+      "tag": "code",
+      "steps": [
+        "1 contracts/week.ts + week requests + PM service/routes/SQLite; ISO boundary, auth, persistence tests; verify all three packages; minor bump and commit",
+        "2 pm/week workspace, self report and task drawer workflow; component and browser tests; minor bump and commit",
+        "3 migrate overview components and remove myview/navigation; desktop 1440/1000 and light/dark; minor bump and commit",
+        "4 update canonical PM/design/guide/decisions; full verify and browser lifecycle; commit and push"
+      ],
+      "dod": "ISO week and Shanghai rollover valid; historical writes denied; owner/session and peer-review enforced; SQLite restart persistence; three task views and end-to-end two-member flow; npm run verify exit 0"
+    },
+    {
       "id": "UBUNTU-DEV-ACCEPTANCE",
       "title": "跨平台开发收口后的 Ubuntu 验收：确认 Ubuntu CI 绿，在服务器隔离测试实例执行 Compose smoke、部署与真实附件恢复演练",
       "tag": "ops",

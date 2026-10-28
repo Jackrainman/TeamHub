@@ -509,12 +509,23 @@ export class SqlitePmRepository implements PmRepository {
   // ── 挂单认领制窄写（TASK-POST-CLAIM，D-088）：字段簇构造单源 logic.ts（buildClaimedTask/
   // AssignedTask/CompletedTask/ReviewedTask）；整实体 JSON 就地重写（文档式行存），一个事务读-判-写。
 
-  async claimTask(taskId: string, ownerId: string, claimedAt: string, claimer: ActorRef): Promise<Task | null> {
+  async claimTask(taskId: string, ownerId: string, claimedAt: string, claimer: ActorRef, weekKey?: string): Promise<Task | null> {
     return this.tx(() => {
       const prev = this.getRow<Task>('tasks', taskId);
       if (!prev) return null;
-      const updated = buildClaimedTask(prev, ownerId, claimedAt, claimer);
+      const updated = buildClaimedTask(prev, ownerId, claimedAt, claimer, weekKey);
       if (!updated) return null;
+      this.updateRow('tasks', taskId, updated);
+      return updated;
+    });
+  }
+
+  async linkTaskWeek(taskId: string, weekKey: string, at: string, actor: ActorRef): Promise<Task | null> {
+    return this.tx(() => {
+      const prev = this.getRow<Task>('tasks', taskId);
+      if (!prev || prev.ownerId !== actor.id || prev.status === 'done' || prev.status === 'shelved') return null;
+      if (prev.weekLinks?.some(link => link.weekKey === weekKey)) return prev;
+      const updated: Task = { ...prev, weekLinks: [...(prev.weekLinks ?? []), { weekKey, linkedAt: at, linkedBy: actor }], updatedAt: at };
       this.updateRow('tasks', taskId, updated);
       return updated;
     });

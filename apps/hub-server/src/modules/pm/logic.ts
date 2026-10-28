@@ -96,13 +96,15 @@ export function buildClaimedTask(
   ownerId: string,
   claimedAt: string,
   claimer: ActorRef,
+  weekKey?: string,
 ): Task | null {
-  if (prev.ownerId !== null) return null;
+  if (prev.ownerId !== null || prev.status === 'done' || prev.status === 'shelved') return null;
   const promoting = prev.status === 'pending';
   return {
     ...prev,
     ownerId,
     claimedAt,
+    ...(weekKey ? { weekLinks: [...(prev.weekLinks ?? []).filter(link => link.weekKey !== weekKey), { weekKey, linkedAt: claimedAt, linkedBy: claimer }] } : {}),
     status: promoting ? 'inProgress' : prev.status,
     statusSource: promoting ? MANUAL_TASK_STATUS_SOURCE : prev.statusSource,
     updatedAt: claimedAt,
@@ -176,7 +178,7 @@ export function buildReleasedTask(
 }
 
 export function buildCompletedTask(prev: Task, completedBy: ActorRef, at: string): Task {
-  const { reviewedBy: _r, reviewNote: _n, ...rest } = prev;
+  const { reviewedBy: _r, reviewedAt: _at, reviewNote: _n, ...rest } = prev;
   return {
     ...rest,
     status: 'done',
@@ -204,6 +206,7 @@ export function buildReviewedTask(
     status: rejecting ? 'inProgress' : rest.status,
     statusSource: rejecting ? MANUAL_TASK_STATUS_SOURCE : rest.statusSource,
     reviewedBy,
+    reviewedAt: at,
     ...(note !== undefined ? { reviewNote: note } : {}),
     updatedAt: at,
     ...(rejecting

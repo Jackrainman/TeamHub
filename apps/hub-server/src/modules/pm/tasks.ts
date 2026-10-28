@@ -9,6 +9,8 @@ import {
   CreateSeasonResponseSchema,
   CreateTaskRequestSchema,
   CreateTaskResponseSchema,
+  SelfReportTaskRequestSchema,
+  LinkTaskWeekRequestSchema,
   DepGraphSchema,
   GroupGapsResponseSchema,
   GroupResponseSchema,
@@ -130,6 +132,24 @@ export function registerTaskRoutes(app: FastifyInstance, deps: TaskRouteDeps): v
 
   // ── 任务 ──
 
+  app.post('/api/weeks/:weekKey/tasks', async (request, reply) => {
+    if (!request.identity) return reply.code(403).send({ code: 'PM_SESSION_REQUIRED', detail: '请先登录后自报任务' });
+    const parsed = parseBody(SelfReportTaskRequestSchema, request, reply);
+    if (!parsed) return;
+    const { weekKey } = request.params as { weekKey: string };
+    return sendOutcome(reply, await service.selfReportTask(parsed, weekKey, sessionActor(request.identity)),
+      task => CreateTaskResponseSchema.parse({ task }));
+  });
+
+  app.post('/api/tasks/:taskId/weeks', async (request, reply) => {
+    if (!request.identity) return reply.code(403).send({ code: 'PM_SESSION_REQUIRED', detail: '请先登录后延续任务' });
+    const parsed = parseBody(LinkTaskWeekRequestSchema, request, reply);
+    if (!parsed) return;
+    const { taskId } = request.params as { taskId: string };
+    return sendOutcome(reply, await service.linkTaskWeek(taskId, parsed.weekKey, sessionActor(request.identity)),
+      task => CreateTaskResponseSchema.parse({ task }));
+  });
+
   app.post('/api/tasks', async (request, reply) => {
     const parsed = parseBody(CreateTaskRequestSchema, request, reply);
     if (!parsed) return;
@@ -153,7 +173,7 @@ export function registerTaskRoutes(app: FastifyInstance, deps: TaskRouteDeps): v
     if (!parsed) return;
     // TASK-TIMELINE 留名：身份模式服务端注入 sessionActor（防冒充）、匿名模式 body 供名、皆无则记无 by
     const by = request.identity ? sessionActor(request.identity) : parsed.by;
-    return sendOutcome(reply, await service.transitionTaskStatus(taskId, parsed.status, by), (task) =>
+    return sendOutcome(reply, await service.transitionTaskStatus(taskId, parsed.status, by, !!request.identity), (task) =>
       TransitionTaskStatusResponseSchema.parse({ task }),
     );
   });

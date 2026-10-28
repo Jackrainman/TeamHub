@@ -1,3 +1,5 @@
+import { isCurrentWeek, canReviewWeekTask } from '@teamhub/hub-contracts';
+import type { SelfReportTaskRequest } from '@teamhub/hub-contracts';
 import {
   CONVERGENCE_SCOPE_ALL_LEAF_GROUPS,
   CONVERGENCE_SENTINEL_GROUP_ID,
@@ -158,11 +160,43 @@ export class PmService {
     }));
   }
 
+  async selfReportTask(input: SelfReportTaskRequest, weekKey: string, actor: ActorRef): Promise<PmOutcome<Task>> {
+    const now = this.clock.now().toISOString();
+    if (!isCurrentWeek(weekKey, now)) return fail(400, 'Only the current week is writable');
+    const snapshot = await this.repository.getSnapshot();
+    if (!snapshot.members.some(m => m.id === actor.id)) return fail(403, 'Member required');
+    if (snapshot.projectId !== input.projectId || !deriveLeafGroups(snapshot.groups).includes(input.groupId)) return fail(400, 'Valid project and leaf group required');
+    return ok(await this.repository.createTask({
+      ...input, ownerId: actor.id, collaboratorIds: [], status: 'inProgress', claimedAt: now,
+      weekLinks: [{ weekKey, linkedAt: now, linkedBy: actor }],
+      ownershipEvents: [{ kind: 'claimed', fromOwnerId: null, toOwnerId: actor.id, at: now, by: actor }],
+      transitions: [{ from: null, to: 'inProgress', at: now, by: actor }],
+    }));
+  }
+
+  async linkTaskWeek(taskId: string, weekKey: string, actor: ActorRef): Promise<PmOutcome<Task>> {
+    const now = this.clock.now().toISOString();
+    if (!isCurrentWeek(weekKey, now)) return fail(400, 'Only the current week is writable');
+    const snapshot = await this.repository.getSnapshot();
+    const task = snapshot.tasks.find(t => t.id === taskId);
+    if (!task) return fail(404, 'task not found');
+    if (task.ownerId !== actor.id || !snapshot.members.some(m => m.id === actor.id)) return fail(403, 'Only the owner may continue a task');
+    const updated = await this.repository.linkTaskWeek(taskId, weekKey, now, actor);
+    return updated ? ok(updated) : fail(409, 'Only active tasks can continue');
+  }
+
   async transitionTaskStatus(
     taskId: string,
     status: TaskStatus,
     by: ActorRef | undefined,
+    authenticated = false,
   ): Promise<PmOutcome<Task>> {
+    const current = (await this.repository.getSnapshot()).tasks.find(t => t.id === taskId);
+    if (current?.weekLinks?.length) {
+      if (!authenticated || !by || current.ownerId !== by.id) return fail(403, 'Only the signed-in owner may progress a weekly task');
+      if (current.status === 'done' || current.status === 'shelved') return fail(409, 'Use peer review to reopen completed tasks');
+      if (status === 'done') return this.completeTask(taskId, by, authenticated);
+    }
     const task = await this.repository.updateTaskStatus(taskId, status, by);
     if (!task) return fail(404, 'task not found');
     return ok(task);
@@ -204,18 +238,21 @@ export class PmService {
   async claimTask(
     taskId: string,
     memberId: string,
+    weekKey?: string,
   ): Promise<PmOutcome<{ task: Task; claimer: Member }>> {
+    if (weekKey && !isCurrentWeek(weekKey, this.clock.now())) return fail(400, 'Only the current week is writable');
     const snapshot = await this.repository.getSnapshot();
     const task = snapshot.tasks.find((t) => t.id === taskId);
     if (!task) return fail(404, 'task not found');
     const claimer = snapshot.members.find((m) => m.id === memberId);
     if (!claimer) return fail(400, '认领人不在名册');
+    if (task.status === 'done' || task.status === 'shelved') return fail(409, 'Task is not active');
     if (task.ownerId !== null) return fail(409, '任务已有负责人（挂单已被认领）');
     const claimed = await this.repository.claimTask(taskId, memberId, this.clock.now().toISOString(), {
       id: memberId,
       displayName: claimer.displayName,
       source: 'console',
-    });
+    }, weekKey);
     if (!claimed) return fail(404, 'task not found');
     return ok({ task: claimed, claimer });
   }
@@ -292,7 +329,12 @@ export class PmService {
     return ok(updated);
   }
 
-  async completeTask(taskId: string, actor: ActorRef): Promise<PmOutcome<Task>> {
+  async completeTask(taskId: string, actor: ActorRef, authenticated = false): Promise<PmOutcome<Task>> {
+    const target = (await this.repository.getSnapshot()).tasks.find(t => t.id === taskId);
+    if (target?.weekLinks?.length) {
+      if (!authenticated || target.ownerId !== actor.id) return fail(403, 'Only the signed-in owner may complete a weekly task');
+      if (target.status === 'done' || target.status === 'shelved') return fail(409, 'Task is not active');
+    }
     const updated = await this.repository.completeTask(taskId, actor, this.clock.now().toISOString());
     if (!updated) return fail(404, 'task not found');
     return ok(updated);
@@ -304,10 +346,12 @@ export class PmService {
     actor: ActorRef,
     outcome: 'accept' | 'reject',
     note: string | undefined,
+    authenticated = false,
   ): Promise<PmOutcome<Task>> {
     const snapshot = await this.repository.getSnapshot();
     const target = snapshot.tasks.find((t) => t.id === taskId);
     if (!target) return fail(404, 'task not found');
+    if (target.weekLinks?.length && (!authenticated || !snapshot.members.some(m => m.id === actor.id) || !canReviewWeekTask(target, actor.id))) return fail(403, 'Another signed-in member must review this task');
     if (target.status !== 'done') {
       return fail(409, '任务尚未标完成，无法验收/打回（先 complete）');
     }

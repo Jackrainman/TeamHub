@@ -381,10 +381,10 @@ export function PmCoreMixin<T extends Base>(
      * 认领挂单（§3）。仅当现 ownerId===null 才写（已有主 → null，路由据快照转 409）；写 ownerId + claimedAt，
      * pending→inProgress 提升（有主即开工，非 pending 不动）。id 不存在 → null（路由转 404）。
      */
-    async claimTask(taskId: string, ownerId: string, claimedAt: string, claimer: ActorRef): Promise<Task | null> {
+    async claimTask(taskId: string, ownerId: string, claimedAt: string, claimer: ActorRef, weekKey?: string): Promise<Task | null> {
       const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
       if (idx === -1) return null;
-      const updated = buildClaimedTask(this.snapshot.tasks[idx], ownerId, claimedAt, claimer);
+      const updated = buildClaimedTask(this.snapshot.tasks[idx], ownerId, claimedAt, claimer, weekKey);
       if (!updated) return null;
       this.snapshot.tasks[idx] = updated;
       return updated;
@@ -394,6 +394,16 @@ export function PmCoreMixin<T extends Base>(
      * 指派 / 转派（§3，同方法）。写 ownerId + assignReason + assignedBy；**清 claimedAt / partnerMemberId /
      * crossClaimConfirmedBy**（指派非认领 + 换主后旧搭档 / 旧确认失效）。id 不存在 → null（路由转 404）。
      */
+    async linkTaskWeek(taskId: string, weekKey: string, at: string, actor: ActorRef): Promise<Task | null> {
+      const prev = this.snapshot.tasks.find(t => t.id === taskId);
+      if (!prev || prev.ownerId !== actor.id || prev.status === 'done' || prev.status === 'shelved') return null;
+      if (!prev.weekLinks?.some(link => link.weekKey === weekKey)) {
+        prev.weekLinks = [...(prev.weekLinks ?? []), { weekKey, linkedAt: at, linkedBy: actor }];
+        prev.updatedAt = at;
+      }
+      return prev;
+    }
+
     async assignTask(
       taskId: string,
       ownerId: string,

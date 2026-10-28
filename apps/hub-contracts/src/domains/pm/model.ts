@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidWeekKey } from './week.js';
 
 import { ActorRefSchema, isoDateTimeSchema } from '../../common.js';
 
@@ -341,6 +342,12 @@ export const TaskSchema = z.object({
   // §5 学长验收 / 抽查留名（大活 = 必须学长验收留名才算完）。**验收态是派生的**（deriveTaskAcceptance），
   // 不动 TaskStatus 枚举——done 后大活仍显"待验收"徽章，reviewedBy 留名后才 accepted。
   reviewedBy: ActorRefSchema.optional(),
+  reviewedAt: isoDateTimeSchema.optional(),
+  weekLinks: z.array(z.object({
+    weekKey: z.string().refine(isValidWeekKey, { message: 'Invalid ISO week' }),
+    linkedAt: isoDateTimeSchema,
+    linkedBy: ActorRefSchema,
+  })).optional(),
   // §5 验收备注 / 打回理由（reject 时写打回理由；accept 时可空或写抽查备注）。事实卡留名同处。
   reviewNote: z.string().min(1).optional(),
   // ── 状态流转历史（TASK-TIMELINE）────────────────────────────────────────────────────────────
@@ -408,11 +415,11 @@ export type TaskAcceptanceState =
  * `isBig` 由调用方先算（`isBigTask`）传入，避免本函数重复查依赖边（照 deriveGroupsBehind 传 drift 先例）。
  */
 export function deriveTaskAcceptance(
-  task: Pick<Task, 'status' | 'reviewedBy'>,
+  task: Pick<Task, 'status' | 'reviewedBy' | 'weekLinks'>,
   isBig: boolean,
 ): TaskAcceptanceState {
   if (task.status !== 'done') return 'notDone';
-  if (!isBig) return 'selfDone';
+  if (!isBig && !task.weekLinks?.length) return 'selfDone';
   return task.reviewedBy ? 'accepted' : 'awaitingReview';
 }
 

@@ -281,7 +281,8 @@ export interface PmRepository {
    * claimedAt；status `pending`→`inProgress`（有主即开工；非 pending 不动）。`claimer`（TASK-TIMELINE）
    * 给了则随状态提升追加 transition 留名（路由层从名册构造）。id 不存在 → null（→404）。
    */
-  claimTask(taskId: string, ownerId: string, claimedAt: string, claimer: ActorRef): Promise<Task | null>;
+  claimTask(taskId: string, ownerId: string, claimedAt: string, claimer: ActorRef, weekKey?: string): Promise<Task | null>;
+  linkTaskWeek(taskId: string, weekKey: string, at: string, actor: ActorRef): Promise<Task | null>;
 
   /**
    * 指派 / 转派（POST /api/tasks/:id/assign，§3；**同方法**——有主改主 = 转派）：写 ownerId + assignReason +

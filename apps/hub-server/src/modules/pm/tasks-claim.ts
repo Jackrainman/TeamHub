@@ -50,7 +50,8 @@ export function registerTaskClaimRoutes(app: FastifyInstance, deps: TaskRouteDep
       void reply.code(400).send({ detail: '认领必须留名（memberId）' });
       return;
     }
-    const outcome = await service.claimTask(taskId, memberId);
+    if (parsed.weekKey && !request.identity) return reply.code(403).send({ code: 'PM_SESSION_REQUIRED', detail: '请先登录后认领周任务' });
+    const outcome = await service.claimTask(taskId, memberId, parsed.weekKey);
     if (!outcome.ok) {
       void reply.code(outcome.status).send({ detail: outcome.detail });
       return;
@@ -155,7 +156,7 @@ export function registerTaskClaimRoutes(app: FastifyInstance, deps: TaskRouteDep
     if (!actor) return;
     return sendOutcome(
       reply,
-      await service.completeTask(taskId, actor),
+      await service.completeTask(taskId, actor, !!request.identity),
       (updated) => CompleteTaskResponseSchema.parse({ task: updated }),
     );
   });
@@ -167,13 +168,14 @@ export function registerTaskClaimRoutes(app: FastifyInstance, deps: TaskRouteDep
     const actor = requireActor(request, reply, parsed.reviewedBy, '验收必须留名（reviewedBy）');
     if (!actor) return;
     const snapshot = await store.getSnapshot();
-    if (!isGateReviewer(snapshot.members, actor.id)) {
+    const target = snapshot.tasks.find(task => task.id === taskId);
+    if (!target?.weekLinks?.length && !isGateReviewer(snapshot.members, actor.id)) {
       void reply.code(403).send({ detail: '验收权属验收人名单（大三）' });
       return;
     }
     return sendOutcome(
       reply,
-      await service.reviewTask(taskId, actor, parsed.outcome, parsed.note),
+      await service.reviewTask(taskId, actor, parsed.outcome, parsed.note, !!request.identity),
       (updated) => ReviewTaskResponseSchema.parse({ task: updated }),
     );
   });
