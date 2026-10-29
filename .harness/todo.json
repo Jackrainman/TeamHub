@@ -34,16 +34,12 @@
   ],
   "todo": [
     {
-      "id": "CONSOLE-LAZY-BOUNDARIES",
-      "title": "页面及初始化入口懒加载，建立产物加载边界与体积门禁",
-      "tag": "code",
-      "plan": [
-        "基于 Rollup 实际依赖图检查同步闭包，先在现有构建上验证页面泄漏与预算失败",
-        "13 个注册页及初始化向导按需加载；内容区域提供加载反馈、失败提示及刷新恢复，保留导航",
-        "浏览器验证延迟请求、切页、失败恢复；检查公共 API/schema 的残留体积",
-        "更新架构约束、运行 console verify:all 和架构/文档门禁、bump patch、commit+push"
-      ],
-      "dod": "初始同步闭包无业务 Page、初始化向导及 PDF/图编辑重依赖；初始总量与单包预算受构建门禁；13 页切换及失败恢复 E2E 通过"
+      "id": "CONSOLE-SHARED-LOAD-AUDIT",
+      "title": "共享启动依赖后续测量：API/schema、全量文案/样式及 setup 跨 feature 组件边界",
+      "tag": "research",
+      "batch": "later",
+      "note": "2026-10-29 GPT-6.1 Sol 只读审查：api/client.ts 静态组合全部域及响应 schema；i18n/locales 与 main.tsx 样式集中加载。setup/InventoryStep 引 inv/InvPreviewTable、RosterStep 引 settings/RosterPreviewTable、BootstrapGate 引 settings/GroupLeadConfirm，须按架构 §10 收敛组件归属。页面和 setup 已懒加载，现有构建预算限制同步总量；根 barrel 本身不等于 tree-shaking 失效，不因拆包数量盲目重构。",
+      "dod": "按真实产物给出共享模块占比和访问场景；确定公共组件归属与加载方案，保持即时语言切换、样式级联和初始化流程，后续实现必须通过现有包体门禁与浏览器回归"
     },
     {
       "id": "UBUNTU-DEV-ACCEPTANCE",
