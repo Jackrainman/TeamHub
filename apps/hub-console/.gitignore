@@ -6,6 +6,8 @@ dist-ssr
 *.tsbuildinfo
 vite.config.d.ts
 vite.config.js
+build/*.js
+build/*.d.ts
 npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*

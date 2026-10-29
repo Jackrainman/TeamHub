@@ -261,14 +261,14 @@ Route 不允许：读写两个 repository、计算状态、构造领域实体、
 
 ## 10. Console 统一规则
 
-- 页面只消费 `useXxx()` hooks；裸 `useQuery/useMutation` 只允许在 `features/<domain>/hooks.ts` 或平台
-  bootstrap hook 中出现。
+- 页面只消费 `useXxx()` hooks；裸 `useQuery/useMutation` 只允许在 `features/<domain>/hooks.ts` 或平台 bootstrap hook 中出现。
+- 页面注册表及初始化入口使用 lazy；Suspense/错误边界只包内容，加载失败保留导航并提供刷新恢复。生产构建禁止同步依赖图包含业务 Page、初始化向导或 PDF/图编辑重依赖。
 - 一个 module 一个 API segment；`HubApiClient` 只负责组合，不再有 `domain.ts/system-pm.ts` 这类多域段。
 - query key 必须由 `queryKeys.<domain>.*` 工厂生成；失效集合由本域 hook 定义。
 - Mutation 错误统一走全局 toast；表单需要逐字段错误时由本域 hook 返回结构化错误。
 - 跨 feature 业务 import 禁止；跨域导航通过 typed navigation intent，跨域数据通过 API/use case。
 - `shared/` 只放真正通用 UI 和无业务纯函数；领域组件不得从 Page 文件导出。
-- 每页一个明确主角；设计语言、token、按钮、卡片、空态继续沿现有规范。
+- 每页一个明确主角；设计语言、token、按钮、卡片、空态继续沿现有规范。`build/bundle-budget.ts` 检查最终同步闭包（含 vendor）UTF-8 ≤600 kB、gzip ≤180 kB、各 JS chunk ≤500 kB；`dist/bundle-report.json` 留存计量，E2E 核对落盘字节及切页请求时机，禁止仅提高警告阈值。
 
 ## 11. 文件导入与导出基础设施
 

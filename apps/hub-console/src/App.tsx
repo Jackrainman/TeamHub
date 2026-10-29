@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { lazy, useMemo, useRef, useState } from 'react';
 import { RefreshCw, X } from 'lucide-react';
 import type { AppSettings, VerticalId } from '@teamhub/hub-contracts';
 import { createHubApiClient, type HubApiClient } from './api/client';
@@ -19,10 +19,12 @@ import { APIBASE_KEY, SETUP_LANDING_KEY, WRITE_TOKEN_KEY } from './constants';
 import { IdentityBar } from './features/identity/IdentityBar';
 import { LoginGate } from './features/identity/LoginGate';
 import { ForcePinGate } from './features/identity/ForcePinGate';
-import { SetupWizard } from './features/setup/SetupWizard';
-import { BootstrapGate } from './features/setup/BootstrapGate';
+import { PageBoundary } from './shared/PageBoundary';
 import { ChecklistQuickRecord } from './features/checklist';
 import { canWriteIdentity, identityCacheKey } from './shared/lib/identity-utils';
+
+const SetupWizard = lazy(() => import('./features/setup/SetupWizard').then(m => ({ default: m.SetupWizard })));
+const BootstrapGate = lazy(() => import('./features/setup/BootstrapGate').then(m => ({ default: m.BootstrapGate })));
 // 单一真实后端：queryKey 维度保留稳定常量（曾区分 mock/real，现恒为 real），
 // 避免改动各页 queryKey 形状。
 const SOURCE = 'real';
@@ -70,7 +72,7 @@ export function App() {
     return <SetupStateUnavailable onRetry={() => void setupQuery.refetch()} />;
   }
   if (!setupQuery.data.initialized) {
-    return <SetupWizard client={apiClient} state={setupQuery.data} />;
+    return <PageBoundary key="setup"><SetupWizard client={apiClient} state={setupQuery.data} /></PageBoundary>;
   }
   configureVerticalVocabulary(setupQuery.data.settings.verticalId);
   return <ConsoleApp apiClient={apiClient} settings={setupQuery.data.settings} />;
@@ -158,7 +160,7 @@ function ConsoleApp({ apiClient, settings }: { apiClient: HubApiClient; settings
   if (gateConditionMet) gateShownRef.current = true;
   const needsBootstrapGate = gateConditionMet || (gateShownRef.current && !gateDone);
   if (needsBootstrapGate) {
-    return <BootstrapGate client={apiClient} onDone={() => { gateShownRef.current = false; setGateDone(true); }} />;
+    return <PageBoundary key="bootstrap"><BootstrapGate client={apiClient} onDone={() => { gateShownRef.current = false; setGateDone(true); }} /></PageBoundary>;
   }
 
   // AUTH-GATE 公网加固：身份模式下未登录 → 整屏登录闸（看不到任何业务页；服务端读闸 401 兜底）；
@@ -262,7 +264,7 @@ function ConsoleApp({ apiClient, settings }: { apiClient: HubApiClient; settings
         </div>
       ) : null}
       {activePage ? (
-        activePage.render(renderCtx)
+        <PageBoundary key={activePage.key}>{activePage.render(renderCtx)}</PageBoundary>
       ) : disabledPage ? (
         <div className="state-band state-band-error" role="alert">
           {t('module.disabled.message')}

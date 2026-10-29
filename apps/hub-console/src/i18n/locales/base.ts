@@ -1,4 +1,7 @@
 export const zhBase = {
+  'page.loading': '正在加载页面…',
+  'page.loadFailed': '页面暂时无法打开。请检查网络后刷新，也可以先切换到其他页面。',
+  'page.reload': '刷新页面',
   'common.close': '关闭',
   'common.confirmDiscard': '有未保存内容，确定放弃？',
   'common.fieldRequired': '此项必填',
@@ -104,6 +107,9 @@ export const zhBase = {
 };
 
 export const enBase = {
+  'page.loading': 'Loading page…',
+  'page.loadFailed': 'This page could not be opened. Check your connection and reload, or switch to another page.',
+  'page.reload': 'Reload page',
   'common.close': 'Close',
   'common.confirmDiscard': 'You have unsaved content. Discard it?',
   'common.fieldRequired': 'This field is required',

@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import { lazy, type ReactElement } from 'react';
 import {
   Activity,
   MessageSquare,
@@ -19,19 +19,21 @@ import { isModuleEnabled } from '@teamhub/hub-contracts';
 import type { HubApiClient } from './api/client';
 import type { OverviewSnapshot } from './features/system/api';
 import type { TranslationKey } from './i18n';
-import { OverviewPage } from './features/overview/OverviewPage';
-import { TeamFeedPage } from './features/workbench/TeamFeedPage';
-import { WorkbenchPage } from './features/workbench/WorkbenchPage';
-import { SchedulePage } from './features/schedule/SchedulePage';
-import { ResourcesPage } from './features/resources/ResourcesPage';
-import { ProjectPage } from './features/project/ProjectPage';
-import { KbSearchPage } from './features/kb/KbSearchPage';
-import { ArchivePage } from './features/archive/ArchivePage';
-import { InvPage } from './features/inv/InvPage';
-import { ReimbursePage } from './features/reimburse';
-import { DirectionPage } from './features/direction/DirectionPage';
-import { TimelineEditorPage } from './features/timeline/TimelineEditorPage';
-import { SettingsPage } from './features/settings/SettingsPage';
+
+// 注册表只持有页面加载器；导航和模块过滤不能提前下载业务页面。
+const OverviewPage = lazy(() => import('./features/overview/OverviewPage').then(m => ({ default: m.OverviewPage })));
+const TeamFeedPage = lazy(() => import('./features/workbench/TeamFeedPage').then(m => ({ default: m.TeamFeedPage })));
+const WorkbenchPage = lazy(() => import('./features/workbench/WorkbenchPage').then(m => ({ default: m.WorkbenchPage })));
+const SchedulePage = lazy(() => import('./features/schedule/SchedulePage').then(m => ({ default: m.SchedulePage })));
+const ResourcesPage = lazy(() => import('./features/resources/ResourcesPage').then(m => ({ default: m.ResourcesPage })));
+const ProjectPage = lazy(() => import('./features/project/ProjectPage').then(m => ({ default: m.ProjectPage })));
+const KbSearchPage = lazy(() => import('./features/kb/KbSearchPage').then(m => ({ default: m.KbSearchPage })));
+const ArchivePage = lazy(() => import('./features/archive/ArchivePage').then(m => ({ default: m.ArchivePage })));
+const InvPage = lazy(() => import('./features/inv/InvPage').then(m => ({ default: m.InvPage })));
+const ReimbursePage = lazy(() => import('./features/reimburse/ReimbursePage').then(m => ({ default: m.ReimbursePage })));
+const DirectionPage = lazy(() => import('./features/direction/DirectionPage').then(m => ({ default: m.DirectionPage })));
+const TimelineEditorPage = lazy(() => import('./features/timeline/TimelineEditorPage').then(m => ({ default: m.TimelineEditorPage })));
+const SettingsPage = lazy(() => import('./features/settings/SettingsPage').then(m => ({ default: m.SettingsPage })));
 
 /**
  * 页面注册表：加一页只改 `CONSOLE_PAGES` 这一个数组（目标 registry 见

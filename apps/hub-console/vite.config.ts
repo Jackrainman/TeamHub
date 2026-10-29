@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
+import { bundleBudgetPlugin } from './build/bundle-budget';
 
 // 本地开发：console(5174) 通过 proxy 把 /api 与 /health 转到本地 hub-server(4177)，
 // 真实模式用相对路径同源访问、免 CORS；与开发服务共享 HUB_PORT。
@@ -51,12 +52,12 @@ function pdfjsAssetsPlugin(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), pdfjsAssetsPlugin()],
+  plugins: [react(), pdfjsAssetsPlugin(), bundleBudgetPlugin()],
   build: {
     rollupOptions: {
       output: {
-        // 入口 chunk 曾超 500kB 触发 vite 警告：把稳定的框架层拆出去，业务代码更新时
-        // 用户浏览器还能命中 vendor 缓存。@xyflow 不在此列——它只被懒加载的依赖图页
+        // 稳定框架独立缓存，业务页面按需加载；首屏总量由 bundleBudgetPlugin 检查。
+        // @xyflow 不在此列——它只被懒加载的依赖图页
         // 消费，留在那个按需 chunk 里。
         manualChunks: {
           'vendor-react': ['react', 'react-dom'],
