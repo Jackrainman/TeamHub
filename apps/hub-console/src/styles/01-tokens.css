@@ -45,18 +45,19 @@
   --motion-grow: 480ms cubic-bezier(0.22, 1, 0.36, 1);
   /* 尺度 token（设计系统刻度，2026-06-23 视觉一致性收口）——字号/字重/圆角/间距统一刻度，
      全站消费 var(--*)；刻度与主题无关，故 warm 不覆盖这些槽，只覆盖颜色。 */
-  --text-2xs: 10px;
-  --text-xs: 11px;
-  --text-sm: 12px;
-  --text-base: 13px;
-  --text-md: 15px;
-  --text-lg: 20px;
-  --text-xl: 24px;
-  --text-2xl: 28px; /* 2026-06-23 批次C：总览/看板指标数字放大档（原顶到 lg=20，数字与标签权重相近）。 */
+  --fs-scale: 1;
+  --text-2xs: calc(11px * var(--fs-scale));
+  --text-xs: calc(12px * var(--fs-scale));
+  --text-sm: calc(13px * var(--fs-scale));
+  --text-base: calc(14px * var(--fs-scale));
+  --text-md: calc(16px * var(--fs-scale));
+  --text-lg: calc(20px * var(--fs-scale));
+  --text-xl: calc(24px * var(--fs-scale));
+  --text-2xl: calc(28px * var(--fs-scale)); /* 2026-06-23 批次C：总览/看板指标数字放大档（原顶到 lg=20，数字与标签权重相近）。 */
   /* VISUAL-VITALITY V0 展示两档（visual-vitality.md §2.1）：3xl=页题（V2 接管），
      display=指标数字/倒计时专用（每屏 ≤2 处，防层级通胀）。 */
-  --text-3xl: 34px;
-  --text-display: 44px;
+  --text-3xl: calc(30px * var(--fs-scale));
+  --text-display: calc(44px * var(--fs-scale));
   --weight-normal: 400;
   --weight-medium: 600;
   --weight-bold: 700;
@@ -124,37 +125,34 @@
    accent 文字的徽章/软提示）。dep-graph 连线色已是 var() 自动随动；ReactFlow <Background> 点阵色走 JS
    （DepGraphPage 按主题取值，SVG fill 不吃 var）。少数「亮 accent 实底 + 白字」按钮在末尾把字反成近黑。 */
 :root[data-theme='dark'] {
-  --page-bg: #0f1411;
-  --surface: #171f1b;
-  --surface-muted: #131a16;
-  --surface-raised: #1e2723;
-  --text: #e7eeea;
-  --muted: #a6b2ac;
-  --faint: #8b958f;
-  --border: #2c3832;
-  --border-strong: #3e4d45;
-  --sidebar-bg: #0b0f0d;
-  --sidebar-text: #e7eeea;
+  --page-bg: #0e141b;
+  --surface: #151d26;
+  --surface-muted: #101720;
+  --surface-raised: #1c2631;
+  --text: #edf2f7;
+  --muted: #91a0b0;
+  --faint: #91a0b0;
+  --border: #2a3643;
+  --border-strong: #486078;
+  --sidebar-bg: #0b1117;
+  --sidebar-text: #edf2f7;
+  --sidebar-text-muted: #91a0b0;
   --font-title: inherit;
-  --shadow: 0 14px 32px rgba(0, 0, 0, 0.5);
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.45);
-  --shadow-md: 0 14px 32px rgba(0, 0, 0, 0.5);
-  --green: #4cba85;
-  --green-soft: #182c22;
-  --amber: #d6a24f;
-  --amber-soft: #2f2614;
-  --red: #ef8b84;
-  --red-soft: #36211f;
-  --blue: #66a8df;
-  --blue-soft: #16293a;
+  --accent: #3987e5;
+  --blue: #6da7ec;
+  --blue-soft: #192b3d;
+  --green: #5acb96;
+  --green-soft: #162c24;
+  --amber: #fab219;
+  --amber-soft: #302719;
+  --red: #f08f91;
+  --red-soft: #251a1e;
+  --shadow: 0 8px 24px rgba(0,0,0,.14);
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.12);
+  --shadow-sm: 0 4px 14px rgba(0,0,0,.14);
+  --shadow-md: 0 18px 50px rgba(0,0,0,.3);
 }
-/* 亮 accent 实底按钮在暗色下把白字反成近黑（亮底白字对比不足）。primary 禁用态另有 surface-muted/faint，故排除。 */
-:root[data-theme='dark'] .brand-mark,
-:root[data-theme='dark'] .btn--primary:not(:disabled),
-:root[data-theme='dark'] .badge--alert {
-  color: #10140f;
-}
+:root[data-theme='dark'] .btn--primary:not(:disabled) { background: var(--accent); color: var(--text); }
 
 /* ===== 科技「遥测台」（tech，D1）——第 4 套主题 · 深色旗舰 · 默认 =====
    取材=Robocon 战队真实世界：示波器屏 / EDA 深色工作台 / 图纸蓝图 / 遥测 HUD。
@@ -336,7 +334,6 @@
 :root[data-theme='tech'] .baseline-countdown__num,
 :root[data-theme='tech'] .baseline-countdown__meta,
 :root[data-theme='tech'] .data-row__time,
-:root[data-theme='tech'] .pm-column__count,
 :root[data-theme='tech'] .kb-result-count,
 :root[data-theme='tech'] .archive-version-preview,
 :root[data-theme='tech'] .baseline-seg__label,
@@ -352,7 +349,6 @@
 
 /* 亮 accent 实底按钮/徽章在 tech 下把字反成深墨青（亮 cyan/green/red 底 + 白字对比不足）。
    同 dark 先例的四选择器；深字 #05242C 对 cyan≈9.0:1 / green≈8.4:1 / red≈5.9:1 均达标。 */
-:root[data-theme='tech'] .brand-mark,
 :root[data-theme='tech'] .btn--primary:not(:disabled),
 :root[data-theme='tech'] .badge--alert {
   color: #05242c;

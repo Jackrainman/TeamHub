@@ -1,9 +1,7 @@
-import { useRef } from 'react';
 import { Archive, CheckCircle2 } from 'lucide-react';
 import type { IssueSeverity, ArchiveGeneratedBy } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
-import type { KbCloseoutRequest } from '@teamhub/hub-contracts';
-import { useHubMutation } from '../../hooks/useHubMutation';
+import { useKbCloseout } from './hooks';
 import { useI18n, type TranslationKey } from '../../i18n';
 import { parseList } from '../../utils';
 import { useForm } from '../../hooks/useForm';
@@ -31,7 +29,6 @@ const GENERATED_BY_KEY: Record<ArchiveGeneratedBy, TranslationKey> = {
 
 interface KbFormFields {
   title: string;
-  projectId: string;
   symptom: string;
   severity: IssueSeverity;
   tags: string;
@@ -45,21 +42,19 @@ interface KbFormFields {
 export function KbCloseoutForm({
   client,
   source,
-  initialSymptom,
+  initialSymptom, projectId,
 }: {
   client: HubApiClient;
   source: string;
-  initialSymptom?: string;
+  initialSymptom?: string; projectId: string;
 }) {
   const { t } = useI18n();
-  const seqRef = useRef(0);
 
   const required = (v: string) => (v.trim() ? null : t('common.fieldRequired'));
 
   const form = useForm<KbFormFields>({
     fields: {
       title: { initial: '', validate: required },
-      projectId: { initial: '', sticky: true, validate: required },
       symptom: { initial: initialSymptom ?? '', validate: required },
       severity: { initial: 'medium' as IssueSeverity, sticky: true },
       tags: { initial: '', sticky: true },
@@ -69,16 +64,12 @@ export function KbCloseoutForm({
       prevention: { initial: '' },
       generatedBy: { initial: 'manual' as ArchiveGeneratedBy, sticky: true },
     },
-    valid: (v) => Boolean(v.title.trim() && v.projectId.trim() && v.symptom.trim() && v.rootCause.trim() && v.resolution.trim()),
+    valid: (v) => Boolean(v.title.trim() && projectId.trim() && v.symptom.trim() && v.rootCause.trim() && v.resolution.trim()),
   });
 
-  const mutation = useHubMutation({
-    invalidateKeys: [['kb-similar', source]],
-    mutationFn: (req: KbCloseoutRequest) => client.closeoutKb(req),
-    onSuccess: () => form.resetAfterSubmit(),
-  });
+  const mutation = useKbCloseout(client, source, () => form.resetAfterSubmit());
 
-  const { title, projectId, symptom, severity, tags, category, rootCause, resolution, prevention, generatedBy } = form.values;
+  const { title, symptom, severity, tags, category, rootCause, resolution, prevention, generatedBy } = form.values;
 
   return (
     <form
@@ -86,10 +77,9 @@ export function KbCloseoutForm({
       onSubmit={form.handleSubmit(() => {
         const now = new Date().toISOString();
         const trimmedSymptom = symptom.trim();
-        seqRef.current += 1;
         mutation.mutate({
           issue: {
-            id: `iss-web-${now.slice(0, 10)}-${seqRef.current}`,
+            id: `iss-web-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`,
             projectId: projectId.trim(),
             title: title.trim(),
             rawInput: trimmedSymptom,
@@ -119,6 +109,7 @@ export function KbCloseoutForm({
       <FormGrid>
         <Field
           label={t('kb.closeout.field.title')}
+          className="span-all"
           required
           error={form.errors.title}
         >
@@ -128,20 +119,6 @@ export function KbCloseoutForm({
             onBlur={() => form.touch('title')}
             aria-required
           />
-        </Field>
-        <Field
-          label={t('kb.closeout.field.projectId')}
-          required
-          error={form.errors.projectId}
-        >
-          <input
-            value={projectId}
-            onChange={(e) => form.set('projectId', e.target.value)}
-            onBlur={() => form.touch('projectId')}
-            placeholder={t('kb.closeout.field.projectId.placeholder')}
-            aria-required
-          />
-          <span className="kb-field__hint">{t('kb.closeout.field.projectId.hint')}</span>
         </Field>
       </FormGrid>
       <Field

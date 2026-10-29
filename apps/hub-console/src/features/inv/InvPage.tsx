@@ -1,3 +1,7 @@
+import { useState } from 'react';
+import { Plus, ArrowDownUp, Upload } from 'lucide-react';
+import { SideDrawer } from '../../components/SideDrawer';
+import { queryKeys } from '../../api/queryKeys';
 import { useQueryClient } from '@tanstack/react-query';
 import { EmptyState } from '../../shared/EmptyState';
 import { useQueryGuard } from '../../shared/QueryGate';
@@ -13,7 +17,7 @@ import { InvImportSection } from './sub/InvImportSection';
 
 const IDLE_HOLDER = 'idle';
 
-const DEFAULT_PROJECT_ID = 'prj-robots';
+
 
 const KIND_KEY: Record<PartActionKind, TranslationKey> = {
   stocktake: 'inv.kind.stocktake',
@@ -85,12 +89,16 @@ function ActionHistory({
 
 export function InvPage({
   client,
-  source,
+  source, projectId,
 }: {
   client: HubApiClient;
-  source: string;
+  source: string; projectId: string;
 }) {
   const { t } = useI18n();
+  const [drawer, setDrawer] = useState<'create' | 'record' | 'import' | null>(null);
+  const [recordPart, setRecordPart] = useState<string>();
+  const [recordKind, setRecordKind] = useState<PartActionKind>('restock');
+  const [search, setSearch] = useState('');
   const queryClient = useQueryClient();
   const query = useInventory(client, source);
 
@@ -110,7 +118,7 @@ export function InvPage({
   ];
 
   const refresh = () =>
-    void queryClient.invalidateQueries({ queryKey: ['inventory', source] });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.inventory(source) });
 
   return (
     <div className="inv-page">
@@ -125,24 +133,21 @@ export function InvPage({
         />
       </section>
 
-      <CreatePartTypeForm
-        client={client}
-        source={source}
-        defaultProjectId={partTypes[0]?.projectId ?? DEFAULT_PROJECT_ID}
-      />
-
-      <InvImportSection client={client} onImported={refresh} />
-
-      <InvQuickRecordForm
-        client={client}
-        source={source}
-        partTypes={partTypes}
-        holderOptions={holderOptions}
-      />
+      <div className="domain-actions">
+        <div className="gate-field domain-search"><input type="search" aria-label={t('expected.inventorySearch')} placeholder={t('expected.inventorySearch')} value={search} onChange={event => setSearch(event.target.value)} /></div>
+        <button className="btn btn--primary" onClick={() => setDrawer('create')}><Plus size={16} />{t('expected.inventoryNew')}</button>
+        <button className="btn btn--secondary" onClick={() => { setRecordPart(undefined); setRecordKind('restock'); setDrawer('record'); }}><ArrowDownUp size={16} />{t('expected.inventoryRecord')}</button>
+        <button className="btn btn--secondary" onClick={() => setDrawer('import')}><Upload size={16} />{t('expected.inventoryImport')}</button>
+      </div>
+      <SideDrawer open={drawer !== null} onClose={() => setDrawer(null)} title={t(drawer === 'create' ? 'expected.inventoryNew' : drawer === 'import' ? 'expected.inventoryImport' : 'expected.inventoryRecord')}>
+        {drawer === 'create' && <CreatePartTypeForm client={client} source={source} defaultProjectId={projectId} onDone={() => setDrawer(null)} />}
+        {drawer === 'import' && <InvImportSection client={client} onImported={refresh} />}
+        {drawer === 'record' && <InvQuickRecordForm client={client} source={source} partTypes={partTypes} holderOptions={holderOptions} initialPartTypeId={recordPart} initialKind={recordKind} onDone={() => setDrawer(null)} />}
+      </SideDrawer>
 
       <section className="panel" aria-label={t('inv.ledger.title')}>
         <h2 className="inv-section-title">{t('inv.ledger.title')}</h2>
-        <InvLedgerTable ledger={ledger} shortfallIds={shortfallIds} actions={gate.data.actions} />
+        <InvLedgerTable ledger={ledger.filter(row => (row.partType.name + ' ' + row.partType.partNumber).toLowerCase().includes(search.trim().toLowerCase()))} shortfallIds={shortfallIds} actions={gate.data.actions} onRecord={(id, kind) => { setRecordPart(id); setRecordKind(kind); setDrawer('record'); }} />
       </section>
 
       <ActionHistory

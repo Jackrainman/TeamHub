@@ -1,80 +1,37 @@
 import { useState, type FormEvent } from 'react';
-import { Info, Search, Archive } from 'lucide-react';
+import { Info, Search, Archive, BookOpen } from 'lucide-react';
 import type { SimilarIssueMatch } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useKbSimilar } from './hooks';
 import { useI18n, type TranslationKey } from '../../i18n';
-import { segClass } from '../../utils';
+import { SideDrawer } from '../../components/SideDrawer';
 import { Field } from '../../components/Field';
 import { MetaRow } from '../../components/MetaRow';
 import { KbCloseoutForm } from './KbCloseoutForm';
 
-type KbTab = 'search' | 'closeout';
 
-// KB 页：两个标签——相似检索（读）/ 结案归档（写）。两者同属一支柱「战队知识库」。
+
+// 相似检索保持在主页面，记录详情与结案归档在抽屉中完成。
 export function KbSearchPage({
   client,
   source,
+  projectId,
 }: {
   client: HubApiClient;
   source: string;
+  projectId: string;
 }) {
   const { t } = useI18n();
-  const [tab, setTab] = useState<KbTab>('search');
+  const [tab, setTab] = useState<'search' | 'closeout'>('search');
   // 「去归档」带过去的症状文字（仅供 KbCloseoutForm 首挂载取用一次）。
   const [closeoutSymptom, setCloseoutSymptom] = useState<string | undefined>(undefined);
   return (
     <div className="kb-page">
-      <div className="seg kb-tabs" role="tablist" aria-label={t('toolbar.title.kb')}>
-        <button
-          type="button"
-          role="tab"
-          id="kb-tab-search-btn"
-          aria-selected={tab === 'search'}
-          aria-controls="kb-tab-search"
-          className={segClass(tab === 'search')}
-          onClick={() => setTab('search')}
-        >
-          <Search size={14} aria-hidden="true" /> {t('kb.tab.search')}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="kb-tab-closeout-btn"
-          aria-selected={tab === 'closeout'}
-          aria-controls="kb-tab-closeout"
-          className={segClass(tab === 'closeout')}
-          onClick={() => setTab('closeout')}
-        >
-          <Archive size={14} aria-hidden="true" /> {t('kb.tab.closeout')}
-        </button>
-      </div>
-      {tab === 'search' ? (
-        <div
-          role="tabpanel"
-          id="kb-tab-search"
-          aria-labelledby="kb-tab-search-btn"
-          tabIndex={0}
-        >
-          <KbSearchPanel
-            client={client}
-            source={source}
-            onGoToCloseout={(symptom) => {
-              setCloseoutSymptom(symptom);
-              setTab('closeout');
-            }}
-          />
-        </div>
-      ) : (
-        <div
-          role="tabpanel"
-          id="kb-tab-closeout"
-          aria-labelledby="kb-tab-closeout-btn"
-          tabIndex={0}
-        >
-          <KbCloseoutForm client={client} source={source} initialSymptom={closeoutSymptom} />
-        </div>
-      )}
+      <div className="domain-actions"><p className="expected-page-hint">{t('expected.kbHint')}</p><button className="btn btn--primary" onClick={() => setTab('closeout')}><Archive size={16} />{t('expected.kbNew')}</button></div>
+      <KbSearchPanel client={client} source={source} onGoToCloseout={symptom => { setCloseoutSymptom(symptom); setTab('closeout'); }} />
+      <SideDrawer open={tab === 'closeout'} onClose={() => setTab('search')} title={t('expected.kbNew')}>
+        <KbCloseoutForm client={client} source={source} projectId={projectId} initialSymptom={closeoutSymptom} />
+      </SideDrawer>
     </div>
   );
 }
@@ -115,6 +72,7 @@ function KbSearchPanel({
   const { t } = useI18n();
   const [symptomInput, setSymptomInput] = useState('');
   const [tagsInput, setTagsInput] = useState('');
+  const [selected, setSelected] = useState<SimilarIssueMatch | null>(null);
   const [submitted, setSubmitted] = useState<SubmittedQuery | null>(null);
 
   const query = useKbSimilar(client, source, submitted);
@@ -132,13 +90,12 @@ function KbSearchPanel({
 
   return (
     <div className="kb-search-panel">
-      <form className="panel panel--hero kb-search-form" onSubmit={handleSubmit}>
+      <form className="kb-search-form" onSubmit={handleSubmit}>
         <Field label={t('kb.search.symptomLabel')}>
-          <textarea
+          <input
             value={symptomInput}
             onChange={(event) => setSymptomInput(event.target.value)}
             placeholder={t('kb.search.symptomPlaceholder')}
-            rows={3}
           />
         </Field>
         <Field label={t('kb.search.tagsLabel')}>
@@ -189,13 +146,14 @@ function KbSearchPanel({
               </p>
               <div className="kb-card-list">
                 {query.data.items.map((item) => (
-                  <KbResultCard item={item} key={item.issueId} />
+                  <article className="card card--interactive kb-result-preview" key={item.issueId}><span className="badge"><BookOpen size={14} />{t(KB_STATUS_KEY[item.status])}</span><button className="kb-result-open" onClick={() => setSelected(item)}><h2>{item.title}</h2><p>{item.rootCauseSummary || item.resolutionSummary}</p></button><footer>{item.tags.join(' / ')}</footer></article>
                 ))}
               </div>
             </>
           )}
         </section>
       )}
+      <SideDrawer open={!!selected} onClose={() => setSelected(null)} title={selected?.title ?? t('expected.kbDetail')}>{selected && <KbResultCard item={selected} />}</SideDrawer>
     </div>
   );
 }

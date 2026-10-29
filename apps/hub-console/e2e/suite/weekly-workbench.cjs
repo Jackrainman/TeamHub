@@ -82,7 +82,7 @@ const assert = require('node:assert/strict');
     browser = await chromium.launch({ channel: process.env.E2E_BROWSER_CHANNEL || undefined });
     const pageA = await memberPage(a);
     const pageB = await memberPage(b);
-    await pageA.getByRole('heading', { name: '本周工作台', exact: true }).waitFor();
+    await pageA.getByRole('heading', { name: '本周执行台', exact: true }).waitFor();
     await pageA.getByRole('tab', { name: '已完成', exact: true }).click();
     await capture(pageA, 'empty-current');
     await pageA.getByRole('tab', { name: '进行中', exact: true }).click();
@@ -103,14 +103,14 @@ const assert = require('node:assert/strict');
     await card.getByText('待验收', { exact: true }).waitFor();
     await capture(pageA, 'awaiting-review');
     await card.getByRole('button', { name: '查看详情', exact: true }).click();
-    assert.equal(await pageA.getByRole('button', { name: '验收通过', exact: true }).isDisabled(), true);
+    assert.equal(await pageA.getByRole('dialog').getByRole('button', { name: '验收通过', exact: true }).isDisabled(), true);
     await pageA.getByRole('button', { name: '关闭', exact: true }).click();
 
     await pageB.reload({ waitUntil: 'networkidle' });
     await pageB.getByRole('button', { name: '全队', exact: true }).click();
     await pageB.getByRole('tab', { name: '已完成', exact: true }).click();
     await pageB.locator('.week-task').filter({ hasText: '浏览器周任务闭环' }).getByRole('button', { name: '查看详情' }).click();
-    await pageB.getByRole('button', { name: '验收通过', exact: true }).click();
+    await pageB.getByRole('dialog').getByRole('button', { name: '验收通过', exact: true }).click();
     await pageB.locator('.week-task').filter({ hasText: '浏览器周任务闭环' }).getByText('已验收', { exact: true }).waitFor();
     await pageB.getByRole('button', { name: '关闭', exact: true }).click();
     await capture(pageB, 'accepted-team');
@@ -145,6 +145,7 @@ const assert = require('node:assert/strict');
       }
     }
     await pageA.evaluate(() => document.documentElement.dataset.theme = 'notion');
+    await pageA.getByRole('button', { name: '更多工作区', exact: true }).click();
     await pageA.locator('.console-sidebar').getByRole('button', { name: '总览', exact: true }).click();
     await pageA.locator('.overview-season').waitFor();
     assert.equal(await pageA.locator('.workbench-progress-strip').count(), 1);

@@ -1,3 +1,4 @@
+import { AppearancePreferences } from './components/AppearancePreferences';
 import type { HubApiClient } from '../../api/client';
 import type { OverviewView, PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
@@ -31,6 +32,7 @@ export function SettingsPage({
 
   return (
     <div className="settings-page">
+      <AppearancePreferences />
       <IdentitySection identity={identity} />
 
       <section className="panel settings-panel">

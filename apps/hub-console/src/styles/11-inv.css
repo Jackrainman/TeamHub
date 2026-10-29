@@ -132,3 +132,6 @@
   color: var(--blue);
   cursor: help;
 }
+.inv-page .inv-summary { display: flex; gap: var(--space-5); }
+.inv-page .inv-summary .metric-tile { box-shadow: none; background: none; border: 0; padding: 0; }
+.inv-page .inv-row-actions { margin-bottom: 0; flex-wrap: nowrap; }

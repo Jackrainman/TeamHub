@@ -37,6 +37,12 @@
   align-items: center;
   gap: 10px;
 }
+.settings-actions > .btn { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
+@media (max-width: 700px) {
+  .settings-page .adapter-row { flex-wrap: wrap; }
+  .settings-member__controls { flex-wrap: wrap; flex-shrink: 1; gap: var(--space-2); }
+  .settings-page .seg { flex-wrap: wrap; }
+}
 
 /* 成员与权限行（K1 + 刀⑧）：角色下拉 + 项目管理开关 + 验收人只读徽标 + PIN 操作并排靠右
    （adapter-row 第二列，不参与名字块的收缩）。 */

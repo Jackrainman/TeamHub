@@ -1,4 +1,6 @@
 export const queryKeys = {
+  globalSearch: (query: string) => ['global-search', query] as const,
+  allKbSimilar: (source: string) => ['kb-similar', source] as const,
   allTasks: () => ['tasks'] as const,
   allDepGraphs: () => ['dep-graph'] as const,
   tasks: (source: string) => ['tasks', source] as const,

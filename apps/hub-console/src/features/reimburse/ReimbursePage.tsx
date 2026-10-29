@@ -1,6 +1,8 @@
-import { ReceiptText, Settings2 } from 'lucide-react';
-import { useState } from 'react';
-import { DEFAULT_REIMBURSE_PROFILE } from '@teamhub/hub-contracts';
+import { ReimburseTable } from './components/ReimburseTable';
+import { formatAmountFen, type EntryDraft } from './reimburse-utils';
+import { ReceiptText, Settings2, Plus, Upload } from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { DEFAULT_REIMBURSE_PROFILE, deriveReimburseStatus, type ReimburseEntryStatus } from '@teamhub/hub-contracts';
 import { EmptyState } from '../../shared/EmptyState';
 import { useQueryGuard } from '../../shared/QueryGate';
 import { SideDrawer } from '../../components/SideDrawer';
@@ -60,10 +62,21 @@ export function ReimbursePage({
   // 窄上下文失败只隐藏入库区，不拖垮报销页本体。
   const stockInContextQuery = useReimburseStockInContext(client, source, entriesEnabled);
   // 管理员抽屉（批次 + 购买方校验标准）：默认收起，主页面只留「我的条目」动线。
+  const [entryId, setEntryId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importPaused, setImportPaused] = useState(false);
+  const [reviewDraft, setReviewDraft] = useState<{ jobId: number; draft: EntryDraft } | null>(null);
+  const [filter, setFilter] = useState<ReimburseEntryStatus | 'all'>('all');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [adminOpen, setAdminOpen] = useState(false);
 
   // 发票本地解析、失败通知与待确认队列由本域 controller 统一编排。
   const importController = useReimburseImportController();
+  const currentJobId = importController.currentJobId;
+  const rememberReviewDraft = useCallback((draft: EntryDraft) => {
+    if (currentJobId !== null) setReviewDraft({ jobId: currentJobId, draft });
+  }, [currentJobId]);
 
   if (identity.isLoading) {
     return (
@@ -100,10 +113,15 @@ export function ReimbursePage({
     profile.expectedPurchaserName === DEFAULT_REIMBURSE_PROFILE.expectedPurchaserName &&
     profile.expectedPurchaserTaxNo === DEFAULT_REIMBURSE_PROFILE.expectedPurchaserTaxNo;
 
+  const selectedEntry = entries.find(entry => entry.id === entryId);
+  const selectedEntries = entries.filter(entry => selectedIds.includes(entry.id));
+  const visible = entries.filter(entry => filter === 'all' || deriveReimburseStatus(entry) === filter);
   return (
     <div className="reimb-page">
       <div className="reimb-page__head">
         <p className="gaps-intro">{t('reimb.intro')}</p>
+        <button className="btn btn--secondary" onClick={() => setImportOpen(true)} disabled={!identity.canWrite}><Upload size={16} />{t('expected.reimburseImport')}</button>
+        <button className="btn btn--primary" onClick={() => importController.currentJobId !== null ? setImportPaused(false) : setCreateOpen(true)} disabled={!identity.canWrite}><Plus size={16} />{t('expected.reimburseNew')}</button>
         {isSuperAdmin ? (
           <button
             type="button"
@@ -120,7 +138,9 @@ export function ReimbursePage({
         </p>
       ) : null}
 
-      <ReimburseImportZone onFiles={importController.importFiles} busy={importController.parsing} />
+      <SideDrawer open={importOpen} onClose={() => setImportOpen(false)} title={t('expected.reimburseImport')}>
+        <ReimburseImportZone onFiles={files => { setImportPaused(false); void importController.importFiles(files); setImportOpen(false); }} busy={importController.parsing} />
+      </SideDrawer>
       {importController.fails.length > 0 ? (
         <ul className="reimb-import__notices">
           {importController.fails.map((fail) => (
@@ -143,6 +163,8 @@ export function ReimbursePage({
         </p>
       ) : null}
 
+      {importPaused && importController.currentJobId !== null && <div className="domain-actions"><button className="btn btn--secondary btn--sm" onClick={() => setImportPaused(false)}>{t('expected.resumeImport')}</button></div>}
+      <SideDrawer open={createOpen || (importController.currentJobId !== null && !importPaused)} onClose={() => { setCreateOpen(false); setImportPaused(true); }} title={t('expected.reimburseNew')}>
       <ReimburseEntryForm
         key={
           importController.currentJobId === null
@@ -154,43 +176,36 @@ export function ReimbursePage({
         projectId={projectId}
         canWrite={identity.canWrite}
         writeLockedHint={identity.canWrite ? null : t('identity.writeHint')}
-        initial={importController.formInitial}
+        initial={importController.formInitial && reviewDraft?.jobId === currentJobId ? { ...importController.formInitial, draft: reviewDraft.draft } : importController.formInitial}
+        onDraftChange={rememberReviewDraft}
         onDone={
           importController.currentJobId === null
-            ? undefined
+            ? () => setCreateOpen(false)
             : importController.advance
         }
       />
-
-      <section className="panel" aria-label={t('reimb.entries.title')}>
+      </SideDrawer>
+      <div className="week-summary"><span><b>{entries.length}</b>{t('reimb.entries.title')}</span><span><b>{formatAmountFen(entries.reduce((sum, entry) => sum + (entry.totalAmountFen ?? 0), 0))}</b>{t('reimb.export.col.totalYuan')}</span></div>
+      <div className="domain-actions"><div className="seg" role="group" aria-label={t('reimb.export.col.status')}>
+        {(['all', 'draft', 'partial', 'complete'] as const).map(value => <button className={filter === value ? 'seg__btn seg__btn--active' : 'seg__btn'} key={value} aria-pressed={value === filter} onClick={() => setFilter(value)}>{t(value === 'all' ? 'expected.all' : 'reimb.status.' + value)}</button>)}
+      </div><ReimburseExportSection client={client} source={source} entries={selectedEntries} batches={batches} profile={profile} compact /></div>
+      <section aria-label={t('reimb.entries.title')}>
         <h2 className="inv-section-title">{t('reimb.entries.title')}</h2>
-        {entries.length === 0 ? (
+        {visible.length === 0 ? (
           <EmptyState
             icon={ReceiptText}
             title={t('reimb.entries.empty.title')}
             desc={t('reimb.entries.empty.desc')}
           />
         ) : (
-          <div className="reimb-entries">
-            {entries.map((entry) => (
-              <ReimburseEntryCard
-                key={entry.id}
-                client={client}
-                source={source}
-                entry={entry}
-                batches={batches}
-                isSuperAdmin={isSuperAdmin}
-                canWrite={identity.canWrite}
-                profile={profile}
-                stockInContext={stockInContextQuery.data ?? null}
-                canViewEvidence={myMemberId !== null}
-                isOwner={entry.memberId === myMemberId}
-              />
-            ))}
-          </div>
+          <ReimburseTable entries={visible} selected={selectedIds} onSelect={setSelectedIds} onOpen={setEntryId} />
         )}
       </section>
 
+      <p className="expected-page-hint">{t('expected.reimbursePrivacy')}</p>
+      <SideDrawer open={!!selectedEntry} onClose={() => setEntryId(null)} title={t('expected.reimburseOpen')}>
+        {selectedEntry && <ReimburseEntryCard key={selectedEntry.id} client={client} source={source} entry={selectedEntry} batches={batches} isSuperAdmin={isSuperAdmin} canWrite={identity.canWrite} profile={profile} stockInContext={stockInContextQuery.data ?? null} canViewEvidence={myMemberId !== null} isOwner={selectedEntry.memberId === myMemberId} />}
+      </SideDrawer>
       {isSuperAdmin ? (
         <SideDrawer
           open={adminOpen}

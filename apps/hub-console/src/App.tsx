@@ -5,6 +5,7 @@ import { createHubApiClient, type HubApiClient } from './api/client';
 import { useSession } from './features/identity/hooks';
 import { useSetupState, useOverview } from './features/system/hooks';
 import { ConsoleLayout } from './components/layout/ConsoleLayout';
+import { ConsolePreferencesProvider } from './shared/ConsolePreferences';
 import {
   CONSOLE_PAGES,
   filterConsolePages,
@@ -192,28 +193,7 @@ function ConsoleApp({ apiClient, settings }: { apiClient: HubApiClient; settings
   };
 
   return (
-    <ConsoleLayout page={page} onNavigate={setPage} pages={enabledPages} client={apiClient}>
-      <div className="console-toolbar">
-        <div>
-          <p className="eyebrow">{t('toolbar.eyebrow')}</p>
-          <h1>
-            {activePage
-              ? t(activePage.titleKey)
-              : disabledPage
-                ? t('module.disabled.title')
-                : null}
-            {activePage?.beta ? (
-              <span
-                className={
-                  activePage.beta === 'public-beta' ? 'beta-badge beta-badge--public' : 'beta-badge'
-                }
-              >
-                {t(activePage.beta === 'public-beta' ? 'beta.badge.public' : 'beta.badge')}
-              </span>
-            ) : null}
-          </h1>
-        </div>
-        <div className="console-toolbar__actions">
+    <ConsolePreferencesProvider><ConsoleLayout page={page} onNavigate={setPage} pages={enabledPages} client={apiClient} actions={<div className="console-toolbar__actions">
           {/* 全局「快记欠条」入口（GATE-CHECKLIST-IOU 设计 §3，D-087）：任何人一句话贴条，默认挂下一道
               整车级门。无基准线时组件自身 return null（IdentityBar 同位先例）。 */}
           <ChecklistQuickRecord
@@ -239,7 +219,28 @@ function ConsoleApp({ apiClient, settings }: { apiClient: HubApiClient; settings
               <RefreshCw aria-hidden="true" size={18} />
             </button>
           ) : null}
+        </div>}>
+      <div className="console-toolbar">
+        <div>
+          <p className="eyebrow">{t('toolbar.eyebrow')}</p>
+          <h1>
+            {activePage
+              ? t(activePage.titleKey)
+              : disabledPage
+                ? t('module.disabled.title')
+                : null}
+            {activePage?.beta ? (
+              <span
+                className={
+                  activePage.beta === 'public-beta' ? 'beta-badge beta-badge--public' : 'beta-badge'
+                }
+              >
+                {t(activePage.beta === 'public-beta' ? 'beta.badge.public' : 'beta.badge')}
+              </span>
+            ) : null}
+          </h1>
         </div>
+
       </div>
       {/* 首启动向导落点引导横幅（SETUP-WIZARD 刀②）：正式+登录制装完落设置页时亮出「三步走」，
           可关闭；离开设置页自动隐藏。指向的名册导入 / 登录 / 初始化管理员均是设置页现有流程。 */}
@@ -267,6 +268,6 @@ function ConsoleApp({ apiClient, settings }: { apiClient: HubApiClient; settings
           {t('module.disabled.message')}
         </div>
       ) : null}
-    </ConsoleLayout>
+    </ConsoleLayout></ConsolePreferencesProvider>
   );
 }

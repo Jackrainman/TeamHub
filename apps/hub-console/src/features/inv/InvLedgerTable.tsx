@@ -1,3 +1,4 @@
+import { Plus, Minus, TriangleAlert } from 'lucide-react';
 import type { InventoryLedgerRow, PartAction, PartCategory } from '@teamhub/hub-contracts';
 import { derivePartAcquisition } from '@teamhub/hub-contracts';
 import { useI18n, type TranslationKey } from '../../i18n';
@@ -20,11 +21,11 @@ const CATEGORY_KEY: Record<PartCategory, TranslationKey> = {
 export function InvLedgerTable({
   ledger,
   shortfallIds,
-  actions,
+  actions, onRecord,
 }: {
   ledger: InventoryLedgerRow[];
   shortfallIds: Set<string>;
-  actions: PartAction[];
+  actions: PartAction[]; onRecord?: (partTypeId: string, kind: 'restock' | 'mount') => void;
 }) {
   const { t } = useI18n();
 
@@ -47,6 +48,7 @@ export function InvLedgerTable({
           <tr>
             <th scope="col" className="inv-table__part">{t('inv.ledger.part')}</th>
             <th scope="col" className="inv-table__idle">{t('inv.ledger.idle')}</th>
+            {onRecord && <th>{t('expected.inventoryRecord')}</th>}
             {resourceCols.map((c) => (
               <th scope="col" key={c.resourceId}>{c.displayCode}</th>
             ))}
@@ -87,9 +89,10 @@ export function InvLedgerTable({
                   <span className="inv-idle-value">{row.idle}</span>
                   <span className="inv-idle-total"> / {row.partType.totalQuantity}</span>
                   {short ? (
-                    <span className="badge badge--alert">{t('inv.shortfall.badge')}</span>
+                    <span className="badge badge--alert"><TriangleAlert size={14} />{t('inv.shortfall.badge')}</span>
                   ) : null}
                 </td>
+                {onRecord && <td><div className="domain-actions inv-row-actions"><button className="btn btn--secondary btn--sm" aria-label={t('inv.kind.mount') + ' ' + row.partType.name} onClick={() => onRecord(row.partType.id, 'mount')}><Minus size={14} /></button><button className="btn btn--secondary btn--sm" aria-label={t('inv.kind.restock') + ' ' + row.partType.name} onClick={() => onRecord(row.partType.id, 'restock')}><Plus size={14} /></button></div></td>}
                 {row.perResource.map((c) => (
                   <td key={c.resourceId}>
                     {c.used > 0 || c.reserved > 0 ? (

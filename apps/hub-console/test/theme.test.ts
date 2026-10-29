@@ -14,10 +14,10 @@ describe('主题：normalizeTheme（localStorage 存储值收敛）', () => {
     expect(normalizeTheme('linear')).toBe('linear'); // 风格画廊候选：Linear 风第六主题
   });
 
-  test('null / 空 / 未知值 → 默认 notion（STYLE-PICK 拍板定案；已存偏好者读 localStorage 不被覆盖）', () => {
-    expect(normalizeTheme(null)).toBe('notion');
-    expect(normalizeTheme('')).toBe('notion');
-    expect(normalizeTheme('TECH')).toBe('notion'); // 大小写敏感，非精确匹配即 fallback 到默认
-    expect(normalizeTheme('WARM')).toBe('notion');
+  test('null / 空 / 未知值 → 默认 E 深色；已存偏好保留', () => {
+    expect(normalizeTheme(null)).toBe('dark');
+    expect(normalizeTheme('')).toBe('dark');
+    expect(normalizeTheme('TECH')).toBe('dark');
+    expect(normalizeTheme('WARM')).toBe('dark');
   });
 });

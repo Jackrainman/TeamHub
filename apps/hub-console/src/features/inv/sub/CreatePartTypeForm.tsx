@@ -31,11 +31,11 @@ const CATEGORY_OPTION_KEY: Record<PartCategory, TranslationKey> = {
 export function CreatePartTypeForm({
   client,
   source,
-  defaultProjectId,
+  defaultProjectId, onDone,
 }: {
   client: HubApiClient;
   source: string;
-  defaultProjectId: string;
+  defaultProjectId: string; onDone?: () => void;
 }) {
   const { t } = useI18n();
   const [partNumber, setPartNumber] = useState('');
@@ -52,6 +52,7 @@ export function CreatePartTypeForm({
     setTotalQuantity('0');
     setLowStockThreshold('0');
     setTrackIndividually(false);
+    onDone?.();
   });
 
   const total = Number.parseInt(totalQuantity, 10);

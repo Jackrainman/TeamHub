@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import {
   Activity,
+  MessageSquare,
   BookOpen,
   Bot,
   Boxes,
@@ -19,6 +20,7 @@ import type { HubApiClient } from './api/client';
 import type { OverviewSnapshot } from './features/system/api';
 import type { TranslationKey } from './i18n';
 import { OverviewPage } from './features/overview/OverviewPage';
+import { TeamFeedPage } from './features/workbench/TeamFeedPage';
 import { WorkbenchPage } from './features/workbench/WorkbenchPage';
 import { SchedulePage } from './features/schedule/SchedulePage';
 import { ResourcesPage } from './features/resources/ResourcesPage';
@@ -42,6 +44,7 @@ import { SettingsPage } from './features/settings/SettingsPage';
 
 export type ConsolePage =
   | 'workbench'
+  | 'feed'
   | 'overview'
   | 'project'
   | 'schedule'
@@ -102,6 +105,7 @@ export interface ConsolePageDescriptor {
   key: ConsolePage;
   labelKey: TranslationKey;
   titleKey: TranslationKey;
+  hintKey?: TranslationKey;
   icon: typeof Home;
   section: ConsoleSection;
   /** 试用标记：导航项与页头标题旁显示徽标——'beta' = 「内测中」（功能未定型），'public-beta' = 「公测中」（高频功能开放全队试用，NAV-REGROUP ③）。 */
@@ -115,13 +119,13 @@ export interface ConsolePageDescriptor {
   onRefresh?: (ctx: PageRenderCtx) => void;
 }
 
-// 顺序即导航顺序（NAV-REGROUP 重排：首页 → 战队看板[总览/项目/排班在场/学习方向/时间线] →
-// 小工具[报账/知识库/档案/库存/fleet/设置]）；每日在场从机器人队 Tab 提升为顶级入口；
-// fleet 页是纯机器人清单；风格预览收进设置页。
+// 页面注册与模块权限的单源；主要导航顺序由 ConsoleLayout 显式组合。
 export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
+  { key: 'feed', labelKey: 'expected.nav.feed', titleKey: 'expected.nav.feed', hintKey: 'expected.hint.feed', icon: MessageSquare, section: 'home', moduleId: 'pm-core', render: ctx => <TeamFeedPage client={ctx.apiClient} source={ctx.source} /> },
   {
     key: 'workbench',
-    labelKey: 'nav.workbench',
+    labelKey: 'expected.nav.workbench',
+    hintKey: 'expected.hint.workbench',
     titleKey: 'toolbar.title.workbench',
     icon: Home,
     section: 'home',
@@ -161,8 +165,9 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
   },
   {
     key: 'project',
-    labelKey: 'nav.project',
-    titleKey: 'toolbar.title.project',
+    labelKey: 'expected.nav.project',
+    hintKey: 'expected.hint.project',
+    titleKey: 'expected.nav.project',
     icon: LayoutGrid,
     section: 'board',
     moduleId: 'pm-core',
@@ -182,8 +187,9 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
   },
   {
     key: 'reimburse',
-    labelKey: 'nav.reimburse',
-    titleKey: 'toolbar.title.reimburse',
+    labelKey: 'expected.nav.reimburse',
+    hintKey: 'expected.hint.reimburse',
+    titleKey: 'expected.nav.reimburse',
     icon: ReceiptText,
     // 报销=拿来即用的小工具，归小工具组并标「公测中」（NAV-REGROUP ③）。
     section: 'tool',
@@ -201,13 +207,14 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
   },
   {
     key: 'knowledge',
-    labelKey: 'nav.knowledge',
-    titleKey: 'toolbar.title.knowledge',
+    labelKey: 'expected.nav.knowledge',
+    hintKey: 'expected.hint.knowledge',
+    titleKey: 'expected.nav.knowledge',
     icon: BookOpen,
     section: 'tool',
     beta: 'beta',
     moduleId: 'knowledge-base',
-    render: (ctx) => <KbSearchPage client={ctx.apiClient} source={ctx.source} />,
+    render: (ctx) => <KbSearchPage client={ctx.apiClient} source={ctx.source} projectId={ctx.projectId} />,
   },
   {
     key: 'archive',
@@ -221,12 +228,13 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
   },
   {
     key: 'inv',
-    labelKey: 'nav.inv',
-    titleKey: 'toolbar.title.inv',
+    labelKey: 'expected.nav.inv',
+    hintKey: 'expected.hint.inv',
+    titleKey: 'expected.nav.inv',
     icon: Boxes,
     section: 'tool',
     moduleId: 'ledger',
-    render: (ctx) => <InvPage client={ctx.apiClient} source={ctx.source} />,
+    render: (ctx) => <InvPage client={ctx.apiClient} source={ctx.source} projectId={ctx.projectId} />,
   },
   {
     key: 'fleet',
@@ -268,6 +276,7 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
   {
     key: 'settings',
     labelKey: 'nav.settings',
+    hintKey: 'expected.hint.settings',
     titleKey: 'toolbar.title.settings',
     icon: Settings,
     section: 'tool',

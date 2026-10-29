@@ -3,7 +3,7 @@ kind: canonical-domain
 status: active
 domain: reimburse
 truth_for: reimbursement-invoice-import-quality-batches-and-stock-in
-last_reviewed: 2026-09-15
+last_reviewed: 2026-10-29
 ---
 
 # Reimburse 领域
@@ -15,6 +15,7 @@ Reimburse 管采购/费用条目、发票元数据、材料清单、报销批次
 ## 2. 当前行为（CURRENT）
 
 - 支持 goods/expense 条目、材料 checklist、批次状态和基于分单位整数的金额。
+- 控制台以表格呈现获授权条目，按派生状态筛选并选择导出 CSV；录入、导入确认、条目详情与财务管理使用抽屉。关闭导入确认保留待确认票据，明确跳过或保存才推进队列。
 - 浏览器用 pdf.js 读取 PDF 文字层，也可解析电子发票 XML；纯扫描件无法识别时回到手填。
 - `unitPriceFen=null` 表示单价无法精确到整分，不得硬凑；quantity 可为小数。
 - 身份模式下 API 按本人/项目管理员可见性返回条目和批次，发票号查重；匿名模式没有个人边界，会返回全量条目。
@@ -28,7 +29,7 @@ Reimburse 管采购/费用条目、发票元数据、材料清单、报销批次
 
 - 已冻结首个三包同构模板；后续只在域内扩展 parser、export adapter 和窄跨域 port。
 - 统一归档安全门已落地（contracts planInvoiceArchive + console archive-extract）；OCR 只有真实样本验证达标后才允许进入本地 import pipeline。
-- 财务导出补筛选/选择和实际下载；凭证留档的受控附件通道已按 D-094 建好（鉴权上传 + 下载留痕），剩「随批次打包交财务」一节；解析始终留浏览器。
+- CSV 条目选择导出已落地；凭证留档的受控附件通道已按 D-094 建好（鉴权上传 + 下载留痕），剩「随批次打包交财务」一节；解析始终留浏览器。
 
 ## 4. 领域不变式
 
@@ -56,6 +57,6 @@ Reimburse 管采购/费用条目、发票元数据、材料清单、报销批次
 
 - `ARCH-UNIFY`：本域模板已完成并由架构门冻结；下一域按 checklist → baseline 顺序迁移。
 
-- `REIMBURSE-PM-EXPORT`：命名建议与四口径已完成；仍需筛选/选择和实际导出适配器。
+- `REIMBURSE-PM-EXPORT`：命名建议、四口径、状态筛选和选择导出 CSV 已完成；附件随批次打包见下项。
 - `REIMBURSE-OCR-PROBE`：先用真实样本验证 tesseract.js 体积、耗时、内存和识别率，达标后再进入主流程。
 - `REIMBURSE-EVIDENCE-STORE`：受控附件通道的**后端与前端入口均已落地**（条目级上传、鉴权下载、下载留痕、按 D-094 读者链、字节留 `TEAMHUB_EVIDENCE_FILES_DIR`；条目卡片「凭证留档」区=收起零请求的展开式清单 + 三档上传 + 下载/删除，上传与删除入口只对条目本人开放）。剩余两节：① 随批次打包交财务（无按人明细的导出侧 zip 通道）；② 存放目录本身属部署动作。`materials` 的 `paymentShot`/`inspection` 布尔语义仍是**本人自证已备**（纸面留底），不是文件已归档的凭据——归档与否看该条目 `.../evidence` 清单，两者不做联动。

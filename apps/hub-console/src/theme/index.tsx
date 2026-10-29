@@ -8,15 +8,12 @@ import {
 } from 'react';
 import type { PropsWithChildren } from 'react';
 
-// 外观主题：纯 CSS-variable 换肤，不引 Tailwind/Radix（D-060 Phase 0 的「可切换」版）。
-// 架构逐行镜像 i18n/index.tsx 的 LanguageProvider——localStorage 持久 + documentElement 属性 +
-// 设置页 .seg 选择器。每套 token 挂在 :root[data-theme='<id>']，全站组件已消费 var(--*)，故零组件改动。
-// 第 4 套 tech（遥测台，D1）；notion 为默认皮（STYLE-PICK 拍板 2026-08-30），notion-dark = Notion 黑白可变的「黑」。
+// 主题只改变语义 token；已有用户偏好保持不变。
 export type Theme = 'classic' | 'warm' | 'dark' | 'tech' | 'notion' | 'notion-dark' | 'linear';
 
 const STORAGE_KEY = 'teamhub.theme';
-// Notion 风为默认皮（STYLE-PICK 拍板 2026-08-30 定案）；已存偏好的用户不被覆盖（readInitialTheme 读 localStorage 原样返回）。
-const DEFAULT_THEME: Theme = 'notion';
+// E 预期版作为首次使用的默认外观。
+const DEFAULT_THEME: Theme = 'dark';
 
 /**
  * 把任意存储值收敛成合法 Theme（未知/缺失 → 默认）。纯函数，供单测——
@@ -44,7 +41,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function readInitialTheme(): Theme {
   if (typeof window === 'undefined') return DEFAULT_THEME;
-  return normalizeTheme(window.localStorage.getItem(STORAGE_KEY));
+  try { return normalizeTheme(window.localStorage.getItem(STORAGE_KEY)); } catch { return DEFAULT_THEME; }
 }
 
 export function ThemeProvider({ children }: PropsWithChildren) {
@@ -52,7 +49,7 @@ export function ThemeProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    window.localStorage.setItem(STORAGE_KEY, theme);
+    try { window.localStorage.setItem(STORAGE_KEY, theme); } catch { /* 本次会话仍可换肤。 */ }
   }, [theme]);
 
   const setTheme = useCallback((next: Theme) => setThemeState(next), []);

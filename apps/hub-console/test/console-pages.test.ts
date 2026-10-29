@@ -15,6 +15,7 @@ describe('console-pages: filterConsolePages', () => {
     const pages = filterConsolePages(CONSOLE_PAGES, ALL_ENABLED);
     expect(pages.map((p) => p.key)).toEqual(CONSOLE_PAGES.map((p) => p.key));
     expect(pages.map((p) => p.key)).toEqual([
+      'feed',
       'workbench',
       'overview',
       'project',
@@ -47,6 +48,7 @@ describe('console-pages: filterConsolePages', () => {
       enabledModules: ALL_MODULE_IDS.filter((id) => id !== 'pm-core'),
     };
     const keys = filterConsolePages(CONSOLE_PAGES, tenant).map((p) => p.key);
+    expect(keys).not.toContain('feed');
     expect(keys).not.toContain('project');
     expect(keys).not.toContain('direction');
     expect(keys).not.toContain('workbench');

@@ -14,7 +14,8 @@ test('home shows weekly tasks with no member picker and a global pool tab', () =
   cache.setQueryData(queryKeys.groups('test'), { groups: governanceScenarioFixture.groups, assignableGroupIds: [] });
   cache.setQueryData([...queryKeys.members(), 'test'], { members: governanceScenarioFixture.members });
   const html = renderToStaticMarkup(<QueryClientProvider client={cache}><LanguageProvider><WeekWorkspace client={createHubApiClient()} source="test" projectId="prj-robots" identity={{ mode: 'identity', canWrite: true, isLoading: false, session: { memberId: 'm-circuitD', displayName: 'A', groupId: 'grp-circuit', role: 'member' } }} /></LanguageProvider></QueryClientProvider>);
-  expect(html).toContain('本周工作台');
+  expect(html).toContain('本周执行台');
+  expect(html).toContain('week-detail');
   expect(html).toContain('任务池');
   expect(html).toContain('已完成');
   expect(html).toContain('自报任务');

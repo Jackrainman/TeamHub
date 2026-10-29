@@ -2,11 +2,6 @@
    tokens 已承担配色；本文件只做少量结构覆盖：品牌块、主按钮 hover 微光、导航行高。
    全部圈在 :root[data-theme='linear'] 下，其余主题零影响。 */
 
-:root[data-theme='linear'] .brand-mark {
-  border: none;
-  background: var(--blue); /* 紫罗兰品牌块 */
-  color: #ffffff;
-}
 
 :root[data-theme='linear'] .nav-item {
   min-height: 30px;

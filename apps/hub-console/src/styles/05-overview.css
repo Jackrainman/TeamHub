@@ -123,14 +123,6 @@
   gap: 4px;
 }
 
-/* 侧边栏分组标题（IA-RESTRUCTURE：三层导航的工作区/管理分组）。 */
-.nav-section {
-  margin: 14px 12px 4px;
-  font-size: var(--text-xs, 0.75rem);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
 
 /* 进度条双卡（WORKBENCH-MY-VEHICLE / WORKBENCH-SEASON-PROGRESS）：本车 + 全赛季并列。 */
 .workbench-progress__meta {

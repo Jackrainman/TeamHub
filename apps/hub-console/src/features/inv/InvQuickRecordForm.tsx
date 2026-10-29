@@ -63,19 +63,20 @@ export function InvQuickRecordForm({
   client,
   source,
   partTypes,
-  holderOptions,
+  holderOptions, initialPartTypeId, initialKind, onDone,
 }: {
   client: HubApiClient;
   source: string;
   partTypes: PartType[];
   holderOptions: HolderOption[];
+  initialPartTypeId?: string; initialKind?: PartActionKind; onDone?: () => void;
 }) {
   const { t } = useI18n();
 
   const form = useForm<InvFormFields>({
     fields: {
-      partTypeId: { initial: partTypes[0]?.id ?? '', sticky: true },
-      kind: { initial: coldStart(partTypes) ? 'stocktake' : 'damage', sticky: true },
+      partTypeId: { initial: initialPartTypeId ?? partTypes[0]?.id ?? '', sticky: true },
+      kind: { initial: initialKind ?? (coldStart(partTypes) ? 'stocktake' : 'damage'), sticky: true },
       quantity: { initial: '1' },
       holder: { initial: holderOptions[0]?.id ?? IDLE_HOLDER, sticky: true },
       note: { initial: '' },
@@ -94,7 +95,7 @@ export function InvQuickRecordForm({
     }
   }, [partTypes, form.values.partTypeId, form.patch]);
 
-  const mutation = useRecordPartAction(client, source, () => form.resetAfterSubmit());
+  const mutation = useRecordPartAction(client, source, () => { form.resetAfterSubmit(); onDone?.(); });
 
   const { partTypeId, kind, quantity, holder, note, acquisition } = form.values;
   const project = partTypes.find((p) => p.id === partTypeId);

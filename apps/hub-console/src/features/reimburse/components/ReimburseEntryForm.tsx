@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import type { ReimburseSegment } from '../api';
 import type { ReimburseEntryKind } from '@teamhub/hub-contracts';
@@ -38,6 +38,7 @@ export function ReimburseEntryForm({
   writeLockedHint,
   initial,
   onDone,
+  onDraftChange,
 }: {
   client: ReimburseSegment;
   source: string;
@@ -48,13 +49,15 @@ export function ReimburseEntryForm({
   initial?: ReimburseFormInitial | null;
   /** 预填模式下提交成功/跳过后回调（父组件推进导入队列）。 */
   onDone?: () => void;
+  onDraftChange?: (draft: EntryDraft) => void;
 }) {
   const { t } = useI18n();
   const [draft, setDraft] = useState<EntryDraft>(() => initial?.draft ?? emptyEntryDraft());
+  useEffect(() => onDraftChange?.(draft), [draft, onDraftChange]);
 
   const mutation = useCreateReimburseEntry(client, source, {
     onSuccess: () => {
-      if (initial && onDone) {
+      if (onDone) {
         onDone(); // 队列还有下一张时父组件换 key 重挂，草稿随预填重置
       } else {
         setDraft(emptyEntryDraft());

@@ -14,15 +14,6 @@
   padding: 2px 8px;
 }
 
-:root[data-theme^='notion'] .brand-mark {
-  width: 30px;
-  height: 30px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--text); /* 墨块 logo，替代绿底白字 */
-  color: #ffffff;
-  font-size: var(--text-sm);
-}
 
 :root[data-theme^='notion'] .console-brand span:last-child {
   color: var(--faint);
@@ -104,7 +95,6 @@
   display: none; /* Notion 无顶部 tone 条，指标卡纯排版 */
 }
 
-:root[data-theme^='notion'] .pm-card:hover,
 :root[data-theme^='notion'] .kb-card:hover,
 :root[data-theme^='notion'] .gap-card:hover {
   box-shadow: var(--shadow-sm);
@@ -195,9 +185,6 @@
 
 /* ---- Notion 夜航补丁（notion-dark）：结构层经 [data-theme^='notion'] 前缀选择器自动共享，
    本段只修块内硬编码的浅色系颜色（墨块 logo / 导航激活底 / 墨色主按钮在深色下全部反转）。 ---- */
-:root[data-theme='notion-dark'] .brand-mark {
-  color: #191919; /* 墨块变明块（--text 在深色下为明灰），块上字符改深色 */
-}
 
 :root[data-theme='notion-dark'] .console-nav .nav-item-active,
 :root[data-theme='notion-dark'] .nav-item-active {

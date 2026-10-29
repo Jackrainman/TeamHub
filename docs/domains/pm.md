@@ -3,7 +3,7 @@ kind: canonical-domain
 status: active
 domain: pm
 truth_for: projects-tasks-dependencies-needs-claims-and-project-views
-last_reviewed: 2026-10-28
+last_reviewed: 2026-10-29
 ---
 
 # PM 领域
@@ -33,8 +33,8 @@ PM 管赛季项目中的 Task、Dependency、Need、挂单认领、指派、搭�
 
 - contracts 位于 `domains/pm/`，周计算、视图分桶与验收规则由 `week.ts` 和 model/policies 共享。
 - server 位于 `modules/pm/`，路由负责解析和鉴权，PmService 执行业务规则，统一 SQLite repository 持久化；内存实现只供测试。
-- console 的周组件在 `features/pm/week/`，API 与查询保持 PM 单源。WorkbenchPage 只组合工作区和侧栏；MyView 独立页面已删除。
-- 总览子组件承接倒计时、本车/赛季进度、六阶段和基准线；项目页继续管理全赛季看板、依赖图与全局任务池。跨 feature 不导入 Page。
+- console 的周组件在 `features/pm/week/`，API 与查询保持 PM 单源。WorkbenchPage 渲染本周双栏工作区，右侧复用任务事实与操作；MyView 独立页面已删除。
+- 总览子组件承接倒计时、本车/赛季进度、六阶段和基准线；项目默认全赛季三列看板，保留依赖图与全局任务池。搁置任务不计入进行中列，可在依赖图查看。队伍近况规划页展示只读基准线小组件。
 - baseline、checklist、resources 连接使用显式 ID 引用和应用层编排；视觉组合不替代领域边界治理（ARC-DEC-005）。
 
 ## 4. 领域不变式

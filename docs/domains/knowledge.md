@@ -3,7 +3,7 @@ kind: canonical-domain
 status: active
 domain: knowledge
 truth_for: debugging-closeout-search-and-knowledge-import
-last_reviewed: 2026-08-15
+last_reviewed: 2026-10-29
 ---
 
 # Knowledge 领域
@@ -19,6 +19,7 @@ Knowledge 管调试问题、结案归档、错误条目、知识节点、相似�
 - `POST /api/kb/import-docs` 可导入 Markdown 文档；知识节点可跨赛季使用。
 - 相似召回响应固定说明“只列候选，不断言同因”，由人核对后采用。
 - KnowledgeNode 和召回投影不含成员维度；来源使用结构链接或 generatedBy 类型。
+- 控制台以检索卡片和详情/归档抽屉呈现；归档自动使用当前项目，用户填写问题、根因和处理。抽屉反复打开生成独立问题 ID，搜索与结案查询失效通过本域 hooks 和 query key 工厂管理。
 
 ## 3. 目标结构（TARGET）
 

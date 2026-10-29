@@ -1,13 +1,9 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useI18n } from '../i18n';
 
-/**
- * 通用右锚定抽屉：半透明 backdrop + 视口右侧固定面板（slide-in 入场）。
- * 全站首个 overlay 组件——故采用 position:fixed（layout 容器无 transform，已核实可相对视口生效），
- * 入场动画走 CSS @keyframes（见 styles.css .drawer），open=false 直接卸载（清状态、避免离屏内容被 tab 命中）。
- * 关闭：backdrop 点击 + Esc。焦点陷阱本轮不做。
- */
+/** 右侧模态抽屉；焦点留在最上层，关闭后回到打开它的控件。 */
 export function SideDrawer({
   open,
   onClose,
@@ -24,28 +20,42 @@ export function SideDrawer({
   confirmDiscard?: () => boolean;
 }) {
   const { t } = useI18n();
+  const panel = useRef<HTMLElement>(null);
 
   const requestClose = () => {
     if (confirmDiscard && !confirmDiscard()) return;
     onClose();
   };
+  const closeRef = useRef(requestClose);
+  closeRef.current = requestClose;
 
   useEffect(() => {
     if (!open) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const topmost = () => [...document.querySelectorAll('.drawer')].at(-1) === panel.current;
+    const controls = () => [...(panel.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href], [tabindex="0"]') ?? [])].filter(el => el.getClientRects().length > 0);
+    if (!panel.current?.contains(document.activeElement)) (controls()[0] ?? panel.current)?.focus();
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') requestClose();
+      if (!topmost() || event.defaultPrevented) return;
+      if (event.key === 'Escape') { event.preventDefault(); closeRef.current(); }
+      if (event.key === 'Tab') {
+        const items = controls();
+        const first = items[0], last = items.at(-1);
+        if (!first) { event.preventDefault(); panel.current?.focus(); }
+        else if (event.shiftKey && (document.activeElement === first || !panel.current?.contains(document.activeElement))) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && (document.activeElement === last || !panel.current?.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
+      }
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, onClose, confirmDiscard]);
+    return () => { window.removeEventListener('keydown', onKey); if (previous?.isConnected) previous.focus(); };
+  }, [open]);
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <>
       <div className="drawer-backdrop" role="presentation" onClick={requestClose} />
-      <aside className="drawer" role="dialog" aria-modal="true" aria-label={title}>
+      <aside ref={panel} tabIndex={-1} className="drawer" role="dialog" aria-modal="true" aria-label={title}>
         <header className="drawer__head">
           <h2 className="drawer__title">{title}</h2>
           <button
@@ -59,6 +69,6 @@ export function SideDrawer({
         </header>
         <div className="drawer__body">{children}</div>
       </aside>
-    </>
+    </>, document.body
   );
 }

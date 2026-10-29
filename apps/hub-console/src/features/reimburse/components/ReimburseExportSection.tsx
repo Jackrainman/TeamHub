@@ -16,25 +16,19 @@ import {
   suggestReimburseExportFilename,
 } from '../reimburse-export';
 
-/**
- * 全员发票导出（REIMBURSE-PM-EXPORT，只出现在报销管理抽屉 = 超管视角）：
- * 把当前全部可见条目（server 对超管回全量）逐条 deriveReimburseExportRow → 本地化 →
- * buildReimburseCsv → Blob 触发下载。名册/批次名走 resolveMemberName/resolveBatchName
- * 映射（缺省回退 memberId/batchId）。导出是条目清单（事实卡片列表），不是聚合/统计，
- * 且仅超管触发——符合 D-094「条目人键只回本人+超管」红线；不碰凭证附件通道。
- */
+/** 导出当前获授权的条目事实；列表选择和管理视图共用，不读取私有凭证。 */
 export function ReimburseExportSection({
   client,
   source,
   entries,
   batches,
-  profile,
+  profile, compact = false,
 }: {
   client: Pick<HubApiClient, 'getMembers'>;
   source: string;
   entries: ReimburseEntry[];
   batches: ReimburseBatch[];
-  profile: ReimburseProfile;
+  profile: ReimburseProfile; compact?: boolean;
 }) {
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
@@ -62,7 +56,7 @@ export function ReimburseExportSection({
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = suggestReimburseExportFilename(new Date(), t);
+      anchor.download = suggestReimburseExportFilename(new Date(), key => t(compact && key === 'reimb.export.fileBase' ? 'expected.exportFileBase' : key));
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
@@ -72,6 +66,7 @@ export function ReimburseExportSection({
     }
   }
 
+  if (compact) return <button type="button" className="btn btn--secondary" disabled={busy || entries.length === 0} onClick={download}><Download size={14} />{t('expected.exportSelected', { count: entries.length })}</button>;
   return (
     <section className="panel" aria-label={t('reimb.export.title')}>
       <header className="pm-create__head">

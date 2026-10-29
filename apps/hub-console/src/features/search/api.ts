@@ -11,7 +11,7 @@ export interface GlobalSearchResult {
 /**
  * search 域 API 分段（ARCH-UNIFY A4；前身 segments/system-pm.ts 的 globalSearch）。
  * 跨域聚合读（pm/kb/inventory），对照 server modules/reporting/search.ts。
- * GlobalSearchBox 走命令式调用（防抖搜索框），不经 react-query。
+ * 查询由本域 hooks 统一管理，按关键词隔离响应。
  */
 export interface SearchSegment {
   globalSearch(q: string): Promise<{ results: GlobalSearchResult[] }>;
