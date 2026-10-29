@@ -11,7 +11,7 @@ interface ConsoleLayoutProps {
   page: ConsolePage; onNavigate: (page: ConsolePage) => void;
   pages: ConsolePageDescriptor[]; client: HubApiClient; actions?: ReactNode;
 }
-const PRIMARY: ConsolePage[] = ['workbench', 'project', 'feed', 'knowledge'];
+const PRIMARY: ConsolePage[] = ['workbench', 'project', 'knowledge'];
 const TOOLS: ConsolePage[] = ['reimburse', 'inv', 'settings'];
 
 export function ConsoleLayout({ children, page, onNavigate, pages, client, actions }: PropsWithChildren<ConsoleLayoutProps>) {

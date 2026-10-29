@@ -1,7 +1,7 @@
 export const zhExpected = {
   'expected.resumeImport': '继续确认票据', 'expected.paymentMissing': '付款截图待备', 'expected.inspectionMissing': '查验单待备', 'expected.exportFileBase': '报销选中条目',
   'expected.pending': '待推进', 'expected.baselineEyebrow': 'SEASON BASELINE',
-  'expected.workspace': '工作区', 'expected.tools': '小工具', 'expected.more': '更多工作区',
+  'expected.workspace': '工作区', 'expected.tools': '小工具', 'expected.more': '更多',
   'expected.expand': '展开侧栏', 'expected.collapse': '收起侧栏',
   'expected.subtitle': '机器人战队协作中枢', 'expected.facts': '任务与结构事实',
   'expected.autoCollapse': '侧栏自动收起', 'expected.autoCollapseHint': '连续 4 秒没有操作侧栏时自动收起；悬停、点击或键盘操作会重新计时。手动展开或收起后保持不变。',
@@ -32,7 +32,7 @@ export const zhExpected = {
 export const enExpected: Record<keyof typeof zhExpected, string> = {
   'expected.resumeImport': 'Resume receipt review', 'expected.paymentMissing': 'Payment proof pending', 'expected.inspectionMissing': 'Inspection pending', 'expected.exportFileBase': 'selected-expenses',
   'expected.pending': 'Pending', 'expected.baselineEyebrow': 'SEASON BASELINE',
-  'expected.workspace': 'Workspace', 'expected.tools': 'Tools', 'expected.more': 'More workspaces',
+  'expected.workspace': 'Workspace', 'expected.tools': 'Tools', 'expected.more': 'More',
   'expected.expand': 'Expand sidebar', 'expected.collapse': 'Collapse sidebar',
   'expected.subtitle': 'Robotics team workspace', 'expected.facts': 'Tasks and structural facts',
   'expected.autoCollapse': 'Auto-collapse sidebar', 'expected.autoCollapseHint': 'Collapse after 4 seconds without sidebar activity. Pointer and keyboard activity restart the timer. Manual toggles stay fixed.',

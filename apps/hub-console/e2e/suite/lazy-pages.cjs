@@ -77,7 +77,7 @@ const { gzipSync } = require('node:zlib');
       ['图纸档案', 'archive', 'ArchivePage'], ['机器人清单', 'fleet', 'ResourcesPage'],
       ['学习方向', 'direction', 'DirectionPage'], ['时间线', 'timeline', 'TimelineEditorPage'],
     ];
-    await nav('更多工作区').click();
+    await nav('更多').click();
     for (const [label, key, module] of pages) {
       assert.equal(requested.some(url => url.includes(`/${module}-`)), false, `${key} stays deferred until selected`);
       await nav(label).click();

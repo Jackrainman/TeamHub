@@ -145,7 +145,7 @@ const assert = require('node:assert/strict');
       }
     }
     await pageA.evaluate(() => document.documentElement.dataset.theme = 'notion');
-    await pageA.getByRole('button', { name: '更多工作区', exact: true }).click();
+    await pageA.getByRole('button', { name: '更多', exact: true }).click();
     await pageA.locator('.console-sidebar').getByRole('button', { name: '总览', exact: true }).click();
     await pageA.locator('.overview-season').waitFor();
     assert.equal(await pageA.locator('.workbench-progress-strip').count(), 1);

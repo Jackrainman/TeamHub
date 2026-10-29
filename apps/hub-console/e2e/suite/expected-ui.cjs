@@ -107,6 +107,8 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: '标准', exact: true }).click();
     await capture('settings');
 
+    assert.equal(await nav('队伍近况').count(), 0, 'team updates stays inside More');
+    await nav('更多').click();
     for (const [label, key] of [['项目', 'project'], ['队伍近况', 'feed'], ['知识库', 'knowledge'], ['库存与 BOM', 'inv'], ['报销', 'reimburse']]) {
       await nav(label).click(); await page.waitForLoadState('networkidle');
       assert.equal(await page.locator('.console-main').evaluate(el => getComputedStyle(el).animationName), 'none');
