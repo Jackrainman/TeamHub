@@ -1,4 +1,7 @@
 export const zhWeek = {
+  'team.selectedReviewers': '已选',
+  'team.removeReviewer': '移除',
+  'team.otherGroup': '其他小组',
   'team.title': '全队任务',
   'team.hint': '任务和历史全队可查。',
   'team.search': '搜索任务',
@@ -51,6 +54,9 @@ export const zhWeek = {
 };
 
 export const enWeek: Record<keyof typeof zhWeek, string> = {
+  'team.selectedReviewers': 'Selected',
+  'team.removeReviewer': 'Remove',
+  'team.otherGroup': 'Other group',
   'team.title': 'Team tasks',
   'team.hint': 'Tasks and history are visible to the team.',
   'team.search': 'Search tasks',

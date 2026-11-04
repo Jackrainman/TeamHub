@@ -6,6 +6,12 @@
 .reviewer-options { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); max-height: 180px; overflow-y: auto; }
 .reviewer-options label { display: inline-flex; align-items: center; gap: var(--space-2); }
 .reviewer-options input { width: auto; }
+.reviewer-selected { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
+.reviewer-groups { display: grid; gap: var(--space-2); }
+.reviewer-group summary { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); padding: var(--space-2) 0; cursor: pointer; list-style: none; }
+.reviewer-group summary::-webkit-details-marker { display: none; }
+.reviewer-group[open] summary svg { transform: rotate(180deg); }
+.reviewer-group .reviewer-options { padding: var(--space-2) 0 var(--space-3); }
 .task-detail__reviewers { margin: var(--space-4) 0; }
 .task-detail__reviewers p, .tl-status { overflow-wrap: anywhere; }
 @media (max-width: 600px) { .team-task-filters { grid-template-columns: minmax(0, 1fr); } }

@@ -52,7 +52,7 @@ export function TaskDetailDrawer({
         <p>{task.reviewerIds?.length ? task.reviewerIds.map(id => members.find(member => member.id === id)?.displayName ?? id).join('、') : t('team.noReviewers')}</p>
         {canEdit && !editing && <button className="btn btn--secondary btn--sm" onClick={() => setEditing(true)}>{t('team.edit')}</button>}
       </div>}
-      {canEdit && editing && <TaskEditor task={task} client={client} members={members} onClose={() => setEditing(false)} />}
+      {canEdit && editing && <TaskEditor task={task} client={client} members={members} groups={groups} onClose={() => setEditing(false)} />}
       <TaskTimeline task={task} members={members} />
       {!readOnly && <TaskActionsPanel actions={actions} task={task} members={members} acceptance={acceptance} />}
     </div>

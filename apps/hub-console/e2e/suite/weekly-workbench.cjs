@@ -24,7 +24,7 @@ const assert = require('node:assert/strict');
   database.initialize({ dataMode: 'real', identityMode: 'identity' }, now);
   const repo = database.openStores().gov;
   await repo.createSeason({ name: 'Test season', startsAt: now.toISOString(), endsAt: null });
-  await repo.importRoster(['Member A', 'Member B', 'Member C'].map(displayName => ({ displayName, grade: 'freshman', groupName: 'Test group', gateReviewer: false, gateReviewerAuto: false })));
+  await repo.importRoster(['Member A', 'Member B', 'Member C'].map(displayName => ({ displayName, grade: 'freshman', groupName: displayName === 'Member C' ? 'Other group' : 'Test group', gateReviewer: false, gateReviewerAuto: false })));
   const snapshot = await repo.getSnapshot();
   await database.openStores().baseline.upsertBaseline(snapshot.seasons[0].id, baselineScenarioFixture[0]);
   const a = snapshot.members.find(m => m.displayName === 'Member A');
@@ -111,7 +111,18 @@ const assert = require('node:assert/strict');
     assert.equal(await dialogA.getByRole('button', { name: '已验收', exact: true }).isDisabled(), true);
     async function saveReviewers(ids) {
       await dialogA.getByRole('button', { name: '编辑任务 / 选择备位人', exact: true }).click();
-      for (const member of [b, c]) await dialogA.getByLabel(member.displayName, { exact: true }).setChecked(ids.includes(member.id));
+      for (const member of [b, c]) {
+        const groupName = snapshot.groups.find(group => group.id === member.groupId).name;
+        const group = dialogA.locator('.reviewer-group').filter({ has: pageA.getByText(groupName, { exact: true }) });
+        const checkbox = group.getByLabel(member.displayName, { exact: true });
+        assert.equal(await checkbox.isVisible(), false, 'members start collapsed');
+        const remove = dialogA.getByRole('button', { name: `移除 ${member.displayName}`, exact: true });
+        if (!ids.includes(member.id) && await remove.count()) await remove.click();
+        await group.locator('summary').click();
+        await checkbox.setChecked(ids.includes(member.id));
+        await group.locator('summary').click();
+      }
+      for (const member of [b, c]) assert.equal(await dialogA.getByRole('button', { name: `移除 ${member.displayName}`, exact: true }).count(), ids.includes(member.id) ? 1 : 0);
       const saved = pageA.waitForResponse(response => response.url().endsWith('/edit') && response.request().method() === 'POST');
       await dialogA.getByRole('button', { name: '提交', exact: true }).click();
       assert.equal((await saved).status(), 200);

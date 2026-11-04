@@ -34,7 +34,7 @@ export function SelfReportForm({ projectId, groups, defaultGroupId, pending, onS
     <label className="gate-field">{t('week.complexity')}<select value={complexity} onChange={event => setComplexity(event.target.value as typeof complexity)}>
       {(['trivial', 'normal', 'hard'] as const).map(value => <option key={value} value={value}>{t(`week.complexity.${value}`)}</option>)}
     </select></label>
-    <ReviewerPicker members={members} excludedIds={[memberId]} value={reviewerIds} onChange={setReviewerIds} disabled={pending} />
+    <ReviewerPicker members={members} groups={groups} excludedIds={[memberId]} value={reviewerIds} onChange={setReviewerIds} disabled={pending} />
     <button className="btn btn--primary" disabled={pending || !projectId || !groupId || !title.trim() || !summary.trim()}>{pending ? t('week.saving') : t('week.submit')}</button>
   </form>;
 }
