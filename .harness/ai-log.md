@@ -278,3 +278,5 @@
 - 2026-11-04 TEAM-TASK-CREATE-MODAL v0.88.1（4e41851）：按用户要求将新建任务改为居中弹窗，复用 SideDrawer 的焦点/关闭管理并增加 center 布局；长表单内部滚动。移除无交互价值的“当前项目”只读字段及无用翻译，提交仍由工作区带入 projectId。console verify:local、架构/文档/提交门通过；GitHub Actions 41796657806 完整 verify 成功，既有任务创建 E2E 增补水平/垂直居中及隐藏项目字段断言。变更自查，无独立代理审查；未运行本机新配置/账号测试，未部署。完成项已移出 todo。
 
 - 2026-11-04 TEAM-REVIEWER-GROUPS v0.88.2（6638548）：备位选择按现有小组默认折叠，展开后勾选；已选成员集中展示并可直接移除，创建与编辑共用 ReviewerPicker，支持跨组多选。只调整选人交互，验收权限和持久化不变。console verify:local、architecture/docs/diff/pre-commit 通过；GitHub Actions 41800768143 完整 verify 成功，既有任务流程改用两组备位验证默认收起、跨组保留、已选移除和更换后验收。完成变更自查，无独立代理审查；未运行本机新配置/账号测试，未部署。完成项已移出 todo。
+
+- 2026-11-04 TEAM-PERSONAL-SWITCH v0.89.0（fd01c1c）：任务页右上角增加个人/全队滑块，默认本人承担任务；切换保留搜索、小组及状态条件，无会话时显示全队。复用 SegToggle，支持键盘和减弱动效；筛选规则由 contracts 共享，不提供其他成员筛选或个人统计。verify:local exit 0（contracts 484 / server 481 / console 303），架构、文档与提交门通过。GitHub Actions 41804918340 完整 verify 成功，浏览器覆盖默认范围、滑块位移、键盘切换以及全队视图备位验收。按 Superpowers 流程完成本地自查，无独立代理审查；未运行本地浏览器账号测试，未部署。按周查看及分页未包含在本次改动。完成项已移出 todo。
