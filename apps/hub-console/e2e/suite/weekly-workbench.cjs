@@ -148,13 +148,13 @@ const assert = require('node:assert/strict');
     assert.ok(persisted.activity.some(event => event.kind === 'edited'));
     await pageA.getByLabel('搜索任务', { exact: true }).fill('先完成');
     await card.waitFor();
-    await pageA.getByLabel('状态', { exact: true }).selectOption('awaitingReview');
+    await pageA.getByLabel('状态').selectOption('awaitingReview');
     assert.equal(await pageA.locator('.week-task').count(), 0);
-    await pageA.getByLabel('状态', { exact: true }).selectOption('accepted');
+    await pageA.getByLabel('状态').selectOption('accepted');
     await card.waitFor();
     await capture(pageA, 'accepted-history');
     await pageA.getByLabel('搜索任务', { exact: true }).fill('');
-    await pageA.getByLabel('状态', { exact: true }).selectOption('all');
+    await pageA.getByLabel('状态').selectOption('all');
 
     for (const width of [1440, 1000]) {
       await pageA.setViewportSize({ width, height: 1000 });
