@@ -899,3 +899,7 @@ export { getWeekKey, isValidWeekKey, isCurrentWeek, shiftWeek, selectWeekTasks, 
 export type { WeekView, WeekScope } from './domains/pm/week.js';
 export { WeekKeySchema, SelfReportTaskRequestSchema, LinkTaskWeekRequestSchema } from './domains/pm/requests.js';
 export type { SelfReportTaskRequest } from './domains/pm/requests.js';
+export { InvoiceTypeSchema } from './domains/reimburse/index.js';
+export type { InvoiceType } from './domains/reimburse/index.js';
+export { classifyInvoiceType, classifyPackageText, derivePackageReview } from './domains/reimburse/index.js';
+export type { PackageRole, PackageCandidate, PackageReviewReason, PackageReview } from './domains/reimburse/index.js';

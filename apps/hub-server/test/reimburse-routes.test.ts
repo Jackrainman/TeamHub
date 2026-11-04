@@ -136,6 +136,34 @@ function buildTestApp() {
 }
 
 let invoiceSeq = 0;
+
+test('package drafts allow missing money, retry creation and later correct invoice fields', async () => {
+  const { app } = buildTestApp();
+  try {
+    const cookie = await login(app, 'm-a');
+    const payload = goodsEntryPayload({ invoiceNo: null, totalAmountFen: null, invoiceType: 'unknown', clientRequestId: '40ecae50-4cb2-4664-88d4-0126bc04634a' });
+    const create = () => app.inject({ method: 'POST', url: '/api/reimburse/entries', headers: { cookie }, payload });
+    const first = await create();
+    expect(first.statusCode).toBe(201);
+    const id = first.json().entry.id;
+    expect((await create()).json().entry.id).toBe(id);
+    const edit = await app.inject({ method: 'PATCH', url: `/api/reimburse/entries/${id}`, headers: { cookie }, payload: { totalAmountFen: 12345, invoiceNo: 'NEW-123', invoiceType: 'vatOrdinary' } });
+    expect(edit.statusCode).toBe(200);
+    expect(edit.json().entry).toMatchObject({ totalAmountFen: 12345, invoiceNo: 'NEW-123', invoiceType: 'vatOrdinary' });
+    expect(first.json().entry).not.toHaveProperty('creationRequest');
+    const second = await app.inject({ method: 'POST', url: '/api/reimburse/entries', headers: { cookie }, payload: goodsEntryPayload({ invoiceNo: 'OTHER-123' }) });
+    expect(second.statusCode).toBe(201);
+    expect((await app.inject({ method: 'PATCH', url: `/api/reimburse/entries/${id}`, headers: { cookie }, payload: { invoiceNo: 'OTHER-123' } })).statusCode).toBe(409);
+    expect((await app.inject({ method: 'PATCH', url: `/api/reimburse/entries/${id}`, headers: { cookie }, payload: { invoiceNo: null } })).statusCode).toBe(200);
+    expect((await app.inject({ method: 'POST', url: '/api/reimburse/entries', headers: { cookie }, payload: goodsEntryPayload({ invoiceNo: 'NEW-123' }) })).statusCode).toBe(201);
+    expect((await create()).json().entry.id).toBe(id);
+    const changed = await app.inject({ method: 'POST', url: '/api/reimburse/entries', headers: { cookie }, payload: { ...payload, totalAmountFen: 5 } });
+    expect(changed.statusCode).toBe(409);
+    const other = await login(app, 'm-b');
+    expect((await app.inject({ method: 'POST', url: '/api/reimburse/entries', headers: { cookie: other }, payload })).json().entry.id).not.toBe(id);
+    expect((await app.inject({ method: 'PATCH', url: `/api/reimburse/entries/${id}`, headers: { cookie: other }, payload: { totalAmountFen: 10 } })).statusCode).toBe(403);
+  } finally { await app.close(); }
+});
 /** goods 条目写体（每次调用给唯一发票号，防用例间互撞查重）。 */
 function goodsEntryPayload(over: Record<string, unknown> = {}) {
   invoiceSeq += 1;

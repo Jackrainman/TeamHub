@@ -72,7 +72,7 @@ export function ReimbursePage({
   const [adminOpen, setAdminOpen] = useState(false);
 
   // 发票本地解析、失败通知与待确认队列由本域 controller 统一编排。
-  const importController = useReimburseImportController();
+  const importController = useReimburseImportController(profileQuery.data?.profile);
   const currentJobId = importController.currentJobId;
   const rememberReviewDraft = useCallback((draft: EntryDraft) => {
     if (currentJobId !== null) setReviewDraft({ jobId: currentJobId, draft });
@@ -139,8 +139,9 @@ export function ReimbursePage({
       ) : null}
 
       <SideDrawer open={importOpen} onClose={() => setImportOpen(false)} title={t('expected.reimburseImport')}>
-        <ReimburseImportZone onFiles={files => { setImportPaused(false); void importController.importFiles(files); setImportOpen(false); }} busy={importController.parsing} />
+        <ReimburseImportZone onFiles={(files, useOcr) => { setImportPaused(false); void importController.importFiles(files, useOcr); setImportOpen(false); }} busy={importController.parsing} />
       </SideDrawer>
+      {importController.parsing && <p role="status">{t('reimb.package.progress', importController.progress)} <button className="btn btn--sm btn--ghost" onClick={importController.cancel}>{t('reimb.package.cancel')}</button></p>}
       {importController.fails.length > 0 ? (
         <ul className="reimb-import__notices">
           {importController.fails.map((fail) => (
@@ -174,6 +175,7 @@ export function ReimbursePage({
         client={client}
         source={source}
         projectId={projectId}
+        profile={profile}
         canWrite={identity.canWrite}
         writeLockedHint={identity.canWrite ? null : t('identity.writeHint')}
         initial={importController.formInitial && reviewDraft?.jobId === currentJobId ? { ...importController.formInitial, draft: reviewDraft.draft } : importController.formInitial}
@@ -190,6 +192,7 @@ export function ReimbursePage({
         {(['all', 'draft', 'partial', 'complete'] as const).map(value => <button className={filter === value ? 'seg__btn seg__btn--active' : 'seg__btn'} key={value} aria-pressed={value === filter} onClick={() => setFilter(value)}>{t(value === 'all' ? 'expected.all' : 'reimb.status.' + value)}</button>)}
       </div><ReimburseExportSection client={client} source={source} entries={selectedEntries} batches={batches} profile={profile} compact /></div>
       <section aria-label={t('reimb.entries.title')}>
+        {entries.some(entry => entry.totalAmountFen === null) && <p className="form-hint">{t('reimb.package.unknownAmount', { count: entries.filter(entry => entry.totalAmountFen === null).length })}</p>}
         <h2 className="inv-section-title">{t('reimb.entries.title')}</h2>
         {visible.length === 0 ? (
           <EmptyState

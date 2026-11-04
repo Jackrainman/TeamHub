@@ -1,4 +1,5 @@
 export {
+  InvoiceTypeSchema,
   DEFAULT_REIMBURSE_PROFILE,
   InvoiceRecognitionSourceSchema,
   ReimburseAmountBucketSchema,
@@ -17,6 +18,7 @@ export {
   ReimburseProfileSchema,
 } from './model.js';
 export type {
+  InvoiceType,
   InvoiceRecognitionSource,
   ReimburseAmountBucket,
   ReimburseBatch,
@@ -133,3 +135,5 @@ export type {
   ReimburseExportOptions,
   ReimburseExportRow,
 } from './export.js';
+export { classifyInvoiceType, classifyPackageText, derivePackageReview } from './import-package.js';
+export type { PackageRole, PackageCandidate, PackageReviewReason, PackageReview } from './import-package.js';

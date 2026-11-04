@@ -1,13 +1,13 @@
 {
   "name": "@teamhub/hub-console",
   "private": true,
-  "version": "0.85.2",
+  "version": "0.86.0",
   "description": "Team Hub operations console shell",
   "type": "module",
   "scripts": {
-    "dev": "npm run build:contracts && vite",
+    "dev": "npm run build:contracts && vite --config vite.config.ts",
     "build": "npm run build:contracts && npm run build:local",
-    "build:local": "tsc -b && vite build",
+    "build:local": "tsc -b && vite build --config vite.config.ts",
     "preview": "vite preview",
     "preview:local": "../../scripts/preview-hub-console.sh",
     "build:contracts": "tsc -p ../hub-contracts/tsconfig.json",
@@ -28,12 +28,15 @@
     "@dagrejs/dagre": "^3.0.0",
     "@tanstack/react-query": "^5.90.12",
     "@teamhub/hub-contracts": "file:../hub-contracts",
+    "@tesseract.js-data/chi_sim": "1.0.0",
+    "@tesseract.js-data/eng": "1.0.0",
     "@xyflow/react": "^12.11.0",
     "fflate": "0.8.3",
     "lucide-react": "^0.561.0",
     "pdfjs-dist": "^4.10.38",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "tesseract.js": "6.0.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {

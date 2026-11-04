@@ -17,7 +17,12 @@ const CONSOLE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PDFJS_DIST_DIR = path.dirname(
   createRequire(import.meta.url).resolve('pdfjs-dist/package.json'),
 );
+const moduleDir = (name: string) => path.dirname(createRequire(import.meta.url).resolve(`${name}/package.json`));
 const PDFJS_ASSETS: Record<string, string> = {
+  '/ocr/worker/': path.join(moduleDir('tesseract.js'), 'dist'),
+  '/ocr/core/': moduleDir('tesseract.js-core'),
+  '/ocr/lang/chi_sim.traineddata.gz': path.join(moduleDir('@tesseract.js-data/chi_sim'), '4.0.0_best_int', 'chi_sim.traineddata.gz'),
+  '/ocr/lang/eng.traineddata.gz': path.join(moduleDir('@tesseract.js-data/eng'), '4.0.0_best_int', 'eng.traineddata.gz'),
   '/pdfjs/cmaps/': path.join(PDFJS_DIST_DIR, 'cmaps'),
   '/pdfjs/standard_fonts/': path.join(PDFJS_DIST_DIR, 'standard_fonts'),
 };
@@ -34,12 +39,14 @@ function pdfjsAssetsPlugin(): Plugin {
           next();
           return;
         }
-        const filePath = path.join(PDFJS_ASSETS[prefix], decodeURIComponent(url.slice(prefix.length)));
-        if (!filePath.startsWith(PDFJS_ASSETS[prefix]) || !existsSync(filePath) || !statSync(filePath).isFile()) {
+        const root = PDFJS_ASSETS[prefix];
+        const filePath = path.resolve(root, decodeURIComponent(url.slice(prefix.length)) || '.');
+        const relative = path.relative(root, filePath);
+        if (relative.startsWith('..') || path.isAbsolute(relative) || !existsSync(filePath) || !statSync(filePath).isFile()) {
           next();
           return;
         }
-        res.setHeader('content-type', 'application/octet-stream');
+        res.setHeader('content-type', filePath.endsWith('.js') ? 'text/javascript' : filePath.endsWith('.wasm') ? 'application/wasm' : 'application/octet-stream');
         createReadStream(filePath).pipe(res);
       });
     },

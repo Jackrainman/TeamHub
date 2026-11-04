@@ -38,8 +38,8 @@
       "title": "报账第一版：一 ZIP / 一 JPG 对应一条，识别核对、本人补齐与凭证留档闭环",
       "tag": "code",
       "batch": "reimburse",
-      "status": "planned",
-      "note": "2026-11-04 用户确认：一个 ZIP 为一张发票加付款截图等材料；独立 JPG 也算一件事，多文件自行打包。用户要求 Superpowers 计划实现，后续说明真实样本有、先整理。本轮先完成计划和 UI 落地核对，尚未实施业务代码。备位池另议，不纳入本项。",
+      "status": "implemented-pending-acceptance",
+      "note": "2026-11-04 v0.86.0 已实现材料包草稿、可补全字段、幂等创建/留档、确认与重试。用户提供本机样本目录且要求不读具体内容，仅程序测试；OCR 默认关闭，以显式本地试用入口提供。待准确率真值、弱设备资源及完整登录后浏览器验收，不宣布全部 DoD 完成。备位池不在本项。",
       "dod": "每个合法顶层文件恰好一个确认项；多票包不拆项；未知金额不造 0；票种/缺材料/字段未识别/核对原因明确；普通成员只能改本人未锁条目；保存和补传不重复创建；原件不进列表/聚合；真实样本 OCR 验收、三包 verify:all、架构门和文档门通过。",
       "plan": {
         "title": "Reimbursement package V1 Implementation Plan",
@@ -68,7 +68,7 @@
           {
             "id": 1,
             "title": "可补齐条目契约与受控保存",
-            "status": "pending",
+            "status": "implemented",
             "files": {
               "modify": [
                 "apps/hub-contracts/src/domains/reimburse/model.ts",
@@ -103,13 +103,16 @@
               "[ ] GREEN：在已有 schema/service/repository 实现上述语义，同步所有金额调用方、fixture 和 CSV/汇总展示；上传白名单补 XML/OFD 为下载附件，禁止内联执行；幂等校验与写入通过同一 SQLite 事务或服务串行边界完成。",
               "[ ] 验证：三包 verify:all exit 0；工程验证不得启动违反用户账号保护规则的临时用户配置，浏览器部分按任务 5 的规则执行。",
               "[ ] 按版本脚本 bump 并原子提交；任务状态仅在实际验证完成后更新。"
-            ]
+            ],
+            "verification": "已实现；对应契约/API/前端纯函数与构建已验证，完整登录后浏览器验收另列任务 5。"
           },
           {
             "id": 2,
             "title": "本地材料包归并与识别结果模型",
-            "status": "pending",
-            "dependsOn": [1],
+            "status": "implemented",
+            "dependsOn": [
+              1
+            ],
             "files": {
               "create": [
                 "apps/hub-contracts/src/domains/reimburse/import-package.ts",
@@ -136,17 +139,20 @@
               "[ ] GREEN：结构化源优先选择，包级归并纯规则放 contracts；保留现有底层 parser，替换顶层多票展开语义；字节限额继续在流式解压时执行。",
               "[ ] 验证：npm --prefix apps/hub-contracts run test -- reimburse-package；npm --prefix apps/hub-console run test -- reimburse-package-import reimburse-archive-import；全部 exit 0。",
               "[ ] 对应包 verify:all 与架构门通过后按版本脚本 bump、原子提交。"
-            ]
+            ],
+            "verification": "已实现；对应契约/API/前端纯函数与构建已验证，完整登录后浏览器验收另列任务 5。"
           },
           {
             "id": 3,
             "title": "真实样本验证浏览器本地 OCR，再接入材料包",
-            "status": "pending-samples",
-            "dependsOn": [2],
+            "status": "trial-pending-ground-truth",
+            "dependsOn": [
+              2
+            ],
             "relatedTodo": "REIMBURSE-OCR-PROBE",
             "files": {
               "create": [
-                "apps/hub-console/src/features/reimburse/lib/ocr-extract.ts",
+                "apps/hub-console/src/features/reimburse/lib/local-ocr.ts",
                 "apps/hub-console/test/reimburse-ocr.test.ts"
               ],
               "modify": [
@@ -167,13 +173,18 @@
               "[ ] GREEN：按需加载本地 OCR 和语言资源；每页最多 1600 万像素、每份 PDF 最多 10 页（超出显式要求用户整理），顺序处理释放 canvas/worker，不上传票据到外部服务。数值是第一版资源保护设计，不是已经测得的性能。",
               "[ ] 验证：npm --prefix apps/hub-console run test -- reimburse-ocr reimburse-package-import；真实样本报告列出逐字段结果，不用总体通过率掩盖金额/号码错误；达标结论由样本结果支持。",
               "[ ] 验证后对应包 verify:all、架构门、版本脚本和原子提交；同步 REIMBURSE-OCR-PROBE 状态，不提前删除研究项。"
-            ]
+            ],
+            "verification": "真实样本只输出汇总，不查看原文；无真值不能判定准确率。默认关闭，显式本地试用；单页 30 秒/图片 1600 万像素/PDF 10 页，取消与超时释放 worker/bitmap，4 项生命周期测试通过。"
           },
           {
             "id": 4,
             "title": "预期版抽屉内完成确认、编辑和附件补传",
-            "status": "pending",
-            "dependsOn": [1, 2, 3],
+            "status": "implemented",
+            "dependsOn": [
+              1,
+              2,
+              3
+            ],
             "files": {
               "create": [
                 "apps/hub-console/src/features/reimburse/components/ReimburseImportReview.tsx",
@@ -202,13 +213,16 @@
               "[ ] RED：超过 12 份或单份 20MB 时先让用户选择；刷新后准确提示本地未传文件需重选；普通列表不请求 evidence，详情与下载仍走授权端点。",
               "[ ] GREEN：替换 hooks 中按发票展开队列；用新 review 子组件展示识别结果和附件，复用表单实现本人补改；中文英文文案齐全，类型与缺项不依赖颜色。",
               "[ ] 验证：npm --prefix apps/hub-console run test -- reimburse；对应包 verify:all、架构门；保持现有导出、批次和入库功能通过，再 bump 与原子提交。"
-            ]
+            ],
+            "verification": "已实现；对应契约/API/前端纯函数与构建已验证，完整登录后浏览器验收另列任务 5。"
           },
           {
             "id": 5,
             "title": "全流程验收、文档收口与交付",
-            "status": "pending",
-            "dependsOn": [4],
+            "status": "pending-browser-acceptance",
+            "dependsOn": [
+              4
+            ],
             "files": {
               "modify": [
                 "apps/hub-console/e2e/suite/expected-ui.cjs",
@@ -231,7 +245,41 @@
             ]
           }
         ],
-        "selfReview": "已逐条映射用户导入单位、单图入口、票种/缺项、附件留档与原有 UI。补充了未知金额、核心字段后补、创建响应丢失与部分附件失败、库存明细锁、真实样本门及账号保护。任务 4 消费任务 1/2/3 的类型与接口；任务 5 只负责验收和收口，不提前标记业务完成。"
+        "selfReview": "已逐条映射用户导入单位、单图入口、票种/缺项、附件留档与原有 UI。补充了未知金额、核心字段后补、创建响应丢失与部分附件失败、库存明细锁、真实样本门及账号保护。任务 4 消费任务 1/2/3 的类型与接口；任务 5 只负责验收和收口，不提前标记业务完成。",
+        "executionRulings": [
+          "样本仅程序测试，无法逐票核对真值；OCR 默认关闭，显式试用不代表正式准确率验收通过。",
+          "用户样本包含大量 PNG，单 PNG 与 JPG 同样作为一个条目；不做跨文件配对。",
+          "账号保护优先：既有创建空白浏览器配置/测试账号的 E2E 不执行；沿用现有 Edge 做无账号本地 OCR 检查。",
+          "新入口保留材料自证语义，原件上传不会自动勾选付款已备或查验完成。"
+        ]
+      },
+      "verification": {
+        "sampleScope": "688 个文件的扩展名统计；程序只读抽取 16 张 JPG/PNG 与 32 份 PDF，不输出文件名、内容、字段值，不上传外部。",
+        "imageProbe": {
+          "processed": 16,
+          "failed": 0,
+          "paymentShot": 9,
+          "unknown": 7,
+          "lowConfidence": 13,
+          "elapsedMs": 39783
+        },
+        "pdfProbe": {
+          "processed": 32,
+          "failed": 0,
+          "invoice": 30,
+          "inspection": 1,
+          "unknown": 1,
+          "vatOrdinary": 29,
+          "vatSpecial": 1,
+          "unknownType": 2,
+          "coreFieldsPresentInInvoices": 30,
+          "elapsedMs": 687
+        },
+        "meaning": "上述仅处理结果和字段非空数，未查看原文，没有真值，不能声称准确率。",
+        "browser": "现有 Edge 配置、新建测试页，不创建账号；合成付款图本地识别 paymentShot，约 1166ms；资源同源。未运行会创建新配置/替代账号的既有浏览器 E2E。",
+        "review": "按 requesting-code-review 做分段自审，未进行独立审查；修正旧 Vite 配置副本、空金额语义、附件重试、重复 ZIP 路径、材料自证不能由留档替代。",
+        "engineering": "contracts verify:all 481 tests；server verify:all 479 tests（含 e2e-pillars 4）；console verify:local 301 tests；architecture/docs/diff 通过。现有账号保护约束下未运行 console test:e2e，因此不宣称三包 verify:all 全部通过。",
+        "remaining": "OCR 准确率真值对照、弱设备峰值内存/耗时、真实扫描件代表性、现有账号下完整 UI 操作验收；未部署。"
       }
     },
     {
@@ -270,7 +318,7 @@
     {
       "id": "REIMBURSE-OCR-PROBE",
       "title": "扫描票本地 OCR 技术验证：真实样本测 tesseract.js 资源体积、单页耗时、低性能设备内存与核心字段识别率；达标后才评估接主流程，结果必须人工确认；解析全程留浏览器属 D-094 不变式①，与附件留档（D-094②）互不牵动；见 docs/domains/reimburse.md",
-      "note": "用户 2026-09-05 已拿到真实发票+付款截图样本。2026-09-06 groundwork 完成（报告 ~/misc/ocr-probe-REPORT.md，脚本 /tmp/ocr-probe）：①PDF文字层=主力立即可用（8/8字段、~130ms、495KB gzip）②发票二维码 jsQR=辅助（免OCR拿5核心字段、56KB）③tesseract OCR=兜底（3-5MB、~1.3s/页、内存数百MB）。剩余=真实样本识别率验收（协议见报告§8），需用户提供样本",
+      "note": "2026-11-04 已用用户指定本机样本做仅汇总程序抽测（16 图、32 PDF），并在现有 Edge 验证同源 OCR。结果见 REIMBURSE-PACKAGE-V1.verification。不得声称准确率达标；仍需脱敏真值、弱设备耗时/内存和扫描票代表性验收，默认 OCR 关闭。",
       "tag": "research",
       "batch": "later"
     },

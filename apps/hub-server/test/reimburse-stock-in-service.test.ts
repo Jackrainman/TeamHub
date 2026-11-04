@@ -81,6 +81,9 @@ describe('ReimburseService + SQLite ApplicationUnitOfWork', () => {
     });
 
     expect(result.actions).toHaveLength(2);
+    await expect(service.updateEntry(entry.id, { kind: 'expense' }, ACTOR)).rejects.toMatchObject({ code: 'REIMBURSE_STOCK_FIELDS_LOCKED' });
+    await expect(service.updateEntry(entry.id, { items: [] }, ACTOR)).rejects.toMatchObject({ code: 'REIMBURSE_STOCK_FIELDS_LOCKED' });
+    expect((await service.updateEntry(entry.id, { invoiceNo: 'uow-corrected' }, ACTOR)).invoiceNo).toBe('uow-corrected');
     expect(result.actions.every((action) => action.recordedAt === NOW.toISOString())).toBe(true);
     expect(result.partTypes.find((part) => part.partNumber === 'UOW-NEW')?.totalQuantity).toBe(1);
   });

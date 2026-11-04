@@ -21,7 +21,7 @@ export const CreateReimburseEntryRequestSchema = ReimburseEntrySchema.omit({
   evidence: true,
   createdAt: true,
   updatedAt: true,
-}).partial({
+}).extend({ clientRequestId: z.string().uuid().optional() }).partial({
   invoiceNo: true,
   invoiceDate: true,
   seller: true,
@@ -33,6 +33,9 @@ export const CreateReimburseEntryRequestSchema = ReimburseEntrySchema.omit({
 export const CreateReimburseEntryResponseSchema = z.object({ entry: ReimburseEntrySchema });
 
 export const UpdateReimburseEntryRequestSchema = z.object({
+  ...ReimburseEntrySchema.pick({ kind: true, invoiceType: true, invoiceNo: true, invoiceDate: true,
+    seller: true, purchaserName: true, purchaserTaxNo: true, totalAmountFen: true, items: true,
+  }).partial().shape,
   materials: ReimburseMaterialsSchema.optional(),
   actualItemName: z.string().min(1).nullable().optional(),
   note: z.string().min(1).nullable().optional(),

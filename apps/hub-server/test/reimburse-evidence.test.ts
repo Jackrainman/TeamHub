@@ -98,6 +98,15 @@ function buildTestApp() {
 }
 
 let invoiceSeq = 0;
+
+test('concurrent retries keep one evidence record and accept structured invoice originals', async () => {
+  const entry = await createEntry(app, cookieA);
+  const results = await Promise.all([1, 2, 3].map(() => upload(app, cookieA, entry.id, 'invoice', 'original.xml', '<Invoice/>')));
+  expect(results.map(result => result.statusCode)).toEqual([201, 201, 201]);
+  expect(new Set(results.map(result => result.json().evidence.id)).size).toBe(1);
+  const list = await listEvidence(app, cookieA, entry.id);
+  expect(list).toHaveLength(1);
+});
 /** goods 写体（每次调用给唯一发票号，防用例间互撞查重）。 */
 function goodsEntryPayload() {
   invoiceSeq += 1;

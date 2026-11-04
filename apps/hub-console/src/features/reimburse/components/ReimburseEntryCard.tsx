@@ -17,6 +17,7 @@ import { useI18n, type TranslationKey } from '../../../i18n';
 import { formatAmountFen } from '../reimburse-utils';
 import { ReimburseEvidenceSection } from './ReimburseEvidenceSection';
 import { StockInDialog } from './StockInDialog';
+import { ReimburseEntryForm } from './ReimburseEntryForm';
 
 const STATUS_BADGE: Record<ReimburseEntryStatus, { tone: string; key: TranslationKey }> = {
   draft: { tone: 'badge--outline', key: 'reimb.status.draft' },
@@ -75,13 +76,15 @@ export function ReimburseEntryCard({
   const [note, setNote] = useState(entry.note ?? '');
   const [stockInOpen, setStockInOpen] = useState(false);
   const [stockInDone, setStockInDone] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const status = deriveReimburseStatus(entry);
   const purchaserStatus = derivePurchaserCheckStatus(entry, profile);
   const reviewReasons = deriveReimburseReviewReasons(entry, profile);
   const nonMismatchReasons = reviewReasons.filter((reason) => reason !== 'purchaser-mismatch');
   const badge = STATUS_BADGE[status];
-  const writeDisabled = !canWrite || updateMutation.isPending;
+  const locked = batches.some(batch => batch.id === entry.batchId && batch.status !== 'collecting');
+  const writeDisabled = !canWrite || locked || updateMutation.isPending;
 
   const stocked = useMemo(
     () => new Map(
@@ -116,6 +119,11 @@ export function ReimburseEntryCard({
         </span>
         <strong className="reimb-entry__amount">{formatAmountFen(entry.totalAmountFen)}</strong>
       </header>
+      <p>{t('reimb.package.type')}: {t(`reimb.invoiceType.${entry.invoiceType ?? 'unknown'}`)}</p>
+      {(isOwner || isSuperAdmin) && <button className="btn btn--secondary btn--sm" disabled={writeDisabled}
+        onClick={() => setEditing(value => !value)}>{t('reimb.entry.editFields')}</button>}
+      {editing && <ReimburseEntryForm client={client} source={source} projectId={entry.projectId}
+        canWrite={!writeDisabled} writeLockedHint={null} profile={profile} editingEntry={entry} onDone={() => setEditing(false)} />}
 
       {purchaserStatus === 'mismatch' ? (
         <p role="alert"><span className="badge badge--dense badge--red">{t('reimb.review.changePurchaser')}</span></p>

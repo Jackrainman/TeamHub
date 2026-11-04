@@ -85,6 +85,7 @@ export function extractZipEntries(
       return;
     }
     const entries = new Map<string, Uint8Array>();
+    const names = new Set<string>();
     let entryCount = 0;
     let totalBytes = 0;
     let settled = false;
@@ -105,6 +106,12 @@ export function extractZipEntries(
         return;
       }
       if (file.name.endsWith('/')) return; // 目录占位
+      const name = decodeZipEntryName(file.name).replace(/\\/g, '/').normalize('NFC');
+      if (name.startsWith('/') || name.split('/').some(part => part === '..' || part === '.') || names.has(name.toLowerCase())) {
+        fail('corrupt');
+        return;
+      }
+      names.add(name.toLowerCase());
       const chunks: Uint8Array[] = [];
       let entryBytes = 0;
       file.ondata = (err, chunk, final) => {
@@ -121,7 +128,7 @@ export function extractZipEntries(
         }
         chunks.push(chunk);
         if (final) {
-          entries.set(decodeZipEntryName(file.name), concatChunks(chunks, entryBytes));
+          entries.set(name, concatChunks(chunks, entryBytes));
         }
       };
       file.start();

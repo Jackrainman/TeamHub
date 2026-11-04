@@ -71,7 +71,7 @@ export function deriveReimburseStatus(entry: ReimburseEntry): ReimburseEntryStat
     entry.invoiceNo !== null &&
     entry.invoiceDate !== null &&
     entry.seller !== null &&
-    entry.totalAmountFen > 0 &&
+    (entry.totalAmountFen ?? 0) > 0 &&
     (entry.kind !== 'goods' || entry.items.length > 0);
   const materialsDone = entry.materials.paymentShot && entry.materials.inspection;
   if (coreFilled && materialsDone) {
@@ -83,7 +83,7 @@ export function deriveReimburseStatus(entry: ReimburseEntry): ReimburseEntryStat
     entry.seller !== null ||
     entry.purchaserName !== null ||
     entry.purchaserTaxNo !== null ||
-    entry.totalAmountFen > 0 ||
+    (entry.totalAmountFen ?? 0) > 0 ||
     entry.items.length > 0 ||
     entry.actualItemName !== null ||
     entry.materials.paymentShot ||
@@ -99,7 +99,7 @@ export function deriveReimburseReviewReasons(
   if (entry.invoiceNo === null) reasons.push('invoice-no-missing');
   if (entry.invoiceDate === null) reasons.push('invoice-date-missing');
   if (entry.seller === null) reasons.push('seller-missing');
-  if (entry.totalAmountFen <= 0) reasons.push('amount-missing');
+  if ((entry.totalAmountFen ?? 0) <= 0) reasons.push('amount-missing');
   if (entry.kind === 'goods' && entry.items.length === 0) reasons.push('items-missing');
 
   const purchaserStatus = derivePurchaserCheckStatus(entry, profile);
@@ -119,6 +119,7 @@ export function isReimburseEntryBlocked(
 ): boolean {
   const purchaserStatus = derivePurchaserCheckStatus(entry, profile);
   return (
+    entry.totalAmountFen === null ||
     deriveReimburseStatus(entry) !== 'complete' ||
     purchaserStatus === 'mismatch' ||
     purchaserStatus === 'missing'
@@ -138,6 +139,8 @@ export const REIMBURSE_EVIDENCE_CONTENT_TYPES: Record<string, string> = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
+  '.xml': 'application/octet-stream',
+  '.ofd': 'application/octet-stream',
 };
 
 /** 文件选择框的 accept 串（顺序即界面口径，与上表同源）。 */

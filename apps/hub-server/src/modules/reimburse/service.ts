@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import type { StoredReimburseEntry } from './repository.js';
 import {
   REIMBURSE_EVIDENCE_MAX_PER_ENTRY,
   StockInContextResponseSchema,
@@ -84,7 +86,8 @@ export interface ReimburseAdminPort {
 
 /** D-094「永不进列表」：条目对象出 HTTP 前把 evidence 剥成空数组，原件元数据只走凭证专属端点。 */
 function withoutEvidence(entry: ReimburseEntry): ReimburseEntry {
-  return entry.evidence?.length ? { ...entry, evidence: [] } : entry;
+  const { creationRequest: _request, ...publicEntry } = entry as StoredReimburseEntry;
+  return { ...publicEntry, evidence: [] };
 }
 
 export interface ReimburseEvidenceDownloadResult {
@@ -94,6 +97,7 @@ export interface ReimburseEvidenceDownloadResult {
 }
 
 export class ReimburseService {
+  private readonly evidenceWrites = new Map<string, Promise<unknown>>();
   constructor(
     private readonly repository: ReimburseRepository,
     private readonly admin: ReimburseAdminPort,
@@ -117,10 +121,12 @@ export class ReimburseService {
   }
 
   createEntry(input: ReimburseEntryInput): ReimburseEntry {
+    const { clientRequestId, ...fields } = input;
     // 可空键缺省规整为 null（REIMBURSE-DEFECTS #5：Create 请求允许省略 nullable 键）。
     // 凭证元数据不在 draft 类型里（ReimburseEntryDraft 已 omit），只能走 uploadEvidence。
     const draft: ReimburseEntryDraft = {
-      ...input,
+      ...fields,
+      invoiceType: input.invoiceType ?? 'unknown',
       invoiceNo: input.invoiceNo ?? null,
       invoiceDate: input.invoiceDate ?? null,
       seller: input.seller ?? null,
@@ -129,6 +135,19 @@ export class ReimburseService {
       actualItemName: input.actualItemName ?? null,
       note: input.note ?? null,
     };
+    if (clientRequestId) {
+      const fingerprint = createHash('sha256').update(JSON.stringify(draft)).digest('hex');
+      const prior = (this.repository.listEntries() as StoredReimburseEntry[])
+        .find(entry => entry.memberId === input.memberId && entry.creationRequest?.id === clientRequestId);
+      if (prior) {
+        if (prior.creationRequest?.fingerprint !== fingerprint) {
+          throw new ApplicationError('conflict', 'REIMBURSE_REQUEST_CONFLICT', '该保存请求已用于另一份内容，请刷新条目后重试');
+        }
+        return withoutEvidence(prior);
+      }
+      // 与条目一同持久化，重启或修改条目后仍能辨认首次保存的重试。
+      draft.creationRequest = { id: clientRequestId, fingerprint };
+    }
     if (draft.invoiceNo) {
       const duplicate = this.repository.findEntryByInvoiceNo(draft.invoiceNo);
       if (duplicate) {
@@ -173,6 +192,17 @@ export class ReimburseService {
     }
     this.assertBatchMutable(entry.batchId);
     this.assertBatchMutable(patch.batchId);
+    if (patch.invoiceNo) {
+      const duplicate = this.repository.findEntryByInvoiceNo(patch.invoiceNo);
+      if (duplicate && duplicate.id !== id) {
+        throw new ApplicationError('conflict', 'REIMBURSE_INVOICE_DUPLICATE', '该发票已录入，请勿重复报销');
+      }
+    }
+    const changesStock = (patch.kind !== undefined && patch.kind !== entry.kind) ||
+      (patch.items !== undefined && JSON.stringify(patch.items) !== JSON.stringify(entry.items));
+    if (changesStock && this.inventory.readStockInSnapshot().actions.some(action => action.reimburseEntryId === id)) {
+      throw new ApplicationError('conflict', 'REIMBURSE_STOCK_FIELDS_LOCKED', '该条目已有入库记录，不能修改类型或物资明细');
+    }
     return withoutEvidence(this.repository.updateEntry(id, patch)!);
   }
 
@@ -338,6 +368,17 @@ export class ReimburseService {
     upload: { filename?: string; buf: Buffer },
     actor: ActorRef,
   ): Promise<ReimburseEvidence> {
+    const previous = this.evidenceWrites.get(entryId) ?? Promise.resolve();
+    const writing = previous.catch(() => {}).then(() => this.uploadEvidenceOnce(entryId, kind, upload, actor));
+    this.evidenceWrites.set(entryId, writing);
+    try { return await writing; }
+    finally { if (this.evidenceWrites.get(entryId) === writing) this.evidenceWrites.delete(entryId); }
+  }
+
+  private async uploadEvidenceOnce(
+    entryId: string, kind: ReimburseEvidenceKind,
+    upload: { filename?: string; buf: Buffer }, actor: ActorRef,
+  ): Promise<ReimburseEvidence> {
     const dir = this.evidenceStorage.dir();
     if (!dir) {
       throw new ApplicationError('validation', 'REIMBURSE_EVIDENCE_STORAGE_UNCONFIGURED', '未配置凭证留档目录');
@@ -347,6 +388,14 @@ export class ReimburseService {
       throw new ApplicationError('forbidden', 'REIMBURSE_EVIDENCE_FORBIDDEN', '只有条目本人能上传凭证');
     }
     this.assertBatchMutable(entry.batchId);
+    const ext = evidenceExtOf(upload.filename);
+    if (!isEvidenceExtAllowed(ext)) {
+      throw new ApplicationError('validation', 'REIMBURSE_EVIDENCE_UNSUPPORTED_EXT',
+        `不支持的凭证类型：${ext || '（无后缀）'}（仅 PDF/PNG/JPG/XML/OFD）`);
+    }
+    const sha256 = this.evidenceStorage.sha256(upload.buf);
+    const existing = entry.evidence?.find(item => item.sha256 === sha256 && item.kind === kind);
+    if (existing) return existing;
     if ((entry.evidence ?? []).length >= REIMBURSE_EVIDENCE_MAX_PER_ENTRY) {
       throw new ApplicationError(
         'validation',
@@ -354,18 +403,9 @@ export class ReimburseService {
         `单个条目最多留档 ${REIMBURSE_EVIDENCE_MAX_PER_ENTRY} 份凭证`,
       );
     }
-    const ext = evidenceExtOf(upload.filename);
-    if (!isEvidenceExtAllowed(ext)) {
-      throw new ApplicationError(
-        'validation',
-        'REIMBURSE_EVIDENCE_UNSUPPORTED_EXT',
-        `不支持的凭证类型：${ext || '（无后缀）'}（仅 PDF/PNG/JPG）`,
-      );
-    }
     // 原始名剥路径只留基名，下载时回用它做 content-disposition。
     const originalName =
       (upload.filename ?? '').split(/[\\/]/).pop()!.trim() || `evidence${ext}`;
-    const sha256 = this.evidenceStorage.sha256(upload.buf);
     const draft = {
       kind,
       originalName,
@@ -385,6 +425,7 @@ export class ReimburseService {
       await this.evidenceStorage.write(dir, appended.evidence.id, ext, upload.buf);
     } catch (err) {
       this.repository.removeEntryEvidence(entryId, appended.evidence.id);
+      await this.evidenceStorage.remove(dir, appended.evidence.id);
       throw err; // 基础设施故障：route 映射 500
     }
     return appended.evidence;

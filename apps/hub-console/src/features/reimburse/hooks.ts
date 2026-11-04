@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ReimburseSegment } from './api';
 import { queryKeys } from '../../api/queryKeys';
 import type {
@@ -10,14 +10,17 @@ import type {
   StockInRequest,
   UpdateReimburseProfileRequest,
   ReimburseEvidenceKind,
+  ReimburseProfile,
 } from '@teamhub/hub-contracts';
+import { DEFAULT_REIMBURSE_PROFILE } from '@teamhub/hub-contracts';
 import { useHubMutation } from '../../hooks/useHubMutation';
 import {
-  analyzeInvoiceFileDeep,
   draftFromParsedInvoice,
   type ImportFailReason,
-  type ImportOutcome,
 } from './reimburse-import';
+import { analyzeReimbursePackage, type PackageDraft, type PackageAttachment } from './lib/package-import';
+import { extractLocalOcr } from './lib/local-ocr';
+import { saveReimbursePackage, type PackageSaveState } from './lib/package-save';
 import { emptyEntryDraft, type EntryDraft } from './reimburse-utils';
 
 /**
@@ -192,10 +195,10 @@ export function useUpdateReimburseBatch(client: ReimburseSegment, source: string
   });
 }
 
-/** 待确认的导入队列项（parsed=预填 / unrecognized=开空表单手填）。 */
+/** 一个顶层文件对应一个待确认项，保存进度随该项保留。 */
 interface ImportJob {
   id: number;
-  outcome: ImportOutcome & { kind: 'parsed' | 'unrecognized' };
+  initial: ReimburseFormInitial;
 }
 
 export interface ReimburseImportFail {
@@ -208,65 +211,91 @@ export interface ReimburseFormInitial {
   draft: EntryDraft;
   fileName: string;
   notice: 'recognized' | 'unrecognized';
+  package?: PackageDraft;
+  saveState?: PackageSaveState;
+}
+
+export function useSaveReimbursePackage(client: ReimburseSegment, source: string, onSuccess: () => void) {
+  const cache = useQueryClient();
+  return useHubMutation({
+    invalidateKeys: [queryKeys.reimburse.entries(source)],
+    mutationFn: (vars: { request: CreateReimburseEntryRequest; attachments: PackageAttachment[]; state: PackageSaveState }) =>
+      saveReimbursePackage(client, vars.request, vars.attachments, vars.state),
+    onSuccess,
+    onSettled: (_data, _error, vars) => {
+      void cache.invalidateQueries({ queryKey: queryKeys.reimburse.entries(source) });
+      if (vars.state.entryId) void cache.invalidateQueries({ queryKey: queryKeys.reimburse.evidence(source, vars.state.entryId) });
+    },
+  });
 }
 
 /**
  * 浏览器本地导入 controller：统一管理顺序解析、失败通知、待确认队列和队首草稿。
- * 发票文件只交给 analyzeInvoiceFile 在浏览器内读取，这条通道不上传发票（原件留档走 evidence 端点）。
+ * 包内识别只在浏览器进行；用户确认保存后，原件再走 evidence 端点。
  */
-export function useReimburseImportController() {
+export function useReimburseImportController(profile: ReimburseProfile = DEFAULT_REIMBURSE_PROFILE) {
   const [jobs, setJobs] = useState<ImportJob[]>([]);
   const [fails, setFails] = useState<ReimburseImportFail[]>([]);
   const [parsing, setParsing] = useState(false);
   const sequence = useRef(0);
+  const parsingRef = useRef(false);
+  const abort = useRef<AbortController | null>(null);
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
+  useEffect(() => () => abort.current?.abort(), []);
 
-  async function importFiles(files: File[]): Promise<void> {
+  async function importFiles(files: File[], useOcr = false): Promise<void> {
+    if (parsingRef.current) return;
+    parsingRef.current = true;
+    const controller = new AbortController();
+    abort.current = controller;
+    setProgress({ done: 0, total: files.length });
     setParsing(true);
     try {
       for (const file of files) {
-        // 深度编排：zip 解包成多结局队列，ofd 走内嵌 XBRL，散件照旧单结局。
-        const outcomes = await analyzeInvoiceFileDeep(file);
-        for (const outcome of outcomes) {
-          sequence.current += 1;
-          const id = sequence.current;
-          if (outcome.kind === 'failed') {
-            setFails((current) => [
-              ...current,
-              { id, fileName: outcome.fileName, reason: outcome.reason },
-            ]);
-          } else {
-            setJobs((current) => [...current, { id, outcome }]);
-          }
+        if (controller.signal.aborted) break;
+        const outcome = await analyzeReimbursePackage(file, useOcr ? {
+          extractOcrText: file => extractLocalOcr(file, { signal: controller.signal }),
+        } : {}, profile);
+        if (controller.signal.aborted) break;
+        setProgress(current => ({ ...current, done: current.done + 1 }));
+        sequence.current += 1;
+        const id = sequence.current;
+        if (outcome.kind === 'failed') {
+          setFails((current) => [
+            ...current,
+            { id, fileName: outcome.fileName, reason: outcome.reason },
+          ]);
+        } else {
+          const invoice = outcome.review.selectedInvoice;
+          const draft = invoice ? draftFromParsedInvoice(invoice) : emptyEntryDraft();
+          draft.invoiceType = outcome.review.invoiceType;
+          if (draft.invoiceType === 'railway') draft.kind = 'expense';
+          setJobs((current) => [...current, { id, initial: {
+            draft, fileName: outcome.fileName, notice: invoice ? 'recognized' : 'unrecognized',
+            package: outcome, saveState: { clientRequestId: crypto.randomUUID() },
+          } }]);
         }
       }
     } finally {
+      parsingRef.current = false;
       setParsing(false);
     }
   }
 
   const currentJob = jobs[0] ?? null;
-  const formInitial: ReimburseFormInitial | null = currentJob
-    ? currentJob.outcome.kind === 'parsed'
-      ? {
-          draft: draftFromParsedInvoice(currentJob.outcome.invoice),
-          fileName: currentJob.outcome.fileName,
-          notice: 'recognized',
-        }
-      : {
-          draft: emptyEntryDraft(),
-          fileName: currentJob.outcome.fileName,
-          notice: 'unrecognized',
-        }
-    : null;
+  const formInitial = currentJob?.initial ?? null;
 
   return {
     currentJobId: currentJob?.id ?? null,
     formInitial,
     fails,
     parsing,
+    progress,
+    cancel: () => abort.current?.abort(),
     pendingCount: Math.max(0, jobs.length - 1),
     importFiles,
-    advance: () => setJobs((current) => current.slice(1)),
+    // 关闭后重开时，旧保存回调可能晚到；只移除它对应的条目，不能跳过下一包。
+    advance: () => setJobs((current) => current.filter(job => job.id !== currentJob?.id)),
     dismissFail: (id: number) =>
       setFails((current) => current.filter((failure) => failure.id !== id)),
   };

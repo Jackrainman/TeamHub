@@ -19,7 +19,8 @@ import type {
  */
 
 /** 分 → 展示文本（¥1,234.56；负数 -¥0.88）。 */
-export function formatAmountFen(fen: number): string {
+export function formatAmountFen(fen: number | null): string {
+  if (fen === null) return '—';
   const sign = fen < 0 ? '-' : '';
   const abs = Math.abs(fen);
   const yuan = Math.floor(abs / 100);
@@ -53,6 +54,7 @@ export interface EntryItemDraft {
 
 export interface EntryDraft {
   kind: ReimburseEntryKind;
+  invoiceType?: import('@teamhub/hub-contracts').InvoiceType;
   invoiceNo: string;
   invoiceDate: string; // input[type=date] 的 YYYY-MM-DD 或 ''
   seller: string;
@@ -104,7 +106,7 @@ function optionalText(value: string): string | null {
 
 /**
  * 草稿 → POST 请求体；任一必填/已填字段非法 → null（表单据此算 valid，不给服务端递坏数据）。
- * 规则：totalYuan 必须可解析且 ≥0（金额是报销唯一硬字段）；goods 的非空明细行每行须
+ * 金额可留空待补全，已填时必须可解析且 ≥0；goods 的非空明细行每行须
  * 名称非空 + 数量>0 + 金额可解析；全空行直接丢弃（允许先建无明细草稿，状态派生会标 partial）。
  */
 export function buildCreateEntryRequest(
@@ -116,7 +118,7 @@ export function buildCreateEntryRequest(
     return null;
   }
   const totalAmountFen = yuanTextToFen(draft.totalYuan);
-  if (totalAmountFen === null || totalAmountFen < 0) {
+  if ((draft.totalYuan.trim() !== '' && totalAmountFen === null) || (totalAmountFen !== null && totalAmountFen < 0)) {
     return null;
   }
 
@@ -153,6 +155,7 @@ export function buildCreateEntryRequest(
   return {
     projectId: normalizedProjectId,
     kind: draft.kind,
+    invoiceType: draft.invoiceType ?? 'unknown',
     invoiceNo: optionalText(draft.invoiceNo),
     invoiceDate: optionalText(draft.invoiceDate),
     seller: optionalText(draft.seller),

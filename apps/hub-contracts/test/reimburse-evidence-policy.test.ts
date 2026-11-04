@@ -51,7 +51,7 @@ describe('isEvidenceExtAllowed / evidenceContentType', () => {
 
 describe('留档上限口径', () => {
   test('accept 串与允许后缀表同源同序', () => {
-    expect(REIMBURSE_EVIDENCE_ACCEPT).toBe('.pdf,.png,.jpg,.jpeg');
+    expect(REIMBURSE_EVIDENCE_ACCEPT).toBe('.pdf,.png,.jpg,.jpeg,.xml,.ofd');
   });
 
   test('单文件 20MB、单条目 12 份（改动即显式）', () => {

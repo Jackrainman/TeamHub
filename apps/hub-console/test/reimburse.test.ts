@@ -64,8 +64,8 @@ describe('buildCreateEntryRequest：草稿校验与装配', () => {
     expect(buildCreateEntryRequest(draft({ totalYuan: '88.00' }), '   ')).toBeNull();
   });
 
-  test('金额缺失或非法 → null', () => {
-    expect(buildCreateEntryRequest(draft({ totalYuan: '' }), 'prj-robots')).toBeNull();
+  test('缺失金额保留 null，非法金额拒绝保存', () => {
+    expect(buildCreateEntryRequest(draft({ totalYuan: '' }), 'prj-robots')?.totalAmountFen).toBeNull();
     expect(buildCreateEntryRequest(draft({ totalYuan: 'abc' }), 'prj-robots')).toBeNull();
     expect(buildCreateEntryRequest(draft({ totalYuan: '-5' }), 'prj-robots')).toBeNull();
   });

@@ -445,3 +445,5 @@
 .reimb-material.is-ready, .reimb-status--complete { color: var(--green); }
 .reimb-material.is-missing, .reimb-status--partial { color: var(--amber); }
 .reimb-status--draft { color: var(--blue); }
+
+.reimb-form-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: var(--space-4); }

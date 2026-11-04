@@ -22,7 +22,8 @@ export interface ReimburseSnapshot {
 export type ReimburseEntryDraft = Omit<
   ReimburseEntry,
   'id' | 'createdAt' | 'updatedAt' | 'evidence'
->;
+> & { creationRequest?: { id: string; fingerprint: string } };
+export type StoredReimburseEntry = ReimburseEntry & Pick<ReimburseEntryDraft, 'creationRequest'>;
 /** 条目可空键（Create 请求允许省略，service 规整为 null 后再进 repository）。 */
 type ReimburseEntryNullableKey =
   | 'invoiceNo'
@@ -33,7 +34,7 @@ type ReimburseEntryNullableKey =
   | 'actualItemName'
   | 'note';
 export type ReimburseEntryInput = Omit<ReimburseEntryDraft, ReimburseEntryNullableKey> &
-  Partial<Pick<ReimburseEntryDraft, ReimburseEntryNullableKey>>;
+  Partial<Pick<ReimburseEntryDraft, ReimburseEntryNullableKey>> & { clientRequestId?: string };
 export type ReimburseBatchDraft = Omit<
   ReimburseBatch,
   'id' | 'status' | 'createdAt' | 'updatedAt'

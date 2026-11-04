@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { isoDateTimeSchema } from '../../common.js';
 
 export const ReimburseEntryKindSchema = z.enum(['goods', 'expense']);
+export const InvoiceTypeSchema = z.enum(['vatOrdinary', 'vatSpecial', 'railway', 'other', 'unknown']);
+export type InvoiceType = z.infer<typeof InvoiceTypeSchema>;
 export const ReimburseBatchStatusSchema = z.enum([
   'collecting',
   'submitted',
@@ -57,13 +59,14 @@ export const ReimburseEntrySchema = z.object({
   memberId: z.string().min(1),
   batchId: z.string().min(1).nullable(),
   kind: ReimburseEntryKindSchema,
+  invoiceType: InvoiceTypeSchema.optional(),
   invoiceNo: z.string().min(1).nullable(),
   invoiceDate: z.string().min(1).nullable(),
   seller: z.string().min(1).nullable(),
   purchaserName: z.string().min(1).nullable(),
   purchaserTaxNo: z.string().min(1).nullable(),
   recognitionSource: InvoiceRecognitionSourceSchema,
-  totalAmountFen: z.number().int().nonnegative(),
+  totalAmountFen: z.number().int().nonnegative().nullable(),
   items: z.array(ReimburseItemSchema),
   actualItemName: z.string().min(1).nullable(),
   materials: ReimburseMaterialsSchema,

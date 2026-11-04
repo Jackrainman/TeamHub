@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import type { ReimburseSegment } from '../api';
-import type { ReimburseEntryKind } from '@teamhub/hub-contracts';
+import { derivePackageReview, DEFAULT_REIMBURSE_PROFILE, type InvoiceType, type ReimburseEntry, type ReimburseEntryKind, type ReimburseProfile } from '@teamhub/hub-contracts';
 import {
-  useCreateReimburseEntry,
+  useSaveReimbursePackage,
+  useUpdateReimburseEntry,
   type ReimburseFormInitial,
 } from '../hooks';
 import { useI18n, type TranslationKey } from '../../../i18n';
@@ -19,6 +20,9 @@ import {
   type EntryDraft,
 } from '../reimburse-utils';
 import { FormBanner } from '../../../components/FormBanner';
+import { ReimbursePackageReview } from './ReimbursePackageReview';
+import { draftFromParsedInvoice } from '../reimburse-import';
+import type { PackageSaveState } from '../lib/package-save';
 
 const KIND_OPTIONS: { value: ReimburseEntryKind; labelKey: TranslationKey }[] = [
   { value: 'goods', labelKey: 'reimb.kind.goods' },
@@ -39,6 +43,8 @@ export function ReimburseEntryForm({
   initial,
   onDone,
   onDraftChange,
+  profile = DEFAULT_REIMBURSE_PROFILE,
+  editingEntry,
 }: {
   client: ReimburseSegment;
   source: string;
@@ -50,21 +56,33 @@ export function ReimburseEntryForm({
   /** 预填模式下提交成功/跳过后回调（父组件推进导入队列）。 */
   onDone?: () => void;
   onDraftChange?: (draft: EntryDraft) => void;
+  profile?: ReimburseProfile;
+  editingEntry?: ReimburseEntry;
 }) {
   const { t } = useI18n();
-  const [draft, setDraft] = useState<EntryDraft>(() => initial?.draft ?? emptyEntryDraft());
+  const [draft, setDraft] = useState<EntryDraft>(() => editingEntry ? {
+    ...draftFromParsedInvoice({ ...editingEntry, invoiceNo: editingEntry.invoiceNo ?? '' }),
+    kind: editingEntry.kind, invoiceType: editingEntry.invoiceType ?? 'unknown',
+    actualItemName: editingEntry.actualItemName ?? '', note: editingEntry.note ?? '',
+  } : initial?.draft ?? emptyEntryDraft());
+  const [attachments, setAttachments] = useState(() => initial?.package?.attachments ?? []);
+  const [saveState] = useState<PackageSaveState>(() => initial?.saveState ?? { clientRequestId: crypto.randomUUID() });
   useEffect(() => onDraftChange?.(draft), [draft, onDraftChange]);
 
-  const mutation = useCreateReimburseEntry(client, source, {
-    onSuccess: () => {
+  const saveMutation = useSaveReimbursePackage(client, source, () => {
       if (onDone) {
         onDone(); // 队列还有下一张时父组件换 key 重挂，草稿随预填重置
       } else {
         setDraft(emptyEntryDraft());
       }
-    },
-    onError: () => {}, // 内联错误条已渲染 mutation.error，跳过全局 toast（免重复提示）
   });
+  const updateMutation = useUpdateReimburseEntry(client, source);
+  const mutation = editingEntry ? updateMutation : saveMutation;
+  const frozen = mutation.isPending || !!saveState.request;
+  const review = derivePackageReview(attachments.filter(a => a.included), profile);
+  const packageValid = attachments.filter(a => a.included).length <= 12 &&
+    !attachments.some(a => a.included && a.role === 'unknown') &&
+    !review.reviewReasons.some(reason => reason === 'multiple-invoices' || reason === 'ambiguous-invoices');
 
   const patch = (partial: Partial<EntryDraft>) =>
     setDraft((d) => ({ ...d, ...partial }));
@@ -80,14 +98,17 @@ export function ReimburseEntryForm({
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!request || !canWrite) return;
-    mutation.mutate(request);
+    if (editingEntry) {
+      const { projectId: _projectId, materials: _materials, recognitionSource: _recognition, ...patch } = request;
+      updateMutation.mutate({ id: editingEntry.id, patch }, { onSuccess: () => onDone?.() });
+    } else if (packageValid) saveMutation.mutate({ request, attachments, state: saveState });
   }
 
   return (
     <section className="panel" aria-label={t('reimb.create.title')}>
       <header className="pm-create__head">
         <div>
-          <h2>{t('reimb.create.title')}</h2>
+          <h2>{t(editingEntry ? 'reimb.entry.editFields' : 'reimb.create.title')}</h2>
           <p className="pm-create__note">
             {initial ? t('reimb.create.subtitle.prefilled') : t('reimb.create.subtitle')}
           </p>
@@ -104,7 +125,18 @@ export function ReimburseEntryForm({
           }
         />
       ) : null}
+      {initial?.package && <ReimbursePackageReview data={initial.package} attachments={attachments}
+        profile={profile} locked={frozen} onChange={next => { setAttachments(next); initial.package!.attachments = next; }} />}
+      {!!saveState.request && <p role="status">{t('reimb.package.retryHint')}</p>}
+      {saveState.entryId && <p role="status">{t('reimb.package.saved', { done: saveState.completed ?? 0, total: attachments.filter(a => a.included).length })}</p>}
       <form className="pm-form" onSubmit={submit}>
+        <fieldset disabled={frozen} className="reimb-form-fields">
+        <Field label={t('reimb.package.type')}>
+          <select value={draft.invoiceType ?? 'unknown'} onChange={e => patch({ invoiceType: e.target.value as InvoiceType })}>
+            {(['unknown', 'vatOrdinary', 'vatSpecial', 'railway', 'other'] as const).map(type =>
+              <option key={type} value={type}>{t(`reimb.invoiceType.${type}`)}</option>)}
+          </select>
+        </Field>
         <FormGrid>
           <Field label={t('reimb.create.field.kind')} className="span-all">
             <SegToggle<ReimburseEntryKind>
@@ -158,7 +190,7 @@ export function ReimburseEntryForm({
           </Field>
         </FormGrid>
         <FormGrid>
-          <Field label={t('reimb.create.field.total')} required>
+          <Field label={t('reimb.create.field.total')}>
             <input
               value={draft.totalYuan}
               placeholder={t('reimb.create.field.total.placeholder')}
@@ -244,7 +276,8 @@ export function ReimburseEntryForm({
           </div>
         ) : null}
 
-        {initial && onDone ? (
+        </fieldset>
+        {initial && onDone && !saveState.request ? (
           <button
             type="button"
             className="btn btn--sm btn--ghost"
@@ -255,10 +288,10 @@ export function ReimburseEntryForm({
           </button>
         ) : null}
         <FormActions
-          submitLabel={t('reimb.create.submit')}
+          submitLabel={t(editingEntry ? 'reimb.entry.saveMeta' : saveState.request ? 'reimb.package.retry' : 'reimb.create.submit')}
           submittingLabel={t('reimb.create.submitting')}
           submitting={mutation.isPending}
-          disabled={!valid || !canWrite}
+          disabled={!valid || !canWrite || !packageValid}
           lockedHint={writeLockedHint}
           error={
             mutation.error

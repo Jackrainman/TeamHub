@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SqliteDatabase } from '../src/store/sqlite-db.js';
 import { SqliteReimburseRepository } from '../src/modules/reimburse/sqlite-repository.js';
-import type { ReimburseEntryDraft } from '../src/modules/reimburse/repository.js';
+import type { ReimburseEntryDraft, StoredReimburseEntry } from '../src/modules/reimburse/repository.js';
 
 /**
  * 发票号查重索引（REIMBURSE-DEFECTS #6）：进程内 invoiceNo→id 索引，
@@ -47,7 +47,9 @@ describe('SqliteReimburseRepository 发票号索引', () => {
     const sdb1 = SqliteDatabase.open(dbPath);
     sdb1.ensureMetaTable();
     const repo1 = SqliteReimburseRepository.fromSharedDb(sdb1);
-    const entry = repo1.createEntry(draft('INV-001'));
+    const entry = repo1.createEntry({ ...draft('INV-001'), totalAmountFen: null,
+      creationRequest: { id: 'f3b3de9e-94cf-491b-aa41-b9e440ab02e5', fingerprint: 'original' } });
+    repo1.updateEntry(entry.id, { totalAmountFen: 12345 });
     repo1.createEntry(draft(null)); // 空号不进索引
     expect(repo1.findEntryByInvoiceNo('INV-001')?.id).toBe(entry.id);
     expect(repo1.findEntryByInvoiceNo('INV-404')).toBeUndefined();
@@ -59,6 +61,8 @@ describe('SqliteReimburseRepository 发票号索引', () => {
     expect(repo2.findEntryByInvoiceNo('INV-001')?.id).toBe(entry.id);
     // 新实例上的查重路径（service 同源调用）也能挡住重复发票号。
     expect(repo2.findEntryByInvoiceNo('INV-001')?.invoiceNo).toBe('INV-001');
+    expect(repo2.getEntry(entry.id)?.totalAmountFen).toBe(12345);
+    expect((repo2.getEntry(entry.id) as StoredReimburseEntry).creationRequest?.fingerprint).toBe('original');
     sdb2.close();
   });
 

@@ -20,7 +20,7 @@ import { buildCsv } from '../../csv-core.js';
 function summarize(entries: ReimburseEntry[]): ReimburseAmountBucket {
   return {
     count: entries.length,
-    amountFen: entries.reduce((sum, entry) => sum + entry.totalAmountFen, 0),
+    amountFen: entries.reduce((sum, entry) => sum + (entry.totalAmountFen ?? 0), 0),
   };
 }
 
@@ -50,7 +50,7 @@ export function deriveBatchSummary(
   const inBatch = entries.filter((entry) => entry.batchId === batchId);
   return {
     count: inBatch.length,
-    totalAmountFen: inBatch.reduce((sum, entry) => sum + entry.totalAmountFen, 0),
+    totalAmountFen: inBatch.reduce((sum, entry) => sum + (entry.totalAmountFen ?? 0), 0),
     incompleteCount: inBatch.filter((entry) => deriveReimburseStatus(entry) !== 'complete')
       .length,
     financial: deriveReimburseFinancialSummary(inBatch, profile),
@@ -74,7 +74,7 @@ export function suggestReimburseFilename(
   const dateDigits = entry.invoiceDate?.replace(/\D/g, '') ?? '';
   const date = /^\d{8}$/.test(dateDigits) ? dateDigits : 'unknown-date';
   const seller = sanitizeFilenamePart(entry.seller ?? '') || 'unknown-seller';
-  const amount = (entry.totalAmountFen / 100).toFixed(2);
+  const amount = entry.totalAmountFen === null ? 'unknown-amount' : (entry.totalAmountFen / 100).toFixed(2);
   return `${date}-${seller}-${amount}.${extension}`;
 }
 
@@ -145,7 +145,7 @@ export function deriveReimburseExportRow(
     purchaserName: entry.purchaserName ?? '',
     purchaserTaxNo: entry.purchaserTaxNo ?? '',
     kind: entry.kind,
-    totalYuan: (entry.totalAmountFen / 100).toFixed(2),
+    totalYuan: entry.totalAmountFen === null ? '' : (entry.totalAmountFen / 100).toFixed(2),
     status: deriveReimburseStatus(entry),
     purchaserCheck: derivePurchaserCheckStatus(entry, profile),
     reviewReasons: deriveReimburseReviewReasons(entry, profile),

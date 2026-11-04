@@ -75,6 +75,31 @@ function loadPdfjs(): Promise<PdfjsModule> {
   return pdfjsPromise;
 }
 
+/** 无文本 PDF 的本地 OCR 输入；限制页数和像素，避免扫描件耗尽内存。 */
+export async function renderPdfForOcr(file: File, signal?: AbortSignal): Promise<Blob[]> {
+  const pdfjs = await loadPdfjs();
+  const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+  try {
+    if (doc.numPages > 10) throw new Error('OCR page limit');
+    const images: Blob[] = [];
+    for (let i = 1; i <= doc.numPages; i++) {
+      if (signal?.aborted) throw new Error('OCR cancelled');
+      const page = await doc.getPage(i);
+      const original = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({ scale: Math.min(2, 2400 / Math.max(original.width, original.height)) });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('OCR canvas unavailable');
+      await page.render({ canvasContext: context, viewport }).promise;
+      images.push(await new Promise<Blob>((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('OCR render failed')), 'image/png')));
+      canvas.width = canvas.height = 0;
+    }
+    return images;
+  } finally { await doc.destroy(); }
+}
+
 /**
  * 发票 PDF 文件 → 全部页的文本行（页序）。读文件/pdf.js 失败都会 reject——
  * 调用方（reimburse-import）统一兜成「读取失败」提示，不静默。
