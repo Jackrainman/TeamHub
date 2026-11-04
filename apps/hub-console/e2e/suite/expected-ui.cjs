@@ -132,7 +132,7 @@ const assert = require('node:assert/strict');
     await page.setViewportSize({ width: 390, height: 1000 });
     await capture('reimburse-create-390');
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.getByRole('button', { name: '记下这笔', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: '提交', exact: true }).click();
     await page.getByRole('dialog').waitFor({ state: 'hidden' });
     await page.locator('.domain-table').getByText('浏览器采购记录', { exact: true }).waitFor();
     await page.getByRole('button', { name: '导入票据', exact: true }).click();
