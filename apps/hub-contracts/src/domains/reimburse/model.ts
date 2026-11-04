@@ -26,8 +26,8 @@ export const ReimburseMaterialsSchema = z.object({
   inspection: z.boolean(),
 });
 
-/** 凭证附件种类（D-094 受控留档）：发票原件 / 付款截图 / 查验单。 */
-export const ReimburseEvidenceKindSchema = z.enum(['invoice', 'paymentShot', 'inspection']);
+/** D-094 受控附件：发票、付款截图、可选的查验结果及其他配套材料。 */
+export const ReimburseEvidenceKindSchema = z.enum(['invoice', 'paymentShot', 'inspection', 'supporting']);
 
 /**
  * 凭证附件元数据（D-094）：字节存受控目录（TEAMHUB_EVIDENCE_FILES_DIR），库内只留指针。

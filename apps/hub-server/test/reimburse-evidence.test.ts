@@ -99,6 +99,21 @@ function buildTestApp() {
 
 let invoiceSeq = 0;
 
+test('supplementing and removing payment evidence updates readiness; supporting files stay private', async () => {
+  const entry = await createEntry(app, cookieA);
+  const supporting = await upload(app, cookieA, entry.id, 'supporting', 'itinerary.pdf', '%PDF-test');
+  expect(supporting.statusCode).toBe(201);
+  const payment = await upload(app, cookieA, entry.id, 'paymentShot', 'payment.jpg', 'image bytes');
+  expect(payment.statusCode).toBe(201);
+  const entries = async () => (await app.inject({ method:'GET', url:'/api/reimburse/entries', headers:{cookie:cookieA} })).json().entries;
+  const saved = (await entries()).find((e: { id: string }) => e.id === entry.id);
+  expect(saved.materials.paymentShot).toBe(true);
+  expect(saved.materials.inspection).toBe(false);
+  expect(saved.evidence).toEqual([]);
+  expect((await app.inject({ method:'DELETE', url:`/api/reimburse/entries/${entry.id}/evidence/${payment.json().evidence.id}`, headers:{cookie:cookieA} })).statusCode).toBe(200);
+  expect((await entries()).find((e: { id: string }) => e.id === entry.id).materials.paymentShot).toBe(false);
+});
+
 test('concurrent retries keep one evidence record and accept structured invoice originals', async () => {
   const entry = await createEntry(app, cookieA);
   const results = await Promise.all([1, 2, 3].map(() => upload(app, cookieA, entry.id, 'invoice', 'original.xml', '<Invoice/>')));

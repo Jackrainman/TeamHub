@@ -15,6 +15,7 @@ import {
   useUploadReimburseEvidence,
 } from '../hooks';
 import { useI18n, type TranslationKey } from '../../../i18n';
+import { ReimburseSupplementForm } from './ReimburseSupplementForm';
 import {
   evidenceRejectReasonFor,
   formatEvidenceSize,
@@ -28,6 +29,7 @@ const KIND_KEY: Record<ReimburseEvidenceKind, TranslationKey> = {
   invoice: 'reimb.evidence.kind.invoice',
   paymentShot: 'reimb.evidence.kind.paymentShot',
   inspection: 'reimb.evidence.kind.inspection',
+  supporting: 'reimb.evidence.kind.supporting',
 };
 
 const REJECT_KEY: Record<EvidenceRejectReason, TranslationKey> = {
@@ -38,7 +40,7 @@ const REJECT_KEY: Record<EvidenceRejectReason, TranslationKey> = {
 const MAX_MB = Math.round(REIMBURSE_EVIDENCE_MAX_BYTES / (1024 * 1024));
 
 /**
- * 条目凭证留档区（D-094）：发票原件 / 付款截图 / 查验单三档各自的上传、清单、
+ * 条目凭证留档区（D-094）：发票、付款截图、查验结果与配套材料的上传、清单、
  * 鉴权下载与删除。收起时零网络请求，展开才取清单——条目对象上永不含凭证元数据，
  * 这份清单就是本条目原件的唯一可见途径（服务端再按本人 / 管理员读者链鉴权）。
  * 上传与删除的入口只对条目本人开放（上传服务端恒本人；管理员能下载，但删别人的
@@ -49,14 +51,17 @@ export function ReimburseEvidenceSection({
   source,
   entry,
   isOwner,
+  locked = false,
 }: {
   client: ReimburseSegment;
   source: string;
   entry: ReimburseEntry;
   isOwner: boolean;
+  locked?: boolean;
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const [supplementOpen, setSupplementOpen] = useState(false);
   const [reject, setReject] = useState<EvidenceRejectReason | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingKind = useRef<ReimburseEvidenceKind>('invoice');
@@ -89,6 +94,9 @@ export function ReimburseEvidenceSection({
 
   return (
     <div className="reimb-evidence" role="group" aria-label={t('reimb.evidence.title')}>
+      {isOwner && <div className="domain-actions"><button type="button" className="btn btn--secondary btn--sm" disabled={locked}
+        aria-expanded={supplementOpen} onClick={() => setSupplementOpen(value => !value)}>{t('reimb.supplement.open')}</button></div>}
+      {supplementOpen && !locked && <ReimburseSupplementForm client={client} source={source} entries={[entry]} />}
       <button
         type="button"
         className="btn btn--sm btn--ghost reimb-evidence__toggle"
@@ -130,7 +138,7 @@ export function ReimburseEvidenceSection({
                   <button
                     type="button"
                     className="btn btn--sm btn--secondary"
-                    disabled={atCapacity || uploadMutation.isPending}
+                    disabled={locked || atCapacity || uploadMutation.isPending}
                     onClick={() => pickFor(kind)}
                   >
                     {t('reimb.evidence.pick')}
@@ -159,7 +167,7 @@ export function ReimburseEvidenceSection({
                           <button
                             type="button"
                             className="btn btn--sm btn--ghost"
-                            disabled={deleteMutation.isPending}
+                            disabled={locked || deleteMutation.isPending}
                             onClick={() => deleteMutation.mutate(item.id)}
                           >
                             {t('reimb.evidence.delete')}

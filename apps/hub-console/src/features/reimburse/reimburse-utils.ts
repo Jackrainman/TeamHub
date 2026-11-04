@@ -201,6 +201,7 @@ export function groupEvidenceByKind(
     invoice: [],
     paymentShot: [],
     inspection: [],
+    supporting: [],
   };
   for (const item of evidence) {
     grouped[item.kind].push(item);

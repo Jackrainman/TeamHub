@@ -360,7 +360,7 @@ export class ReimburseService {
 
   /**
    * 凭证上传（D-094 受控留档）：仅条目本人可传（超管也只能看不能代传）；批次提交后快照锁
-   * 同条目字段口径。字节先落卷（原子写），元数据再回写条目行；回写失败删刚落的文件防孤儿。
+   * 同条目字段口径。先占元数据再原子写文件；失败回滚，付款材料只在字节写入成功后置为已备。
    */
   async uploadEvidence(
     entryId: string,
@@ -395,7 +395,10 @@ export class ReimburseService {
     }
     const sha256 = this.evidenceStorage.sha256(upload.buf);
     const existing = entry.evidence?.find(item => item.sha256 === sha256 && item.kind === kind);
-    if (existing) return existing;
+    if (existing) {
+      if (kind === 'paymentShot') this.repository.updateEntry(entryId, { materials: { ...entry.materials, paymentShot: true } });
+      return existing;
+    }
     if ((entry.evidence ?? []).length >= REIMBURSE_EVIDENCE_MAX_PER_ENTRY) {
       throw new ApplicationError(
         'validation',
@@ -423,6 +426,10 @@ export class ReimburseService {
     }
     try {
       await this.evidenceStorage.write(dir, appended.evidence.id, ext, upload.buf);
+      if (kind === 'paymentShot') {
+        const current = this.requireEntry(entryId);
+        this.repository.updateEntry(entryId, { materials: { ...current.materials, paymentShot: true } });
+      }
     } catch (err) {
       this.repository.removeEntryEvidence(entryId, appended.evidence.id);
       await this.evidenceStorage.remove(dir, appended.evidence.id);
@@ -477,12 +484,24 @@ export class ReimburseService {
     evidenceId: string,
     actor: ActorRef,
   ): Promise<ReimburseEvidence[]> {
+    const previous = this.evidenceWrites.get(entryId) ?? Promise.resolve();
+    const writing = previous.catch(() => {}).then(() => this.deleteEvidenceOnce(entryId, evidenceId, actor));
+    this.evidenceWrites.set(entryId, writing);
+    try { return await writing; }
+    finally { if (this.evidenceWrites.get(entryId) === writing) this.evidenceWrites.delete(entryId); }
+  }
+
+  private async deleteEvidenceOnce(entryId: string, evidenceId: string, actor: ActorRef): Promise<ReimburseEvidence[]> {
     const entry = this.requireEntry(entryId);
     await this.assertEvidenceReadable(entry, actor);
-    this.assertBatchMutable(entry.batchId);
+    this.assertBatchMutable(this.requireEntry(entryId).batchId);
     const updated = this.repository.removeEntryEvidence(entryId, evidenceId);
     if (!updated) {
       throw new ApplicationError('not_found', 'REIMBURSE_EVIDENCE_NOT_FOUND', `未知凭证: ${evidenceId}`);
+    }
+    if (entry.evidence?.find(item => item.id === evidenceId)?.kind === 'paymentShot' &&
+      !updated.evidence?.some(item => item.kind === 'paymentShot')) {
+      this.repository.updateEntry(entryId, { materials: { ...updated.materials, paymentShot: false } });
     }
     const dir = this.evidenceStorage.dir();
     if (dir) await this.evidenceStorage.remove(dir, evidenceId).catch(() => {});

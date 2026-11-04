@@ -16,7 +16,7 @@ export async function saveReimbursePackage(
 ): Promise<void> {
   const included = attachments.filter(a => a.included);
   const review = derivePackageReview(included, DEFAULT_REIMBURSE_PROFILE);
-  if (included.length > 12 || included.some(a => a.role === 'unknown') ||
+  if (included.length > 12 ||
     review.reviewReasons.some(reason => reason === 'multiple-invoices' || reason === 'ambiguous-invoices')) {
     throw new Error('REIMBURSE_PACKAGE_REVIEW_REQUIRED');
   }
@@ -31,9 +31,7 @@ export async function saveReimbursePackage(
   }
   for (let i = state.completed ?? 0; i < included.length; i++) {
     const attachment = included[i];
-    if (attachment.role === 'unknown') throw new Error('REIMBURSE_PACKAGE_REVIEW_REQUIRED');
-    await client.uploadReimburseEvidence(state.entryId, attachment.role, attachment.file);
+    await client.uploadReimburseEvidence(state.entryId, attachment.role === 'unknown' ? 'supporting' : attachment.role, attachment.file);
     state.completed = i + 1;
   }
-  // 留档不代替本人确认材料已备或已查验，材料勾选仍由条目详情单独完成。
 }

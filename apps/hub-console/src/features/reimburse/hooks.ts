@@ -22,6 +22,7 @@ import { analyzeReimbursePackage, type PackageDraft, type PackageAttachment } fr
 import { extractLocalOcr } from './lib/local-ocr';
 import { saveReimbursePackage, type PackageSaveState } from './lib/package-save';
 import { emptyEntryDraft, type EntryDraft } from './reimburse-utils';
+import { uploadSupplement, type SupplementRow } from './lib/evidence-supplement';
 
 /**
  * 报销域 hooks（REIMBURSE-PROC 阶段 3）。组件一律走本文件，不直接写 useQuery/useMutation。
@@ -112,7 +113,7 @@ export function useUploadReimburseEvidence(
   entryId: string,
 ) {
   return useHubMutation({
-    invalidateKeys: [queryKeys.reimburse.evidence(source, entryId)],
+    invalidateKeys: [queryKeys.reimburse.evidence(source, entryId), queryKeys.reimburse.entries(source), queryKeys.reimburse.batches(source)],
     mutationFn: (vars: { kind: ReimburseEvidenceKind; file: File }) =>
       client.uploadReimburseEvidence(entryId, vars.kind, vars.file),
   });
@@ -124,8 +125,16 @@ export function useDeleteReimburseEvidence(
   entryId: string,
 ) {
   return useHubMutation({
-    invalidateKeys: [queryKeys.reimburse.evidence(source, entryId)],
+    invalidateKeys: [queryKeys.reimburse.evidence(source, entryId), queryKeys.reimburse.entries(source), queryKeys.reimburse.batches(source)],
     mutationFn: (evidenceId: string) => client.deleteReimburseEvidence(entryId, evidenceId),
+  });
+}
+
+export function useUploadReimburseSupplement(client: ReimburseSegment, source: string, entryIds: string[]) {
+  return useHubMutation({
+    invalidateKeys: [queryKeys.reimburse.entries(source), queryKeys.reimburse.batches(source),
+      ...entryIds.map(id => queryKeys.reimburse.evidence(source, id))],
+    mutationFn: (rows: SupplementRow[]) => uploadSupplement(client, rows, entryIds),
   });
 }
 

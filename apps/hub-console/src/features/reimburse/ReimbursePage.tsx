@@ -23,6 +23,7 @@ import { ReimburseBatchSection } from './components/ReimburseBatchSection';
 import { ReimburseImportZone } from './components/ReimburseImportZone';
 import { ReimburseExportSection } from './components/ReimburseExportSection';
 import { ReimburseProfileSection } from './components/ReimburseProfileSection';
+import { ReimburseSupplementForm } from './components/ReimburseSupplementForm';
 
 /**
  * 报销页（REIMBURSE-PROC 阶段 3，计划 taskmaster-impulse-steel）：
@@ -70,6 +71,7 @@ export function ReimbursePage({
   const [filter, setFilter] = useState<ReimburseEntryStatus | 'all'>('all');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [supplementIds, setSupplementIds] = useState<string[]>([]);
 
   // 发票本地解析、失败通知与待确认队列由本域 controller 统一编排。
   const importController = useReimburseImportController(profileQuery.data?.profile);
@@ -115,6 +117,7 @@ export function ReimbursePage({
 
   const selectedEntry = entries.find(entry => entry.id === entryId);
   const selectedEntries = entries.filter(entry => selectedIds.includes(entry.id));
+  const canSupplement = identity.canWrite && selectedEntries.length > 0 && selectedEntries.every(entry => entry.memberId === myMemberId);
   const visible = entries.filter(entry => filter === 'all' || deriveReimburseStatus(entry) === filter);
   return (
     <div className="reimb-page">
@@ -190,7 +193,13 @@ export function ReimbursePage({
       <div className="week-summary"><span><b>{entries.length}</b>{t('reimb.entries.title')}</span><span><b>{formatAmountFen(entries.reduce((sum, entry) => sum + (entry.totalAmountFen ?? 0), 0))}</b>{t('reimb.export.col.totalYuan')}</span></div>
       <div className="domain-actions"><div className="seg" role="group" aria-label={t('reimb.export.col.status')}>
         {(['all', 'draft', 'partial', 'complete'] as const).map(value => <button className={filter === value ? 'seg__btn seg__btn--active' : 'seg__btn'} key={value} aria-pressed={value === filter} onClick={() => setFilter(value)}>{t(value === 'all' ? 'expected.all' : 'reimb.status.' + value)}</button>)}
-      </div><ReimburseExportSection client={client} source={source} entries={selectedEntries} batches={batches} profile={profile} compact /></div>
+      </div><button className="btn btn--secondary btn--sm" disabled={!canSupplement}
+        title={!selectedEntries.length ? t('reimb.supplement.selectHint') : !canSupplement ? t('reimb.supplement.ownerHint') : undefined}
+        onClick={() => setSupplementIds(selectedEntries.map(entry => entry.id))}>{t('reimb.supplement.open')}</button>
+      <ReimburseExportSection client={client} source={source} entries={selectedEntries} batches={batches} profile={profile} compact /></div>
+      <SideDrawer open={supplementIds.length > 0} onClose={() => setSupplementIds([])} title={t('reimb.supplement.open')}>
+        {supplementIds.length > 0 && <ReimburseSupplementForm client={client} source={source} entries={entries.filter(entry => supplementIds.includes(entry.id) && entry.memberId === myMemberId)} />}
+      </SideDrawer>
       <section aria-label={t('reimb.entries.title')}>
         {entries.some(entry => entry.totalAmountFen === null) && <p className="form-hint">{t('reimb.package.unknownAmount', { count: entries.filter(entry => entry.totalAmountFen === null).length })}</p>}
         <h2 className="inv-section-title">{t('reimb.entries.title')}</h2>

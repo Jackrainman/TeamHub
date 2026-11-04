@@ -270,6 +270,7 @@ export function ReimburseEntryCard({
           source={source}
           entry={entry}
           isOwner={isOwner}
+          locked={writeDisabled}
         />
       ) : null}
 

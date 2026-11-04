@@ -73,7 +73,7 @@ export function deriveReimburseStatus(entry: ReimburseEntry): ReimburseEntryStat
     entry.seller !== null &&
     (entry.totalAmountFen ?? 0) > 0 &&
     (entry.kind !== 'goods' || entry.items.length > 0);
-  const materialsDone = entry.materials.paymentShot && entry.materials.inspection;
+  const materialsDone = entry.materials.paymentShot;
   if (coreFilled && materialsDone) {
     return 'complete';
   }
@@ -92,7 +92,7 @@ export function deriveReimburseStatus(entry: ReimburseEntry): ReimburseEntryStat
 }
 
 export function deriveReimburseReviewReasons(
-  entry: ReimburseEntry,
+  entry: Pick<ReimburseEntry, 'invoiceNo' | 'invoiceDate' | 'seller' | 'totalAmountFen' | 'kind' | 'items' | 'purchaserName' | 'purchaserTaxNo' | 'recognitionSource'>,
   profile: ReimburseProfile,
 ): ReimburseReviewReason[] {
   const reasons: ReimburseReviewReason[] = [];

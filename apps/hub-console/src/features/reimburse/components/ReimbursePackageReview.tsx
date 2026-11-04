@@ -1,28 +1,40 @@
-import { derivePackageReview, type ReimburseProfile, type PackageRole } from '@teamhub/hub-contracts';
+import { derivePackageReview, deriveReimburseReviewReasons, type CreateReimburseEntryRequest, type ReimburseProfile, type PackageRole } from '@teamhub/hub-contracts';
 import type { PackageDraft, PackageAttachment } from '../lib/package-import';
 import { useI18n } from '../../../i18n';
 
-export function ReimbursePackageReview({ data, attachments, onChange, profile, locked }: {
+export function ReimbursePackageReview({ data, attachments, onChange, profile, locked, request }: {
   data: PackageDraft; attachments: PackageAttachment[]; onChange: (next: PackageAttachment[]) => void;
   profile: ReimburseProfile; locked: boolean;
+  request: CreateReimburseEntryRequest | null;
 }) {
   const { t } = useI18n();
   const review = derivePackageReview(attachments.filter(a => a.included), profile);
-  return <section className="card" aria-label={t('reimb.package.title')}>
-    <h3>{t('reimb.package.title')}</h3>
-    <p>{t('reimb.package.local')}</p>
-    <p>{t('reimb.package.type')}: {t(`reimb.invoiceType.${review.invoiceType}`)}</p>
-    <ul>{review.missingMaterials.map(reason => <li key={reason}>{t(`reimb.package.missing.${reason}`)}</li>)}</ul>
-    <ul>{review.reviewReasons.map(reason => <li key={reason}>{t(`reimb.package.reason.${reason}`)}</li>)}</ul>
-    <ul>{data.notices.map((notice, i) => <li key={i}>{notice.fileName}: {t(`reimb.package.notice.${notice.reason}`)}</li>)}</ul>
-    <p>{t('reimb.package.limit')}</p>
-    {attachments.map((attachment, index) => <div className="domain-actions" key={index}>
+  const fieldReasons = request ? deriveReimburseReviewReasons({ ...request,
+    invoiceNo: request.invoiceNo ?? null, invoiceDate: request.invoiceDate ?? null,
+    seller: request.seller ?? null, purchaserName: request.purchaserName ?? null,
+    purchaserTaxNo: request.purchaserTaxNo ?? null }, profile) : [];
+  const reasons = [...new Set([...fieldReasons, ...review.reviewReasons.filter(reason =>
+    reason === 'multiple-invoices' || reason === 'ambiguous-invoices' || reason === 'amount-conflict' || reason === 'items-total-mismatch')])];
+  const missing = [...review.missingMaterials.map(reason => t(`reimb.package.missing.${reason}`)),
+    ...reasons.filter(reason => reason.endsWith('-missing')).map(reason => t(`reimb.package.reason.${reason}`))];
+  const checks = reasons.filter(reason => !reason.endsWith('-missing') && reason !== 'manual-entry');
+  const notices = data.notices.filter(notice => notice.reason !== 'ocr-unavailable');
+  return <section className="reimb-package-review" aria-label={t('reimb.package.title')}>
+    <p>{t('reimb.package.recognized', { value: t(`reimb.invoiceType.${review.invoiceType}`) })}</p>
+    {missing.length > 0 && <p>{t('reimb.package.missing', { value: missing.join('、') })}</p>}
+    {checks.length > 0 && <p>{t('reimb.package.check', { value: checks.map(reason => t(`reimb.package.reason.${reason}`)).join('；') })}</p>}
+    {attachments.filter(a => a.included).length > 12 && <p role="alert">{t('reimb.package.limitExceeded')}</p>}
+    {notices.length > 0 && <ul>{notices.map((notice, i) => <li key={i}>{notice.fileName.split(/[\\/]/).pop()}: {t(`reimb.package.notice.${notice.reason}`)}</li>)}</ul>}
+    <details>
+    <summary>{t('reimb.package.files', { count: attachments.filter(a => a.included).length })}</summary>
+    {attachments.map((attachment, index) => <div className="reimb-attachment" key={index}>
       <label><input type="checkbox" checked={attachment.included} disabled={locked}
-        onChange={e => onChange(attachments.map((a, i) => i === index ? { ...a, included: e.target.checked } : a))} /> {attachment.path}</label>
-      <select aria-label={t('reimb.package.role')} value={attachment.role} disabled={locked || !attachment.included}
+        onChange={e => onChange(attachments.map((a, i) => i === index ? { ...a, included: e.target.checked } : a))} /> <span title={attachment.path}>{attachment.path.split(/[\\/]/).pop()}</span></label>
+      <select aria-label={t('reimb.package.role')} value={attachment.role === 'unknown' ? 'supporting' : attachment.role} disabled={locked || !attachment.included}
         onChange={e => onChange(attachments.map((a, i) => i === index ? { ...a, role: e.target.value as PackageRole } : a))}>
-        {(['unknown', 'invoice', 'paymentShot', 'inspection'] as const).map(role => <option key={role} value={role}>{t(`reimb.package.role.${role}`)}</option>)}
+        {(['supporting', 'invoice', 'paymentShot', 'inspection'] as const).map(role => <option key={role} value={role}>{t(`reimb.package.role.${role}`)}</option>)}
       </select>
     </div>)}
+    </details>
   </section>;
 }

@@ -18,14 +18,16 @@ test('a lost attachment response retries the same entry and same files', async (
   expect(upload).toHaveBeenCalledTimes(2);
 });
 
-test('unknown attachments cannot be saved', async () => {
-  const create = vi.fn();
-  const client = { createReimburseEntry: create } as unknown as ReimburseSegment;
+test('unclassified attachments are retained as supporting material without blocking submission', async () => {
+  const create = vi.fn().mockResolvedValue({ entry: { id: 'one' } });
+  const upload = vi.fn().mockResolvedValue({});
+  const client = { createReimburseEntry: create, uploadReimburseEvidence: upload } as unknown as ReimburseSegment;
   const request = buildCreateEntryRequest(emptyEntryDraft(), 'project')!;
-  await expect(saveReimbursePackage(client, request, [{ file: new File(['x'], 'one.jpg'),
+  await saveReimbursePackage(client, request, [{ file: new File(['x'], 'one.jpg'),
     role: 'unknown', included: true, path: 'one.jpg', invoice: null, invoiceType: 'unknown' }],
-  { clientRequestId: crypto.randomUUID() })).rejects.toThrow();
-  expect(create).not.toHaveBeenCalled();
+  { clientRequestId: crypto.randomUUID() });
+  expect(create).toHaveBeenCalledTimes(1);
+  expect(upload.mock.calls[0].slice(0,2)).toEqual(['one', 'supporting']);
 });
 
 test('lost create response keeps the request fixed; a definitive rejection allows correction', async () => {

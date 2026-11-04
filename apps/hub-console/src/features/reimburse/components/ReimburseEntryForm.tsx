@@ -19,7 +19,6 @@ import {
   emptyItemDraft,
   type EntryDraft,
 } from '../reimburse-utils';
-import { FormBanner } from '../../../components/FormBanner';
 import { ReimbursePackageReview } from './ReimbursePackageReview';
 import { draftFromParsedInvoice } from '../reimburse-import';
 import type { PackageSaveState } from '../lib/package-save';
@@ -81,7 +80,6 @@ export function ReimburseEntryForm({
   const frozen = mutation.isPending || !!saveState.request;
   const review = derivePackageReview(attachments.filter(a => a.included), profile);
   const packageValid = attachments.filter(a => a.included).length <= 12 &&
-    !attachments.some(a => a.included && a.role === 'unknown') &&
     !review.reviewReasons.some(reason => reason === 'multiple-invoices' || reason === 'ambiguous-invoices');
 
   const patch = (partial: Partial<EntryDraft>) =>
@@ -106,27 +104,13 @@ export function ReimburseEntryForm({
 
   return (
     <section className="panel" aria-label={t('reimb.create.title')}>
-      <header className="pm-create__head">
+      {!initial && <header className="pm-create__head">
         <div>
           <h2>{t(editingEntry ? 'reimb.entry.editFields' : 'reimb.create.title')}</h2>
-          <p className="pm-create__note">
-            {initial ? t('reimb.create.subtitle.prefilled') : t('reimb.create.subtitle')}
-          </p>
         </div>
-      </header>
-      {initial ? (
-        <FormBanner
-          kind={initial.notice === 'recognized' ? 'ok' : 'err'}
-          role="status"
-          message={
-            initial.notice === 'recognized'
-              ? t('reimb.import.prefilled', { file: initial.fileName })
-              : t('reimb.import.unrecognized', { file: initial.fileName })
-          }
-        />
-      ) : null}
+      </header>}
       {initial?.package && <ReimbursePackageReview data={initial.package} attachments={attachments}
-        profile={profile} locked={frozen} onChange={next => { setAttachments(next); initial.package!.attachments = next; }} />}
+        request={request} profile={profile} locked={frozen} onChange={next => { setAttachments(next); initial.package!.attachments = next; }} />}
       {!!saveState.request && <p role="status">{t('reimb.package.retryHint')}</p>}
       {saveState.entryId && <p role="status">{t('reimb.package.saved', { done: saveState.completed ?? 0, total: attachments.filter(a => a.included).length })}</p>}
       <form className="pm-form" onSubmit={submit}>
@@ -296,7 +280,7 @@ export function ReimburseEntryForm({
           error={
             mutation.error
               ? humanizeFormError(mutation.error, t, 'reimb.create.error')
-              : null
+              : !valid ? t('reimb.create.invalid') : null
           }
           success={mutation.isSuccess ? t('reimb.create.success') : null}
         />

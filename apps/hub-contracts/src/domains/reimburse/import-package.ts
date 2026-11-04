@@ -2,7 +2,7 @@ import type { ParsedInvoice } from './import.js';
 import type { InvoiceType, ReimburseProfile } from './model.js';
 import { derivePurchaserCheckStatus, type ReimburseReviewReason } from './policies.js';
 
-export type PackageRole = 'invoice' | 'paymentShot' | 'inspection' | 'unknown';
+export type PackageRole = 'invoice' | 'paymentShot' | 'inspection' | 'supporting' | 'unknown';
 export interface PackageCandidate {
   path: string;
   role: PackageRole;

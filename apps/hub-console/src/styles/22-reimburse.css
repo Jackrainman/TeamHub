@@ -10,7 +10,8 @@
 
 /* 报销页面板补内边距 + 行间距（同 .inv-page .panel 先例）：裸 .panel 无 padding/gap，
    记一笔垫付/条目列表/购买方信息/批次区此前全部贴边、头与表单零间距。 */
-.reimb-page .panel {
+.reimb-page .panel,
+.reimb-admin-stack .panel {
   padding: 14px;
   min-height: 0;
   gap: 12px;
@@ -166,11 +167,25 @@
 
 .reimb-batch-create {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .reimb-batch-create input {
-  flex: 1;
+  flex: 1 1 180px;
+  min-width: 0;
 }
+
+.reimb-batch-create .btn, .reimb-admin-stack .btn { flex-shrink: 0; white-space: nowrap; align-self: center; }
+.reimb-package-review { font-size: var(--text-sm); }
+.reimb-package-review p { margin: var(--space-2) 0; }
+.reimb-package-review summary { cursor: pointer; color: var(--muted); }
+.reimb-attachment { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); align-items: center; margin-top: var(--space-2); }
+.reimb-attachment label { min-width: 0; overflow-wrap: anywhere; }
+.reimb-supplement { display: grid; gap: var(--space-3); }
+.reimb-supplement .card { padding: var(--space-3); display: grid; gap: var(--space-2); }
+.reimb-supplement .card > strong { overflow-wrap: anywhere; }
 
 .reimb-batch {
   display: flex;

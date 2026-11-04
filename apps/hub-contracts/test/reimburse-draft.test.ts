@@ -16,4 +16,5 @@ test('unknown money stays unknown, cannot be eligible, and exports blank', () =>
   expect(deriveReimburseFinancialSummary([entry], DEFAULT_REIMBURSE_PROFILE).eligible.count).toBe(0);
   expect(deriveReimburseExportRow(entry, DEFAULT_REIMBURSE_PROFILE).totalYuan).toBe('');
   expect(deriveReimburseExportRow({ ...entry, totalAmountFen: 12345 }, DEFAULT_REIMBURSE_PROFILE).totalYuan).toBe('123.45');
+  expect(deriveReimburseStatus({ ...entry, totalAmountFen: 12345, materials: { paymentShot: true, inspection: false } })).toBe('complete');
 });
