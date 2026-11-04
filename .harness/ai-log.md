@@ -264,3 +264,5 @@
 - 2026-10-29 CONSOLE-LAZY-BOUNDARIES v0.85.1（cfaedfb，已推送）：13 个业务页及 SetupWizard/BootstrapGate 懒加载，内容区域 Suspense + 错误边界保留导航，刷新恢复模块下载失败。新增 Rollup 最终产物同步依赖检查与 UTF-8/gzip 总量门禁（600/180 kB、单 JS 500 kB），禁止业务 Page/初始化向导/PDF/图编辑重依赖回流首屏；构建报告与落盘字节由 E2E 交叉核验。相同工作区旧版源码内存构建对照：主入口 UTF-8 588092→288312 bytes，初始同步 JS 851869→552089 bytes，gzip 235088→162919 bytes；页面默认工作台的按需 chunk 不计入同步闭包。console verify:all exit 0：35 文件/288 测试、首登、本周、完整 UI、13 页按需请求/慢网切页/失败隔离/刷新恢复 E2E 通过；架构、文档、diff、提交门通过。受限执行环境 loopback EACCES，经允许本机连接的环境用 Edge 完成测试，仅临时 SQLite。GPT-6.1 Sol 独立架构审查和代码复核无阻断项，补 UTF-8/gzip 单测；回查 ARC-MILE-008，补足既有架构仅文档声明而缺加载产物约束的防线。共享 API/schema/i18n 及 setup 跨 feature 组件归属后续测量记入 todo；未触及生产环境。
 
 - 2026-10-29 FEED-MORE-NAV v0.85.2：队伍近况移入更多，更多工作区更名为更多（英文 More）；保留现有规划页，同步导航文档和浏览器验收路径。console verify:all exit 0（288 单测，首登、本周、界面与 13 页延迟加载 E2E）；architecture/docs/diff 通过。首次受限环境本地服务超时，调整执行权限后完整验证通过。
+
+- 2026-11-04 REIMBURSE-PACKAGE-V1：按用户要求先整理材料包报账设计与 Superpowers 五步实施计划，设计归入报销领域文档，任务保留在 todo（planned），真实样本待用户整理。核对 UI Lab 与 9e522da：报销/库存预期版主体已合入 v0.85.0；OCR、每包一条、核心字段补改及附件补传尚未实现。本次只改文档与任务记录，无业务代码、版本或部署变更；verify:docs 与 diff --check 通过，计划路径/依赖自查无遗漏。
