@@ -68,7 +68,7 @@ export function WeekWorkspace({ client, source, projectId, identity }: {
         </> : <div className="empty-state"><Inbox size={30} /><p>{t('expected.selectTask')}</p></div>}
       </section>
     </div>
-    <SideDrawer open={createOpen} onClose={() => setCreateOpen(false)} title={t('week.selfReport')}>
+    <SideDrawer placement="center" open={createOpen} onClose={() => setCreateOpen(false)} title={t('week.selfReport')}>
       {createOpen && <SelfReportForm projectId={projectId} groups={groups.filter(group => groupsQuery.data?.assignableGroupIds.includes(group.id))} defaultGroupId={identity.session?.groupId} members={members} memberId={memberId!} pending={actions.create.isPending} onSubmit={input => actions.create.mutate({ weekKey: currentWeek, input })} />}
     </SideDrawer>
     <SideDrawer open={!!selected} onClose={() => setTaskId(null)} title={selected?.title ?? t('week.details')}>

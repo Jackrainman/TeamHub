@@ -435,6 +435,20 @@
   padding: 14px 16px;
   border-bottom: 1px solid var(--border);
 }
+.drawer--center {
+  top: 50%;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+  width: min(640px, calc(100vw - var(--space-4) * 2));
+  height: auto;
+  max-height: calc(100dvh - var(--space-4) * 2);
+  border-left: 0;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  animation: drawer-fade-in 0.15s ease;
+}
+.drawer--center .drawer__head { flex-shrink: 0; }
 .drawer__title {
   font-size: var(--text-md);
   font-weight: var(--weight-bold);

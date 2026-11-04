@@ -10,11 +10,13 @@ export function SideDrawer({
   title,
   children,
   confirmDiscard,
+  placement = 'right',
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
+  placement?: 'right' | 'center';
   // 关闭前置确认：脏内容场景下由调用方传入（内部做 window.confirm），返回 true 才放行关闭；
   // 不传则维持原行为（直接关闭）。同时把关 Esc / 背景遮罩 / 右上角 X 三个入口。
   confirmDiscard?: () => boolean;
@@ -55,7 +57,7 @@ export function SideDrawer({
   return createPortal(
     <>
       <div className="drawer-backdrop" role="presentation" onClick={requestClose} />
-      <aside ref={panel} tabIndex={-1} className="drawer" role="dialog" aria-modal="true" aria-label={title}>
+      <aside ref={panel} tabIndex={-1} className={`drawer${placement === 'center' ? ' drawer--center' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
         <header className="drawer__head">
           <h2 className="drawer__title">{title}</h2>
           <button

@@ -34,6 +34,12 @@
   ],
   "todo": [
     {
+      "id": "TEAM-TASK-CREATE-MODAL",
+      "title": "新建任务改为居中弹窗，移除只读当前项目字段",
+      "tag": "code",
+      "dod": "复用现有模态焦点/关闭行为，新建任务在视口中间展示且长表单可滚动；项目归属仍由系统带入；现有创建闭环与 CI 通过。"
+    },
+    {
       "id": "REIMBURSE-PACKAGE-V1",
       "title": "报账第一版：一 ZIP / 一 JPG 对应一条，识别核对、本人补齐与凭证留档闭环",
       "tag": "code",

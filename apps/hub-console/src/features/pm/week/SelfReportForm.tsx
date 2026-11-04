@@ -23,7 +23,6 @@ export function SelfReportForm({ projectId, groups, defaultGroupId, pending, onS
     });
   }}>
     <p className="week-note">{t('week.selfHint')}</p>
-    <label className="gate-field">{t('week.project')}<input value={t('week.currentProject')} readOnly /></label>
     <label className="gate-field">{t('week.group')}<select required value={groupId} onChange={event => setGroupId(event.target.value)}>
       <option value="">{t('week.chooseGroup')}</option>{groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
     </select></label>
