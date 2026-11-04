@@ -129,7 +129,8 @@ const assert = require('node:assert/strict');
     await pageA.reload({ waitUntil: 'networkidle' });
     await card.getByRole('button', { name: '查看详情' }).click();
     await dialogA.getByRole('button', { name: '编辑任务 / 选择备位人', exact: true }).click();
-    await dialogA.getByLabel('要完成什么', { exact: true }).fill('修改后重新验收');
+    // A wrapping label includes the textarea's initial text in Playwright's label matcher.
+    await dialogA.getByLabel('要完成什么').fill('修改后重新验收');
     await dialogA.getByRole('button', { name: '提交', exact: true }).click();
     await card.getByText('待验收', { exact: true }).waitFor();
     assert.ok((await dialogA.textContent()).includes('验收通过'));
