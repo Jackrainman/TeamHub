@@ -29,6 +29,10 @@ import {
  * **不引入 `dueDate`**（G4 无硬截止 / 甘特暂缓）。Task 无 confirmedBy 字段，本路由不触 I0 确认语义。
  */
 export const CreateTaskRequestSchema = TaskSchema.omit({
+  createdBy: true,
+  reviewerIds: true,
+  revision: true,
+  activity: true,
   id: true,
   status: true,
   statusSource: true,
@@ -113,6 +117,7 @@ export const TransitionTaskStatusResponseSchema = z.object({ task: TaskSchema })
 export const WeekKeySchema = z.string().refine(isValidWeekKey, { message: 'Invalid ISO week' });
 export const LinkTaskWeekRequestSchema = z.object({ weekKey: WeekKeySchema });
 export const SelfReportTaskRequestSchema = z.object({
+  reviewerIds: z.array(z.string().min(1)).max(100).optional(),
   projectId: z.string().min(1),
   groupId: z.string().min(1),
   title: z.string().trim().min(1),
@@ -121,6 +126,13 @@ export const SelfReportTaskRequestSchema = z.object({
   intrinsicComplexity: TaskSchema.shape.intrinsicComplexity,
 });
 export type SelfReportTaskRequest = z.infer<typeof SelfReportTaskRequestSchema>;
+export const UpdateSelfTaskRequestSchema = z.object({
+  expectedRevision: z.number().int().nonnegative(),
+  title: z.string().trim().min(1).optional(),
+  rawSummary: z.string().trim().min(1).optional(),
+  reviewerIds: z.array(z.string().min(1)).max(100).optional(),
+}).refine(value => value.title !== undefined || value.rawSummary !== undefined || value.reviewerIds !== undefined, { message: 'No changes supplied' });
+export type UpdateSelfTaskRequest = z.infer<typeof UpdateSelfTaskRequestSchema>;
 export const ClaimTaskRequestSchema = z.object({
   weekKey: WeekKeySchema.optional(),
   memberId: z.string().min(1).optional(),
@@ -191,6 +203,7 @@ export const CompleteTaskResponseSchema = z.object({ task: TaskSchema });
  * schema 不硬绑 `reject⇒note`，避免"打回必写"卡死抽查快速打回；留名 + 打回理由都进事实卡）。
  */
 export const ReviewTaskRequestSchema = z.object({
+  expectedRevision: z.number().int().nonnegative().optional(),
   outcome: z.enum(['accept', 'reject']),
   reviewedBy: ActorRefSchema.optional(),
   note: z.string().min(1).optional(),

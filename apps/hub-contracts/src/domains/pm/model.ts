@@ -280,6 +280,18 @@ export const TaskOwnershipEventSchema = z.object({
 });
 
 export const TaskSchema = z.object({
+  createdBy: ActorRefSchema.optional(),
+  reviewerIds: z.array(z.string().min(1)).optional(),
+  revision: z.number().int().nonnegative().optional(),
+  activity: z.array(z.object({
+    kind: z.enum(['created', 'edited', 'reviewersChanged', 'accepted', 'rejected']),
+    at: isoDateTimeSchema,
+    by: ActorRefSchema,
+    title: z.string().optional(),
+    rawSummary: z.string().optional(),
+    reviewerIds: z.array(z.string()).optional(),
+    note: z.string().optional(),
+  })).optional(),
   id: z.string().min(1),
   projectId: z.string().min(1),
   groupId: z.string().min(1),

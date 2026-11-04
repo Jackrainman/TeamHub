@@ -1,3 +1,4 @@
+import type { UpdateSelfTaskRequest } from '@teamhub/hub-contracts';
 import type {
   ActorRef,
   Dependency,
@@ -147,6 +148,7 @@ export interface PmRepository {
   getSnapshot(): Promise<GovernanceSnapshot>;
 
   createTask(draft: TaskDraft): Promise<Task>;
+  editSelfTask(taskId: string, input: UpdateSelfTaskRequest, actor: ActorRef, at: string): Promise<Task | null>;
   createDependency(draft: DependencyDraft): Promise<Dependency>;
   createNeed(draft: NeedDraft): Promise<Need>;
   closeoutKbNode(draft: KnowledgeNodeDraft): Promise<KnowledgeNode>;
@@ -340,6 +342,7 @@ export interface PmRepository {
     outcome: 'accept' | 'reject',
     note: string | undefined,
     at: string,
+    expectedRevision?: number,
   ): Promise<Task | null>;
 
   /**

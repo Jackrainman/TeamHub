@@ -1,9 +1,9 @@
-import type { TaskWithMeta } from '@teamhub/hub-contracts';
+import type { TaskWithMeta, MemberPublic } from '@teamhub/hub-contracts';
 import { useI18n } from '../../../i18n';
 import { formatDay, STATUS_KEY } from './constants';
 import { factTime } from '../week/format';
 
-export function TaskTimeline({ task }: { task: TaskWithMeta }) {
+export function TaskTimeline({ task, members = [] }: { task: TaskWithMeta; members?: MemberPublic[] }) {
   const { t } = useI18n();
   const facts = [
     ...(task.transitions ?? []).map(event => ({
@@ -14,7 +14,11 @@ export function TaskTimeline({ task }: { task: TaskWithMeta }) {
     ...(task.ownershipEvents ?? []).map(event => ({
       at: event.at, label: t(`week.fact.${event.kind}`), by: event.by.displayName, note: event.reason,
     })),
-    ...(task.reviewedAt && task.reviewedBy ? [{
+    ...(task.activity ?? []).map(event => ({
+      at: event.at, label: t(`team.fact.${event.kind}`), by: event.by.displayName,
+      note: [event.title, event.rawSummary, event.note, event.reviewerIds ? (event.reviewerIds.map(id => members.find(m => m.id === id)?.displayName ?? id).join('、') || t('team.noReviewers')) : undefined].filter(Boolean).join(' · '),
+    })),
+    ...(!task.activity?.some(event => event.kind === 'accepted' || event.kind === 'rejected') && task.reviewedAt && task.reviewedBy ? [{
       at: task.reviewedAt, label: t('week.reviewedBy'), by: task.reviewedBy.displayName, note: task.reviewNote,
     }] : []),
   ].sort((a, b) => a.at.localeCompare(b.at));

@@ -7,19 +7,20 @@ import { queryKeys } from '../src/api/queryKeys';
 import { LanguageProvider } from '../src/i18n';
 import { WeekWorkspace } from '../src/features/pm/week/WeekWorkspace';
 
-test('home shows weekly tasks with no member picker and a global pool tab', () => {
+test('home shows all team tasks with search and structural filters, without pools', () => {
   const cache = new QueryClient();
   const tasks = governanceScenarioFixture.tasks.map(task => ({ ...task, isBig: false, previousOwnerIds: [], weekLinks: [{ weekKey: getWeekKey(new Date()), linkedAt: task.createdAt, linkedBy: { id: 'm-circuitD', displayName: 'A', source: 'console' as const } }] }));
   cache.setQueryData(queryKeys.tasks('test'), { tasks });
   cache.setQueryData(queryKeys.groups('test'), { groups: governanceScenarioFixture.groups, assignableGroupIds: [] });
   cache.setQueryData([...queryKeys.members(), 'test'], { members: governanceScenarioFixture.members });
   const html = renderToStaticMarkup(<QueryClientProvider client={cache}><LanguageProvider><WeekWorkspace client={createHubApiClient()} source="test" projectId="prj-robots" identity={{ mode: 'identity', canWrite: true, isLoading: false, session: { memberId: 'm-circuitD', displayName: 'A', groupId: 'grp-circuit', role: 'member' } }} /></LanguageProvider></QueryClientProvider>);
-  expect(html).toContain('本周执行台');
+  expect(html).toContain('全队任务');
   expect(html).toContain('week-detail');
-  expect(html).toContain('任务池');
-  expect(html).toContain('已完成');
-  expect(html).toContain('自报任务');
-  expect(html).not.toContain('<select');
+  expect(html).not.toContain('role="tablist"');
+  expect(html).toContain('搜索任务');
+  expect(html).toContain('全部小组');
+  expect(html).toContain('新建任务');
+  expect(html).toContain(governanceScenarioFixture.tasks[0]!.title);
   expect(html).not.toContain('baseline-overview');
   cache.clear();
 });

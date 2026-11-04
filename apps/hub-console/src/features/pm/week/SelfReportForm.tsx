@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import type { Group, SelfReportTaskRequest } from '@teamhub/hub-contracts';
+import type { Group, MemberPublic, SelfReportTaskRequest } from '@teamhub/hub-contracts';
 import { useI18n } from '../../../i18n';
+import { ReviewerPicker } from '../components/ReviewerPicker';
 
-export function SelfReportForm({ projectId, groups, defaultGroupId, pending, onSubmit }: {
+export function SelfReportForm({ projectId, groups, defaultGroupId, pending, onSubmit, members, memberId }: {
   projectId: string; groups: Group[]; defaultGroupId?: string; pending: boolean;
+  members: MemberPublic[]; memberId: string;
   onSubmit: (input: SelfReportTaskRequest) => void;
 }) {
   const { t } = useI18n();
@@ -11,11 +13,12 @@ export function SelfReportForm({ projectId, groups, defaultGroupId, pending, onS
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
   const [robot, setRobot] = useState('');
+  const [reviewerIds, setReviewerIds] = useState<string[]>([]);
   const [complexity, setComplexity] = useState<SelfReportTaskRequest['intrinsicComplexity']>('normal');
   return <form className="week-form" onSubmit={event => {
     event.preventDefault();
     if (pending || !projectId || !groupId || !title.trim() || !summary.trim()) return;
-    onSubmit({ projectId, groupId, title: title.trim(), rawSummary: summary.trim(), intrinsicComplexity: complexity,
+    onSubmit({ projectId, groupId, title: title.trim(), rawSummary: summary.trim(), intrinsicComplexity: complexity, reviewerIds,
       ...(robot ? { robotTarget: robot as SelfReportTaskRequest['robotTarget'] } : {}),
     });
   }}>
@@ -32,6 +35,7 @@ export function SelfReportForm({ projectId, groups, defaultGroupId, pending, onS
     <label className="gate-field">{t('week.complexity')}<select value={complexity} onChange={event => setComplexity(event.target.value as typeof complexity)}>
       {(['trivial', 'normal', 'hard'] as const).map(value => <option key={value} value={value}>{t(`week.complexity.${value}`)}</option>)}
     </select></label>
+    <ReviewerPicker members={members} excludedIds={[memberId]} value={reviewerIds} onChange={setReviewerIds} disabled={pending} />
     <button className="btn btn--primary" disabled={pending || !projectId || !groupId || !title.trim() || !summary.trim()}>{pending ? t('week.saving') : t('week.submit')}</button>
   </form>;
 }

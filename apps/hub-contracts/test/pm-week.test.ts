@@ -36,4 +36,13 @@ describe('weekly task facts', () => {
     expect(deriveTaskAcceptance({ ...done, weekLinks: [] }, false)).toBe('selfDone');
     expect(TaskSchema.shape).not.toHaveProperty('dueDate');
   });
+  test('only selected backups may accept once, never the author or owner', () => {
+    const done = { ...task, ownerId: 'owner', status: 'done' as const, weekLinks: [link], reviewerIds: ['b', 'c', 'a', 'owner'], reviewedBy: undefined };
+    expect(week.canReviewWeekTask(done, 'stranger')).toBe(false);
+    expect(week.canReviewWeekTask(done, 'a')).toBe(false);
+    expect(week.canReviewWeekTask(done, 'owner')).toBe(false);
+    expect(week.canReviewWeekTask(done, 'b')).toBe(true);
+    expect(week.canReviewWeekTask({ ...done, reviewerIds: ['c'] }, 'b')).toBe(false);
+    expect(week.canReviewWeekTask({ ...done, reviewedBy: { ...link.linkedBy, id: 'b' } }, 'c')).toBe(false);
+  });
 });

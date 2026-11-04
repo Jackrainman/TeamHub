@@ -247,3 +247,8 @@ export type {
   RosterParseResult,
   RosterPreviewResponse,
 } from './import.js';
+export { taskAuthorId, canReviewWeekTask } from './week.js';
+export { selectTeamTasks } from './team-tasks.js';
+export type { TeamTaskStatus } from './team-tasks.js';
+export { UpdateSelfTaskRequestSchema } from './requests.js';
+export type { UpdateSelfTaskRequest } from './requests.js';

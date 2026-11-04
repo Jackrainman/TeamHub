@@ -19,7 +19,7 @@ export function WeekTaskCard({ task, groupName, members, node, onOpen, children,
   return <article className={`card week-task week-task--${task.status}${active ? ' is-selected' : ''}${task.status === 'done' && acceptance !== 'accepted' ? ' is-awaiting' : ''}`}>
     <div className="week-task__heading">
       <span className="week-task__group">{groupName}</span>
-      <span className="week-task__status"><StatusIcon size={14} aria-hidden="true" />{task.status === 'done' ? t(acceptance === 'accepted' ? 'week.accepted' : 'week.awaiting') : t(STATUS_KEY[task.status])}</span>
+      <span className="week-task__status"><StatusIcon size={14} aria-hidden="true" />{task.status === 'done' ? t(acceptance === 'accepted' ? 'week.accepted' : acceptance === 'selfDone' ? 'week.view.completed' : 'week.awaiting') : t(STATUS_KEY[task.status])}</span>
     </div>
     <button className="week-task__title" onClick={onOpen} aria-pressed={active}>{task.title}</button>
     <p className="week-task__summary">{task.rawSummary}</p>

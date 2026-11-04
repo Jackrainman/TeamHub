@@ -66,6 +66,7 @@ export function useTaskActions(
     invalidateKeys,
     mutationFn: (vars: { outcome: 'accept' | 'reject'; note?: string; actor?: ActorRef }) =>
       client.reviewTask(task.id, {
+        expectedRevision: task.revision ?? 0,
         outcome: vars.outcome,
         reviewedBy: vars.actor,
         note: vars.note,

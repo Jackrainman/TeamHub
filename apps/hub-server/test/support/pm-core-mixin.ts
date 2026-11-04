@@ -1,3 +1,5 @@
+import { canReviewWeekTask, type UpdateSelfTaskRequest } from '@teamhub/hub-contracts';
+import { buildEditedSelfTask } from '../../src/modules/pm/self-task.js';
 import { buildDefaultGroupTree } from '@teamhub/hub-contracts';
 import type {
   ActorRef,
@@ -458,6 +460,14 @@ export function PmCoreMixin<T extends Base>(
      * 标完成（§5）。status→done + completedBy + statusSource console（C5）；**清 reviewedBy / reviewNote**
      * （新一轮完成清旧验收——重开后重新走验收）。id 不存在 → null（路由转 404）。
      */
+    async editSelfTask(taskId: string, input: UpdateSelfTaskRequest, actor: ActorRef, at: string): Promise<Task | null> {
+      const idx = this.snapshot.tasks.findIndex(t => t.id === taskId);
+      if (idx === -1) return null;
+      const updated = buildEditedSelfTask(this.snapshot.tasks[idx], input, actor, at);
+      if (updated) this.snapshot.tasks[idx] = updated;
+      return updated;
+    }
+
     async completeTask(taskId: string, completedBy: ActorRef, at: string): Promise<Task | null> {
       const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
       if (idx === -1) return null;
@@ -478,9 +488,12 @@ export function PmCoreMixin<T extends Base>(
       outcome: 'accept' | 'reject',
       note: string | undefined,
       at: string,
+      expectedRevision?: number,
     ): Promise<Task | null> {
       const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
       if (idx === -1) return null;
+      if (expectedRevision !== undefined && (this.snapshot.tasks[idx].revision ?? 0) !== expectedRevision) return null;
+      if (this.snapshot.tasks[idx].weekLinks?.length && !canReviewWeekTask(this.snapshot.tasks[idx], reviewedBy.id)) return null;
       const updated = buildReviewedTask(this.snapshot.tasks[idx], reviewedBy, outcome, note, at);
       this.snapshot.tasks[idx] = updated;
       return updated;

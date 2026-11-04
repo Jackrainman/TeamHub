@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getWeekKey, type SelfReportTaskRequest, type TaskStatus } from '@teamhub/hub-contracts';
+import { getWeekKey, type SelfReportTaskRequest, type TaskStatus, type UpdateSelfTaskRequest } from '@teamhub/hub-contracts';
 import { useQuery } from '@tanstack/react-query';
 import type { CreateSeasonRequest, CreateTaskRequest, Season } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
@@ -101,6 +101,14 @@ export function useCurrentWeek() {
     return () => clearInterval(timer);
   }, []);
   return week;
+}
+
+export function useEditSelfTask(client: HubApiClient, taskId: string, onSaved: () => void) {
+  return useHubMutation({
+    invalidateKeys: [queryKeys.allTasks(), queryKeys.allDepGraphs()],
+    mutationFn: (input: UpdateSelfTaskRequest) => client.editSelfTask(taskId, input),
+    onSuccess: onSaved,
+  });
 }
 
 export function useWeekActions(client: HubApiClient, onCreated: () => void) {

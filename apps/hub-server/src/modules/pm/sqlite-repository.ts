@@ -1,3 +1,5 @@
+import { canReviewWeekTask, type UpdateSelfTaskRequest } from '@teamhub/hub-contracts';
+import { buildEditedSelfTask } from './self-task.js';
 import {
   GOVERNANCE_SCENARIO_NOW,
   buildDefaultGroupTree,
@@ -583,10 +585,22 @@ export class SqlitePmRepository implements PmRepository {
     });
   }
 
+  async editSelfTask(taskId: string, input: UpdateSelfTaskRequest, actor: ActorRef, at: string): Promise<Task | null> {
+    return this.tx(() => {
+      const prev = this.getRow<Task>('tasks', taskId);
+      if (!prev) return null;
+      const updated = buildEditedSelfTask(prev, input, actor, at);
+      if (!updated) return null;
+      this.updateRow('tasks', taskId, updated);
+      return updated;
+    });
+  }
+
   async completeTask(taskId: string, completedBy: ActorRef, at: string): Promise<Task | null> {
     return this.tx(() => {
       const prev = this.getRow<Task>('tasks', taskId);
       if (!prev) return null;
+      if (prev.weekLinks?.length && (prev.ownerId !== completedBy.id || prev.status === 'done' || prev.status === 'shelved')) return null;
       const updated = buildCompletedTask(prev, completedBy, at);
       this.updateRow('tasks', taskId, updated);
       return updated;
@@ -599,10 +613,13 @@ export class SqlitePmRepository implements PmRepository {
     outcome: 'accept' | 'reject',
     note: string | undefined,
     at: string,
+    expectedRevision?: number,
   ): Promise<Task | null> {
     return this.tx(() => {
       const prev = this.getRow<Task>('tasks', taskId);
       if (!prev) return null;
+      if (expectedRevision !== undefined && (prev.revision ?? 0) !== expectedRevision) return null;
+      if (prev.weekLinks?.length && (!canReviewWeekTask(prev, reviewedBy.id) || (outcome === 'reject' && !note?.trim()))) return null;
       const updated = buildReviewedTask(prev, reviewedBy, outcome, note, at);
       this.updateRow('tasks', taskId, updated);
       return updated;

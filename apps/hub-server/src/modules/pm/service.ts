@@ -1,4 +1,4 @@
-import { getWeekKey, isCurrentWeek, canReviewWeekTask } from '@teamhub/hub-contracts';
+import { getWeekKey, isCurrentWeek, canReviewWeekTask, taskAuthorId, type UpdateSelfTaskRequest } from '@teamhub/hub-contracts';
 import type { SelfReportTaskRequest } from '@teamhub/hub-contracts';
 import {
   CONVERGENCE_SCOPE_ALL_LEAF_GROUPS,
@@ -168,12 +168,25 @@ export class PmService {
     const snapshot = await this.repository.getSnapshot();
     if (!snapshot.members.some(m => m.id === actor.id)) return fail(403, 'Member required');
     if (snapshot.projectId !== input.projectId || !deriveLeafGroups(snapshot.groups).includes(input.groupId)) return fail(400, 'Valid project and leaf group required');
+    if (input.reviewerIds?.some(id => id === actor.id || !snapshot.members.some(m => m.id === id))) return fail(400, '请选择其他名册成员作为备位');
     return ok(await this.repository.createTask({
       ...input, ownerId: actor.id, collaboratorIds: [], status: 'inProgress', claimedAt: now,
+      createdBy: actor, reviewerIds: [...new Set(input.reviewerIds ?? [])], revision: 0,
+      activity: [{ kind: 'created', at: now, by: actor, title: input.title, rawSummary: input.rawSummary, reviewerIds: [...new Set(input.reviewerIds ?? [])] }],
       weekLinks: [{ weekKey, linkedAt: now, linkedBy: actor }],
       ownershipEvents: [{ kind: 'claimed', fromOwnerId: null, toOwnerId: actor.id, at: now, by: actor }],
       transitions: [{ from: null, to: 'inProgress', at: now, by: actor }],
     }));
+  }
+
+  async editSelfTask(taskId: string, input: UpdateSelfTaskRequest, actor: ActorRef): Promise<PmOutcome<Task>> {
+    const snapshot = await this.repository.getSnapshot();
+    const task = snapshot.tasks.find(t => t.id === taskId);
+    if (!task) return fail(404, '任务不存在');
+    if (!task.weekLinks?.length || taskAuthorId(task) !== actor.id || !snapshot.members.some(m => m.id === actor.id)) return fail(403, '只有任务作者可以修改任务和选择备位人');
+    if (input.reviewerIds?.some(id => id === actor.id || id === task.ownerId || id === task.completedBy?.id || !snapshot.members.some(m => m.id === id))) return fail(400, '请选择作者和完成人之外的名册成员');
+    const updated = await this.repository.editSelfTask(taskId, input, actor, this.clock.now().toISOString());
+    return updated ? ok(updated) : fail(409, '任务已更新，请刷新后再提交');
   }
 
   async linkTaskWeek(taskId: string, weekKey: string, actor: ActorRef): Promise<PmOutcome<Task>> {
@@ -349,10 +362,13 @@ export class PmService {
     outcome: 'accept' | 'reject',
     note: string | undefined,
     authenticated = false,
+    expectedRevision?: number,
   ): Promise<PmOutcome<Task>> {
     const snapshot = await this.repository.getSnapshot();
     const target = snapshot.tasks.find((t) => t.id === taskId);
     if (!target) return fail(404, 'task not found');
+    if (expectedRevision !== undefined && expectedRevision !== (target.revision ?? 0)) return fail(409, '任务已更新，请刷新后再验收');
+    if (target.weekLinks?.length && outcome === 'reject' && !note?.trim()) return fail(400, '请填写退回原因');
     if (target.weekLinks?.length && (!authenticated || !snapshot.members.some(m => m.id === actor.id) || !canReviewWeekTask(target, actor.id))) return fail(403, 'Another signed-in member must review this task');
     if (target.status !== 'done') {
       return fail(409, '任务尚未标完成，无法验收/打回（先 complete）');
@@ -363,8 +379,9 @@ export class PmService {
       outcome,
       note,
       this.clock.now().toISOString(),
+      target.revision ?? 0,
     );
-    if (!updated) return fail(404, 'task not found');
+    if (!updated) return fail(409, '任务已更新，请刷新后再验收');
     return ok(updated);
   }
 

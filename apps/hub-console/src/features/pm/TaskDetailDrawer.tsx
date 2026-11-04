@@ -1,5 +1,8 @@
 import type { Group, MemberPublic, TaskWithMeta } from '@teamhub/hub-contracts';
-import { deriveTaskAcceptance } from '@teamhub/hub-contracts';
+import { deriveTaskAcceptance, taskAuthorId } from '@teamhub/hub-contracts';
+import { useState } from 'react';
+import { useI18n } from '../../i18n';
+import { TaskEditor } from './components/TaskEditor';
 import type { HubApiClient } from '../../api/client';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useTaskActions } from './sub/useTaskActions';
@@ -26,6 +29,9 @@ export function TaskDetailDrawer({
   readOnly?: boolean;
 }) {
   const actions = useTaskActions(client, source, task, members, identity);
+  const { t } = useI18n();
+  const [editing, setEditing] = useState(false);
+  const canEdit = !readOnly && identity.canWrite && !!task.weekLinks?.length && taskAuthorId(task) === identity.session?.memberId;
 
   const groupName = groups.find((g) => g.id === task.groupId)?.name ?? task.groupId;
   const acceptance = deriveTaskAcceptance(task, task.isBig);
@@ -41,7 +47,13 @@ export function TaskDetailDrawer({
         crossWanted={actions.crossWanted}
       />
       <TaskFacts task={task} members={members} acceptance={acceptance} />
-      <TaskTimeline task={task} />
+      {!!task.weekLinks?.length && <div className="task-detail__reviewers">
+        <strong>{t('team.reviewers')}</strong>
+        <p>{task.reviewerIds?.length ? task.reviewerIds.map(id => members.find(member => member.id === id)?.displayName ?? id).join('、') : t('team.noReviewers')}</p>
+        {canEdit && !editing && <button className="btn btn--secondary btn--sm" onClick={() => setEditing(true)}>{t('team.edit')}</button>}
+      </div>}
+      {canEdit && editing && <TaskEditor task={task} client={client} members={members} onClose={() => setEditing(false)} />}
+      <TaskTimeline task={task} members={members} />
       {!readOnly && <TaskActionsPanel actions={actions} task={task} members={members} acceptance={acceptance} />}
     </div>
   );

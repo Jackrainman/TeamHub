@@ -34,6 +34,7 @@ import {
   type CreateSeasonRequest,
   type CreateTaskRequest,
   type SelfReportTaskRequest,
+  type UpdateSelfTaskRequest,
   type CreateTaskResponse,
   type DepGraph,
   type Group,
@@ -70,6 +71,7 @@ export interface PmSegment {
   renameGroup(id: string, req: RenameGroupRequest): Promise<GroupResponse>;
   deleteGroup(id: string): Promise<GroupResponse>;
   selfReportTask(weekKey: string, req: SelfReportTaskRequest): Promise<CreateTaskResponse>;
+  editSelfTask(taskId: string, req: UpdateSelfTaskRequest): Promise<CreateTaskResponse>;
   linkTaskWeek(taskId: string, weekKey: string): Promise<CreateTaskResponse>;
   createTask(req: CreateTaskRequest): Promise<CreateTaskResponse>;
   createDependency(req: CreateDependencyRequest): Promise<CreateDependencyResponse>;
@@ -119,6 +121,9 @@ export function createPmSegment(ctx: HttpContext): PmSegment {
     },
     async selfReportTask(weekKey, req) {
       return postJson(`${baseUrl}/api/weeks/${encodeURIComponent(weekKey)}/tasks`, req, CreateTaskResponseSchema, fetcher, writeToken);
+    },
+    async editSelfTask(taskId, req) {
+      return postJson(`${baseUrl}/api/tasks/${encodeURIComponent(taskId)}/edit`, req, CreateTaskResponseSchema, fetcher, writeToken);
     },
     async linkTaskWeek(taskId, weekKey) {
       return postJson(`${baseUrl}/api/tasks/${encodeURIComponent(taskId)}/weeks`, { weekKey }, CreateTaskResponseSchema, fetcher, writeToken);

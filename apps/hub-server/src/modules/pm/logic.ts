@@ -182,6 +182,7 @@ export function buildCompletedTask(prev: Task, completedBy: ActorRef, at: string
   const { reviewedBy: _r, reviewedAt: _at, reviewNote: _n, ...rest } = prev;
   return {
     ...rest,
+    revision: (prev.revision ?? 0) + 1,
     status: 'done',
     statusSource: MANUAL_TASK_STATUS_SOURCE,
     completedBy,
@@ -204,6 +205,8 @@ export function buildReviewedTask(
   const rejecting = outcome === 'reject';
   return {
     ...rest,
+    revision: (prev.revision ?? 0) + 1,
+    activity: [...(prev.activity ?? []), { kind: rejecting ? 'rejected' : 'accepted', at, by: reviewedBy, ...(note ? { note } : {}) }],
     status: rejecting ? 'inProgress' : rest.status,
     statusSource: rejecting ? MANUAL_TASK_STATUS_SOURCE : rest.statusSource,
     reviewedBy,
@@ -309,6 +312,7 @@ export function applyTaskStatusTransition(
   const transition = { from: prev.status ?? null, to: status, at: now, ...(by ? { by } : {}) };
   return {
     ...prev,
+    revision: (prev.revision ?? 0) + 1,
     status,
     statusSource: MANUAL_TASK_STATUS_SOURCE,
     updatedAt: now,

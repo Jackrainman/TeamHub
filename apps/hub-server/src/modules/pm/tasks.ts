@@ -10,6 +10,7 @@ import {
   CreateTaskRequestSchema,
   CreateTaskResponseSchema,
   SelfReportTaskRequestSchema,
+  UpdateSelfTaskRequestSchema,
   LinkTaskWeekRequestSchema,
   DepGraphSchema,
   GroupGapsResponseSchema,
@@ -59,6 +60,14 @@ function sendOutcome<T>(
  */
 export function registerTaskRoutes(app: FastifyInstance, deps: TaskRouteDeps): void {
   const { store, service, identityMode } = deps;
+
+  app.post('/api/tasks/:taskId/edit', async (request, reply) => {
+    if (!request.identity) return reply.code(403).send({ code: 'PM_SESSION_REQUIRED', detail: '请先登录' });
+    const input = parseBody(UpdateSelfTaskRequestSchema, request, reply);
+    if (!input) return;
+    const { taskId } = request.params as { taskId: string };
+    return sendOutcome(reply, await service.editSelfTask(taskId, input, sessionActor(request.identity)), task => CreateTaskResponseSchema.parse({ task }));
+  });
 
   // ── 组管理 ──
 

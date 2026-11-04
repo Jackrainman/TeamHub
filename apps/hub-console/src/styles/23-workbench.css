@@ -1,4 +1,14 @@
 .week-workspace { min-width: 0; }
+.team-task-filters { display: grid; grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
+.team-task-filters .gate-field { min-width: 0; }
+.team-task-filters input, .team-task-filters select { width: 100%; min-width: 0; }
+.task-reviewer-picker { min-width: 0; border: 0; padding: 0; margin: 0; }
+.reviewer-options { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); max-height: 180px; overflow-y: auto; }
+.reviewer-options label { display: inline-flex; align-items: center; gap: var(--space-2); }
+.reviewer-options input { width: auto; }
+.task-detail__reviewers { margin: var(--space-4) 0; }
+.task-detail__reviewers p, .tl-status { overflow-wrap: anywhere; }
+@media (max-width: 600px) { .team-task-filters { grid-template-columns: minmax(0, 1fr); } }
 .week-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-5); }
 .week-header h1 { margin: var(--space-2) 0; font-size: var(--text-3xl); letter-spacing: -.03em; }
 .week-eyebrow { margin: 0; color: var(--muted); font-size: var(--text-xs); letter-spacing: .1em; }

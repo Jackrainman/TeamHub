@@ -17,6 +17,7 @@ test('self report, owner-only progress, peer acceptance, reject and recomplete',
   try {
     const a = await login(app, 'm-circuitD');
     const b = await login(app, 'm-ecB');
+    const c = await login(app, 'm-visionA');
     expect((await app.inject({ method: 'GET', url: '/api/tasks', headers: { cookie: a } })).json().currentWeek).toBe('2026-W44');
     const post = (url: string, cookie: string, payload: object = {}) => app.inject({ method: 'POST', url, headers: { cookie }, payload });
     const draft = { projectId: 'prj-robots', groupId: 'grp-circuit', title: 'week task', rawSummary: 'test', intrinsicComplexity: 'normal', ownerId: 'm-ecB', reviewedBy: { id: 'm-ecB', displayName: 'fake', source: 'console' } };
@@ -37,9 +38,29 @@ test('self report, owner-only progress, peer acceptance, reject and recomplete',
     expect((await post(`${base}/complete`, b)).statusCode).toBe(403);
     expect((await post(`${base}/status`, a, { status: 'done' })).json().task.completedBy.id).toBe('m-circuitD');
     expect((await post(`${base}/review`, a, { outcome: 'accept' })).statusCode).toBe(403);
+    expect((await post(`${base}/review`, b, { outcome: 'accept' })).statusCode).toBe(403);
+    const edit = (cookie: string, input: object) => post(`${base}/edit`, cookie, input);
+    expect((await edit(b, { expectedRevision: 0, reviewerIds: ['m-ecB'] })).statusCode).toBe(403);
+    expect((await edit(a, { expectedRevision: 0, reviewerIds: ['m-circuitD'] })).statusCode).toBe(400);
+    expect((await edit(a, { expectedRevision: 0, reviewerIds: ['missing'] })).statusCode).toBe(400);
+    const selected = await edit(a, { expectedRevision: 1, reviewerIds: ['m-ecB', 'm-visionA'] });
+    expect(selected.statusCode).toBe(200);
+    const revision = selected.json().task.revision;
+    const replaced = await edit(a, { expectedRevision: revision, reviewerIds: ['m-visionA'] });
+    expect(replaced.statusCode).toBe(200);
+    expect((await post(`${base}/review`, b, { outcome: 'accept' })).statusCode).toBe(403);
+    const both = await edit(a, { expectedRevision: replaced.json().task.revision, reviewerIds: ['m-ecB', 'm-visionA'] });
     const accepted = await post(`${base}/review`, b, { outcome: 'accept' });
     expect(accepted.statusCode).toBe(200);
     expect(accepted.json().task.reviewedAt).toBe('2026-10-28T00:00:00.000Z');
+    expect((await post(`${base}/review`, c, { outcome: 'reject', note: 'late' })).statusCode).toBe(403);
+    expect((await edit(a, { expectedRevision: both.json().task.revision, title: 'stale' })).statusCode).toBe(409);
+    const edited = await edit(a, { expectedRevision: accepted.json().task.revision, title: 'changed content' });
+    expect(edited.statusCode).toBe(200);
+    expect(edited.json().task.reviewedBy).toBeUndefined();
+    expect(edited.json().task.activity.some((e: { kind: string }) => e.kind === 'accepted')).toBe(true);
+    expect((await post(`${base}/review`, b, { outcome: 'accept', expectedRevision: accepted.json().task.revision })).statusCode).toBe(409);
+    expect((await post(`${base}/review`, b, { outcome: 'reject' })).statusCode).toBe(400);
     expect((await post(`${base}/review`, b, { outcome: 'reject', note: 'fix' })).json().task.status).toBe('inProgress');
     const completed = (await post(`${base}/complete`, a)).json().task;
     expect(completed.reviewedBy).toBeUndefined();

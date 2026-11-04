@@ -67,7 +67,7 @@ const assert = require('node:assert/strict');
     const at = async ms => page.waitForTimeout(Math.max(0, start + ms - Date.now()));
     await at(1500); await nav('项目').hover();
     await at(4500); assert.equal(await expanded(), true, 'first hover resets 4s idle');
-    await nav('本周').hover();
+    await nav('任务').hover();
     await at(7000); assert.equal(await expanded(), true, 'second hover resets 4s idle');
     await at(9000); assert.equal(await expanded(), false, 'idle collapses after last activity');
     await capture('sidebar-collapsed');
@@ -116,7 +116,7 @@ const assert = require('node:assert/strict');
     }
     let evidenceRequests = 0;
     page.on('request', request => { if (/\/evidence(?:\?|$)/.test(request.url())) evidenceRequests++; });
-    await nav('本周').click(); await nav('报销').click(); await page.waitForLoadState('networkidle');
+    await nav('任务').click(); await nav('报销').click(); await page.waitForLoadState('networkidle');
     assert.equal(evidenceRequests, 0, 'list never fetches evidence');
     await page.getByRole('checkbox', { name: '选择全部' }).check();
     const download = page.waitForEvent('download');
@@ -204,7 +204,7 @@ const assert = require('node:assert/strict');
     for (const width of [1000, 390]) {
       await page.setViewportSize({ width, height: 1000 });
       if (await expanded()) await page.locator('.sidebar-toggle').click();
-      for (const [label, key] of [['本周', 'week'], ['项目', 'project'], ['队伍近况', 'feed'], ['知识库', 'knowledge'], ['库存与 BOM', 'inv'], ['报销', 'reimburse'], ['设置', 'settings']]) {
+      for (const [label, key] of [['任务', 'week'], ['项目', 'project'], ['队伍近况', 'feed'], ['知识库', 'knowledge'], ['库存与 BOM', 'inv'], ['报销', 'reimburse'], ['设置', 'settings']]) {
         await nav(label).click(); await page.waitForLoadState('networkidle'); await capture(`${key}-${width}`);
       }
     }

@@ -57,6 +57,11 @@ export function selectWeekTasks<T extends Task>(
 }
 
 export function canReviewWeekTask(task: Task, memberId: string): boolean {
-  return !!task.weekLinks?.length && task.status === 'done' &&
-    task.ownerId !== memberId && task.completedBy?.id !== memberId;
+  return !!task.weekLinks?.length && task.status === 'done' && !task.reviewedBy &&
+    taskAuthorId(task) !== memberId && task.ownerId !== memberId && task.completedBy?.id !== memberId &&
+    !!task.reviewerIds?.includes(memberId);
+}
+
+export function taskAuthorId(task: Task): string | undefined {
+  return task.createdBy?.id ?? task.weekLinks?.[0]?.linkedBy.id;
 }

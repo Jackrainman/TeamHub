@@ -175,7 +175,7 @@ export function registerTaskClaimRoutes(app: FastifyInstance, deps: TaskRouteDep
     }
     return sendOutcome(
       reply,
-      await service.reviewTask(taskId, actor, parsed.outcome, parsed.note, !!request.identity),
+      await service.reviewTask(taskId, actor, parsed.outcome, parsed.note, !!request.identity, parsed.expectedRevision),
       (updated) => ReviewTaskResponseSchema.parse({ task: updated }),
     );
   });

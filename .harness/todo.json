@@ -34,6 +34,87 @@
   ],
   "todo": [
     {
+      "id": "TEAM-TASKS-REVIEW",
+      "title": "全队任务、自建任务与可选备位验收",
+      "tag": "code",
+      "status": "verifying",
+      "dod": "所有成员可自建并查看全队任务；作者可后选、多选、更换备位；仅选定人验收且一人通过即结束；修改内容重新验收，历史持久可查；三包检查及远程 E2E 通过。",
+      "plan": {
+        "goal": "从全队任务进入创建、执行、备位验收与历史查询。",
+        "spec": "用户本轮确认；docs/domains/pm.md 与 D-098",
+        "architecture": "沿用 Task、PM service 与统一 SQLite，增加作者、备位列表、版本与追加历史；契约统一判权；首页替换周/池分栏为全队筛选列表。",
+        "constraints": [
+          "不建备位池或待认领表；不增加个人统计/dueDate。",
+          "复用现有周创建接口保留周关联事实，首页不按周隔断；非周项目任务原权限不扩大。",
+          "作者选人不是指派；备位可空、多选、替换，一人通过后其他人只读学习。",
+          "请求不接受伪造作者/验收/历史；写入版本冲突拒绝覆盖；SQLite 内再次判断验收资格。",
+          "现有配置与账号不改动；本机只运行无浏览器账户的测试，完整浏览器回归在 GitHub Ubuntu CI。"
+        ],
+        "reviewFocus": [
+          "换人后旧备位提交应被拒绝。",
+          "并发验收不能覆盖已通过结论。",
+          "旧编辑表单不能覆盖新的验收结果。",
+          "已通过内容改动重新待验收，旧记录仍在。",
+          "旧周任务可选备位，非周任务不放宽门权限。"
+        ],
+        "tasks": [
+          {
+            "id": 1,
+            "title": "契约和受控任务更新",
+            "status": "implemented",
+            "files": [
+              "apps/hub-contracts/src/domains/pm/{model,requests,week,team-tasks,index}.ts",
+              "apps/hub-server/src/modules/pm/{service,repository,sqlite-repository,tasks,logic,self-task}.ts"
+            ],
+            "interfaces": "Task.createdBy/reviewerIds/revision/activity；UpdateSelfTaskRequest(expectedRevision,title,rawSummary,reviewerIds)；taskAuthorId、canReviewWeekTask、selectTeamTasks；POST /api/tasks/:taskId/edit。",
+            "steps": [
+              "[ ] RED：契约验证选人/作者排除和全队筛选；API验证普通成员创建、后选备位、替换失权、一人通过、驳回理由、内容编辑重验；SQLite 重启保留历史且拒绝旧版本。",
+              "[ ] GREEN：实现请求白名单、版本检查和原子历史更新，复用生产及 fake builder。",
+              "[ ] 验证 targeted Vitest，然后对应包 verify:all。"
+            ]
+          },
+          {
+            "id": 2,
+            "title": "全队列表、创建和详情",
+            "status": "implemented",
+            "files": [
+              "apps/hub-console/src/features/pm/week/WeekWorkspace.tsx",
+              "apps/hub-console/src/features/pm/week/SelfReportForm.tsx",
+              "apps/hub-console/src/features/pm/components/TaskEditor.tsx",
+              "apps/hub-console/src/features/pm/{api,hooks,TaskDetailDrawer}.ts*",
+              "apps/hub-console/src/features/pm/sub/{useTaskActions,TaskTimeline,TaskActionsPanel}.tsx",
+              "apps/hub-console/src/i18n/locales/week.ts",
+              "apps/hub-console/src/styles/23-workbench.css"
+            ],
+            "interfaces": "useEditSelfTask、ReviewerPicker；详情显示备位、历史与作者编辑；卡片按统一验收状态展示。",
+            "steps": [
+              "[ ] 更新组件测试，验证全队默认可见、无周/池切换、搜索与组/状态筛选、新建可空备位。",
+              "[ ] 实现页面、选人和编辑，使用 humanizer-zh 简化文案。",
+              "[ ] 更新远程 E2E 主流程与其他脚本文字定位，避免旧按钮文案失配。",
+              "[ ] console verify:local、架构门、文档门；完整差异自审。"
+            ]
+          },
+          {
+            "id": 3,
+            "title": "交付验证",
+            "status": "in_progress",
+            "steps": [
+              "[ ] 同步 PM 当前事实与 D-098，MINOR bump，pre-commit，fetch 检查分叉后提交推送。",
+              "[ ] 跟进 GitHub CI 完整浏览器回归；失败定位修复后再推。",
+              "[ ] 完成后删除本任务、追加 ai-log；报告 CI 与未部署。"
+            ]
+          }
+        ],
+        "selfReview": "已覆盖用户确认的创建/选人/一人通过/学习/查询；共享接口依赖顺序为契约→服务→UI。计划和进度遵循本仓库仅存 todo 的规定，已授权直接执行、不重复请求确认。",
+        "review": "按 requesting-code-review 清单独立阶段自审，未进行独立代理审查。补齐旧页面验收版本检查与旧任务验收历史保留，失败测试复现后通过。",
+        "rulings": [
+          "首页统一全队任务；项目页既有依赖和任务池保留，避免扩大本次改造。",
+          "自建任务沿用现有当前周写接口，周关联只留事实，首页查询不受周限制。",
+          "单独更换备位不撤销已通过结论，修改标题或说明才重新待验收。"
+        ]
+      }
+    },
+    {
       "id": "REIMBURSE-PACKAGE-V1",
       "title": "报账第一版：一 ZIP / 一 JPG 对应一条，识别核对、本人补齐与凭证留档闭环",
       "tag": "code",

@@ -55,7 +55,7 @@ export function TaskActionsPanel({
         <p className="task-detail__hint">{t('identity.writeHint')}</p>
       ) : (
         <>
-          {actions.partnerWanted || task.partnerMemberId ? (
+          {!task.weekLinks?.length && (actions.partnerWanted || task.partnerMemberId) ? (
             actions.partnerOpen ? (
               <div className="task-detail__panel">
                 <Field label={t('pool.action.partnerPick')} hint={t('pool.action.partnerHint')}>
@@ -102,7 +102,7 @@ export function TaskActionsPanel({
             )
           ) : null}
 
-          {actions.crossWanted ? (
+          {!task.weekLinks?.length && actions.crossWanted ? (
             <div className="task-detail__panel">
               {!actions.isIdentity
                 ? renderOperatorPicker(
@@ -160,7 +160,7 @@ export function TaskActionsPanel({
             </div>
           ) : null}
 
-          {task.status === 'inProgress' && task.ownerId ? (
+          {!task.weekLinks?.length && task.status === 'inProgress' && task.ownerId ? (
             <div className="task-detail__panel">
               {actions.releaseOpen ? (
                 <>
@@ -230,7 +230,7 @@ export function TaskActionsPanel({
             </div>
           ) : null}
 
-          {acceptance === 'awaitingReview' || acceptance === 'selfDone' || (task.weekLinks?.length && acceptance === 'accepted') ? (
+          {acceptance === 'awaitingReview' || acceptance === 'selfDone' ? (
             <div className="task-detail__panel">
               {!actions.isIdentity
                 ? renderOperatorPicker(
@@ -256,7 +256,7 @@ export function TaskActionsPanel({
                     actions.reviewMutation.mutate({ outcome: 'accept', actor: actions.reviewActor() })
                   }
                 >
-                  {t('pool.action.accept')}
+                  {t(task.weekLinks?.length ? 'week.accepted' : 'pool.action.accept')}
                 </button>
               ) : null}
               {actions.rejectOpen ? (

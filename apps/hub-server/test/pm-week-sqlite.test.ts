@@ -24,8 +24,13 @@ test('claim and week link survive reopen, release preserves history, continuatio
     expect(reclaimed?.weekLinks).toEqual([{ weekKey: '2026-W44', linkedAt: at, linkedBy: a }]);
     await repo.linkTaskWeek(created.id, '2026-W45', at, a);
     expect((await repo.linkTaskWeek(created.id, '2026-W45', at, a))?.weekLinks).toHaveLength(2);
+    const selected = await repo.editSelfTask(created.id, { expectedRevision: 0, reviewerIds: [b.id] }, a, at);
+    expect(selected?.reviewerIds).toEqual([b.id]);
     await repo.completeTask(created.id, a, at);
-    await repo.reviewTask(created.id, b, 'accept', undefined, at);
+    const accepted = await repo.reviewTask(created.id, b, 'accept', undefined, at);
+    expect(accepted?.reviewedBy).toEqual(b);
+    expect(await repo.reviewTask(created.id, b, 'reject', 'late', at)).toBeNull();
+    expect(await repo.editSelfTask(created.id, { expectedRevision: selected!.revision!, title: 'stale' }, a, at)).toBeNull();
     database.close();
     reopened = openUnifiedDb(path);
     const task = (await reopened.openStores().gov.getSnapshot()).tasks.find(t => t.id === created.id)!;
@@ -34,6 +39,7 @@ test('claim and week link survive reopen, release preserves history, continuatio
     expect(task.reviewedAt).toBe(at);
     expect(task.reviewedBy).toEqual(b);
     expect(task.completedBy).toEqual(a);
+    expect(task.activity?.map(e => e.kind)).toEqual(['created', 'reviewersChanged', 'accepted']);
   } finally {
     (reopened ?? database).close();
     await rm(dir, { recursive: true, force: true });
