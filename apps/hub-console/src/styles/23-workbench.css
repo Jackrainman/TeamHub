@@ -29,8 +29,6 @@
 .week-switch strong { font-variant-numeric: tabular-nums; white-space: nowrap; font-size: var(--text-base); }
 .week-summary { display: flex; flex-wrap: wrap; gap: var(--space-5); color: var(--muted); font-size: var(--text-sm); margin-bottom: var(--space-5); }
 .week-summary b { color: var(--text); font-size: var(--text-md); margin-right: var(--space-1); }
-.week-layout.card { display: grid; grid-template-columns: minmax(280px, 34%) minmax(0, 1fr); min-height: 570px; padding: 0; overflow: hidden; }
-.week-main { min-width: 0; background: var(--surface-muted); border-right: 1px solid var(--border); }
 .week-toolbar { padding: var(--space-3) var(--space-4); flex-wrap: wrap; border-bottom: 1px solid var(--border); }
 .week-tabs { width: 100%; gap: var(--space-4); }
 .week-tabs button { background: none; border: 0; padding: var(--space-2) 0; color: var(--muted); font-size: var(--text-base); cursor: pointer; border-bottom: 2px solid transparent; }
@@ -38,10 +36,18 @@
 .week-scope button[aria-pressed="true"] { background: var(--surface-raised); color: var(--text); }
 .week-note { color: var(--muted); font-size: var(--text-sm); line-height: 1.7; margin: var(--space-3) 0; }
 .week-header .week-note { margin: 0; }
-.week-main > .week-note { padding: 0 var(--space-4); font-size: var(--text-xs); }
-.week-task-list { display: grid; }
-.week-task.card { padding: var(--space-4); border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; box-shadow: none; }
-.week-task.is-selected { background: var(--blue-soft); border-left: 3px solid var(--blue); padding-left: calc(var(--space-4) - 3px); }
+.task-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+.task-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.task-grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.week-task.card { padding: var(--space-4); min-width: 0; }
+.project-board-column .week-task.card { border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; box-shadow: none; }
+.task-grid .week-task { position: relative; display: flex; flex-direction: column; }
+/* 标题按钮覆盖卡片，操作按钮单独置顶，避免嵌套可交互控件。 */
+.task-grid .week-task__title::after { content: ''; position: absolute; inset: 0; }
+.task-grid .week-task__actions button { position: relative; z-index: 1; }
+.task-grid .week-task__actions { margin-top: auto; padding-top: var(--space-3); }
+.task-grid .week-task__heading { flex-wrap: wrap; }
+.task-grid .week-task__summary { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; margin: 0 0 var(--space-3); color: var(--muted); font-size: var(--text-sm); }
 .week-task__heading { justify-content: space-between; font-size: var(--text-xs); color: var(--muted); }
 .week-task__status { display: inline-flex; align-items: center; gap: var(--space-1); font-weight: var(--weight-medium); color: var(--blue); }
 .week-task--blocked .week-task__status, .week-task__block { color: var(--red); }
@@ -56,10 +62,6 @@
 .week-task__actions { margin-top: var(--space-3); flex-wrap: wrap; }
 .week-empty { padding: var(--space-5); text-align: center; }
 .week-empty svg { color: var(--muted); }
-.week-detail { min-width: 0; padding: var(--space-6, 32px); }
-.week-detail__header h2 { font-size: var(--text-xl); margin: var(--space-3) 0; overflow-wrap: anywhere; }
-.week-detail .task-detail { margin-bottom: var(--space-5); }
-.week-detail .task-detail__facts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
 .week-form { display: grid; gap: var(--space-4); }
 .week-form .gate-field { display: grid; gap: var(--space-2); }
 .team-feed-layout { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: var(--space-5); max-width: 1200px; align-items: start; }
@@ -85,6 +87,7 @@
 .week-task--done .week-task__status svg { animation: complete-pop 220ms ease-out; }
 @keyframes baseline-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes complete-pop { from { transform: scale(.7); } to { transform: scale(1); } }
-@media (max-width: 1100px) { .week-layout.card { grid-template-columns: minmax(240px, 40%) minmax(0, 1fr); } .week-detail { padding: var(--space-4); } }
-@media (max-width: 850px) { .week-layout.card, .team-feed-layout { grid-template-columns: minmax(0, 1fr); } .week-main { border-right: 0; border-bottom: 1px solid var(--border); } .week-header__controls { flex-wrap: wrap; } }
+@media (max-width: 1100px) { .task-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .task-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 850px) { .team-feed-layout { grid-template-columns: minmax(0, 1fr); } .week-header__controls { flex-wrap: wrap; } }
 @media (prefers-reduced-motion: reduce) { .week-workspace *, .baseline-widget * { animation: none; transition: none; } }

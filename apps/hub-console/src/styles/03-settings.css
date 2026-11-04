@@ -249,6 +249,7 @@
   font-weight: var(--weight-medium);
 }
 .gate-field input,
+.gate-field textarea,
 .gate-field select {
   width: 100%;
   padding: 9px 11px;
@@ -261,11 +262,14 @@
   transition: border-color var(--transition), box-shadow var(--transition);
 }
 .gate-field input:hover:not(:focus),
+.gate-field textarea:hover:not(:focus),
 .gate-field select:hover:not(:focus) {
   border-color: var(--text);
 }
 .gate-field input:focus,
+.gate-field textarea:focus,
 .gate-field select:focus {
   outline: 2px solid var(--blue);
   outline-offset: 1px;
 }
+.gate-field textarea { resize: vertical; }

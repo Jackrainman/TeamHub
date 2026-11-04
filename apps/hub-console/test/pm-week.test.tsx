@@ -18,7 +18,10 @@ test('home defaults to personal tasks with a team scope switch and structural fi
   expect(html).toContain('任务范围');
   expect(html).toContain('aria-pressed="true">个人');
   expect(html).toContain('aria-pressed="false">全队');
-  expect(html).toContain('week-detail');
+  expect(html).not.toContain('week-detail');
+  expect(html).toContain('<option value="inProgress" selected="">');
+  expect(html).toContain('任务列数');
+  expect(html).toContain('aria-pressed="true">3 列');
   expect(html).not.toContain('role="tablist"');
   expect(html).toContain('搜索任务');
   expect(html).toContain('全部小组');
