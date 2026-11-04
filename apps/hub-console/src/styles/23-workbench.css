@@ -1,4 +1,11 @@
 .week-workspace { min-width: 0; }
+.team-header-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-3); }
+.task-scope.seg { position: relative; display: grid; grid-template-columns: repeat(2, 1fr); isolation: isolate; gap: 0; padding: var(--space-1); }
+.task-scope::before { content: ''; position: absolute; inset: var(--space-1) auto var(--space-1) var(--space-1); width: calc(50% - var(--space-1)); border-radius: var(--radius-md); background: var(--blue-soft); box-shadow: var(--shadow-sm); transition: transform var(--transition); pointer-events: none; z-index: -1; }
+.task-scope--team::before { transform: translateX(100%); }
+.task-scope.seg .seg__btn { min-width: 4.5em; justify-content: center; border: 0; background: transparent; }
+.task-scope.seg .seg__btn--active { background: transparent; box-shadow: none; color: var(--blue); }
+@media (prefers-reduced-motion: reduce) { .task-scope::before { transition: none; } }
 .team-task-filters { display: grid; grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
 .team-task-filters .gate-field { min-width: 0; }
 .team-task-filters input, .team-task-filters select { width: 100%; min-width: 0; }

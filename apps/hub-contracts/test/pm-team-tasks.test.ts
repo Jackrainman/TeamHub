@@ -12,3 +12,12 @@ test('team list searches history across weeks and filters group and acceptance',
   expect(selectTeamTasks(tasks, { q: '', groupId: '', status: 'all' })).toHaveLength(2);
   expect(selectTeamTasks(tasks, { q: '', groupId: 'g2', status: 'awaitingReview' })).toEqual([]);
 });
+
+test('personal scope includes only tasks owned by the current session', () => {
+  const base = { ...governanceScenarioFixture.tasks[0]!, previousOwnerIds: [], isBig: false };
+  const tasks = [{ ...base, id: 'mine', ownerId: 'a' }, { ...base, id: 'other', ownerId: 'b', reviewerIds: ['a'] }];
+  const filter = { q: '', groupId: '', status: 'all' as const, scope: 'mine' as const, sessionMemberId: 'a' };
+  expect(selectTeamTasks(tasks, filter).map(task => task.id)).toEqual(['mine']);
+  expect(selectTeamTasks(tasks, { ...filter, sessionMemberId: null })).toEqual([]);
+  expect(selectTeamTasks(tasks, { ...filter, scope: 'team' })).toHaveLength(2);
+});

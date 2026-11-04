@@ -1,4 +1,9 @@
 export const zhWeek = {
+  'team.personalTitle': '我的任务',
+  'team.personalHint': '查看自己承担的任务与历史。',
+  'team.personal': '个人',
+  'team.all': '全队',
+  'team.scope': '任务范围',
   'team.selectedReviewers': '已选',
   'team.removeReviewer': '移除',
   'team.otherGroup': '其他小组',
@@ -54,6 +59,11 @@ export const zhWeek = {
 };
 
 export const enWeek: Record<keyof typeof zhWeek, string> = {
+  'team.personalTitle': 'My tasks',
+  'team.personalHint': 'Your tasks and history.',
+  'team.personal': 'Personal',
+  'team.all': 'Team',
+  'team.scope': 'Task scope',
   'team.selectedReviewers': 'Selected',
   'team.removeReviewer': 'Remove',
   'team.otherGroup': 'Other group',

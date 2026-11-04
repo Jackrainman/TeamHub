@@ -5,6 +5,7 @@ import type { HubApiClient } from '../../../api/client';
 import type { PageIdentityCtx } from '../../../console-pages';
 import { useI18n } from '../../../i18n';
 import { SideDrawer } from '../../../components/SideDrawer';
+import { SegToggle } from '../../../components/SegToggle';
 import { useMembers } from '../../identity/hooks';
 import { useCurrentWeek, useDepGraph, useGroups, useTasks, useWeekActions } from '../hooks';
 import { TaskDetailDrawer } from '../TaskDetailDrawer';
@@ -21,6 +22,7 @@ export function WeekWorkspace({ client, source, projectId, identity }: {
   const [q, setQ] = useState('');
   const [groupId, setGroupId] = useState('');
   const [status, setStatus] = useState<TeamTaskStatus>('all');
+  const [scope, setScope] = useState<'mine' | 'team'>('mine');
   const [createOpen, setCreateOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -31,17 +33,22 @@ export function WeekWorkspace({ client, source, projectId, identity }: {
   const groups = groupsQuery.data?.groups ?? [];
   const members = membersQuery.data?.members ?? [];
   const memberId = identity.session?.memberId ?? null;
+  const effectiveScope = memberId ? scope : 'team';
+  const titleKey = effectiveScope === 'mine' ? 'team.personalTitle' : 'team.title';
   const canWrite = identity.canWrite && !!memberId;
   const actions = useWeekActions(client, () => { setCreateOpen(false); setQ(''); setGroupId(''); setStatus('all'); });
-  const visible = selectTeamTasks(tasks, { q, groupId, status });
+  const visible = selectTeamTasks(tasks, { q, groupId, status, scope: effectiveScope, sessionMemberId: memberId });
   const focused = visible.find(task => task.id === activeId) ?? visible[0];
   const selected = tasks.find(task => task.id === taskId);
   const filters = ['all', 'pending', 'inProgress', 'blocked', 'awaitingReview', 'accepted', 'done', 'shelved'] as const;
 
   return <div className="week-workspace">
     <header className="week-header">
-      <div><h1>{t('team.title')}</h1><p className="week-note">{t('team.hint')}</p></div>
-      <button className="btn btn--primary" disabled={!canWrite} onClick={() => setCreateOpen(true)}><Plus size={16} />{t('week.selfReport')}</button>
+      <div><h1>{t(titleKey)}</h1><p className="week-note">{t(effectiveScope === 'mine' ? 'team.personalHint' : 'team.hint')}</p></div>
+      <div className="team-header-actions">
+        <button className="btn btn--primary" disabled={!canWrite} onClick={() => setCreateOpen(true)}><Plus size={16} />{t('week.selfReport')}</button>
+        {memberId && <SegToggle value={scope} options={[{ value: 'mine', label: t('team.personal') }, { value: 'team', label: t('team.all') }]} ariaLabel={t('team.scope')} className={`task-scope task-scope--${scope}`} onChange={next => { setScope(next); setActiveId(null); setTaskId(null); }} />}
+      </div>
     </header>
     <div className="team-task-filters">
       <label className="gate-field">{t('team.search')}<input type="search" value={q} onChange={event => setQ(event.target.value)} /></label>
@@ -54,7 +61,7 @@ export function WeekWorkspace({ client, source, projectId, identity }: {
     </div>
     {!memberId && <p className="week-note">{t('week.loginHint')}</p>}
     <div className="card week-layout">
-      <section className="week-main" aria-label={t('team.title')}>
+      <section className="week-main" aria-label={t(titleKey)}>
         {tasksQuery.isLoading ? <p role="status">{t('workbench.myWeek.loading')}</p> : tasksQuery.error ? <div className="empty-state" role="alert"><p>{t('workbench.myWeek.error')}</p><button className="btn btn--secondary" onClick={() => void tasksQuery.refetch()}>{t('week.retry')}</button></div> : visible.length === 0 ? <div className="empty-state week-empty"><Inbox size={32} aria-hidden="true" /><h3>{t('team.empty')}</h3></div> : <div className="week-task-list">
           {visible.map(task => <WeekTaskCard key={task.id} task={task} members={members} groupName={groups.find(group => group.id === task.groupId)?.name ?? task.groupId} node={graphQuery.data?.nodes.find(node => node.id === task.id)} active={focused?.id === task.id} onOpen={() => setActiveId(task.id)}>
             <button className="btn btn--ghost btn--sm" onClick={() => setTaskId(task.id)}>{t('week.details')}</button>

@@ -2,9 +2,13 @@ import { deriveTaskAcceptance, type TaskWithMeta, type TaskStatus } from './mode
 
 export type TeamTaskStatus = 'all' | TaskStatus | 'awaitingReview' | 'accepted';
 
-export function selectTeamTasks<T extends TaskWithMeta>(tasks: readonly T[], filter: { q: string; groupId: string; status: TeamTaskStatus }): T[] {
+export function selectTeamTasks<T extends TaskWithMeta>(tasks: readonly T[], filter: {
+  q: string; groupId: string; status: TeamTaskStatus;
+  scope?: 'mine' | 'team'; sessionMemberId?: string | null;
+}): T[] {
   const needle = filter.q.trim().toLowerCase();
   return tasks.filter(task => {
+    if (filter.scope === 'mine' && (!filter.sessionMemberId || task.ownerId !== filter.sessionMemberId)) return false;
     if (filter.groupId && task.groupId !== filter.groupId) return false;
     if (needle && ![task.id, task.title, task.rawSummary, ...(task.activity ?? []).flatMap(event => [event.title ?? '', event.rawSummary ?? ''])].some(text => text.toLowerCase().includes(needle))) return false;
     if (filter.status === 'all') return true;
