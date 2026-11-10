@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Inbox } from 'lucide-react';
+import { lazy, Suspense, useState } from 'react';
+import { Plus, Inbox, CircleHelp } from 'lucide-react';
 import { selectTeamTasks, type TeamTaskStatus } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../../api/client';
 import type { PageIdentityCtx } from '../../../console-pages';
@@ -11,6 +11,8 @@ import { useCurrentWeek, useDepGraph, useGroups, useTasks, useWeekActions } from
 import { TaskDetailDrawer } from '../TaskDetailDrawer';
 import { SelfReportForm } from './SelfReportForm';
 import { WeekTaskCard } from './WeekTaskCard';
+
+const WeekTaskTutorial = lazy(() => import('../tutorial/WeekTaskTutorial').then(module => ({ default: module.WeekTaskTutorial })));
 
 export function WeekWorkspace({ client, source, projectId, identity }: {
   client: HubApiClient; source: string; projectId: string; identity: PageIdentityCtx;
@@ -25,6 +27,7 @@ export function WeekWorkspace({ client, source, projectId, identity }: {
   const [scope, setScope] = useState<'mine' | 'team'>('mine');
   const [columns, setColumns] = useState<'2' | '3' | '4'>('3');
   const [createOpen, setCreateOpen] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const groupsQuery = useGroups(client, source);
   const membersQuery = useMembers(client, source);
@@ -45,6 +48,7 @@ export function WeekWorkspace({ client, source, projectId, identity }: {
     <header className="week-header">
       <div><h1>{t(titleKey)}</h1><p className="week-note">{t(effectiveScope === 'mine' ? 'team.personalHint' : 'team.hint')}</p></div>
       <div className="team-header-actions">
+        <button className="btn btn--ghost" aria-haspopup="dialog" onClick={() => setTutorialOpen(true)}><CircleHelp size={16} aria-hidden="true" />{t('taskTutorial.open')}</button>
         <button className="btn btn--primary" disabled={!canWrite} onClick={() => setCreateOpen(true)}><Plus size={16} />{t('week.selfReport')}</button>
         <SegToggle value={columns} options={(['2', '3', '4'] as const).map(value => ({ value, label: t(`team.columns.${value}`) }))} ariaLabel={t('team.columns')} onChange={setColumns} />
         {memberId && <SegToggle value={scope} options={[{ value: 'mine', label: t('team.personal') }, { value: 'team', label: t('team.all') }]} ariaLabel={t('team.scope')} className={`task-scope task-scope--${scope}`} onChange={next => { setScope(next); setTaskId(null); }} />}
@@ -73,5 +77,6 @@ export function WeekWorkspace({ client, source, projectId, identity }: {
     <SideDrawer placement="center" open={!!selected} onClose={() => setTaskId(null)} title={selected?.title ?? t('week.details')}>
       {selected && <TaskDetailDrawer key={selected.id} client={client} source={source} task={selected} groups={groups} members={members} identity={identity} />}
     </SideDrawer>
+    {tutorialOpen ? <Suspense fallback={null}><WeekTaskTutorial onClose={() => setTutorialOpen(false)} /></Suspense> : null}
   </div>;
 }
