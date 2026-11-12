@@ -191,3 +191,16 @@ test('rejects duplicate directory ownership in the registry', async (context) =>
   const messages = (await verifyArchitecture(root, { baseline: [] })).errors.join('\n');
   assert.match(messages, /重复登记/);
 });
+
+test('rejects SQLite imports in D-090 module route files', async (context) => {
+  const root = fixture();
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  writeRegistry(root, [
+    { id: 'pm', title: '任务', packages: { console: 'tasks' } },
+    { id: 'inventory', title: '库存', packages: { server: 'inventory' } },
+  ]);
+  write(root, 'apps/hub-server/src/modules/inventory/routes.ts', "import { SqliteInventoryRepository } from './sqlite-repository.js';\n");
+
+  const messages = (await verifyArchitecture(root, { baseline: [] })).errors.join('\n');
+  assert.match(messages, /route-imports-sqlite/);
+});

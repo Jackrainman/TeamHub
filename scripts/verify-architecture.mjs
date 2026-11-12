@@ -185,7 +185,10 @@ function collectMigrationViolations(repoRoot) {
       '生产源码禁止构造 InMemory Store；fake 应迁入 test/support',
     );
 
-    if (file.relativePath.includes('/routes/')) {
+    // D-090 布局是 modules/<domain>/routes.ts 文件；旧 src/routes/ 目录匹配保留防复活。
+    const isRouteFile = /^apps\/hub-server\/src\/modules\/[^/]+\/routes\.[cm]?[jt]s$/.test(file.relativePath)
+      || file.relativePath.includes('/routes/');
+    if (isRouteFile) {
       const concreteSqliteImports = importSpecifiers(file.content).filter((specifier) => /sqlite/i.test(specifier));
       recordViolation(
         violations,
