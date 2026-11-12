@@ -358,6 +358,12 @@
   margin-left: auto;
 }
 
+/* 快捷预设：按钮组的弱化说明文字，不是提示条；不要套 .form-hint 的虚线框。 */
+.reimb-preset-label {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
 /* 管理员首访引导（校验标准仍是出厂默认时显示）：虚线卡片提示去「报销管理」确认抬头。 */
 .reimb-admin-guide {
   margin: 0;

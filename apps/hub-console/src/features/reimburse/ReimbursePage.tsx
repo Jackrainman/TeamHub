@@ -117,7 +117,7 @@ export function ReimbursePage({ client, source, identity, projectId }: {
       <button className="btn btn--primary" onClick={() => importController.currentJobId !== null ? setImportPaused(false) : openCreate()} disabled={!identity.canWrite}><Plus size={16} />{t('expected.reimburseNew')}</button>
       {isFinance && <button className="btn btn--secondary btn--sm" onClick={() => setAdminOpen(true)}><Settings2 size={14} />{t('reimb.admin.open')}</button>}
     </div>
-    {view === 'mine' && <div className="domain-actions"><span className="form-hint">{t('reimb.quickPreset')}</span><button className="btn btn--sm btn--secondary" onClick={() => openCreate('taxi')}>{t('reimb.expenseType.taxi')}</button><button className="btn btn--sm btn--secondary" onClick={() => openCreate('ticket')}>{t('reimb.expenseType.ticket')}</button></div>}
+    {view === 'mine' && <div className="domain-actions"><span className="reimb-preset-label">{t('reimb.quickPreset')}</span><button className="btn btn--sm btn--secondary" onClick={() => openCreate('taxi')}>{t('reimb.expenseType.taxi')}</button><button className="btn btn--sm btn--secondary" onClick={() => openCreate('ticket')}>{t('reimb.expenseType.ticket')}</button></div>}
     {isFinance && profileUntouched && <p className="reimb-admin-guide" role="note">{t('reimb.admin.guide')}</p>}
 
     <SideDrawer open={importOpen} onClose={() => setImportOpen(false)} title={t('expected.reimburseImport')}>
