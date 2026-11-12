@@ -1,0 +1,15 @@
+<svg width="1200" height="24" viewBox="0 0 1200 24" fill="none" xmlns="http://www.w3.org/2000/svg" role="presentation">
+  <defs>
+    <linearGradient id="teamhub-divider" x1="0" y1="12" x2="1200" y2="12" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0"/>
+      <stop offset="0.18" stop-color="#22d3ee"/>
+      <stop offset="0.5" stop-color="#8b5cf6"/>
+      <stop offset="0.82" stop-color="#ec4899"/>
+      <stop offset="1" stop-color="#ec4899" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <path d="M0 12H548" stroke="url(#teamhub-divider)" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M652 12H1200" stroke="url(#teamhub-divider)" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M600 5.5L607 12L600 18.5L593 12L600 5.5Z" fill="url(#teamhub-divider)"/>
+  <circle cx="600" cy="12" r="2.1" fill="#ffffff"/>
+</svg>
