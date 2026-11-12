@@ -12,6 +12,10 @@ function write(root, relativePath, content) {
   fs.writeFileSync(absolutePath, content, 'utf8');
 }
 
+function writeRegistry(root, descriptors) {
+  write(root, 'apps/hub-contracts/src/domains/registry.ts', `export const DOMAINS = ${JSON.stringify(descriptors, null, 2)};\n`);
+}
+
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'teamhub-architecture-'));
   write(root, 'VERSION', '1.2.3\n');
@@ -27,6 +31,7 @@ function fixture() {
   write(root, 'apps/hub-contracts/src/index.ts', "export const schema = 'ok';\n");
   write(root, 'apps/hub-server/src/index.ts', "import { schema } from '@teamhub/hub-contracts';\nexport { schema };\n");
   write(root, 'apps/hub-console/src/features/tasks/hooks.ts', "import { useQuery } from '@tanstack/react-query';\nexport const useTasks = () => useQuery({ queryKey: ['tasks'] });\n");
+  writeRegistry(root, [{ id: 'pm', title: '任务', packages: { console: 'tasks' } }]);
   return root;
 }
 
@@ -45,13 +50,13 @@ test('rejects machine-local dependencies and incomplete native platform lock ent
   assert.match(errors.join('\n'), /缺少平台依赖/);
 });
 
-test('accepts a single workspace graph and intended package dependency direction', (context) => {
+test('accepts a single workspace graph and intended package dependency direction', async (context) => {
   const root = fixture();
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  assert.deepEqual(verifyArchitecture(root, { baseline: [] }).errors, []);
+  assert.deepEqual((await verifyArchitecture(root, { baseline: [] })).errors, []);
 });
 
-test('reports workspace, lock, version and package-boundary violations together', (context) => {
+test('reports workspace, lock, version and package-boundary violations together', async (context) => {
   const root = fixture();
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
   write(root, 'integrations/lark/package.json', JSON.stringify({ name: '@teamhub/lark', version: '0.0.1' }));
@@ -64,7 +69,7 @@ test('reports workspace, lock, version and package-boundary violations together'
     dependencies: { fastify: '*' },
   }));
 
-  const messages = verifyArchitecture(root, { baseline: [] }).errors.join('\n');
+  const messages = (await verifyArchitecture(root, { baseline: [] })).errors.join('\n');
   assert.match(messages, /package 未登记在根 workspaces/);
   assert.match(messages, /全仓只允许根 package-lock/);
   assert.match(messages, /version 0\.0\.1 与 VERSION 1\.2\.3 不一致/);
@@ -75,7 +80,7 @@ test('reports workspace, lock, version and package-boundary violations together'
   assert.match(messages, /hub-contracts.*import.*hub-console/);
 });
 
-test('rejects new D-090 migration debt outside the exact baseline', (context) => {
+test('rejects new D-090 migration debt outside the exact baseline', async (context) => {
   const root = fixture();
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
   write(root, 'apps/hub-server/src/store/file-new-store.ts', [
@@ -93,7 +98,7 @@ test('rejects new D-090 migration debt outside the exact baseline', (context) =>
   ].join('\n'));
   write(root, 'apps/hub-console/src/features/tasks/TasksPage.tsx', 'const query = useQuery({});\n');
 
-  const messages = verifyArchitecture(root, { baseline: [] }).errors.join('\n');
+  const messages = (await verifyArchitecture(root, { baseline: [] })).errors.join('\n');
   assert.match(messages, /legacy-file-store/);
   assert.match(messages, /legacy-persisted-file/);
   assert.match(messages, /legacy-data-file-env/);
@@ -103,39 +108,86 @@ test('rejects new D-090 migration debt outside the exact baseline', (context) =>
   assert.match(messages, /raw-react-query/);
 });
 
-test('requires stale or reduced baseline entries to be removed or tightened', (context) => {
+test('requires stale or reduced baseline entries to be removed or tightened', async (context) => {
   const root = fixture();
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const relativePath = 'apps/hub-console/src/features/tasks/TasksPage.tsx';
   write(root, relativePath, 'useQuery({});\n');
   const baseline = [{ rule: 'raw-react-query', file: relativePath, count: 2 }];
 
-  let messages = verifyArchitecture(root, { baseline }).errors.join('\n');
+  let messages = (await verifyArchitecture(root, { baseline })).errors.join('\n');
   assert.match(messages, /技术债已减少，请同步收缩基线/);
 
   fs.rmSync(path.join(root, relativePath));
-  messages = verifyArchitecture(root, { baseline }).errors.join('\n');
+  messages = (await verifyArchitecture(root, { baseline })).errors.join('\n');
   assert.match(messages, /基线条目已清除，请删除该精确基线/);
 });
 
-test('freezes the completed reimburse vertical slice and rejects old aliases', (context) => {
+test('freezes the completed reimburse vertical slice and rejects old aliases', async (context) => {
   const root = fixture();
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  writeRegistry(root, [
+    { id: 'pm', title: '任务', packages: { console: 'tasks' } },
+    { id: 'reimburse', title: '报销', packages: { contracts: 'reimburse' } },
+  ]);
   write(root, 'apps/hub-contracts/src/domains/reimburse/index.ts', 'export {}\n');
   write(root, 'apps/hub-contracts/src/reimbursement.ts', 'export {}\n');
 
-  const messages = verifyArchitecture(root, { baseline: [] }).errors.join('\n');
+  const messages = (await verifyArchitecture(root, { baseline: [] })).errors.join('\n');
   assert.match(messages, /reimburse 模板缺少必需边界/);
   assert.match(messages, /禁止恢复旧路径或兼容 alias/);
 });
 
-test('freezes the completed checklist vertical slice', (context) => {
+test('freezes the completed checklist vertical slice', async (context) => {
   const root = fixture();
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  writeRegistry(root, [
+    { id: 'pm', title: '任务', packages: { console: 'tasks' } },
+    { id: 'checklist', title: '检查单', packages: { contracts: 'checklist' } },
+  ]);
   write(root, 'apps/hub-contracts/src/domains/checklist/index.ts', 'export {}\n');
   write(root, 'apps/hub-server/src/routes/checklist.ts', 'export {}\n');
 
-  const messages = verifyArchitecture(root, { baseline: [] }).errors.join('\n');
+  const messages = (await verifyArchitecture(root, { baseline: [] })).errors.join('\n');
   assert.match(messages, /checklist 模板缺少必需边界/);
   assert.match(messages, /checklist 已迁移，禁止恢复旧路径或兼容 alias/);
+});
+
+test('rejects domain directories missing from the registry', async (context) => {
+  const root = fixture();
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  write(root, 'apps/hub-console/src/features/rogue/index.ts', 'export {}\n');
+
+  const messages = (await verifyArchitecture(root, { baseline: [] })).errors.join('\n');
+  assert.match(messages, /apps\/hub-console\/src\/features\/rogue: 目录未登记在 domains\/registry\.ts/);
+});
+
+test('rejects a missing domain registry', async (context) => {
+  const root = fixture();
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.rmSync(path.join(root, 'apps/hub-contracts/src/domains/registry.ts'));
+
+  const messages = (await verifyArchitecture(root, { baseline: [] })).errors.join('\n');
+  assert.match(messages, /域注册表缺失/);
+});
+
+test('rejects registry entries pointing at missing directories', async (context) => {
+  const root = fixture();
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  writeRegistry(root, [{ id: 'pm', title: '任务', packages: { console: ['tasks', 'ghost'] } }]);
+
+  const messages = (await verifyArchitecture(root, { baseline: [] })).errors.join('\n');
+  assert.match(messages, /域 pm 登记了不存在的目录 apps\/hub-console\/src\/features\/ghost/);
+});
+
+test('rejects duplicate directory ownership in the registry', async (context) => {
+  const root = fixture();
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  writeRegistry(root, [
+    { id: 'pm', title: '任务', packages: { console: 'tasks' } },
+    { id: 'system', title: '系统', packages: { console: 'tasks' } },
+  ]);
+
+  const messages = (await verifyArchitecture(root, { baseline: [] })).errors.join('\n');
+  assert.match(messages, /重复登记/);
 });

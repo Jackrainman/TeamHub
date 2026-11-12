@@ -953,3 +953,5 @@ export { InvoiceTypeSchema } from './domains/reimburse/index.js';
 export type { InvoiceType } from './domains/reimburse/index.js';
 export { classifyInvoiceType, classifyPackageText, derivePackageReview, suggestPackageExpenseType } from './domains/reimburse/index.js';
 export type { PackageRole, PackageCandidate, PackageReviewReason, PackageReview, PackageExpenseSuggestion } from './domains/reimburse/index.js';
+export { DOMAINS } from './domains/registry.js';
+export type { DomainDescriptor, DomainId } from './domains/registry.js';

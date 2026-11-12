@@ -319,7 +319,65 @@ function verifyMigratedDomainTemplates(repoRoot, errors) {
   ]);
 }
 
-export function verifyArchitecture(repoRoot = process.cwd(), options = {}) {
+const DOMAIN_DIRECTORY_ROOTS = [
+  ['apps/hub-contracts', 'src/domains', 'contracts'],
+  ['apps/hub-server', 'src/modules', 'server'],
+  ['apps/hub-console', 'src/features', 'console'],
+];
+
+// 域目录 ⊆ DOMAINS（设计稿 tmp/design/module-registry.md 步骤 1）：
+// 未登记目录、指向不存在目录的登记、重复归属都失败。registry 用 Node 24 类型剥离直接 import。
+async function verifyDomainRegistry(root, errors) {
+  const registryPath = path.join(root, 'apps/hub-contracts/src/domains/registry.ts');
+  if (!fs.existsSync(registryPath)) {
+    errors.push('apps/hub-contracts/src/domains/registry.ts: 域注册表缺失（DOMAINS 是域清单单一真相）');
+    return;
+  }
+  let domains;
+  try {
+    ({ DOMAINS: domains } = await import(pathToFileURL(registryPath).href));
+  } catch (error) {
+    errors.push(`apps/hub-contracts/src/domains/registry.ts: 无法加载（${error.message}）`);
+    return;
+  }
+  if (!Array.isArray(domains)) {
+    errors.push('apps/hub-contracts/src/domains/registry.ts: DOMAINS 必须是数组');
+    return;
+  }
+  const registered = new Map();
+  for (const descriptor of domains) {
+    for (const [packageDirectory, sourceDirectory, field] of DOMAIN_DIRECTORY_ROOTS) {
+      const value = descriptor.packages?.[field];
+      const names = typeof value === 'string' ? [value] : Array.isArray(value) ? value : [];
+      for (const name of names) {
+        const relativeDirectory = `${packageDirectory}/${sourceDirectory}/${name}`;
+        if (registered.has(relativeDirectory)) {
+          errors.push(`registry.ts: 目录 ${relativeDirectory} 被域 ${registered.get(relativeDirectory)} 与 ${descriptor.id} 重复登记`);
+        } else {
+          registered.set(relativeDirectory, descriptor.id);
+        }
+      }
+    }
+  }
+  for (const [packageDirectory, sourceDirectory] of DOMAIN_DIRECTORY_ROOTS) {
+    const absoluteDirectory = path.join(root, packageDirectory, sourceDirectory);
+    if (!fs.existsSync(absoluteDirectory)) continue;
+    for (const entry of fs.readdirSync(absoluteDirectory, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const relativeDirectory = `${packageDirectory}/${sourceDirectory}/${entry.name}`;
+      if (!registered.has(relativeDirectory)) {
+        errors.push(`${relativeDirectory}: 目录未登记在 domains/registry.ts（请在 DOMAINS 补 packages 条目）`);
+      }
+    }
+  }
+  for (const [relativeDirectory, domainId] of registered) {
+    if (!fs.existsSync(path.join(root, relativeDirectory))) {
+      errors.push(`registry.ts: 域 ${domainId} 登记了不存在的目录 ${relativeDirectory}（请删除该登记）`);
+    }
+  }
+}
+
+export async function verifyArchitecture(repoRoot = process.cwd(), options = {}) {
   const root = path.resolve(repoRoot);
   const errors = [];
   const rootPackagePath = path.join(root, 'package.json');
@@ -435,15 +493,16 @@ export function verifyArchitecture(repoRoot = process.cwd(), options = {}) {
   const violations = collectMigrationViolations(root);
   compareBaseline(violations, options.baseline ?? ARCHITECTURE_BASELINE, errors);
   verifyMigratedDomainTemplates(root, errors);
+  await verifyDomainRegistry(root, errors);
   return { errors, violations, summary: { packages: packages.length, baseline: violations.length } };
 }
 
-function runCli() {
+async function runCli() {
   const args = process.argv.slice(2);
   const printBaseline = args.includes('--print-baseline');
   const rootArg = args.find((entry) => entry !== '--print-baseline');
   const root = rootArg ? path.resolve(rootArg) : process.cwd();
-  const result = verifyArchitecture(root, printBaseline ? { baseline: [] } : {});
+  const result = await verifyArchitecture(root, printBaseline ? { baseline: [] } : {});
   if (printBaseline) {
     console.log(JSON.stringify(result.violations, null, 2));
     return;

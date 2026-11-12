@@ -34,6 +34,14 @@
   ],
   "todo": [
     {
+      "id": "MODULE-REGISTRY",
+      "title": "域注册表步骤 2-3：server 遍历 DOMAINS 装配 + console 页面 id 约束 + CODE_MAP 派生",
+      "tag": "code",
+      "batch": "later",
+      "note": "步骤 1 已落地（registry.ts 11 域 42 目录 + 架构门目录覆盖规则）。设计稿 tmp/design/module-registry.md。步骤 2 动 server.ts 组合根与开关语义（reporting 收开关需先核对生产 app_settings），须全量 verify + e2e-pillars；步骤 3 新增 npm run map 与 AGENTS 开局指引，命令与文档同 commit。类型名已适配：DomainId/DomainDescriptor/DOMAINS（避开 assembly.ts 的 ModuleId/ModuleDescriptor）。",
+      "dod": "server.ts 无模块字符串 if 链；console-pages id 受域约束；e2e-pillars 绿 + /health buildId 正确；CODE_MAP 落 .artifacts（gitignore）且 verify:docs 绿"
+    },
+    {
       "id": "REIMBURSE-PACKAGE-V1",
       "title": "报账第一版：一 ZIP / 一 JPG 对应一条，识别核对、本人补齐与凭证留档闭环",
       "tag": "code",
