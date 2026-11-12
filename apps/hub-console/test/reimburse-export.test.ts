@@ -43,7 +43,7 @@ function completeEntry(): ReimburseEntry {
       },
     ],
     actualItemName: null,
-    materials: { paymentShot: true, inspection: true },
+    materials: { invoice: true, paymentShot: true, inspection: true },
     note: '请尽快处理',
     createdAt: '2026-08-01T02:00:00.000Z',
     updatedAt: '2026-08-01T02:00:00.000Z',
@@ -81,7 +81,7 @@ describe('localizeReimburseExportRow：机器值 → 本地化字符串行', () 
   test('blocked 条目：bucket/status/核对原因都落到对应 key', () => {
     const entry = completeEntry();
     entry.items = [];
-    entry.materials = { paymentShot: false, inspection: false };
+    entry.materials = { invoice: true, paymentShot: false, inspection: false };
     const row = deriveReimburseExportRow(entry, DEFAULT_REIMBURSE_PROFILE);
     const localized = localizeReimburseExportRow(row, keyT);
     expect(localized.status).toBe('reimb.status.partial');

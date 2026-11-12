@@ -11,6 +11,10 @@ import {
   ReimburseEvidenceListResponseSchema,
   UploadReimburseEvidenceResponseSchema,
   DeleteReimburseEvidenceResponseSchema,
+  ReimburseEntryActionResponseSchema,
+  ReimbursePayoutResponseSchema,
+  ReimbursePayoutsResponseSchema,
+  ReimburseSummaryResponseSchema,
   type CreateReimburseEntryRequest,
   type CreateReimburseEntryResponse,
   type UpdateReimburseEntryRequest,
@@ -30,6 +34,16 @@ import {
   type ReimburseEvidenceListResponse,
   type UploadReimburseEvidenceResponse,
   type DeleteReimburseEvidenceResponse,
+  type ReimburseEntryAction,
+  type ReimburseEntryActionRequest,
+  type ReimburseEntryActionResponse,
+  type CreateReimbursePayoutRequest,
+  type ReimbursePayoutResponse,
+  type ReimbursePayoutsResponse,
+  type ReimburseSummaryQuery,
+  type ReimburseSummaryResponse,
+  type ReimburseExportRequest,
+  type UpdateReimburseEvidenceRequest,
 } from '@teamhub/hub-contracts';
 import type { HttpContext } from '../../api/http';
 import { fetchJson, postFormData, postJson, sendJson } from '../../api/http';
@@ -68,11 +82,19 @@ export interface ReimburseSegment {
     id: string,
     kind: ReimburseEvidenceKind,
     file: File,
+    expectedRevision: number,
   ): Promise<UploadReimburseEvidenceResponse>;
   deleteReimburseEvidence(
     id: string,
     evidenceId: string,
+    expectedRevision: number,
   ): Promise<DeleteReimburseEvidenceResponse>;
+  reimburseEntryAction(id: string, action: ReimburseEntryAction, req: ReimburseEntryActionRequest): Promise<ReimburseEntryActionResponse>;
+  createReimbursePayout(req: CreateReimbursePayoutRequest): Promise<ReimbursePayoutResponse>;
+  getReimbursePayouts(): Promise<ReimbursePayoutsResponse>;
+  getReimburseSummary(req: ReimburseSummaryQuery): Promise<ReimburseSummaryResponse>;
+  exportReimburse(req: ReimburseExportRequest): Promise<{ blob: Blob; filename: string }>;
+  updateReimburseEvidenceKind(id: string, evidenceId: string, req: UpdateReimburseEvidenceRequest): Promise<UploadReimburseEvidenceResponse>;
   /** 凭证下载链接（cookie 鉴权的 GET，同 artifacts 下载先例）——没有静态路径。 */
   reimburseEvidenceDownloadUrl(id: string, evidenceId: string): string;
 }
@@ -156,25 +178,53 @@ export function createReimburseSegment(ctx: HttpContext): ReimburseSegment {
         fetcher,
       );
     },
-    async uploadReimburseEvidence(id: string, kind: ReimburseEvidenceKind, file: File) {
+    async uploadReimburseEvidence(id: string, kind: ReimburseEvidenceKind, file: File, expectedRevision: number) {
       return postFormData(
         `${baseUrl}/api/reimburse/entries/${encodeURIComponent(id)}/evidence`,
         file,
         UploadReimburseEvidenceResponseSchema,
         fetcher,
         writeToken,
-        { kind },
+        { kind, expectedRevision: String(expectedRevision) },
       );
     },
-    async deleteReimburseEvidence(id: string, evidenceId: string) {
+    async deleteReimburseEvidence(id: string, evidenceId: string, expectedRevision: number) {
       return sendJson(
         'DELETE',
         `${baseUrl}/api/reimburse/entries/${encodeURIComponent(id)}/evidence/${encodeURIComponent(evidenceId)}`,
-        undefined,
+        { expectedRevision },
         DeleteReimburseEvidenceResponseSchema,
         fetcher,
         writeToken,
       );
+    },
+    async reimburseEntryAction(id, action, req) {
+      return postJson(`${baseUrl}/api/reimburse/entries/${encodeURIComponent(id)}/workflow/${action}`, req, ReimburseEntryActionResponseSchema, fetcher, writeToken);
+    },
+    async createReimbursePayout(req) {
+      return postJson(`${baseUrl}/api/reimburse/payouts`, req, ReimbursePayoutResponseSchema, fetcher, writeToken);
+    },
+    async getReimbursePayouts() {
+      return fetchJson(`${baseUrl}/api/reimburse/payouts`, ReimbursePayoutsResponseSchema, fetcher);
+    },
+    async getReimburseSummary(req) {
+      const query = new URLSearchParams(Object.entries(req).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
+      return fetchJson(`${baseUrl}/api/reimburse/summary${query.size ? `?${query}` : ''}`, ReimburseSummaryResponseSchema, fetcher);
+    },
+    async exportReimburse(req) {
+      const headers: Record<string, string> = { 'content-type': 'application/json' };
+      if (writeToken) headers.authorization = `Bearer ${writeToken}`;
+      const response = await fetcher(`${baseUrl}/api/reimburse/export`, { method: 'POST', headers, body: JSON.stringify(req) });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null) as { detail?: string } | null;
+        throw new Error(`${response.status}: ${body?.detail ?? '导出失败'}`);
+      }
+      const disposition = response.headers.get('content-disposition') ?? '';
+      const encoded = /filename\*=UTF-8''([^;]+)/.exec(disposition)?.[1];
+      return { blob: await response.blob(), filename: encoded ? decodeURIComponent(encoded) : '报账导出' };
+    },
+    updateReimburseEvidenceKind(id, evidenceId, req) {
+      return sendJson('PATCH', `${baseUrl}/api/reimburse/entries/${encodeURIComponent(id)}/evidence/${encodeURIComponent(evidenceId)}`, req, UploadReimburseEvidenceResponseSchema, fetcher, writeToken);
     },
     reimburseEvidenceDownloadUrl(id: string, evidenceId: string) {
       return `${baseUrl}/api/reimburse/entries/${encodeURIComponent(id)}/evidence/${encodeURIComponent(evidenceId)}/download`;

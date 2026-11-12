@@ -252,6 +252,8 @@ export function draftFromParsedInvoice(invoice: ParsedInvoice): EntryDraft {
   }));
   return {
     kind: 'goods',
+    expenseType: null,
+    summary: '',
     invoiceNo: invoice.invoiceNo,
     invoiceDate: invoice.invoiceDate ?? '',
     seller: invoice.seller ?? '',

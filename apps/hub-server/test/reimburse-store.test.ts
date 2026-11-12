@@ -16,6 +16,9 @@ import { openUnifiedDb } from '../src/store/sqlite-unified.js';
 function entryDraft(over: Partial<ReimburseEntryDraft> = {}): ReimburseEntryDraft {
   return {
     projectId: 'prj-robots',
+    seasonId: '2027RC',
+    expenseType: 'purchase',
+    summary: '合成采购',
     memberId: 'm-a',
     batchId: null,
     kind: 'goods',
@@ -30,7 +33,7 @@ function entryDraft(over: Partial<ReimburseEntryDraft> = {}): ReimburseEntryDraf
       { name: 'M3×8 螺丝', unit: '个', quantity: 20, unitPriceFen: 100, amountFen: 2000 },
     ],
     actualItemName: null,
-    materials: { paymentShot: false, inspection: false },
+    materials: { invoice: false, paymentShot: false, inspection: false },
     note: null,
     ...over,
   };
@@ -63,7 +66,7 @@ async function expectConsistentBehavior(store: ReimburseRepository): Promise<voi
 
   // updateEntry：白名单 PATCH（材料 checklist / note / 装批），bump updatedAt；未知 id → undefined
   const patched = await store.updateEntry(e1.id, {
-    materials: { paymentShot: true, inspection: false },
+    materials: { invoice: false, paymentShot: true, inspection: false },
     note: '已补付款截图',
   });
   expect(patched?.materials.paymentShot).toBe(true);
@@ -72,7 +75,7 @@ async function expectConsistentBehavior(store: ReimburseRepository): Promise<voi
   expect(await store.updateEntry('reimb-new-999', { note: 'x' })).toBeUndefined();
 
   // createBatch：id rbatch-new-N、clamp status='collecting'
-  const b1 = await store.createBatch({ projectId: 'prj-robots', name: '2026-08 第一批' });
+  const b1 = await store.createBatch({ projectId: 'prj-robots', seasonId: '2027RC', name: '2026-08 第一批' });
   expect(b1.id).toBe('rbatch-new-1');
   expect(b1.status).toBe('collecting');
 
@@ -80,7 +83,7 @@ async function expectConsistentBehavior(store: ReimburseRepository): Promise<voi
   const flowed = await store.updateBatch(b1.id, { status: 'submitted' });
   expect(flowed?.status).toBe('submitted');
   expect(flowed?.name).toBe('2026-08 第一批');
-  expect(await store.updateBatch('rbatch-new-999', { status: 'reimbursed' })).toBeUndefined();
+  expect(await store.updateBatch('rbatch-new-999', { status: 'submitted' })).toBeUndefined();
 
   // 装批（条目 PATCH batchId）后 listEntries 可见
   const assigned = await store.updateEntry(e1.id, { batchId: b1.id });
@@ -119,6 +122,55 @@ describe('ReimburseStore fake / 统一 SQLite 一致性', () => {
       expect((await reimburse.getEntry('reimb-new-1'))?.batchId).toBe('rbatch-new-1');
       const next = await reimburse.createEntry(entryDraft({ invoiceNo: null }));
       expect(next.id).toBe('reimb-new-3');
+    } finally {
+      reopened.close();
+    }
+  });
+});
+
+describe('存量旧行读取（D-099：旧 reimbursed 不迁移成完成）', () => {
+  let dir = '';
+  afterEach(async () => {
+    if (dir) await rm(dir, { recursive: true, force: true });
+    dir = '';
+  });
+
+  test('旧 reimbursed 批次读作 submitted 且不落盘改数据；旧条目补水合为草稿', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'reimburse-legacy-'));
+    const dbFile = join(dir, 'teamhub.sqlite');
+    const unified = openUnifiedDb(dbFile);
+    unified.initialize(
+      { dataMode: 'real', identityMode: 'anonymous' },
+      new Date('2026-08-15T00:00:00.000Z'),
+    );
+    unified.db.insertRow('reimburse_batches', 'rbatch-legacy', {
+      id: 'rbatch-legacy', projectId: 'prj-robots', name: '旧赛季批', status: 'reimbursed',
+      createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z',
+    });
+    unified.db.insertRow('reimburse_entries', 'reimb-legacy', {
+      id: 'reimb-legacy', projectId: 'prj-robots', memberId: 'm-a', batchId: 'rbatch-legacy',
+      kind: 'goods', invoiceNo: null, invoiceDate: null, seller: null,
+      purchaserName: null, purchaserTaxNo: null, recognitionSource: 'manual',
+      totalAmountFen: 1000, items: [], actualItemName: null,
+      materials: { paymentShot: false, inspection: false }, note: null,
+      createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z',
+    });
+    const reimburse = unified.openStores().reimburse;
+    expect(reimburse.getBatch('rbatch-legacy')?.status).toBe('submitted');
+    expect(reimburse.listBatches().map((batch) => batch.status)).toEqual(['submitted']);
+    const entry = reimburse.getEntry('reimb-legacy');
+    expect(entry?.workflowStatus).toBe('draft');
+    expect(entry?.revision).toBe(1);
+    expect(entry?.seasonId).toBe('unassigned');
+    expect(entry?.payoutId).toBeNull();
+    expect(entry?.materials.invoice).toBe(false);
+    expect(reimburse.listPayouts()).toHaveLength(0);
+    expect(unified.db.getRow<{ status: string }>('reimburse_batches', 'rbatch-legacy')?.status).toBe('reimbursed');
+    unified.close();
+
+    const reopened = openUnifiedDb(dbFile);
+    try {
+      expect(reopened.openStores().reimburse.getBatch('rbatch-legacy')?.status).toBe('submitted');
     } finally {
       reopened.close();
     }

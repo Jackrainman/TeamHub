@@ -17,7 +17,7 @@ test('ZIP supplemental files retain bytes and require explicit targets when seve
 test('uploads stay with their chosen entries and retry only failed files', async () => {
   const rows: SupplementRow[] = ['a', 'b'].map(entryId => ({ id: entryId, entryId, kind: 'paymentShot',
     file: new File(['bytes'], entryId + '.jpg'), path: entryId + '.jpg', status: 'pending' }));
-  const upload = vi.fn().mockResolvedValueOnce({}).mockRejectedValueOnce(new Error('offline')).mockResolvedValue({});
+  const upload = vi.fn().mockResolvedValueOnce({ entry: { revision: 2 } }).mockRejectedValueOnce(new Error('offline')).mockResolvedValue({ entry: { revision: 2 } });
   const first = await uploadSupplement({ uploadReimburseEvidence: upload }, rows, ['a', 'b']);
   expect(first.map(row => row.status)).toEqual(['done', 'failed']);
   const next = await uploadSupplement({ uploadReimburseEvidence: upload }, first, ['a', 'b']);

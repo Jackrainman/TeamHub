@@ -1,26 +1,42 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { StoredReimburseEntry } from './repository.js';
+import { buildReimburseDelivery } from './export-service.js';
 import {
   REIMBURSE_EVIDENCE_MAX_PER_ENTRY,
   StockInContextResponseSchema,
+  canTransitionReimburseWorkflow,
   deriveBatchSummary,
+  deriveReimburseCompleteness,
+  deriveReimburseStructuralSummary,
   evidenceContentType,
   evidenceExtOf,
   isEvidenceExtAllowed,
+  kindForExpenseType,
+  validateReimburseApproval,
+  validateReimbursePayout,
+  validateReimburseSubmission,
 } from '@teamhub/hub-contracts';
 
 import type {
   ActorRef,
+  CreateReimbursePayoutRequest,
   InventorySnapshot,
   PartAction,
   PartActionSource,
   PartType,
   ReimburseBatch,
   ReimburseEntry,
+  ReimburseEntryAction,
+  ReimburseEntryActionRequest,
   ReimburseEvidence,
   ReimburseEvidenceDownload,
   ReimburseEvidenceKind,
+  ReimburseExportRequest,
+  ReimburseHistoryAction,
+  ReimburseHistoryEvent,
+  ReimbursePayout,
   ReimburseProfile,
+  ReimburseSummaryQuery,
   SessionIdentity,
   StockInContextResponse,
   StockInRequest,
@@ -35,13 +51,12 @@ import type {
   ReimburseEntryInput,
   ReimburseEvidenceStorage,
   ReimburseRepository,
+  StoredReimbursePayout,
 } from './repository.js';
 
-/** 批次状态机（REIMBURSE-DEFECTS #2/#4）：顺向单向，提交后财务快照不可回退。 */
-const BATCH_TRANSITIONS: Record<ReimburseBatch['status'], readonly ReimburseBatch['status'][]> = {
-  collecting: ['submitted'],
-  submitted: ['reimbursed'],
-  reimbursed: [],
+const ACTION_HISTORY: Record<ReimburseEntryAction, ReimburseHistoryAction> = {
+  submit: 'submitted', accept: 'accepted', check: 'checked', return: 'returned',
+  approve: 'approved', revokeApproval: 'approvalRevoked', cancel: 'cancelled',
 };
 
 export type InventoryStockInPartDraft = Omit<
@@ -82,6 +97,7 @@ export interface StockInReimburseEntryResult {
  */
 export interface ReimburseAdminPort {
   isSuperAdmin(memberId: string): Promise<boolean>;
+  displayNames?(): Promise<Record<string, string>>;
 }
 
 /** D-094「永不进列表」：条目对象出 HTTP 前把 evidence 剥成空数组，原件元数据只走凭证专属端点。 */
@@ -122,10 +138,12 @@ export class ReimburseService {
 
   createEntry(input: ReimburseEntryInput): ReimburseEntry {
     const { clientRequestId, ...fields } = input;
-    // 可空键缺省规整为 null（REIMBURSE-DEFECTS #5：Create 请求允许省略 nullable 键）。
-    // 凭证元数据不在 draft 类型里（ReimburseEntryDraft 已 omit），只能走 uploadEvidence。
+    const expenseType = input.expenseType ?? null;
     const draft: ReimburseEntryDraft = {
       ...fields,
+      kind: expenseType ? kindForExpenseType(expenseType) : input.kind,
+      expenseType,
+      summary: input.summary ?? input.actualItemName ?? null,
       invoiceType: input.invoiceType ?? 'unknown',
       invoiceNo: input.invoiceNo ?? null,
       invoiceDate: input.invoiceDate ?? null,
@@ -145,65 +163,226 @@ export class ReimburseService {
         }
         return withoutEvidence(prior);
       }
-      // 与条目一同持久化，重启或修改条目后仍能辨认首次保存的重试。
       draft.creationRequest = { id: clientRequestId, fingerprint };
     }
     if (draft.invoiceNo) {
       const duplicate = this.repository.findEntryByInvoiceNo(draft.invoiceNo);
       if (duplicate) {
-        throw new ApplicationError(
-          'conflict',
-          'REIMBURSE_INVOICE_DUPLICATE',
-          `发票号 ${draft.invoiceNo} 已录入过（条目 ${duplicate.id}），勿重复报销`,
-        );
+        throw new ApplicationError('conflict', 'REIMBURSE_INVOICE_DUPLICATE',
+          `发票号 ${draft.invoiceNo} 已录入过（条目 ${duplicate.id}），勿重复报销`);
       }
     }
     return withoutEvidence(this.repository.createEntry(draft));
   }
 
-  /**
-   * 批次锁（REIMBURSE-DEFECTS #2）：非 collecting 批次的财务快照不可变——
-   * 条目归属/材料/备注均不得改写；也不允许把条目装进已锁批次。
-   */
-  private assertBatchMutable(batchId: string | null | undefined): void {
-    if (!batchId) return;
-    const batch = this.repository.getBatch(batchId);
-    if (batch && batch.status !== 'collecting') {
-      throw new ApplicationError(
-        'conflict',
-        'REIMBURSE_BATCH_LOCKED',
-        `批次「${batch.name}」已${batch.status === 'submitted' ? '提交' : '完成报销'}，快照不可变`,
-        { batchId: batch.id, status: batch.status },
-      );
+  async updateEntry(id: string, request: UpdateReimburseEntryRequest, actor: ActorRef): Promise<ReimburseEntry> {
+    const admin = await this.isAdmin(actor.id);
+    return this.unitOfWork.run(actor, ({ occurredAt }) => {
+      const entry = this.requireEntry(id);
+      this.assertRevision(entry, request.expectedRevision);
+      const { expectedRevision: _revision, changeReason, ...patch } = request;
+      const contentKeys = Object.keys(patch).filter((key) => key !== 'batchId');
+      if (patch.batchId !== undefined && !admin) {
+        throw new ApplicationError('forbidden', 'REIMBURSE_BATCH_FORBIDDEN', '只有财务能调整批次归属');
+      }
+      if (patch.batchId !== undefined && (entry.workflowStatus === 'completed' || entry.workflowStatus === 'cancelled')) {
+        throw new ApplicationError('conflict', 'REIMBURSE_ENTRY_LOCKED', '完成或撤销条目不可调整批次');
+      }
+      if (contentKeys.length > 0) {
+        if (entry.memberId !== actor.id && !admin) {
+          throw new ApplicationError('forbidden', 'REIMBURSE_ENTRY_FORBIDDEN', '只有条目本人或财务能修改条目');
+        }
+        const allowed = admin ? entry.workflowStatus === 'reviewing'
+          : entry.memberId === actor.id && (entry.workflowStatus === 'draft' || entry.workflowStatus === 'returned');
+        if (!allowed) throw new ApplicationError('conflict', 'REIMBURSE_ENTRY_LOCKED', '当前工作流状态不允许修改条目');
+      }
+      if (patch.batchId) {
+        const batch = this.repository.getBatch(patch.batchId);
+        if (!batch) throw new ApplicationError('validation', 'REIMBURSE_BATCH_NOT_FOUND', `未知批次: ${patch.batchId}`);
+        if (batch.projectId !== entry.projectId || batch.seasonId !== entry.seasonId) {
+          throw new ApplicationError('validation', 'REIMBURSE_BATCH_SCOPE_MISMATCH', '批次与条目必须属于同一项目和赛季');
+        }
+      }
+      if (patch.expenseType !== undefined) patch.kind = patch.expenseType ? kindForExpenseType(patch.expenseType) : 'expense';
+      else if (entry.expenseType) patch.kind = kindForExpenseType(entry.expenseType);
+      if (patch.invoiceNo) {
+        const duplicate = this.repository.findEntryByInvoiceNo(patch.invoiceNo);
+        if (duplicate && duplicate.id !== id) throw new ApplicationError('conflict', 'REIMBURSE_INVOICE_DUPLICATE', '该发票已录入，请勿重复报销');
+      }
+      const nextKind = patch.kind ?? entry.kind;
+      const nextItems = patch.items ?? entry.items;
+      const changesStock = nextKind !== entry.kind || JSON.stringify(nextItems) !== JSON.stringify(entry.items);
+      if (changesStock && this.inventory.readStockInSnapshot().actions.some(action => action.reimburseEntryId === id)) {
+        throw new ApplicationError('conflict', 'REIMBURSE_STOCK_FIELDS_LOCKED', '该条目已有入库记录，不能修改类型或物资明细');
+      }
+      const changedFields = Object.keys(patch).filter((key) => key !== 'batchId' &&
+        JSON.stringify(patch[key as keyof typeof patch]) !== JSON.stringify(entry[key as keyof ReimburseEntry]));
+      const batchChanged = patch.batchId !== undefined && patch.batchId !== entry.batchId;
+      if (changedFields.length === 0 && !batchChanged) return withoutEvidence(entry);
+      const revision = changedFields.length > 0 ? entry.revision + 1 : entry.revision;
+      const action: ReimburseHistoryAction = changedFields.length > 0 ? 'edited' : 'batchChanged';
+      const history = this.history(entry, action, actor.id, occurredAt.toISOString(), {
+        revision, reason: changeReason ?? null, changedFields,
+      });
+      const contentReset = changedFields.length > 0 ? {
+        revision, checkedRevision: null, reviewedRevision: null, recognitionConfirmedRevision: null,
+      } : {};
+      const cleanPatch = Object.fromEntries(Object.entries(patch).filter(([key]) => key !== 'batchId' || batchChanged));
+      return withoutEvidence(this.repository.updateEntry(id, {
+        ...cleanPatch, ...contentReset, history: [...entry.history, history],
+      })!);
+    });
+  }
+
+  async entryAction(
+    id: string,
+    action: ReimburseEntryAction,
+    request: ReimburseEntryActionRequest,
+    actor: ActorRef,
+  ): Promise<ReimburseEntry> {
+    const admin = await this.isAdmin(actor.id);
+    return this.unitOfWork.run(actor, ({ occurredAt }) => {
+      const entry = this.requireEntry(id);
+      this.assertRevision(entry, request.expectedRevision);
+      const ownerAction = action === 'submit' || action === 'cancel';
+      if (ownerAction ? entry.memberId !== actor.id : !admin) {
+        throw new ApplicationError('forbidden', 'REIMBURSE_WORKFLOW_FORBIDDEN', '当前身份无权执行该报账动作');
+      }
+      let patch: Parameters<ReimburseRepository['updateEntry']>[1] = {};
+      if (action === 'submit') {
+        const invalid = validateReimburseSubmission(entry);
+        if (invalid) throw new ApplicationError('conflict', invalid, '提交前须确认支出类型，且条目须处于草稿或退回状态');
+        patch = { workflowStatus: 'submitted', recognitionConfirmedRevision: entry.revision,
+          checkedRevision: null, reviewedRevision: null, approvedAmountFen: null };
+      } else if (action === 'cancel') {
+        if (!canTransitionReimburseWorkflow(entry.workflowStatus, 'cancelled')) this.throwInvalidTransition(entry.workflowStatus, 'cancelled');
+        patch = { workflowStatus: 'cancelled' };
+      } else if (action === 'accept') {
+        if (!canTransitionReimburseWorkflow(entry.workflowStatus, 'reviewing')) this.throwInvalidTransition(entry.workflowStatus, 'reviewing');
+        patch = { workflowStatus: 'reviewing' };
+      } else if (action === 'check') {
+        if (entry.workflowStatus !== 'reviewing') this.throwInvalidTransition(entry.workflowStatus, 'reviewing');
+        patch = { checkedRevision: entry.revision };
+      } else if (action === 'return') {
+        if (!canTransitionReimburseWorkflow(entry.workflowStatus, 'returned')) this.throwInvalidTransition(entry.workflowStatus, 'returned');
+        if (!request.reason?.trim()) throw new ApplicationError('validation', 'REIMBURSE_RETURN_REASON_REQUIRED', '退回必须填写具体原因');
+        patch = { workflowStatus: 'returned', returnReason: request.reason,
+          checkedRevision: null, reviewedRevision: null, approvedAmountFen: null };
+      } else if (action === 'approve') {
+        const amount = request.approvedAmountFen ?? null;
+        const invalid = validateReimburseApproval({ ...entry, completeness: deriveReimburseCompleteness(entry) }, amount, request.reason ?? null);
+        if (invalid) throw new ApplicationError('validation', invalid, '核准须填写金额；有缺项或调整金额时必须填写处理意见');
+        patch = { workflowStatus: 'pendingPayment', approvedAmountFen: amount,
+          reviewedRevision: entry.revision, reviewNote: request.reason ?? null };
+      } else {
+        if (!canTransitionReimburseWorkflow(entry.workflowStatus, 'reviewing')) this.throwInvalidTransition(entry.workflowStatus, 'reviewing');
+        if (!request.reason?.trim()) throw new ApplicationError('validation', 'REIMBURSE_REVOKE_REASON_REQUIRED', '撤销核准必须说明理由');
+        patch = { workflowStatus: 'reviewing', approvedAmountFen: null, reviewedRevision: null, reviewNote: request.reason };
+      }
+      const history = this.history(entry, ACTION_HISTORY[action], actor.id, occurredAt.toISOString(), {
+        from: entry.workflowStatus,
+        to: patch.workflowStatus ?? entry.workflowStatus,
+        reason: request.reason ?? null,
+      });
+      return withoutEvidence(this.repository.updateEntry(id, { ...patch, history: [...entry.history, history] })!);
+    });
+  }
+
+  async createPayout(request: CreateReimbursePayoutRequest, actor: ActorRef): Promise<ReimbursePayout> {
+    if (!(await this.isAdmin(actor.id))) throw new ApplicationError('forbidden', 'REIMBURSE_ADMIN_REQUIRED', '仅财务能登记打款');
+    const { clientRequestId, ...facts } = request;
+    const fingerprint = createHash('sha256').update(JSON.stringify(facts)).digest('hex');
+    if (clientRequestId) {
+      const prior = (this.repository.listPayouts() as StoredReimbursePayout[])
+        .find((payout) => payout.creationRequest?.id === clientRequestId);
+      if (prior) {
+        if (prior.creationRequest?.fingerprint !== fingerprint) throw new ApplicationError('conflict', 'REIMBURSE_REQUEST_CONFLICT', '该打款请求 ID 已用于另一笔打款');
+        return this.withoutPayoutInternal(prior);
+      }
+    }
+    return this.unitOfWork.run(actor, ({ occurredAt }) => {
+      const ids = request.entries.map((entry) => entry.id);
+      if (new Set(ids).size !== ids.length) throw new ApplicationError('validation', 'REIMBURSE_PAYOUT_DUPLICATE_ENTRY', '同一打款不能重复选择条目');
+      const entries = request.entries.map(({ id, expectedRevision }) => {
+        const entry = this.requireEntry(id);
+        this.assertRevision(entry, expectedRevision);
+        return entry;
+      });
+      if (entries.some((entry) => entry.projectId !== entries[0].projectId)) {
+        throw new ApplicationError('validation', 'REIMBURSE_PAYOUT_PROJECT_MISMATCH', '一次打款只能包含同项目条目');
+      }
+      const recipientId = entries[0].memberId;
+      const invalid = validateReimbursePayout(entries, recipientId, request.amountFen);
+      if (invalid) throw new ApplicationError('conflict', invalid, '打款条目须同属一人、已核准且总额一致');
+      const payout = this.repository.createPayout({
+        projectId: entries[0].projectId, recipientId, entryIds: ids, amountFen: request.amountFen,
+        paidAt: request.paidAt, method: request.method, transactionRef: request.transactionRef ?? null,
+        note: request.note ?? null, recordedBy: actor.id,
+        ...(clientRequestId ? { creationRequest: { id: clientRequestId, fingerprint } } : {}),
+      });
+      for (const entry of entries) {
+        const history = this.history(entry, 'payoutRegistered', actor.id, occurredAt.toISOString(), {
+          from: entry.workflowStatus, to: 'completed', reason: request.note ?? null,
+        });
+        this.repository.updateEntry(entry.id, { workflowStatus: 'completed', payoutId: payout.id, history: [...entry.history, history] });
+      }
+      return this.withoutPayoutInternal(payout);
+    });
+  }
+
+  async listPayouts(identity: SessionIdentity | null): Promise<ReimbursePayout[]> {
+    if (!identity) throw new ApplicationError('unauthorized', 'REIMBURSE_LOGIN_REQUIRED', '登录后查看打款事实');
+    const admin = await this.isAdmin(identity.memberId);
+    return (this.repository.listPayouts() as StoredReimbursePayout[])
+      .filter((payout) => admin || payout.recipientId === identity.memberId)
+      .map((payout) => this.withoutPayoutInternal(payout));
+  }
+
+  async exportEntries(request: ReimburseExportRequest, identity: SessionIdentity | null, actor: ActorRef) {
+    const visible = await this.listEntries(identity);
+    const visibleIds = new Set(visible.map((entry) => entry.id));
+    const entries = this.repository.listEntries().filter((entry) => visibleIds.has(entry.id) &&
+      (!request.entryIds || request.entryIds.includes(entry.id)) &&
+      (!request.seasonId || entry.seasonId === request.seasonId) &&
+      (!request.batchId || entry.batchId === request.batchId) &&
+      (!request.expenseType || entry.expenseType === request.expenseType));
+    if (entries.length === 0) throw new ApplicationError('validation', 'REIMBURSE_EXPORT_EMPTY', '授权范围内没有可导出条目');
+    const entryIds = new Set(entries.map((entry) => entry.id));
+    const payouts = (await this.listPayouts(identity)).filter((payout) => payout.entryIds.some((id) => entryIds.has(id)));
+    const names = await this.admin.displayNames?.() ?? {};
+    try {
+      const result = await buildReimburseDelivery(entries, payouts, this.repository.listBatches(), request.includeEvidence,
+        async (entryId, evidenceId) => (await this.downloadEvidence(entryId, evidenceId, actor)).content,
+        (id) => names[id] ?? id);
+      this.unitOfWork.run(actor, ({ occurredAt }) => {
+        for (const current of entries) {
+          const latest = this.requireEntry(current.id);
+          const history = this.history(latest, 'exported', actor.id, occurredAt.toISOString());
+          this.repository.updateEntry(latest.id, { history: [...latest.history, history] });
+        }
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof Error && error.message === 'REIMBURSE_EXPORT_TOO_LARGE') {
+        throw new ApplicationError('validation', 'REIMBURSE_EXPORT_TOO_LARGE', '交付包原件总量超过 200MB，请分批导出');
+      }
+      throw error;
     }
   }
 
-  async updateEntry(
-    id: string,
-    patch: UpdateReimburseEntryRequest,
-    actor: ActorRef,
-  ): Promise<ReimburseEntry> {
-    const entry = this.requireEntry(id);
-    if (entry.memberId !== actor.id && !(await this.isAdmin(actor.id))) {
-      throw new ApplicationError('forbidden', 'REIMBURSE_ENTRY_FORBIDDEN', '只有条目本人或管理员能改报销条目');
-    }
-    if (patch.batchId && !this.repository.getBatch(patch.batchId)) {
-      throw new ApplicationError('validation', 'REIMBURSE_BATCH_NOT_FOUND', `未知批次: ${patch.batchId}`);
-    }
-    this.assertBatchMutable(entry.batchId);
-    this.assertBatchMutable(patch.batchId);
-    if (patch.invoiceNo) {
-      const duplicate = this.repository.findEntryByInvoiceNo(patch.invoiceNo);
-      if (duplicate && duplicate.id !== id) {
-        throw new ApplicationError('conflict', 'REIMBURSE_INVOICE_DUPLICATE', '该发票已录入，请勿重复报销');
-      }
-    }
-    const changesStock = (patch.kind !== undefined && patch.kind !== entry.kind) ||
-      (patch.items !== undefined && JSON.stringify(patch.items) !== JSON.stringify(entry.items));
-    if (changesStock && this.inventory.readStockInSnapshot().actions.some(action => action.reimburseEntryId === id)) {
-      throw new ApplicationError('conflict', 'REIMBURSE_STOCK_FIELDS_LOCKED', '该条目已有入库记录，不能修改类型或物资明细');
-    }
-    return withoutEvidence(this.repository.updateEntry(id, patch)!);
+  async getStructuralSummary(identity: SessionIdentity | null, query: ReimburseSummaryQuery) {
+    const entries = (await this.listEntries(identity)).filter((entry) =>
+      (!query.seasonId || entry.seasonId === query.seasonId) &&
+      (!query.batchId || entry.batchId === query.batchId) &&
+      (!query.expenseType || entry.expenseType === query.expenseType));
+    const ids = new Set(entries.map((entry) => entry.id));
+    const payouts = (await this.listPayouts(identity)).filter((payout) => payout.entryIds.some((id) => ids.has(id)));
+    return deriveReimburseStructuralSummary(entries, payouts);
+  }
+
+  private withoutPayoutInternal(payout: ReimbursePayout): ReimbursePayout {
+    const { creationRequest: _request, ...publicPayout } = payout as StoredReimbursePayout;
+    return publicPayout;
   }
 
   getProfile(): ReimburseProfile {
@@ -243,34 +422,9 @@ export class ReimburseService {
     await this.requireAdmin(identity);
     const batch = this.repository.getBatch(id);
     if (!batch) throw new ApplicationError('not_found', 'REIMBURSE_BATCH_NOT_FOUND', `未知批次: ${id}`);
-    // 状态机（#4）：只允许顺向单向转移 collecting→submitted→reimbursed；同值视为无操作放行。
-    if (patch.status && patch.status !== batch.status && !BATCH_TRANSITIONS[batch.status].includes(patch.status)) {
-      throw new ApplicationError(
-        'conflict',
-        'REIMBURSE_BATCH_TRANSITION',
-        `批次状态不允许从「${batch.status}」变为「${patch.status}」（只允许顺向推进）`,
-        { batchId: id, from: batch.status, to: patch.status },
-      );
-    }
-    // 快照锁（#2）：提交后批次名也不可改（状态推进本身除外）。
-    if (patch.name !== undefined && batch.status !== 'collecting') {
-      throw new ApplicationError(
-        'conflict',
-        'REIMBURSE_BATCH_LOCKED',
-        `批次「${batch.name}」已提交，快照不可变`,
-        { batchId: id, status: batch.status },
-      );
-    }
-    if (patch.status === 'submitted') {
-      const summary = deriveBatchSummary(this.repository.listEntries(), id, this.repository.getProfile());
-      if (summary.financial.blocked.count > 0) {
-        throw new ApplicationError(
-          'conflict',
-          'REIMBURSE_BATCH_BLOCKED',
-          `批次仍有 ${summary.financial.blocked.count} 张票据未通过质量门，不能提交`,
-          { batchId: id, blocked: summary.financial.blocked },
-        );
-      }
+    // 批次只是归集容器；不再以 blocked 拒绝整批，也不提供无打款事实的 reimbursed 状态。
+    if (patch.status && patch.status !== batch.status && !(batch.status === 'collecting' && patch.status === 'submitted')) {
+      throw new ApplicationError('conflict', 'REIMBURSE_BATCH_TRANSITION', '批次只允许从收集中推进为已提交');
     }
     return this.repository.updateBatch(id, patch)!;
   }
@@ -358,18 +512,16 @@ export class ReimburseService {
     return this.isAdmin(memberId);
   }
 
-  /**
-   * 凭证上传（D-094 受控留档）：仅条目本人可传（超管也只能看不能代传）；批次提交后快照锁
-   * 同条目字段口径。先占元数据再原子写文件；失败回滚，付款材料只在字节写入成功后置为已备。
-   */
+  /** 先完整写字节再发布元数据；同 hash 重试只验证/修复原字节，不增加版本。 */
   async uploadEvidence(
     entryId: string,
     kind: ReimburseEvidenceKind,
     upload: { filename?: string; buf: Buffer },
     actor: ActorRef,
-  ): Promise<ReimburseEvidence> {
+    expectedRevision: number,
+  ): Promise<{ evidence: ReimburseEvidence; entry: ReimburseEntry }> {
     const previous = this.evidenceWrites.get(entryId) ?? Promise.resolve();
-    const writing = previous.catch(() => {}).then(() => this.uploadEvidenceOnce(entryId, kind, upload, actor));
+    const writing = previous.catch(() => {}).then(() => this.uploadEvidenceOnce(entryId, kind, upload, actor, expectedRevision));
     this.evidenceWrites.set(entryId, writing);
     try { return await writing; }
     finally { if (this.evidenceWrites.get(entryId) === writing) this.evidenceWrites.delete(entryId); }
@@ -377,65 +529,50 @@ export class ReimburseService {
 
   private async uploadEvidenceOnce(
     entryId: string, kind: ReimburseEvidenceKind,
-    upload: { filename?: string; buf: Buffer }, actor: ActorRef,
-  ): Promise<ReimburseEvidence> {
+    upload: { filename?: string; buf: Buffer }, actor: ActorRef, expectedRevision: number,
+  ): Promise<{ evidence: ReimburseEvidence; entry: ReimburseEntry }> {
     const dir = this.evidenceStorage.dir();
-    if (!dir) {
-      throw new ApplicationError('validation', 'REIMBURSE_EVIDENCE_STORAGE_UNCONFIGURED', '未配置凭证留档目录');
-    }
+    if (!dir) throw new ApplicationError('validation', 'REIMBURSE_EVIDENCE_STORAGE_UNCONFIGURED', '未配置凭证留档目录');
     const entry = this.requireEntry(entryId);
-    if (entry.memberId !== actor.id) {
-      throw new ApplicationError('forbidden', 'REIMBURSE_EVIDENCE_FORBIDDEN', '只有条目本人能上传凭证');
-    }
-    this.assertBatchMutable(entry.batchId);
+    if (entry.memberId !== actor.id) throw new ApplicationError('forbidden', 'REIMBURSE_EVIDENCE_FORBIDDEN', '只有条目本人能上传凭证');
     const ext = evidenceExtOf(upload.filename);
-    if (!isEvidenceExtAllowed(ext)) {
-      throw new ApplicationError('validation', 'REIMBURSE_EVIDENCE_UNSUPPORTED_EXT',
-        `不支持的凭证类型：${ext || '（无后缀）'}（仅 PDF/PNG/JPG/XML/OFD）`);
-    }
+    if (!isEvidenceExtAllowed(ext)) throw new ApplicationError('validation', 'REIMBURSE_EVIDENCE_UNSUPPORTED_EXT', `不支持的凭证类型：${ext || '（无后缀）'}`);
     const sha256 = this.evidenceStorage.sha256(upload.buf);
-    const existing = entry.evidence?.find(item => item.sha256 === sha256 && item.kind === kind);
+    const existing = entry.evidence.find(item => item.sha256 === sha256 && item.kind === kind);
     if (existing) {
-      if (kind === 'paymentShot') this.repository.updateEntry(entryId, { materials: { ...entry.materials, paymentShot: true } });
-      return existing;
+      const file = await this.evidenceStorage.read(dir, existing.id);
+      if (!file) await this.evidenceStorage.write(dir, existing.id, existing.ext, upload.buf);
+      return { evidence: existing, entry: withoutEvidence(entry) };
     }
-    if ((entry.evidence ?? []).length >= REIMBURSE_EVIDENCE_MAX_PER_ENTRY) {
-      throw new ApplicationError(
-        'validation',
-        'REIMBURSE_EVIDENCE_LIMIT',
-        `单个条目最多留档 ${REIMBURSE_EVIDENCE_MAX_PER_ENTRY} 份凭证`,
-      );
+    this.assertRevision(entry, expectedRevision);
+    if (entry.workflowStatus !== 'draft' && entry.workflowStatus !== 'returned') {
+      throw new ApplicationError('conflict', 'REIMBURSE_ENTRY_LOCKED', '只有草稿或退回条目可补传原件');
     }
-    // 原始名剥路径只留基名，下载时回用它做 content-disposition。
-    const originalName =
-      (upload.filename ?? '').split(/[\\/]/).pop()!.trim() || `evidence${ext}`;
-    const draft = {
-      kind,
-      originalName,
-      ext,
-      sizeBytes: upload.buf.length,
-      sha256,
-      uploadedBy: actor.id,
-      uploadedAt: new Date().toISOString(),
+    if (entry.evidence.length >= REIMBURSE_EVIDENCE_MAX_PER_ENTRY) {
+      throw new ApplicationError('validation', 'REIMBURSE_EVIDENCE_LIMIT', `单个条目最多留档 ${REIMBURSE_EVIDENCE_MAX_PER_ENTRY} 份凭证`);
+    }
+    const originalName = (upload.filename ?? '').split(/[\\/]/).pop()!.trim() || `evidence${ext}`;
+    const at = new Date().toISOString();
+    const evidence: ReimburseEvidence = {
+      id: `revd-${randomUUID()}`, kind, originalName, ext, sizeBytes: upload.buf.length,
+      sha256, uploadedBy: actor.id, uploadedAt: at,
     };
-    // 先占一个 id 才能落卷（文件名 = <evidenceId><ext>）：让 repository 先写元数据会产生
-    // 「有指针无字节」窗口，故这里用 append-then-write、写失败回滚元数据的顺序。
-    const appended = this.repository.appendEntryEvidence(entryId, draft);
-    if (!appended) {
-      throw new ApplicationError('not_found', 'REIMBURSE_ENTRY_NOT_FOUND', `未知报销条目: ${entryId}`);
-    }
+    await this.evidenceStorage.write(dir, evidence.id, ext, upload.buf);
+    const revision = entry.revision + 1;
+    const history = this.history(entry, 'evidenceAdded', actor.id, at, { revision, changedFields: [`evidence:${kind}`] });
+    const materials = kind === 'paymentShot' ? { ...entry.materials, paymentShot: true }
+      : kind === 'invoice' ? { ...entry.materials, invoice: true } : entry.materials;
     try {
-      await this.evidenceStorage.write(dir, appended.evidence.id, ext, upload.buf);
-      if (kind === 'paymentShot') {
-        const current = this.requireEntry(entryId);
-        this.repository.updateEntry(entryId, { materials: { ...current.materials, paymentShot: true } });
-      }
-    } catch (err) {
-      this.repository.removeEntryEvidence(entryId, appended.evidence.id);
-      await this.evidenceStorage.remove(dir, appended.evidence.id);
-      throw err; // 基础设施故障：route 映射 500
+      const updated = this.repository.appendEntryEvidence(entryId, evidence, {
+        revision, materials, checkedRevision: null, reviewedRevision: null,
+        recognitionConfirmedRevision: null, history: [...entry.history, history],
+      });
+      if (!updated) throw new ApplicationError('not_found', 'REIMBURSE_ENTRY_NOT_FOUND', `未知报销条目: ${entryId}`);
+      return { evidence, entry: withoutEvidence(updated) };
+    } catch (error) {
+      await this.evidenceStorage.remove(dir, evidence.id).catch(() => {});
+      throw error;
     }
-    return appended.evidence;
   }
 
   /** 凭证清单：条目级专属读端点（D-094「永不进列表」——原件元数据只从这里流出）。 */
@@ -478,34 +615,69 @@ export class ReimburseService {
     };
   }
 
-  /** 凭证删除：本人或超管；批次锁同上传口径。先剥元数据再删字节（顺序无所谓原子性，删失败留孤儿字节可容忍）。 */
+  changeEvidenceKind(
+    entryId: string, evidenceId: string, kind: ReimburseEvidenceKind,
+    actor: ActorRef, expectedRevision: number,
+  ): { evidence: ReimburseEvidence; entry: ReimburseEntry } {
+    return this.unitOfWork.run(actor, ({ occurredAt }) => {
+      const entry = this.requireEntry(entryId);
+      if (entry.memberId !== actor.id) throw new ApplicationError('forbidden', 'REIMBURSE_EVIDENCE_FORBIDDEN', '只有条目本人能修改原件用途');
+      this.assertRevision(entry, expectedRevision);
+      if (entry.workflowStatus !== 'draft' && entry.workflowStatus !== 'returned') throw new ApplicationError('conflict', 'REIMBURSE_ENTRY_LOCKED', '当前状态不可修改原件用途');
+      const target = entry.evidence.find((item) => item.id === evidenceId);
+      if (!target) throw new ApplicationError('not_found', 'REIMBURSE_EVIDENCE_NOT_FOUND', `未知凭证: ${evidenceId}`);
+      if (target.kind === kind) return { evidence: target, entry: withoutEvidence(entry) };
+      const evidence = entry.evidence.map((item) => item.id === evidenceId ? { ...item, kind } : item);
+      const revision = entry.revision + 1;
+      const history = this.history(entry, 'edited', actor.id, occurredAt.toISOString(), { revision, changedFields: ['evidence:kind'] });
+      const updated = this.repository.updateEntry(entryId, {
+        evidence, revision, checkedRevision: null, reviewedRevision: null, recognitionConfirmedRevision: null,
+        materials: { ...entry.materials,
+          invoice: evidence.some((item) => item.kind === 'invoice'),
+          paymentShot: evidence.some((item) => item.kind === 'paymentShot') },
+        history: [...entry.history, history],
+      })!;
+      return { evidence: { ...target, kind }, entry: withoutEvidence(updated) };
+    });
+  }
+
+  /** 原件删除同样仅本人可在可编辑状态执行，并与版本/历史同事务落库。 */
   async deleteEvidence(
     entryId: string,
     evidenceId: string,
     actor: ActorRef,
+    expectedRevision: number,
   ): Promise<ReimburseEvidence[]> {
     const previous = this.evidenceWrites.get(entryId) ?? Promise.resolve();
-    const writing = previous.catch(() => {}).then(() => this.deleteEvidenceOnce(entryId, evidenceId, actor));
+    const writing = previous.catch(() => {}).then(() => this.deleteEvidenceOnce(entryId, evidenceId, actor, expectedRevision));
     this.evidenceWrites.set(entryId, writing);
     try { return await writing; }
     finally { if (this.evidenceWrites.get(entryId) === writing) this.evidenceWrites.delete(entryId); }
   }
 
-  private async deleteEvidenceOnce(entryId: string, evidenceId: string, actor: ActorRef): Promise<ReimburseEvidence[]> {
+  private async deleteEvidenceOnce(entryId: string, evidenceId: string, actor: ActorRef, expectedRevision: number): Promise<ReimburseEvidence[]> {
     const entry = this.requireEntry(entryId);
-    await this.assertEvidenceReadable(entry, actor);
-    this.assertBatchMutable(this.requireEntry(entryId).batchId);
-    const updated = this.repository.removeEntryEvidence(entryId, evidenceId);
-    if (!updated) {
-      throw new ApplicationError('not_found', 'REIMBURSE_EVIDENCE_NOT_FOUND', `未知凭证: ${evidenceId}`);
+    if (entry.memberId !== actor.id) throw new ApplicationError('forbidden', 'REIMBURSE_EVIDENCE_FORBIDDEN', '只有条目本人能删除原件');
+    this.assertRevision(entry, expectedRevision);
+    if (entry.workflowStatus !== 'draft' && entry.workflowStatus !== 'returned') {
+      throw new ApplicationError('conflict', 'REIMBURSE_ENTRY_LOCKED', '只有草稿或退回条目可删除原件');
     }
-    if (entry.evidence?.find(item => item.id === evidenceId)?.kind === 'paymentShot' &&
-      !updated.evidence?.some(item => item.kind === 'paymentShot')) {
-      this.repository.updateEntry(entryId, { materials: { ...updated.materials, paymentShot: false } });
-    }
+    const target = entry.evidence.find((item) => item.id === evidenceId);
+    if (!target) throw new ApplicationError('not_found', 'REIMBURSE_EVIDENCE_NOT_FOUND', `未知凭证: ${evidenceId}`);
+    const revision = entry.revision + 1;
+    const at = new Date().toISOString();
+    const history = this.history(entry, 'evidenceRemoved', actor.id, at, { revision, changedFields: [`evidence:${target.kind}`] });
+    const evidence = entry.evidence.filter((item) => item.id !== evidenceId);
+    const materials = target.kind === 'paymentShot' ? { ...entry.materials, paymentShot: evidence.some((item) => item.kind === 'paymentShot') }
+      : target.kind === 'invoice' ? { ...entry.materials, invoice: evidence.some((item) => item.kind === 'invoice') } : entry.materials;
+    const updated = this.repository.removeEntryEvidence(entryId, evidenceId, {
+      revision, materials, checkedRevision: null, reviewedRevision: null,
+      recognitionConfirmedRevision: null, history: [...entry.history, history],
+    });
+    if (!updated) throw new ApplicationError('not_found', 'REIMBURSE_EVIDENCE_NOT_FOUND', `未知凭证: ${evidenceId}`);
     const dir = this.evidenceStorage.dir();
     if (dir) await this.evidenceStorage.remove(dir, evidenceId).catch(() => {});
-    return updated.evidence ?? [];
+    return updated.evidence;
   }
 
   /** 下载留痕查询：本人或超管（D-094 审计面，不进任何聚合）。 */
@@ -546,6 +718,32 @@ export class ReimburseService {
     }
     const numbers = lines.flatMap((line) => 'newPart' in line.target ? [line.target.newPart.partNumber] : []);
     if (new Set(numbers).size !== numbers.length) throw new ApplicationError('validation', 'REIMBURSE_STOCK_DUPLICATE_PART_NUMBER', '同批新建件号重复');
+  }
+
+  private assertRevision(entry: ReimburseEntry, expectedRevision: number): void {
+    if (entry.revision !== expectedRevision) {
+      throw new ApplicationError('conflict', 'REIMBURSE_REVISION_CONFLICT', '条目已被更新，请刷新后重试', {
+        expectedRevision, actualRevision: entry.revision,
+      });
+    }
+  }
+
+  private history(
+    entry: ReimburseEntry,
+    action: ReimburseHistoryAction,
+    actorId: string,
+    at: string,
+    options: Partial<Pick<ReimburseHistoryEvent, 'revision' | 'from' | 'to' | 'reason' | 'changedFields'>> = {},
+  ): ReimburseHistoryEvent {
+    return {
+      action, actorId, at, revision: options.revision ?? entry.revision,
+      from: options.from ?? null, to: options.to ?? null,
+      reason: options.reason ?? null, changedFields: options.changedFields ?? [],
+    };
+  }
+
+  private throwInvalidTransition(from: ReimburseEntry['workflowStatus'], to: ReimburseEntry['workflowStatus']): never {
+    throw new ApplicationError('conflict', 'REIMBURSE_WORKFLOW_INVALID', `不允许从 ${from} 转为 ${to}`, { from, to });
   }
 
   private requireEntry(id: string): ReimburseEntry {

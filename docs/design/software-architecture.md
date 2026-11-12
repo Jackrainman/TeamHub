@@ -62,7 +62,7 @@ TeamHub 已从单一机器人协作工具长成知识库、项目管理、库存
 | 样式 | 原生 CSS + 全局 token + feature CSS | 禁 CSS-in-JS 与组件内大段 style |
 | 测试 | Vitest + Fastify `app.inject` + Playwright E2E | 不增第二测试框架 |
 | 文件解析 | 浏览器本地 adapter + contracts 纯解析器 | 服务器不装解析依赖；原件留档口径见 D-094；容器统一 `fflate` |
-| 导出 | 服务端共享 CSV 基础设施 | XLSX 只有真实模板需求时再立 ADR |
+| 导出 | 服务端共享 CSV 基础设施；报账 XLSX/ZIP 按 D-099 复用 fflate + 最小 OOXML adapter | XLSX 仅服务已确认的真实模板需求，不引重型框架 |
 
 新增运行时依赖必须同时满足：现有栈无法合理完成、作用域明确、按需加载可行、测试策略存在，并在
 设计文档记录引入与退出条件。仅为少写几十行代码不得引依赖。
@@ -218,7 +218,7 @@ TEAMHUB_DB_FILE → openUnifiedDb() → module repositories
 
 - 结构化数据进 SQLite。
 - 允许持久化的二进制制品进单一 artifact 根目录，SQLite 只存元数据和内容引用。
-- 明确禁止上传的发票/付款截图等原件只在浏览器内存处理，不进入 artifact 例外通道。
+- 发票/付款截图等原件的解析只在浏览器内存处理；需留档的字节按 D-094 经受控 artifact 通道保存，不进公开静态路径。
 - 临时文件统一由平台文件服务创建、限额和清理，领域不得自己拼临时路径。
 
 ## 8. 后端统一规则

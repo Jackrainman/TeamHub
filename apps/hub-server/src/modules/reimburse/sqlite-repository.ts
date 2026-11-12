@@ -1,5 +1,8 @@
 import {
   GOVERNANCE_SCENARIO_NOW,
+  ReimburseBatchSchema,
+  ReimburseEntrySchema,
+  ReimbursePayoutSchema,
   ReimburseProfileSchema,
 } from '@teamhub/hub-contracts';
 import type {
@@ -7,6 +10,7 @@ import type {
   ReimburseEntry,
   ReimburseEvidence,
   ReimburseEvidenceDownload,
+  ReimbursePayout,
   ReimburseProfile,
 } from '@teamhub/hub-contracts';
 import { FixedClock } from '../../clock.js';
@@ -21,22 +25,43 @@ import type {
   ReimburseEntryDraft,
   ReimburseEntryPatch,
   ReimburseEvidenceDownloadDraft,
-  ReimburseEvidenceDraft,
+  ReimbursePayoutDraft,
   ReimburseRepository,
   ReimburseSnapshot,
+  StoredReimburseEntry,
+  StoredReimbursePayout,
 } from './repository.js';
 import type { ReimburseStockInPort } from './service.js';
 
 export const REIMBURSE_PROFILE_TABLE = 'reimburse_profile';
 const PROFILE_ID = 'singleton';
-const REIMBURSE_TABLES = ['reimburse_entries', 'reimburse_batches', 'reimburse_evidence_downloads'] as const;
+const REIMBURSE_TABLES = [
+  'reimburse_entries', 'reimburse_batches', 'reimburse_evidence_downloads', 'reimburse_payouts',
+] as const;
+
+function parseStoredEntry(row: ReimburseEntry): ReimburseEntry {
+  const parsed = ReimburseEntrySchema.parse(row);
+  const creationRequest = (row as StoredReimburseEntry).creationRequest;
+  return creationRequest ? { ...parsed, creationRequest } as ReimburseEntry : parsed;
+}
+
+function parseStoredPayout(row: ReimbursePayout): ReimbursePayout {
+  const parsed = ReimbursePayoutSchema.parse(row);
+  const creationRequest = (row as StoredReimbursePayout).creationRequest;
+  return creationRequest ? { ...parsed, creationRequest } as ReimbursePayout : parsed;
+}
+
+// 旧批次状态 reimbursed 没有打款事实，读时降为 submitted；完成只由 payout 驱动（D-099）。
+function parseStoredBatch(row: ReimburseBatch): ReimburseBatch {
+  const status = (row.status as string) === 'reimbursed' ? 'submitted' : row.status;
+  return ReimburseBatchSchema.parse({ ...row, status });
+}
 
 export class SqliteReimburseRepository implements ReimburseRepository, ReimburseStockInPort {
   private entrySeq!: IdSequence;
   private batchSeq!: IdSequence;
-  private evidenceSeq!: IdSequence;
+  private payoutSeq!: IdSequence;
   private downloadSeq!: IdSequence;
-  /** 发票号 → 条目 id 的进程内索引（REIMBURSE-DEFECTS #6：查重不再全表扫描；单写者仓库内维护）。 */
   private invoiceIndex = new Map<string, string>();
 
   private constructor(
@@ -58,6 +83,7 @@ export class SqliteReimburseRepository implements ReimburseRepository, Reimburse
         sdb.setMeta('reimburse_seeded', '1');
         sdb.bulkInsert('reimburse_entries', seed.entries);
         sdb.bulkInsert('reimburse_batches', seed.batches);
+        sdb.bulkInsert('reimburse_payouts', seed.payouts);
         sdb.insertRow(REIMBURSE_PROFILE_TABLE, PROFILE_ID, ReimburseProfileSchema.parse(seed.profile));
       });
     } else if (sdb.getRow(REIMBURSE_PROFILE_TABLE, PROFILE_ID) === undefined) {
@@ -69,16 +95,7 @@ export class SqliteReimburseRepository implements ReimburseRepository, Reimburse
   private resyncSequences(): void {
     this.entrySeq = createIdSequence(this.sdb.maxSuffix('reimburse_entries', 'reimb-new'));
     this.batchSeq = createIdSequence(this.sdb.maxSuffix('reimburse_batches', 'rbatch-new'));
-    // 凭证 id 序列的种子要扫条目内嵌 evidence 数组（元数据随条目行存；同 maxSuffix 前缀口径）。
-    const evidenceIdRe = /^revd-new-(\d+)$/;
-    let evidenceMax = 0;
-    for (const entry of this.sdb.allRows<ReimburseEntry>('reimburse_entries')) {
-      for (const item of entry.evidence ?? []) {
-        const m = evidenceIdRe.exec(item.id);
-        if (m && Number(m[1]) > evidenceMax) evidenceMax = Number(m[1]);
-      }
-    }
-    this.evidenceSeq = createIdSequence(evidenceMax);
+    this.payoutSeq = createIdSequence(this.sdb.maxSuffix('reimburse_payouts', 'rpayout-new'));
     this.downloadSeq = createIdSequence(this.sdb.maxSuffix('reimburse_evidence_downloads', 'revdl-new'));
     this.invoiceIndex.clear();
     for (const entry of this.sdb.allRows<ReimburseEntry>('reimburse_entries')) {
@@ -87,7 +104,7 @@ export class SqliteReimburseRepository implements ReimburseRepository, Reimburse
   }
 
   listEntries(): ReimburseEntry[] {
-    return this.sdb.allRows('reimburse_entries');
+    return this.sdb.allRows<ReimburseEntry>('reimburse_entries').map((row) => parseStoredEntry(row));
   }
 
   getEntry(id: string): ReimburseEntry | undefined {
@@ -95,7 +112,8 @@ export class SqliteReimburseRepository implements ReimburseRepository, Reimburse
   }
 
   readEntryForStockIn(id: string): ReimburseEntry | undefined {
-    return this.sdb.getRow<ReimburseEntry>('reimburse_entries', id);
+    const row = this.sdb.getRow<ReimburseEntry>('reimburse_entries', id);
+    return row ? parseStoredEntry(row) : undefined;
   }
 
   findEntryByInvoiceNo(invoiceNo: string): ReimburseEntry | undefined {
@@ -108,6 +126,16 @@ export class SqliteReimburseRepository implements ReimburseRepository, Reimburse
     const entry: ReimburseEntry = {
       ...draft,
       evidence: [],
+      workflowStatus: 'draft',
+      revision: 1,
+      recognitionConfirmedRevision: null,
+      checkedRevision: null,
+      reviewedRevision: null,
+      approvedAmountFen: null,
+      reviewNote: null,
+      returnReason: null,
+      payoutId: null,
+      history: [{ action: 'created', actorId: draft.memberId, at: now, revision: 1, from: null, to: 'draft', reason: null, changedFields: [] }],
       id: nextSequentialId('reimb-new', this.entrySeq),
       createdAt: now,
       updatedAt: now,
@@ -130,11 +158,12 @@ export class SqliteReimburseRepository implements ReimburseRepository, Reimburse
   }
 
   listBatches(): ReimburseBatch[] {
-    return this.sdb.allRows('reimburse_batches');
+    return this.sdb.allRows<ReimburseBatch>('reimburse_batches').map((row) => parseStoredBatch(row));
   }
 
   getBatch(id: string): ReimburseBatch | undefined {
-    return this.sdb.getRow<ReimburseBatch>('reimburse_batches', id);
+    const row = this.sdb.getRow<ReimburseBatch>('reimburse_batches', id);
+    return row ? parseStoredBatch(row) : undefined;
   }
 
   createBatch(draft: ReimburseBatchDraft): ReimburseBatch {
@@ -158,28 +187,45 @@ export class SqliteReimburseRepository implements ReimburseRepository, Reimburse
     return updated;
   }
 
-  appendEntryEvidence(
-    entryId: string,
-    draft: ReimburseEvidenceDraft,
-  ): { entry: ReimburseEntry; evidence: ReimburseEvidence } | undefined {
+  listPayouts(): ReimbursePayout[] {
+    return this.sdb.allRows<ReimbursePayout>('reimburse_payouts').map((row) => parseStoredPayout(row));
+  }
+
+  getPayout(id: string): ReimbursePayout | undefined {
+    const row = this.sdb.getRow<ReimbursePayout>('reimburse_payouts', id);
+    return row ? parseStoredPayout(row) : undefined;
+  }
+
+  createPayout(draft: ReimbursePayoutDraft): ReimbursePayout {
+    const payout: ReimbursePayout = {
+      ...draft,
+      id: nextSequentialId('rpayout-new', this.payoutSeq),
+      recordedAt: this.clock.now().toISOString(),
+    };
+    this.sdb.tx(() => this.sdb.insertRow('reimburse_payouts', payout.id, payout));
+    return payout;
+  }
+
+  appendEntryEvidence(entryId: string, evidence: ReimburseEvidence, patch: ReimburseEntryPatch = {}): ReimburseEntry | undefined {
     const prior = this.getEntry(entryId);
     if (!prior) return undefined;
-    const evidence: ReimburseEvidence = { ...draft, id: nextSequentialId('revd-new', this.evidenceSeq) };
     const updated: ReimburseEntry = {
       ...prior,
-      evidence: [...(prior.evidence ?? []), evidence],
+      ...patch,
+      evidence: [...prior.evidence, evidence],
       updatedAt: this.clock.now().toISOString(),
     };
     this.sdb.tx(() => this.sdb.updateRow('reimburse_entries', entryId, updated));
-    return { entry: updated, evidence };
+    return updated;
   }
 
-  removeEntryEvidence(entryId: string, evidenceId: string): ReimburseEntry | undefined {
+  removeEntryEvidence(entryId: string, evidenceId: string, patch: ReimburseEntryPatch = {}): ReimburseEntry | undefined {
     const prior = this.getEntry(entryId);
-    if (!prior || !(prior.evidence ?? []).some((item) => item.id === evidenceId)) return undefined;
+    if (!prior || !prior.evidence.some((item) => item.id === evidenceId)) return undefined;
     const updated: ReimburseEntry = {
       ...prior,
-      evidence: (prior.evidence ?? []).filter((item) => item.id !== evidenceId),
+      ...patch,
+      evidence: prior.evidence.filter((item) => item.id !== evidenceId),
       updatedAt: this.clock.now().toISOString(),
     };
     this.sdb.tx(() => this.sdb.updateRow('reimburse_entries', entryId, updated));
@@ -197,8 +243,7 @@ export class SqliteReimburseRepository implements ReimburseRepository, Reimburse
   }
 
   listEvidenceDownloads(entryId: string): ReimburseEvidenceDownload[] {
-    return this.sdb
-      .allRows<ReimburseEvidenceDownload>('reimburse_evidence_downloads')
+    return this.sdb.allRows<ReimburseEvidenceDownload>('reimburse_evidence_downloads')
       .filter((log) => log.entryId === entryId);
   }
 

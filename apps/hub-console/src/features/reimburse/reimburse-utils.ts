@@ -2,6 +2,7 @@ import {
   REIMBURSE_EVIDENCE_MAX_BYTES,
   evidenceExtOf,
   isEvidenceExtAllowed,
+  kindForExpenseType,
   type ReimburseEvidence,
   type ReimburseEvidenceKind,
 } from '@teamhub/hub-contracts';
@@ -9,6 +10,7 @@ import type {
   CreateReimburseEntryRequest,
   InvoiceRecognitionSource,
   ReimburseEntryKind,
+  ReimburseExpenseType,
   ReimburseItem,
 } from '@teamhub/hub-contracts';
 
@@ -54,6 +56,8 @@ export interface EntryItemDraft {
 
 export interface EntryDraft {
   kind: ReimburseEntryKind;
+  expenseType: ReimburseExpenseType | null;
+  summary: string;
   invoiceType?: import('@teamhub/hub-contracts').InvoiceType;
   invoiceNo: string;
   invoiceDate: string; // input[type=date] 的 YYYY-MM-DD 或 ''
@@ -74,7 +78,9 @@ export function emptyItemDraft(): EntryItemDraft {
 /** 空表单草稿（手动录入初值 / 导入未识别时开空表单）。 */
 export function emptyEntryDraft(): EntryDraft {
   return {
-    kind: 'goods',
+    kind: 'expense',
+    expenseType: null,
+    summary: '',
     invoiceNo: '',
     invoiceDate: '',
     seller: '',
@@ -112,6 +118,7 @@ function optionalText(value: string): string | null {
 export function buildCreateEntryRequest(
   draft: EntryDraft,
   projectId: string,
+  seasonId = 'unassigned',
 ): CreateReimburseEntryRequest | null {
   const normalizedProjectId = projectId.trim();
   if (normalizedProjectId === '') {
@@ -123,7 +130,8 @@ export function buildCreateEntryRequest(
   }
 
   const items: ReimburseItem[] = [];
-  if (draft.kind === 'goods') {
+  const kind = draft.expenseType ? kindForExpenseType(draft.expenseType) : draft.kind;
+  if (kind === 'goods') {
     for (const row of draft.items) {
       if (isBlankItem(row)) {
         continue;
@@ -154,7 +162,10 @@ export function buildCreateEntryRequest(
 
   return {
     projectId: normalizedProjectId,
-    kind: draft.kind,
+    seasonId,
+    kind,
+    expenseType: draft.expenseType,
+    summary: optionalText(draft.summary) ?? optionalText(draft.actualItemName),
     invoiceType: draft.invoiceType ?? 'unknown',
     invoiceNo: optionalText(draft.invoiceNo),
     invoiceDate: optionalText(draft.invoiceDate),
@@ -165,7 +176,7 @@ export function buildCreateEntryRequest(
     totalAmountFen,
     items,
     actualItemName: optionalText(draft.actualItemName),
-    materials: { paymentShot: false, inspection: false }, // 新条目材料恒未备，在卡片上勾
+    materials: { invoice: false, paymentShot: false, inspection: false }, // 原件留档成功后才由服务端置位
     note: optionalText(draft.note),
   };
 }

@@ -11,8 +11,15 @@ import type {
   UpdateReimburseProfileRequest,
   ReimburseEvidenceKind,
   ReimburseProfile,
+  ReimburseEntry,
+  ReimburseEntryAction,
+  ReimburseEntryActionRequest,
+  CreateReimbursePayoutRequest,
+  ReimburseSummaryQuery,
+  ReimburseExportRequest,
 } from '@teamhub/hub-contracts';
-import { DEFAULT_REIMBURSE_PROFILE } from '@teamhub/hub-contracts';
+import type { HubApiClient } from '../../api/client';
+import { DEFAULT_REIMBURSE_PROFILE, derivePackageReview, kindForExpenseType, suggestPackageExpenseType } from '@teamhub/hub-contracts';
 import { useHubMutation } from '../../hooks/useHubMutation';
 import {
   draftFromParsedInvoice,
@@ -23,6 +30,7 @@ import { extractLocalOcr } from './lib/local-ocr';
 import { saveReimbursePackage, type PackageSaveState } from './lib/package-save';
 import { emptyEntryDraft, type EntryDraft } from './reimburse-utils';
 import { uploadSupplement, type SupplementRow } from './lib/evidence-supplement';
+import { draftsFromReimburseXlsx } from './lib/xlsx-import';
 
 /**
  * 报销域 hooks（REIMBURSE-PROC 阶段 3）。组件一律走本文件，不直接写 useQuery/useMutation。
@@ -40,11 +48,53 @@ export function useReimburseEntries(
   client: ReimburseSegment,
   source: string,
   enabled: boolean,
+  seasonId = 'all',
 ) {
   return useQuery({
-    queryKey: queryKeys.reimburse.entries(source),
+    queryKey: queryKeys.reimburse.entries(source, seasonId),
     queryFn: () => client.getReimburseEntries(),
     enabled,
+  });
+}
+
+export function useReimburseSeasons(client: Pick<HubApiClient, 'getSeasons'>, source: string, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.seasons(source),
+    queryFn: () => client.getSeasons(),
+    enabled,
+  });
+}
+
+export function useReimbursePayouts(client: ReimburseSegment, source: string, enabled: boolean) {
+  return useQuery({ queryKey: queryKeys.reimburse.payouts(source), queryFn: () => client.getReimbursePayouts(), enabled });
+}
+
+export function useReimburseSummary(client: ReimburseSegment, source: string, query: ReimburseSummaryQuery, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.reimburse.summary(source, query.seasonId ?? 'all', query.batchId ?? 'all', query.expenseType ?? 'all'),
+    queryFn: () => client.getReimburseSummary(query), enabled,
+  });
+}
+
+export function useReimburseEntryAction(client: ReimburseSegment, source: string) {
+  return useHubMutation({
+    invalidateKeys: [queryKeys.reimburse.all(source)],
+    mutationFn: (vars: { id: string; action: ReimburseEntryAction; request: ReimburseEntryActionRequest }) =>
+      client.reimburseEntryAction(vars.id, vars.action, vars.request),
+  });
+}
+
+export function useCreateReimbursePayout(client: ReimburseSegment, source: string) {
+  return useHubMutation({
+    invalidateKeys: [queryKeys.reimburse.all(source)],
+    mutationFn: (req: CreateReimbursePayoutRequest) => client.createReimbursePayout(req),
+  });
+}
+
+export function useExportReimburse(client: ReimburseSegment, source: string) {
+  return useHubMutation({
+    invalidateKeys: [queryKeys.reimburse.all(source)],
+    mutationFn: (req: ReimburseExportRequest) => client.exportReimburse(req),
   });
 }
 
@@ -114,8 +164,8 @@ export function useUploadReimburseEvidence(
 ) {
   return useHubMutation({
     invalidateKeys: [queryKeys.reimburse.evidence(source, entryId), queryKeys.reimburse.entries(source), queryKeys.reimburse.batches(source)],
-    mutationFn: (vars: { kind: ReimburseEvidenceKind; file: File }) =>
-      client.uploadReimburseEvidence(entryId, vars.kind, vars.file),
+    mutationFn: (vars: { kind: ReimburseEvidenceKind; file: File; expectedRevision: number }) =>
+      client.uploadReimburseEvidence(entryId, vars.kind, vars.file, vars.expectedRevision),
   });
 }
 
@@ -126,15 +176,25 @@ export function useDeleteReimburseEvidence(
 ) {
   return useHubMutation({
     invalidateKeys: [queryKeys.reimburse.evidence(source, entryId), queryKeys.reimburse.entries(source), queryKeys.reimburse.batches(source)],
-    mutationFn: (evidenceId: string) => client.deleteReimburseEvidence(entryId, evidenceId),
+    mutationFn: (vars: { evidenceId: string; expectedRevision: number }) =>
+      client.deleteReimburseEvidence(entryId, vars.evidenceId, vars.expectedRevision),
   });
 }
 
-export function useUploadReimburseSupplement(client: ReimburseSegment, source: string, entryIds: string[]) {
+export function useUpdateReimburseEvidenceKind(client: ReimburseSegment, source: string, entryId: string) {
+  return useHubMutation({
+    invalidateKeys: [queryKeys.reimburse.evidence(source, entryId), queryKeys.reimburse.all(source)],
+    mutationFn: (vars: { evidenceId: string; kind: ReimburseEvidenceKind; expectedRevision: number }) =>
+      client.updateReimburseEvidenceKind(entryId, vars.evidenceId, { kind: vars.kind, expectedRevision: vars.expectedRevision }),
+  });
+}
+
+export function useUploadReimburseSupplement(client: ReimburseSegment, source: string, entries: ReimburseEntry[]) {
+  const entryIds = entries.map((entry) => entry.id);
   return useHubMutation({
     invalidateKeys: [queryKeys.reimburse.entries(source), queryKeys.reimburse.batches(source),
       ...entryIds.map(id => queryKeys.reimburse.evidence(source, id))],
-    mutationFn: (rows: SupplementRow[]) => uploadSupplement(client, rows, entryIds),
+    mutationFn: (rows: SupplementRow[]) => uploadSupplement(client, rows, entries),
   });
 }
 
@@ -204,8 +264,8 @@ export function useUpdateReimburseBatch(client: ReimburseSegment, source: string
   });
 }
 
-/** 一个顶层文件对应一个待确认项，保存进度随该项保留。 */
-interface ImportJob {
+/** 一个候选对应一笔实际支付；附件可在候选间拆合，未确认前不写服务器。 */
+export interface ImportJob {
   id: number;
   initial: ReimburseFormInitial;
 }
@@ -252,6 +312,19 @@ export function useReimburseImportController(profile: ReimburseProfile = DEFAULT
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   useEffect(() => () => abort.current?.abort(), []);
 
+  function jobFromDraft(draft: EntryDraft, fileName: string, pack?: PackageDraft): ImportJob {
+    sequence.current += 1;
+    const suggestion = pack ? suggestPackageExpenseType(pack.review) : null;
+    if (suggestion) {
+      draft.expenseType = suggestion.expenseType;
+      draft.kind = kindForExpenseType(suggestion.expenseType);
+    }
+    return { id: sequence.current, initial: {
+      draft, fileName, notice: pack?.review.selectedInvoice ? 'recognized' : 'unrecognized',
+      package: pack, saveState: { clientRequestId: crypto.randomUUID() },
+    } };
+  }
+
   async function importFiles(files: File[], useOcr = false): Promise<void> {
     if (parsingRef.current) return;
     parsingRef.current = true;
@@ -262,28 +335,36 @@ export function useReimburseImportController(profile: ReimburseProfile = DEFAULT
     try {
       for (const file of files) {
         if (controller.signal.aborted) break;
-        const outcome = await analyzeReimbursePackage(file, useOcr ? {
-          extractOcrText: file => extractLocalOcr(file, { signal: controller.signal }),
-        } : {}, profile);
-        if (controller.signal.aborted) break;
-        setProgress(current => ({ ...current, done: current.done + 1 }));
-        sequence.current += 1;
-        const id = sequence.current;
-        if (outcome.kind === 'failed') {
-          setFails((current) => [
-            ...current,
-            { id, fileName: outcome.fileName, reason: outcome.reason },
-          ]);
+        if (/\.xlsx$/i.test(file.name)) {
+          try {
+            const drafts = await draftsFromReimburseXlsx(file);
+            for (const [index, draft] of drafts.entries()) {
+              const pack: PackageDraft = { kind: 'draft', fileName: `${file.name}#${index + 2}`, attachments: [], notices: [], review: derivePackageReview([], profile) };
+              const job = jobFromDraft(draft, pack.fileName, pack);
+              setJobs((current) => [...current, job]);
+            }
+            if (drafts.length === 0) throw new Error('empty');
+          } catch {
+            sequence.current += 1;
+            setFails((current) => [...current, { id: sequence.current, fileName: file.name, reason: 'read' }]);
+          }
         } else {
-          const invoice = outcome.review.selectedInvoice;
-          const draft = invoice ? draftFromParsedInvoice(invoice) : emptyEntryDraft();
-          draft.invoiceType = outcome.review.invoiceType;
-          if (draft.invoiceType === 'railway') draft.kind = 'expense';
-          setJobs((current) => [...current, { id, initial: {
-            draft, fileName: outcome.fileName, notice: invoice ? 'recognized' : 'unrecognized',
-            package: outcome, saveState: { clientRequestId: crypto.randomUUID() },
-          } }]);
+          const outcome = await analyzeReimbursePackage(file, useOcr ? {
+            extractOcrText: file => extractLocalOcr(file, { signal: controller.signal }),
+          } : {}, profile);
+          if (controller.signal.aborted) break;
+          if (outcome.kind === 'failed') {
+            sequence.current += 1;
+            setFails((current) => [...current, { id: sequence.current, fileName: outcome.fileName, reason: outcome.reason }]);
+          } else {
+            const invoice = outcome.review.selectedInvoice;
+            const draft = invoice ? draftFromParsedInvoice(invoice) : emptyEntryDraft();
+            draft.invoiceType = outcome.review.invoiceType;
+            const job = jobFromDraft(draft, outcome.fileName, outcome);
+            setJobs((current) => [...current, job]);
+          }
         }
+        setProgress(current => ({ ...current, done: current.done + 1 }));
       }
     } finally {
       parsingRef.current = false;
@@ -291,21 +372,51 @@ export function useReimburseImportController(profile: ReimburseProfile = DEFAULT
     }
   }
 
-  const currentJob = jobs[0] ?? null;
-  const formInitial = currentJob?.initial ?? null;
+  function splitAttachment(jobId: number, path: string): void {
+    const source = jobs.find((job) => job.id === jobId);
+    const attachment = source?.initial.package?.attachments.find((item) => item.path === path);
+    if (!source?.initial.package || !attachment) return;
+    source.initial.package.attachments = source.initial.package.attachments.filter((item) => item.path !== path);
+    source.initial.package.review = derivePackageReview(source.initial.package.attachments, profile);
+    const pack: PackageDraft = { kind: 'draft', fileName: attachment.path, attachments: [attachment], notices: [], review: derivePackageReview([attachment], profile) };
+    const draft = attachment.invoice ? draftFromParsedInvoice(attachment.invoice) : emptyEntryDraft();
+    draft.invoiceType = pack.review.invoiceType;
+    const job = jobFromDraft(draft, attachment.path, pack);
+    setJobs((current) => [...current, job]);
+  }
 
+  function moveAttachment(jobId: number, path: string, targetId: number): void {
+    if (jobId === targetId) return;
+    const source = jobs.find((job) => job.id === jobId);
+    const target = jobs.find((job) => job.id === targetId);
+    const attachment = source?.initial.package?.attachments.find((item) => item.path === path);
+    if (!source?.initial.package || !target?.initial.package || !attachment) return;
+    source.initial.package.attachments = source.initial.package.attachments.filter((item) => item.path !== path);
+    target.initial.package.attachments = [...target.initial.package.attachments, attachment];
+    source.initial.package.review = derivePackageReview(source.initial.package.attachments, profile);
+    target.initial.package.review = derivePackageReview(target.initial.package.attachments, profile);
+    setJobs((current) => [...current]);
+  }
+
+  const currentJob = jobs[0] ?? null;
   return {
     currentJobId: currentJob?.id ?? null,
-    formInitial,
-    fails,
-    parsing,
-    progress,
+    formInitial: currentJob?.initial ?? null,
+    jobs: jobs.map((job) => ({
+      id: job.id, fileName: job.initial.fileName,
+      attachmentCount: job.initial.package?.attachments.filter((item) => item.included).length ?? 0,
+      unmatched: !job.initial.package?.review.selectedInvoice || job.initial.package.review.reviewReasons.some((reason) => reason === 'multiple-invoices' || reason === 'ambiguous-invoices' || reason === 'unclassified-material'),
+    })),
+    fails, parsing, progress,
     cancel: () => abort.current?.abort(),
     pendingCount: Math.max(0, jobs.length - 1),
-    importFiles,
-    // 关闭后重开时，旧保存回调可能晚到；只移除它对应的条目，不能跳过下一包。
+    importFiles, splitAttachment, moveAttachment,
+    defer: () => setJobs((current) => current.length > 1 ? [...current.slice(1), current[0]] : current),
+    openJob: (id: number) => setJobs((current) => {
+      const target = current.find((job) => job.id === id);
+      return target ? [target, ...current.filter((job) => job.id !== id)] : current;
+    }),
     advance: () => setJobs((current) => current.filter(job => job.id !== currentJob?.id)),
-    dismissFail: (id: number) =>
-      setFails((current) => current.filter((failure) => failure.id !== id)),
+    dismissFail: (id: number) => setFails((current) => current.filter((failure) => failure.id !== id)),
   };
 }

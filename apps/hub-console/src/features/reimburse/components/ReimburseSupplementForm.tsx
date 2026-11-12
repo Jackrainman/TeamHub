@@ -18,7 +18,7 @@ export function ReimburseSupplementForm({ client, source, entries }: {
   const [rejected, setRejected] = useState<string[]>([]);
   const [failed, setFailed] = useState<string[]>([]);
   const ids = entries.map(entry => entry.id);
-  const upload = useUploadReimburseSupplement(client, source, ids);
+  const upload = useUploadReimburseSupplement(client, source, entries);
   const busy = reading || upload.isPending;
   const pending = rows.filter(row => row.status !== 'done');
   const patch = (id: string, values: Partial<SupplementRow>) => setRows(current => current.map(row => row.id === id ? { ...row, ...values } : row));

@@ -1,5 +1,5 @@
 import type { ParsedInvoice } from './import.js';
-import type { InvoiceType, ReimburseProfile } from './model.js';
+import type { InvoiceType, ReimburseExpenseType, ReimburseProfile } from './model.js';
 import { derivePurchaserCheckStatus, type ReimburseReviewReason } from './policies.js';
 
 export type PackageRole = 'invoice' | 'paymentShot' | 'inspection' | 'supporting' | 'unknown';
@@ -17,6 +17,22 @@ export interface PackageReview {
   conflictingInvoiceNos: string[];
   missingMaterials: ('invoice' | 'paymentShot')[];
   reviewReasons: PackageReviewReason[];
+}
+
+export interface PackageExpenseSuggestion {
+  expenseType: ReimburseExpenseType;
+  reason: 'railway-invoice' | 'taxi-text' | 'purchase-items';
+}
+
+/** 确定性预选只基于票面类型/文字/明细；冲突或不明时返回 null，由人确认。 */
+export function suggestPackageExpenseType(review: PackageReview): PackageExpenseSuggestion | null {
+  if (review.conflictingInvoiceNos.length > 0) return null;
+  if (review.invoiceType === 'railway') return { expenseType: 'ticket', reason: 'railway-invoice' };
+  const invoice = review.selectedInvoice;
+  const text = [invoice?.seller ?? '', ...(invoice?.items.map((item) => item.name) ?? [])].join(' ');
+  if (/出租车|网约车|滴滴|出行服务/i.test(text)) return { expenseType: 'taxi', reason: 'taxi-text' };
+  if (invoice?.items.length) return { expenseType: 'purchase', reason: 'purchase-items' };
+  return null;
 }
 
 export function classifyInvoiceType(text: string): InvoiceType {

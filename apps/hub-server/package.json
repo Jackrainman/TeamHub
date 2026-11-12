@@ -1,7 +1,7 @@
 {
   "name": "@teamhub/hub-server",
   "private": true,
-  "version": "0.91.0",
+  "version": "0.92.0",
   "description": "Team Hub backend shell: health, system status, and mock adapter registry",
   "type": "module",
   "main": "dist/main.js",
@@ -34,6 +34,7 @@
     "@fastify/multipart": "^10.0.0",
     "@teamhub/hub-contracts": "file:../hub-contracts",
     "fastify": "^5.6.2",
+    "fflate": "^0.8.3",
     "zod": "^3.25.76"
   },
   "devDependencies": {

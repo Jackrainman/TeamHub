@@ -21,8 +21,11 @@ export const queryKeys = {
   inventory: (source: string) => ['inventory', source] as const,
   reimburse: {
     all: (source: string) => ['reimburse', source] as const,
-    entries: (source: string) => ['reimburse', source, 'entries'] as const,
+    entries: (source: string, seasonId = 'all') => ['reimburse', source, 'entries', seasonId] as const,
     batches: (source: string) => ['reimburse', source, 'batches'] as const,
+    payouts: (source: string) => ['reimburse', source, 'payouts'] as const,
+    summary: (source: string, seasonId: string, batchId: string, expenseType: string) =>
+      ['reimburse', source, 'summary', seasonId, batchId, expenseType] as const,
     profile: (source: string) => ['reimburse', source, 'profile'] as const,
     stockInContext: (source: string) => ['reimburse', source, 'stock-in-context'] as const,
     // 凭证清单是条目级私有事实：key 带 entryId，永不挂到 entries 列表 key 下（D-094）。

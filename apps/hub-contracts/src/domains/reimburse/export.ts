@@ -1,20 +1,25 @@
 import type {
   ReimburseAmountBucket,
   ReimburseBatchSummary,
+  ReimburseCompleteness,
   ReimburseEntry,
   ReimburseEntryKind,
-  ReimburseEntryStatus,
+  ReimburseExpenseType,
   ReimburseFinancialSummary,
+  ReimbursePayout,
   ReimburseProfile,
+  ReimburseStructuralSummary,
+  ReimburseWorkflowStatus,
 } from './model.js';
 import {
   derivePurchaserCheckStatus,
+  deriveReimburseCompleteness,
   deriveReimburseReviewReasons,
-  deriveReimburseStatus,
   isReimburseEntryBlocked,
   type PurchaserCheckStatus,
   type ReimburseReviewReason,
 } from './policies.js';
+import { deriveReimburseBatchProgress } from './workflow.js';
 import { buildCsv } from '../../csv-core.js';
 
 function summarize(entries: ReimburseEntry[]): ReimburseAmountBucket {
@@ -47,12 +52,13 @@ export function deriveBatchSummary(
   batchId: string,
   profile: ReimburseProfile,
 ): Omit<ReimburseBatchSummary, 'batchId'> {
-  const inBatch = entries.filter((entry) => entry.batchId === batchId);
+  const inBatch = entries.filter((entry) => entry.batchId === batchId && entry.workflowStatus !== 'cancelled');
   return {
     count: inBatch.length,
     totalAmountFen: inBatch.reduce((sum, entry) => sum + (entry.totalAmountFen ?? 0), 0),
-    incompleteCount: inBatch.filter((entry) => deriveReimburseStatus(entry) !== 'complete')
-      .length,
+    incompleteCount: inBatch.filter((entry) => deriveReimburseCompleteness(entry) !== 'complete').length,
+    unknownAmountCount: inBatch.filter((entry) => entry.totalAmountFen === null).length,
+    progress: deriveReimburseBatchProgress(inBatch),
     financial: deriveReimburseFinancialSummary(inBatch, profile),
   };
 }
@@ -110,7 +116,7 @@ export interface ReimburseExportRow {
   purchaserTaxNo: string;
   kind: ReimburseEntryKind;
   totalYuan: string;
-  status: ReimburseEntryStatus;
+  status: ReimburseCompleteness;
   purchaserCheck: PurchaserCheckStatus;
   reviewReasons: ReimburseReviewReason[];
   /** 质量门互补口径：eligible / blocked（review 为独立口径，由 reviewReasons 非空表达）。 */
@@ -146,7 +152,7 @@ export function deriveReimburseExportRow(
     purchaserTaxNo: entry.purchaserTaxNo ?? '',
     kind: entry.kind,
     totalYuan: entry.totalAmountFen === null ? '' : (entry.totalAmountFen / 100).toFixed(2),
-    status: deriveReimburseStatus(entry),
+    status: deriveReimburseCompleteness(entry),
     purchaserCheck: derivePurchaserCheckStatus(entry, profile),
     reviewReasons: deriveReimburseReviewReasons(entry, profile),
     bucket: isReimburseEntryBlocked(entry, profile) ? 'blocked' : 'eligible',
@@ -165,4 +171,83 @@ export function buildReimburseCsv(
     REIMBURSE_EXPORT_COLUMNS.map((column) => headers[column]),
     rows.map((row) => REIMBURSE_EXPORT_COLUMNS.map((column) => row[column])),
   );
+}
+
+const EXPENSE_TYPES: readonly ReimburseExpenseType[] = ['purchase', 'taxi', 'ticket', 'other'];
+
+/** 只按结构维度汇总；撤销条目不进入任何金额或次数口径（I0 / D-099）。 */
+export function deriveReimburseStructuralSummary(
+  entries: readonly ReimburseEntry[],
+  payouts: readonly ReimbursePayout[] = [],
+): ReimburseStructuralSummary {
+  const active = entries.filter((entry) => entry.workflowStatus !== 'cancelled');
+  const paidEntryIds = new Set(payouts.flatMap((payout) => payout.entryIds));
+  return {
+    count: active.length,
+    unknownAmountCount: active.filter((entry) => entry.totalAmountFen === null).length,
+    unclassifiedCount: active.filter((entry) => entry.expenseType === null).length,
+    types: EXPENSE_TYPES.map((expenseType) => {
+      const typed = active.filter((entry) => entry.expenseType === expenseType);
+      return {
+        expenseType,
+        count: typed.length,
+        unknownAmountCount: typed.filter((entry) => entry.totalAmountFen === null).length,
+        requestedAmountFen: typed.reduce((sum, entry) => sum + (entry.totalAmountFen ?? 0), 0),
+        approvedAmountFen: typed.reduce((sum, entry) => sum + (entry.approvedAmountFen ?? 0), 0),
+        paidAmountFen: typed.reduce((sum, entry) => sum + (paidEntryIds.has(entry.id) ? entry.approvedAmountFen ?? 0 : 0), 0),
+      };
+    }),
+  };
+}
+
+export interface ReimburseDeliveryRow {
+  seasonId: string;
+  batch: string;
+  expenseType: ReimburseExpenseType | null;
+  member: string;
+  summary: string;
+  items: string;
+  totalAmountFen: number | null;
+  approvedAmountFen: number | null;
+  paidAmountFen: number | null;
+  workflowStatus: ReimburseWorkflowStatus;
+  completeness: ReimburseCompleteness;
+  missingMaterials: ('invoice' | 'paymentShot')[];
+  invoiceNo: string;
+  invoiceDate: string;
+  evidencePaths: string[];
+  paidAt: string;
+  transactionRef: string;
+  note: string;
+}
+
+/** XLSX 一行一条目；未知金额保持 null，由 adapter 写成空单元格而不是 0。 */
+export function deriveReimburseDeliveryRow(
+  entry: ReimburseEntry,
+  payout: ReimbursePayout | null,
+  options: ReimburseExportOptions & { evidencePaths?: string[] } = {},
+): ReimburseDeliveryRow {
+  return {
+    seasonId: entry.seasonId,
+    batch: entry.batchId ? options.resolveBatchName?.(entry.batchId) ?? entry.batchId : '',
+    expenseType: entry.expenseType,
+    member: options.resolveMemberName?.(entry.memberId) ?? entry.memberId,
+    summary: entry.summary ?? entry.actualItemName ?? entry.seller ?? '',
+    items: entry.items.map((item) => `${item.name}×${item.quantity}`).join('; '),
+    totalAmountFen: entry.totalAmountFen,
+    approvedAmountFen: entry.approvedAmountFen,
+    paidAmountFen: payout ? entry.approvedAmountFen : null,
+    workflowStatus: entry.workflowStatus,
+    completeness: deriveReimburseCompleteness(entry),
+    missingMaterials: [
+      ...(entry.materials.invoice ? [] : ['invoice' as const]),
+      ...(entry.materials.paymentShot ? [] : ['paymentShot' as const]),
+    ],
+    invoiceNo: entry.invoiceNo ?? '',
+    invoiceDate: entry.invoiceDate ?? '',
+    evidencePaths: options.evidencePaths ?? [],
+    paidAt: payout?.paidAt ?? '',
+    transactionRef: payout?.transactionRef ?? '',
+    note: entry.note ?? '',
+  };
 }

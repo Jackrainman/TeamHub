@@ -4,7 +4,7 @@
 import {
   REIMBURSE_EXPORT_COLUMNS,
   type ReimburseEntryKind,
-  type ReimburseEntryStatus,
+  type ReimburseCompleteness,
   type ReimburseExportCsvRow,
   type ReimburseExportRow,
   type PurchaserCheckStatus,
@@ -16,7 +16,7 @@ const KIND_KEY: Record<ReimburseEntryKind, TranslationKey> = {
   goods: 'reimb.kind.goods',
   expense: 'reimb.kind.expense',
 };
-const STATUS_KEY: Record<ReimburseEntryStatus, TranslationKey> = {
+const STATUS_KEY: Record<ReimburseCompleteness, TranslationKey> = {
   draft: 'reimb.status.draft',
   partial: 'reimb.status.partial',
   complete: 'reimb.status.complete',

@@ -147,21 +147,21 @@ test('package drafts allow missing money, retry creation and later correct invoi
     expect(first.statusCode).toBe(201);
     const id = first.json().entry.id;
     expect((await create()).json().entry.id).toBe(id);
-    const edit = await app.inject({ method: 'PATCH', url: `/api/reimburse/entries/${id}`, headers: { cookie }, payload: { totalAmountFen: 12345, invoiceNo: 'NEW-123', invoiceType: 'vatOrdinary' } });
+    const edit = await app.inject({ method: 'PATCH', url: `/api/reimburse/entries/${id}`, headers: { cookie }, payload: { expectedRevision: 1, totalAmountFen: 12345, invoiceNo: 'NEW-123', invoiceType: 'vatOrdinary' } });
     expect(edit.statusCode).toBe(200);
     expect(edit.json().entry).toMatchObject({ totalAmountFen: 12345, invoiceNo: 'NEW-123', invoiceType: 'vatOrdinary' });
     expect(first.json().entry).not.toHaveProperty('creationRequest');
     const second = await app.inject({ method: 'POST', url: '/api/reimburse/entries', headers: { cookie }, payload: goodsEntryPayload({ invoiceNo: 'OTHER-123' }) });
     expect(second.statusCode).toBe(201);
-    expect((await app.inject({ method: 'PATCH', url: `/api/reimburse/entries/${id}`, headers: { cookie }, payload: { invoiceNo: 'OTHER-123' } })).statusCode).toBe(409);
-    expect((await app.inject({ method: 'PATCH', url: `/api/reimburse/entries/${id}`, headers: { cookie }, payload: { invoiceNo: null } })).statusCode).toBe(200);
+    expect((await app.inject({ method: 'PATCH', url: `/api/reimburse/entries/${id}`, headers: { cookie }, payload: { expectedRevision: 2, invoiceNo: 'OTHER-123' } })).statusCode).toBe(409);
+    expect((await app.inject({ method: 'PATCH', url: `/api/reimburse/entries/${id}`, headers: { cookie }, payload: { expectedRevision: 2, invoiceNo: null } })).statusCode).toBe(200);
     expect((await app.inject({ method: 'POST', url: '/api/reimburse/entries', headers: { cookie }, payload: goodsEntryPayload({ invoiceNo: 'NEW-123' }) })).statusCode).toBe(201);
     expect((await create()).json().entry.id).toBe(id);
     const changed = await app.inject({ method: 'POST', url: '/api/reimburse/entries', headers: { cookie }, payload: { ...payload, totalAmountFen: 5 } });
     expect(changed.statusCode).toBe(409);
     const other = await login(app, 'm-b');
     expect((await app.inject({ method: 'POST', url: '/api/reimburse/entries', headers: { cookie: other }, payload })).json().entry.id).not.toBe(id);
-    expect((await app.inject({ method: 'PATCH', url: `/api/reimburse/entries/${id}`, headers: { cookie: other }, payload: { totalAmountFen: 10 } })).statusCode).toBe(403);
+    expect((await app.inject({ method: 'PATCH', url: `/api/reimburse/entries/${id}`, headers: { cookie: other }, payload: { expectedRevision: 3, totalAmountFen: 10 } })).statusCode).toBe(403);
   } finally { await app.close(); }
 });
 /** goods 条目写体（每次调用给唯一发票号，防用例间互撞查重）。 */
@@ -169,6 +169,9 @@ function goodsEntryPayload(over: Record<string, unknown> = {}) {
   invoiceSeq += 1;
   return {
     projectId: 'prj-robots',
+    seasonId: '2027RC',
+    expenseType: 'purchase',
+    summary: '合成采购',
     kind: 'goods',
     invoiceNo: `20260701${String(invoiceSeq).padStart(12, '0')}`,
     invoiceDate: '2026-07-01',
@@ -182,7 +185,7 @@ function goodsEntryPayload(over: Record<string, unknown> = {}) {
       { name: '热缩管', unit: '米', quantity: 2, unitPriceFen: 250, amountFen: 500 },
     ],
     actualItemName: null,
-    materials: { paymentShot: false, inspection: false },
+    materials: { invoice: false, paymentShot: false, inspection: false },
     note: null,
     ...over,
   };
@@ -285,8 +288,8 @@ describe('GET/POST /api/reimburse/entries — 过滤与查重', () => {
   });
 });
 
-describe('PATCH /api/reimburse/entries/:id — 本人或超管', () => {
-  test('本人改材料 checklist → 200；他人 → 403；超管 → 200；未知条目 → 404；悬空批次 → 400', async () => {
+describe('PATCH /api/reimburse/entries/:id — 本人、财务与版本', () => {
+  test('本人改草稿；他人 403；财务仅在核对中修正；未知条目与跨域批次明确报错', async () => {
     const { app } = buildTestApp();
     try {
       const cookieA = await login(app, 'm-a');
@@ -295,50 +298,40 @@ describe('PATCH /api/reimburse/entries/:id — 本人或超管', () => {
       const entry = await createEntry(app, cookieA);
 
       const forbidden = await app.inject({
-        method: 'PATCH',
-        url: `/api/reimburse/entries/${entry.id}`,
-        headers: { cookie: cookieB },
-        payload: { note: '越权改' },
+        method: 'PATCH', url: `/api/reimburse/entries/${entry.id}`, headers: { cookie: cookieB },
+        payload: { expectedRevision: 1, note: '越权改' },
       });
       expect(forbidden.statusCode).toBe(403);
-
       const own = await app.inject({
-        method: 'PATCH',
-        url: `/api/reimburse/entries/${entry.id}`,
-        headers: { cookie: cookieA },
-        payload: { materials: { paymentShot: true, inspection: false } },
+        method: 'PATCH', url: `/api/reimburse/entries/${entry.id}`, headers: { cookie: cookieA },
+        payload: { expectedRevision: 1, materials: { invoice: true, paymentShot: true, inspection: false } },
       });
       expect(own.statusCode).toBe(200);
-      const patched = UpdateReimburseEntryResponseSchema.parse(own.json()).entry;
-      expect(patched.materials.paymentShot).toBe(true);
-      expect(patched.materials.inspection).toBe(false);
+      expect(UpdateReimburseEntryResponseSchema.parse(own.json()).entry.revision).toBe(2);
 
+      expect((await app.inject({
+        method: 'PATCH', url: `/api/reimburse/entries/${entry.id}`, headers: { cookie: cookieAdmin },
+        payload: { expectedRevision: 2, note: '草稿不许财务改' },
+      })).statusCode).toBe(409);
+      await app.inject({ method: 'POST', url: `/api/reimburse/entries/${entry.id}/workflow/submit`, headers: { cookie: cookieA }, payload: { expectedRevision: 2 } });
+      await app.inject({ method: 'POST', url: `/api/reimburse/entries/${entry.id}/workflow/accept`, headers: { cookie: cookieAdmin }, payload: { expectedRevision: 2 } });
       const byAdmin = await app.inject({
-        method: 'PATCH',
-        url: `/api/reimburse/entries/${entry.id}`,
-        headers: { cookie: cookieAdmin },
-        payload: { note: '财务已核' },
+        method: 'PATCH', url: `/api/reimburse/entries/${entry.id}`, headers: { cookie: cookieAdmin },
+        payload: { expectedRevision: 2, note: '财务修正', changeReason: '对照原件' },
       });
       expect(byAdmin.statusCode).toBe(200);
 
       const missing = await app.inject({
-        method: 'PATCH',
-        url: '/api/reimburse/entries/reimb-new-999',
-        headers: { cookie: cookieAdmin },
-        payload: { note: 'x' },
+        method: 'PATCH', url: '/api/reimburse/entries/reimb-new-999', headers: { cookie: cookieAdmin },
+        payload: { expectedRevision: 1, note: 'x' },
       });
       expect(missing.statusCode).toBe(404);
-
       const danglingBatch = await app.inject({
-        method: 'PATCH',
-        url: `/api/reimburse/entries/${entry.id}`,
-        headers: { cookie: cookieA },
-        payload: { batchId: 'rbatch-new-999' },
+        method: 'PATCH', url: `/api/reimburse/entries/${entry.id}`, headers: { cookie: cookieAdmin },
+        payload: { expectedRevision: 3, batchId: 'rbatch-new-999' },
       });
       expect(danglingBatch.statusCode).toBe(400);
-    } finally {
-      await app.close();
-    }
+    } finally { await app.close(); }
   });
 });
 
@@ -359,7 +352,7 @@ describe('/api/reimburse/batches — 超管门 + 状态流转 + 聚合', () => {
         method: 'POST',
         url: '/api/reimburse/batches',
         headers: { cookie: cookieA },
-        payload: { projectId: 'prj-robots', name: '2026-08 第一批' },
+        payload: { projectId: 'prj-robots', seasonId: '2027RC', name: '2026-08 第一批' },
       });
       expect(postAsMember.statusCode).toBe(403);
 
@@ -367,7 +360,7 @@ describe('/api/reimburse/batches — 超管门 + 状态流转 + 聚合', () => {
         method: 'POST',
         url: '/api/reimburse/batches',
         headers: { cookie: cookieAdmin },
-        payload: { projectId: 'prj-robots', name: '2026-08 第一批' },
+        payload: { projectId: 'prj-robots', seasonId: '2027RC', name: '2026-08 第一批' },
       });
       expect(created.statusCode).toBe(201);
       const batch = ReimburseBatchResponseSchema.parse(created.json()).batch;
@@ -382,13 +375,13 @@ describe('/api/reimburse/batches — 超管门 + 状态流转 + 聚合', () => {
       });
       expect(patchAsMember.statusCode).toBe(403);
 
-      // 条目装批（本人 PATCH）后聚合：count/总额/未齐计数，无按人明细
+      // 财务装批；缺件不阻塞容器提交，聚合仍如实显示缺项
       const entry = await createEntry(app, cookieA);
       const assign = await app.inject({
         method: 'PATCH',
         url: `/api/reimburse/entries/${entry.id}`,
-        headers: { cookie: cookieA },
-        payload: { batchId: batch.id },
+        headers: { cookie: cookieAdmin },
+        payload: { expectedRevision: 1, batchId: batch.id },
       });
       expect(assign.statusCode).toBe(200);
 
@@ -398,21 +391,8 @@ describe('/api/reimburse/batches — 超管门 + 状态流转 + 聚合', () => {
         headers: { cookie: cookieAdmin },
         payload: { status: 'submitted' },
       });
-      expect(blocked.statusCode).toBe(409);
-      expect(blocked.json().code).toBe('REIMBURSE_BATCH_BLOCKED');
-
-      await app.inject({
-        method: 'PATCH',
-        url: `/api/reimburse/entries/${entry.id}`,
-        headers: { cookie: cookieA },
-        payload: { materials: { paymentShot: true, inspection: true } },
-      });
-      const flowed = await app.inject({
-        method: 'PATCH',
-        url: `/api/reimburse/batches/${batch.id}`,
-        headers: { cookie: cookieAdmin },
-        payload: { status: 'submitted' },
-      });
+      expect(blocked.statusCode).toBe(200);
+      const flowed = blocked;
       expect(flowed.statusCode).toBe(200);
       expect(ReimburseBatchResponseSchema.parse(flowed.json()).batch.status).toBe('submitted');
 
@@ -427,8 +407,9 @@ describe('/api/reimburse/batches — 超管门 + 状态流转 + 聚合', () => {
       expect(summary).toMatchObject({
         count: 1,
         totalAmountFen: 2500,
-        incompleteCount: 0,
-        financial: { gross: { count: 1 }, eligible: { count: 1 }, blocked: { count: 0 } },
+        incompleteCount: 1,
+        progress: 'processing',
+        financial: { gross: { count: 1 }, eligible: { count: 0 }, blocked: { count: 1 } },
       });
       expect(body.profile.expectedPurchaserName).toBe('哈尔滨工业大学');
       // I0：聚合体无 memberId 字面
@@ -438,7 +419,7 @@ describe('/api/reimburse/batches — 超管门 + 状态流转 + 聚合', () => {
         method: 'PATCH',
         url: '/api/reimburse/batches/rbatch-new-999',
         headers: { cookie: cookieAdmin },
-        payload: { status: 'reimbursed' },
+        payload: { status: 'submitted' },
       });
       expect(missing.statusCode).toBe(404);
     } finally {
@@ -544,7 +525,7 @@ describe('POST /api/reimburse/entries/:id/stock-in — 入库联动', () => {
       });
       expect(forbidden.statusCode).toBe(403);
 
-      const expense = await createEntry(app, cookieA, { kind: 'expense', items: [] });
+      const expense = await createEntry(app, cookieA, { kind: 'expense', expenseType: 'other', items: [] });
       const expenseRes = await app.inject({
         method: 'POST',
         url: `/api/reimburse/entries/${expense.id}/stock-in`,
@@ -690,135 +671,83 @@ describe('匿名模式（identityMode=anonymous）', () => {
   });
 });
 
-describe('批次不可变快照与状态机（REIMBURSE-DEFECTS #2/#4）', () => {
-  test('提交后：条目归属/材料冻结、装批拒绝、改名拒绝；状态只允许顺向推进', async () => {
+describe('批次归集容器（D-099）', () => {
+  test('提交批次不冻结条目；归属变化留历史且不改核对版本；不能伪造成已打款', async () => {
     const { app } = buildTestApp();
     try {
       const cookieA = await login(app, 'm-a');
       const cookieAdmin = await login(app, 'm-admin');
-
       const created = await app.inject({
-        method: 'POST',
-        url: '/api/reimburse/batches',
-        headers: { cookie: cookieAdmin },
-        payload: { projectId: 'prj-robots', name: '2026-08 锁批' },
+        method: 'POST', url: '/api/reimburse/batches', headers: { cookie: cookieAdmin },
+        payload: { projectId: 'prj-robots', seasonId: '2027RC', name: '2027RC 第一批' },
       });
       const batch = ReimburseBatchResponseSchema.parse(created.json()).batch;
-
       const entry = await createEntry(app, cookieA);
-      await app.inject({
-        method: 'PATCH',
-        url: `/api/reimburse/entries/${entry.id}`,
-        headers: { cookie: cookieA },
-        payload: {
-          batchId: batch.id,
-          materials: { paymentShot: true, inspection: true },
-        },
+      const assigned = await app.inject({
+        method: 'PATCH', url: `/api/reimburse/entries/${entry.id}`, headers: { cookie: cookieAdmin },
+        payload: { expectedRevision: 1, batchId: batch.id },
       });
-      const submitted = await app.inject({
-        method: 'PATCH',
-        url: `/api/reimburse/batches/${batch.id}`,
-        headers: { cookie: cookieAdmin },
+      expect(assigned.json().entry).toMatchObject({ revision: 1, batchId: batch.id });
+      expect(assigned.json().entry.history.at(-1).action).toBe('batchChanged');
+      expect((await app.inject({
+        method: 'PATCH', url: `/api/reimburse/batches/${batch.id}`, headers: { cookie: cookieAdmin },
         payload: { status: 'submitted' },
-      });
-      expect(submitted.statusCode).toBe(200);
+      })).statusCode).toBe(200);
 
-      // 提交后移出批次 → 409 快照锁
       const detach = await app.inject({
-        method: 'PATCH',
-        url: `/api/reimburse/entries/${entry.id}`,
-        headers: { cookie: cookieA },
-        payload: { batchId: null },
+        method: 'PATCH', url: `/api/reimburse/entries/${entry.id}`, headers: { cookie: cookieAdmin },
+        payload: { expectedRevision: 1, batchId: null },
       });
-      expect(detach.statusCode).toBe(409);
-      expect(detach.json().code).toBe('REIMBURSE_BATCH_LOCKED');
-
-      // 提交后改材料 → 409
+      expect(detach.statusCode).toBe(200);
       const editMaterials = await app.inject({
-        method: 'PATCH',
-        url: `/api/reimburse/entries/${entry.id}`,
-        headers: { cookie: cookieA },
-        payload: { materials: { paymentShot: false, inspection: false } },
+        method: 'PATCH', url: `/api/reimburse/entries/${entry.id}`, headers: { cookie: cookieA },
+        payload: { expectedRevision: 1, materials: { invoice: true, paymentShot: true, inspection: false } },
       });
-      expect(editMaterials.statusCode).toBe(409);
+      expect(editMaterials.statusCode).toBe(200);
+      expect(editMaterials.json().entry.revision).toBe(2);
 
-      // 装进已提交批次 → 409
       const other = await createEntry(app, cookieA);
       const attach = await app.inject({
-        method: 'PATCH',
-        url: `/api/reimburse/entries/${other.id}`,
-        headers: { cookie: cookieA },
-        payload: { batchId: batch.id },
+        method: 'PATCH', url: `/api/reimburse/entries/${other.id}`, headers: { cookie: cookieAdmin },
+        payload: { expectedRevision: 1, batchId: batch.id },
       });
-      expect(attach.statusCode).toBe(409);
-      expect(attach.json().code).toBe('REIMBURSE_BATCH_LOCKED');
-
-      // 提交后改名 → 409；回退 collecting → 409 状态机
-      const rename = await app.inject({
-        method: 'PATCH',
-        url: `/api/reimburse/batches/${batch.id}`,
-        headers: { cookie: cookieAdmin },
-        payload: { name: '改名' },
-      });
-      expect(rename.statusCode).toBe(409);
+      expect(attach.statusCode).toBe(200);
+      expect((await app.inject({
+        method: 'PATCH', url: `/api/reimburse/batches/${batch.id}`, headers: { cookie: cookieAdmin },
+        payload: { name: '改名仍可用' },
+      })).statusCode).toBe(200);
       const back = await app.inject({
-        method: 'PATCH',
-        url: `/api/reimburse/batches/${batch.id}`,
-        headers: { cookie: cookieAdmin },
+        method: 'PATCH', url: `/api/reimburse/batches/${batch.id}`, headers: { cookie: cookieAdmin },
         payload: { status: 'collecting' },
       });
       expect(back.statusCode).toBe(409);
-      expect(back.json().code).toBe('REIMBURSE_BATCH_TRANSITION');
-
-      // 顺向推进 submitted → reimbursed 放行；之后一切状态转移拒绝
-      const done = await app.inject({
-        method: 'PATCH',
-        url: `/api/reimburse/batches/${batch.id}`,
-        headers: { cookie: cookieAdmin },
+      const fakePaid = await app.inject({
+        method: 'PATCH', url: `/api/reimburse/batches/${batch.id}`, headers: { cookie: cookieAdmin },
         payload: { status: 'reimbursed' },
       });
-      expect(done.statusCode).toBe(200);
-      const reopen = await app.inject({
-        method: 'PATCH',
-        url: `/api/reimburse/batches/${batch.id}`,
-        headers: { cookie: cookieAdmin },
-        payload: { status: 'submitted' },
-      });
-      expect(reopen.statusCode).toBe(409);
-    } finally {
-      await app.close();
-    }
+      expect(fakePaid.statusCode).toBe(400);
+    } finally { await app.close(); }
   });
 
-  test('跳级拒绝：collecting 不能直达 reimbursed', async () => {
+  test('批次可改名并正常提交；完成只来自 payout', async () => {
     const { app } = buildTestApp();
     try {
       const cookieAdmin = await login(app, 'm-admin');
       const created = await app.inject({
-        method: 'POST',
-        url: '/api/reimburse/batches',
-        headers: { cookie: cookieAdmin },
-        payload: { projectId: 'prj-robots', name: '跳级批' },
+        method: 'POST', url: '/api/reimburse/batches', headers: { cookie: cookieAdmin },
+        payload: { projectId: 'prj-robots', seasonId: '2027RC', name: '归集批' },
       });
       const batch = ReimburseBatchResponseSchema.parse(created.json()).batch;
-      const skip = await app.inject({
-        method: 'PATCH',
-        url: `/api/reimburse/batches/${batch.id}`,
-        headers: { cookie: cookieAdmin },
-        payload: { status: 'reimbursed' },
+      const submit = await app.inject({
+        method: 'PATCH', url: `/api/reimburse/batches/${batch.id}`, headers: { cookie: cookieAdmin },
+        payload: { status: 'submitted' },
       });
-      expect(skip.statusCode).toBe(409);
-      expect(skip.json().code).toBe('REIMBURSE_BATCH_TRANSITION');
-      // collecting 阶段改名仍放行
+      expect(submit.statusCode).toBe(200);
       const rename = await app.inject({
-        method: 'PATCH',
-        url: `/api/reimburse/batches/${batch.id}`,
-        headers: { cookie: cookieAdmin },
-        payload: { name: '跳级批·改' },
+        method: 'PATCH', url: `/api/reimburse/batches/${batch.id}`, headers: { cookie: cookieAdmin },
+        payload: { name: '归集批·改' },
       });
       expect(rename.statusCode).toBe(200);
-    } finally {
-      await app.close();
-    }
+    } finally { await app.close(); }
   });
 });

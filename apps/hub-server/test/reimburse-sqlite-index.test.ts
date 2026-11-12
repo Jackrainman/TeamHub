@@ -14,6 +14,9 @@ import type { ReimburseEntryDraft, StoredReimburseEntry } from '../src/modules/r
 // repository 层是严格全键 draft（可空键缺省规整发生在 service 层，见 #5）。
 const draft = (invoiceNo: string | null): ReimburseEntryDraft => ({
   projectId: 'prj-robots',
+  seasonId: '2027RC',
+  expenseType: 'taxi',
+  summary: '合成打车',
   memberId: 'm-a',
   batchId: null,
   kind: 'expense',
@@ -26,7 +29,7 @@ const draft = (invoiceNo: string | null): ReimburseEntryDraft => ({
   totalAmountFen: 100,
   items: [{ name: '打车', unit: null, quantity: 1, unitPriceFen: null, amountFen: 100 }],
   actualItemName: null,
-  materials: { paymentShot: false, inspection: false },
+  materials: { invoice: false, paymentShot: false, inspection: false },
   note: null,
 });
 

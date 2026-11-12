@@ -286,7 +286,10 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
   const reimburseService = new ReimburseService(
     reimburseStore,
     // ReimburseAdminPort 窄口：pm 成员表适配（reimburse 不反向感知成员实体）。
-    { isSuperAdmin: async (memberId) => isSuperAdmin((await store.getSnapshot()).members, memberId) },
+    {
+      isSuperAdmin: async (memberId) => isSuperAdmin((await store.getSnapshot()).members, memberId),
+      displayNames: async () => Object.fromEntries((await store.getSnapshot()).members.map((member) => [member.id, member.displayName])),
+    },
     options.reimburseStockInPort,
     options.inventoryStockInPort,
     options.unitOfWork,

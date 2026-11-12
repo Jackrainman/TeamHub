@@ -34,7 +34,7 @@ import { SqliteKnowledgeRepository } from '../modules/knowledge/sqlite-repositor
 import { SqliteReimburseRepository } from '../modules/reimburse/sqlite-repository.js';
 import { SqliteScheduleRepository } from '../modules/schedule/sqlite-repository.js';
 
-export const TEAMHUB_UNIFIED_SCHEMA_VERSION = 3;
+export const TEAMHUB_UNIFIED_SCHEMA_VERSION = 4;
 
 const APP_SETTINGS_TABLE = 'app_settings';
 const APP_SETTINGS_ID = 'singleton';
@@ -68,6 +68,7 @@ export const TEAMHUB_BUSINESS_TABLES = [
   'reimburse_batches',
   'reimburse_profile',
   'reimburse_evidence_downloads',
+  'reimburse_payouts',
 ] as const;
 
 /** 业务域的初始化标记；graduate 会清掉，重启后由 real 空种子重建。 */
@@ -329,13 +330,14 @@ export function openUnifiedDb(filePath: string): UnifiedDatabase {
         db.ensureSessionTable();
         db.setUserVersion(TEAMHUB_UNIFIED_SCHEMA_VERSION);
       });
-    } else if (userVersion === 2) {
+    } else if (userVersion === 2 || userVersion === 3) {
       if (db.getMeta('schema_kind') !== 'unified') {
         throw new Error('SQLite 库缺少 schema_kind=unified 标记，拒绝迁移');
       }
-      // D-096：v2→v3 仅增加会话表，版本与 DDL 原子提交，业务数据不变。
+      // v2→v3 增加会话；v3→v4 只增加线下打款事实表，不把旧批次状态迁移成完成。
       db.tx(() => {
         db.ensureSessionTable();
+        db.ensureEntityTables(['reimburse_payouts']);
         db.setUserVersion(TEAMHUB_UNIFIED_SCHEMA_VERSION);
       });
     } else if (userVersion === TEAMHUB_UNIFIED_SCHEMA_VERSION) {

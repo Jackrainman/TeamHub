@@ -8,7 +8,14 @@ export {
   ReimburseBatchSummarySchema,
   ReimburseEntryKindSchema,
   ReimburseEntrySchema,
-  ReimburseEntryStatusSchema,
+  ReimburseCompletenessSchema,
+  ReimburseWorkflowStatusSchema,
+  ReimburseExpenseTypeSchema,
+  ReimbursePayoutSchema,
+  ReimburseStructuralSummarySchema,
+  ReimburseTypeSummarySchema,
+  ReimburseHistoryActionSchema,
+  ReimburseHistoryEventSchema,
   ReimburseEvidenceDownloadSchema,
   ReimburseEvidenceKindSchema,
   ReimburseEvidenceSchema,
@@ -26,7 +33,14 @@ export type {
   ReimburseBatchSummary,
   ReimburseEntry,
   ReimburseEntryKind,
-  ReimburseEntryStatus,
+  ReimburseCompleteness,
+  ReimburseWorkflowStatus,
+  ReimburseExpenseType,
+  ReimbursePayout,
+  ReimburseStructuralSummary,
+  ReimburseTypeSummary,
+  ReimburseHistoryAction,
+  ReimburseHistoryEvent,
   ReimburseEvidence,
   ReimburseEvidenceDownload,
   ReimburseEvidenceKind,
@@ -41,7 +55,7 @@ export {
   ReimburseReviewReasonSchema,
   derivePurchaserCheckStatus,
   deriveReimburseReviewReasons,
-  deriveReimburseStatus,
+  deriveReimburseCompleteness,
   evidenceContentType,
   evidenceExtOf,
   isEvidenceExtAllowed,
@@ -77,6 +91,17 @@ export {
   UpdateReimburseEntryResponseSchema,
   UpdateReimburseProfileRequestSchema,
   UpdateReimburseProfileResponseSchema,
+  ReimburseEntryActionSchema,
+  ReimburseEntryActionRequestSchema,
+  ReimburseEntryActionResponseSchema,
+  ReimburseEvidenceMutationRequestSchema,
+  UpdateReimburseEvidenceRequestSchema,
+  CreateReimbursePayoutRequestSchema,
+  ReimbursePayoutResponseSchema,
+  ReimbursePayoutsResponseSchema,
+  ReimburseExportRequestSchema,
+  ReimburseSummaryQuerySchema,
+  ReimburseSummaryResponseSchema,
 } from './requests.js';
 export type {
   CreateReimburseBatchRequest,
@@ -102,6 +127,17 @@ export type {
   UpdateReimburseEntryResponse,
   UpdateReimburseProfileRequest,
   UpdateReimburseProfileResponse,
+  ReimburseEntryAction,
+  ReimburseEntryActionRequest,
+  ReimburseEntryActionResponse,
+  ReimburseEvidenceMutationRequest,
+  UpdateReimburseEvidenceRequest,
+  CreateReimbursePayoutRequest,
+  ReimbursePayoutResponse,
+  ReimbursePayoutsResponse,
+  ReimburseExportRequest,
+  ReimburseSummaryQuery,
+  ReimburseSummaryResponse,
 } from './requests.js';
 
 export {
@@ -126,6 +162,8 @@ export {
   deriveBatchSummary,
   deriveReimburseExportRow,
   deriveReimburseFinancialSummary,
+  deriveReimburseStructuralSummary,
+  deriveReimburseDeliveryRow,
   REIMBURSE_EXPORT_COLUMNS,
   suggestReimburseFilename,
 } from './export.js';
@@ -134,6 +172,16 @@ export type {
   ReimburseExportCsvRow,
   ReimburseExportOptions,
   ReimburseExportRow,
+  ReimburseDeliveryRow,
 } from './export.js';
-export { classifyInvoiceType, classifyPackageText, derivePackageReview } from './import-package.js';
-export type { PackageRole, PackageCandidate, PackageReviewReason, PackageReview } from './import-package.js';
+export { classifyInvoiceType, classifyPackageText, derivePackageReview, suggestPackageExpenseType } from './import-package.js';
+export type { PackageRole, PackageCandidate, PackageReviewReason, PackageReview, PackageExpenseSuggestion } from './import-package.js';
+export {
+  canTransitionReimburseWorkflow,
+  deriveReimburseBatchProgress,
+  kindForExpenseType,
+  validateReimburseApproval,
+  validateReimbursePayout,
+  validateReimburseSubmission,
+} from './workflow.js';
+export type { ReimburseBatchProgress } from './workflow.js';

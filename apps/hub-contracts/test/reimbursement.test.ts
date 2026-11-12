@@ -15,7 +15,7 @@ import {
   derivePurchaserCheckStatus,
   deriveReimburseFinancialSummary,
   deriveReimburseReviewReasons,
-  deriveReimburseStatus,
+  deriveReimburseCompleteness,
   parseInvoicePdfText,
   parseInvoiceXmlText,
   suggestReimburseFilename,
@@ -279,7 +279,7 @@ describe('CreateReimburseEntryRequestSchema 可空键宽容（REIMBURSE-DEFECTS 
     recognitionSource: 'manual' as const,
     totalAmountFen: 3200,
     items: [{ name: '打车', unit: null, quantity: 1, unitPriceFen: null, amountFen: 3200 }],
-    materials: { paymentShot: false, inspection: false },
+    materials: { invoice: true, paymentShot: false, inspection: false },
   };
 
   test('省略 nullable 键（purchaserName/seller/note/invoiceNo 等）也能过', () => {
@@ -315,7 +315,7 @@ describe('cleanInvoiceItemName', () => {
 });
 
 // ---------------------------------------------------------------------------
-// deriveReimburseStatus（三档派生）
+// deriveReimburseCompleteness（三档派生）
 // ---------------------------------------------------------------------------
 
 function makeEntry(overrides: Partial<ReimburseEntry> = {}): ReimburseEntry {
@@ -334,7 +334,7 @@ function makeEntry(overrides: Partial<ReimburseEntry> = {}): ReimburseEntry {
     totalAmountFen: 0,
     items: [],
     actualItemName: null,
-    materials: { paymentShot: false, inspection: false },
+    materials: { invoice: false, paymentShot: false, inspection: false },
     note: null,
     createdAt: NOW,
     updatedAt: NOW,
@@ -342,19 +342,19 @@ function makeEntry(overrides: Partial<ReimburseEntry> = {}): ReimburseEntry {
   });
 }
 
-describe('deriveReimburseStatus', () => {
+describe('deriveReimburseCompleteness', () => {
   test('draft：全空条目', () => {
-    expect(deriveReimburseStatus(makeEntry())).toBe('draft');
+    expect(deriveReimburseCompleteness(makeEntry())).toBe('draft');
   });
 
   test('partial：发票字段齐但材料未勾 / 部分填写', () => {
     // 只填了发票号 → partial
     expect(
-      deriveReimburseStatus(makeEntry({ invoiceNo: '26337000000651169782' })),
+      deriveReimburseCompleteness(makeEntry({ invoiceNo: '26337000000651169782' })),
     ).toBe('partial');
     // 核心字段齐 + 明细齐，但材料 checklist 未勾 → 仍 partial
     expect(
-      deriveReimburseStatus(
+      deriveReimburseCompleteness(
         makeEntry({
           invoiceNo: '26337000000651169782',
           invoiceDate: '2026-07-06',
@@ -376,7 +376,7 @@ describe('deriveReimburseStatus', () => {
 
   test('complete：核心字段齐 + 明细齐（goods）+ 材料全勾', () => {
     expect(
-      deriveReimburseStatus(
+      deriveReimburseCompleteness(
         makeEntry({
           invoiceNo: '26337000000651169782',
           invoiceDate: '2026-07-06',
@@ -391,32 +391,32 @@ describe('deriveReimburseStatus', () => {
               amountFen: 12062,
             },
           ],
-          materials: { paymentShot: true, inspection: true },
+          materials: { invoice: true, paymentShot: true, inspection: true },
         }),
       ),
     ).toBe('complete');
     // expense 无需明细即可 complete
     expect(
-      deriveReimburseStatus(
+      deriveReimburseCompleteness(
         makeEntry({
           kind: 'expense',
           invoiceNo: '26332000002742642046',
           invoiceDate: '2026-04-03',
           seller: '某快递公司',
           totalAmountFen: 6900,
-          materials: { paymentShot: true, inspection: true },
+          materials: { invoice: true, paymentShot: true, inspection: true },
         }),
       ),
     ).toBe('complete');
     // goods 明细为空 → 不齐
     expect(
-      deriveReimburseStatus(
+      deriveReimburseCompleteness(
         makeEntry({
           invoiceNo: '26337000000651169782',
           invoiceDate: '2026-07-06',
           seller: '杭州洋橙电子商务有限公司',
           totalAmountFen: 12062,
-          materials: { paymentShot: true, inspection: true },
+          materials: { invoice: true, paymentShot: true, inspection: true },
         }),
       ),
     ).toBe('partial');
@@ -448,7 +448,7 @@ describe('deriveBatchSummary', () => {
           amountFen: 12062,
         },
       ],
-      materials: { paymentShot: true, inspection: true },
+      materials: { invoice: true, paymentShot: true, inspection: true },
     });
     const partial = makeEntry({
       id: 'reimb-b',
@@ -470,6 +470,8 @@ describe('deriveBatchSummary', () => {
       count: 2,
       totalAmountFen: 12062 + 6900,
       incompleteCount: 1,
+      unknownAmountCount: 0,
+      progress: 'processing',
       financial: {
         gross: { count: 2, amountFen: 12062 + 6900 },
         eligible: { count: 1, amountFen: 12062 },
@@ -482,6 +484,8 @@ describe('deriveBatchSummary', () => {
       count: 0,
       totalAmountFen: 0,
       incompleteCount: 0,
+      unknownAmountCount: 0,
+      progress: 'empty',
       financial: {
         gross: { count: 0, amountFen: 0 },
         eligible: { count: 0, amountFen: 0 },
@@ -520,6 +524,8 @@ describe('窄入库上下文与批次响应', () => {
       count: 0,
       totalAmountFen: 0,
       incompleteCount: 0,
+      unknownAmountCount: 0,
+      progress: 'empty',
       financial: {
         gross: { count: 0, amountFen: 0 },
         eligible: { count: 0, amountFen: 0 },
@@ -598,7 +604,7 @@ describe('核对原因与财务口径', () => {
     purchaserTaxNo: '12100000400000456B',
     totalAmountFen: 1000,
     items: [{ name: '电阻', unit: '个', quantity: 1, unitPriceFen: 1000, amountFen: 1000 }],
-    materials: { paymentShot: true, inspection: true },
+    materials: { invoice: true, paymentShot: true, inspection: true },
     recognitionSource: 'xml' as const,
   };
 

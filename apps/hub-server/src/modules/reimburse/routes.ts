@@ -8,6 +8,16 @@ import {
   ReimburseBatchResponseSchema,
   ReimburseBatchesResponseSchema,
   ReimburseEntriesResponseSchema,
+  ReimburseEntryActionRequestSchema,
+  ReimburseEntryActionResponseSchema,
+  ReimburseEntryActionSchema,
+  ReimburseEvidenceMutationRequestSchema,
+  ReimburseExportRequestSchema,
+  ReimburseSummaryQuerySchema,
+  ReimburseSummaryResponseSchema,
+  CreateReimbursePayoutRequestSchema,
+  ReimbursePayoutResponseSchema,
+  ReimbursePayoutsResponseSchema,
   ReimburseEvidenceDownloadsResponseSchema,
   ReimburseEvidenceKindSchema,
   ReimburseEvidenceListResponseSchema,
@@ -18,12 +28,13 @@ import {
   UpdateReimburseBatchRequestSchema,
   UpdateReimburseEntryRequestSchema,
   UpdateReimburseEntryResponseSchema,
+  UpdateReimburseEvidenceRequestSchema,
   UpdateReimburseProfileRequestSchema,
   UpdateReimburseProfileResponseSchema,
   UploadReimburseEvidenceResponseSchema,
 } from '@teamhub/hub-contracts';
 import { isApplicationError } from '../../application/application-error.js';
-import { parseBody, requireActor, sendApplicationError } from '../../http/helpers.js';
+import { parseBody, parseQuery, requireActor, sendApplicationError } from '../../http/helpers.js';
 import type { ReimburseService } from './service.js';
 
 export interface ReimburseRouteDeps {
@@ -79,6 +90,64 @@ export function registerReimburseRoutes(app: FastifyInstance, { service }: Reimb
     return present(reply, async () => UpdateReimburseEntryResponseSchema.parse({
       entry: await service.updateEntry(id, body, actor),
     }));
+  });
+
+  app.post('/api/reimburse/entries/:id/workflow/:action', async (request, reply) => {
+    const body = parseBody(ReimburseEntryActionRequestSchema, request, reply);
+    if (!body) return;
+    const actor = requireActor(request, reply, undefined, '报账工作流操作须先登录');
+    if (!actor) return;
+    const { id, action: rawAction } = request.params as { id: string; action: string };
+    const action = ReimburseEntryActionSchema.safeParse(rawAction);
+    if (!action.success) {
+      void reply.code(400).send({ code: 'REIMBURSE_ACTION_UNKNOWN', detail: '未知报账动作' });
+      return reply;
+    }
+    return present(reply, async () => ReimburseEntryActionResponseSchema.parse({
+      entry: await service.entryAction(id, action.data, body, actor),
+    }));
+  });
+
+  app.post('/api/reimburse/payouts', async (request, reply) => {
+    const body = parseBody(CreateReimbursePayoutRequestSchema, request, reply);
+    if (!body) return;
+    const actor = requireActor(request, reply, undefined, '登记打款须先登录');
+    if (!actor) return;
+    return present(reply, async () => {
+      const payout = await service.createPayout(body, actor);
+      void reply.code(201);
+      return ReimbursePayoutResponseSchema.parse({ payout });
+    });
+  });
+
+  app.get('/api/reimburse/payouts', async (request, reply) =>
+    present(reply, async () => ReimbursePayoutsResponseSchema.parse({
+      payouts: await service.listPayouts(request.identity),
+    })),
+  );
+
+  app.get('/api/reimburse/summary', async (request, reply) => {
+    const query = parseQuery(ReimburseSummaryQuerySchema, request, reply);
+    if (!query) return;
+    return present(reply, async () => ReimburseSummaryResponseSchema.parse({
+      summary: await service.getStructuralSummary(request.identity, query),
+    }));
+  });
+
+  app.post('/api/reimburse/export', async (request, reply) => {
+    const body = parseBody(ReimburseExportRequestSchema, request, reply);
+    if (!body) return;
+    const actor = requireActor(request, reply, undefined, '导出报账须先登录');
+    if (!actor) return;
+    try {
+      const result = await service.exportEntries(body, request.identity, actor);
+      void reply.header('content-disposition', `attachment; filename*=UTF-8''${encodeURIComponent(result.filename)}`);
+      void reply.type(result.contentType);
+      return result.content;
+    } catch (error) {
+      if (sendApplicationError(error, reply)) return reply;
+      throw error;
+    }
   });
 
   app.get('/api/reimburse/profile', async (_request, reply) =>
@@ -148,6 +217,13 @@ export function registerReimburseRoutes(app: FastifyInstance, { service }: Reimb
       void reply.code(400).send({ detail: 'kind 须为 invoice / paymentShot / inspection' });
       return reply;
     }
+    const revisionField = data.fields['expectedRevision'];
+    const rawRevision = revisionField && !Array.isArray(revisionField) && revisionField.type === 'field' ? revisionField.value : undefined;
+    const revision = ReimburseEvidenceMutationRequestSchema.safeParse({ expectedRevision: Number(rawRevision) });
+    if (!revision.success) {
+      void reply.code(400).send({ code: 'REIMBURSE_REVISION_REQUIRED', detail: '上传须携带当前条目版本' });
+      return reply;
+    }
     let buf: Buffer;
     try {
       buf = await data.toBuffer();
@@ -165,14 +241,15 @@ export function registerReimburseRoutes(app: FastifyInstance, { service }: Reimb
     }
     const { id } = request.params as { id: string };
     try {
-      const evidence = await service.uploadEvidence(
+      const result = await service.uploadEvidence(
         id,
         kind.data,
         { filename: data.filename, buf },
         actor,
+        revision.data.expectedRevision,
       );
       void reply.code(201);
-      return UploadReimburseEvidenceResponseSchema.parse({ evidence });
+      return UploadReimburseEvidenceResponseSchema.parse(result);
     } catch (err) {
       if (sendEvidenceUploadError(err, reply)) return reply;
       void reply.code(500).send({ detail: '保存文件失败' });
@@ -207,12 +284,25 @@ export function registerReimburseRoutes(app: FastifyInstance, { service }: Reimb
     }
   });
 
+  app.patch('/api/reimburse/entries/:id/evidence/:evidenceId', async (request, reply) => {
+    const body = parseBody(UpdateReimburseEvidenceRequestSchema, request, reply);
+    if (!body) return;
+    const actor = requireActor(request, reply, undefined, '修改原件用途须先登录');
+    if (!actor) return;
+    const { id, evidenceId } = request.params as { id: string; evidenceId: string };
+    return present(reply, () => UploadReimburseEvidenceResponseSchema.parse(
+      service.changeEvidenceKind(id, evidenceId, body.kind, actor, body.expectedRevision),
+    ));
+  });
+
   app.delete('/api/reimburse/entries/:id/evidence/:evidenceId', async (request, reply) => {
+    const body = parseBody(ReimburseEvidenceMutationRequestSchema, request, reply);
+    if (!body) return;
     const actor = requireActor(request, reply, undefined, '删除凭证须先登录');
     if (!actor) return;
     const { id, evidenceId } = request.params as { id: string; evidenceId: string };
     return present(reply, async () => DeleteReimburseEvidenceResponseSchema.parse({
-      evidence: await service.deleteEvidence(id, evidenceId, actor),
+      evidence: await service.deleteEvidence(id, evidenceId, actor, body.expectedRevision),
     }));
   });
 

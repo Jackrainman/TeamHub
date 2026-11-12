@@ -5,6 +5,7 @@ import type { PackageAttachment } from './package-import';
 export interface PackageSaveState {
   clientRequestId: string;
   entryId?: string;
+  revision?: number;
   request?: CreateReimburseEntryRequest;
   completed?: number;
 }
@@ -22,7 +23,11 @@ export async function saveReimbursePackage(
   }
   state.request ??= { ...request, clientRequestId: state.clientRequestId };
   if (!state.entryId) {
-    try { state.entryId = (await client.createReimburseEntry(state.request)).entry.id; }
+    try {
+      const created = await client.createReimburseEntry(state.request);
+      state.entryId = created.entry.id;
+      state.revision = created.entry.revision;
+    }
     catch (error) {
       // 明确拒绝的请求没有落库，允许修正；网络中断仍固定原请求以便幂等重试。
       if (error instanceof Error && /^(?:Hub API )?4\d\d:/.test(error.message)) state.request = undefined;
@@ -31,7 +36,8 @@ export async function saveReimbursePackage(
   }
   for (let i = state.completed ?? 0; i < included.length; i++) {
     const attachment = included[i];
-    await client.uploadReimburseEvidence(state.entryId, attachment.role === 'unknown' ? 'supporting' : attachment.role, attachment.file);
+    const uploaded = await client.uploadReimburseEvidence(state.entryId, attachment.role === 'unknown' ? 'supporting' : attachment.role, attachment.file, state.revision ?? 1);
+    state.revision = uploaded.entry.revision;
     state.completed = i + 1;
   }
 }

@@ -17,6 +17,8 @@ import { REIMBURSE_EVIDENCE_MAX_BYTES, type ReimburseEvidence } from '@teamhub/h
 function draft(overrides: Partial<EntryDraft>): EntryDraft {
   return {
     kind: 'expense',
+    expenseType: null,
+    summary: '',
     invoiceNo: '',
     invoiceDate: '',
     seller: '',

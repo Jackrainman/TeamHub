@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import type { ReimburseSegment } from '../api';
-import { derivePackageReview, DEFAULT_REIMBURSE_PROFILE, type InvoiceType, type ReimburseEntry, type ReimburseEntryKind, type ReimburseProfile } from '@teamhub/hub-contracts';
+import { derivePackageReview, DEFAULT_REIMBURSE_PROFILE, kindForExpenseType, type InvoiceType, type ReimburseEntry, type ReimburseExpenseType, type ReimburseProfile } from '@teamhub/hub-contracts';
 import {
   useSaveReimbursePackage,
   useUpdateReimburseEntry,
@@ -23,9 +23,11 @@ import { ReimbursePackageReview } from './ReimbursePackageReview';
 import { draftFromParsedInvoice } from '../reimburse-import';
 import type { PackageSaveState } from '../lib/package-save';
 
-const KIND_OPTIONS: { value: ReimburseEntryKind; labelKey: TranslationKey }[] = [
-  { value: 'goods', labelKey: 'reimb.kind.goods' },
-  { value: 'expense', labelKey: 'reimb.kind.expense' },
+const EXPENSE_OPTIONS: { value: ReimburseExpenseType; labelKey: TranslationKey }[] = [
+  { value: 'purchase', labelKey: 'reimb.expenseType.purchase' },
+  { value: 'taxi', labelKey: 'reimb.expenseType.taxi' },
+  { value: 'ticket', labelKey: 'reimb.expenseType.ticket' },
+  { value: 'other', labelKey: 'reimb.expenseType.other' },
 ];
 
 /**
@@ -37,6 +39,7 @@ export function ReimburseEntryForm({
   client,
   source,
   projectId,
+  seasonId = 'unassigned',
   canWrite,
   writeLockedHint,
   initial,
@@ -44,10 +47,15 @@ export function ReimburseEntryForm({
   onDraftChange,
   profile = DEFAULT_REIMBURSE_PROFILE,
   editingEntry,
+  importTargets = [],
+  onSplitAttachment,
+  onMoveAttachment,
+  presetExpenseType = null,
 }: {
   client: ReimburseSegment;
   source: string;
   projectId: string;
+  seasonId?: string;
   canWrite: boolean;
   writeLockedHint: string | null;
   /** 导入预填：变化时父组件用 key 重挂本表单；null/缺省 = 手动录入。 */
@@ -57,13 +65,23 @@ export function ReimburseEntryForm({
   onDraftChange?: (draft: EntryDraft) => void;
   profile?: ReimburseProfile;
   editingEntry?: ReimburseEntry;
+  importTargets?: { id: number; label: string }[];
+  onSplitAttachment?: (path: string) => void;
+  onMoveAttachment?: (path: string, targetId: number) => void;
+  presetExpenseType?: ReimburseExpenseType | null;
 }) {
   const { t } = useI18n();
-  const [draft, setDraft] = useState<EntryDraft>(() => editingEntry ? {
-    ...draftFromParsedInvoice({ ...editingEntry, invoiceNo: editingEntry.invoiceNo ?? '' }),
-    kind: editingEntry.kind, invoiceType: editingEntry.invoiceType ?? 'unknown',
-    actualItemName: editingEntry.actualItemName ?? '', note: editingEntry.note ?? '',
-  } : initial?.draft ?? emptyEntryDraft());
+  const [draft, setDraft] = useState<EntryDraft>(() => {
+    if (editingEntry) return {
+      ...draftFromParsedInvoice({ ...editingEntry, invoiceNo: editingEntry.invoiceNo ?? '' }),
+      kind: editingEntry.kind, expenseType: editingEntry.expenseType, summary: editingEntry.summary ?? '', invoiceType: editingEntry.invoiceType ?? 'unknown',
+      actualItemName: editingEntry.actualItemName ?? '', note: editingEntry.note ?? '',
+    };
+    if (initial?.draft) return initial.draft;
+    const empty = emptyEntryDraft();
+    if (presetExpenseType) { empty.expenseType = presetExpenseType; empty.kind = kindForExpenseType(presetExpenseType); }
+    return empty;
+  });
   const [attachments, setAttachments] = useState(() => initial?.package?.attachments ?? []);
   const [saveState] = useState<PackageSaveState>(() => initial?.saveState ?? { clientRequestId: crypto.randomUUID() });
   useEffect(() => onDraftChange?.(draft), [draft, onDraftChange]);
@@ -84,21 +102,29 @@ export function ReimburseEntryForm({
 
   const patch = (partial: Partial<EntryDraft>) =>
     setDraft((d) => ({ ...d, ...partial }));
+  function splitAttachment(path: string): void {
+    setAttachments((current) => current.filter((item) => item.path !== path));
+    onSplitAttachment?.(path);
+  }
+  function moveAttachment(path: string, targetId: number): void {
+    setAttachments((current) => current.filter((item) => item.path !== path));
+    onMoveAttachment?.(path, targetId);
+  }
   const patchItem = (index: number, partial: Partial<EntryDraft['items'][number]>) =>
     setDraft((d) => ({
       ...d,
       items: d.items.map((row, i) => (i === index ? { ...row, ...partial } : row)),
     }));
 
-  const request = buildCreateEntryRequest(draft, projectId);
+  const request = buildCreateEntryRequest(draft, projectId, seasonId);
   const valid = request !== null;
 
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!request || !canWrite) return;
     if (editingEntry) {
-      const { projectId: _projectId, materials: _materials, recognitionSource: _recognition, ...patch } = request;
-      updateMutation.mutate({ id: editingEntry.id, patch }, { onSuccess: () => onDone?.() });
+      const { projectId: _projectId, seasonId: _seasonId, materials: _materials, recognitionSource: _recognition, ...patch } = request;
+      updateMutation.mutate({ id: editingEntry.id, patch: { ...patch, expectedRevision: editingEntry.revision } }, { onSuccess: () => onDone?.() });
     } else if (packageValid) saveMutation.mutate({ request, attachments, state: saveState });
   }
 
@@ -110,7 +136,8 @@ export function ReimburseEntryForm({
         </div>
       </header>}
       {initial?.package && <ReimbursePackageReview data={initial.package} attachments={attachments}
-        request={request} profile={profile} locked={frozen} onChange={next => { setAttachments(next); initial.package!.attachments = next; }} />}
+        request={request} profile={profile} locked={frozen} targets={importTargets} onSplit={splitAttachment} onMove={moveAttachment}
+        onChange={next => { setAttachments(next); initial.package!.attachments = next; }} />}
       {!!saveState.request && <p role="status">{t('reimb.package.retryHint')}</p>}
       {saveState.entryId && <p role="status">{t('reimb.package.saved', { done: saveState.completed ?? 0, total: attachments.filter(a => a.included).length })}</p>}
       <form className="pm-form" onSubmit={submit}>
@@ -122,15 +149,15 @@ export function ReimburseEntryForm({
           </select>
         </Field>
         <FormGrid>
-          <Field label={t('reimb.create.field.kind')} className="span-all">
-            <SegToggle<ReimburseEntryKind>
-              value={draft.kind}
-              onChange={(kind) => patch({ kind })}
-              ariaLabel={t('reimb.create.field.kind')}
-              options={KIND_OPTIONS.map((o) => ({
-                value: o.value,
-                label: t(o.labelKey),
-              }))}
+          <Field label={t('reimb.create.field.summary')} className="span-all">
+            <input value={draft.summary} onChange={(event) => patch({ summary: event.target.value })} />
+          </Field>
+          <Field label={t('reimb.create.field.expenseType')} className="span-all">
+            <SegToggle<ReimburseExpenseType>
+              value={draft.expenseType}
+              onChange={(expenseType) => patch({ expenseType, kind: kindForExpenseType(expenseType) })}
+              ariaLabel={t('reimb.create.field.expenseType')}
+              options={EXPENSE_OPTIONS.map((option) => ({ value: option.value, label: t(option.labelKey) }))}
             />
           </Field>
         </FormGrid>
@@ -200,7 +227,7 @@ export function ReimburseEntryForm({
           </Field>
         </FormGrid>
 
-        {draft.kind === 'goods' ? (
+        {draft.expenseType === 'purchase' || (!draft.expenseType && draft.kind === 'goods') ? (
           <div className="reimb-items-editor">
             <p className="reimb-items-editor__title">{t('reimb.create.items.title')}</p>
             {draft.items.map((row, index) => (

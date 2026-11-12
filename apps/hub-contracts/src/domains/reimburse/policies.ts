@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import type {
   ReimburseEntry,
-  ReimburseEntryStatus,
+  ReimburseCompleteness,
   ReimburseProfile,
 } from './model.js';
 
@@ -65,19 +65,20 @@ export function derivePurchaserCheckStatus(
   return 'match';
 }
 
-/** 保留既有三档就绪度语义；购买方质量门由独立 policy 处理。 */
-export function deriveReimburseStatus(entry: ReimburseEntry): ReimburseEntryStatus {
+/** 资料完整度只描述字段与原件，不表示财务核准或打款（D-099）。 */
+export function deriveReimburseCompleteness(entry: ReimburseEntry): ReimburseCompleteness {
   const coreFilled =
     entry.invoiceNo !== null &&
     entry.invoiceDate !== null &&
     entry.seller !== null &&
     (entry.totalAmountFen ?? 0) > 0 &&
     (entry.kind !== 'goods' || entry.items.length > 0);
-  const materialsDone = entry.materials.paymentShot;
+  const materialsDone = entry.materials.invoice !== false && entry.materials.paymentShot;
   if (coreFilled && materialsDone) {
     return 'complete';
   }
   const anyFilled =
+    entry.summary !== null ||
     entry.invoiceNo !== null ||
     entry.invoiceDate !== null ||
     entry.seller !== null ||
@@ -86,13 +87,15 @@ export function deriveReimburseStatus(entry: ReimburseEntry): ReimburseEntryStat
     (entry.totalAmountFen ?? 0) > 0 ||
     entry.items.length > 0 ||
     entry.actualItemName !== null ||
+    entry.materials.invoice === true ||
     entry.materials.paymentShot ||
     entry.materials.inspection;
   return anyFilled ? 'partial' : 'draft';
 }
 
 export function deriveReimburseReviewReasons(
-  entry: Pick<ReimburseEntry, 'invoiceNo' | 'invoiceDate' | 'seller' | 'totalAmountFen' | 'kind' | 'items' | 'purchaserName' | 'purchaserTaxNo' | 'recognitionSource'>,
+  entry: Pick<ReimburseEntry, 'invoiceNo' | 'invoiceDate' | 'seller' | 'totalAmountFen' | 'kind' | 'items' | 'purchaserName' | 'purchaserTaxNo' | 'recognitionSource'> &
+    Partial<Pick<ReimburseEntry, 'revision' | 'recognitionConfirmedRevision'>>,
   profile: ReimburseProfile,
 ): ReimburseReviewReason[] {
   const reasons: ReimburseReviewReason[] = [];
@@ -108,8 +111,9 @@ export function deriveReimburseReviewReasons(
   if (entry.items.some((item) => item.unitPriceFen === null)) {
     reasons.push('unit-price-imprecise');
   }
-  if (entry.recognitionSource === 'ocr') reasons.push('ocr-recognition');
-  if (entry.recognitionSource === 'manual') reasons.push('manual-entry');
+  const confirmed = entry.revision !== undefined && entry.recognitionConfirmedRevision === entry.revision;
+  if (!confirmed && entry.recognitionSource === 'ocr') reasons.push('ocr-recognition');
+  if (!confirmed && entry.recognitionSource === 'manual') reasons.push('manual-entry');
   return reasons;
 }
 
@@ -120,7 +124,7 @@ export function isReimburseEntryBlocked(
   const purchaserStatus = derivePurchaserCheckStatus(entry, profile);
   return (
     entry.totalAmountFen === null ||
-    deriveReimburseStatus(entry) !== 'complete' ||
+    deriveReimburseCompleteness(entry) !== 'complete' ||
     purchaserStatus === 'mismatch' ||
     purchaserStatus === 'missing'
   );

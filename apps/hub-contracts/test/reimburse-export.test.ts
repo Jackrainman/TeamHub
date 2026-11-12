@@ -30,7 +30,7 @@ function makeEntry(overrides: Partial<ReimburseEntry> = {}): ReimburseEntry {
     totalAmountFen: 0,
     items: [],
     actualItemName: null,
-    materials: { paymentShot: false, inspection: false },
+    materials: { invoice: false, paymentShot: false, inspection: false },
     note: null,
     createdAt: NOW,
     updatedAt: NOW,
@@ -56,7 +56,7 @@ function completeEntry(): ReimburseEntry {
         amountFen: 12062,
       },
     ],
-    materials: { paymentShot: true, inspection: true },
+    materials: { invoice: true, paymentShot: true, inspection: true },
   });
 }
 

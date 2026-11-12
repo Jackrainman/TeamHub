@@ -144,7 +144,7 @@ describe('统一 SQLite + app_settings', () => {
     old.close();
     const migrated = openUnifiedDb(dbPath);
     try {
-      expect(migrated.db.readUserVersion()).toBe(3);
+      expect(migrated.db.readUserVersion()).toBe(TEAMHUB_UNIFIED_SCHEMA_VERSION);
       expect(migrated.db.tableExists('sessions')).toBe(true);
       expect(migrated.db.rowCount('sessions')).toBe(0);
       expect(migrated.db.allRows('tasks')).toEqual([task]);
@@ -180,7 +180,7 @@ describe('统一 SQLite + app_settings', () => {
     old.close();
     const migrated = openUnifiedDb(dbPath);
     try {
-      expect(migrated.db.readUserVersion()).toBe(3);
+      expect(migrated.db.readUserVersion()).toBe(TEAMHUB_UNIFIED_SCHEMA_VERSION);
       expect(migrated.getSettings()).toEqual(settings);
       expect(TEAMHUB_BUSINESS_TABLES.map((table) => migrated.db.allRows(table))).toEqual(rows);
       expect(migrated.db.rowCount('sessions')).toBe(0);

@@ -3,11 +3,12 @@ import type { ReimburseSegment } from '../api';
 import {
   derivePurchaserCheckStatus,
   deriveReimburseReviewReasons,
-  deriveReimburseStatus,
+  deriveReimburseCompleteness,
   suggestReimburseFilename,
   type ReimburseBatch,
   type ReimburseEntry,
-  type ReimburseEntryStatus,
+  type ReimburseCompleteness,
+  type ReimbursePayout,
   type ReimburseProfile,
   type ReimburseReviewReason,
   type StockInContextResponse,
@@ -18,8 +19,9 @@ import { formatAmountFen } from '../reimburse-utils';
 import { ReimburseEvidenceSection } from './ReimburseEvidenceSection';
 import { StockInDialog } from './StockInDialog';
 import { ReimburseEntryForm } from './ReimburseEntryForm';
+import { ReimburseWorkflowActions } from './ReimburseWorkflowActions';
 
-const STATUS_BADGE: Record<ReimburseEntryStatus, { tone: string; key: TranslationKey }> = {
+const STATUS_BADGE: Record<ReimburseCompleteness, { tone: string; key: TranslationKey }> = {
   draft: { tone: 'badge--outline', key: 'reimb.status.draft' },
   partial: { tone: 'badge--amber', key: 'reimb.status.partial' },
   complete: { tone: 'badge--green', key: 'reimb.status.complete' },
@@ -39,7 +41,7 @@ const REVIEW_REASON_KEY: Record<ReimburseReviewReason, TranslationKey> = {
 };
 
 /**
- * 单条报销条目卡片：发票要素 + deriveReimburseStatus 派生徽标（无手工状态机）+
+ * 单条报销条目卡片：发票要素 + deriveReimburseCompleteness 派生徽标（无手工状态机）+
  * 材料 checklist 两勾（点了即 PATCH）+ 凭证留档区 + actualItemName/note 就地编辑 + 超管装批/移出。
  * 错误一律交全局 MutationCache.onError toast（checklist/装批无内联错误位，不标 silent）。
  */
@@ -54,6 +56,7 @@ export function ReimburseEntryCard({
   stockInContext,
   canViewEvidence,
   isOwner,
+  payout = null,
 }: {
   client: ReimburseSegment;
   source: string;
@@ -68,23 +71,24 @@ export function ReimburseEntryCard({
   canViewEvidence: boolean;
   /** 本条目是否当前登录人自己的（凭证上传/删除只对本人开放）。 */
   isOwner: boolean;
+  payout?: ReimbursePayout | null;
 }) {
   const { t } = useI18n();
   const updateMutation = useUpdateReimburseEntry(client, source);
 
-  const [actualItemName, setActualItemName] = useState(entry.actualItemName ?? '');
-  const [note, setNote] = useState(entry.note ?? '');
   const [stockInOpen, setStockInOpen] = useState(false);
   const [stockInDone, setStockInDone] = useState(false);
   const [editing, setEditing] = useState(false);
 
-  const status = deriveReimburseStatus(entry);
+  const status = deriveReimburseCompleteness(entry);
   const purchaserStatus = derivePurchaserCheckStatus(entry, profile);
   const reviewReasons = deriveReimburseReviewReasons(entry, profile);
   const nonMismatchReasons = reviewReasons.filter((reason) => reason !== 'purchaser-mismatch');
   const badge = STATUS_BADGE[status];
-  const locked = batches.some(batch => batch.id === entry.batchId && batch.status !== 'collecting');
-  const writeDisabled = !canWrite || locked || updateMutation.isPending;
+  const ownerEditable = isOwner && (entry.workflowStatus === 'draft' || entry.workflowStatus === 'returned');
+  const financeEditable = isSuperAdmin && entry.workflowStatus === 'reviewing';
+  const contentLocked = !ownerEditable && !financeEditable;
+  const writeDisabled = !canWrite || contentLocked || updateMutation.isPending;
 
   const stocked = useMemo(
     () => new Map(
@@ -96,34 +100,24 @@ export function ReimburseEntryCard({
   const canStockIn =
     entry.kind === 'goods' && entry.items.length > 0 && stockInContext !== null && canWrite;
 
-  const metaDirty =
-    actualItemName.trim() !== (entry.actualItemName ?? '') ||
-    note.trim() !== (entry.note ?? '');
-
-  function saveMeta() {
-    updateMutation.mutate({
-      id: entry.id,
-      patch: {
-        actualItemName: actualItemName.trim() === '' ? null : actualItemName.trim(),
-        note: note.trim() === '' ? null : note.trim(),
-      },
-    });
-  }
-
   return (
     <article className="card reimb-entry">
       <header className="reimb-entry__head">
         <span className={`badge badge--dense ${badge.tone}`.trim()}>{t(badge.key)}</span>
         <span className="badge badge--dense badge--blue">
-          {t(entry.kind === 'goods' ? 'reimb.kind.goods' : 'reimb.kind.expense')}
+          {t(entry.expenseType ? `reimb.expenseType.${entry.expenseType}` : 'reimb.expenseType.unconfirmed')}
         </span>
+        <span className="badge badge--dense badge--outline">{t(`reimb.workflow.status.${entry.workflowStatus}`)}</span>
         <strong className="reimb-entry__amount">{formatAmountFen(entry.totalAmountFen)}</strong>
       </header>
       <p>{t('reimb.package.type')}: {t(`reimb.invoiceType.${entry.invoiceType ?? 'unknown'}`)}</p>
       {(isOwner || isSuperAdmin) && <button className="btn btn--secondary btn--sm" disabled={writeDisabled}
         onClick={() => setEditing(value => !value)}>{t('reimb.entry.editFields')}</button>}
-      {editing && <ReimburseEntryForm client={client} source={source} projectId={entry.projectId}
+      {editing && <ReimburseEntryForm client={client} source={source} projectId={entry.projectId} seasonId={entry.seasonId}
         canWrite={!writeDisabled} writeLockedHint={null} profile={profile} editingEntry={entry} onDone={() => setEditing(false)} />}
+      <ReimburseWorkflowActions client={client} source={source} entry={entry} isOwner={isOwner} isFinance={isSuperAdmin} canWrite={canWrite} />
+      {entry.approvedAmountFen !== null && <p>{t('reimb.workflow.approvedAmount')}: <strong>{formatAmountFen(entry.approvedAmountFen)}</strong></p>}
+      {payout && <p role="status">{t('reimb.payout.result', { at: payout.paidAt, method: t(`reimb.payout.method.${payout.method}`), ref: payout.transactionRef ?? '—' })}</p>}
 
       {purchaserStatus === 'mismatch' ? (
         <p role="alert"><span className="badge badge--dense badge--red">{t('reimb.review.changePurchaser')}</span></p>
@@ -238,7 +232,7 @@ export function ReimburseEntryCard({
             onChange={(e) =>
               updateMutation.mutate({
                 id: entry.id,
-                patch: {
+                patch: { expectedRevision: entry.revision,
                   materials: { ...entry.materials, paymentShot: e.target.checked },
                 },
               })
@@ -254,7 +248,7 @@ export function ReimburseEntryCard({
             onChange={(e) =>
               updateMutation.mutate({
                 id: entry.id,
-                patch: {
+                patch: { expectedRevision: entry.revision,
                   materials: { ...entry.materials, inspection: e.target.checked },
                 },
               })
@@ -274,33 +268,6 @@ export function ReimburseEntryCard({
         />
       ) : null}
 
-      <div className="reimb-entry__edit">
-        <input
-          value={actualItemName}
-          placeholder={t('reimb.create.field.actualItemName.placeholder')}
-          aria-label={t('reimb.create.field.actualItemName')}
-          disabled={!canWrite}
-          onChange={(e) => setActualItemName(e.target.value)}
-        />
-        <input
-          value={note}
-          placeholder={t('reimb.create.field.note.placeholder')}
-          aria-label={t('reimb.create.field.note')}
-          disabled={!canWrite}
-          onChange={(e) => setNote(e.target.value)}
-        />
-        {metaDirty ? (
-          <button
-            type="button"
-            className="btn btn--sm btn--secondary"
-            disabled={updateMutation.isPending}
-            onClick={saveMeta}
-          >
-            {t('reimb.entry.saveMeta')}
-          </button>
-        ) : null}
-      </div>
-
       {isSuperAdmin ? (
         <div className="reimb-entry__batch">
           <label htmlFor={`reimb-batch-${entry.id}`}>{t('reimb.entry.batch')}</label>
@@ -311,12 +278,12 @@ export function ReimburseEntryCard({
             onChange={(e) =>
               updateMutation.mutate({
                 id: entry.id,
-                patch: { batchId: e.target.value === '' ? null : e.target.value },
+                patch: { expectedRevision: entry.revision, batchId: e.target.value === '' ? null : e.target.value },
               })
             }
           >
             <option value="">{t('reimb.entry.batch.none')}</option>
-            {batches.map((b) => (
+            {batches.filter((batch) => batch.seasonId === entry.seasonId).map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
               </option>

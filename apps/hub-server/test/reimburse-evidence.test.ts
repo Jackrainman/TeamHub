@@ -103,14 +103,14 @@ test('supplementing and removing payment evidence updates readiness; supporting 
   const entry = await createEntry(app, cookieA);
   const supporting = await upload(app, cookieA, entry.id, 'supporting', 'itinerary.pdf', '%PDF-test');
   expect(supporting.statusCode).toBe(201);
-  const payment = await upload(app, cookieA, entry.id, 'paymentShot', 'payment.jpg', 'image bytes');
+  const payment = await upload(app, cookieA, entry.id, 'paymentShot', 'payment.jpg', 'image bytes', 2);
   expect(payment.statusCode).toBe(201);
   const entries = async () => (await app.inject({ method:'GET', url:'/api/reimburse/entries', headers:{cookie:cookieA} })).json().entries;
   const saved = (await entries()).find((e: { id: string }) => e.id === entry.id);
   expect(saved.materials.paymentShot).toBe(true);
   expect(saved.materials.inspection).toBe(false);
   expect(saved.evidence).toEqual([]);
-  expect((await app.inject({ method:'DELETE', url:`/api/reimburse/entries/${entry.id}/evidence/${payment.json().evidence.id}`, headers:{cookie:cookieA} })).statusCode).toBe(200);
+  expect((await app.inject({ method:'DELETE', url:`/api/reimburse/entries/${entry.id}/evidence/${payment.json().evidence.id}`, headers:{cookie:cookieA}, payload:{ expectedRevision: 3 } })).statusCode).toBe(200);
   expect((await entries()).find((e: { id: string }) => e.id === entry.id).materials.paymentShot).toBe(false);
 });
 
@@ -127,6 +127,9 @@ function goodsEntryPayload() {
   invoiceSeq += 1;
   return {
     projectId: 'prj-robots',
+    seasonId: '2027RC',
+    expenseType: 'purchase',
+    summary: '合成凭证条目',
     kind: 'goods',
     invoiceNo: `20260701${String(invoiceSeq).padStart(12, '0')}`,
     invoiceDate: '2026-07-01',
@@ -137,7 +140,7 @@ function goodsEntryPayload() {
     totalAmountFen: 2500,
     items: [{ name: 'M3×8 螺丝', unit: '个', quantity: 20, unitPriceFen: 100, amountFen: 2000 }],
     actualItemName: null,
-    materials: { paymentShot: false, inspection: false },
+    materials: { invoice: false, paymentShot: false, inspection: false },
     note: null,
   };
 }
@@ -154,9 +157,10 @@ async function createEntry(app: FastifyInstance, cookie: string) {
 }
 
 /** kind 必须先于 file 拼（busboy 才保证字段在文件回调前可读）。 */
-function evidenceForm(kind: string, filename: string, content: string) {
+function evidenceForm(kind: string, filename: string, content: string, expectedRevision = 1) {
   const form = new FormData();
   form.append('kind', kind);
+  form.append('expectedRevision', String(expectedRevision));
   form.append('file', Buffer.from(content), { filename });
   return form;
 }
@@ -168,8 +172,9 @@ async function upload(
   kind: string,
   filename: string,
   content = '%PDF-1.4 fake invoice',
+  expectedRevision = 1,
 ) {
-  const form = evidenceForm(kind, filename, content);
+  const form = evidenceForm(kind, filename, content, expectedRevision);
   return app.inject({
     method: 'POST',
     url: `/api/reimburse/entries/${entryId}/evidence`,
@@ -230,7 +235,7 @@ describe('POST /api/reimburse/entries/:id/evidence — 上传', () => {
     expect(body.evidence.sizeBytes).toBe(Buffer.byteLength('%PDF-1.4 fake invoice'));
     expect(body.evidence.sha256).toHaveLength(64);
     expect(body.evidence.uploadedBy).toBe('m-a');
-    expect(body.entry).toBeUndefined(); // 回执不回条目对象：清单只走专属端点
+    expect(body.entry.evidence).toEqual([]); // 回执剥空原件，并携带最新 revision 供下一次补传
     expect((await listEvidence(app, cookieA, entry.id)).map((e) => e.id)).toEqual([body.evidence.id]);
     expect(await readdir(dir)).toEqual([`${body.evidence.id}.pdf`]);
   });
@@ -275,13 +280,28 @@ describe('POST /api/reimburse/entries/:id/evidence — 上传', () => {
     }
   });
 
-  test('批次提交后上传 → 409 快照锁', async () => {
+  test('批次提交不冻结草稿，本人仍可上传', async () => {
     const entry = await createEntry(app, cookieA);
     await submitWithEntry(entry.id);
     const res = await upload(app, cookieA, entry.id, 'invoice', 'x.pdf');
-    expect(res.statusCode).toBe(409);
-    expect(res.json().code).toBe('REIMBURSE_BATCH_LOCKED');
-    expect(await readdir(dir)).toEqual([]);
+    expect(res.statusCode).toBe(201);
+    expect(res.json().entry.revision).toBe(2);
+  });
+
+  test('修改原件用途递增版本并使旧核对失效，同用途重试不递增', async () => {
+    const entry = await createEntry(app, cookieA);
+    const evidence = await upload(app, cookieA, entry.id, 'invoice', 'x.pdf');
+    const changed = await app.inject({
+      method: 'PATCH', url: `/api/reimburse/entries/${entry.id}/evidence/${evidence.json().evidence.id}`,
+      headers: { cookie: cookieA }, payload: { expectedRevision: 2, kind: 'supporting' },
+    });
+    expect(changed.statusCode).toBe(200);
+    expect(changed.json().entry).toMatchObject({ revision: 3, checkedRevision: null, materials: { invoice: false } });
+    const retry = await app.inject({
+      method: 'PATCH', url: `/api/reimburse/entries/${entry.id}/evidence/${evidence.json().evidence.id}`,
+      headers: { cookie: cookieA }, payload: { expectedRevision: 3, kind: 'supporting' },
+    });
+    expect(retry.json().entry.revision).toBe(3);
   });
 
   test('创建体注入 evidence → parse 阶段剥掉，新条目恒空留档', async () => {
@@ -423,6 +443,7 @@ describe('DELETE /api/reimburse/entries/:id/evidence/:evidenceId — 删除', ()
       method: 'DELETE',
       url: `/api/reimburse/entries/${entry.id}/evidence/${evidenceId}`,
       headers: { cookie: cookieA },
+      payload: { expectedRevision: 2 },
     });
     expect(del.statusCode).toBe(200);
     expect(del.json().evidence).toEqual([]);
@@ -443,12 +464,13 @@ describe('DELETE /api/reimburse/entries/:id/evidence/:evidenceId — 删除', ()
       method: 'DELETE',
       url: `/api/reimburse/entries/${entry.id}/evidence/${evidenceId}`,
       headers: { cookie: cookieB },
+      payload: { expectedRevision: 2 },
     });
     expect(res.statusCode).toBe(403);
     expect(await readdir(dir)).toEqual([`${evidenceId}.pdf`]);
   });
 
-  test('批次提交后删除 → 409 快照锁', async () => {
+  test('批次提交不冻结草稿，本人仍可删除', async () => {
     const entry = await createEntry(app, cookieA);
     const evidenceId = (await upload(app, cookieA, entry.id, 'invoice', 'x.pdf')).json().evidence.id;
     await submitWithEntry(entry.id);
@@ -456,8 +478,9 @@ describe('DELETE /api/reimburse/entries/:id/evidence/:evidenceId — 删除', ()
       method: 'DELETE',
       url: `/api/reimburse/entries/${entry.id}/evidence/${evidenceId}`,
       headers: { cookie: cookieA },
+      payload: { expectedRevision: 2 },
     });
-    expect(res.statusCode).toBe(409);
+    expect(res.statusCode).toBe(200);
   });
 });
 
@@ -484,7 +507,7 @@ describe('凭证不出列表面（D-094「永不进列表」）', () => {
       method: 'PATCH',
       url: `/api/reimburse/entries/${entry.id}`,
       headers: { cookie: cookieA },
-      payload: { note: '补备注' },
+      payload: { note: '补备注', expectedRevision: 2 },
     });
     expect(patched.json().entry.evidence).toEqual([]);
     expect(await listEvidence(app, cookieA, entry.id)).toHaveLength(1);
@@ -530,23 +553,24 @@ describe('凭证不出聚合面（D-094）', () => {
 });
 
 /**
- * 条目装批（本人 PATCH，材料补齐过质量门）→ 超管提交批次。此后条目进快照锁。
+ * 财务装批并提交容器；条目不因此冻结，锁只由条目自身 workflowStatus 决定。
  */
 async function submitWithEntry(entryId: string): Promise<{ batchId: string }> {
   const batchRes = await app.inject({
     method: 'POST',
     url: '/api/reimburse/batches',
     headers: { cookie: cookieAdmin },
-    payload: { projectId: 'prj-robots', name: '留档锁批' },
+    payload: { projectId: 'prj-robots', seasonId: '2027RC', name: '留档归集批' },
   });
   expect(batchRes.statusCode).toBe(201);
   const batchId = ReimburseBatchResponseSchema.parse(batchRes.json()).batch.id;
-
+  const current = (await app.inject({ method: 'GET', url: '/api/reimburse/entries', headers: { cookie: cookieAdmin } }))
+    .json().entries.find((entry: { id: string }) => entry.id === entryId);
   const assign = await app.inject({
     method: 'PATCH',
     url: `/api/reimburse/entries/${entryId}`,
-    headers: { cookie: cookieA },
-    payload: { batchId, materials: { paymentShot: true, inspection: true } },
+    headers: { cookie: cookieAdmin },
+    payload: { batchId, expectedRevision: current.revision },
   });
   expect(assign.statusCode).toBe(200);
 

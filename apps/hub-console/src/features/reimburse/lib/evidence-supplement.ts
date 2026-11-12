@@ -1,4 +1,4 @@
-import { INVOICE_ARCHIVE_LIMITS, type ReimburseEvidenceKind } from '@teamhub/hub-contracts';
+import { INVOICE_ARCHIVE_LIMITS, type ReimburseEntry, type ReimburseEvidenceKind } from '@teamhub/hub-contracts';
 import type { ReimburseSegment } from '../api';
 import { evidenceRejectReasonFor } from '../reimburse-utils';
 import { extractZipEntries } from './archive-extract';
@@ -36,14 +36,18 @@ export async function prepareSupplement(files: File[], entryIds: string[]) {
 }
 
 export async function uploadSupplement(
-  client: Pick<ReimburseSegment, 'uploadReimburseEvidence'>, rows: SupplementRow[], entryIds: string[],
+  client: Pick<ReimburseSegment, 'uploadReimburseEvidence'>, rows: SupplementRow[],
+  targets: readonly (string | Pick<ReimburseEntry, 'id' | 'revision'>)[],
 ): Promise<SupplementRow[]> {
+  const entryIds = targets.map((target) => typeof target === 'string' ? target : target.id);
+  const revisions = new Map(targets.filter((target): target is Pick<ReimburseEntry, 'id' | 'revision'> => typeof target !== 'string').map((target) => [target.id, target.revision]));
   if (rows.some(row => row.status !== 'done' && !entryIds.includes(row.entryId))) throw new Error('REIMBURSE_SUPPLEMENT_TARGET_REQUIRED');
   const results: SupplementRow[] = [];
   for (const row of rows) {
     if (row.status === 'done') { results.push(row); continue; }
     try {
-      await client.uploadReimburseEvidence(row.entryId, row.kind, row.file);
+      const uploaded = await client.uploadReimburseEvidence(row.entryId, row.kind, row.file, revisions.get(row.entryId) ?? 1);
+      revisions.set(row.entryId, uploaded.entry.revision);
       results.push({ ...row, status: 'done', error: undefined });
     } catch (error) { results.push({ ...row, status: 'failed', error: error instanceof Error ? error : undefined }); }
   }

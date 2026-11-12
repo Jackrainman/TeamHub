@@ -12,6 +12,7 @@ import type { ReimburseSegment } from '../api';
 import {
   useDeleteReimburseEvidence,
   useReimburseEvidence,
+  useUpdateReimburseEvidenceKind,
   useUploadReimburseEvidence,
 } from '../hooks';
 import { useI18n, type TranslationKey } from '../../../i18n';
@@ -69,6 +70,7 @@ export function ReimburseEvidenceSection({
   const evidenceQuery = useReimburseEvidence(client, source, entry.id, open);
   const uploadMutation = useUploadReimburseEvidence(client, source, entry.id);
   const deleteMutation = useDeleteReimburseEvidence(client, source, entry.id);
+  const kindMutation = useUpdateReimburseEvidenceKind(client, source, entry.id);
 
   const evidence = evidenceQuery.data?.evidence ?? [];
   const grouped = groupEvidenceByKind(evidence);
@@ -89,7 +91,7 @@ export function ReimburseEvidenceSection({
       return;
     }
     setReject(null);
-    uploadMutation.mutate({ kind: pendingKind.current, file });
+    uploadMutation.mutate({ kind: pendingKind.current, file, expectedRevision: entry.revision });
   }
 
   return (
@@ -152,6 +154,10 @@ export function ReimburseEvidenceSection({
                   {grouped[kind].map((item) => (
                     <li key={item.id}>
                       <span className="reimb-evidence__name">{item.originalName}</span>
+                      {isOwner && <select aria-label={t('reimb.package.role')} value={item.kind} disabled={locked || kindMutation.isPending}
+                        onChange={(event) => kindMutation.mutate({ evidenceId: item.id, kind: event.target.value as ReimburseEvidenceKind, expectedRevision: entry.revision })}>
+                        {EVIDENCE_KINDS.map((kind) => <option key={kind} value={kind}>{t(KIND_KEY[kind])}</option>)}
+                      </select>}
                       <span className="reimb-evidence__meta">
                         {formatEvidenceSize(item.sizeBytes)} · {item.uploadedAt.slice(0, 10)}
                       </span>
@@ -168,7 +174,7 @@ export function ReimburseEvidenceSection({
                             type="button"
                             className="btn btn--sm btn--ghost"
                             disabled={locked || deleteMutation.isPending}
-                            onClick={() => deleteMutation.mutate(item.id)}
+                            onClick={() => deleteMutation.mutate({ evidenceId: item.id, expectedRevision: entry.revision })}
                           >
                             {t('reimb.evidence.delete')}
                           </button>

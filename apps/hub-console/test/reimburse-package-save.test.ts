@@ -4,8 +4,8 @@ import type { ReimburseSegment } from '../src/features/reimburse/api';
 import { buildCreateEntryRequest, emptyEntryDraft } from '../src/features/reimburse/reimburse-utils';
 
 test('a lost attachment response retries the same entry and same files', async () => {
-  const create = vi.fn().mockResolvedValue({ entry: { id: 'one' } });
-  const upload = vi.fn().mockRejectedValueOnce(new Error('lost response')).mockResolvedValue({});
+  const create = vi.fn().mockResolvedValue({ entry: { id: 'one', revision: 1 } });
+  const upload = vi.fn().mockRejectedValueOnce(new Error('lost response')).mockResolvedValue({ entry: { revision: 2 } });
   const client = { createReimburseEntry: create, uploadReimburseEvidence: upload } as unknown as ReimburseSegment;
   const state: PackageSaveState = { clientRequestId: crypto.randomUUID() };
   const request = buildCreateEntryRequest(emptyEntryDraft(), 'project')!;
@@ -19,8 +19,8 @@ test('a lost attachment response retries the same entry and same files', async (
 });
 
 test('unclassified attachments are retained as supporting material without blocking submission', async () => {
-  const create = vi.fn().mockResolvedValue({ entry: { id: 'one' } });
-  const upload = vi.fn().mockResolvedValue({});
+  const create = vi.fn().mockResolvedValue({ entry: { id: 'one', revision: 1 } });
+  const upload = vi.fn().mockResolvedValue({ entry: { revision: 2 } });
   const client = { createReimburseEntry: create, uploadReimburseEvidence: upload } as unknown as ReimburseSegment;
   const request = buildCreateEntryRequest(emptyEntryDraft(), 'project')!;
   await saveReimbursePackage(client, request, [{ file: new File(['x'], 'one.jpg'),

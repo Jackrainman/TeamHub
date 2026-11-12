@@ -6,6 +6,7 @@ const { tmpdir } = require('node:os');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const assert = require('node:assert/strict');
+const { freePort } = require('./lib/free-port.cjs');
 
 (async () => {
   const root = path.resolve(__dirname, '../../..');
@@ -24,9 +25,9 @@ const assert = require('node:assert/strict');
   await stores.gov.setProjectManager(member.id, true);
   const task = await stores.gov.createTask({ projectId: snapshot.projectId, groupId: member.groupId, title: '预期版真实任务', rawSummary: '检查机构与控制链路，记录结构性问题。', ownerId: null, collaboratorIds: [], intrinsicComplexity: 'normal' });
   await stores.gov.claimTask(task.id, member.id, now.toISOString(), { id: member.id, displayName: member.displayName, source: 'console' }, getWeekKey(now));
-  stores.reimburse.createEntry({ projectId: snapshot.projectId, memberId: member.id, batchId: null, kind: 'goods', invoiceNo: null, invoiceDate: null, seller: '测试供应商', purchaserName: null, purchaserTaxNo: null, recognitionSource: 'manual', totalAmountFen: 12800, items: [], actualItemName: '控制板采购', materials: { paymentShot: true, inspection: false }, note: null });
+  stores.reimburse.createEntry({ projectId: snapshot.projectId, seasonId: snapshot.seasonId, memberId: member.id, batchId: null, kind: 'goods', expenseType: 'purchase', summary: '控制板采购', invoiceNo: null, invoiceDate: null, seller: '测试供应商', purchaserName: null, purchaserTaxNo: null, recognitionSource: 'manual', totalAmountFen: 12800, items: [], actualItemName: '控制板采购', materials: { invoice: true, paymentShot: true, inspection: false }, note: null });
   db.close();
-  const port = await new Promise(resolve => { const s = require('node:net').createServer(); s.listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => resolve(p)); }); });
+  const port = await freePort();
   const base = `http://127.0.0.1:${port}`;
   let child, browser, page;
   const errors = [];
@@ -63,13 +64,18 @@ const assert = require('node:assert/strict');
     // reload 确保真正重置 Provider；同 URL 的 goto 可能只变 hash。
     await page.reload({ waitUntil: 'domcontentloaded' });
     await shell.waitFor();
-    const start = Date.now();
-    const at = async ms => page.waitForTimeout(Math.max(0, start + ms - Date.now()));
-    await at(1500); await nav('项目').hover();
-    await at(4500); assert.equal(await expanded(), true, 'first hover resets 4s idle');
+    // 残留鼠标位置可能悬停侧栏，使首次 hover 不触发 mouseenter；先移到内容区保证起点确定。
+    await page.mouse.move(900, 500);
+    // 以真实 hover 完成为计时起点（绝对时间戳会因 hover 耗时漂移而误判）；2.5s<4s 仍展开，随后等待空闲收起。
+    await nav('项目').hover();
+    await page.waitForFunction(() => document.querySelector('.console-shell').classList.contains('sidebar-expanded'));
+    await page.waitForTimeout(2500);
+    assert.equal(await expanded(), true, 'first hover resets 4s idle');
     await nav('任务').hover();
-    await at(7000); assert.equal(await expanded(), true, 'second hover resets 4s idle');
-    await at(9000); assert.equal(await expanded(), false, 'idle collapses after last activity');
+    await page.waitForTimeout(2500);
+    assert.equal(await expanded(), true, 'second hover resets 4s idle');
+    await page.waitForFunction(() => !document.querySelector('.console-shell').classList.contains('sidebar-expanded'), null, { timeout: 6000 });
+    assert.equal(await expanded(), false, 'idle collapses after last activity');
     await capture('sidebar-collapsed');
     await page.locator('.sidebar-toggle').click();
     await page.waitForTimeout(4400);

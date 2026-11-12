@@ -20,7 +20,7 @@ export function SegToggle<T extends string | boolean>({
   ariaLabel,
   className,
 }: {
-  value: T;
+  value: T | null;
   // 每项：枚举值 + 已翻译好的可见文案。
   options: readonly { value: T; label: string }[];
   onChange: (value: T) => void;

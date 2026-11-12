@@ -36,6 +36,9 @@ describe('ReimburseService + SQLite ApplicationUnitOfWork', () => {
     const target = stores.inv.readStockInSnapshot().partTypes[0];
     const entry = await stores.reimburse.createEntry({
       projectId: 'prj-robots',
+      seasonId: '2027RC',
+      expenseType: 'purchase',
+      summary: '合成入库',
       memberId: ACTOR.id,
       batchId: null,
       kind: 'goods',
@@ -51,7 +54,7 @@ describe('ReimburseService + SQLite ApplicationUnitOfWork', () => {
         { name: '新件', unit: '个', quantity: 1, unitPriceFen: 800, amountFen: 800 },
       ],
       actualItemName: null,
-      materials: { paymentShot: false, inspection: false },
+      materials: { invoice: false, paymentShot: false, inspection: false },
       note: null,
     });
     const service = new ReimburseService(
@@ -81,9 +84,9 @@ describe('ReimburseService + SQLite ApplicationUnitOfWork', () => {
     });
 
     expect(result.actions).toHaveLength(2);
-    await expect(service.updateEntry(entry.id, { kind: 'expense' }, ACTOR)).rejects.toMatchObject({ code: 'REIMBURSE_STOCK_FIELDS_LOCKED' });
-    await expect(service.updateEntry(entry.id, { items: [] }, ACTOR)).rejects.toMatchObject({ code: 'REIMBURSE_STOCK_FIELDS_LOCKED' });
-    expect((await service.updateEntry(entry.id, { invoiceNo: 'uow-corrected' }, ACTOR)).invoiceNo).toBe('uow-corrected');
+    await expect(service.updateEntry(entry.id, { expectedRevision: 1, expenseType: 'other' }, ACTOR)).rejects.toMatchObject({ code: 'REIMBURSE_STOCK_FIELDS_LOCKED' });
+    await expect(service.updateEntry(entry.id, { expectedRevision: 1, items: [] }, ACTOR)).rejects.toMatchObject({ code: 'REIMBURSE_STOCK_FIELDS_LOCKED' });
+    expect((await service.updateEntry(entry.id, { expectedRevision: 1, invoiceNo: 'uow-corrected' }, ACTOR)).invoiceNo).toBe('uow-corrected');
     expect(result.actions.every((action) => action.recordedAt === NOW.toISOString())).toBe(true);
     expect(result.partTypes.find((part) => part.partNumber === 'UOW-NEW')?.totalQuantity).toBe(1);
   });
@@ -94,6 +97,9 @@ describe('ReimburseService + SQLite ApplicationUnitOfWork', () => {
     const target = stores.inv.readStockInSnapshot().partTypes[0];
     const entry = await stores.reimburse.createEntry({
       projectId: 'prj-robots',
+      seasonId: '2027RC',
+      expenseType: 'purchase',
+      summary: '合成入库',
       memberId: ACTOR.id,
       batchId: null,
       kind: 'goods',
@@ -109,7 +115,7 @@ describe('ReimburseService + SQLite ApplicationUnitOfWork', () => {
         { name: '故障新件', unit: '个', quantity: 1, unitPriceFen: 200, amountFen: 200 },
       ],
       actualItemName: null,
-      materials: { paymentShot: false, inspection: false },
+      materials: { invoice: false, paymentShot: false, inspection: false },
       note: null,
     });
     const before = stores.inv.readStockInSnapshot();
