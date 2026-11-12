@@ -6,6 +6,7 @@ const { tmpdir } = require('node:os');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const assert = require('node:assert/strict');
+const { freePort } = require('./lib/free-port.cjs');
 
 (async () => {
   const root = path.resolve(__dirname, '../../..');
@@ -33,13 +34,7 @@ const assert = require('node:assert/strict');
   }
 
   async function startServer(dbFile) {
-    const port = await new Promise(resolve => {
-      const listener = require('node:net').createServer();
-      listener.listen(0, '127.0.0.1', () => {
-        const value = listener.address().port;
-        listener.close(() => resolve(value));
-      });
-    });
+    const port = await freePort();
     const base = `http://127.0.0.1:${port}`;
     const child = spawn(process.execPath, [server], {
       windowsHide: true,
@@ -170,6 +165,8 @@ const assert = require('node:assert/strict');
     await page.keyboard.press('Escape');
     await page.evaluate(() => { window.localStorage.setItem('teamhub.lang', 'en'); });
     await page.reload({ waitUntil: 'networkidle' });
+    // 窄屏 reload 后残留鼠标位置可能悬停侧栏使其展开拦截点击；先移到内容区。
+    await page.mouse.move(300, 600);
     await page.getByRole('button', { name: 'Task tutorial', exact: true }).click();
     await page.getByRole('dialog', { name: 'Task workflow demo', exact: true }).getByRole('button', { name: 'Start demo', exact: true }).waitFor();
     await page.getByRole('button', { name: 'Exit tutorial', exact: true }).click();

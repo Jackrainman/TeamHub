@@ -7,6 +7,7 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const assert = require('node:assert/strict');
 const { gzipSync } = require('node:zlib');
+const { freePort } = require('./lib/free-port.cjs');
 
 (async () => {
   const root = path.resolve(__dirname, '../../..');
@@ -28,10 +29,7 @@ const { gzipSync } = require('node:zlib');
     const db = openUnifiedDb(dbFile);
     db.initialize({ dataMode: 'demo', identityMode: 'anonymous' }, new Date('2026-10-29T00:00:00Z'));
     db.close();
-    const port = await new Promise(resolve => {
-      const server = require('node:net').createServer();
-      server.listen(0, '127.0.0.1', () => { const p = server.address().port; server.close(() => resolve(p)); });
-    });
+    const port = await freePort();
     const base = `http://127.0.0.1:${port}`;
     child = spawn(process.execPath, [path.join(root, 'hub-server/dist/main.js')], {
       windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'],

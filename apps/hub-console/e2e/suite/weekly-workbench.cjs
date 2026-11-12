@@ -6,6 +6,7 @@ const { tmpdir } = require('node:os');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const assert = require('node:assert/strict');
+const { freePort } = require('./lib/free-port.cjs');
 
 (async () => {
   const root = path.resolve(__dirname, '../../..');
@@ -40,10 +41,7 @@ const assert = require('node:assert/strict');
     await repo.createNeed({ projectId: snapshot.projectId, onTaskId: blocked.id, description: '测试夹具', providerGroupId: a.groupId, neededSkills: [], source: 'human', confirmedBy: actorA });
   database.close();
 
-  const port = await new Promise(resolve => {
-    const listener = require('node:net').createServer();
-    listener.listen(0, '127.0.0.1', () => { const p = listener.address().port; listener.close(() => resolve(p)); });
-  });
+  const port = await freePort();
   const base = `http://127.0.0.1:${port}`;
   let child, browser;
   const errors = [];
