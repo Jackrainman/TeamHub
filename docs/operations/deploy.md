@@ -14,7 +14,7 @@ last_reviewed: 2026-08-15
 
 本地开发：`npm ci` → `npm run dev`。默认数据在仓库 `tmp/dev-data/`（SQLite、artifacts、evidence），修改代码后重新运行；初始化退出 42 自动重启。前端热更新可另开终端运行 `npm run dev -w apps/hub-console`。后端改端口时，两个终端设置相同 `HUB_PORT`：PowerShell 用 `$env:HUB_PORT='4277'`，Ubuntu 用 `export HUB_PORT=4277`。
 
-本地测试：首次 `npm run browser:install`，随后 `npm run verify`。`verify:local` 省略浏览器 E2E，不能代替最终验收。无需 WSL、Docker 或外部 SQLite 服务；现有版本脚本和提交钩子在 Windows 使用 Git Bash。不要跨系统复制 node_modules。
+本地测试：提交门跑 `npm run verify:local`（三包检查+构建）；含浏览器 E2E 的全量 `npm run verify` 是 CI 入口，也可本地手动跑（首次 `npm run browser:install`）。无需 WSL、Docker 或外部 SQLite 服务；现有版本脚本和提交钩子在 Windows 使用 Git Bash。不要跨系统复制 node_modules。
 
 若 Chromium 下载受限，可使用已安装的 Edge：PowerShell 设置 `$env:E2E_BROWSER_CHANNEL='msedge'` 后执行验证。默认不设置该变量，使用 Playwright 配套浏览器；CI 固定安装 Chromium。
 
