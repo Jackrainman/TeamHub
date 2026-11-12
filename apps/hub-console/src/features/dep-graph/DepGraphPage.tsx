@@ -15,8 +15,6 @@ import {
 import '@xyflow/react/dist/style.css';
 import { Plus, Trash2 } from 'lucide-react';
 import {
-  wouldCreateCycle,
-  type DepEdge,
   type DepGraph,
   type TaskStatus,
 } from '@teamhub/hub-contracts';
@@ -28,6 +26,7 @@ import { MetricTile } from '../../components/MetricTile';
 import { NODE_W, NODE_H, EDGE_COLORS, type DepFlowNode } from './sub/constants';
 import { nodeTypes } from './sub/DepNodeCard';
 import { DetailPanel } from './sub/DetailPanel';
+import { connectGuard } from './lib';
 
 function layoutGraph(graph: DepGraph): { nodes: DepFlowNode[]; edges: Edge[] } {
   const g = new dagre.graphlib.Graph();
@@ -62,11 +61,11 @@ function layoutGraph(graph: DepGraph): { nodes: DepFlowNode[]; edges: Edge[] } {
   return { nodes, edges };
 }
 
-function toCycleDeps(
-  edges: ReadonlyArray<Pick<DepEdge, 'source' | 'target'>>,
-): { fromTaskId: string; toTaskId: string }[] {
-  return edges.map((e) => ({ fromTaskId: e.source, toTaskId: e.target }));
-}
+const CONNECT_REJECT_KEY = {
+  self: 'depgraph.connect.selfEdge',
+  duplicate: 'depgraph.connect.duplicate',
+  cycle: 'depgraph.connect.cycle',
+} as const;
 
 export function DepGraphPage({
   client,
@@ -180,19 +179,10 @@ export function DepGraphPage({
       const from = conn.source;
       const to = conn.target;
       if (!from || !to || !graph) return;
-      if (from === to) {
+      const verdict = connectGuard(graph.edges, from, to);
+      if (verdict !== 'ok') {
         setSuccessMsg(null);
-        setRejectMsg(t('depgraph.connect.selfEdge'));
-        return;
-      }
-      if (graph.edges.some((e) => e.source === from && e.target === to)) {
-        setSuccessMsg(null);
-        setRejectMsg(t('depgraph.connect.duplicate'));
-        return;
-      }
-      if (wouldCreateCycle(toCycleDeps(graph.edges), from, to)) {
-        setSuccessMsg(null);
-        setRejectMsg(t('depgraph.connect.cycle'));
+        setRejectMsg(t(CONNECT_REJECT_KEY[verdict]));
         return;
       }
       setRejectMsg(null);
