@@ -28,8 +28,8 @@ TeamHub = 机器人战队协作中枢（CASE + 交流 + 数据库）。三支柱
 
 ```
 开局：读本文件 + .harness/todo.json + git status --short；再按 docs/README.md 只读本任务对应活文档
-做事：从 todo 取一条
-收尾：verify（§4）→ bump（§6）→ commit+push → 删 todo → append .harness/ai-log.md
+做事：从 todo 取一条；开发中只跑定向测试（npx vitest run <file>）
+收尾：commit（门跑一次，自动 bump）→ push（CI 跑含浏览器 E2E 的全量 verify）→ 删 todo
 ```
 
 - trunk-based，commit+push 默认不问；push 前 fetch 查分叉。
@@ -59,13 +59,13 @@ npm run verify:docs                             # 活文档单源 + 五份 archi
 npm run verify:architecture                     # 单 workspace/lock/version + 依赖方向 + 迁移基线
 npm run dev                                     # Windows/Ubuntu 隔离开发实例
 npm run browser:install                         # 首次安装 Chromium
-npm run verify                                  # 三包检查 + 构建 + 浏览器 E2E
-npm run verify:local                            # 不含浏览器 E2E，非最终验收
+npm run verify                                  # 全量门（CI 入口）：三包检查 + 构建 + 浏览器 E2E
+npm run verify:local                            # 本地提交门：三包检查 + 构建，浏览器 E2E 交 CI
 npx vitest run <file>                            # 单测（在各包目录下）
 ./start-teamhub.sh                                # 单端口 4177
 ./scripts/backup-teamhub-data.sh                  # 仅数据库在线快照；完整备份见 runbook
 npm --prefix apps/hub-server run test:local -- e2e-pillars  # 端到端
-bash scripts/pre-commit.sh                        # 提交门（密钥扫描+空白）
+bash scripts/pre-commit.sh                        # 提交门（密钥/空白/docs/架构/版本/测试）
 curl -s http://127.0.0.1:4177/health | grep buildId  # 活体
 ```
 
@@ -75,9 +75,12 @@ curl -s http://127.0.0.1:4177/health | grep buildId  # 活体
 |---|---|
 | docs / skills | `npm run verify:docs` + `git diff --check` |
 | 仓库/架构 | `npm run verify:architecture` + 对应包 `verify:all` exit 0 |
-| hub 代码 | `npm run verify:architecture` + 对应包 `verify:all` exit 0 |
+| hub 代码 | 开发中定向测试；提交时门跑 `verify:architecture` + 对应包 `verify:all` |
+| push | CI 跑全量 `npm run verify`（含浏览器 E2E）；红了立即修 |
 | 部署行为 | e2e-pillars 绿 + /health buildId 非空 |
 | compose | `scripts/verify-hub-compose.sh` |
+
+本地提交门（`scripts/pre-commit.sh`）只跑一次：密钥扫描 / 空白 / docs 门 / 架构门 / 版本自动 bump / `verify:local`。浏览器 E2E 由 push 后的 CI 承担，本地不重复跑全量。
 
 ## 5. 安全边界（无审批不做）
 
@@ -89,8 +92,8 @@ curl -s http://127.0.0.1:4177/health | grep buildId  # 活体
 
 ## 6. 版本
 
-- 根 `VERSION`（SemVer），只用 `scripts/bump-version.sh`。
-- 改 `apps/hub-*/src` 行为必须 bump（fix=PATCH，feature=MINOR）。docs 不 bump。
+- 根 `VERSION`（SemVer），只用 `scripts/bump-version.sh`；提交门自动 bump patch 并暂存版本文件，无需手动步骤。
+- feature 提交设 `VERSION_BUMP_LEVEL=minor`（major 同理）；docs/harness 不 bump。
 
 ## 7. 代码规范
 

@@ -5,7 +5,7 @@
 # 安装为 git 钩子：  bash scripts/install-hooks.sh   （clone 后跑一次；幂等）
 # 手动跑：          bash scripts/pre-commit.sh
 #
-# 默认（快，钩子用）：1) 暂存新增行密钥扫描   2) git diff --check 空白错误   3) 文档/软件架构门   4) 版本哨兵   5) 根 npm run verify（含浏览器 E2E）
+# 默认（快，钩子用）：1) 暂存新增行密钥扫描   2) git diff --check 空白错误   3) 文档/软件架构门   4) 版本哨兵   5) 根 npm run verify:local（三包检查+构建；浏览器 E2E 交 push CI）
 # PRE_COMMIT_SKIP_VERIFY=1：临时跳过第 5 步（CI 已跑过等场景；AGENTS §4 验证门）
 #
 set -euo pipefail
@@ -48,9 +48,9 @@ if ! bash scripts/check-version-bump.sh; then
   fail=1
 fi
 
-# 3) 根验证入口是类型、测试、构建与浏览器 E2E 的唯一编排。
+# 3) 本地门跑 verify:local（类型/测试/构建）；完整浏览器 E2E 由 push CI 跑。
 if [[ "${PRE_COMMIT_SKIP_VERIFY:-0}" != "1" && "$fail" == "0" ]]; then
-  if ! npm run verify; then
+  if ! npm run verify:local; then
     fail=1
   fi
 fi
