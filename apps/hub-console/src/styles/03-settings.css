@@ -203,6 +203,17 @@
   box-sizing: border-box;
   width: 100%;
 }
+/* 表格内的裸 select/input 不在 Field 外壳里：补齐与 .kb-field 控件同源的主题外观，
+   否则预览表里只有它们退回系统原生方角控件。 */
+.roster-preview__table select,
+.roster-preview__table input {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-sm);
+}
 
 /* 确认组长块（ROSTER-CSV-3COL 刀③）：逐组一行「组名 + 成员下拉」。复用 .settings-desc / .btn / .form-hint。 */
 .lead-confirm {
@@ -223,6 +234,15 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+/* 共享 Select 组件本身不带样式；行内没有 .kb-field 外壳，补一份成员下拉同源的紧凑外观。 */
+.lead-confirm__row select {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-sm);
 }
 .lead-confirm__group {
   flex-shrink: 0;

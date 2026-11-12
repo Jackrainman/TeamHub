@@ -115,7 +115,12 @@
   color: var(--muted);
 }
 
-/* Field 外壳外的行内输入件：镜像 .kb-field input 的 token 写法（见文件头注释）。 */
+/* Field 外壳外的行内输入件：镜像 .kb-field input 的 token 写法（见文件头注释）。
+   筛选栏的 select 是裸控件（没有 Field/.gate-field 外壳），必须并入本组；否则退回
+   浏览器原生外观（方角、系统字体、发白描边），与其余控件割裂。 */
+.reimb-filters > select,
+.reimb-evidence__list select,
+.reimb-attachment select,
 .reimb-entry__edit input,
 .reimb-entry__batch select,
 .reimb-items-editor__row input,
@@ -131,6 +136,9 @@
   font-size: var(--text-base);
 }
 
+.reimb-filters > select:focus,
+.reimb-evidence__list select:focus,
+.reimb-attachment select:focus,
 .reimb-entry__edit input:focus,
 .reimb-entry__batch select:focus,
 .reimb-items-editor__row input:focus,
@@ -461,6 +469,8 @@
 .reimb-filters > select { width: auto; min-width: 130px; }
 .reimb-workflow, .reimb-history { display: flex; flex-direction: column; gap: var(--space-2); margin-block: var(--space-3); }
 .reimb-approve { display: flex; align-items: end; gap: var(--space-2); }
+/* gate-field 自带 12px 底边距；与按钮同排时 align-items:end 会把输入框抬离按钮底边。 */
+.reimb-approve .gate-field { margin-bottom: 0; }
 .reimb-history ol { max-height: 240px; overflow: auto; padding-left: var(--space-5); color: var(--muted); }
 .reimb-attachment__ops { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .reimb-unmatched { margin-block: var(--space-3); padding-block: var(--space-2); border-block: 1px dashed var(--border); }

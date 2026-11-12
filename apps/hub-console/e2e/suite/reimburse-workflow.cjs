@@ -117,7 +117,25 @@ function xlsxBuffer() {
     browser = await chromium.launch({ channel: process.env.E2E_BROWSER_CHANNEL || undefined });
     const ownerPage = await login(owner);
     assert.ok(await ownerPage.locator('.reimb-page').getByText(season.name, { exact: true }).count());
+    // 赛季是筛选栏控件，不能占页头并带竖排标签；筛选栏的裸 select 必须有主题样式（曾是原生方角）。
+    const seasonSelect = ownerPage.locator('.reimb-filters select[aria-label="赛季"]');
+    assert.equal(await seasonSelect.count(), 1);
+    await ownerPage.waitForFunction(
+      (id) => document.querySelector('.reimb-filters select[aria-label="赛季"]')?.value === id,
+      season.id,
+    );
+    const filterStyles = await ownerPage.locator('.reimb-filters > select').evaluateAll((els) => els.map((el) => {
+      const style = getComputedStyle(el);
+      const rect = el.getBoundingClientRect();
+      return { radius: style.borderRadius, height: rect.height, font: style.fontFamily, background: style.backgroundColor };
+    }));
+    assert.equal(filterStyles.length, 4, '赛季/完整度/工作流/支出类型四个筛选下拉都在筛选栏');
+    assert.ok(filterStyles.every((style) => style.radius !== '0px'), '筛选下拉必须有主题圆角，不能是浏览器原生方角');
+    assert.ok(filterStyles.every((style) => style.height >= 28), '筛选下拉高度须与同排按钮接近');
     await create(ownerPage, '采购-A', '采购');
+    const purchaseRowMeta = await ownerPage.locator('.reimb-table tbody tr').filter({ hasText: '合成采购-A' }).innerText();
+    assert.ok(purchaseRowMeta.includes(season.name), '条目行副标题展示可读赛季名');
+    assert.ok(!purchaseRowMeta.includes(season.id), '条目行副标题不得直出内部 seasonId');
     await submitOwned(ownerPage, '合成采购-A');
     await create(ownerPage, '其他-B', '其他');
     await submitOwned(ownerPage, '合成其他-B');

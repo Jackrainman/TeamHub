@@ -112,10 +112,6 @@ export function ReimbursePage({ client, source, identity, projectId }: {
   return <div className="reimb-page">
     <div className="reimb-page__head">
       <p className="gaps-intro">{t('reimb.intro')}</p>
-      <label className="gate-field">{t('reimb.season')}<select value={seasonId} onChange={(event) => { setSeasonId(event.target.value); setBatchId('all'); setSelectedIds([]); }}>
-        {seasonId === 'unassigned' && <option value="unassigned">{t('reimb.season.unassigned')}</option>}
-        {seasonsQuery.data?.seasons.map((season) => <option key={season.id} value={season.id}>{season.name}</option>)}
-      </select></label>
       {isFinance && <SegToggle value={view} onChange={setView} ariaLabel={t('reimb.view.title')} options={[{ value: 'mine', label: t('reimb.view.mine') }, { value: 'finance', label: t('reimb.view.finance') }]} />}
       <button className="btn btn--secondary" onClick={() => setImportOpen(true)} disabled={!identity.canWrite}><Upload size={16} />{t('expected.reimburseImport')}</button>
       <button className="btn btn--primary" onClick={() => importController.currentJobId !== null ? setImportPaused(false) : openCreate()} disabled={!identity.canWrite}><Plus size={16} />{t('expected.reimburseNew')}</button>
@@ -144,6 +140,10 @@ export function ReimbursePage({ client, source, identity, projectId }: {
 
     <div className="week-summary"><span><b>{entries.length}</b>{t('reimb.entries.title')}</span><span><b>{formatAmountFen(entries.reduce((sum, entry) => sum + (entry.totalAmountFen ?? 0), 0))}</b>{t('reimb.export.col.totalYuan')}</span></div>
     <div className="reimb-filters">
+      <select aria-label={t('reimb.season')} value={seasonId} onChange={(event) => { setSeasonId(event.target.value); setBatchId('all'); setSelectedIds([]); }}>
+        {seasonId === 'unassigned' && <option value="unassigned">{t('reimb.season.unassigned')}</option>}
+        {seasonsQuery.data?.seasons.map((season) => <option key={season.id} value={season.id}>{season.name}</option>)}
+      </select>
       <select aria-label={t('reimb.export.col.status')} value={completeness} onChange={(event) => setCompleteness(event.target.value as typeof completeness)}><option value="all">{t('expected.all')}</option>{(['draft', 'partial', 'complete'] as const).map((value) => <option key={value} value={value}>{t(`reimb.status.${value}`)}</option>)}</select>
       <select aria-label={t('reimb.workflow.title')} value={workflow} onChange={(event) => setWorkflow(event.target.value as typeof workflow)}><option value="all">{t('expected.all')}</option>{(['draft', 'submitted', 'reviewing', 'returned', 'pendingPayment', 'completed', 'cancelled'] as const).map((value) => <option key={value} value={value}>{t(`reimb.workflow.status.${value}`)}</option>)}</select>
       <select aria-label={t('reimb.create.field.expenseType')} value={expenseType} onChange={(event) => setExpenseType(event.target.value as typeof expenseType)}><option value="all">{t('expected.all')}</option>{(['purchase', 'taxi', 'ticket', 'other'] as const).map((value) => <option key={value} value={value}>{t(`reimb.expenseType.${value}`)}</option>)}</select>
@@ -157,7 +157,7 @@ export function ReimbursePage({ client, source, identity, projectId }: {
       {entries.some((entry) => entry.totalAmountFen === null) && <p className="form-hint">{t('reimb.package.unknownAmount', { count: entries.filter((entry) => entry.totalAmountFen === null).length })}</p>}
       <h2 className="inv-section-title">{t(view === 'finance' ? 'reimb.view.finance' : 'reimb.entries.title')}</h2>
       {visible.length === 0 ? <EmptyState icon={ReceiptText} title={t('reimb.entries.empty.title')} desc={t('reimb.entries.empty.desc')} /> :
-        <ReimburseTable entries={visible} selected={selectedIds} onSelect={setSelectedIds} onOpen={setEntryId} finance={view === 'finance'} />}
+        <ReimburseTable entries={visible} seasons={seasonsQuery.data?.seasons ?? []} selected={selectedIds} onSelect={setSelectedIds} onOpen={setEntryId} finance={view === 'finance'} />}
     </section>
     <p className="expected-page-hint">{t('expected.reimbursePrivacy')}</p>
     <SideDrawer open={supplementIds.length > 0} onClose={() => setSupplementIds([])} title={t('reimb.supplement.open')}>

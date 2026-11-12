@@ -1,10 +1,11 @@
 import { CheckCircle2, Clock, TriangleAlert } from 'lucide-react';
-import { deriveReimburseCompleteness, type ReimburseEntry } from '@teamhub/hub-contracts';
+import { deriveReimburseCompleteness, type ReimburseEntry, type Season } from '@teamhub/hub-contracts';
 import { useI18n } from '../../../i18n';
 import { formatAmountFen } from '../reimburse-utils';
 
-export function ReimburseTable({ entries, selected, onSelect, onOpen, finance = false }: {
+export function ReimburseTable({ entries, seasons, selected, onSelect, onOpen, finance = false }: {
   entries: ReimburseEntry[];
+  seasons: readonly Season[];
   selected: string[];
   onSelect: (ids: string[]) => void;
   onOpen: (id: string) => void;
@@ -12,6 +13,8 @@ export function ReimburseTable({ entries, selected, onSelect, onOpen, finance = 
 }) {
   const { t } = useI18n();
   const all = entries.length > 0 && entries.every(entry => selected.includes(entry.id));
+  // 行副标题只展示可读赛季名：entry.seasonId 是内部 id（season-new-N/unassigned），直出会泄漏实现值。
+  const seasonLabel = (seasonId: string) => seasons.find(season => season.id === seasonId)?.name ?? t('reimb.season.unassigned');
   return <div className="card domain-table-wrap"><table className="domain-table reimb-table">
     <thead><tr><th><input type="checkbox" aria-label={t('expected.selectAll')} checked={all} disabled={!entries.length} onChange={event => onSelect(event.target.checked ? [...new Set([...selected, ...entries.map(entry => entry.id)])] : selected.filter(id => !entries.some(entry => entry.id === id)))} /></th><th>{t('reimb.create.field.summary')}</th><th>{t('reimb.create.field.expenseType')}</th><th>{t('reimb.export.col.totalYuan')}</th><th>{t('reimb.export.col.status')}</th><th>{t('reimb.workflow.title')}</th><th>{t('reimb.payout.resultShort')}</th><th>{t('expected.reimburseOpen')}</th></tr></thead>
     <tbody>{entries.map(entry => {
@@ -20,7 +23,7 @@ export function ReimburseTable({ entries, selected, onSelect, onOpen, finance = 
       const Icon = completeness === 'complete' ? CheckCircle2 : completeness === 'partial' ? TriangleAlert : Clock;
       return <tr key={entry.id}>
         <td><input type="checkbox" aria-label={t('expected.reimburseSelect', { title })} checked={selected.includes(entry.id)} onChange={event => onSelect(event.target.checked ? [...selected, entry.id] : selected.filter(id => id !== entry.id))} /></td>
-        <td><strong>{title}</strong><small>{entry.seasonId} · {entry.invoiceDate ?? '—'}{finance ? ` · ${entry.memberId}` : ''}</small></td>
+        <td><strong>{title}</strong><small>{seasonLabel(entry.seasonId)} · {entry.invoiceDate ?? '—'}{finance ? ` · ${entry.memberId}` : ''}</small></td>
         <td>{t(entry.expenseType ? `reimb.expenseType.${entry.expenseType}` : 'reimb.expenseType.unconfirmed')}</td>
         <td className="reimb-table-amount">{formatAmountFen(entry.totalAmountFen)}</td>
         <td><span className={`reimb-material reimb-status--${completeness}`}><Icon size={14} />{t(`reimb.status.${completeness}`)}</span></td>

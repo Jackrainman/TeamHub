@@ -135,6 +135,10 @@
   gap: 8px;
   margin-top: 8px;
 }
+/* gate-field 的 12px 底边距会让日期输入抬离同排按钮（align-items:flex-end 按 margin box 对齐）。 */
+.timeline-editor__segment-row .gate-field {
+  margin-bottom: 0;
+}
 .timeline-editor__segment-label {
   flex-basis: 100%;
   font-size: var(--text-sm);
