@@ -1,13 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search } from 'lucide-react';
-import { useI18n } from '../../i18n';
+import { useI18n, type TranslationKey } from '../../i18n';
 import type { HubApiClient } from '../../api/client';
 import type { ConsolePage } from '../../console-pages';
 import { SideDrawer } from '../../components/SideDrawer';
 import { useGlobalSearch } from './hooks';
 
-const TYPE_PAGE: Record<string, ConsolePage> = { task: 'project', kb: 'knowledge', inventory: 'inv' };
-const TYPE_LABEL = { task: 'expected.searchTask', kb: 'expected.searchKb', inventory: 'expected.searchInventory' } as const;
+// 搜索结果 → 目标页：只有任务行在四页成品里还有落点（项目页）。知识/库存页收窄后
+// 其行按「无落点」过滤掉，不做假跳转。
+const RESULT_TARGET: Record<string, { page: ConsolePage; label: TranslationKey }> = {
+  task: { page: 'project', label: 'expected.searchTask' },
+};
 export function GlobalSearch({ client, onNavigate, availablePages }: {
   client: HubApiClient; onNavigate: (page: ConsolePage) => void; availablePages: ConsolePage[];
 }) {
@@ -25,7 +28,11 @@ export function GlobalSearch({ client, onNavigate, availablePages }: {
     return () => window.removeEventListener('keydown', handler);
   }, []);
   const close = () => { setOpen(false); trigger.current?.focus(); };
-  const results = search.data?.results.filter(result => availablePages.includes(TYPE_PAGE[result.type])) ?? [];
+  // 同一处判定「有落点 + 该页在当前租户启用」，渲染时直接复用 target，不再二次查表。
+  const results = (search.data?.results ?? []).flatMap(result => {
+    const target = RESULT_TARGET[result.type];
+    return target && availablePages.includes(target.page) ? [{ ...result, target }] : [];
+  });
   return <>
     <button type="button" className="search-trigger" ref={trigger} onClick={() => setOpen(true)} aria-label={t('expected.searchTitle')}><Search size={16} /><span>{t('layout.search.placeholder')}</span><kbd>Ctrl / ⌘ K</kbd></button>
     <SideDrawer open={open} onClose={close} title={t('expected.searchTitle')}>
@@ -35,8 +42,8 @@ export function GlobalSearch({ client, onNavigate, availablePages }: {
       </form>
       {!query ? <p className="expected-page-hint">{t('expected.searchHint')}</p> : search.isFetching ? <p role="status">{t('expected.searchLoading')}</p> : search.isError ? <div role="alert"><p>{t('expected.searchError')}</p><button className="btn btn--secondary" onClick={() => void search.refetch()}>{t('week.retry')}</button></div> : <div className="search-results">
         {results.length === 0 && <p>{t('layout.search.empty')}</p>}
-        {results.map(result => <button type="button" className="card card--interactive search-result" key={`${result.type}-${result.id}`} onClick={() => { onNavigate(TYPE_PAGE[result.type]); close(); }}>
-          <span className="badge">{t(TYPE_LABEL[result.type as keyof typeof TYPE_LABEL])}</span><strong>{result.title}</strong><small>{result.snippet}</small>
+        {results.map(result => <button type="button" className="card card--interactive search-result" key={`${result.type}-${result.id}`} onClick={() => { onNavigate(result.target.page); close(); }}>
+          <span className="badge">{t(result.target.label)}</span><strong>{result.title}</strong><small>{result.snippet}</small>
         </button>)}
       </div>}
     </SideDrawer>

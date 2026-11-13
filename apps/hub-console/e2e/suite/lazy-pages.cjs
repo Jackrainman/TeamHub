@@ -64,19 +64,15 @@ const { freePort } = require('./lib/free-port.cjs');
     await page.locator('main[data-page="workbench"] .week-workspace').waitFor();
     releaseSettings();
     await nav('设置').click();
+    await page.locator('main[data-page="settings"]').waitFor();
     await page.waitForLoadState('networkidle');
     await page.getByRole('status').filter({ hasText: '正在加载页面' }).waitFor({ state: 'hidden' });
     assert.ok(requested.some(url => /\/SettingsPage-[^/]+\.js$/.test(url)));
 
-    const pages = [
-      ['队伍近况', 'feed', 'TeamFeedPage'], ['项目', 'project', 'ProjectPage'],
-      ['知识库', 'knowledge', 'KbSearchPage'], ['库存与 BOM', 'inv', 'InvPage'], ['报销', 'reimburse', 'ReimbursePage'],
-      ['总览', 'overview', 'OverviewPage'], ['每日在场', 'schedule', 'SchedulePage'],
-      ['图纸档案', 'archive', 'ArchivePage'], ['机器人清单', 'fleet', 'ResourcesPage'],
-      ['学习方向', 'direction', 'DirectionPage'], ['时间线', 'timeline', 'TimelineEditorPage'],
-    ];
-    await nav('更多').click();
-    for (const [label, key, module] of pages) {
+    // 成品四页：侧栏就是 任务/项目/报销/设置，没有「更多」二级入口。
+    assert.equal(await page.locator('.console-sidebar .nav-item').count(), 4);
+    const deferred = [['项目', 'project', 'ProjectPage'], ['报销', 'reimburse', 'ReimbursePage']];
+    for (const [label, key, module] of deferred) {
       assert.equal(requested.some(url => url.includes(`/${module}-`)), false, `${key} stays deferred until selected`);
       await nav(label).click();
       await page.locator(`main[data-page="${key}"]`).waitFor();
@@ -109,7 +105,7 @@ const { freePort } = require('./lib/free-port.cjs');
     await failedPage.waitForLoadState('networkidle');
     await failedPage.getByRole('status').filter({ hasText: '正在加载页面' }).waitFor({ state: 'hidden' });
     assert.equal(await failedPage.getByRole('alert').filter({ hasText: '页面暂时无法打开' }).count(), 0);
-    console.log(`PASS lazy pages: 13 routes, deferred requests, slow/failing chunk recovery; initial JS ${raw} bytes / gzip ${gzip}`);
+    console.log(`PASS lazy pages: 4 pages, deferred requests, slow/failing chunk recovery; initial JS ${raw} bytes / gzip ${gzip}`);
   } finally {
     await browser?.close();
     if (child && child.exitCode === null) {

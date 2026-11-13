@@ -54,10 +54,10 @@
   line-height: 1.5;
 }
 
-/* 两张大卡：等宽并排，窄屏堆叠。 */
+/* 单张安装卡：占满内容宽度，窄屏自然堆叠。 */
 .setup-wizard__cards {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
 .setup-card {
@@ -100,34 +100,12 @@
   font-size: var(--text-base);
   font-weight: var(--weight-bold);
 }
-/* 试驾卡把 CTA 顶到底、与正式卡按钮对齐（正式卡多一格选择、天然更高）。 */
-.setup-card__spacer {
-  flex: 1 1 auto;
-}
-.setup-card__advanced {
-  padding: 10px 12px;
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface-raised);
-}
-.setup-card__advanced summary {
-  cursor: pointer;
-  color: var(--muted);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-}
 .setup-card__check {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 10px;
   font-size: var(--text-base);
-}
-.setup-card__hint {
-  margin: 6px 0 0;
-  color: var(--faint);
-  font-size: var(--text-sm);
-  line-height: 1.5;
 }
 .setup-card__foot {
   margin: 0;

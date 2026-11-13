@@ -183,7 +183,6 @@ function ConsoleApp({ apiClient, settings }: { apiClient: HubApiClient; settings
     apiClient,
     source: SOURCE,
     projectId: settings.projectId,
-    availablePages: enabledPages.map(page => page.key),
     onNavigate: setPage,
     overview: {
       isLoading: overviewQuery.isLoading,

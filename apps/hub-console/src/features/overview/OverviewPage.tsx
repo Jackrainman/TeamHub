@@ -191,9 +191,6 @@ export function OverviewPage({
             <ArtifactRow artifact={artifact} key={artifact.id} />
           ))}
         </div>
-        <div className="overview-integrations-hint">
-          <HintLink label={t('overview.artifacts.toArchive')} page="archive" onNavigate={onNavigate} />
-        </div>
       </section>
     </div>
   );

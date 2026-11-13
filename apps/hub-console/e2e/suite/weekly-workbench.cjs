@@ -223,12 +223,12 @@ const { freePort } = require('./lib/free-port.cjs');
       }
     }
     await pageA.evaluate(() => document.documentElement.dataset.theme = 'notion');
-    await pageA.getByRole('button', { name: '更多', exact: true }).click();
-    await pageA.locator('.console-sidebar').getByRole('button', { name: '总览', exact: true }).click();
-    await pageA.locator('.overview-season').waitFor();
-    assert.equal(await pageA.locator('.workbench-progress-strip').count(), 1);
-    await capture(pageA, 'overview-1000');
-    assert.equal(await pageA.locator('.workbench-timeline').count(), 1);
+    // 成品四页：侧栏只剩 任务/项目/报销/设置，旧导航项与「更多」入口同步移除。
+    assert.equal(await pageA.locator('.console-sidebar .nav-item').count(), 4);
+    assert.equal(await pageA.locator('.console-sidebar').getByRole('button', { name: '更多', exact: true }).count(), 0);
+    await pageA.locator('.console-sidebar').getByRole('button', { name: '设置', exact: true }).click();
+    await pageA.locator('.appearance-preferences h2').first().waitFor();
+    await capture(pageA, 'settings-1000');
     if (process.env.E2E_HEALTH) {
       const statePath = path.join(dir, 'browser-state.json');
       await pageA.context().storageState({ path: statePath });

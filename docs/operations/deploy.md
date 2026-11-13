@@ -10,7 +10,7 @@ last_reviewed: 2026-08-15
 
 ## 1. 支持范围
 
-开发支持 Windows PowerShell 与 Ubuntu，统一使用 Node.js 24.x、Git 和根 npm workspace。部署目标为 Ubuntu 24 Server；Docker Compose 是可选路径。hub-server 在单端口 4177 托管 console 与 API，默认先绑定 `127.0.0.1`。
+开发支持 Windows PowerShell 与 Ubuntu，统一使用 Node.js 22+（生产当前运行 v22.23.1，Node 22 是最低支持版本）、Git 和根 npm workspace。部署目标为 Ubuntu 24 Server；Docker Compose 是可选路径。hub-server 在单端口 4177 托管 console 与 API，默认先绑定 `127.0.0.1`。
 
 本地开发：`npm ci` → `npm run dev`。默认数据在仓库 `tmp/dev-data/`（SQLite、artifacts、evidence），修改代码后重新运行；初始化退出 42 自动重启。前端热更新可另开终端运行 `npm run dev -w apps/hub-console`。后端改端口时，两个终端设置相同 `HUB_PORT`：PowerShell 用 `$env:HUB_PORT='4277'`，Ubuntu 用 `export HUB_PORT=4277`。
 

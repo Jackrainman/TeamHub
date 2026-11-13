@@ -34,7 +34,7 @@ export const zhBase = {
   'identity.anon.badge': '匿名模式',
   'identity.anon.hint': '现在不用登录，大家都能读也能写；操作记谁的名靠自己选。到设置页看怎么启用登录。',
   'identity.gate.title': '先登录',
-  'identity.gate.subtitle': '登录后才能查看 TeamHub。第一次登录不用填密码，进去后会要求你设置。',
+  'identity.gate.subtitle': '输入名字，首次进入会提示设置密码。',
   'identity.pinGate.title': '先设置你的密码',
   'identity.pinGate.desc': '{name}，第一次登录需要设一个密码（至少 8 位），之后登录都靠它。',
   'identity.pinGate.field': '新密码（至少 8 位）',
@@ -143,7 +143,7 @@ export const enBase = {
   'identity.anon.hint':
     'No login right now — everyone can read and write; who each action is signed by comes from picking a name. See Settings for how to enable login.',
   'identity.gate.title': 'Log in first',
-  'identity.gate.subtitle': 'TeamHub requires login. First time? Leave the password blank — you will set one after entering.',
+  'identity.gate.subtitle': 'Enter your name; you will be prompted to set a password on first entry.',
   'identity.pinGate.title': 'Set your password first',
   'identity.pinGate.desc': '{name}, please set a password (at least 8 characters) on first login — it is how you log in from now on.',
   'identity.pinGate.field': 'New password (8+ characters)',

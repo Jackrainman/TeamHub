@@ -14,7 +14,7 @@
 
 [![Version](https://img.shields.io/github/v/tag/Jackrainman/TeamHub?label=version&style=for-the-badge&color=7c3aed)](https://github.com/Jackrainman/TeamHub/releases)
 [![Verify](https://img.shields.io/github/actions/workflow/status/Jackrainman/TeamHub/verify.yml?branch=master&label=verify&style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/Jackrainman/TeamHub/actions/workflows/verify.yml)
-[![Node](https://img.shields.io/badge/node-%E2%89%A524-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 
 <br/>
 
@@ -74,7 +74,7 @@ flowchart TD
 
 ## 🚀 五分钟跑起来
 
-Windows PowerShell 和 Ubuntu 都可以。需要 Node.js 24.x 和 Git；SQLite 是 Node 内置的，不用另装数据库，也不用 WSL。
+Windows PowerShell 和 Ubuntu 都可以。需要 Node.js 22+ 和 Git（生产当前运行 v22.23.1）；SQLite 是 Node 内置的，不用另装数据库，也不用 WSL。首次安装依赖和测试浏览器需要联网。
 
 ```bash
 git clone https://github.com/Jackrainman/TeamHub.git
@@ -105,20 +105,12 @@ Windows 和 Ubuntu 各自 `npm ci`，不要复制 `node_modules`。Git Bash 只�
 
 | 页面 | 干什么 |
 |---|---|
-| ✅ **任务** | 个人 / 全队任务网格；新建、备位验收、历史查询。 |
-| 🧭 **项目** | 三列看板、依赖图、挂单池。 |
-| 🧠 **知识库** | 按症状搜旧坑，问题解决后结案归档。 |
+| ✅ **任务** | 本周工作台：个人 / 全队任务按状态筛，领取、自报卡点、交验收。 |
+| 🧭 **项目** | 三列看板、依赖图、挂单池；看全赛季谁被谁卡住。 |
 | 🧾 **报销** | 票据在浏览器本地解析；条目登记、财务核对、选中导出。 |
-| 📦 **库存与 BOM** | 余量、装拆、入库、报损、缺料提醒。 |
-| 📊 **总览** | 倒计时、本车与赛季进度、基准线、门检查。 |
-| 📅 **每日在场** | 资源时段与接力协作，不记考勤。 |
-| 📐 **图纸档案** | 按机构和版本存图纸。 |
-| 🤖 **机器人清单** | 整机登记、状态维护、检查项与门检查。 |
-| 🧗 **学习方向** | 按工种看技能缺口，给学弟一张地图。 |
-| 🕘 **时间线** | 回看项目事实。 |
 | ⚙️ **设置** | 名册与权限、语言、七套主题、字号。 |
 
-<sub>队伍近况还在规划中，目前只有只读的赛季基准线。</sub>
+<sub>知识库、库存与 BOM、图纸档案、每日在场等领域已有服务端和契约层能力，界面收口在以上四页，暂不进导航。</sub>
 
 ## 🛠 技术形态
 
@@ -128,7 +120,7 @@ Windows 和 Ubuntu 各自 `npm ci`，不要复制 `node_modules`。Git Bash 只�
 hub-console ──→ hub-contracts ←── hub-server
 ```
 
-- **hub-server**：Fastify 5，单端口 `4177` 同时托管 API 和前端静态站；数据落在 SQLite（Node 24 内置 `node:sqlite`），图纸和报销凭证放在本地目录。
+- **hub-server**：Fastify 5，单端口 `4177` 同时托管 API 和前端静态站；数据落在 SQLite（Node 内置 `node:sqlite`），图纸和报销凭证放在本地目录。
 - **hub-console**：React 18 + Vite 5，TypeScript，中英双语、七套主题。
 - **hub-contracts**：Zod 契约，前后端共用字段和派生规则。
 

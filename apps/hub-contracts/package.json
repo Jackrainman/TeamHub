@@ -1,7 +1,7 @@
 {
   "name": "@teamhub/hub-contracts",
   "private": true,
-  "version": "0.93.3",
+  "version": "0.94.0",
   "description": "Team Hub shared Zod contracts and mock API fixtures",
   "type": "module",
   "main": "dist/index.js",
@@ -20,7 +20,7 @@
     "verify:all": "npm run typecheck && npm run test && npm run build"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=22"
   },
   "dependencies": {
     "zod": "^3.25.76"

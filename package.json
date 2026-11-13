@@ -1,7 +1,7 @@
 {
   "name": "teamhub",
   "private": true,
-  "version": "0.93.3",
+  "version": "0.94.0",
   "workspaces": [
     "apps/hub-contracts",
     "apps/hub-server",
@@ -24,6 +24,6 @@
     "backup": "node scripts/backup-teamhub-data.mjs"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=22"
   }
 }

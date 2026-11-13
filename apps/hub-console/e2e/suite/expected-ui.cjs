@@ -1,4 +1,4 @@
-// E 原型验收：真实 SQLite、浏览器时钟、字号持久化与七个工作区。
+// E 原型验收：真实 SQLite、浏览器时钟、字号持久化与四个成品页。
 const { chromium } = require('playwright');
 const { spawn } = require('node:child_process');
 const { mkdtempSync, mkdirSync, rmSync, writeFileSync } = require('node:fs');
@@ -113,9 +113,11 @@ const { freePort } = require('./lib/free-port.cjs');
     await page.getByRole('button', { name: '标准', exact: true }).click();
     await capture('settings');
 
-    assert.equal(await nav('队伍近况').count(), 0, 'team updates stays inside More');
-    await nav('更多').click();
-    for (const [label, key] of [['项目', 'project'], ['队伍近况', 'feed'], ['知识库', 'knowledge'], ['库存与 BOM', 'inv'], ['报销', 'reimburse']]) {
+    // 成品四页：侧栏只有 任务/项目/报销/设置，旧导航项（含「更多」二级入口）一律不存在。
+    for (const label of ['队伍近况', '知识库', '库存与 BOM', '总览', '每日在场', '图纸档案', '机器人清单', '学习方向', '时间线', '更多']) {
+      assert.equal(await nav(label).count(), 0, `${label} 不在四页导航里`);
+    }
+    for (const [label, key] of [['项目', 'project'], ['报销', 'reimburse']]) {
       await nav(label).click(); await page.waitForLoadState('networkidle');
       assert.equal(await page.locator('.console-main').evaluate(el => getComputedStyle(el).animationName), 'none');
       await capture(key);
@@ -159,45 +161,6 @@ const { freePort } = require('./lib/free-port.cjs');
     assert.equal(await page.getByRole('dialog').count(), 1);
     await page.keyboard.press('Escape');
 
-    await nav('库存与 BOM').click();
-    await page.getByRole('button', { name: '登记物料', exact: true }).click();
-    await page.getByLabel('零件编号', { exact: false }).fill('E2E-PART');
-    await page.getByLabel('名称', { exact: false }).fill('浏览器测试物料');
-    await page.getByLabel('初始总数', { exact: false }).fill('3');
-    await capture('inventory-create');
-    await page.getByRole('button', { name: '新建零件', exact: true }).click();
-    await page.getByRole('dialog').waitFor({ state: 'hidden' });
-    await page.getByRole('searchbox', { name: '搜索物料、编号或规格' }).fill('E2E-PART');
-    await page.locator('.inv-table').getByRole('button').last().click();
-    await page.getByLabel('本次数量', { exact: false }).fill('2');
-    await page.getByRole('button', { name: '记一笔', exact: true }).click();
-    await page.getByRole('dialog').waitFor({ state: 'hidden' });
-    assert.equal((await page.locator('.inv-idle-total').innerText()).trim(), '/ 5');
-    await capture('inventory-updated');
-
-    await nav('知识库').click();
-    await page.getByLabel('症状 / 现象').fill('CAN');
-    await page.getByRole('button', { name: '检索相似历史' }).click();
-    await page.locator('.kb-result-preview').first().waitFor();
-    await capture('knowledge-results');
-    await page.locator('.kb-result-open').first().click(); await capture('knowledge-detail');
-    await page.keyboard.press('Escape');
-    for (const suffix of ['一', '二']) {
-      await page.getByRole('button', { name: '新建归档', exact: true }).click();
-      const drawer = page.getByRole('dialog');
-      await drawer.getByLabel('问题标题', { exact: false }).fill(`浏览器归档${suffix}`);
-      await drawer.getByLabel('症状 / 现象', { exact: false }).fill('CAN 通信测试记录');
-      await drawer.getByLabel('根因（必填）', { exact: false }).fill('连接器松动');
-      await drawer.getByLabel('处理方式（必填）', { exact: false }).fill('检查并固定连接器');
-      if (suffix === '一') await capture('knowledge-create');
-      await drawer.getByRole('button', { name: '结案归档', exact: true }).click();
-      await drawer.getByText('已归档结案', { exact: true }).waitFor();
-      await page.keyboard.press('Escape');
-    }
-    await page.getByLabel('症状 / 现象').fill('CAN 通信测试记录');
-    await page.getByRole('button', { name: '检索相似历史' }).click();
-    await page.locator('.kb-result-preview').getByText('浏览器归档一', { exact: true }).waitFor();
-    await page.locator('.kb-result-preview').getByText('浏览器归档二', { exact: true }).waitFor();
     await page.keyboard.press('Control+k');
     await page.getByRole('searchbox', { name: '全局搜索' }).fill('预期版');
     await page.getByRole('button', { name: '搜索', exact: true }).click();
@@ -210,7 +173,7 @@ const { freePort } = require('./lib/free-port.cjs');
     for (const width of [1000, 390]) {
       await page.setViewportSize({ width, height: 1000 });
       if (await expanded()) await page.locator('.sidebar-toggle').click();
-      for (const [label, key] of [['任务', 'week'], ['项目', 'project'], ['队伍近况', 'feed'], ['知识库', 'knowledge'], ['库存与 BOM', 'inv'], ['报销', 'reimburse'], ['设置', 'settings']]) {
+      for (const [label, key] of [['任务', 'workbench'], ['项目', 'project'], ['报销', 'reimburse'], ['设置', 'settings']]) {
         await nav(label).click(); await page.waitForLoadState('networkidle'); await capture(`${key}-${width}`);
       }
     }
@@ -226,7 +189,7 @@ const { freePort } = require('./lib/free-port.cjs');
     assert.equal(await loginPage.locator('.console-shell').evaluate(el => el.classList.contains('sidebar-expanded')), true, 'login gate does not consume sidebar idle time');
     await loginContext.close();
     assert.deepEqual(errors, []);
-    console.log(`PASS E expected UI: idle timeline, continuous transition, preferences, real drawers, private evidence, search, seven workspaces; screenshots ${shots}`);
+    console.log(`PASS E expected UI: idle timeline, continuous transition, preferences, real drawers, private evidence, search, four shipped pages; screenshots ${shots}`);
   } catch (error) {
     if (page) { await page.screenshot({ path: path.join(shots, 'expected-failure.png'), fullPage: true }); console.error(await page.locator('body').innerText()); }
     throw error;

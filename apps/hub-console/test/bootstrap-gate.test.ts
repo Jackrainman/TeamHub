@@ -75,3 +75,34 @@ describe('bootstrap-gate: WIZARD_STEP_ORDER 回退步序', () => {
     expect(translations.en['gate.back']).toBeTruthy();
   });
 });
+
+/**
+ * SetupWizard 只保留空项目初始化：演示数据卡已下线，其专属文案键不得回流；
+ * 空项目安装卡的身份模式文案 zh/en 仍齐全。
+ */
+describe('bootstrap-gate: SetupWizard 仅保留空项目初始化', () => {
+  test('setup.demo.* 文案键已删除（zh/en 均无）', () => {
+    for (const lang of [translations.zh, translations.en]) {
+      for (const key of Object.keys(lang)) {
+        expect(key.startsWith('setup.demo.'), key).toBe(false);
+      }
+    }
+  });
+
+  test('空项目安装卡与其身份模式文案 zh/en 齐全', () => {
+    const keys = [
+      'setup.real.title',
+      'setup.real.desc',
+      'setup.real.identity.question',
+      'setup.real.identity.identity',
+      'setup.real.identity.identityHint',
+      'setup.real.identity.anon',
+      'setup.real.identity.anonHint',
+      'setup.real.cta',
+    ] as const;
+    for (const key of keys) {
+      expect(translations.zh[key], `zh ${key}`).toBeTruthy();
+      expect(translations.en[key], `en ${key}`).toBeTruthy();
+    }
+  });
+});

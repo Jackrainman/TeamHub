@@ -1,7 +1,7 @@
 {
   "name": "@teamhub/hub-server",
   "private": true,
-  "version": "0.93.3",
+  "version": "0.94.0",
   "description": "Team Hub backend shell: health, system status, and mock adapter registry",
   "type": "module",
   "main": "dist/main.js",
@@ -28,7 +28,7 @@
     "verify:all": "npm run build:contracts && npm run typecheck:local && npm run test:local && npm run build:local"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=22"
   },
   "dependencies": {
     "@fastify/multipart": "^10.0.0",
