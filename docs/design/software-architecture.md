@@ -50,7 +50,7 @@ TeamHub 已从单一机器人协作工具长成知识库、项目管理、库存
 
 | 层 | 唯一选择 | 约束 |
 |---|---|---|
-| 运行时 | Node.js 24+ / TypeScript 5.9+ / ESM | 全仓一致，不混 CommonJS 业务源码 |
+| 运行时 | Node.js 22+ / TypeScript 5.9+ / ESM | 生产运行 v22.23.1，Node 22 为底线；全仓一致，不混 CommonJS 业务源码 |
 | 工作区 | npm workspaces | 根目录单一 `package-lock.json`；删除子包 lock |
 | 契约 | Zod | schema、请求/响应、纯派生唯一真相 |
 | HTTP | Fastify 5 | 只在 hub-server；路由薄层 |

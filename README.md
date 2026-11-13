@@ -8,7 +8,7 @@
 
 ![Tag](https://img.shields.io/github/v/tag/Jackrainman/TeamHub?label=version&color=blue)
 ![Status](https://img.shields.io/badge/status-public%20beta-brightgreen)
-![Node](https://img.shields.io/badge/node-%E2%89%A524-informational)
+![Node](https://img.shields.io/badge/node-%E2%89%A522-informational)
 ![Data](https://img.shields.io/badge/data-SQLite-success)
 
 </div>
@@ -25,7 +25,7 @@
 
 ## 五分钟跑起来
 
-Windows PowerShell / Ubuntu 均使用 Node.js 24.x 和 Git。SQLite 内置于 Node，无需单独安装数据库或 WSL；首次安装依赖和测试浏览器需要联网。
+Windows PowerShell / Ubuntu 均使用 Node.js 22+ 和 Git；生产当前运行 v22.23.1，Node 22 是最低支持版本。SQLite 内置于 Node，无需单独安装数据库或 WSL；首次安装依赖和测试浏览器需要联网。
 
 ```bash
 git clone https://github.com/Jackrainman/TeamHub.git

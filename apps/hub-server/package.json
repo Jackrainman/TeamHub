@@ -28,7 +28,7 @@
     "verify:all": "npm run build:contracts && npm run typecheck:local && npm run test:local && npm run build:local"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=22"
   },
   "dependencies": {
     "@fastify/multipart": "^10.0.0",
