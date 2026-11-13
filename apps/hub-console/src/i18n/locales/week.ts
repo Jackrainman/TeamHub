@@ -1,6 +1,5 @@
 export const zhWeek = {
   'team.personalTitle': '我的任务',
-  'team.personalHint': '查看自己承担的任务与历史。',
   'team.personal': '个人',
   'team.all': '全队',
   'team.scope': '任务范围',
@@ -12,7 +11,6 @@ export const zhWeek = {
   'team.removeReviewer': '移除',
   'team.otherGroup': '其他小组',
   'team.title': '全队任务',
-  'team.hint': '任务和历史全队可查。',
   'team.search': '搜索任务',
   'team.allGroups': '全部小组',
   'team.status': '状态',
@@ -52,7 +50,6 @@ export const zhWeek = {
   'week.accepted': '已验收', 'week.awaiting': '待验收', 'week.peerRequired': '仅所选备位人可验收，一人通过即可。',
   'week.waitingFor': '等待', 'week.blockUnknown': '上游任务或需求确认，详情见项目依赖图',
   'week.owner': '承担', 'week.completedBy': '完成', 'week.reviewedBy': '验收',
-  'week.selfHint': '创建后即可开始，备位人可以稍后选择。',
   'week.group': '小组', 'week.chooseGroup': '选择具体小组',
   'week.taskTitle': '任务标题', 'week.summary': '要完成什么', 'week.robot': '机器人目标', 'week.optional': '不指定',
   'week.complexity': '复杂度', 'week.complexity.trivial': '简单', 'week.complexity.normal': '常规', 'week.complexity.hard': '复杂',
@@ -64,7 +61,6 @@ export const zhWeek = {
 
 export const enWeek: Record<keyof typeof zhWeek, string> = {
   'team.personalTitle': 'My tasks',
-  'team.personalHint': 'Your tasks and history.',
   'team.personal': 'Personal',
   'team.all': 'Team',
   'team.scope': 'Task scope',
@@ -76,7 +72,6 @@ export const enWeek: Record<keyof typeof zhWeek, string> = {
   'team.removeReviewer': 'Remove',
   'team.otherGroup': 'Other group',
   'team.title': 'Team tasks',
-  'team.hint': 'Tasks and history are visible to the team.',
   'team.search': 'Search tasks',
   'team.allGroups': 'All groups',
   'team.status': 'Status',
@@ -116,7 +111,6 @@ export const enWeek: Record<keyof typeof zhWeek, string> = {
   'week.accepted': 'Accepted', 'week.awaiting': 'Awaiting review', 'week.peerRequired': 'Only selected backups can review; one acceptance is enough.',
   'week.waitingFor': 'Waiting for', 'week.blockUnknown': 'Upstream task or need confirmation; see the project graph',
   'week.owner': 'Owner', 'week.completedBy': 'Completed', 'week.reviewedBy': 'Reviewed',
-  'week.selfHint': 'Start now and choose backup reviewers later.',
   'week.group': 'Group', 'week.chooseGroup': 'Choose a leaf group',
   'week.taskTitle': 'Task title', 'week.summary': 'What needs to be done', 'week.robot': 'Robot target', 'week.optional': 'Unspecified',
   'week.complexity': 'Complexity', 'week.complexity.trivial': 'Simple', 'week.complexity.normal': 'Normal', 'week.complexity.hard': 'Complex',

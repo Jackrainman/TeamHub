@@ -121,7 +121,7 @@ export function MembersPermissionsSection({
                   </label>
                   {member.gateReviewer ? (
                     <span className="badge badge--wide badge--green">
-                      {t('settings.reviewers.badge.auto')}
+                      {t('settings.reviewers.badge')}
                     </span>
                   ) : null}
                   {identity.mode === 'identity' ? (

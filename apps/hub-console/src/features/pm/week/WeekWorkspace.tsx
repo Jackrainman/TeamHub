@@ -43,7 +43,7 @@ export function WeekWorkspace({ client, source, projectId, identity }: {
 
   return <div className="week-workspace">
     <header className="week-header">
-      <div><h1>{t(titleKey)}</h1><p className="week-note">{t(effectiveScope === 'mine' ? 'team.personalHint' : 'team.hint')}</p></div>
+      <div><h1>{t(titleKey)}</h1></div>
       <div className="team-header-actions">
         <button className="btn btn--primary" disabled={!canWrite} onClick={() => setCreateOpen(true)}><Plus size={16} />{t('week.selfReport')}</button>
         <SegToggle value={columns} options={(['2', '3', '4'] as const).map(value => ({ value, label: t(`team.columns.${value}`) }))} ariaLabel={t('team.columns')} onChange={setColumns} />

@@ -13,17 +13,15 @@
 .console-brand .console-logo { width: 27px; height: 27px; object-fit: contain; border-radius: 0; }
 .console-brand .brand-copy { flex: 1; display: flex; flex-direction: column; }
 .console-brand .brand-copy strong { font-size: var(--text-md); }
-.console-brand .brand-copy span { font-size: var(--text-2xs); color: var(--sidebar-text-muted); }
 .brand-copy, .nav-copy { min-width: 0; max-width: 0; opacity: 0; overflow: hidden; transform: translateX(-6px); transition: max-width var(--sidebar-motion), opacity 200ms ease, transform var(--sidebar-motion); white-space: nowrap; }
 .sidebar-expanded .brand-copy, .sidebar-expanded .nav-copy { max-width: 180px; opacity: 1; transform: translateX(0); }
 .sidebar-expanded .console-brand { flex-wrap: nowrap; min-height: 42px; gap: var(--space-2); }
 .sidebar-toggle { flex: 0 0 28px; height: 28px; padding: 0; display: grid; place-items: center; border: var(--surface-line); border-radius: var(--radius-sm); background: var(--surface-muted); color: var(--muted); cursor: pointer; }
 .console-shell .console-nav { display: flex; flex-direction: column; gap: var(--space-1); padding: 0; }
-.console-shell .nav-item { width: 100%; height: 55px; position: relative; cursor: pointer; font-family: inherit; flex-shrink: 0; padding: var(--space-2) var(--space-3); border: 0; border-radius: var(--radius-md); display: flex; align-items: center; gap: 0; color: var(--sidebar-text-muted); background: transparent; text-align: left; overflow: hidden; }
+.console-shell .nav-item { width: 100%; height: 42px; position: relative; cursor: pointer; font-family: inherit; flex-shrink: 0; padding: var(--space-2) var(--space-3); border: 0; border-radius: var(--radius-md); display: flex; align-items: center; gap: 0; color: var(--sidebar-text-muted); background: transparent; text-align: left; overflow: hidden; }
 .console-shell .nav-item > svg { flex: 0 0 18px; }
 .sidebar-expanded .nav-item { gap: var(--space-3); }
 .nav-copy strong { display: block; font-size: var(--text-base); font-weight: var(--weight-medium); }
-.nav-copy small { display: block; margin-top: 3px; font-size: var(--text-2xs); color: var(--sidebar-text-muted); }
 .console-shell .nav-item:hover { color: var(--sidebar-text); background: color-mix(in srgb, var(--sidebar-text) 8%, transparent); }
 .console-shell .nav-item-active { color: var(--blue); background: var(--blue-soft); }
 .console-shell .nav-section { max-height: 0; margin: 0 var(--space-3); padding: 0; opacity: 0; overflow: hidden; color: var(--sidebar-text-muted); font-size: var(--text-2xs); transition: max-height var(--sidebar-motion), margin var(--sidebar-motion), opacity var(--sidebar-motion); white-space: nowrap; }
@@ -34,7 +32,6 @@
 .console-content { min-width: 0; }
 .console-topbar { min-height: 65px; padding: var(--space-2) var(--space-6); border-bottom: var(--surface-line); display: flex; align-items: center; gap: var(--space-4); background: var(--surface-muted); }
 .console-topbar-title strong { display: block; font-size: var(--text-base); }
-.console-topbar-title span { display: block; margin-top: 2px; color: var(--muted); font-size: var(--text-xs); }
 .console-topbar .console-toolbar__actions { flex-wrap: wrap; gap: var(--space-2); }
 .console-shell .console-main { min-width: 0; width: auto; max-width: none; padding: var(--space-6); margin: 0; display: flex; flex-direction: column; gap: 0; animation: none; }
 .console-toolbar { margin-bottom: var(--space-5); }

@@ -26,14 +26,14 @@ export function ConsoleLayout({ children, page, onNavigate, pages, client, actio
     const Icon = item.icon;
     return [<button className={`nav-item${key === page ? ' nav-item-active' : ''}`} type="button" key={key}
       onClick={() => onNavigate(key)} aria-label={t(item.labelKey)} title={t(item.labelKey)} aria-current={key === page ? 'page' : undefined}>
-      <Icon aria-hidden="true" size={18} /><span className="nav-copy"><strong>{t(item.labelKey)}</strong><small>{item.hintKey ? t(item.hintKey) : t(item.titleKey)}</small></span>
+      <Icon aria-hidden="true" size={18} /><span className="nav-copy"><strong>{t(item.labelKey)}</strong></span>
     </button>];
   });
   return <div className={`console-shell${p.expanded ? ' sidebar-expanded' : ''}`}>
     <aside className="console-sidebar" aria-label={t('layout.sidebar.nav')} onPointerMove={p.touchSidebar} onPointerDown={p.touchSidebar} onFocusCapture={p.touchSidebar} onKeyDown={p.touchSidebar}>
       <div className="console-brand">
         <div className="console-brand-mark"><img className="console-logo" src="/logo-banner.png" alt="TeamHub" width={27} height={27} /></div>
-        <div className="brand-copy"><strong>TeamHub</strong><span>{t('expected.subtitle')}</span></div>
+        <div className="brand-copy"><strong>TeamHub</strong></div>
         <button className="sidebar-toggle" onClick={p.toggleSidebar} aria-expanded={p.expanded} aria-label={t(p.expanded ? 'expected.collapse' : 'expected.expand')} title={t(p.expanded ? 'expected.collapse' : 'expected.expand')}>
           {p.expanded ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
         </button>
@@ -42,10 +42,10 @@ export function ConsoleLayout({ children, page, onNavigate, pages, client, actio
         <div className="nav-section">{t('expected.workspace')}</div>{nav(PRIMARY)}
         <div className="nav-section nav-section--tools">{t('expected.tools')}</div>{nav(TOOLS)}
       </nav>
-      <div className="sidebar-foot"><span aria-hidden="true" className="sidebar-foot-dot" /><span className="nav-copy"><strong>TeamHub</strong><small>{t('expected.facts')}</small></span></div>
+      <div className="sidebar-foot"><span aria-hidden="true" className="sidebar-foot-dot" /><span className="nav-copy"><strong>TeamHub</strong></span></div>
     </aside>
     <div className="console-content">
-      <header className="console-topbar"><div className="console-topbar-title"><strong>{active && t(active.labelKey)}</strong><span>{t('expected.facts')}</span></div><GlobalSearchBox client={client} onNavigate={onNavigate} availablePages={pages.map(item => item.key)} />{actions}</header>
+      <header className="console-topbar"><div className="console-topbar-title"><strong>{active && t(active.labelKey)}</strong></div><GlobalSearchBox client={client} onNavigate={onNavigate} availablePages={pages.map(item => item.key)} />{actions}</header>
       <main className="console-main" id="console-main" data-page={page}>{children}</main>
     </div>
   </div>;

@@ -71,7 +71,6 @@ export interface ConsolePageDescriptor {
   key: ConsolePage;
   labelKey: TranslationKey;
   titleKey: TranslationKey;
-  hintKey?: TranslationKey;
   icon: typeof Home;
   section: ConsoleSection;
   /** 试用标记：导航项与页头标题旁显示徽标——'beta' = 「内测中」（功能未定型），'public-beta' = 「公测中」（高频功能开放全队试用，NAV-REGROUP ③）。 */
@@ -90,7 +89,6 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
   {
     key: 'workbench',
     labelKey: 'expected.nav.workbench',
-    hintKey: 'expected.hint.workbench',
     titleKey: 'toolbar.title.workbench',
     icon: Home,
     section: 'home',
@@ -107,7 +105,6 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
   {
     key: 'project',
     labelKey: 'expected.nav.project',
-    hintKey: 'expected.hint.project',
     titleKey: 'expected.nav.project',
     icon: LayoutGrid,
     section: 'board',
@@ -119,7 +116,6 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
   {
     key: 'reimburse',
     labelKey: 'expected.nav.reimburse',
-    hintKey: 'expected.hint.reimburse',
     titleKey: 'expected.nav.reimburse',
     icon: ReceiptText,
     // 报销=拿来即用的小工具，归小工具组并标「公测中」（NAV-REGROUP ③）。
@@ -139,7 +135,6 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
   {
     key: 'settings',
     labelKey: 'nav.settings',
-    hintKey: 'expected.hint.settings',
     titleKey: 'toolbar.title.settings',
     icon: Settings,
     section: 'tool',
