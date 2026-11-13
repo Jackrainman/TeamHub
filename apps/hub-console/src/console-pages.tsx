@@ -1,19 +1,5 @@
 import { lazy, type ReactElement } from 'react';
-import {
-  Activity,
-  MessageSquare,
-  BookOpen,
-  Bot,
-  Boxes,
-  Calendar,
-  CalendarDays,
-  Compass,
-  FileStack,
-  Home,
-  LayoutGrid,
-  ReceiptText,
-  Settings,
-} from 'lucide-react';
+import { Home, LayoutGrid, ReceiptText, Settings } from 'lucide-react';
 import type { AppSettings, IdentityMode, ModuleId, SessionIdentity } from '@teamhub/hub-contracts';
 import { isModuleEnabled } from '@teamhub/hub-contracts';
 import type { HubApiClient } from './api/client';
@@ -21,50 +7,29 @@ import type { OverviewSnapshot } from './features/system/api';
 import type { TranslationKey } from './i18n';
 
 // 注册表只持有页面加载器；导航和模块过滤不能提前下载业务页面。
-const OverviewPage = lazy(() => import('./features/overview/OverviewPage').then(m => ({ default: m.OverviewPage })));
-const TeamFeedPage = lazy(() => import('./features/workbench/TeamFeedPage').then(m => ({ default: m.TeamFeedPage })));
 const WorkbenchPage = lazy(() => import('./features/workbench/WorkbenchPage').then(m => ({ default: m.WorkbenchPage })));
-const SchedulePage = lazy(() => import('./features/schedule/SchedulePage').then(m => ({ default: m.SchedulePage })));
-const ResourcesPage = lazy(() => import('./features/resources/ResourcesPage').then(m => ({ default: m.ResourcesPage })));
 const ProjectPage = lazy(() => import('./features/project/ProjectPage').then(m => ({ default: m.ProjectPage })));
-const KbSearchPage = lazy(() => import('./features/kb/KbSearchPage').then(m => ({ default: m.KbSearchPage })));
-const ArchivePage = lazy(() => import('./features/archive/ArchivePage').then(m => ({ default: m.ArchivePage })));
-const InvPage = lazy(() => import('./features/inv/InvPage').then(m => ({ default: m.InvPage })));
 const ReimbursePage = lazy(() => import('./features/reimburse/ReimbursePage').then(m => ({ default: m.ReimbursePage })));
-const DirectionPage = lazy(() => import('./features/direction/DirectionPage').then(m => ({ default: m.DirectionPage })));
-const TimelineEditorPage = lazy(() => import('./features/timeline/TimelineEditorPage').then(m => ({ default: m.TimelineEditorPage })));
 const SettingsPage = lazy(() => import('./features/settings/SettingsPage').then(m => ({ default: m.SettingsPage })));
 
 /**
  * 页面注册表：加一页只改 `CONSOLE_PAGES` 这一个数组（目标 registry 见
  * docs/design/software-architecture.md）。
  *
+ * 成品只保留四页：任务（workbench）/ 项目（project）/ 报销（reimburse）/ 设置（settings）。
+ *
  * `moduleId` + `filterConsolePages()` 按 `AppSettings.enabledModules` 过滤——未启用模块的页面
  * 结构上不出现在导航/直达渲染里（§3.4-A「未启用即不渲染」，非灰置禁用）。App.tsx 在 setup 闸
  * 读到服务端 app_settings 后把快照传入，本文件只提供过滤机制、不持有配置默认值。
  */
 
-export type ConsolePage =
-  | 'workbench'
-  | 'feed'
-  | 'overview'
-  | 'project'
-  | 'schedule'
-  | 'knowledge'
-  | 'archive'
-  | 'inv'
-  | 'reimburse'
-  | 'fleet'
-  | 'direction'
-  | 'timeline'
-  | 'settings';
+export type ConsolePage = 'workbench' | 'project' | 'reimburse' | 'settings';
 
 /**
  * 导航分组（NAV-REGROUP，2026-09-06 拍板）：不按使用频率分层，改按**性质**分两类——
- *   home = 工作台（单独置顶，无分组标题；风格预览已降级收进设置页外观区——
- *          风格选型是设置项不占导航，见 settings/StylePreviewSection）
- *   board = 战队看板类：对准战队运转的事（总览 / 项目 / 排班在场 / 学习方向 / 时间线）
- *   tool = 小工具类：拿来即用的工具（报账 / 知识库 / 档案 / 库存 / fleet / 设置）
+ *   home = 工作台（单独置顶，无分组标题）
+ *   board = 战队看板类：对准战队运转的事（项目）
+ *   tool = 小工具类：拿来即用的工具（报账 / 设置）
  */
 export type ConsoleSection = 'home' | 'board' | 'tool';
 
@@ -97,7 +62,6 @@ export interface PageRenderCtx {
   source: string;
   /** SQLite app_settings 中的当前项目事实，禁止页面自行默认或从业务列表猜测。 */
   projectId: string;
-  availablePages?: ConsolePage[];
   onNavigate: (page: ConsolePage) => void;
   overview: OverviewView;
   identity: PageIdentityCtx;
@@ -123,7 +87,6 @@ export interface ConsolePageDescriptor {
 
 // 页面注册与模块权限的单源；主要导航顺序由 ConsoleLayout 显式组合。
 export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
-  { key: 'feed', labelKey: 'expected.nav.feed', titleKey: 'expected.nav.feed', hintKey: 'expected.hint.feed', icon: MessageSquare, section: 'home', moduleId: 'pm-core', render: ctx => <TeamFeedPage client={ctx.apiClient} source={ctx.source} /> },
   {
     key: 'workbench',
     labelKey: 'expected.nav.workbench',
@@ -135,32 +98,8 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     render: (ctx) => (
       <WorkbenchPage
         projectId={ctx.projectId}
-        availablePages={ctx.availablePages}
         client={ctx.apiClient}
         source={ctx.source}
-        identity={ctx.identity}
-        onNavigate={ctx.onNavigate}
-      />
-    ),
-  },
-  {
-    key: 'overview',
-    labelKey: 'nav.overview',
-    titleKey: 'toolbar.title.overview',
-    icon: Activity,
-    section: 'board',
-    moduleId: 'system',
-    // 唯一声明了 onRefresh 的页（改动前"只有总览有刷新按钮"的行为不变，
-    // 差别是现在由本页自己声明，不是 App.tsx 按 key 字面量特判）。
-    onRefresh: (ctx) => ctx.overview.refetch(),
-    render: (ctx) => (
-      <OverviewPage
-        client={ctx.apiClient}
-        source={ctx.source}
-        isLoading={ctx.overview.isLoading}
-        error={ctx.overview.error}
-        snapshot={ctx.overview.data}
-        onNavigate={ctx.onNavigate}
         identity={ctx.identity}
       />
     ),
@@ -176,16 +115,6 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     render: (ctx) => (
       <ProjectPage client={ctx.apiClient} source={ctx.source} identity={ctx.identity} />
     ),
-  },
-  {
-    key: 'schedule',
-    labelKey: 'nav.schedule',
-    titleKey: 'toolbar.title.schedule',
-    icon: CalendarDays,
-    section: 'board',
-    beta: 'beta',
-    moduleId: 'presence-schedule',
-    render: (ctx) => <SchedulePage client={ctx.apiClient} source={ctx.source} />,
   },
   {
     key: 'reimburse',
@@ -204,74 +133,6 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
         source={ctx.source}
         identity={ctx.identity}
         projectId={ctx.projectId}
-      />
-    ),
-  },
-  {
-    key: 'knowledge',
-    labelKey: 'expected.nav.knowledge',
-    hintKey: 'expected.hint.knowledge',
-    titleKey: 'expected.nav.knowledge',
-    icon: BookOpen,
-    section: 'tool',
-    beta: 'beta',
-    moduleId: 'knowledge-base',
-    render: (ctx) => <KbSearchPage client={ctx.apiClient} source={ctx.source} projectId={ctx.projectId} />,
-  },
-  {
-    key: 'archive',
-    labelKey: 'nav.archive',
-    titleKey: 'toolbar.title.archive',
-    icon: FileStack,
-    section: 'tool',
-    beta: 'beta',
-    moduleId: 'archive',
-    render: (ctx) => <ArchivePage client={ctx.apiClient} source={ctx.source} />,
-  },
-  {
-    key: 'inv',
-    labelKey: 'expected.nav.inv',
-    hintKey: 'expected.hint.inv',
-    titleKey: 'expected.nav.inv',
-    icon: Boxes,
-    section: 'tool',
-    moduleId: 'ledger',
-    render: (ctx) => <InvPage client={ctx.apiClient} source={ctx.source} projectId={ctx.projectId} />,
-  },
-  {
-    key: 'fleet',
-    labelKey: 'nav.fleet',
-    titleKey: 'toolbar.title.fleet',
-    icon: Bot,
-    section: 'tool',
-    moduleId: 'presence-schedule',
-    // IA-RESTRUCTURE demo：接力画布提升为顶级「每日在场」，本页降为纯机器人清单（建/改状态/退役）。
-    render: (ctx) => <ResourcesPage client={ctx.apiClient} source={ctx.source} />,
-  },
-  {
-    key: 'direction',
-    labelKey: 'nav.direction',
-    titleKey: 'toolbar.title.direction',
-    icon: Compass,
-    section: 'board',
-    moduleId: 'pm-core',
-    render: (ctx) => (
-      <DirectionPage client={ctx.apiClient} source={ctx.source} identity={ctx.identity} />
-    ),
-  },
-  {
-    key: 'timeline',
-    labelKey: 'nav.timeline',
-    titleKey: 'toolbar.title.timeline',
-    icon: Calendar,
-    section: 'board',
-    moduleId: 'pm-core',
-    render: (ctx) => (
-      <TimelineEditorPage
-        client={ctx.apiClient}
-        seasonsClient={ctx.apiClient}
-        source={ctx.source}
-        identity={ctx.identity}
       />
     ),
   },

@@ -1,5 +1,5 @@
-import { useState, type PropsWithChildren, type ReactNode } from 'react';
-import { ChevronLeft, ChevronRight, Ellipsis } from 'lucide-react';
+import { type PropsWithChildren, type ReactNode } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useI18n } from '../../i18n';
 import type { ConsolePage, ConsolePageDescriptor } from '../../console-pages';
 import type { HubApiClient } from '../../api/client';
@@ -11,15 +11,15 @@ interface ConsoleLayoutProps {
   page: ConsolePage; onNavigate: (page: ConsolePage) => void;
   pages: ConsolePageDescriptor[]; client: HubApiClient; actions?: ReactNode;
 }
-const PRIMARY: ConsolePage[] = ['workbench', 'project', 'knowledge'];
-const TOOLS: ConsolePage[] = ['reimburse', 'inv', 'settings'];
+// 显式导航顺序（四页成品）：任务/项目在工作区，报销/设置在小工具组。
+// 只在这里决定顺序，页面本身仍以 CONSOLE_PAGES 为唯一注册源。
+const PRIMARY: ConsolePage[] = ['workbench', 'project'];
+const TOOLS: ConsolePage[] = ['reimburse', 'settings'];
 
 export function ConsoleLayout({ children, page, onNavigate, pages, client, actions }: PropsWithChildren<ConsoleLayoutProps>) {
   const { t } = useI18n();
   const p = useConsolePreferences();
-  const [moreOpen, setMoreOpen] = useState(false);
   const active = pages.find(item => item.key === page);
-  const more = pages.filter(item => !PRIMARY.includes(item.key) && !TOOLS.includes(item.key));
   const nav = (items: ConsolePage[]) => items.flatMap(key => {
     const item = pages.find(candidate => candidate.key === key);
     if (!item) return [];
@@ -41,10 +41,6 @@ export function ConsoleLayout({ children, page, onNavigate, pages, client, actio
       <nav className="console-nav">
         <div className="nav-section">{t('expected.workspace')}</div>{nav(PRIMARY)}
         <div className="nav-section nav-section--tools">{t('expected.tools')}</div>{nav(TOOLS)}
-        {more.length > 0 && <>
-          <button className="nav-item" title={t('expected.more')} aria-label={t('expected.more')} aria-expanded={moreOpen} onClick={() => setMoreOpen(value => !value)}><Ellipsis size={18} /><span className="nav-copy"><strong>{t('expected.more')}</strong></span></button>
-          {moreOpen && nav(more.map(item => item.key))}
-        </>}
       </nav>
       <div className="sidebar-foot"><span aria-hidden="true" className="sidebar-foot-dot" /><span className="nav-copy"><strong>TeamHub</strong><small>{t('expected.facts')}</small></span></div>
     </aside>

@@ -1,9 +1,5 @@
 import { useState } from 'react';
-import type {
-  ConfigIdentityMode,
-  DataMode,
-  SetupStateResponse,
-} from '@teamhub/hub-contracts';
+import type { ConfigIdentityMode, SetupStateResponse } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { useI18n } from '../../i18n';
 import { SETUP_LANDING_KEY } from '../../constants';
@@ -12,15 +8,13 @@ import { SETUP_LANDING_KEY } from '../../constants';
  * 首启动向导（SETUP-WIZARD 刀②，setup-wizard.md §5）。
  *
  * App.tsx 的 setup 分支在 `GET /api/setup/state` 报未初始化时渲染本组件——**整个 app shell 换成全屏向导**，
- * 现有页面一个都不渲染（store 未建、渲染了也全是错）。第 1 步（唯一必答）两张大卡二选一：
- *  - 「先试试」：演示数据（冻结钟 + 演示车 / 排班 / 语料），随便点不心疼；可选折叠「高级」= 演示态也开登录制
- *    （§10 拍板①，默认收起 + 默认匿名）。
- *  - 「直接安装」：真实空板；追问一格「写操作要登录吗」= 登录制（推荐）/ 匿名共用。
+ * 现有页面一个都不渲染（store 未建、渲染了也全是错）。第 1 步（唯一必答）只有一张安装卡（空项目初始化）：
+ * 追问一格「写操作要登录吗」= 登录制（推荐）/ 匿名共用。
  * 提交 → `POST /api/setup/init` 写 SQLite app_settings → 服务 exit 42 自动重启 → 全屏「正在应用设置…」+ 轮询复活 →
- * 整页刷新。重启后落点见 §5 末段（试驾 / 正式+匿名 → 总览；正式+身份 → 设置页 + 三步走引导横幅，落点标记
+ * 整页刷新。重启后落点见 §5 末段（正式+匿名 → 总览；正式+身份 → 设置页 + 三步走引导横幅，落点标记
  * 经 localStorage 传递给 ConsoleApp）。
  *
- * 反监视 I0：向导只问部署形态（数据形态 + 登录方式），不收集任何成员维度。
+ * 反监视 I0：向导只问部署形态（登录方式），不收集任何成员维度。
  */
 
 /** 重启轮询节奏：约定 exit 42 → start 脚本 / compose 拉起正常模式，重启约 10 秒，45×1s 上限留足冗余。 */
@@ -60,8 +54,6 @@ export function SetupWizard({
   const { t } = useI18n();
   const [phase, setPhase] = useState<Phase>('form');
   const [timedOut, setTimedOut] = useState(false);
-  // 试驾「高级」折叠内的开关（§10 拍板①）：默认收起 + 默认关（= 匿名）。
-  const [demoIdentity, setDemoIdentity] = useState(false);
   // 直接安装追问格「写操作要登录吗」：默认登录制（推荐）。
   const [realIdentity, setRealIdentity] = useState<ConfigIdentityMode>('identity');
 
@@ -83,21 +75,21 @@ export function SetupWizard({
     );
   }
 
-  async function submit(dataMode: DataMode, identityMode: ConfigIdentityMode) {
+  async function submit(identityMode: ConfigIdentityMode) {
     if (phase === 'applying') return;
     setTimedOut(false);
     setPhase('applying');
     try {
       try {
-        await client.initSetup({ dataMode, identityMode });
+        await client.initSetup({ dataMode: 'real', identityMode });
       } catch (err) {
         // 409 = 已初始化（多标签页并发有人先提交了）→ 当作已完成，直接进重启轮询；其余错误 → 错误态。
         if (!/\b409\b/.test(String(err))) throw err;
       }
       await pollUntilInitialized(client);
       // 落点标记（§5 末段）：仅「正式 + 登录制」写 'roster'，重启后 ConsoleApp 落设置页 + 三步走横幅；
-      // 试驾 / 正式+匿名 不写值，走默认（总览）。
-      if (dataMode === 'real' && identityMode === 'identity') {
+      // 正式+匿名 不写值，走默认（总览）。
+      if (identityMode === 'identity') {
         window.localStorage.setItem(SETUP_LANDING_KEY, 'roster');
       }
       window.location.reload();
@@ -151,34 +143,7 @@ export function SetupWizard({
         </header>
 
         <div className="setup-wizard__cards">
-          {/* 先试试（演示数据） */}
-          <section className="setup-card">
-            <h2 className="setup-card__title">{t('setup.demo.title')}</h2>
-            <p className="setup-card__desc">{t('setup.demo.desc')}</p>
-            <details className="setup-card__advanced">
-              <summary>{t('setup.demo.advanced')}</summary>
-              <label className="setup-card__check">
-                <input
-                  type="checkbox"
-                  checked={demoIdentity}
-                  onChange={(e) => setDemoIdentity(e.target.checked)}
-                />
-                <span>{t('setup.demo.advanced.identityLabel')}</span>
-              </label>
-              <p className="setup-card__hint">{t('setup.demo.advanced.identityHint')}</p>
-            </details>
-            <div className="setup-card__spacer" />
-            <button
-              type="button"
-              className="btn btn--primary"
-              onClick={() => submit('demo', demoIdentity ? 'identity' : 'anonymous')}
-            >
-              {t('setup.demo.cta')}
-            </button>
-            <p className="setup-card__foot">{t('setup.changeableHint')}</p>
-          </section>
-
-          {/* 直接安装（正式使用） */}
+          {/* 空项目安装（正式使用） */}
           <section className="setup-card setup-card--primary">
             <h2 className="setup-card__title">{t('setup.real.title')}</h2>
             <p className="setup-card__desc">{t('setup.real.desc')}</p>
@@ -220,7 +185,7 @@ export function SetupWizard({
             <button
               type="button"
               className="btn btn--primary"
-              onClick={() => submit('real', realIdentity)}
+              onClick={() => submit(realIdentity)}
             >
               {t('setup.real.cta')}
             </button>

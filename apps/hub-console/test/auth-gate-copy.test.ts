@@ -29,6 +29,14 @@ describe('AUTH-GATE i18n', () => {
     }
   });
 
+  test('登录页说明只保留一句：输入名字 + 首次进入设密码（zh/en）', () => {
+    expect(translations.zh['identity.gate.subtitle']).toBe(
+      '输入名字，首次进入会提示设置密码。',
+    );
+    expect(translations.en['identity.gate.subtitle']).toContain('name');
+    expect(translations.en['identity.gate.subtitle']).toContain('password');
+  });
+
   test('「显示PIN」键已删除（明文副本机制撤销）', () => {
     const zh = translations.zh as Record<string, string>;
     const en = translations.en as Record<string, string>;

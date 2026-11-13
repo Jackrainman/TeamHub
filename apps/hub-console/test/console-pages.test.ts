@@ -7,62 +7,42 @@ import { CONSOLE_PAGES, filterConsolePages } from '../src/console-pages';
  * 页面注册表过滤（PHASE2-CONSOLE-ASSEMBLY，D-081 已知延后项①收口）：`filterConsolePages` 是导航渲染
  * 与 App.tsx「路由直达降级」共用的唯一判定入口，纯函数单测覆盖几个租户画像，不测 DOM/RTL
  * （同本仓 theme.test.ts「测逻辑不测 DOM」风格）。
+ *
+ * 产品收窄为成品四页后，注册表只有 任务(workbench)/项目(project)/报销(reimburse)/设置(settings)。
  */
 describe('console-pages: filterConsolePages', () => {
   const ALL_ENABLED: TenantConfig = { enabledModules: [...ALL_MODULE_IDS] };
 
-  test('全模块启用：13 页全在（含 IA-RESTRUCTURE 新增 workbench / schedule；风格预览已收进设置页）、顺序不变', () => {
+  test('全模块启用：四页全在且顺序固定（任务 / 项目 / 报销 / 设置）', () => {
     const pages = filterConsolePages(CONSOLE_PAGES, ALL_ENABLED);
-    expect(pages.map((p) => p.key)).toEqual(CONSOLE_PAGES.map((p) => p.key));
-    expect(pages.map((p) => p.key)).toEqual([
-      'feed',
-      'workbench',
-      'overview',
-      'project',
-      'schedule',
-      'reimburse',
-      'knowledge',
-      'archive',
-      'inv',
-      'fleet',
-      'direction',
-      'timeline',
-      'settings',
-    ]);
+    expect(pages.map((p) => p.key)).toEqual(['workbench', 'project', 'reimburse', 'settings']);
+    expect(pages).toEqual(CONSOLE_PAGES);
   });
 
-  test('关掉 presence-schedule：fleet / schedule 页消失，其余页仍在', () => {
-    const tenant: TenantConfig = {
-      enabledModules: ALL_MODULE_IDS.filter((id) => id !== 'presence-schedule'),
-    };
-    const keys = filterConsolePages(CONSOLE_PAGES, tenant).map((p) => p.key);
-    expect(keys).not.toContain('fleet');
-    expect(keys).not.toContain('schedule');
-    expect(keys).toEqual(
-      CONSOLE_PAGES.map((p) => p.key).filter((k) => k !== 'fleet' && k !== 'schedule'),
-    );
-  });
-
-  test('关掉 pm-core：workbench / project / direction 三页一起消失（WEEK-WORKBENCH 是任务的个人化投影，同挂 pm-core）', () => {
+  test('关掉 pm-core：任务 / 项目两页一起消失，报销与设置不受影响', () => {
     const tenant: TenantConfig = {
       enabledModules: ALL_MODULE_IDS.filter((id) => id !== 'pm-core'),
     };
-    const keys = filterConsolePages(CONSOLE_PAGES, tenant).map((p) => p.key);
-    expect(keys).not.toContain('feed');
-    expect(keys).not.toContain('project');
-    expect(keys).not.toContain('direction');
-    expect(keys).not.toContain('workbench');
-    // 其余非 pm-core 页不受影响
-    expect(keys).toContain('overview');
-    expect(keys).toContain('fleet');
-  });
-
-  test('只启用 system：overview / settings 在（system 模块名下的页）', () => {
-    const tenant: TenantConfig = { enabledModules: ['system'] };
     expect(filterConsolePages(CONSOLE_PAGES, tenant).map((p) => p.key)).toEqual([
-      'overview',
+      'reimburse',
       'settings',
     ]);
+  });
+
+  test('关掉 ledger：报销页消失，其余三页仍在（报销随库存-BOM 模块开关）', () => {
+    const tenant: TenantConfig = {
+      enabledModules: ALL_MODULE_IDS.filter((id) => id !== 'ledger'),
+    };
+    expect(filterConsolePages(CONSOLE_PAGES, tenant).map((p) => p.key)).toEqual([
+      'workbench',
+      'project',
+      'settings',
+    ]);
+  });
+
+  test('只启用 system：只剩设置页（system 模块名下唯一一页）', () => {
+    const tenant: TenantConfig = { enabledModules: ['system'] };
+    expect(filterConsolePages(CONSOLE_PAGES, tenant).map((p) => p.key)).toEqual(['settings']);
   });
 
   test('空 enabledModules：过滤后无页（不隐式兜底显示任何一页）', () => {
@@ -72,37 +52,15 @@ describe('console-pages: filterConsolePages', () => {
 });
 
 /**
- * 工具条刷新按钮归一进正常注册机制（AUDIT-DEBT-2026-07 §9-④ 审计债⑤）：此前 App.tsx 硬编码
- * `page === 'overview'` 才渲染刷新按钮；改为页面自己在 ConsolePageDescriptor 声明 onRefresh，
- * App.tsx 只问 activePage.onRefresh 存不存在。本测试锁定"哪些页声明了它"+"声明的行为可调用"，
- * 防止未来加页时又滑回按 key 字面量特判。
+ * 工具条刷新按钮归一进正常注册机制（AUDIT-DEBT-2026-07 §9-④ 审计债⑤）：App.tsx 只问
+ * activePage.onRefresh 存不存在，不按 key 字面量特判。总览页停用后四页均未声明 onRefresh，
+ * 因此工具条当前不渲染刷新按钮；加页时由 descriptor 的该字段决定，本测试锁定这个事实。
  */
 describe('console-pages: 工具条 onRefresh 注册', () => {
-  test('仅 overview 页声明 onRefresh（与改动前"只有总览有刷新按钮"的可见行为一致）', () => {
+  test('四页均未声明 onRefresh（总览页停用后刷新按钮不再出现在工具条）', () => {
     const withRefresh = CONSOLE_PAGES.filter((p) => typeof p.onRefresh === 'function').map(
       (p) => p.key,
     );
-    expect(withRefresh).toEqual(['overview']);
-  });
-
-  test('overview.onRefresh 调用会转发到 ctx.overview.refetch', () => {
-    const overviewPage = CONSOLE_PAGES.find((p) => p.key === 'overview');
-    let refetchCalled = false;
-    overviewPage?.onRefresh?.({
-      apiClient: {} as never,
-      source: 'real',
-      projectId: 'prj-test',
-      onNavigate: () => {},
-      overview: {
-        isLoading: false,
-        error: undefined,
-        data: undefined,
-        refetch: () => {
-          refetchCalled = true;
-        },
-      },
-      identity: { mode: 'anonymous', session: null, isLoading: false, canWrite: true },
-    });
-    expect(refetchCalled).toBe(true);
+    expect(withRefresh).toEqual([]);
   });
 });
