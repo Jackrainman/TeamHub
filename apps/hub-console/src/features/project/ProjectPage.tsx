@@ -50,7 +50,6 @@ export function ProjectPage({
 
   return (
     <div className="project-page">
-      <p className="expected-page-hint">{t('expected.projectHint')}</p>
       <div
         className="seg project-view-switch"
         role="tablist"
