@@ -14,25 +14,25 @@ describe('i18n: 词汇覆盖层（setVocabularyOverrides → translate 消费）
   });
 
   test('未设置覆盖：translate 走巨表原值', () => {
-    expect(translate('zh', 'nav.overview')).toBe('总览');
-    expect(translate('en', 'nav.overview')).toBe('Overview');
+    expect(translate('zh', 'nav.settings')).toBe('设置');
+    expect(translate('en', 'nav.settings')).toBe('Settings');
   });
 
   test('设置覆盖后：命中语言换新文案，未填的语言仍回退巨表', () => {
-    setVocabularyOverrides({ 'nav.overview': { zh: '任务总览' } });
-    expect(translate('zh', 'nav.overview')).toBe('任务总览');
-    expect(translate('en', 'nav.overview')).toBe('Overview');
+    setVocabularyOverrides({ 'nav.settings': { zh: '偏好设置' } });
+    expect(translate('zh', 'nav.settings')).toBe('偏好设置');
+    expect(translate('en', 'nav.settings')).toBe('Settings');
   });
 
   test('resetVocabularyOverrides 清空后精确回退巨表原值（不残留污染，供测试间隔离）', () => {
-    setVocabularyOverrides({ 'nav.overview': { zh: '任务总览' } });
+    setVocabularyOverrides({ 'nav.settings': { zh: '偏好设置' } });
     resetVocabularyOverrides();
-    expect(translate('zh', 'nav.overview')).toBe('总览');
+    expect(translate('zh', 'nav.settings')).toBe('设置');
   });
 
   test('覆盖表只影响命中的 key，其余 key 不受影响', () => {
-    setVocabularyOverrides({ 'nav.overview': { zh: '任务总览' } });
-    expect(translate('zh', 'nav.project')).toBe('项目');
+    setVocabularyOverrides({ 'nav.settings': { zh: '偏好设置' } });
+    expect(translate('zh', 'common.close')).toBe('关闭');
   });
 
   test('robotics 垂直包覆盖表恒为空：接线后 robotics 租户渲染文案零变化（巨表本就是机器人战队词汇）', () => {
@@ -64,10 +64,10 @@ describe('i18n: 词汇覆盖层支持新增 key（非巨表已有闭集）', () 
 
   test('新 key 覆盖与已知 key 覆盖互不干扰、可同表共存', () => {
     setVocabularyOverrides({
-      'nav.overview': { zh: '任务总览' },
+      'nav.settings': { zh: '偏好设置' },
       'gamestudio.field.buildTag': { zh: '构建标签' },
     });
-    expect(translate('zh', 'nav.overview')).toBe('任务总览');
+    expect(translate('zh', 'nav.settings')).toBe('偏好设置');
     expect(translate('zh', 'gamestudio.field.buildTag')).toBe('构建标签');
   });
 });

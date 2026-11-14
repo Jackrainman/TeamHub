@@ -1,6 +1,4 @@
 export const zhSetup = {
-  'fleet.section.robots': '机器人清单',
-  'fleet.section.relay': '接力画布',
   'setup.title': '欢迎，开始初始化',
   'setup.subtitle':
     '第一次打开 TeamHub，初始化一个空白项目。选完自动配置，几秒后就绪；之后随时能在设置里改。',
@@ -33,8 +31,6 @@ export const zhSetup = {
 };
 
 export const enSetup = {
-  'fleet.section.robots': 'Robots',
-  'fleet.section.relay': 'Relay board',
   'setup.title': 'Welcome — set up TeamHub',
   'setup.subtitle':
     'First time opening TeamHub: initialize a blank project. It configures itself and is ready in seconds; change this anytime in Settings.',

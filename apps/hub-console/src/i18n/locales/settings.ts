@@ -1,6 +1,5 @@
 export const zhSettings = {
   'settings.section.language': '界面语言',
-  'settings.section.apiBase': '后端地址',
   'settings.section.about': '关于',
   'settings.section.identity': '身份',
   'settings.identity.desc': '这台服务器当前的登录模式。',
@@ -31,7 +30,6 @@ export const zhSettings = {
   'settings.apiBase.apply': '应用并重载',
   'settings.apiBase.reset': '恢复默认',
   'settings.connection.reloadConfirm': '应用后页面将刷新，确定继续吗？',
-  'settings.section.writeToken': '写入令牌',
   'settings.writeToken.desc':
     '后端绑公网地址时写操作要带令牌。把服务启动日志里的 TEAMHUB_WRITE_TOKEN 粘进来，改完自动重载。',
   'settings.writeToken.label': '写入令牌（Bearer）',
@@ -244,7 +242,6 @@ export const zhSettings = {
 
 export const enSettings = {
   'settings.section.language': 'Language',
-  'settings.section.apiBase': 'Backend address',
   'settings.section.about': 'About',
   'settings.section.identity': 'Identity',
   'settings.identity.desc': 'The login mode this server is currently running in.',
@@ -277,7 +274,6 @@ export const enSettings = {
   'settings.apiBase.apply': 'Apply & reload',
   'settings.apiBase.reset': 'Reset to default',
   'settings.connection.reloadConfirm': 'The page will reload after applying. Continue?',
-  'settings.section.writeToken': 'Write token',
   'settings.writeToken.desc':
     'When the backend binds a public address, writes (register / create) need a token. Paste the TEAMHUB_WRITE_TOKEN from the server startup log; the page reloads after applying.',
   'settings.writeToken.label': 'Write token (Bearer)',
