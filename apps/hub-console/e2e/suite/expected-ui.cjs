@@ -158,6 +158,7 @@ const { freePort } = require('./lib/free-port.cjs');
     await page.keyboard.press('Shift+Tab');
     assert.equal(await page.evaluate(() => [...document.querySelectorAll('.drawer')].at(-1).contains(document.activeElement)), true);
     await page.keyboard.press('Escape');
+    await page.getByRole('dialog', { name: '全局搜索' }).waitFor({ state: 'hidden' });
     assert.equal(await page.getByRole('dialog').count(), 1);
     await page.keyboard.press('Escape');
 
