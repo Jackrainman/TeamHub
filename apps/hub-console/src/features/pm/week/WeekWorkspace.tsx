@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
-import { selectTeamTasks, type TaskStatus, type TaskWithMeta, type TeamTaskStatus } from '@teamhub/hub-contracts';
+import { Plus, Inbox } from 'lucide-react';
+import { selectTeamTasks, type TeamTaskStatus } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../../api/client';
 import type { PageIdentityCtx } from '../../../console-pages';
 import { useI18n } from '../../../i18n';
@@ -10,9 +10,9 @@ import { useMembers } from '../../identity/hooks';
 import { useCurrentWeek, useDepGraph, useGroups, useTasks, useWeekActions } from '../hooks';
 import { TaskDetailDrawer } from '../TaskDetailDrawer';
 import { SelfReportForm } from './SelfReportForm';
-import { WeekInbox } from './components/WeekInbox';
-import { WeekTaskView } from './components/WeekTaskView';
-import { readTaskViewPreferences, writeTaskViewPreferences } from './task-view';
+import { WeekTaskCard } from './WeekTaskCard';
+import { TickTickTaskView } from './components/TickTickTaskView';
+import { readTaskLayout, writeTaskLayout } from './task-view';
 
 export function WeekWorkspace({ client, source, projectId, identity }: {
   client: HubApiClient; source: string; projectId: string; identity: PageIdentityCtx;
@@ -25,7 +25,8 @@ export function WeekWorkspace({ client, source, projectId, identity }: {
   const [groupId, setGroupId] = useState('');
   const [status, setStatus] = useState<TeamTaskStatus>('inProgress');
   const [scope, setScope] = useState<'mine' | 'team'>('mine');
-  const [view, setView] = useState(readTaskViewPreferences);
+  const [columns, setColumns] = useState<'2' | '3' | '4'>('3');
+  const [layout, setLayout] = useState(readTaskLayout);
   const [createOpen, setCreateOpen] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const groupsQuery = useGroups(client, source);
@@ -42,30 +43,16 @@ export function WeekWorkspace({ client, source, projectId, identity }: {
   const visible = selectTeamTasks(tasks, { q, groupId, status, scope: effectiveScope, sessionMemberId: memberId });
   const selected = tasks.find(task => task.id === taskId);
   const filters = ['all', 'pending', 'inProgress', 'blocked', 'awaitingReview', 'accepted', 'done', 'shelved'] as const;
-  const assignableGroups = groups.filter(group => groupsQuery.data?.assignableGroupIds.includes(group.id));
-  const sessionGroupId = identity.session?.groupId;
-  const inboxGroupId = assignableGroups.find(group => group.id === sessionGroupId)?.id ?? assignableGroups[0]?.id;
 
-  useEffect(() => writeTaskViewPreferences(view), [view]);
-
-  async function quickCreate(title: string) {
-    if (!inboxGroupId) throw new Error(t('week.inbox.noGroup'));
-    // owner 不在请求中：POST /api/weeks/:weekKey/tasks 由服务端固定为登录人。
-    await actions.create.mutateAsync({
-      weekKey: currentWeek,
-      input: { projectId, groupId: inboxGroupId, title, rawSummary: title, intrinsicComplexity: 'normal' },
-    });
-  }
-
-  async function batchStatus(task: TaskWithMeta, nextStatus: TaskStatus) {
-    await actions.status.mutateAsync({ taskId: task.id, status: nextStatus, expectedRevision: task.revision ?? 0 });
-  }
+  useEffect(() => writeTaskLayout(layout), [layout]);
 
   return <div className="week-workspace">
     <header className="week-header">
       <div><h1>{t(titleKey)}</h1></div>
       <div className="team-header-actions">
         <button className="btn btn--primary" disabled={!canWrite} onClick={() => setCreateOpen(true)}><Plus size={16} />{t('week.selfReport')}</button>
+        <SegToggle value={layout} options={[{ value: 'grid', label: t('week.view.grid') }, { value: 'list', label: t('week.view.list') }]} ariaLabel={t('week.view.layout')} onChange={setLayout} />
+        {layout === 'grid' && <SegToggle value={columns} options={(['2', '3', '4'] as const).map(value => ({ value, label: t(`team.columns.${value}`) }))} ariaLabel={t('team.columns')} onChange={setColumns} />}
         {memberId && <SegToggle value={scope} options={[{ value: 'mine', label: t('team.personal') }, { value: 'team', label: t('team.all') }]} ariaLabel={t('team.scope')} className={`task-scope task-scope--${scope}`} onChange={next => { setScope(next); setTaskId(null); }} />}
       </div>
     </header>
@@ -79,25 +66,15 @@ export function WeekWorkspace({ client, source, projectId, identity }: {
       </select></label>
     </div>
     {!memberId && <p className="week-note">{t('week.loginHint')}</p>}
-    {memberId && <WeekInbox disabled={!canWrite || !inboxGroupId} pending={actions.create.isPending} onSubmit={quickCreate} />}
     <section aria-label={t(titleKey)}>
-      {tasksQuery.isLoading ? <p role="status">{t('workbench.myWeek.loading')}</p> : tasksQuery.error ? <div className="empty-state" role="alert"><p>{t('workbench.myWeek.error')}</p><button className="btn btn--secondary" onClick={() => void tasksQuery.refetch()}>{t('week.retry')}</button></div> : <WeekTaskView
-        tasks={visible}
-        groups={groups}
-        members={members}
-        nodes={graphQuery.data?.nodes ?? []}
-        layout={view.layout}
-        columns={view.columns}
-        onLayout={layout => setView(previous => ({ ...previous, layout }))}
-        onColumns={columns => setView(previous => ({ ...previous, columns }))}
-        onOpen={setTaskId}
-        onBatchStatus={batchStatus}
-        batchPending={actions.status.isPending}
-        renderActions={task => canWrite && task.ownerId === memberId && task.status !== 'done' && task.status !== 'shelved' && <button className="btn btn--secondary btn--sm" disabled={actions.status.isPending} onClick={() => actions.status.mutate({ taskId: task.id, status: 'done' })}>{t('pool.action.complete')}</button>}
-      />}
+        {tasksQuery.isLoading ? <p role="status">{t('workbench.myWeek.loading')}</p> : tasksQuery.error ? <div className="empty-state" role="alert"><p>{t('workbench.myWeek.error')}</p><button className="btn btn--secondary" onClick={() => void tasksQuery.refetch()}>{t('week.retry')}</button></div> : visible.length === 0 ? <div className="empty-state week-empty"><Inbox size={32} aria-hidden="true" /><h3>{t('team.empty')}</h3></div> : layout === 'list' ? <TickTickTaskView tasks={visible} groups={groups} onOpen={setTaskId} /> : <div className={`task-grid task-grid--${columns}`}>
+          {visible.map(task => <WeekTaskCard key={task.id} task={task} members={members} groupName={groups.find(group => group.id === task.groupId)?.name ?? task.groupId} node={graphQuery.data?.nodes.find(node => node.id === task.id)} onOpen={() => setTaskId(task.id)}>
+            {canWrite && task.ownerId === memberId && task.status !== 'done' && task.status !== 'shelved' && <button className="btn btn--secondary btn--sm" disabled={actions.status.isPending} onClick={() => actions.status.mutate({ taskId: task.id, status: 'done' })}>{t('pool.action.complete')}</button>}
+          </WeekTaskCard>)}
+        </div>}
     </section>
     <SideDrawer placement="center" open={createOpen} onClose={() => setCreateOpen(false)} title={t('week.selfReport')}>
-      {createOpen && <SelfReportForm projectId={projectId} groups={assignableGroups} defaultGroupId={sessionGroupId} members={members} memberId={memberId!} pending={actions.create.isPending} onSubmit={input => actions.create.mutate({ weekKey: currentWeek, input })} />}
+      {createOpen && <SelfReportForm projectId={projectId} groups={groups.filter(group => groupsQuery.data?.assignableGroupIds.includes(group.id))} defaultGroupId={identity.session?.groupId} members={members} memberId={memberId!} pending={actions.create.isPending} onSubmit={input => actions.create.mutate({ weekKey: currentWeek, input })} />}
     </SideDrawer>
     <SideDrawer placement="center" open={!!selected} onClose={() => setTaskId(null)} title={selected?.title ?? t('week.details')}>
       {selected && <TaskDetailDrawer key={selected.id} client={client} source={source} task={selected} groups={groups} members={members} identity={identity} />}

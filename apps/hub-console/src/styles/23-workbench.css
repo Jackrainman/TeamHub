@@ -85,25 +85,20 @@
 .baseline-widget .is-passed > svg { color: var(--green); }
 .baseline-widget .is-missed > svg { color: var(--amber); }
 .week-task--done .week-task__status svg { animation: complete-pop var(--dur-slow) var(--ease-decelerate); }
-.week-inbox { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); }
-.week-inbox input { min-width: 0; width: 100%; }
-.week-inbox__hint { color: var(--muted); font-size: var(--text-xs); white-space: nowrap; }
-.week-view-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); }
-.week-view-control { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--muted); font-size: var(--text-sm); }
-.week-column-buttons { display: flex; align-items: center; gap: var(--space-1); color: var(--muted); font-size: var(--text-sm); }
-.week-column-buttons button { border: 0; background: transparent; color: var(--muted); padding: var(--space-2); cursor: pointer; border-radius: var(--radius-sm); }
-.week-column-buttons button[aria-pressed="true"] { background: var(--blue-soft); color: var(--blue); }
-.week-batch { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); }
-.week-batch-receipts { padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); }
-.week-batch-receipts ul { margin: var(--space-2) 0 0; padding-left: var(--space-5); }
-.week-batch-receipts .is-ok { color: var(--green); }
-.week-batch-receipts .is-failed { color: var(--red); }
-.week-task-group { margin-bottom: var(--space-5); }
-.week-task-group > h2 { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-3); font-size: var(--text-base); }
-.week-task-group > h2 span { color: var(--muted); font-size: var(--text-xs); font-weight: var(--weight-regular); }
-.task-grid.task-grid--list { grid-template-columns: minmax(0, 1fr); }
-.week-task__select { position: absolute; top: var(--space-3); right: var(--space-3); z-index: 2; width: var(--space-4); height: var(--space-4); cursor: pointer; }
-.task-grid .week-task__heading { padding-right: var(--space-5); }
+.ticktick-list { list-style: none; margin: 0; padding: 0 var(--space-4); overflow: hidden; }
+.ticktick-task { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; align-items: center; gap: var(--space-3); min-height: 52px; padding: var(--space-2) 0; border-bottom: 1px solid var(--border); }
+.ticktick-task:last-child { border-bottom: 0; }
+.ticktick-task__icon { display: inline-flex; color: var(--muted); }
+.ticktick-task--blocked .ticktick-task__icon { color: var(--red); }
+.ticktick-task--done .ticktick-task__icon { color: var(--green); }
+.ticktick-task__title { min-width: 0; border: 0; padding: var(--space-2) 0; background: transparent; color: var(--text); text-align: left; font-size: var(--text-base); cursor: pointer; overflow-wrap: anywhere; }
+.ticktick-task__title:hover { color: var(--blue); }
+.ticktick-task__group, .ticktick-task__status, .ticktick-task__time { color: var(--muted); font-size: var(--text-xs); white-space: nowrap; }
+.ticktick-task__status { color: var(--text); }
+@media (max-width: 700px) {
+  .ticktick-task { grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-2); }
+  .ticktick-task__group, .ticktick-task__time { display: none; }
+}
 @keyframes baseline-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes complete-pop { from { transform: scale(.7); } to { transform: scale(1); } }
 @media (max-width: 1100px) { .task-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

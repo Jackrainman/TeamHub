@@ -6,7 +6,7 @@ import { createHubApiClient } from '../src/api/client';
 import { queryKeys } from '../src/api/queryKeys';
 import { LanguageProvider } from '../src/i18n';
 import { WeekWorkspace } from '../src/features/pm/week/WeekWorkspace';
-import { organizeTasks } from '../src/features/pm/week/task-view';
+import { TickTickTaskView } from '../src/features/pm/week/components/TickTickTaskView';
 
 test('home defaults to personal tasks with a team scope switch and structural filters', () => {
   const cache = new QueryClient();
@@ -33,15 +33,14 @@ test('home defaults to personal tasks with a team scope switch and structural fi
   cache.clear();
 });
 
-test('task views group and sort only by structural task dimensions', () => {
-  const base = { ...governanceScenarioFixture.tasks[0]!, isBig: false, previousOwnerIds: [], projectName: 'Robots' };
-  const tasks = [
-    { ...base, id: 'b', title: 'Beta', groupId: 'grp-b', status: 'blocked' as const, updatedAt: '2026-01-01T00:00:00.000Z' },
-    { ...base, id: 'a', title: 'Alpha', groupId: 'grp-a', status: 'inProgress' as const, updatedAt: '2026-01-02T00:00:00.000Z' },
-  ];
-  expect(organizeTasks(tasks, [], 'group', 'title', status => status, '未分组').map(group => [group.key, group.tasks[0]!.id])).toEqual([['grp-a', 'a'], ['grp-b', 'b']]);
-  expect(organizeTasks(tasks, [], 'status', 'updated', status => status, '未分组').find(group => group.key === 'inProgress')!.tasks.map(task => task.id)).toEqual(['a']);
-  expect(organizeTasks(tasks, [], 'project', 'title', status => status, '未分组').map(group => group.key)).toEqual(['prj-robots']);
+test('list view is a read-only projection of the filtered tasks', () => {
+  const task = { ...governanceScenarioFixture.tasks[0]!, title: '清单中的任务', isBig: false, previousOwnerIds: [], projectName: 'Robots' };
+  const html = renderToStaticMarkup(<LanguageProvider><TickTickTaskView tasks={[task]} groups={governanceScenarioFixture.groups} onOpen={() => {}} /></LanguageProvider>);
+  expect(html).toContain('ticktick-list');
+  expect(html).toContain('清单中的任务');
+  expect(html).not.toContain('checkbox');
+  expect(html).not.toContain('week-inbox');
+  expect(html).not.toContain('week-batch');
 });
 
 test('self report API sends task fields to the week endpoint', async () => {
