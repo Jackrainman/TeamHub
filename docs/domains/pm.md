@@ -3,7 +3,7 @@ kind: canonical-domain
 status: active
 domain: pm
 truth_for: projects-tasks-dependencies-needs-claims-and-project-views
-last_reviewed: 2026-11-04
+last_reviewed: 2026-11-15
 ---
 
 # PM 领域
@@ -24,7 +24,8 @@ PM 管赛季项目中的 Task、Dependency、Need、挂单认领、指派、搭�
 - 依赖图和阻塞归因从 contracts 纯函数派生；第三方读视图不暴露 `confirmedBy`。
 - 首页默认显示本人承担的进行中任务，右上角“个人 / 全队”滑块切换范围；无登录身份时显示全队。所有登录成员均可创建自己的任务、查看全队任务和历史；按标题、说明及历史内容搜索，按小组和状态筛选，切换范围保留筛选条件。完成后任务移出进行中列表，已打开的详情继续显示，可切换待验收或全部查询。首页不再提供周切换、备位池或待认领表，不提供他人筛选或个人统计。
 - Task 的可选 `weekLinks` 只记录 `weekKey/linkedAt/linkedBy`。周按 Asia/Shanghai 的 ISO 周一至周日计算；`GET /api/tasks` 返回服务器 `currentWeek`，前端与写入校验共用时间口径。不建 Week 表，不增加个人截止日期。
-- 自建任务复用 `POST /api/weeks/:weekKey/tasks`，固定 owner 和 createdBy 为登录人，创建后即为进行中；一次保存任务、认领事实、本周关联与 created 历史。备位 reviewerIds 可空或多选，不能选作者/完成人之外的非名册成员；请求不接受伪造作者、验收和历史字段。
+- 自建任务复用 `POST /api/weeks/:weekKey/tasks`，固定 owner 和 createdBy 为登录人，创建后即为进行中；一次保存任务、认领事实、本周关联与 created 历史。Inbox 就地录入支持 Ctrl/⌘+Enter 提交、Esc 取消及提交后连续录入。备位 reviewerIds 可空或多选，不能选作者/完成人之外的非名册成员；请求不接受伪造作者、验收和历史字段。
+- 首页任务可切换网格/列表，布局选择仅保存本机；网格仍可选 2/3/4 列。分组只有项目/小组/状态，排序只有最近更新/标题/状态。多选任务可逐条改状态或搁置，每条仍过权限和 expectedRevision，部分失败按条回执；`GET /api/tasks` 读模型补项目名用于结构分组。
 - `POST /api/tasks/:taskId/weeks` 仅允许本人将未完成任务延续到当前周；重复关联幂等。历史周不可补写，未来周不可计划。退池保留周关联，再次认领不覆盖原关联时间。
 - 自建/周任务推进、完成仅限登录的当前承担者；作者通过 `POST /api/tasks/:taskId/edit` 修改标题、说明或选择/替换备位。备位可后选、多选，禁止选作者、当前承担者或完成人。只有当前选定的备位可验收，无需 gateReviewer；一人通过即结束本轮，其他人仍能查看学习，不能覆盖结果。没有备位也能完成，状态为待验收。非周项目任务保留原 gateReviewer 规则。
 - 完成时间取最后一次 done transition；退回必须填写原因并回到 inProgress，重新完成清除当前验收字段。内容修改清除当前验收结论，done 任务回到待验收；单独更换备位不撤销已通过结论。创建、内容修改、备位变更、通过/退回记录在追加式 activity 中；进度保留 transitions，自动持久化，无需手动归档。\n- 编辑提交 expectedRevision，SQLite 事务内核对 revision 后更新内容和历史；完成/验收同步提升版本。验收事务再次核对当前备位、状态与已通过结论，避免并发覆盖。
@@ -33,7 +34,7 @@ PM 管赛季项目中的 Task、Dependency、Need、挂单认领、指派、搭�
 
 - contracts 位于 `domains/pm/`，周计算、视图分桶与验收规则由 `week.ts` 和 model/policies 共享。
 - server 位于 `modules/pm/`，路由负责解析和鉴权，PmService 执行业务规则，统一 SQLite repository 持久化；内存实现只供测试。
-- console 的首页网格复用 `features/pm/week/` 任务卡，提供 2/3/4 列选择，默认 3 列，窄屏自动降列；点击卡片使用与新建任务相同的居中弹窗查看详情。`components/ReviewerPicker.tsx` 和 `TaskEditor.tsx` 承接选人及编辑。WorkbenchPage 展示个人或全队任务，范围筛选由 contracts 的 `selectTeamTasks` 统一处理，API 与 hooks 保持 PM 单源。
+- console 的首页复用 `features/pm/week/` 任务卡，提供网格/列表、结构分组与排序；网格可选 2/3/4 列，默认 3 列，窄屏自动降列。点击卡片使用与新建任务相同的居中弹窗查看详情。`components/ReviewerPicker.tsx` 和 `TaskEditor.tsx` 承接选人及编辑。WorkbenchPage 展示个人或全队任务，范围筛选由 contracts 的 `selectTeamTasks` 统一处理，API 与 hooks 保持 PM 单源。
 - 总览子组件承接倒计时、本车/赛季进度、六阶段和基准线；项目默认全赛季三列看板，保留依赖图与全局任务池。搁置任务不计入进行中列，可在依赖图查看。队伍近况规划页展示只读基准线小组件。
 - baseline、checklist、resources 连接使用显式 ID 引用和应用层编排；视觉组合不替代领域边界治理（ARC-DEC-005）。
 

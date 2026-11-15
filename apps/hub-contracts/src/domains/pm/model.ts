@@ -744,6 +744,8 @@ export const MembersResponseSchema = z.object({
 export const TaskWithMetaSchema = TaskSchema.extend({
   isBig: z.boolean(),
   previousOwnerIds: z.array(z.string().min(1)),
+  // 结构分组只读投影；当前单项目仓库以稳定 projectId 作为展示名。
+  projectName: z.string().min(1),
 });
 
 /**

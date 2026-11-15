@@ -124,7 +124,7 @@ export function useWeekActions(client: HubApiClient, onCreated: () => void) {
     mutationFn: ({ taskId, weekKey }: { taskId: string; weekKey: string }) => client.linkTaskWeek(taskId, weekKey),
   });
   const status = useHubMutation({ invalidateKeys,
-    mutationFn: ({ taskId, status }: { taskId: string; status: TaskStatus }) => client.updateTaskStatus(taskId, status),
+    mutationFn: ({ taskId, status, expectedRevision }: { taskId: string; status: TaskStatus; expectedRevision?: number }) => client.updateTaskStatus(taskId, status, expectedRevision),
   });
   return { create, claim, link, status };
 }

@@ -290,10 +290,10 @@ export class SqlitePmRepository implements PmRepository {
     });
   }
 
-  async updateTaskStatus(taskId: string, status: TaskStatus, by?: ActorRef): Promise<Task | null> {
+  async updateTaskStatus(taskId: string, status: TaskStatus, by?: ActorRef, expectedRevision?: number): Promise<Task | null> {
     return this.tx(() => {
       const prev = this.getRow<Task>('tasks', taskId);
-      if (!prev) return null;
+      if (!prev || (expectedRevision !== undefined && (prev.revision ?? 0) !== expectedRevision)) return null;
       const now = this.clock.now().toISOString();
       const updated = applyTaskStatusTransition(prev, status, now, by);
       this.updateRow('tasks', taskId, updated);

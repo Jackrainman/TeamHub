@@ -149,9 +149,9 @@ export function PmCoreMixin<T extends Base>(
      * （含 inProgress→done 标真实完成）。**statusSource 钉 `console`**（C5：人工流转记最低优先源，将来 git/lark
      * 派生信号可覆盖）；lastProgressAt 不动（仅派生信号回填）。id 不存在 → null（路由转 404）。
      */
-    async updateTaskStatus(taskId: string, status: TaskStatus, by?: ActorRef): Promise<Task | null> {
+    async updateTaskStatus(taskId: string, status: TaskStatus, by?: ActorRef, expectedRevision?: number): Promise<Task | null> {
       const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
-      if (idx === -1) return null;
+      if (idx === -1 || (expectedRevision !== undefined && (this.snapshot.tasks[idx].revision ?? 0) !== expectedRevision)) return null;
       const now = this.clock.now().toISOString();
       const updated = applyTaskStatusTransition(this.snapshot.tasks[idx], status, now, by);
       this.snapshot.tasks[idx] = updated;

@@ -160,7 +160,7 @@ export interface PmRepository {
    * transition 落卡（身份模式路由注入 sessionActor、匿名模式 body 供；不给也放行，transition 无 by）。
    * id 不存在 → 返回 null（路由层转 404）。
    */
-  updateTaskStatus(taskId: string, status: TaskStatus, by?: ActorRef): Promise<Task | null>;
+  updateTaskStatus(taskId: string, status: TaskStatus, by?: ActorRef, expectedRevision?: number): Promise<Task | null>;
   /**
    * 软删除依赖边（POST /api/dependencies/:id/waive）。转 status=`waived`（人工判定作废），bump updatedAt，
    * **保留** confirmedBy/createdAt（G2 单一真相可审计）。waived 边经 toDepGraphView 从图隐藏，但仍留库

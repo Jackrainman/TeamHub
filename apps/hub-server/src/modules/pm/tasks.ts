@@ -182,7 +182,7 @@ export function registerTaskRoutes(app: FastifyInstance, deps: TaskRouteDeps): v
     if (!parsed) return;
     // TASK-TIMELINE 留名：身份模式服务端注入 sessionActor（防冒充）、匿名模式 body 供名、皆无则记无 by
     const by = request.identity ? sessionActor(request.identity) : parsed.by;
-    return sendOutcome(reply, await service.transitionTaskStatus(taskId, parsed.status, by, !!request.identity), (task) =>
+    return sendOutcome(reply, await service.transitionTaskStatus(taskId, parsed.status, by, !!request.identity, parsed.expectedRevision), (task) =>
       TransitionTaskStatusResponseSchema.parse({ task }),
     );
   });

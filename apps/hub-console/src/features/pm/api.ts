@@ -76,7 +76,7 @@ export interface PmSegment {
   createTask(req: CreateTaskRequest): Promise<CreateTaskResponse>;
   createDependency(req: CreateDependencyRequest): Promise<CreateDependencyResponse>;
   createNeed(req: CreateNeedRequest): Promise<CreateNeedResponse>;
-  updateTaskStatus(taskId: string, status: TaskStatus): Promise<TransitionTaskStatusResponse>;
+  updateTaskStatus(taskId: string, status: TaskStatus, expectedRevision?: number): Promise<TransitionTaskStatusResponse>;
   waiveDependency(depId: string): Promise<WaiveDependencyResponse>;
   claimTask(taskId: string, req: ClaimTaskRequest): Promise<ClaimTaskResponse>;
   assignTask(taskId: string, req: AssignTaskRequest): Promise<AssignTaskResponse>;
@@ -137,10 +137,10 @@ export function createPmSegment(ctx: HttpContext): PmSegment {
     async createNeed(req: CreateNeedRequest) {
       return postJson(`${baseUrl}/api/needs`, req, CreateNeedResponseSchema, fetcher, writeToken);
     },
-    async updateTaskStatus(taskId: string, status: TaskStatus) {
+    async updateTaskStatus(taskId: string, status: TaskStatus, expectedRevision?: number) {
       return postJson(
         `${baseUrl}/api/tasks/${encodeURIComponent(taskId)}/status`,
-        { status },
+        { status, expectedRevision },
         TransitionTaskStatusResponseSchema,
         fetcher,
         writeToken,

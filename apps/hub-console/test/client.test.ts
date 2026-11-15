@@ -172,14 +172,14 @@ describe('hub console API client', () => {
       fetcher: fetcher as unknown as typeof fetch,
     });
 
-    const statusRes = await client.updateTaskStatus('t-r1-dataset', 'done');
+    const statusRes = await client.updateTaskStatus('t-r1-dataset', 'done', 3);
     expect(statusRes.task.id).toBeTruthy();
     const statusCall = fetcher.mock.calls.find(([u]) =>
       String(u).endsWith('/api/tasks/t-r1-dataset/status'),
     );
     expect(statusCall).toBeTruthy();
     expect(statusCall?.[1]?.method).toBe('POST');
-    expect(JSON.parse(String(statusCall?.[1]?.body))).toEqual({ status: 'done' });
+    expect(JSON.parse(String(statusCall?.[1]?.body))).toEqual({ status: 'done', expectedRevision: 3 });
 
     const waiveRes = await client.waiveDependency('dep-002');
     expect(waiveRes.dependency.id).toBeTruthy();

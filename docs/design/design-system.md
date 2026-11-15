@@ -3,7 +3,7 @@ kind: canonical-design
 status: active
 domain: design-system
 truth_for: console-visual-and-interaction-language
-last_reviewed: 2026-11-04
+last_reviewed: 2026-11-15
 ---
 
 # TeamHub 控制台设计系统
@@ -22,6 +22,17 @@ last_reviewed: 2026-11-04
 - `classic`、`warm`、`dark` 使用克制表面；仅 `tech` 可在明确的越界层使用少量辉光。
 - 页面切换不使用整页入场动画。侧栏过渡、卡片 hover、完成勾选和基准线进度条保留微动效；`prefers-reduced-motion: reduce` 禁用动效。
 - 没有真实历史序列时不画趋势线；没有值时宁可空态，也不画假仪表。
+
+### 2.1 动效 token
+
+| 时长 | 值 | 缓动 | 值 |
+|---|---|---|---|
+| `--dur-instant` / `--dur-fast` / `--dur-base` | 80 / 120 / 180ms | `--ease-standard` | `cubic-bezier(0.2,0,0,1)` |
+| `--dur-slow` / `--dur-slower` | 240 / 320ms | `--ease-decelerate` / `--ease-accelerate` | `cubic-bezier(0.05,0.7,0.1,1)` / `cubic-bezier(0.3,0,0.8,0.15)` |
+
+- 进场使用 decelerate，退场使用 accelerate，位移使用 standard；组件级动效不超过 240ms，只有全屏级动效可超过 320ms。
+- 组件只消费 `--dur-*` / `--ease-*`；`--transition` 固定为 fast + standard，既有调用点不改。
+- 键盘触发与高频操作不加动效；所有动效遵守 `prefers-reduced-motion`。
 
 ## 3. 页面层级与布局
 

@@ -97,6 +97,8 @@ export const CreateNeedResponseSchema = z.object({
 export const TransitionTaskStatusRequestSchema = z.object({
   status: TaskStatusSchema,
   by: ActorRefSchema.optional(),
+  // 批量操作逐条携带读取时的 revision；缺省保持既有单条调用兼容。
+  expectedRevision: z.number().int().nonnegative().optional(),
 });
 export const TransitionTaskStatusResponseSchema = z.object({ task: TaskSchema });
 

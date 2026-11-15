@@ -19,6 +19,7 @@ function task(overrides: Partial<TaskWithMeta>): TaskWithMeta {
   return {
     id: 't-1',
     projectId: 'p-1',
+    projectName: 'p-1',
     groupId: 'grp-ec',
     title: '任务',
     rawSummary: '原话',

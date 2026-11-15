@@ -125,6 +125,7 @@ export function StockInDialog({
     mutation.mutate({ id: entry.id, req: { lines: submitLines } });
   }
 
+  // 已知限制：父级按当前报账条目条件挂载本组件，卸载先于 SideDrawer 收到 open=false，因此这里只有进场。
   return (
     <SideDrawer open onClose={onClose} title={t('reimb.stockIn.title')}>
       <p className="reimb-stockin__hint">{t('reimb.stockIn.hint')}</p>

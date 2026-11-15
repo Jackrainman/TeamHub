@@ -6,9 +6,9 @@ import { useI18n } from '../../../i18n';
 import { STATUS_KEY } from '../sub/constants';
 import { CheckCircle2, Circle, Clock, Inbox, TriangleAlert } from 'lucide-react';
 
-export function WeekTaskCard({ task, groupName, members, node, onOpen, children }: {
+export function WeekTaskCard({ task, groupName, members, node, onOpen, selection, children }: {
   task: TaskWithMeta; groupName: string; members: MemberPublic[]; node?: DepNode;
-  onOpen: () => void; children?: ReactNode;
+  onOpen: () => void; selection?: ReactNode; children?: ReactNode;
 }) {
   const { t } = useI18n();
   const acceptance = deriveTaskAcceptance(task, task.isBig);
@@ -17,6 +17,7 @@ export function WeekTaskCard({ task, groupName, members, node, onOpen, children 
   const target = task.targetLabel ?? (task.robotTarget === 'shared' ? t('pm.robot.shared') : task.robotTarget);
   const StatusIcon = task.status === 'done' ? (acceptance === 'accepted' ? CheckCircle2 : Clock) : task.status === 'blocked' ? TriangleAlert : task.ownerId ? Circle : Inbox;
   return <article className={`card card--interactive week-task week-task--${task.status}${task.status === 'done' && acceptance !== 'accepted' ? ' is-awaiting' : ''}`}>
+    {selection}
     <div className="week-task__heading">
       <span className="week-task__group">{groupName}</span>
       <span className="week-task__status"><StatusIcon size={14} aria-hidden="true" />{task.status === 'done' ? t(acceptance === 'accepted' ? 'week.accepted' : acceptance === 'selfDone' ? 'week.view.completed' : 'week.awaiting') : t(STATUS_KEY[task.status])}</span>

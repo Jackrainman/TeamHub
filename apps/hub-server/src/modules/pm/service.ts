@@ -159,6 +159,7 @@ export class PmService {
       ...task,
       isBig: isBigTask(task, snapshot.dependencies),
       previousOwnerIds: derivePreviousOwnerIds(task),
+      projectName: snapshot.projectId,
     }));
   }
 
@@ -205,15 +206,18 @@ export class PmService {
     status: TaskStatus,
     by: ActorRef | undefined,
     authenticated = false,
+    expectedRevision?: number,
   ): Promise<PmOutcome<Task>> {
     const current = (await this.repository.getSnapshot()).tasks.find(t => t.id === taskId);
-    if (current?.weekLinks?.length) {
+    if (!current) return fail(404, 'task not found');
+    if (expectedRevision !== undefined && (current.revision ?? 0) !== expectedRevision) return fail(409, '任务已更新，请刷新后重试');
+    if (current.weekLinks?.length) {
       if (!authenticated || !by || current.ownerId !== by.id) return fail(403, 'Only the signed-in owner may progress a weekly task');
       if (current.status === 'done' || current.status === 'shelved') return fail(409, 'Use peer review to reopen completed tasks');
       if (status === 'done') return this.completeTask(taskId, by, authenticated);
     }
-    const task = await this.repository.updateTaskStatus(taskId, status, by);
-    if (!task) return fail(404, 'task not found');
+    const task = await this.repository.updateTaskStatus(taskId, status, by, expectedRevision);
+    if (!task) return fail(expectedRevision === undefined ? 404 : 409, expectedRevision === undefined ? 'task not found' : '任务已更新，请刷新后重试');
     return ok(task);
   }
 

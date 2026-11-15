@@ -3,7 +3,7 @@ import { governanceScenarioFixture } from '../src/index.js';
 import { selectTeamTasks } from '../src/domains/pm/team-tasks.js';
 
 test('team list searches history across weeks and filters group and acceptance', () => {
-  const base = { ...governanceScenarioFixture.tasks[0]!, previousOwnerIds: [] };
+  const base = { ...governanceScenarioFixture.tasks[0]!, previousOwnerIds: [], projectName: governanceScenarioFixture.projectId };
   const tasks = [
     { ...base, id: 'old', groupId: 'g1', title: 'Old motor', rawSummary: 'calibration', status: 'done' as const, isBig: true, reviewedBy: undefined },
     { ...base, id: 'new', groupId: 'g2', title: 'Camera', status: 'inProgress' as const, isBig: false },
@@ -14,7 +14,7 @@ test('team list searches history across weeks and filters group and acceptance',
 });
 
 test('personal scope includes only tasks owned by the current session', () => {
-  const base = { ...governanceScenarioFixture.tasks[0]!, previousOwnerIds: [], isBig: false };
+  const base = { ...governanceScenarioFixture.tasks[0]!, previousOwnerIds: [], isBig: false, projectName: governanceScenarioFixture.projectId };
   const tasks = [{ ...base, id: 'mine', ownerId: 'a' }, { ...base, id: 'other', ownerId: 'b', reviewerIds: ['a'] }];
   const filter = { q: '', groupId: '', status: 'all' as const, scope: 'mine' as const, sessionMemberId: 'a' };
   expect(selectTeamTasks(tasks, filter).map(task => task.id)).toEqual(['mine']);

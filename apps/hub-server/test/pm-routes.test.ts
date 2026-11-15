@@ -20,9 +20,34 @@ describe('PM 读视图 + 依赖/缺口录入', () => {
       const body = TasksResponseSchema.parse(res.json());
       expect(body.tasks.length).toBeGreaterThan(0);
       for (const t of body.tasks) {
+        expect(t.projectId).toBe('prj-robots');
+        expect(t.projectName).toBe('prj-robots');
         expect(t).not.toHaveProperty('confirmedBy');
         expect(t).not.toHaveProperty('completedCount');
       }
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('状态流转逐条校验 expectedRevision，冲突返回 409 且不改事实', async () => {
+    const app = buildTestHubServer();
+    try {
+      const stale = await app.inject({
+        method: 'POST', url: '/api/tasks/t-r1-dataset/status',
+        payload: { status: 'done', expectedRevision: 99 },
+      });
+      expect(stale.statusCode).toBe(409);
+      expect(stale.json().detail).toContain('任务已更新');
+      const unchanged = await app.inject({ method: 'GET', url: '/api/tasks' });
+      expect(unchanged.json().tasks.find((task: { id: string }) => task.id === 't-r1-dataset').status).toBe('inProgress');
+
+      const current = await app.inject({
+        method: 'POST', url: '/api/tasks/t-r1-dataset/status',
+        payload: { status: 'done', expectedRevision: 0 },
+      });
+      expect(current.statusCode).toBe(200);
+      expect(TransitionTaskStatusResponseSchema.parse(current.json()).task.status).toBe('done');
     } finally {
       await app.close();
     }

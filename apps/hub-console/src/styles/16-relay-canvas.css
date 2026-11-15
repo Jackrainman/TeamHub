@@ -388,8 +388,8 @@
   color: var(--text);
 }
 
-/* 右锚定抽屉（SideDrawer）：全站首个 overlay。position:fixed 相对视口（layout 无 transform）。
-   入场 slide/fade 走 @keyframes（项目首次引入 transition，符合「从侧面弹出」诉求）。 */
+/* 右锚定抽屉（SideDrawer）：position:fixed 相对视口（layout 无 transform）。
+   退场保留到面板 animationend；重开由组件移除 data-closing，复用同一 DOM 实例。 */
 @keyframes drawer-slide-in {
   from {
     transform: translateX(100%);
@@ -406,12 +406,24 @@
     opacity: 1;
   }
 }
+@keyframes drawer-slide-out {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+@keyframes drawer-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
 .drawer-backdrop {
   position: fixed;
   inset: 0;
   z-index: 50;
   background: rgba(0, 0, 0, 0.25);
-  animation: drawer-fade-in 0.15s ease;
+  animation: drawer-fade-in var(--dur-base) var(--ease-decelerate);
+}
+.drawer-backdrop[data-closing] {
+  pointer-events: none;
+  animation: drawer-fade-out var(--dur-fast) var(--ease-accelerate) both;
 }
 .drawer {
   position: fixed;
@@ -425,7 +437,11 @@
   background: var(--surface);
   border-left: 1px solid var(--border);
   box-shadow: var(--shadow);
-  animation: drawer-slide-in 0.2s ease;
+  animation: drawer-slide-in var(--dur-base) var(--ease-decelerate);
+}
+.drawer[data-closing] {
+  pointer-events: none;
+  animation: drawer-slide-out var(--dur-fast) var(--ease-accelerate) both;
 }
 .drawer__head {
   display: flex;
@@ -446,7 +462,10 @@
   border-left: 0;
   border-radius: var(--radius-lg);
   overflow: hidden;
-  animation: drawer-fade-in 0.15s ease;
+  animation: drawer-fade-in var(--dur-base) var(--ease-decelerate);
+}
+.drawer--center[data-closing] {
+  animation: drawer-fade-out var(--dur-fast) var(--ease-accelerate) both;
 }
 .drawer--center .drawer__head { flex-shrink: 0; }
 .drawer__title {
