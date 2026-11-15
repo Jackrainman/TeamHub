@@ -115,9 +115,7 @@
   color: var(--muted);
 }
 
-/* Field 外壳外的行内输入件：镜像 .kb-field input 的 token 写法（见文件头注释）。
-   筛选栏的 select 是裸控件（没有 Field/.gate-field 外壳），必须并入本组；否则退回
-   浏览器原生外观（方角、系统字体、发白描边），与其余控件割裂。 */
+/* 控件皮肤已收口到 02-base.css 的控件基线（CONTROL-BASELINE），本组只留行内布局所需的度量。 */
 .reimb-filters > select,
 .reimb-evidence__list select,
 .reimb-attachment select,
@@ -127,11 +125,6 @@
 .reimb-batch-create input,
 .reimb-stockin input,
 .reimb-stockin select {
-  padding: 7px 10px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface-raised);
-  color: var(--text);
   font: inherit;
   font-size: var(--text-base);
 }

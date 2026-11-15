@@ -259,17 +259,7 @@ button,
 .identity-bar__username {
   width: 140px;
 }
-.identity-bar--form select,
-.identity-bar--form input {
-  padding: 8px 10px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface-raised);
-  color: var(--text);
-  font: inherit;
-  font-size: var(--text-base);
-  transition: border-color var(--transition), box-shadow var(--transition);
-}
+/* 控件皮肤走控件基线（02-base.css CONTROL-BASELINE）；此处只留布局差异与交互态。 */
 .identity-bar--form select:hover:not(:focus),
 .identity-bar--form input:hover:not(:focus) {
   border-color: var(--text);
@@ -967,11 +957,9 @@ button,
 }
 
 .detail-status-select select {
-  padding: 6px 8px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--text);
+  width: 100%;
+  padding: var(--control-pad-compact);
+  min-height: 0;
   font-size: var(--text-sm);
 }
 
@@ -1153,4 +1141,202 @@ button,
   .dep-graph-detail {
     max-height: none;
   }
+}
+
+/* ===== 控件基线（CONTROL-BASELINE，2026-11-15 拍板）=====================
+   目标：任何裸 <input>/<select>/<textarea>/checkbox/date/number/file 不写 className，
+   也不退回浏览器原生外观。基线只给「默认值」，不承担页面排版。
+   特异度全部为 0（:where 包壳）→ .kb-field input、.settings-… select 等任何页面级规则
+   天然覆盖，不需要 !important，也不需要提高选择器权重。
+   皮肤来源唯一：01-tokens.css 的 --control-*；本段不出现具体颜色值。 */
+:where(input, select, textarea) {
+  font: inherit;
+  color: inherit;
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
+  background-color: var(--control-bg);
+  transition:
+    background-color var(--transition),
+    border-color var(--transition),
+    box-shadow var(--transition),
+    color var(--transition);
+}
+
+/* 文本类控件（排除由浏览器绘制的特殊 type，各自在下面单列）。 */
+:where(
+  input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']):not([type='color']):not([type='hidden']),
+  select,
+  textarea
+) {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: var(--control-height);
+  padding: var(--control-pad-y) var(--control-pad-x);
+  font-size: var(--text-base);
+  line-height: 1.35;
+}
+
+:where(input, select, textarea):hover:not(:disabled):not(:focus) {
+  background-color: var(--control-bg-hover);
+}
+
+/* 键盘焦点：描边 + 外环同步主题色（沿用 02-base 顶部全局 focus-visible 的 2px 规则）。 */
+:where(input, select, textarea):focus-visible {
+  outline: 2px solid var(--control-focus-ring);
+  outline-offset: 1px;
+  border-color: var(--control-focus-ring);
+}
+
+:where(input, select, textarea):disabled {
+  opacity: var(--control-disabled-opacity);
+  cursor: not-allowed;
+}
+
+:where(
+  input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']):not([type='color']),
+  textarea
+):read-only {
+  background-color: var(--surface-muted);
+  cursor: default;
+}
+
+/* 校验失败：红描边（aria-invalid 是表单层的既有约定，主题色自动取 --red）。 */
+:where(input, select, textarea)[aria-invalid='true'] {
+  border-color: var(--red);
+}
+:where(input, select, textarea)[aria-invalid='true']:focus-visible {
+  outline-color: var(--red);
+}
+
+:where(input, textarea)::placeholder {
+  color: var(--control-placeholder);
+  opacity: 1;
+}
+
+/* 多行：默认给两行高，纵向可拉（页面规则可再覆盖）。 */
+:where(textarea) {
+  min-height: calc(var(--control-height) * 2);
+  resize: vertical;
+}
+
+/* ---- select：自绘箭头（去原生）---- */
+:where(select) {
+  cursor: pointer;
+  padding-right: calc(var(--control-pad-x) + 18px);
+  background-image: var(--select-chevron);
+  background-repeat: no-repeat;
+  background-position:
+    calc(100% - var(--control-pad-x) + 3px) calc(50% + 1px),
+    calc(100% - var(--control-pad-x) - 2px) calc(50% + 1px);
+  background-size: var(--select-chevron-size) var(--select-chevron-size);
+}
+:where(select[multiple]) {
+  cursor: default;
+  padding-right: var(--control-pad-x);
+  background-image: none;
+}
+
+/* ---- input[type=date/time/…]：保留原生日历弹窗，只统一指示图标与间距 ---- */
+:where(input[type='date'], input[type='datetime-local'], input[type='time'], input[type='month'], input[type='week'])::-webkit-calendar-picker-indicator {
+  margin-left: 2px;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  opacity: 0.65;
+  cursor: pointer;
+}
+:where(input[type='date'], input[type='datetime-local'], input[type='time'], input[type='month'], input[type='week'])::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* ---- number：去掉原生上下 spinner（靠键盘/滚轮仍可调值）---- */
+:where(input[type='number'])::-webkit-inner-spin-button,
+:where(input[type='number'])::-webkit-outer-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+}
+:where(input[type='number']) {
+  -moz-appearance: textfield;
+}
+
+/* ---- checkbox / radio：自绘方框与圆点，勾/点用 token 反白 ---- */
+:where(input[type='checkbox'], input[type='radio']) {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-grid;
+  place-content: center;
+  flex: none;
+  width: 1.15em;
+  height: 1.15em;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--control-border);
+  border-radius: calc(var(--radius-sm) / 2);
+  background-color: var(--control-bg);
+  vertical-align: -0.15em;
+  cursor: pointer;
+  transition:
+    background-color var(--transition),
+    border-color var(--transition);
+}
+:where(input[type='radio']) {
+  border-radius: 50%;
+}
+:where(input[type='checkbox'], input[type='radio']):checked {
+  border-color: var(--blue);
+  background-color: var(--blue);
+}
+:where(input[type='checkbox'])::before {
+  content: '';
+  width: 0.5em;
+  height: 0.24em;
+  border-left: 2px solid var(--control-check-mark);
+  border-bottom: 2px solid var(--control-check-mark);
+  transform: rotate(-45deg) translateY(-0.05em);
+}
+:where(input[type='radio'])::before {
+  content: '';
+  width: 0.42em;
+  height: 0.42em;
+  border-radius: 50%;
+  background-color: var(--control-check-mark);
+}
+:where(input[type='checkbox'], input[type='radio']):hover:not(:disabled):not(:checked) {
+  border-color: var(--text);
+}
+:where(input[type='checkbox'], input[type='radio']):focus-visible {
+  outline: 2px solid var(--control-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---- file：只给按钮皮肤；input 本体透明无边框（隐藏式上传入口不受影响）---- */
+:where(input[type='file']) {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+:where(input[type='file'])::file-selector-button {
+  margin-right: var(--space-2);
+  padding: 7px 12px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
+  background-color: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition:
+    background-color var(--transition),
+    border-color var(--transition),
+    color var(--transition);
+}
+:where(input[type='file'])::file-selector-button:hover {
+  border-color: var(--text);
+  background-color: var(--control-bg-hover);
 }

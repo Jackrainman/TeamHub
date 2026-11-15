@@ -17,15 +17,9 @@
 
 /* --- 写侧表单（PM 录入 + KB 结案） --------------------------------------- */
 
+/* 控件皮肤已收口到 02-base.css 的控件基线（CONTROL-BASELINE）；此处只留布局。 */
 .kb-field select {
   width: 100%;
-  padding: 9px 11px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface-raised);
-  color: var(--text);
-  font: inherit;
-  font-size: var(--text-base);
 }
 
 .kb-field select:focus {

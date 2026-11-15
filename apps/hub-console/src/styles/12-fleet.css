@@ -109,13 +109,11 @@
   align-items: center;
   gap: 8px;
 }
+/* 紧凑档：只留尺寸，皮肤走 02-base.css 控件基线。 */
 .resources-action select,
 .resources-reason-input {
-  padding: 5px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--text);
+  padding: var(--control-pad-compact);
+  min-height: 0;
   font-size: var(--text-sm);
 }
 .resources-reason-input {
@@ -169,11 +167,8 @@
   gap: 8px;
 }
 .resources-preset-list__row select {
-  padding: 5px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--text);
+  padding: var(--control-pad-compact);
+  min-height: 0;
   font-size: var(--text-sm);
   min-width: 160px;
 }

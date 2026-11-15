@@ -131,15 +131,12 @@
   font-weight: var(--weight-bold);
   white-space: nowrap;
 }
+/* 表格内紧凑档：只留尺寸，皮肤走 02-base.css 控件基线。 */
 .today-plan-table input,
 .today-plan-table select {
   width: 100%;
   padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
+  min-height: 0;
   font-size: var(--text-sm);
 }
 .today-plan-table input:hover:not(:focus),

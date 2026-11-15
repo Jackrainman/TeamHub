@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/logo-banner.png" />
     <title>Team Hub Console</title>
+    <script>
+      /* 首帧主题（pre-paint）：默认 dark，但 :root 是浅色 token；若等 React useEffect 写
+         data-theme，首帧会闪白。此处按 ThemeProvider 同一份 key/白名单在样式加载前定主题。 */
+      (function () {
+        var t = null;
+        try { t = localStorage.getItem('teamhub.theme'); } catch (e) { /* 存储禁用时走默认 */ }
+        var ok = ['classic', 'warm', 'dark', 'tech', 'notion', 'notion-dark', 'linear'];
+        document.documentElement.dataset.theme = ok.indexOf(t) >= 0 ? t : 'dark';
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

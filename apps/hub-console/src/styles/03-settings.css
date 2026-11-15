@@ -83,12 +83,10 @@
   align-items: center;
   gap: 12px;
 }
+/* 紧凑档：只保留尺寸差异，皮肤走 02-base.css 控件基线。 */
 .settings-member__controls select {
-  padding: 5px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--text);
+  padding: var(--control-pad-compact);
+  min-height: 0;
   font-size: var(--text-sm);
 }
 
@@ -234,15 +232,11 @@
   box-sizing: border-box;
   width: 100%;
 }
-/* 表格内的裸 select/input 不在 Field 外壳里：补齐与 .kb-field 控件同源的主题外观，
-   否则预览表里只有它们退回系统原生方角控件。 */
+/* 表格内的裸 select/input：皮肤由 02-base.css 控件基线统一提供，这里只压尺寸。 */
 .roster-preview__table select,
 .roster-preview__table input {
-  padding: 5px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--text);
+  padding: var(--control-pad-compact);
+  min-height: 0;
   font-size: var(--text-sm);
 }
 
@@ -266,13 +260,10 @@
   align-items: center;
   gap: 10px;
 }
-/* 共享 Select 组件本身不带样式；行内没有 .kb-field 外壳，补一份成员下拉同源的紧凑外观。 */
+/* 紧凑档：只保留尺寸差异，皮肤走 02-base.css 控件基线。 */
 .lead-confirm__row select {
-  padding: 5px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--text);
+  padding: var(--control-pad-compact);
+  min-height: 0;
   font-size: var(--text-sm);
 }
 .lead-confirm__group {
@@ -303,14 +294,6 @@
 .gate-field textarea,
 .gate-field select {
   width: 100%;
-  padding: 9px 11px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface-raised);
-  color: var(--text);
-  font: inherit;
-  font-size: var(--text-base);
-  transition: border-color var(--transition), box-shadow var(--transition);
 }
 .gate-field input:hover:not(:focus),
 .gate-field textarea:hover:not(:focus),

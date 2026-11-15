@@ -87,6 +87,29 @@
      同上 TODO：当前零消费，待紧凑控件收口时替换 .relay-card__eta-input 等处的裸 5px 8px / --text-sm。 */
   --control-pad-compact: 5px 8px;
   --control-text-compact: var(--text-sm);
+  /* ===== 控件基线（2026-11-15，CONTROL-BASELINE）=====
+     全站裸 input/select/textarea 的默认皮肤，定义点只有这里 + 02-base.css 的
+     `:where(input, select, textarea)` 段。颜色一律引用语义 token，light/dark/tech/warm
+     等主题切换自动随动，禁止在这里写死颜色。尺寸走既有 4px 刻度 token。 */
+  --control-height: 36px;
+  --control-pad-y: var(--space-2);
+  --control-pad-x: 11px;
+  --control-radius: var(--radius-md);
+  --control-bg: var(--surface-raised);
+  --control-bg-hover: var(--surface);
+  --control-border: var(--border-strong);
+  --control-focus-ring: var(--blue);
+  --control-disabled-opacity: 0.55;
+  --control-placeholder: var(--faint);
+  /* 反白勾选标记：accent 实底上的「墨色」，light 下=白 / dark 下=深底，两端对比都够。 */
+  --control-check-mark: var(--surface);
+  /* 下拉箭头：内联矢量（两段 45° 硬停 linear-gradient 拼成 chevron），颜色走 currentColor，
+     随文字/主题/禁用态自动变色。刻意不用 data URI SVG：background-image 里的 SVG 解析不到
+     CSS 变量，只能用写死颜色，违反「颜色跟 token 走」。 */
+  --select-chevron:
+    linear-gradient(135deg, transparent 50%, currentColor 50%),
+    linear-gradient(45deg, currentColor 50%, transparent 50%);
+  --select-chevron-size: 5px;
   /* 侧边栏次级文字（品牌副标题 / nav 项）——派生自 sidebar-text，warm 自动联动。 */
   --sidebar-text-muted: color-mix(in srgb, var(--sidebar-text) 62%, transparent);
   /* 主题可换 token（classic 默认值；warm 见下方 [data-theme='warm'] 覆盖）。 */

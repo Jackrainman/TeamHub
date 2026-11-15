@@ -163,14 +163,12 @@
 .relay-card__eta-value:hover {
   border-color: var(--green);
 }
+/* 迷你档：只留尺寸，皮肤走 02-base.css 控件基线。 */
 .relay-card__eta-input {
   flex: 1;
   min-width: 0;
   padding: 2px 6px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text);
+  min-height: 0;
   font-size: var(--text-xs);
 }
 /* 绿框只用于 focus（原常态绿边与 focus/disabled 语义混淆，审计 #8）。 */
@@ -294,10 +292,8 @@
 .relay-card__then-select {
   width: 100%;
   padding: 3px 6px;
-  border: 1px solid var(--green);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text);
+  min-height: 0;
+  border-color: var(--green); /* 语义色：then 分支（非皮肤重复） */
   font-size: var(--text-xs);
 }
 
@@ -792,10 +788,7 @@
 /* STAGE-PIPELINE Step2.5：里程碑 stage 改挂下拉（行内紧凑控件，随 meta 行字号）。 */
 .baseline-ms__stage-select {
   padding: 1px 4px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text);
+  min-height: 0;
   font-size: var(--text-xs);
 }
 .baseline-ms__note {
