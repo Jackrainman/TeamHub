@@ -59,9 +59,13 @@ export function MembersPermissionsSection({
           groups={groups}
           onImported={invalidateRoster}
         />
-        {lockHint ? <p className="task-detail__hint">{lockHint}</p> : null}
         {showSetup ? (
-          <SetupAdminCard client={client} writeLocked={writeLocked} onDone={invalidateMembers} />
+          <SetupAdminCard
+            client={client}
+            writeLocked={writeLocked}
+            lockHint={lockHint}
+            onDone={invalidateMembers}
+          />
         ) : null}
         {membersQuery.isLoading ? (
           <p className="settings-desc" role="status" aria-live="polite">…</p>

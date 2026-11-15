@@ -10,6 +10,37 @@
   min-height: 0;
 }
 
+/* 「开发者」折叠体：外层保留 .panel；直接子面板只做视觉去重（去边框/圆角/投影/底色），
+   不另立卡片风格。hidden 必须显式压过 display，否则 class 的 display:flex 会盖掉它。 */
+.settings-developer__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+.settings-developer__body[hidden] {
+  display: none;
+}
+.settings-developer__body > .panel {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* 折叠标题按钮：排版由 .panel-header h2 给，按钮只去掉皮肤（无 .btn 类）。 */
+.settings-developer__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
 .settings-section {
   display: flex;
   flex-direction: column;

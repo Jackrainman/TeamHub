@@ -27,7 +27,7 @@ export function SeasonsSection({
   const { t } = useI18n();
   // 写门锁（照 PoolPage 先例）+ 管理员前置资格判（复审留档 nit 收口，照 K2 前置资格判先例）：
   // 未登录 = loggedOutLocked；身份模式已登录但非 superAdmin = adminLocked（此前只判「是否登录」、漏了
-  // 「是否管理员」，导致非管理员点了才撞服务端 403）。两者任一 → 写控件禁用 + 说明。
+  // 「是否管理员」，导致非管理员点了才撞服务端 403）。两者任一 → 写控件禁用，原因只走 controls 的 title。
   const { writeLocked, lockHint } = sectionPermission(identity, t);
   const seasonsQuery = useSeasons(client);
 
@@ -103,13 +103,13 @@ export function SeasonsSection({
                 className="btn btn--secondary btn--sm"
                 onClick={applySuggestion}
                 disabled={writeLocked}
+                title={lockHint ?? undefined}
               >
                 {t('settings.seasons.suggestApply')}
               </button>
             </p>
           </div>
         ) : null}
-        {lockHint ? <p className="task-detail__hint">{lockHint}</p> : null}
         <form className="pm-form" onSubmit={submit} title={lockHint ?? undefined}>
           <FormGrid cols={3}>
             <Field label={t('settings.seasons.field.name')} required>

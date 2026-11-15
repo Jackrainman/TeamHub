@@ -9,12 +9,11 @@ import { IdentitySection } from './IdentitySection';
 import { SeasonsSection } from './SeasonsSection';
 import { GroupsSection } from './GroupsSection';
 import { MembersPermissionsSection } from './MembersSection';
-import { IntegrationsSection, LarkIntegrationSection } from './IntegrationsSection';
-import { ConnectionSection } from './ConnectionSection';
-import { DeploymentSection, DeploymentConfigSection } from './DeploymentSection';
-import { ExportSection, AboutSection } from './MiscSections';
+import { ExportSection } from './MiscSections';
+import { DeveloperSection } from './DeveloperSection';
 
-// 设置页：收纳此前散落各处的运行时设置——语言 / 集成 / 后端地址 / 关于。
+// 设置页：日常可调的设置在前（外观 / 身份 / 语言 / 风格预览 / 赛季 / 组 / 成员 / 导出），
+// 运维与集成向面板收进末尾可折叠的「开发者」区（DeveloperSection）。
 // 语言复用 i18n 的同一份状态（无本地副本，故无同步问题）。单一真实后端，无数据源切换。
 
 export function SettingsPage({
@@ -61,13 +60,8 @@ export function SettingsPage({
       <SeasonsSection client={client} source={source} identity={identity} />
       <GroupsSection client={client} source={source} identity={identity} />
       <MembersPermissionsSection client={client} source={source} identity={identity} />
-      <IntegrationsSection overview={overview} />
-      <LarkIntegrationSection client={client} />
-      <ConnectionSection />
-      <DeploymentSection client={client} source={source} />
-      <DeploymentConfigSection client={client} source={source} identity={identity} />
       <ExportSection />
-      <AboutSection client={client} source={source} />
+      <DeveloperSection client={client} source={source} identity={identity} overview={overview} />
     </div>
   );
 }

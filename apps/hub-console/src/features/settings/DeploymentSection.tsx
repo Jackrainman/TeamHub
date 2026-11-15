@@ -135,6 +135,7 @@ async function pollUntilRestarted(client: HubApiClient): Promise<void> {
 // 「确认弹窗 → 调写 API → 服务端 exit 42 自动重启 → 前端轮询复活 → 整页刷新」流（§6）。dataMode /
 // identityMode 取 /api/system/status 的 deployment 字段（与「部署信息」/「关于」共享 query 缓存）。
 // 鉴权镜像服务端：身份模式须 superAdmin（sectionPermission 的 adminLocked）、匿名模式恒可写（走写门）。
+// 本面板只在设置页「开发者」栏内渲染，非管理员整栏隐藏（该栏是唯一显式例外，见 section-permission.ts）。
 export function DeploymentConfigSection({
   client,
   source,
@@ -234,7 +235,6 @@ export function DeploymentConfigSection({
                 ),
               })}
             </p>
-            {lockHint ? <p className="task-detail__hint">{lockHint}</p> : null}
             <div className="settings-actions">
               <button
                 type="button"
@@ -262,7 +262,6 @@ export function DeploymentConfigSection({
                   {t('settings.deployConfig.graduate.title')}
                 </h3>
                 <p className="settings-desc">{t('settings.deployConfig.graduate.desc')}</p>
-                {lockHint ? <p className="task-detail__hint">{lockHint}</p> : null}
                 <label className="setup-card__check">
                   <input
                     type="checkbox"
@@ -290,11 +289,6 @@ export function DeploymentConfigSection({
                 </div>
               </>
             ) : null}
-
-            {/* 常驻底注：改部署配置会自动重启。 */}
-            <p className="settings-desc">
-              {t('settings.deployConfig.restartNote')}
-            </p>
           </>
         )}
       </div>

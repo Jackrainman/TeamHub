@@ -22,10 +22,12 @@ import {
 export function SetupAdminCard({
   client,
   writeLocked,
+  lockHint,
   onDone,
 }: {
   client: HubApiClient;
   writeLocked: boolean;
+  lockHint: string | null;
   onDone: () => void;
 }) {
   const { t } = useI18n();
@@ -43,7 +45,11 @@ export function SetupAdminCard({
   }
 
   return (
-    <form className="setup-admin-card" onSubmit={submit}>
+    <form
+      className="setup-admin-card"
+      onSubmit={submit}
+      title={writeLocked ? (lockHint ?? undefined) : undefined}
+    >
       <div>
         <strong>{t('settings.members.setup.title')}</strong>
         <p className="settings-desc">{t('settings.members.setup.desc')}</p>

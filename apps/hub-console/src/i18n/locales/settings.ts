@@ -2,15 +2,14 @@ export const zhSettings = {
   'settings.section.language': '界面语言',
   'settings.section.about': '关于',
   'settings.section.identity': '身份',
+  'settings.section.developer': '开发者',
   'settings.identity.desc': '这台服务器当前的登录模式。',
   'settings.identity.mode.anonymous': '匿名模式',
   'settings.identity.mode.identity': '登录模式',
-  'settings.identity.anon.body':
-    '现在所有人不用登录就能看、也能改；每次操作记在谁名下，靠操作时自己选。想改成先登录才能改、按角色分权限，到下方「部署配置」里切换到登录模式即可——改完会自动重启生效，不用改服务器环境变量。',
+  'settings.identity.anon.body': '现在所有人不用登录就能查看和修改。可在「开发者 → 部署配置」切换登录模式。',
   'settings.identity.identity.loggedIn': '已登录：{name}（{role}）',
   'settings.identity.identity.loggedOut': '还没登录，点右上角的登录。',
-  'settings.identity.identity.restartNote':
-    '登录状态存在服务器内存里，服务器一重启就得重新登录。',
+  'settings.identity.identity.restartNote': '服务器重启后需要重新登录。',
   'settings.language.desc': '只切界面文案；任务名 / 负责人等数据保持原样。',
   'settings.language.zh': '中文',
   'settings.language.en': 'English',
@@ -23,7 +22,7 @@ export const zhSettings = {
   'settings.theme.notion': 'Notion 风',
   'settings.theme.notionDark': 'Notion 夜航',
   'settings.theme.linear': 'Linear 风',
-  'settings.apiBase.desc': '覆盖默认后端地址，仅真实模式生效；改动后会重新加载页面。',
+  'settings.apiBase.desc': '覆盖默认后端地址；应用后页面会重新加载。',
   'settings.apiBase.label': '后端地址',
   'settings.apiBase.placeholder': '例如 http://100.78.202.84:4177',
   'settings.apiBase.current': '当前生效：{value}',
@@ -31,11 +30,11 @@ export const zhSettings = {
   'settings.apiBase.reset': '恢复默认',
   'settings.connection.reloadConfirm': '应用后页面将刷新，确定继续吗？',
   'settings.writeToken.desc':
-    '后端绑公网地址时写操作要带令牌。把服务启动日志里的 TEAMHUB_WRITE_TOKEN 粘进来，改完自动重载。',
+    '服务在公网部署时，写操作需要令牌。令牌见服务端启动日志；应用后页面会重新加载。',
   'settings.writeToken.label': '写入令牌（Bearer）',
   'settings.writeToken.placeholder': '粘贴服务端启动日志里的 token',
   'settings.writeToken.set': '已设置（写操作将携带令牌）',
-  'settings.writeToken.unset': '未设置（仅本机 loopback 可写）',
+  'settings.writeToken.unset': '未设置（只有本机能直接写）',
   'settings.writeToken.apply': '应用并重载',
   'settings.writeToken.reset': '清除',
   'settings.writeToken.show': '显示令牌',
@@ -44,8 +43,7 @@ export const zhSettings = {
   'settings.about.version': '版本',
   'settings.about.unavailable': '后端状态不可用（未连上？）',
   'settings.section.deployment': '部署信息',
-  'settings.deployment.desc':
-    '这台服务器的运行信息。业务数据和产品设置都在服务器的 SQLite 数据库中。',
+  'settings.deployment.desc': '这台服务器的运行信息。',
   'settings.deployment.unavailable': '这台后端没提供部署信息（版本较旧？）。',
   'settings.deployment.storage.title': '数据落盘',
   'settings.deployment.domain.gov': '任务与进度',
@@ -78,33 +76,29 @@ export const zhSettings = {
   'settings.deployment.artifactUpload.enabled': '已启用',
   'settings.deployment.artifactUpload.disabled': '未配置（无法上传图纸文件）',
   'settings.section.deployConfig': '部署配置',
-  'settings.deployConfig.desc':
-    '在这里更新 SQLite app_settings 中的登录方式，或结束试驾转正式。更改后服务会自动重启（约 10 秒）。',
+  'settings.deployConfig.desc': '更改后服务会自动重启（约 10 秒）。',
   'settings.deployConfig.identity.title': '登录方式',
   'settings.deployConfig.identity.current': '当前：{mode}',
   'settings.deployConfig.identity.toIdentity': '切换到登录模式',
   'settings.deployConfig.identity.toAnon': '切换到匿名模式',
   'settings.deployConfig.identity.toIdentityConfirm':
-    '切换到登录模式后，服务会重启，之后需要有名册且已初始化管理员才能正常写（如果之前没做过，重启后按引导先导名册、登录本人、初始化管理员）。确定切换吗？',
+    '切换后服务会重启；登录模式下写操作需要名册和已初始化的管理员。确定切换吗？',
   'settings.deployConfig.identity.toAnonConfirm':
     '切换到匿名模式后，认领 / 验收等操作将不再留名，且所有人的登录会话会全部失效（需重新使用）。服务会重启。确定切换吗？',
   'settings.deployConfig.graduate.title': '结束试驾，转正式',
   'settings.deployConfig.graduate.desc':
-    '当前是演示态。转正式会在一个 SQLite 事务中清空全部业务事实并将 app_settings 切换为正式态；不会保留 demo archive。操作前必须先运行备份，此操作单向不可逆。',
+    '当前是演示数据。转正式会清空全部演示业务数据且不可恢复，请先完成备份。',
   'settings.deployConfig.graduate.cta': '结束试驾，转正式',
-  'settings.deployConfig.graduate.backupConfirmed': '我已运行并验证统一 SQLite 备份',
+  'settings.deployConfig.graduate.backupConfirmed': '我已备份并确认可以恢复',
   'settings.deployConfig.graduate.backupRequired': '请先完成并确认备份',
   'settings.deployConfig.graduate.confirm':
-    '只有已完成并验证 SQLite 备份才能继续。确定要原子清空全部演示业务事实并转为正式空板吗？TeamHub 不会创建 demo archive，此操作不可逆。',
+    '请先确认已完成备份。确定清空全部演示业务数据吗？此操作不可逆。',
   'settings.deployConfig.applying': '正在应用配置，服务将自动重启（约 10 秒），这个页面会自动刷新。',
-  'settings.deployConfig.error.desc': 'app_settings 可能没写成功。点下面重新加载再试一次。',
+  'settings.deployConfig.error.desc': '配置可能没保存成功。重新加载再试一次。',
   'settings.deployConfig.error.timeout': '服务重启等得有点久。多半已经生效了，点下面重新加载看看。',
   'settings.deployConfig.reload': '重新加载',
-  'settings.deployConfig.restartNote':
-    '更改部署配置会自动重启服务（约 10 秒），全员需要刷新页面、登录制下需要重新登录。',
   'settings.section.seasons': '赛季',
-  'settings.seasons.desc':
-    '赛季是基准线的挂靠单位：总览页的"基准线 vs 实际"按当前赛季展开。新建赛季 = 宣告新的当前赛季，旧赛季自动转为"已归档"。',
+  'settings.seasons.desc': '新建赛季会成为当前赛季，旧赛季自动归档。',
   'settings.seasons.empty': '还没有赛季，用下面的表单新建一个。',
   'settings.seasons.suggest': '建议创建 {name}（{range}）',
   'settings.seasons.suggestApply': '一键填入表单',
@@ -121,10 +115,10 @@ export const zhSettings = {
   'settings.seasons.error': '新建赛季失败',
   'settings.section.groups': '组',
   'settings.groups.desc':
-    '任务是挂到具体小组（叶子组）的。含子组的组（如「程序」）和「全组联调」是汇报视角，不出现在任务/名册的组选择里。叶子组可新建、改名、删除；还有成员或任务的组不能删（先迁走再删）。',
+    '只有可分配任务的组会出现在任务和名册的组选择中。还有成员或任务的组不能删除，请先迁走。',
   'settings.groups.empty': '还没有组，用下面的表单新建一个（导入名册也会自动建组）。',
   'settings.groups.badge.assignable': '可领任务',
-  'settings.groups.badge.reporting': '汇报视角 · 不出现在选择',
+  'settings.groups.badge.reporting': '不可选',
   'settings.groups.field.name': '新组名',
   'settings.groups.field.namePlaceholder': '如 运营',
   'settings.groups.submit': '新建组',
@@ -136,7 +130,7 @@ export const zhSettings = {
   'settings.groups.rename.cancel': '取消',
   'settings.groups.rename.error': '改名失败',
   'settings.groups.delete': '删除',
-  'settings.groups.delete.confirm': '确定删除组「{name}」？（有成员/任务的组会被服务端拦下）',
+  'settings.groups.delete.confirm': '确定删除组「{name}」？仍有成员或任务的组无法删除。',
   'settings.groups.delete.error': '删除失败',
   'settings.section.integrations': '集成',
   'settings.integrations.desc': 'BOT 渠道 / Agent 后端 / 数据源的对接状态，只读。',
@@ -158,8 +152,9 @@ export const zhSettings = {
   'settings.integrations.lark.unconfigured': '未配置',
   'settings.integrations.lark.saving': '正在测试连接…',
   'settings.integrations.lark.saved': '已保存，连接正常。',
-  'settings.integrations.lark.hint':
-    '步骤：① 在飞书开发者后台创建企业自建应用，取 App ID / App Secret；② 「应用能力」里启用机器人能力；③ 「权限管理」加 im:message:send_as_bot、im:chat 权限；④ 创建版本并发布；⑤ 把机器人拉进目标群（或直接在下拉里建群）。保存时会向所选群发一条测试消息验证 chat_id。',
+  'settings.integrations.lark.setupHint':
+    '在飞书后台创建自建应用、启用机器人，并添加 im:message:send_as_bot 和 im:chat 权限，再填写凭据。',
+  'settings.integrations.lark.testHint': '保存时会向所选群发送一条测试消息。',
   'settings.integrations.lark.chats.placeholder': '选择目标群（机器人已加入的群）',
   'settings.integrations.lark.chats.manual': '手动输入 chat_id…',
   'settings.integrations.lark.chats.backToList': '返回群列表',
@@ -168,8 +163,7 @@ export const zhSettings = {
   'settings.integrations.lark.chats.created': '已建群',
   'settings.section.connection': '连接',
   'settings.section.members': '成员与权限',
-  'settings.members.desc':
-    '管理每位成员的角色、项目管理旗标与门验收人资格。项目管理旗标决定谁能改敏感设置（授旗/收旗、建赛季等）；角色决定谁是组长（可指派本组任务）；验收人（大三）可签字豁免欠条。',
+  'settings.members.desc': '管理成员角色、项目管理权限与验收人资格。',
   'settings.members.empty': '暂无成员。',
   'settings.members.role.label': '角色',
   'settings.members.role.groupAdmin': '组长',
@@ -185,7 +179,7 @@ export const zhSettings = {
   'settings.members.resetPin.error': '重置失败：{detail}',
   'settings.members.setup.title': '初始化管理员',
   'settings.members.setup.desc':
-    '本队还没有项目管理成员。设一个密码，给当前登录的你授项目管理旗标——此后授旗/收旗、建赛季等敏感设置都需要管理员身份。',
+    '本队还没有管理员。设置密码并将当前登录成员设为管理员。',
   'settings.members.setup.pinLabel': '管理员密码',
   'settings.members.setup.pinPlaceholder': '至少 8 位',
   'settings.members.setup.submit': '设为管理员',
@@ -204,7 +198,7 @@ export const zhSettings = {
   'settings.permission.adminOnly': '此操作需要管理员（项目管理旗标）权限。',
   'settings.roster.title': '名册导入',
   'settings.roster.desc':
-    '用 CSV 批量导入 / 更新成员。列：姓名、年级（大一/大二/大三/大四/研究生）、组（组名，不存在会自动新建）。以姓名为准：已有则更新、没有则新建；库里有但表里没有的成员只提示、不会删除。验收人按年级自动标（大三及以上）；导入完成后逐组确认组长。',
+    '用 CSV 批量导入或更新成员。列：姓名、年级（大一/大二/大三/大四/研究生）、组（不存在会自动新建）。以姓名为准：已有则更新，没有则新建；未列入 CSV 的现有成员不会删除。导入后需逐组确认组长。',
   'settings.leads.title': '确认各组组长',
   'settings.leads.desc':
     '逐组从该组成员里选一名组长（有成员的组必选，已按现任组长或第一行成员预填建议）。没录入人的组不出现，可稍后再任命。',
@@ -244,15 +238,15 @@ export const enSettings = {
   'settings.section.language': 'Language',
   'settings.section.about': 'About',
   'settings.section.identity': 'Identity',
+  'settings.section.developer': 'Developer',
   'settings.identity.desc': 'The login mode this server is currently running in.',
   'settings.identity.mode.anonymous': 'Anonymous mode',
   'settings.identity.mode.identity': 'Login mode',
   'settings.identity.anon.body':
-    'Right now anyone can read and write without logging in; who each action is recorded under comes from picking a name at the time. To require login for writes and split permissions by role, switch to login mode under "Deployment config" below — it restarts automatically to take effect, no server env change needed.',
+    'Everyone can view and edit without logging in. Switch login mode under "Developer → Deployment config".',
   'settings.identity.identity.loggedIn': 'Logged in: {name} ({role})',
   'settings.identity.identity.loggedOut': 'Not logged in — use the login button top-right.',
-  'settings.identity.identity.restartNote':
-    'Login sessions live in server memory — after a server restart everyone needs to log in again.',
+  'settings.identity.identity.restartNote': 'You need to log in again after a server restart.',
   'settings.language.desc': 'Switches UI copy only; task names / owners stay as-is.',
   'settings.language.zh': '中文',
   'settings.language.en': 'English',
@@ -267,7 +261,7 @@ export const enSettings = {
   'settings.theme.notionDark': 'Notion dark',
   'settings.theme.linear': 'Linear',
   'settings.apiBase.desc':
-    'Override the default backend address (Live mode only); the page reloads after applying.',
+    'Overrides the default backend address; the page reloads after applying.',
   'settings.apiBase.label': 'Backend address',
   'settings.apiBase.placeholder': 'e.g. http://100.78.202.84:4177',
   'settings.apiBase.current': 'In effect: {value}',
@@ -275,11 +269,11 @@ export const enSettings = {
   'settings.apiBase.reset': 'Reset to default',
   'settings.connection.reloadConfirm': 'The page will reload after applying. Continue?',
   'settings.writeToken.desc':
-    'When the backend binds a public address, writes (register / create) need a token. Paste the TEAMHUB_WRITE_TOKEN from the server startup log; the page reloads after applying.',
+    'Writes need a token when the service is deployed publicly. The token is in the server startup log; the page reloads after applying.',
   'settings.writeToken.label': 'Write token (Bearer)',
   'settings.writeToken.placeholder': 'paste the token from the server startup log',
   'settings.writeToken.set': 'Set (writes will carry the token)',
-  'settings.writeToken.unset': 'Not set (only local loopback can write)',
+  'settings.writeToken.unset': 'Not set (only this machine can write directly)',
   'settings.writeToken.apply': 'Apply & reload',
   'settings.writeToken.reset': 'Clear',
   'settings.writeToken.show': 'Show token',
@@ -288,8 +282,7 @@ export const enSettings = {
   'settings.about.version': 'Version',
   'settings.about.unavailable': 'Backend status unavailable (not connected?)',
   'settings.section.deployment': 'Deployment',
-  'settings.deployment.desc':
-    "How this server is running. Business data and product settings live in the server's SQLite database.",
+  'settings.deployment.desc': "Runtime information for this server.",
   'settings.deployment.unavailable': 'This backend did not report deployment info (older version?).',
   'settings.deployment.storage.title': 'Data persistence',
   'settings.deployment.domain.gov': 'Tasks & progress',
@@ -323,35 +316,33 @@ export const enSettings = {
   'settings.deployment.artifactUpload.disabled': 'Not configured (cannot upload files)',
   'settings.section.deployConfig': 'Deployment config',
   'settings.deployConfig.desc':
-    "Update the login mode in SQLite app_settings, or end the trial and go live. The service restarts automatically after a change (about 10s).",
+    'The service restarts automatically after a change (about 10s).',
   'settings.deployConfig.identity.title': 'Login mode',
   'settings.deployConfig.identity.current': 'Current: {mode}',
   'settings.deployConfig.identity.toIdentity': 'Switch to login mode',
   'settings.deployConfig.identity.toAnon': 'Switch to anonymous mode',
   'settings.deployConfig.identity.toIdentityConfirm':
-    'After switching to login mode the service restarts; you then need a roster and an initialized admin to write normally (if not done before, follow the guide after restart to import the roster, log in, and initialize an admin). Switch?',
+    'The service restarts after switching; in login mode, writes need a roster and an initialized admin. Switch?',
   'settings.deployConfig.identity.toAnonConfirm':
     'After switching to anonymous mode, claims / reviews will no longer be attributed, and everyone\'s login sessions will be invalidated. The service will restart. Switch?',
   'settings.deployConfig.graduate.title': 'End trial, go live',
   'settings.deployConfig.graduate.desc':
-    'This deployment is in demo mode. Going live atomically clears every business fact and switches app_settings to real mode in one SQLite transaction; no demo archive is kept. You must create and verify a backup first. This is one-way and irreversible.',
+    'This is demo data. Going live clears all demo business data and cannot be undone — complete a backup first.',
   'settings.deployConfig.graduate.cta': 'End trial, go live',
   'settings.deployConfig.graduate.backupConfirmed':
-    'I have created and verified a backup of the unified SQLite database',
+    'I have a backup and confirmed it can be restored',
   'settings.deployConfig.graduate.backupRequired': 'Create and confirm a backup first',
   'settings.deployConfig.graduate.confirm':
-    'Continue only after creating and verifying a SQLite backup. Atomically clear every demo business fact and switch to a real blank board? TeamHub will not create a demo archive. This is irreversible.',
+    'Confirm the backup is complete first. Clear all demo business data? This cannot be undone.',
   'settings.deployConfig.applying':
     'Applying config — the service restarts automatically (about 10s); this page will refresh on its own.',
-  'settings.deployConfig.error.desc': 'app_settings may not have been written. Reload below and try again.',
+  'settings.deployConfig.error.desc': 'The config may not have been saved. Reload and try again.',
   'settings.deployConfig.error.timeout':
     'The restart is taking a while. It probably already took effect — reload below to check.',
   'settings.deployConfig.reload': 'Reload',
-  'settings.deployConfig.restartNote':
-    'Changing deployment config restarts the service automatically (about 10s); everyone needs to refresh, and re-log-in under login mode.',
   'settings.section.seasons': 'Seasons',
   'settings.seasons.desc':
-    'Seasons anchor the baseline: the overview "baseline vs actual" opens against the current season. Creating a season declares the new current season; the previous one is archived automatically.',
+    'A new season becomes the current one; the previous season is archived automatically.',
   'settings.seasons.empty': 'No seasons yet — create one with the form below.',
   'settings.seasons.suggest': 'Suggested: {name} ({range})',
   'settings.seasons.suggestApply': 'Prefill the form',
@@ -368,10 +359,10 @@ export const enSettings = {
   'settings.seasons.error': 'Failed to create season',
   'settings.section.groups': 'Groups',
   'settings.groups.desc':
-    'Tasks belong to concrete (leaf) groups. Groups with sub-groups (e.g. "Program") and the all-hands convergence group are reporting rollups — they never appear in task/roster group pickers. Leaf groups can be created, renamed, or deleted; a group that still has members or tasks cannot be deleted (move them first).',
+    'Only groups that can take tasks appear in the task and roster group pickers. A group with members or tasks cannot be deleted — move them first.',
   'settings.groups.empty': 'No groups yet — create one below (roster import also auto-creates groups).',
   'settings.groups.badge.assignable': 'Assignable',
-  'settings.groups.badge.reporting': 'Reporting only · not selectable',
+  'settings.groups.badge.reporting': 'Not selectable',
   'settings.groups.field.name': 'New group name',
   'settings.groups.field.namePlaceholder': 'e.g. Outreach',
   'settings.groups.submit': 'Create group',
@@ -383,11 +374,11 @@ export const enSettings = {
   'settings.groups.rename.cancel': 'Cancel',
   'settings.groups.rename.error': 'Rename failed',
   'settings.groups.delete': 'Delete',
-  'settings.groups.delete.confirm': 'Delete group "{name}"? (The server refuses groups that still have members or tasks.)',
+  'settings.groups.delete.confirm': 'Delete group "{name}"? Groups with members or tasks cannot be deleted.',
   'settings.groups.delete.error': 'Delete failed',
   'settings.section.integrations': 'Integrations',
   'settings.integrations.desc':
-    'Connection status of bot channels / agent backends / data sources, read-only. Real wiring is still being built; mostly placeholders for now.',
+    'Connection status of bot channels / agent backends / data sources, read-only.',
   'settings.integrations.unavailable': 'Integration status unavailable (backend not connected?).',
   'settings.integrations.empty': 'Nothing registered in this group yet.',
   'settings.integrations.botChannels': 'Bot Channels (Feishu / WeChat / QQ)',
@@ -406,8 +397,9 @@ export const enSettings = {
   'settings.integrations.lark.unconfigured': 'Not configured',
   'settings.integrations.lark.saving': 'Testing connection…',
   'settings.integrations.lark.saved': 'Saved, connection OK.',
-  'settings.integrations.lark.hint':
-    'Steps: 1) Create a self-built app in the Feishu developer console to get App ID / App Secret; 2) enable the Bot capability; 3) grant im:message:send_as_bot and im:chat permissions; 4) create a release and publish; 5) invite the bot into the target group (or create one from the dropdown). Saving sends a test message to the chosen group to verify chat_id.',
+  'settings.integrations.lark.setupHint':
+    'Create a self-built app in the Feishu console, enable the bot, add the im:message:send_as_bot and im:chat permissions, then fill in the credentials.',
+  'settings.integrations.lark.testHint': 'Saving sends a test message to the selected group.',
   'settings.integrations.lark.chats.placeholder': 'Pick a target group (bot already joined)',
   'settings.integrations.lark.chats.manual': 'Enter chat_id manually…',
   'settings.integrations.lark.chats.backToList': 'Back to group list',
@@ -417,7 +409,7 @@ export const enSettings = {
   'settings.section.connection': 'Connection',
   'settings.section.members': 'Members & permissions',
   'settings.members.desc':
-    "Manage each member's role, project-management flag and gate-reviewer status. The project-management flag decides who can change sensitive settings (granting flags, creating seasons); roles decide who is a group lead (may assign their group's tasks); reviewers (juniors) may sign off IOU waivers.",
+    'Manage member roles, project-management access and reviewer eligibility.',
   'settings.members.empty': 'No members yet.',
   'settings.members.role.label': 'Role',
   'settings.members.role.groupAdmin': 'Group lead',
@@ -434,7 +426,7 @@ export const enSettings = {
   'settings.members.resetPin.error': 'Reset failed: {detail}',
   'settings.members.setup.title': 'Set up admin',
   'settings.members.setup.desc':
-    'This team has no project-management member yet. Set a password to grant the currently logged-in you the project-management flag — after that, sensitive settings like granting flags or creating seasons require admin rights.',
+    'This team has no admin yet. Set a password to make the currently logged-in member an admin.',
   'settings.members.setup.pinLabel': 'Admin password',
   'settings.members.setup.pinPlaceholder': 'At least 8 characters',
   'settings.members.setup.submit': 'Become admin',
@@ -453,7 +445,7 @@ export const enSettings = {
   'settings.permission.adminOnly': 'This action requires admin (project-management flag) permission.',
   'settings.roster.title': 'Roster import',
   'settings.roster.desc':
-    'Bulk import / update members from CSV. Columns: name, grade (freshman/sophomore/junior/senior/graduate), group (group name; auto-created if missing). Keyed by name: existing rows are updated, new ones created; members in the roster but not in the sheet are only reported, not deleted. Reviewers are auto-marked by grade (junior and above); after import, confirm a lead for each group.',
+    'Bulk import or update members from CSV. Columns: name, grade (freshman/sophomore/junior/senior/graduate), group (auto-created if missing). Keyed by name: existing rows are updated, new ones created; existing members not in the CSV are not deleted. Confirm a lead for each group after import.',
   'settings.leads.title': 'Confirm group leads',
   'settings.leads.desc':
     'Pick one lead per group from that group’s members (required for groups with members; pre-filled with the current lead or first member). Groups with no members are not shown — you can appoint later.',

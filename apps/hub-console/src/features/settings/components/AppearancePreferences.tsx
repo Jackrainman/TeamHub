@@ -12,6 +12,5 @@ export function AppearancePreferences() {
       <SegToggle value={p.fontSize} options={(['normal', 'large', 'xlarge'] as FontSize[]).map(value => ({ value, label: t(`expected.font.${value}`) }))} onChange={p.setFontSize} ariaLabel={t('expected.fontSize')} /></div>
     <div><div><h2>{t('expected.sidebarState')}</h2><p>{t('expected.sidebarStateHint')}</p></div>
       <button className="btn btn--secondary" onClick={p.toggleSidebar}>{t(p.expanded ? 'expected.collapse' : 'expected.expand')}</button></div>
-    <div><div><h2>{t('expected.data')}</h2><p>{t('expected.dataHint')}</p></div></div>
   </section>;
 }

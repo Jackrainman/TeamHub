@@ -13,7 +13,8 @@ import { useGroupMutations } from './hooks';
 
 // 组（PROGRAM-GROUP-ABSTRACT 刀④，D-072「设置页可增减组」前置缺口的最小版）：列**全量**组（组树展示
 // 需要非叶子/哨兵在场），用 server 派生位 `assignableGroupIds`（叶子组且非哨兵）分两类——叶子组=可选组
-// （可领任务/挂人），可改名、可删除；非叶子/哨兵组=汇报视角，标注「不出现在选择」、不给改删控件。
+// （可领任务/挂人），可改名、可删除；非叶子/哨兵组=不可选（含「全组联调」哨兵，故文案用中性的「不可选」
+// 而非「含子组」），不给改删控件。
 // 删除防孤儿（有成员/有子组/有任务 → 409）与非叶子拦截都在服务端 store 同一临界区判，detail 透出到表单。
 export function GroupsSection({
   client,
@@ -92,7 +93,6 @@ export function GroupsSection({
             {humanizeFormError(deleteMutation.error, t, 'settings.groups.delete.error')}
           </p>
         ) : null}
-        {lockHint ? <p className="task-detail__hint">{lockHint}</p> : null}
         <form className="pm-form" onSubmit={submit} title={lockHint ?? undefined}>
           <FormGrid>
             <Field label={t('settings.groups.field.name')} required>
@@ -127,8 +127,8 @@ export function GroupsSection({
   );
 }
 
-// 单个组行：叶子组（可选组）给改名（行内编辑）+ 删除控件；非叶子/哨兵组只标注「汇报视角 · 不出现在
-// 选择」（不可改删——服务端同判据 409 兜底）。改名行内编辑态为本行局部 state。
+// 单个组行：叶子组（可选组）给改名（行内编辑）+ 删除控件；非叶子/哨兵组只标注「不可选」
+// （不可改删——服务端同判据 409 兜底）。改名行内编辑态为本行局部 state。
 function GroupRow({
   group,
   assignable,

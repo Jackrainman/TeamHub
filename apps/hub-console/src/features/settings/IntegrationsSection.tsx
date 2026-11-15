@@ -212,6 +212,7 @@ export function LarkIntegrationSection({ client }: { client: HubApiClient }) {
           <p className="form-hint form-hint--warn">{config.error}</p>
         )}
         <form onSubmit={handleSubmit}>
+          <p className="form-hint">{t('settings.integrations.lark.setupHint')}</p>
           <FormGrid>
             <Field label={t('settings.integrations.lark.appId')}>
               <input
@@ -296,7 +297,7 @@ export function LarkIntegrationSection({ client }: { client: HubApiClient }) {
               </button>
             </div>
           )}
-          <p className="form-hint">{t('settings.integrations.lark.hint')}</p>
+          <p className="form-hint">{t('settings.integrations.lark.testHint')}</p>
           {feedback && (
             <p className={`form-hint ${feedback.ok ? 'form-hint--ok' : 'form-hint--warn'}`}>
               {feedback.msg}

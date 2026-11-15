@@ -39,6 +39,7 @@ export type ConsoleSection = 'home' | 'board' | 'tool';
  * 分支）；`mode==='identity'` 时 `session` 为当前登录人（未登录 = null）。`canWrite` 是写门预计算：
  * 匿名模式恒 true（现状不变）、身份模式仅登录后 true——各写表单据此禁用提交 + 给「登录后可写」
  * 提示，不改读侧（读一切照常，红线 I0 例外之外不新增按人过滤的读口）。
+ * 例外：设置页「开发者」栏对非管理员整栏隐藏（DeveloperSection 明确例外），其余写区仍禁用保可发现性。
  */
 export interface PageIdentityCtx {
   mode: IdentityMode;
