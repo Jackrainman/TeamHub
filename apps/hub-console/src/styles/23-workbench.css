@@ -85,20 +85,6 @@
 .baseline-widget .is-passed > svg { color: var(--green); }
 .baseline-widget .is-missed > svg { color: var(--amber); }
 .week-task--done .week-task__status svg { animation: complete-pop var(--dur-slow) var(--ease-decelerate); }
-.ticktick-list { list-style: none; margin: 0; padding: 0 var(--space-4); overflow: hidden; }
-.ticktick-task { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; align-items: center; gap: var(--space-3); min-height: 52px; padding: var(--space-2) 0; border-bottom: 1px solid var(--border); }
-.ticktick-task:last-child { border-bottom: 0; }
-.ticktick-task__icon { display: inline-flex; color: var(--muted); }
-.ticktick-task--blocked .ticktick-task__icon { color: var(--red); }
-.ticktick-task--done .ticktick-task__icon { color: var(--green); }
-.ticktick-task__title { min-width: 0; border: 0; padding: var(--space-2) 0; background: transparent; color: var(--text); text-align: left; font-size: var(--text-base); cursor: pointer; overflow-wrap: anywhere; }
-.ticktick-task__title:hover { color: var(--blue); }
-.ticktick-task__group, .ticktick-task__status, .ticktick-task__time { color: var(--muted); font-size: var(--text-xs); white-space: nowrap; }
-.ticktick-task__status { color: var(--text); }
-@media (max-width: 700px) {
-  .ticktick-task { grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-2); }
-  .ticktick-task__group, .ticktick-task__time { display: none; }
-}
 @keyframes baseline-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes complete-pop { from { transform: scale(.7); } to { transform: scale(1); } }
 @media (max-width: 1100px) { .task-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

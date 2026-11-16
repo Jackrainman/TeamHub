@@ -6,7 +6,6 @@ import { createHubApiClient } from '../src/api/client';
 import { queryKeys } from '../src/api/queryKeys';
 import { LanguageProvider } from '../src/i18n';
 import { WeekWorkspace } from '../src/features/pm/week/WeekWorkspace';
-import { TickTickTaskView } from '../src/features/pm/week/components/TickTickTaskView';
 
 test('home defaults to personal tasks with a team scope switch and structural filters', () => {
   const cache = new QueryClient();
@@ -31,16 +30,6 @@ test('home defaults to personal tasks with a team scope switch and structural fi
   expect(html).not.toContain(tasks.find(task => task.ownerId !== 'm-circuitD')!.title);
   expect(html).not.toContain('baseline-overview');
   cache.clear();
-});
-
-test('list view is a read-only projection of the filtered tasks', () => {
-  const task = { ...governanceScenarioFixture.tasks[0]!, title: '清单中的任务', isBig: false, previousOwnerIds: [], projectName: 'Robots' };
-  const html = renderToStaticMarkup(<LanguageProvider><TickTickTaskView tasks={[task]} groups={governanceScenarioFixture.groups} onOpen={() => {}} /></LanguageProvider>);
-  expect(html).toContain('ticktick-list');
-  expect(html).toContain('清单中的任务');
-  expect(html).not.toContain('checkbox');
-  expect(html).not.toContain('week-inbox');
-  expect(html).not.toContain('week-batch');
 });
 
 test('self report API sends task fields to the week endpoint', async () => {
