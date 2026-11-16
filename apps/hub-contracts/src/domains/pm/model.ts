@@ -68,18 +68,25 @@ export const SeasonSchema = z.object({
   status: z.enum(['active', 'archived']),
 });
 
-export const ProjectSchema = z.object({
+const ProjectObjectSchema = z.object({
   id: z.string().min(1),
   seasonId: z.string().min(1),
   name: z.string().min(1),
   // R1/R2 用标签，不为每台机器人割裂出 Project（保留跨机器人共享散件依赖）。
-  // HUB-MODULARIZATION 第4步：改 optional——无机器人租户的 Project 不必填此机器人枚举数组
-  // （Project 目前未进 GovernanceSnapshot/落盘，属尚未接线的 scaffolding 类型，改动零消费点回归面）。
+  // HUB-MODULARIZATION 第4步：改 optional——无机器人租户的 Project 不必填此机器人枚举数组。
   robotTargets: z.array(RobotTargetSchema).min(1).optional(),
-  // 中性泛化槽，与 Task.targetLabel 对称（数组形态承接 robotTargets 复数）；同样尚无消费点。
+  // 中性泛化槽，与 Task.targetLabel 对称（数组形态承接 robotTargets 复数）。
   targetLabels: z.array(z.string().min(1)).optional(),
   status: z.enum(['active', 'archived']),
   createdAt: isoDateTimeSchema,
+  // 日粒度；startsAt null/缺省 = 未定，endsAt null/缺省 = 至今（仅展示层解释，不落默认日期）。
+  startsAt: isoDateTimeSchema.nullable().optional(),
+  endsAt: isoDateTimeSchema.nullable().optional(),
+});
+export const ProjectSchema = ProjectObjectSchema.superRefine((value, ctx) => {
+  if (value.startsAt && value.endsAt && Date.parse(value.endsAt) < Date.parse(value.startsAt)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['endsAt'], message: 'endsAt must not be earlier than startsAt' });
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -718,6 +725,28 @@ export const CreateSeasonResponseSchema = z.object({ season: SeasonSchema });
 export const ProjectsResponseSchema = z.object({
   projects: z.array(ProjectSchema),
 });
+/** POST /api/projects：id/seasonId/status/createdAt 由服务端钉；startsAt 必填，endsAt 可空 = 至今。 */
+export const CreateProjectRequestSchema = z.object({
+  name: z.string().min(1),
+  startsAt: isoDateTimeSchema,
+  endsAt: isoDateTimeSchema.nullable().optional(),
+  seasonId: z.string().min(1).optional(),
+}).superRefine((value, ctx) => {
+  if (value.endsAt && Date.parse(value.endsAt) < Date.parse(value.startsAt)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['endsAt'], message: 'endsAt must not be earlier than startsAt' });
+  }
+});
+/** PUT /api/projects/:id：至少一个键；null 用于清除对应日期。 */
+export const UpdateProjectRequestSchema = z.object({
+  name: z.string().min(1).optional(),
+  startsAt: isoDateTimeSchema.nullable().optional(),
+  endsAt: isoDateTimeSchema.nullable().optional(),
+}).refine((value) => Object.keys(value).length > 0, { message: 'empty patch' }).superRefine((value, ctx) => {
+  if (value.startsAt && value.endsAt && Date.parse(value.endsAt) < Date.parse(value.startsAt)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['endsAt'], message: 'endsAt must not be earlier than startsAt' });
+  }
+});
+export const ProjectResponseSchema = z.object({ project: ProjectSchema });
 /**
  * GET /api/groups 响应（PROGRAM-GROUP-ABSTRACT，公测补强刀④，方案②结构派生）：`groups` 保持**全量**
  * （组树展示 / 汇报视角需要非叶子组「程序」与哨兵组「全组联调」在场），另补派生位
@@ -794,6 +823,9 @@ export type RobotTarget = z.infer<typeof RobotTargetSchema>;
 export type Season = z.infer<typeof SeasonSchema>;
 export type CreateSeasonRequest = z.infer<typeof CreateSeasonRequestSchema>;
 export type Project = z.infer<typeof ProjectSchema>;
+export type CreateProjectRequest = z.infer<typeof CreateProjectRequestSchema>;
+export type UpdateProjectRequest = z.infer<typeof UpdateProjectRequestSchema>;
+export type ProjectResponse = z.infer<typeof ProjectResponseSchema>;
 export type GroupKind = z.infer<typeof GroupKindSchema>;
 export type Group = z.infer<typeof GroupSchema>;
 export type MemberRole = z.infer<typeof MemberRoleSchema>;
