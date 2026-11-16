@@ -246,8 +246,8 @@ const { freePort } = require('./lib/free-port.cjs');
       }
     }
     await pageA.evaluate(() => document.documentElement.dataset.theme = 'notion');
-    // 成品四页：侧栏只剩 任务/项目/报销/设置，旧导航项与「更多」入口同步移除。
-    assert.equal(await pageA.locator('.console-sidebar .nav-item').count(), 4);
+    // 成品五页：侧栏为 任务/项目/日历/报销/设置，旧导航项与「更多」入口同步移除。
+    assert.equal(await pageA.locator('.console-sidebar .nav-item').count(), 5);
     assert.equal(await pageA.locator('.console-sidebar').getByRole('button', { name: '更多', exact: true }).count(), 0);
     await pageA.locator('.console-sidebar').getByRole('button', { name: '设置', exact: true }).click();
     await pageA.locator('.appearance-preferences h2').first().waitFor();

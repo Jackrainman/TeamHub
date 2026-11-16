@@ -15,9 +15,9 @@ interface ConsoleLayoutProps {
   pages: ConsolePageDescriptor[]; client: HubApiClient; actions?: ReactNode;
   identity: import('../../console-pages').PageIdentityCtx;
 }
-// 显式导航顺序（四页成品）：任务/项目在工作区，报销/设置在小工具组。
+// 显式导航顺序（五页成品）：任务/项目/日历在工作区，报销/设置在小工具组。
 // 只在这里决定顺序，页面本身仍以 CONSOLE_PAGES 为唯一注册源。
-const PRIMARY: ConsolePage[] = ['workbench', 'project'];
+const PRIMARY: ConsolePage[] = ['workbench', 'project', 'calendar'];
 const TOOLS: ConsolePage[] = ['reimburse', 'settings'];
 
 export function ConsoleLayout({ children, page, onNavigate, pages, client, actions, identity }: PropsWithChildren<ConsoleLayoutProps>) {

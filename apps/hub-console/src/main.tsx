@@ -29,6 +29,7 @@ import './styles/25-linear.css';
 import './styles/26-style-gallery.css';
 import './styles/27-console-layout.css';
 import './styles/28-ui-primitives.css';
+import './styles/29-calendar.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {

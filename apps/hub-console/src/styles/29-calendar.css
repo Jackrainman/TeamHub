@@ -1,0 +1,8 @@
+.calendar-page {
+  --calendar-label-w: 220px;
+  --calendar-lane-h: 32px;
+  --calendar-milestone-h: 40px;
+  --calendar-tick-h: 44px;
+  --calendar-bar-h: 20px;
+  --calendar-milestone-size: 10px;
+}

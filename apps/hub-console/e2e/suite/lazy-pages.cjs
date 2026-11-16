@@ -69,9 +69,9 @@ const { freePort } = require('./lib/free-port.cjs');
     await page.getByRole('status').filter({ hasText: '正在加载页面' }).waitFor({ state: 'hidden' });
     assert.ok(requested.some(url => /\/SettingsPage-[^/]+\.js$/.test(url)));
 
-    // 成品四页：侧栏就是 任务/项目/报销/设置，没有「更多」二级入口。
-    assert.equal(await page.locator('.console-sidebar .nav-item').count(), 4);
-    const deferred = [['项目', 'project', 'ProjectPage'], ['报销', 'reimburse', 'ReimbursePage']];
+    // 成品五页：侧栏就是 任务/项目/日历/报销/设置，没有「更多」二级入口。
+    assert.equal(await page.locator('.console-sidebar .nav-item').count(), 5);
+    const deferred = [['项目', 'project', 'ProjectPage'], ['日历', 'calendar', 'CalendarPage'], ['报销', 'reimburse', 'ReimbursePage']];
     for (const [label, key, module] of deferred) {
       assert.equal(requested.some(url => url.includes(`/${module}-`)), false, `${key} stays deferred until selected`);
       await nav(label).click();
@@ -105,7 +105,7 @@ const { freePort } = require('./lib/free-port.cjs');
     await failedPage.waitForLoadState('networkidle');
     await failedPage.getByRole('status').filter({ hasText: '正在加载页面' }).waitFor({ state: 'hidden' });
     assert.equal(await failedPage.getByRole('alert').filter({ hasText: '页面暂时无法打开' }).count(), 0);
-    console.log(`PASS lazy pages: 4 pages, deferred requests, slow/failing chunk recovery; initial JS ${raw} bytes / gzip ${gzip}`);
+    console.log(`PASS lazy pages: 5 pages, deferred requests, slow/failing chunk recovery; initial JS ${raw} bytes / gzip ${gzip}`);
   } finally {
     await browser?.close();
     if (child && child.exitCode === null) {

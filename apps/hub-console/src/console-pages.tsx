@@ -1,5 +1,5 @@
 import { lazy, type ReactElement } from 'react';
-import { Home, LayoutGrid, ReceiptText, Settings } from 'lucide-react';
+import { CalendarDays, Home, LayoutGrid, ReceiptText, Settings } from 'lucide-react';
 import type { AppSettings, IdentityMode, ModuleId, SessionIdentity } from '@teamhub/hub-contracts';
 import { isModuleEnabled } from '@teamhub/hub-contracts';
 import type { HubApiClient } from './api/client';
@@ -9,6 +9,7 @@ import type { TranslationKey } from './i18n';
 // 注册表只持有页面加载器；导航和模块过滤不能提前下载业务页面。
 const WorkbenchPage = lazy(() => import('./features/workbench/WorkbenchPage').then(m => ({ default: m.WorkbenchPage })));
 const ProjectPage = lazy(() => import('./features/project/ProjectPage').then(m => ({ default: m.ProjectPage })));
+const CalendarPage = lazy(() => import('./features/pm/calendar/CalendarPage').then(m => ({ default: m.CalendarPage })));
 const ReimbursePage = lazy(() => import('./features/reimburse/ReimbursePage').then(m => ({ default: m.ReimbursePage })));
 const SettingsPage = lazy(() => import('./features/settings/SettingsPage').then(m => ({ default: m.SettingsPage })));
 
@@ -16,14 +17,14 @@ const SettingsPage = lazy(() => import('./features/settings/SettingsPage').then(
  * 页面注册表：加一页只改 `CONSOLE_PAGES` 这一个数组（目标 registry 见
  * docs/design/software-architecture.md）。
  *
- * 成品只保留四页：任务（workbench）/ 项目（project）/ 报销（reimburse）/ 设置（settings）。
+ * 成品只保留五页：任务（workbench）/ 项目（project）/ 日历（calendar）/ 报销（reimburse）/ 设置（settings）。
  *
  * `moduleId` + `filterConsolePages()` 按 `AppSettings.enabledModules` 过滤——未启用模块的页面
  * 结构上不出现在导航/直达渲染里（§3.4-A「未启用即不渲染」，非灰置禁用）。App.tsx 在 setup 闸
  * 读到服务端 app_settings 后把快照传入，本文件只提供过滤机制、不持有配置默认值。
  */
 
-export type ConsolePage = 'workbench' | 'project' | 'reimburse' | 'settings';
+export type ConsolePage = 'workbench' | 'project' | 'calendar' | 'reimburse' | 'settings';
 
 /**
  * 导航分组（NAV-REGROUP，2026-09-06 拍板）：不按使用频率分层，改按**性质**分两类——
@@ -112,6 +113,23 @@ export const CONSOLE_PAGES: ConsolePageDescriptor[] = [
     moduleId: 'pm-core',
     render: (ctx) => (
       <ProjectPage client={ctx.apiClient} source={ctx.source} identity={ctx.identity} />
+    ),
+  },
+  {
+    key: 'calendar',
+    labelKey: 'expected.nav.calendar',
+    titleKey: 'expected.nav.calendar',
+    icon: CalendarDays,
+    section: 'board',
+    moduleId: 'pm-core',
+    render: (ctx) => (
+      <CalendarPage
+        client={ctx.apiClient}
+        source={ctx.source}
+        projectId={ctx.projectId}
+        identity={ctx.identity}
+        onNavigate={ctx.onNavigate}
+      />
     ),
   },
   {
