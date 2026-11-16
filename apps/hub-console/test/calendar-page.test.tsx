@@ -39,8 +39,8 @@ describe('日历：空态', () => {
   test('0 个项目显示 EmptyState，月份刻度仍渲染', () => {
     const html = renderPage([]);
     expect(html).toContain('还没有项目');
-    expect(html).toContain('11-01');
-    expect(html).toContain('12-01');
+    expect(html).toContain('11月');
+    expect(html).toContain('12月');
   });
 
   test('startsAt=null 保留行与未定开始，但不画横条', () => {
@@ -64,13 +64,20 @@ describe('日历：空态', () => {
   test('无 baseline 显示降级说明；有 baseline 只画窗口内里程碑', () => {
     expect(renderPage([project])).toContain('本赛季还没有基准线');
     const baseline: SeasonBaselinePublic = {
-      id: 'baseline-1', seasonId: season.id, anchors: {}, segments: [], phases: [],
+      id: 'baseline-1', seasonId: season.id, anchors: {}, phases: [],
+      segments: [
+        { kind: 'semester', startsAt: '2026-11-01T00:00:00.000Z', endsAt: '2026-11-30T00:00:00.000Z', label: '学期' },
+        { kind: 'vacation', startsAt: '2026-12-01T00:00:00.000Z', endsAt: '2026-12-10T00:00:00.000Z', label: '假期' },
+      ],
       milestones: [milestone, { ...milestone, id: 'outside', plannedAt: '2027-01-01T00:00:00.000Z' }],
     };
     const html = renderPage([project], baseline);
     expect(html.match(/class="calendar-milestone /g)).toHaveLength(1);
     expect(html).toContain('data-milestone-id="m-1"');
     expect(html).not.toContain('data-milestone-id="outside"');
+    expect(html.match(/class="calendar-band"/g)).toHaveLength(6);
+    expect(html.match(/class="calendar-band" data-kind="semester"/g)).toHaveLength(3);
+    expect(html.match(/class="calendar-band" data-kind="vacation"/g)).toHaveLength(3);
   });
 
   test('横条 left/width 只使用百分比', () => {
@@ -90,6 +97,8 @@ describe('日历：i18n', () => {
     expect(html).toContain('Month');
     expect(html).toContain('Week');
     expect(html).toContain('No projects yet');
+    expect(html).toContain('Nov');
+    expect(html).toContain('Dec');
     expect(html).not.toContain('calendar.mode.');
     expect(html).not.toContain('calendar.empty.');
   });

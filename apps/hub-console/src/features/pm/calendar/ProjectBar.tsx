@@ -25,6 +25,5 @@ export function ProjectBar({ project, geometry, today, current, onOpen }: {
     onClick={onOpen}
   >
     <span className="calendar-bar-name">{project.name}</span>
-    {geometry.openEnded ? <span className="calendar-bar-arrow" aria-hidden="true">›</span> : null}
   </button>;
 }

@@ -7,9 +7,10 @@ export type CalendarSelection =
   | { type: 'project'; project: Project }
   | { type: 'milestone'; milestone: BaselineMilestonePublic; season: Season | null };
 
-export function CalendarDrawer({ selection, today, onClose, onNavigateSettings }: {
+export function CalendarDrawer({ selection, today, canWrite, onClose, onNavigateSettings }: {
   selection: CalendarSelection | null;
   today: string;
+  canWrite: boolean;
   onClose: () => void;
   onNavigateSettings: () => void;
 }): JSX.Element {
@@ -29,7 +30,7 @@ export function CalendarDrawer({ selection, today, onClose, onNavigateSettings }
       <Detail label={t('calendar.drawer.status')} value={t(`calendar.drawer.status.${selection.milestone.status}`)} />
       {selection.milestone.note ? <Detail label={t('calendar.drawer.note')} value={selection.milestone.note} /> : null}
     </dl> : null}
-    <button type="button" className="btn" onClick={onNavigateSettings}>{t('calendar.drawer.editInSettings')}</button>
+    {canWrite ? <button type="button" className="btn" onClick={onNavigateSettings}>{t('calendar.drawer.editInSettings')}</button> : null}
   </SideDrawer>;
 }
 
