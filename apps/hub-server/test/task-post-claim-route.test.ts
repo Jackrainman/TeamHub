@@ -400,7 +400,51 @@ describe('TASK-POST-CLAIM 路由：验收 / 抽查（review）', () => {
     }
   });
 
-  test('reject（打回）→ status 回 inProgress + reviewNote 打回理由 + reviewedBy 留名', async () => {
+  test('非周会小任务：仅完成人可自证，accept 必须带 delivery', async () => {
+    const app = buildTestHubServer();
+    const owner = { id: 'm-mechD', displayName: '机械D', source: 'human' as const };
+    const delivery = { summary: '备件已盘点', deliverable: '库存清单', paths: ['inventory/r2.csv'] };
+    try {
+      const completed = await app.inject({ method: 'POST', url: '/api/tasks/t-r2-spare/complete', payload: { completedBy: owner } });
+      expect(completed.statusCode).toBe(200);
+      expect(completed.json().task.completedAt).toBeDefined();
+      const missing = await app.inject({ method: 'POST', url: '/api/tasks/t-r2-spare/review', payload: { outcome: 'accept', reviewedBy: owner } });
+      expect(missing.statusCode).toBe(400);
+      expect(missing.json()).toMatchObject({ code: 'DELIVERY_REQUIRED', detail: '自证验收需填写交付说明' });
+      expect((await app.inject({ method: 'POST', url: '/api/tasks/t-r2-spare/review', payload: { outcome: 'accept', reviewedBy: NON_REVIEWER, delivery } })).statusCode).toBe(403);
+      const accepted = await app.inject({ method: 'POST', url: '/api/tasks/t-r2-spare/review', payload: { outcome: 'accept', reviewedBy: owner, delivery } });
+      expect(accepted.statusCode).toBe(200);
+      expect(accepted.json().task.delivery).toEqual(delivery);
+      expect(accepted.json().task.reviewedBy.id).toBe(owner.id);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('非周会小任务有备位时：指定备位可验收，完成人不可自证', async () => {
+    const snapshot: GovernanceSnapshot = {
+      ...governanceScenarioFixture,
+      tasks: governanceScenarioFixture.tasks.map(task => task.id === 't-r2-spare' ? {
+        ...task,
+        status: 'done' as const,
+        completedBy: NON_REVIEWER,
+        completedAt: '2026-11-16T01:00:00.000Z',
+        reviewerIds: [REVIEWER.id],
+      } : task),
+    };
+    const app = buildTestHubServer({ store: new InMemoryPmRepository(snapshot) });
+    const delivery = { summary: '备件已盘点', deliverable: '库存清单', paths: ['inventory/r2.csv'] };
+    try {
+      expect((await app.inject({ method: 'POST', url: '/api/tasks/t-r2-spare/review', payload: { outcome: 'accept', reviewedBy: NON_REVIEWER, delivery } })).statusCode).toBe(403);
+      const accepted = await app.inject({ method: 'POST', url: '/api/tasks/t-r2-spare/review', payload: { outcome: 'accept', reviewedBy: REVIEWER, delivery } });
+      expect(accepted.statusCode).toBe(200);
+      expect(accepted.json().task.delivery).toEqual(delivery);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('reject（打回）→ status 回 inProgress + reviewNote，清验收留名', async () => {
     const app = buildTestHubServer();
     try {
       const res = await app.inject({
@@ -412,7 +456,7 @@ describe('TASK-POST-CLAIM 路由：验收 / 抽查（review）', () => {
       const body = ReviewTaskResponseSchema.parse(res.json());
       expect(body.task.status).toBe('inProgress'); // 打回
       expect(body.task.reviewNote).toBe('焊点虚焊，重焊后再验');
-      expect(body.task.reviewedBy?.id).toBe('m-progA');
+      expect(body.task.reviewedBy).toBeUndefined();
     } finally {
       await app.close();
     }
@@ -470,6 +514,16 @@ describe('TASK-POST-CLAIM：GET /api/tasks?q= 子串搜 + isBig 元信息', () =
       const res = await app.inject({ method: 'GET', url: '/api/tasks?q=中断时序' });
       const body = TasksResponseSchema.parse(res.json());
       expect(body.tasks.map((t) => t.id)).toContain('t-r1-chassis');
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('历史 done 任务从最后一次完成流转补 completedAt', async () => {
+    const app = buildTestHubServer();
+    try {
+      const body = TasksResponseSchema.parse((await app.inject({ method: 'GET', url: '/api/tasks' })).json());
+      expect(body.tasks.find(task => task.id === 't-r1-arm-mount')?.completedAt).toBe('2026-06-09T12:00:00.000Z');
     } finally {
       await app.close();
     }

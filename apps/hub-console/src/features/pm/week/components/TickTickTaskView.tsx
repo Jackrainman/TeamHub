@@ -13,9 +13,9 @@ export function TickTickTaskView({ tasks, groups, onOpen }: {
   const { t } = useI18n();
   return <ul className="card ticktick-list" aria-label={t('week.view.list')}>
     {tasks.map(task => {
-      const acceptance = deriveTaskAcceptance(task, task.isBig);
+      const acceptance = deriveTaskAcceptance(task);
       const status = task.status === 'done'
-        ? t(acceptance === 'accepted' ? 'week.accepted' : acceptance === 'selfDone' ? 'week.view.completed' : 'week.awaiting')
+        ? t(acceptance === 'accepted' ? 'week.accepted' : 'week.awaiting')
         : t(STATUS_KEY[task.status]);
       const StatusIcon = task.status === 'done' ? (acceptance === 'accepted' ? CheckCircle2 : Clock) : task.status === 'blocked' ? TriangleAlert : task.ownerId ? Circle : Inbox;
       const groupName = groups.find(group => group.id === task.groupId)?.name ?? task.groupId;

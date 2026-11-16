@@ -50,17 +50,20 @@ describe('InMemoryPmRepository: 挂单认领制窄写字段簇 + 清空语义', 
     expect(assigned?.crossClaimConfirmedBy).toBeUndefined(); // 换主确认失效
   });
 
-  test('complete 清旧验收 / review accept 保持 done / reject 打回 inProgress + reviewNote', async () => {
+  test('complete 写完成时间 / accept 写交付 / reject 清验收与完成事实', async () => {
     const store = new InMemoryPmRepository();
     const done = await store.completeTask('t-r1-newboard', OWNER, 't1');
     expect(done?.status).toBe('done');
     expect(done?.completedBy?.id).toBe('m-progB');
+    expect(done?.completedAt).toBe('t1');
 
-    // reject → inProgress + reviewNote 打回理由 + reviewedBy 留名
+    // reject 清 reviewedBy / completedAt / delivery，只保留打回活动与理由。
     const rejected = await store.reviewTask('t-r1-newboard', REVIEWER, 'reject', '虚焊，重焊', 't2');
     expect(rejected?.status).toBe('inProgress');
     expect(rejected?.reviewNote).toBe('虚焊，重焊');
-    expect(rejected?.reviewedBy?.id).toBe('m-progA');
+    expect(rejected?.reviewedBy).toBeUndefined();
+    expect(rejected?.completedAt).toBeUndefined();
+    expect(rejected?.delivery).toBeUndefined();
 
     // 新一轮 complete → 清 reviewedBy / reviewNote（重开后重新走验收）
     const done2 = await store.completeTask('t-r1-newboard', OWNER, 't3');
@@ -69,9 +72,12 @@ describe('InMemoryPmRepository: 挂单认领制窄写字段簇 + 清空语义', 
     expect(done2?.reviewNote).toBeUndefined();
 
     // accept → reviewedBy 留名，status 保持 done
-    const accepted = await store.reviewTask('t-r1-newboard', REVIEWER, 'accept', undefined, 't4');
+    const delivery = { summary: '完成验证', deliverable: '测试固件', paths: ['src/main.ts'] };
+    const accepted = await store.reviewTask('t-r1-newboard', REVIEWER, 'accept', undefined, 't4', 3, delivery);
     expect(accepted?.status).toBe('done');
     expect(accepted?.reviewedBy?.id).toBe('m-progA');
+    expect(accepted?.completedAt).toBe('t3');
+    expect(accepted?.delivery).toEqual(delivery);
   });
 
   test('reviewNote 一律以本轮为准：reject 带理由后再 accept（无 note）→ 旧打回理由被清', async () => {

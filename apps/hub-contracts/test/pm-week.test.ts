@@ -29,11 +29,11 @@ describe('weekly task facts', () => {
     expect(week.selectWeekTasks(tasks, '2026-W43', 'pool', 'mine', 'a').map(t => t.id)).toEqual(['pool']);
     expect(week.selectWeekTasks(tasks, '2026-W44', 'active', 'mine', null)).toEqual([]);
   });
-  test('all weekly tasks require another member acceptance; ordinary small task unchanged', () => {
-    const done = { ...task, status: 'done' as const, weekLinks: [link], reviewedBy: undefined };
-    expect(deriveTaskAcceptance(done, false)).toBe('awaitingReview');
-    expect(deriveTaskAcceptance({ ...done, reviewedBy: link.linkedBy }, false)).toBe('accepted');
-    expect(deriveTaskAcceptance({ ...done, weekLinks: [] }, false)).toBe('selfDone');
+  test('all done tasks await acceptance until reviewed, including ordinary small tasks', () => {
+    const done = { ...task, status: 'done' as const, weekLinks: [link], reviewedBy: undefined, completedAt: '2026-11-16T01:00:00.000Z' };
+    expect(deriveTaskAcceptance(done)).toBe('awaitingReview');
+    expect(deriveTaskAcceptance({ ...done, reviewedBy: link.linkedBy })).toBe('accepted');
+    expect(deriveTaskAcceptance({ status: 'done', reviewedBy: undefined, completedAt: done.completedAt })).toBe('awaitingReview');
     expect(TaskSchema.shape).not.toHaveProperty('dueDate');
   });
   test('only selected backups may accept once, never the author or owner', () => {

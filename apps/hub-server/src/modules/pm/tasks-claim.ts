@@ -15,7 +15,7 @@ import {
   SetTaskPartnerRequestSchema,
   SetTaskPartnerResponseSchema,
 } from '@teamhub/hub-contracts';
-import { isGateReviewer, isGroupLeadOf } from '../../authz.js';
+import { isGroupLeadOf } from '../../authz.js';
 import { sendLarkMessage } from '../integrations/lark-client.js';
 import { parseBody, requireActor } from '../../http/helpers.js';
 import type { PmOutcome } from './service.js';
@@ -27,7 +27,7 @@ function sendOutcome<T>(
   render: (value: T) => unknown,
 ): unknown {
   if (!outcome.ok) {
-    void reply.code(outcome.status).send({ detail: outcome.detail });
+    void reply.code(outcome.status).send({ ...(outcome.code ? { code: outcome.code } : {}), detail: outcome.detail });
     return undefined;
   }
   return render(outcome.value);
@@ -167,15 +167,9 @@ export function registerTaskClaimRoutes(app: FastifyInstance, deps: TaskRouteDep
     if (!parsed) return;
     const actor = requireActor(request, reply, parsed.reviewedBy, '验收必须留名（reviewedBy）');
     if (!actor) return;
-    const snapshot = await store.getSnapshot();
-    const target = snapshot.tasks.find(task => task.id === taskId);
-    if (!target?.weekLinks?.length && !isGateReviewer(snapshot.members, actor.id)) {
-      void reply.code(403).send({ detail: '验收权属验收人名单（大三）' });
-      return;
-    }
     return sendOutcome(
       reply,
-      await service.reviewTask(taskId, actor, parsed.outcome, parsed.note, !!request.identity, parsed.expectedRevision),
+      await service.reviewTask(taskId, actor, parsed.outcome, parsed.note, !!request.identity, parsed.expectedRevision, parsed.delivery),
       (updated) => ReviewTaskResponseSchema.parse({ task: updated }),
     );
   });

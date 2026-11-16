@@ -34,7 +34,7 @@ export function TaskDetailDrawer({
   const canEdit = !readOnly && identity.canWrite && !!task.weekLinks?.length && taskAuthorId(task) === identity.session?.memberId;
 
   const groupName = groups.find((g) => g.id === task.groupId)?.name ?? task.groupId;
-  const acceptance = deriveTaskAcceptance(task, task.isBig);
+  const acceptance = deriveTaskAcceptance(task);
 
   return (
     <div className="task-detail">

@@ -2,6 +2,7 @@ import type { UpdateSelfTaskRequest } from '@teamhub/hub-contracts';
 import type {
   ActorRef,
   Dependency,
+  Delivery,
   GovernanceSnapshot,
   Group,
   KnowledgeNode,
@@ -343,6 +344,7 @@ export interface PmRepository {
     note: string | undefined,
     at: string,
     expectedRevision?: number,
+    delivery?: Delivery,
   ): Promise<Task | null>;
 
   /**

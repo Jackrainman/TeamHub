@@ -3,6 +3,7 @@ import { isValidWeekKey } from './week.js';
 import { ActorRefSchema } from '../../common.js';
 import {
   TaskSchema,
+  DeliverySchema,
   TaskStatusSchema,
   DependencySchema,
   NeedSchema,
@@ -41,6 +42,8 @@ export const CreateTaskRequestSchema = TaskSchema.omit({
   updatedAt: true,
   weekLinks: true,
   reviewedAt: true,
+  completedAt: true,
+  delivery: true,
 }).extend({
   // H4（AUDIT-FIXES 部署前必修）：写端点信任边界。客户端只能建「未启动 / 进行中」任务，
   // statusSource 只能是真实录入渠道（lark/git/console）。**不收 `done`/`shelved`（跳过工作伪造完成）
@@ -209,6 +212,7 @@ export const ReviewTaskRequestSchema = z.object({
   outcome: z.enum(['accept', 'reject']),
   reviewedBy: ActorRefSchema.optional(),
   note: z.string().min(1).optional(),
+  delivery: DeliverySchema.optional(),
 });
 export const ReviewTaskResponseSchema = z.object({ task: TaskSchema });
 

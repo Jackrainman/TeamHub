@@ -179,13 +179,14 @@ export function buildReleasedTask(
 }
 
 export function buildCompletedTask(prev: Task, completedBy: ActorRef, at: string): Task {
-  const { reviewedBy: _r, reviewedAt: _at, reviewNote: _n, ...rest } = prev;
+  const { reviewedBy: _r, reviewedAt: _at, reviewNote: _n, delivery: _d, ...rest } = prev;
   return {
     ...rest,
     revision: (prev.revision ?? 0) + 1,
     status: 'done',
     statusSource: MANUAL_TASK_STATUS_SOURCE,
     completedBy,
+    completedAt: at,
     updatedAt: at,
     transitions: [
       ...(prev.transitions ?? []),
@@ -200,8 +201,9 @@ export function buildReviewedTask(
   outcome: 'accept' | 'reject',
   note: string | undefined,
   at: string,
+  delivery?: Task['delivery'],
 ): Task {
-  const { reviewNote: _prevNote, ...rest } = prev;
+  const { reviewNote: _prevNote, reviewedBy: _previousReviewer, reviewedAt: _previousReviewedAt, completedAt: _completedAt, delivery: _previousDelivery, ...rest } = prev;
   const rejecting = outcome === 'reject';
   return {
     ...rest,
@@ -209,8 +211,9 @@ export function buildReviewedTask(
     activity: [...(prev.activity ?? []), { kind: rejecting ? 'rejected' : 'accepted', at, by: reviewedBy, ...(note ? { note } : {}) }],
     status: rejecting ? 'inProgress' : rest.status,
     statusSource: rejecting ? MANUAL_TASK_STATUS_SOURCE : rest.statusSource,
-    reviewedBy,
-    reviewedAt: at,
+    ...(!rejecting ? { reviewedBy, reviewedAt: at } : {}),
+    ...(!rejecting && prev.completedAt ? { completedAt: prev.completedAt } : {}),
+    ...(!rejecting && (delivery ?? prev.delivery) ? { delivery: delivery ?? prev.delivery } : {}),
     ...(note !== undefined ? { reviewNote: note } : {}),
     updatedAt: at,
     ...(rejecting

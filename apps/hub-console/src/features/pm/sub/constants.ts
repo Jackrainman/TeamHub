@@ -11,13 +11,11 @@ export const STATUS_KEY: Record<TaskStatus, TranslationKey> = {
 
 export const ACCEPTANCE_TONE: Record<TaskAcceptanceState, string> = {
   notDone: 'badge--neutral',
-  selfDone: 'badge--green',
   awaitingReview: 'badge--amber',
   accepted: 'badge--green',
 };
 export const ACCEPTANCE_KEY: Record<TaskAcceptanceState, TranslationKey> = {
   notDone: 'pool.acceptance.notDone',
-  selfDone: 'pool.acceptance.selfDone',
   awaitingReview: 'pool.acceptance.awaitingReview',
   accepted: 'pool.acceptance.accepted',
 };

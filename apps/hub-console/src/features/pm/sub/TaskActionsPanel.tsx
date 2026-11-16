@@ -230,7 +230,7 @@ export function TaskActionsPanel({
             </div>
           ) : null}
 
-          {acceptance === 'awaitingReview' || acceptance === 'selfDone' ? (
+          {acceptance === 'awaitingReview' ? (
             <div className="task-detail__panel">
               {!actions.isIdentity
                 ? renderOperatorPicker(
@@ -312,9 +312,7 @@ export function TaskActionsPanel({
                   }
                   onClick={() => actions.setRejectOpen(true)}
                 >
-                  {acceptance === 'selfDone'
-                    ? t('pool.action.spotReject')
-                    : t('pool.action.reject')}
+                  {t('pool.action.reject')}
                 </button>
               )}
             </div>

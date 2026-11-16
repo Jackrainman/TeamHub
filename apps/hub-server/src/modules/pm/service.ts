@@ -1,4 +1,4 @@
-import { getWeekKey, isCurrentWeek, canReviewWeekTask, taskAuthorId, type UpdateSelfTaskRequest } from '@teamhub/hub-contracts';
+import { getWeekKey, isCurrentWeek, canReviewWeekTask, taskAuthorId, resolveCompletedAt, type UpdateSelfTaskRequest } from '@teamhub/hub-contracts';
 import type { SelfReportTaskRequest } from '@teamhub/hub-contracts';
 import {
   CONVERGENCE_SCOPE_ALL_LEAF_GROUPS,
@@ -13,6 +13,7 @@ import {
 import type {
   ActorRef,
   CreateDependencyRequest,
+  Delivery,
   CreateNeedRequest,
   CreateSeasonRequest,
   CreateTaskRequest,
@@ -26,18 +27,20 @@ import type {
   TaskWithMeta,
 } from '@teamhub/hub-contracts';
 import type { Clock } from '../../clock.js';
+import { isGateReviewer } from '../../authz.js';
 import type { PmRepository } from './repository.js';
 
 /** 用例结果：ok:false 带 HTTP 语义（status+detail），route 只负责映射，不再夹业务判断。 */
 export type PmOutcome<T> =
   | { ok: true; value: T }
-  | { ok: false; status: 400 | 403 | 404 | 409; detail: string };
+  | { ok: false; status: 400 | 403 | 404 | 409; detail: string; code?: 'DELIVERY_REQUIRED' };
 
 const ok = <T>(value: T): PmOutcome<T> => ({ ok: true, value });
-const fail = <T>(status: 400 | 403 | 404 | 409, detail: string): PmOutcome<T> => ({
+const fail = <T>(status: 400 | 403 | 404 | 409, detail: string, code?: 'DELIVERY_REQUIRED'): PmOutcome<T> => ({
   ok: false,
   status,
   detail,
+  ...(code ? { code } : {}),
 });
 
 /**
@@ -157,6 +160,7 @@ export class PmService {
       : snapshot.tasks;
     return matched.map((task) => ({
       ...task,
+      completedAt: resolveCompletedAt(task),
       isBig: isBigTask(task, snapshot.dependencies),
       previousOwnerIds: derivePreviousOwnerIds(task),
       projectName: snapshot.projectId,
@@ -359,7 +363,7 @@ export class PmService {
     return ok(updated);
   }
 
-  /** 验收/打回：任务须已标完成（done）。验收权（gateReviewer）由 route 经 authz 判定。 */
+  /** 验收/打回按周会、结构大任务、指定备位、本人自证四条路径授权。 */
   async reviewTask(
     taskId: string,
     actor: ActorRef,
@@ -367,15 +371,25 @@ export class PmService {
     note: string | undefined,
     authenticated = false,
     expectedRevision?: number,
+    delivery?: Delivery,
   ): Promise<PmOutcome<Task>> {
     const snapshot = await this.repository.getSnapshot();
     const target = snapshot.tasks.find((t) => t.id === taskId);
     if (!target) return fail(404, 'task not found');
+    if (outcome === 'reject' && !note?.trim()) return fail(400, '请填写退回原因');
     if (expectedRevision !== undefined && expectedRevision !== (target.revision ?? 0)) return fail(409, '任务已更新，请刷新后再验收');
-    if (target.weekLinks?.length && outcome === 'reject' && !note?.trim()) return fail(400, '请填写退回原因');
-    if (target.weekLinks?.length && (!authenticated || !snapshot.members.some(m => m.id === actor.id) || !canReviewWeekTask(target, actor.id))) return fail(403, 'Another signed-in member must review this task');
     if (target.status !== 'done') {
       return fail(409, '任务尚未标完成，无法验收/打回（先 complete）');
+    }
+    if (target.weekLinks?.length) {
+      if (!authenticated || !snapshot.members.some(m => m.id === actor.id) || !canReviewWeekTask(target, actor.id)) return fail(403, 'Another signed-in member must review this task');
+    } else if (isBigTask(target, snapshot.dependencies)) {
+      if (!isGateReviewer(snapshot.members, actor.id)) return fail(403, '验收权属验收人名单（大三）');
+    } else if (target.reviewerIds?.length) {
+      if (!target.reviewerIds.includes(actor.id) || taskAuthorId(target) === actor.id || target.completedBy?.id === actor.id) return fail(403, '只有作者和完成人之外的指定备位人可验收');
+    } else {
+      if (target.completedBy?.id !== actor.id) return fail(403, '只有完成人本人可自证验收');
+      if (outcome === 'accept' && !delivery) return fail(400, '自证验收需填写交付说明', 'DELIVERY_REQUIRED');
     }
     const updated = await this.repository.reviewTask(
       taskId,
@@ -384,6 +398,7 @@ export class PmService {
       note,
       this.clock.now().toISOString(),
       target.revision ?? 0,
+      delivery,
     );
     if (!updated) return fail(409, '任务已更新，请刷新后再验收');
     return ok(updated);

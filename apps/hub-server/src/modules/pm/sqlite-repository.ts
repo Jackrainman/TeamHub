@@ -614,13 +614,14 @@ export class SqlitePmRepository implements PmRepository {
     note: string | undefined,
     at: string,
     expectedRevision?: number,
+    delivery?: Task['delivery'],
   ): Promise<Task | null> {
     return this.tx(() => {
       const prev = this.getRow<Task>('tasks', taskId);
       if (!prev) return null;
       if (expectedRevision !== undefined && (prev.revision ?? 0) !== expectedRevision) return null;
       if (prev.weekLinks?.length && (!canReviewWeekTask(prev, reviewedBy.id) || (outcome === 'reject' && !note?.trim()))) return null;
-      const updated = buildReviewedTask(prev, reviewedBy, outcome, note, at);
+      const updated = buildReviewedTask(prev, reviewedBy, outcome, note, at, delivery);
       this.updateRow('tasks', taskId, updated);
       return updated;
     });

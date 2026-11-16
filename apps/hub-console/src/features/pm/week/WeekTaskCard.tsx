@@ -11,15 +11,15 @@ export function WeekTaskCard({ task, groupName, members, node, onOpen, children 
   onOpen: () => void; children?: ReactNode;
 }) {
   const { t } = useI18n();
-  const acceptance = deriveTaskAcceptance(task, task.isBig);
-  const completedAt = task.transitions?.filter(tr => tr.to === 'done').at(-1)?.at;
+  const acceptance = deriveTaskAcceptance(task);
+  const completedAt = task.completedAt;
   const owner = members.find(member => member.id === task.ownerId)?.displayName;
   const target = task.targetLabel ?? (task.robotTarget === 'shared' ? t('pm.robot.shared') : task.robotTarget);
   const StatusIcon = task.status === 'done' ? (acceptance === 'accepted' ? CheckCircle2 : Clock) : task.status === 'blocked' ? TriangleAlert : task.ownerId ? Circle : Inbox;
   return <article className={`card card--interactive week-task week-task--${task.status}${task.status === 'done' && acceptance !== 'accepted' ? ' is-awaiting' : ''}`}>
     <div className="week-task__heading">
       <span className="week-task__group">{groupName}</span>
-      <span className="week-task__status"><StatusIcon size={14} aria-hidden="true" />{task.status === 'done' ? t(acceptance === 'accepted' ? 'week.accepted' : acceptance === 'selfDone' ? 'week.view.completed' : 'week.awaiting') : t(STATUS_KEY[task.status])}</span>
+      <span className="week-task__status"><StatusIcon size={14} aria-hidden="true" />{task.status === 'done' ? t(acceptance === 'accepted' ? 'week.accepted' : 'week.awaiting') : t(STATUS_KEY[task.status])}</span>
     </div>
     <button className="week-task__title" onClick={onOpen} aria-haspopup="dialog">{task.title}</button>
     <p className="week-task__summary">{task.rawSummary}</p>

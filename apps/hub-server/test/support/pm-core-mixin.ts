@@ -489,12 +489,13 @@ export function PmCoreMixin<T extends Base>(
       note: string | undefined,
       at: string,
       expectedRevision?: number,
+      delivery?: Task['delivery'],
     ): Promise<Task | null> {
       const idx = this.snapshot.tasks.findIndex((t) => t.id === taskId);
       if (idx === -1) return null;
       if (expectedRevision !== undefined && (this.snapshot.tasks[idx].revision ?? 0) !== expectedRevision) return null;
       if (this.snapshot.tasks[idx].weekLinks?.length && !canReviewWeekTask(this.snapshot.tasks[idx], reviewedBy.id)) return null;
-      const updated = buildReviewedTask(this.snapshot.tasks[idx], reviewedBy, outcome, note, at);
+      const updated = buildReviewedTask(this.snapshot.tasks[idx], reviewedBy, outcome, note, at, delivery);
       this.snapshot.tasks[idx] = updated;
       return updated;
     }

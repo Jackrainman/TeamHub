@@ -67,6 +67,6 @@ test('self report, owner-only progress, peer acceptance, reject and recomplete',
     expect(completed.reviewedAt).toBeUndefined();
     expect(completed.reviewNote).toBeUndefined();
     expect((await post(`${base}/weeks`, a, { weekKey: '2026-W44' })).statusCode).toBe(409);
-    expect((await post('/api/tasks/t-r1-newboard/review', b, { outcome: 'accept' })).statusCode).toBe(403);
+    expect((await post('/api/tasks/t-r1-newboard/review', b, { outcome: 'accept' })).statusCode).toBe(409);
   } finally { await app.close(); }
 });

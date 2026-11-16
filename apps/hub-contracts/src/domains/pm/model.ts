@@ -279,6 +279,13 @@ export const TaskOwnershipEventSchema = z.object({
   reason: z.string().min(1).optional(),
 });
 
+export const DeliverySchema = z.object({
+  summary: z.string().min(1).max(500),
+  deliverable: z.string().min(1).max(500),
+  paths: z.array(z.string().min(1)).min(1).max(20),
+});
+export type Delivery = z.infer<typeof DeliverySchema>;
+
 export const TaskSchema = z.object({
   createdBy: ActorRefSchema.optional(),
   reviewerIds: z.array(z.string().min(1)).optional(),
@@ -354,6 +361,8 @@ export const TaskSchema = z.object({
   // §5 学长验收 / 抽查留名（大活 = 必须学长验收留名才算完）。**验收态是派生的**（deriveTaskAcceptance），
   // 不动 TaskStatus 枚举——done 后大活仍显"待验收"徽章，reviewedBy 留名后才 accepted。
   reviewedBy: ActorRefSchema.optional(),
+  completedAt: isoDateTimeSchema.optional(),
+  delivery: DeliverySchema.optional(),
   reviewedAt: isoDateTimeSchema.optional(),
   weekLinks: z.array(z.object({
     weekKey: z.string().refine(isValidWeekKey, { message: 'Invalid ISO week' }),
@@ -412,27 +421,28 @@ export function isBigTask(
 /** 任务验收态（派生态，**非 TaskStatus 枚举值**——见 deriveTaskAcceptance 头注）。 */
 export type TaskAcceptanceState =
   | 'notDone'
-  | 'selfDone'
   | 'awaitingReview'
   | 'accepted';
 
-/**
- * 验收态派生（task-post-claim.md §5 两档制，D-088）——**派生态，不动 TaskStatus 枚举**（体检已核
- * 五态够用）："大活必须学长验收才算完" = done 后仍显"待验收"徽章，reviewedBy 留名后才 accepted：
- * - `notDone`：`status !== 'done'`（还没标完成，无所谓验收）。
- * - `selfDone`：done + 简单活（`!isBig`）——本人标完成即算完，学长仅抽查打回权。
- * - `awaitingReview`：done + 大活（`isBig`）+ 未验收（`!reviewedBy`）——done 了但仍"待验收"。
- * - `accepted`：done + 大活 + 已 `reviewedBy` 留名——学长验收过，真正算完。
- *
- * `isBig` 由调用方先算（`isBigTask`）传入，避免本函数重复查依赖边（照 deriveGroupsBehind 传 drift 先例）。
- */
+/** done 后的验收态只由验收留名与历史完成时间决定。 */
+export const ACCEPTANCE_CUTOFF = '2026-11-16T00:00:00.000Z';
 export function deriveTaskAcceptance(
-  task: Pick<Task, 'status' | 'reviewedBy' | 'weekLinks'>,
-  isBig: boolean,
+  task: Pick<Task, 'status' | 'reviewedBy' | 'completedAt'>,
 ): TaskAcceptanceState {
   if (task.status !== 'done') return 'notDone';
-  if (!isBig && !task.weekLinks?.length) return 'selfDone';
-  return task.reviewedBy ? 'accepted' : 'awaitingReview';
+  if (task.reviewedBy) return 'accepted';
+  if (task.completedAt && task.completedAt < ACCEPTANCE_CUTOFF) return 'accepted';
+  return 'awaitingReview';
+}
+
+/** 旧任务没有 completedAt 时，从最后一次完成流转或 updatedAt 补齐读侧事实。 */
+export function resolveCompletedAt(
+  task: Pick<Task, 'status' | 'completedAt' | 'updatedAt' | 'transitions'>,
+): string | undefined {
+  if (task.completedAt) return task.completedAt;
+  const lastDone = [...(task.transitions ?? [])].reverse().find((item) => item.to === 'done');
+  if (lastDone) return lastDone.at;
+  return task.status === 'done' ? task.updatedAt : undefined;
 }
 
 /**

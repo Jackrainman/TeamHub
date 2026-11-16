@@ -3,6 +3,9 @@ import {
   TaskSchema,
   isBigTask,
   deriveTaskAcceptance,
+  resolveCompletedAt,
+  ACCEPTANCE_CUTOFF,
+  DeliverySchema,
   derivePreviousOwnerIds,
   isPostedTask,
   AssignTaskRequestSchema,
@@ -81,32 +84,46 @@ describe('isBigTask — 大任务结构尺（§4 不看大小看结构）', () =
   });
 });
 
-describe('deriveTaskAcceptance — 验收态派生（§5 两档制，不动 TaskStatus 枚举）', () => {
-  test('status !== done → notDone（无论大小活）', () => {
-    expect(
-      deriveTaskAcceptance({ status: 'inProgress', reviewedBy: undefined }, true),
-    ).toBe('notDone');
-    expect(
-      deriveTaskAcceptance({ status: 'pending', reviewedBy: undefined }, false),
-    ).toBe('notDone');
+describe('deriveTaskAcceptance — 三态验收派生', () => {
+  test('notDone / awaitingReview / accepted', () => {
+    expect(deriveTaskAcceptance({ status: 'inProgress', reviewedBy: undefined })).toBe('notDone');
+    expect(deriveTaskAcceptance({ status: 'done', reviewedBy: undefined })).toBe('awaitingReview');
+    expect(deriveTaskAcceptance({ status: 'done', reviewedBy: reviewer })).toBe('accepted');
   });
 
-  test('done + 简单活（!isBig）→ selfDone', () => {
-    expect(
-      deriveTaskAcceptance({ status: 'done', reviewedBy: undefined }, false),
-    ).toBe('selfDone');
+  test('cutoff 前 completedAt 的历史任务直接 accepted', () => {
+    expect(deriveTaskAcceptance({ status: 'done', reviewedBy: undefined, completedAt: ACCEPTANCE_CUTOFF })).toBe('awaitingReview');
+    expect(deriveTaskAcceptance({ status: 'done', reviewedBy: undefined, completedAt: '2026-11-15T23:59:59.999Z' })).toBe('accepted');
+  });
+});
+
+describe('resolveCompletedAt — 历史完成时间读侧归一化', () => {
+  test('优先显式值，再取最后一条 done transition', () => {
+    expect(resolveCompletedAt({ status: 'done', completedAt: '2026-11-01T00:00:00.000Z', updatedAt: '2026-11-03T00:00:00.000Z', transitions: [] })).toBe('2026-11-01T00:00:00.000Z');
+    expect(resolveCompletedAt({ status: 'done', updatedAt: '2026-11-03T00:00:00.000Z', transitions: [
+      { from: 'pending', to: 'done', at: '2026-10-01T00:00:00.000Z' },
+      { from: 'done', to: 'inProgress', at: '2026-10-02T00:00:00.000Z' },
+      { from: 'inProgress', to: 'done', at: '2026-11-02T00:00:00.000Z' },
+    ] })).toBe('2026-11-02T00:00:00.000Z');
   });
 
-  test('done + 大活 + 未验收 → awaitingReview（done 后仍"待验收"）', () => {
-    expect(
-      deriveTaskAcceptance({ status: 'done', reviewedBy: undefined }, true),
-    ).toBe('awaitingReview');
+  test('没有流转时 done 用 updatedAt，未完成不写完成时间', () => {
+    expect(resolveCompletedAt({ status: 'done', updatedAt: '2026-10-03T00:00:00.000Z', transitions: undefined })).toBe('2026-10-03T00:00:00.000Z');
+    expect(resolveCompletedAt({ status: 'inProgress', updatedAt: '2026-10-03T00:00:00.000Z', transitions: undefined })).toBeUndefined();
   });
+});
 
-  test('done + 大活 + 已 reviewedBy 留名 → accepted', () => {
-    expect(
-      deriveTaskAcceptance({ status: 'done', reviewedBy: reviewer }, true),
-    ).toBe('accepted');
+describe('DeliverySchema — 交付事实', () => {
+  const delivery = { summary: '完成联调', deliverable: '可运行固件', paths: ['src/main.ts'] };
+  test('合法 delivery 可进入 review 请求', () => {
+    expect(DeliverySchema.safeParse(delivery).success).toBe(true);
+    expect(ReviewTaskRequestSchema.safeParse({ outcome: 'accept', delivery }).success).toBe(true);
+  });
+  test('空串、空 paths 与超过 20 条 paths 被拒绝', () => {
+    expect(DeliverySchema.safeParse({ ...delivery, summary: '' }).success).toBe(false);
+    expect(DeliverySchema.safeParse({ ...delivery, deliverable: '' }).success).toBe(false);
+    expect(DeliverySchema.safeParse({ ...delivery, paths: [] }).success).toBe(false);
+    expect(DeliverySchema.safeParse({ ...delivery, paths: Array.from({ length: 21 }, (_, i) => `p${i}`) }).success).toBe(false);
   });
 });
 
