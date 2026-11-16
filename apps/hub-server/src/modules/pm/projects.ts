@@ -41,7 +41,7 @@ export function registerProjectRoutes(
     if (identityMode === 'identity') {
       if (!(await requireSuperAdmin(store, request, reply, '该操作需管理员（项目管理旗标）'))) return;
     }
-    return sendOutcome(reply, await service.createProject(input), (project) =>
+    return sendOutcome(reply, await service.createProject(input, request.identity?.memberId), (project) =>
       ProjectResponseSchema.parse({ project }), true);
   });
 

@@ -55,13 +55,17 @@ export type ProjectDraft = {
   startsAt: string;
   endsAt?: string | null;
   seasonId?: string;
+  createdBy?: string;
+  groupIds?: string[];
 };
 
-/** updateProject 补丁：只允许 name/起止；null = 清除对应日期。 */
+/** updateProject 补丁：name/起止与整体参与人列表；null = 清除对应日期。 */
 export type UpdateProjectDraft = {
   name?: string;
   startsAt?: string | null;
   endsAt?: string | null;
+  memberIds?: string[];
+  groupIds?: string[];
 };
 
 export type CreateProjectResult =

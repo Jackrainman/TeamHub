@@ -502,7 +502,8 @@ export class SqlitePmRepository implements PmRepository {
         seasonId,
         name: draft.name,
         status: 'active',
-        groupIds: [],
+        ...(draft.createdBy ? { createdBy: draft.createdBy } : {}),
+        groupIds: draft.groupIds ?? [],
         createdAt: this.clock.now().toISOString(),
         startsAt: draft.startsAt,
         endsAt: draft.endsAt ?? null,
@@ -525,6 +526,8 @@ export class SqlitePmRepository implements PmRepository {
         ...(patch.name !== undefined ? { name: patch.name } : {}),
         ...(patch.startsAt !== undefined ? { startsAt: patch.startsAt } : {}),
         ...(patch.endsAt !== undefined ? { endsAt: patch.endsAt } : {}),
+        ...(patch.memberIds !== undefined ? { memberIds: patch.memberIds } : {}),
+        ...(patch.groupIds !== undefined ? { groupIds: patch.groupIds } : {}),
       };
       if (next.startsAt && next.endsAt && Date.parse(next.endsAt) < Date.parse(next.startsAt)) {
         return { ok: false as const, reason: 'date-order' as const };

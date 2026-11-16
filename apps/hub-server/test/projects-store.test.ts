@@ -30,14 +30,27 @@ describe('projects 单表持久化', () => {
 
   it('SQLite 实现：create → close → reopen → 项目仍在（重启存活）', async () => {
     const database = initialize();
-    const result = await database.openStores().gov.createProject({ name: '持久项目', startsAt: START, endsAt: END });
+    const result = await database.openStores().gov.createProject({
+      name: '持久项目', startsAt: START, endsAt: END,
+      createdBy: 'member-ec', groupIds: ['grp-ec'],
+    });
     expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('project setup failed');
+    await database.openStores().gov.updateProject(result.project.id, {
+      memberIds: ['member-mech'], groupIds: ['grp-ec', 'grp-mech'],
+    });
     database.close();
 
     const reopened = openUnifiedDb(dbPath);
     try {
       const projects = await reopened.openStores().gov.listProjects();
-      expect(projects.some((project) => project.name === '持久项目' && project.startsAt === START && project.endsAt === END)).toBe(true);
+      expect(projects.find((project) => project.name === '持久项目')).toMatchObject({
+        startsAt: START,
+        endsAt: END,
+        createdBy: 'member-ec',
+        memberIds: ['member-mech'],
+        groupIds: ['grp-ec', 'grp-mech'],
+      });
     } finally {
       reopened.close();
     }

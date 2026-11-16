@@ -35,7 +35,10 @@ function identityApp() {
     ...governanceScenarioFixture,
     members: [
       member({ id: 'm-plain', displayName: '普通成员' }),
-      member({ id: 'm-boss', displayName: '队长', projectManager: true }),
+      member({ id: 'm-boss', displayName: '队长', projectManager: true, groupId: 'grp-ec' }),
+      member({ id: 'm-mech-a', displayName: '机械甲' }),
+      member({ id: 'm-mech-b', displayName: '机械乙' }),
+      member({ id: 'm-vision', displayName: '视觉乙', groupId: 'grp-vision' }),
     ],
   };
   return buildTestHubServer({ store: new InMemoryPmRepository(snapshot), identityMode: 'identity' });
@@ -92,6 +95,8 @@ describe('POST /api/projects', () => {
       });
       expect(project.id).not.toBe('client-id');
       expect(project.createdAt).toBeTruthy();
+      expect(project.createdBy).toBeUndefined();
+      expect(project.groupIds).toEqual([]);
     } finally {
       await app.close();
     }
@@ -131,7 +136,12 @@ describe('POST /api/projects', () => {
       const plain = await login(app, 'm-plain');
       expect((await app.inject({ method: 'POST', url: '/api/projects', headers: { cookie: plain }, payload })).statusCode).toBe(403);
       const boss = await login(app, 'm-boss');
-      expect((await app.inject({ method: 'POST', url: '/api/projects', headers: { cookie: boss }, payload })).statusCode).toBe(201);
+      const created = await app.inject({ method: 'POST', url: '/api/projects', headers: { cookie: boss }, payload });
+      expect(created.statusCode).toBe(201);
+      expect(ProjectResponseSchema.parse(created.json()).project).toMatchObject({
+        createdBy: 'm-boss',
+        groupIds: ['grp-ec'],
+      });
     } finally {
       await app.close();
     }
@@ -200,12 +210,45 @@ describe('PUT /api/projects/:id', () => {
     }
   });
 
-  test('身份模式非持旗成员 403', async () => {
+  test('身份模式非持旗成员改参与人 403', async () => {
     const app = identityApp();
     try {
       const cookie = await login(app, 'm-plain');
-      const res = await app.inject({ method: 'PUT', url: '/api/projects/prj-robots', headers: { cookie }, payload: { name: '越权改名' } });
+      const res = await app.inject({ method: 'PUT', url: '/api/projects/prj-robots', headers: { cookie }, payload: { memberIds: ['m-plain'] } });
       expect(res.statusCode).toBe(403);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('持旗成员更新参与人：跨组派生去重，移除后 groupIds 不回缩', async () => {
+    const app = identityApp();
+    try {
+      const cookie = await login(app, 'm-boss');
+      const createdRes = await app.inject({
+        method: 'POST', url: '/api/projects', headers: { cookie },
+        payload: { name: '联合项目', startsAt: START },
+      });
+      const projectId = ProjectResponseSchema.parse(createdRes.json()).project.id;
+      const joinedRes = await app.inject({
+        method: 'PUT', url: `/api/projects/${projectId}`, headers: { cookie },
+        payload: { memberIds: ['m-mech-a', 'm-mech-b'] },
+      });
+      expect(joinedRes.statusCode).toBe(200);
+      expect(ProjectResponseSchema.parse(joinedRes.json()).project).toMatchObject({
+        memberIds: ['m-mech-a', 'm-mech-b'],
+        groupIds: ['grp-ec', 'grp-mech'],
+      });
+
+      const removedRes = await app.inject({
+        method: 'PUT', url: `/api/projects/${projectId}`, headers: { cookie },
+        payload: { memberIds: [] },
+      });
+      expect(removedRes.statusCode).toBe(200);
+      expect(ProjectResponseSchema.parse(removedRes.json()).project).toMatchObject({
+        memberIds: [],
+        groupIds: ['grp-ec', 'grp-mech'],
+      });
     } finally {
       await app.close();
     }

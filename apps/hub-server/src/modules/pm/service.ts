@@ -31,6 +31,7 @@ import type {
 } from '@teamhub/hub-contracts';
 import type { Clock } from '../../clock.js';
 import { isGateReviewer } from '../../authz.js';
+import { deriveProjectGroupIds } from './project-groups.js';
 import type { PmRepository, UpdateProjectDraft } from './repository.js';
 
 /** 用例结果：ok:false 带 HTTP 语义（status+detail），route 只负责映射，不再夹业务判断。 */
@@ -118,23 +119,41 @@ export class PmService {
     return this.repository.listProjects();
   }
 
-  async createProject(input: CreateProjectRequest): Promise<PmOutcome<Project>> {
+  async createProject(input: CreateProjectRequest, creatorId?: string): Promise<PmOutcome<Project>> {
     const name = input.name.trim();
+    const snapshot = await this.repository.getSnapshot();
+    const groupIds = creatorId ? deriveProjectGroupIds([creatorId], snapshot.members) : [];
     const result = await this.repository.createProject({
       name,
       startsAt: input.startsAt,
       endsAt: input.endsAt ?? null,
       ...(input.seasonId ? { seasonId: input.seasonId } : {}),
+      createdBy: creatorId,
+      groupIds,
     });
     if (!result.ok) return fail(409, `项目「${name}」已存在`);
     return ok(result.project);
   }
 
   async updateProject(id: string, input: UpdateProjectRequest): Promise<PmOutcome<Project>> {
+    let groupIds: string[] | undefined;
+    if (input.memberIds !== undefined) {
+      const [snapshot, projects] = await Promise.all([
+        this.repository.getSnapshot(),
+        this.repository.listProjects(),
+      ]);
+      const prior = projects.find((project) => project.id === id);
+      groupIds = [...new Set([
+        ...(prior?.groupIds ?? []),
+        ...deriveProjectGroupIds(input.memberIds, snapshot.members),
+      ])];
+    }
     const patch: UpdateProjectDraft = {
       ...(input.name !== undefined ? { name: input.name.trim() } : {}),
       ...(input.startsAt !== undefined ? { startsAt: input.startsAt } : {}),
       ...(input.endsAt !== undefined ? { endsAt: input.endsAt } : {}),
+      ...(input.memberIds !== undefined ? { memberIds: input.memberIds, groupIds } : {}),
+      // Group ownership is historical: removing participants never removes their groups.
     };
     const result = await this.repository.updateProject(id, patch);
     if (result.ok) return ok(result.project);
