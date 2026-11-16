@@ -93,7 +93,7 @@ const { settle } = require('./lib/wait.cjs');
     await page.locator('.calendar-month-view').waitFor();
     await settle(page);
 
-    const seg = name => page.locator('.calendar-mode button[data-view]').filter({ hasText: name });
+    const seg = name => page.locator('.calendar-view-toggle button[data-view]').filter({ hasText: name });
     const capture = async name => {
       await settle(page);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2), true, `overflow: ${name}`);
@@ -114,6 +114,14 @@ const { settle } = require('./lib/wait.cjs');
     assert.equal(await page.locator('.calendar-month-unstarted button').filter({ hasText: 'E2E未定开始' }).count(), 1);
     assert.ok(await page.locator('.calendar-project-bar[title^="E2E跨周项目 ·"][data-continue-start="true"]').count() >= 1);
     assert.ok(await page.locator('.calendar-project-bar[title^="E2E跨周项目 ·"][data-continue-end="true"]').count() >= 1);
+    const continuedStart = page.locator('.calendar-project-bar[data-continue-start="true"]').first();
+    const continuedEnd = page.locator('.calendar-project-bar[data-continue-end="true"]').first();
+    assert.equal(await continuedStart.evaluate(element => getComputedStyle(element).borderTopLeftRadius), '0px');
+    assert.equal(await continuedStart.evaluate(element => getComputedStyle(element).borderBottomLeftRadius), '0px');
+    assert.equal(await continuedEnd.evaluate(element => getComputedStyle(element).borderTopRightRadius), '0px');
+    assert.equal(await continuedEnd.evaluate(element => getComputedStyle(element).borderBottomRightRadius), '0px');
+    const todayBackground = await page.locator('.calendar-month-day[data-today="true"]').evaluate(element => getComputedStyle(element).backgroundColor);
+    assert.notEqual(todayBackground, 'rgba(0, 0, 0, 0)', 'today has a visible background');
     await capture('month-current');
 
     await page.locator('.calendar-project-bar[title^="E2E中期项目 ·"]').first().click();

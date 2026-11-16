@@ -75,7 +75,7 @@ export function CalendarPage({ client, source, projectId, identity, onNavigate, 
         </nav> : <div className="calendar-mode" role="group" aria-label={t('calendar.mode.aria')}>
           {(['month', 'week'] as const).map(value => <button type="button" key={value} data-mode={value} aria-pressed={mode === value} onClick={() => setMode(value)}>{t(`calendar.mode.${value}`)}</button>)}
         </div>}
-        <div className="calendar-mode" role="group" aria-label={t('calendar.view.aria')}>
+        <div className="calendar-mode calendar-view-toggle" role="group" aria-label={t('calendar.view.aria')}>
           {(['month', 'timeline'] as const).map(value => <button type="button" key={value} data-view={value} aria-pressed={view === value} onClick={() => changeView(value)}>{t(`calendar.view.${value}`)}</button>)}
         </div>
       </div>
