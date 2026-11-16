@@ -36,7 +36,7 @@ export function CalendarPage({ client, source, projectId, identity, onNavigate, 
         <span className="calendar-legend">{t('calendar.legend')}</span>
       </div>
       <div className="calendar-mode" role="group" aria-label={t('calendar.mode.aria')}>
-        {(['month', 'week'] as const).map((value) => <button type="button" key={value} aria-pressed={mode === value} onClick={() => setMode(value)}>{t(`calendar.mode.${value}`)}</button>)}
+        {(['month', 'week'] as const).map((value) => <button type="button" key={value} data-mode={value} aria-pressed={mode === value} onClick={() => setMode(value)}>{t(`calendar.mode.${value}`)}</button>)}
       </div>
     </header>
     {projects ? <>

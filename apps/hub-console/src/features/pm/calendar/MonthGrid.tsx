@@ -19,17 +19,17 @@ export function MonthGrid({ axis, mode, projects, milestones, today, projectId, 
   const tickCount = ticks.length;
   const todayLeft = axis.todayLeft === null ? null : axis.todayLeft * 100;
   return <div className={`calendar-grid-wrap calendar-grid-wrap--${mode}`}>
-    <div className="calendar-grid" role="grid" aria-label={t('calendar.grid.aria')}>
+    <div className="calendar-grid" role="grid" aria-label={t('calendar.grid.aria')} data-mode={mode} data-axis-days={axis.days}>
       <div className="calendar-axis-label">{t('calendar.lane.projects')}</div>
       <div className="calendar-axis" role="row" aria-label={t('calendar.axis.aria')}>
-        {ticks.map((tick) => <div className="calendar-axis-tick" key={tick.key} style={{ width: `${100 / tickCount}%` }}>
+        {ticks.map((tick) => <div className="calendar-axis-tick" key={tick.key} data-tick={mode} style={{ width: `${100 / tickCount}%` }}>
           <time dateTime={tick.key}>{tick.key.slice(5)}</time>
         </div>)}
       </div>
       <div className="calendar-lane-heading">{t('calendar.lane.projects')}</div>
-      <div className="calendar-track calendar-project-track">
+      <div className="calendar-track calendar-project-track calendar-today-layer">
         <div className="calendar-grid-lines" aria-hidden="true">{ticks.map((tick) => <span key={tick.key} />)}</div>
-        {todayLeft !== null ? <div className="calendar-today-line" style={{ left: `${todayLeft}%` }} title={t('calendar.today')}><span>{t('calendar.today')}</span></div> : null}
+        {todayLeft !== null ? <i className="calendar-today-line" style={{ left: `${todayLeft}%` }} title={t('calendar.today')}><span>{t('calendar.today')}</span></i> : null}
       </div>
       <div className="calendar-lane-heading">{t('calendar.lane.milestones')}</div>
       <div className="calendar-track calendar-milestone-track">
@@ -40,7 +40,7 @@ export function MonthGrid({ axis, mode, projects, milestones, today, projectId, 
       {projects.map((project) => {
         const geometry = barGeometry(project, axis, today);
         const start = dateKeyOf(project.startsAt);
-        return <div className="calendar-project-row" role="row" key={project.id}>
+        return <div className="calendar-project-row calendar-lane" role="row" key={project.id} data-project-id={project.id} data-no-start={start ? 'false' : 'true'}>
           <div className="calendar-row-label">
             <button type="button" onClick={() => onOpenProject(project)} data-project-label={project.id}>{project.name}</button>
             {!start ? <span className="calendar-tag">{t('calendar.noStart')}</span> : null}
@@ -49,7 +49,7 @@ export function MonthGrid({ axis, mode, projects, milestones, today, projectId, 
           <div className="calendar-track">
             <div className="calendar-grid-lines" aria-hidden="true">{ticks.map((tick) => <span key={tick.key} />)}</div>
             {todayLeft !== null ? <div className="calendar-today-line" style={{ left: `${todayLeft}%` }} aria-hidden="true" /> : null}
-            {geometry ? <ProjectBar project={project} geometry={geometry} today={today} onOpen={() => onOpenProject(project)} /> : null}
+            {geometry ? <ProjectBar project={project} geometry={geometry} today={today} current={project.id === projectId} onOpen={() => onOpenProject(project)} /> : null}
           </div>
         </div>;
       })}
