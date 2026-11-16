@@ -1,4 +1,7 @@
 import { describe, expect, test } from 'vitest';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { LanguageProvider } from '../src/i18n';
+import { RightRail } from '../src/shared/ui/RightRail';
 import {
   createRightRailStore,
   readRightRailOpen,
@@ -52,5 +55,19 @@ describe('right rail viewport', () => {
   test('uses the 1200px availability boundary', () => {
     expect(resolveRailAvailable(1199)).toBe(false);
     expect(resolveRailAvailable(1200)).toBe(true);
+  });
+});
+
+describe('RightRail markup', () => {
+  test('exposes an open complementary landmark', () => {
+    const html = renderToStaticMarkup(<LanguageProvider><RightRail open title="详情" onClose={() => {}} /></LanguageProvider>);
+    expect(html).toContain('id="console-right-rail"');
+    expect(html).toContain('aria-hidden="false"');
+    expect(html).toContain('aria-labelledby="console-right-rail-title"');
+  });
+
+  test('hides a closed rail from assistive technology', () => {
+    const html = renderToStaticMarkup(<LanguageProvider><RightRail open={false} title="详情" onClose={() => {}} /></LanguageProvider>);
+    expect(html).toContain('aria-hidden="true"');
   });
 });

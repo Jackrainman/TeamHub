@@ -1,10 +1,12 @@
 import { type PropsWithChildren, type ReactNode } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PanelRight } from 'lucide-react';
 import { useI18n } from '../../i18n';
 import type { ConsolePage, ConsolePageDescriptor } from '../../console-pages';
 import type { HubApiClient } from '../../api/client';
 import { GlobalSearch as GlobalSearchBox } from '../../features/search/GlobalSearch';
 import { useConsolePreferences } from '../../shared/ConsolePreferences';
+import { RightRail } from '../../shared/ui/RightRail';
+import { useRightRail } from '../../shared/ui/useRightRail';
 
 export type { ConsolePage };
 interface ConsoleLayoutProps {
@@ -19,6 +21,7 @@ const TOOLS: ConsolePage[] = ['reimburse', 'settings'];
 export function ConsoleLayout({ children, page, onNavigate, pages, client, actions }: PropsWithChildren<ConsoleLayoutProps>) {
   const { t } = useI18n();
   const p = useConsolePreferences();
+  const rail = useRightRail();
   const active = pages.find(item => item.key === page);
   const nav = (items: ConsolePage[]) => items.flatMap(key => {
     const item = pages.find(candidate => candidate.key === key);
@@ -29,7 +32,7 @@ export function ConsoleLayout({ children, page, onNavigate, pages, client, actio
       <Icon aria-hidden="true" size={18} /><span className="nav-copy"><strong>{t(item.labelKey)}</strong></span>
     </button>];
   });
-  return <div className={`console-shell${p.expanded ? ' sidebar-expanded' : ''}`}>
+  return <div className={`console-shell${p.expanded ? ' sidebar-expanded' : ''}${rail.isOpen ? ' right-rail-open' : ''}`}>
     <aside className="console-sidebar" aria-label={t('layout.sidebar.nav')} onPointerMove={p.touchSidebar} onPointerDown={p.touchSidebar} onFocusCapture={p.touchSidebar} onKeyDown={p.touchSidebar}>
       <div className="console-brand">
         <div className="console-brand-mark"><img className="console-logo" src="/logo-banner.png" alt="TeamHub" width={27} height={27} /></div>
@@ -45,8 +48,9 @@ export function ConsoleLayout({ children, page, onNavigate, pages, client, actio
       <div className="sidebar-foot"><span aria-hidden="true" className="sidebar-foot-dot" /><span className="nav-copy"><strong>TeamHub</strong></span></div>
     </aside>
     <div className="console-content">
-      <header className="console-topbar"><div className="console-topbar-title"><strong>{active && t(active.labelKey)}</strong></div><GlobalSearchBox client={client} onNavigate={onNavigate} availablePages={pages.map(item => item.key)} />{actions}</header>
+      <header className="console-topbar"><div className="console-topbar-title"><strong>{active && t(active.labelKey)}</strong></div><GlobalSearchBox client={client} onNavigate={onNavigate} availablePages={pages.map(item => item.key)} /><button type="button" id="console-rail-toggle" className="icon-button console-rail-toggle" onClick={rail.toggle} aria-controls="console-right-rail" aria-expanded={rail.isOpen} aria-label={t(rail.isOpen ? 'rail.close' : 'rail.open')} title={t(rail.isOpen ? 'rail.close' : 'rail.open')}><PanelRight size={16} aria-hidden="true" /></button>{actions}</header>
       <main className="console-main" id="console-main" data-page={page}>{children}</main>
     </div>
+    <RightRail title={t('rail.title')} open={rail.isOpen} onClose={rail.close} />
   </div>;
 }
