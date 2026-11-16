@@ -78,6 +78,9 @@ const ProjectObjectSchema = z.object({
   // 中性泛化槽，与 Task.targetLabel 对称（数组形态承接 robotTargets 复数）。
   targetLabels: z.array(z.string().min(1)).optional(),
   status: z.enum(['active', 'archived']),
+  groupIds: z.array(z.string().min(1)).default([]), // 负责组，服务端派生
+  createdBy: z.string().min(1).optional(), // 创建人 memberId
+  memberIds: z.array(z.string().min(1)).optional(), // 参与人（联合创建）
   createdAt: isoDateTimeSchema,
   // 日粒度；startsAt null/缺省 = 未定，endsAt null/缺省 = 至今（仅展示层解释，不落默认日期）。
   startsAt: isoDateTimeSchema.nullable().optional(),
@@ -741,6 +744,7 @@ export const UpdateProjectRequestSchema = z.object({
   name: z.string().min(1).optional(),
   startsAt: isoDateTimeSchema.nullable().optional(),
   endsAt: isoDateTimeSchema.nullable().optional(),
+  memberIds: z.array(z.string().min(1)).optional(),
 }).refine((value) => Object.keys(value).length > 0, { message: 'empty patch' }).superRefine((value, ctx) => {
   if (value.startsAt && value.endsAt && Date.parse(value.endsAt) < Date.parse(value.startsAt)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['endsAt'], message: 'endsAt must not be earlier than startsAt' });

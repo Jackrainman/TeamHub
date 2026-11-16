@@ -15,6 +15,7 @@ function project(id: string, startsAt: string | null, endsAt: string | null, nam
     seasonId: 'season-1',
     name,
     status: 'active',
+    groupIds: [],
     createdAt: '2026-01-01T00:00:00.000Z',
     startsAt,
     endsAt,

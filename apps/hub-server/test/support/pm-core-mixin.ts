@@ -343,6 +343,7 @@ export function PmCoreMixin<T extends Base>(
         seasonId,
         name: draft.name,
         status: 'active',
+        groupIds: [],
         createdAt: this.clock.now().toISOString(),
         startsAt: draft.startsAt,
         endsAt: draft.endsAt ?? null,

@@ -2,7 +2,7 @@
   "name": "teamhub",
   "private": true,
   "license": "MIT",
-  "version": "0.104.1",
+  "version": "0.104.2",
   "workspaces": [
     "apps/hub-contracts",
     "apps/hub-server",

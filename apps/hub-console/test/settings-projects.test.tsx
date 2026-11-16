@@ -18,6 +18,7 @@ const project: Project = {
   seasonId: 'season-2026',
   name: '当前项目',
   status: 'active',
+  groupIds: [],
   createdAt: '2026-08-01T00:00:00.000Z',
   startsAt: '2026-09-01T00:00:00.000Z',
   endsAt: '2026-10-01T00:00:00.000Z',

@@ -14,7 +14,7 @@ const season: Season = {
   endsAt: '2026-12-31T23:59:59.999Z', status: 'active',
 };
 const project: Project = {
-  id: 'project-a', seasonId: season.id, name: '跨月项目', status: 'active',
+  id: 'project-a', seasonId: season.id, name: '跨月项目', status: 'active', groupIds: [],
   createdAt: '2026-01-01T00:00:00.000Z', startsAt: '2026-11-10T00:00:00.000Z', endsAt: '2026-12-10T00:00:00.000Z',
 };
 function renderPage(projects: Project[], baseline: SeasonBaselinePublic | null = null, pageIdentity: PageIdentityCtx = identity) {

@@ -75,6 +75,7 @@ export class InMemoryPmRepositoryBase {
       seasonId,
       name: projectId,
       status: 'active',
+      groupIds: [],
       createdAt: this.clock.now().toISOString(),
       startsAt: null,
       endsAt: null,

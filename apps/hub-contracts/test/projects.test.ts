@@ -66,8 +66,10 @@ describe('UpdateProjectRequestSchema', () => {
     expect(UpdateProjectRequestSchema.safeParse({}).success).toBe(false);
   });
 
-  test('endsAt: null 合法（清除结束日）', () => {
+  test('endsAt: null 合法（清除结束日）；memberIds 可整体替换', () => {
     expect(UpdateProjectRequestSchema.parse({ endsAt: null }).endsAt).toBeNull();
+    expect(UpdateProjectRequestSchema.parse({ memberIds: ['member-1', 'member-2'] }).memberIds)
+      .toEqual(['member-1', 'member-2']);
   });
 
   test('同补丁内两端倒置拒绝', () => {
@@ -77,7 +79,14 @@ describe('UpdateProjectRequestSchema', () => {
 
 describe('ProjectsResponseSchema / ProjectResponseSchema', () => {
   test('往返 parse 保留新字段；响应包形状分别为 {projects}/{project}', () => {
-    const project = { ...baseProject, startsAt, endsAt };
+    const project = {
+      ...baseProject,
+      startsAt,
+      endsAt,
+      groupIds: ['grp-ec'],
+      createdBy: 'member-1',
+      memberIds: ['member-2'],
+    };
     expect(ProjectsResponseSchema.parse({ projects: [project] })).toEqual({ projects: [project] });
     expect(ProjectResponseSchema.parse({ project })).toEqual({ project });
   });
