@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import type { HubApiClient } from '../../../api/client';
 import type { ConsolePage, PageIdentityCtx } from '../../../console-pages';
 import { useI18n } from '../../../i18n';
+import { useMembers } from '../../identity/hooks';
 import { Button } from '../../../shared/ui/Button';
 import { useQueryGuard } from '../../../shared/QueryGate';
 import { MonthView } from './MonthView';
@@ -40,12 +41,19 @@ export function CalendarPage({ client, source, identity, onNavigate, todayOverri
     identity.session?.groupId,
   );
   const projects = useQueryGuard(projectsQuery, t('calendar.loading'), t('calendar.error'));
+  const membersQuery = useMembers(client, 'calendar');
   const [selection, setSelection] = useState<CalendarSelection | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const anyStart = filteredProjects.some(project => dateKeyOf(project.startsAt));
   const scopeEmpty = scope !== 'team' && filteredProjects.length === 0 && activeSeasonProjectCount > 0;
   const emptyKind = scopeEmpty ? null : filteredProjects.length === 0 ? 'no-projects' : !anyStart ? 'no-dates' : null;
   const lockHint = identity.canWrite ? null : t('identity.writeHint');
+  const drawerSelection: CalendarSelection | null = selection?.type === 'project'
+    ? {
+      type: 'project',
+      project: projectsQuery.data?.projects.find(project => project.id === selection.project.id) ?? selection.project,
+    }
+    : selection;
 
   function changeScope(next: CalendarScope): void {
     setScope(next);
@@ -92,7 +100,17 @@ export function CalendarPage({ client, source, identity, onNavigate, todayOverri
       {!activeSeason ? <div className="state-band">{t('calendar.empty.season')}</div> : baselineQuery.isError ? <div className="state-band state-band-error">{t('calendar.error')}</div> : activeSeason && baselineQuery.data && !baselineQuery.data.baseline ? <div className="state-band">{t('calendar.empty.baseline')}</div> : null}
       {hiddenCount > 0 ? <p className="calendar-footnote">{t('calendar.hiddenProjects', { count: hiddenCount })}</p> : null}
     </> : null}
-    <CalendarDrawer selection={selection} today={today} canWrite={identity.canWrite} onClose={() => setSelection(null)} onNavigateSettings={() => onNavigate('settings')} />
+    <CalendarDrawer
+      selection={drawerSelection}
+      today={today}
+      canWrite={identity.canWrite}
+      client={client}
+      members={membersQuery.data?.members ?? []}
+      me={identity.session?.memberId ?? null}
+      canManageParticipants={identity.mode === 'anonymous' || identity.session?.projectManager === true}
+      onClose={() => setSelection(null)}
+      onNavigateSettings={() => onNavigate('settings')}
+    />
     <CalendarProjectDrawer client={client} open={createOpen} canWrite={identity.canWrite} onClose={() => setCreateOpen(false)} />
   </div>;
 }

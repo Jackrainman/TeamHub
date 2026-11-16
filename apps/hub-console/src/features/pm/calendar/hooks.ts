@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Project, Season } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../../api/client';
+import { queryKeys } from '../../../api/queryKeys';
+import { useHubMutation } from '../../../hooks/useHubMutation';
 import { useBaseline } from '../../baseline/hooks';
 import { useProjects, useSeasons } from '../hooks';
 import { filterProjectsByScope, todayKey, type CalendarScope } from './model';
@@ -21,6 +23,17 @@ export function useTodayKey(override?: string): string {
     return () => window.clearInterval(timer);
   }, [override]);
   return key;
+}
+
+export function useCalendarParticipantMutation(
+  client: Pick<HubApiClient, 'updateProject'>,
+) {
+  return useHubMutation({
+    meta: { silent: true },
+    invalidateKeys: [queryKeys.projects()],
+    mutationFn: ({ projectId, memberIds }: { projectId: string; memberIds: string[] }) =>
+      client.updateProject(projectId, { memberIds }),
+  });
 }
 
 export function useCalendarData(
