@@ -30,10 +30,10 @@ export interface DomainDescriptor {
 
 export const DOMAINS: readonly DomainDescriptor[] = [
   { id: 'pm', title: '任务、依赖、认领验收、周工作台与学习方向', group: 'core',
-    packages: { contracts: 'pm', server: 'pm', console: ['pm', 'project', 'pool', 'dep-graph', 'timeline', 'workbench', 'direction'] },
+    packages: { contracts: 'pm', server: 'pm', console: ['pm', 'project', 'pool', 'dep-graph', 'workbench'] },
     enabledBy: 'pm-core', routes: ['PmCore'], pages: ['feed', 'workbench', 'project', 'direction', 'timeline'] },
   { id: 'system', title: '初始化、会话、成员与设置', group: 'core',
-    packages: { contracts: 'system', server: 'system', console: ['system', 'settings', 'identity', 'setup', 'overview'] },
+    packages: { contracts: 'system', server: 'system', console: ['system', 'settings', 'identity', 'setup'] },
     enabledBy: 'system', routes: ['System', 'Session', 'Setup'], pages: ['overview', 'settings'] },
   { id: 'inventory', title: '零件台账、单件与出入库动作', group: 'pillar',
     packages: { contracts: 'inventory', server: 'inventory', console: 'inv' },
@@ -45,7 +45,7 @@ export const DOMAINS: readonly DomainDescriptor[] = [
     packages: { contracts: 'reimburse', server: 'reimburse', console: 'reimburse' },
     enabledBy: 'ledger', routes: ['Reimburse'], pages: ['reimburse'] },
   { id: 'schedule', title: '排班、在场与机器人资源', group: 'support',
-    packages: { contracts: 'schedule', server: 'schedule', console: ['schedule', 'resources'] },
+    packages: { contracts: 'schedule', server: 'schedule', console: ['schedule'] },
     enabledBy: 'presence-schedule', routes: ['Schedule'], pages: ['schedule', 'fleet'] },
   // baseline/checklist 的路由由 registerPmCoreRoutes 消费，无独立注册函数与页面。
   { id: 'baseline', title: '倒排基准线与节奏派生', group: 'support',

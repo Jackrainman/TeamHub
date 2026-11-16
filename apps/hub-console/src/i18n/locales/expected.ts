@@ -1,6 +1,5 @@
 export const zhExpected = {
   'expected.resumeImport': '继续确认票据', 'expected.exportFileBase': '报销选中条目',
-  'expected.pending': '待推进', 'expected.baselineEyebrow': 'SEASON BASELINE',
   'expected.workspace': '工作区', 'expected.tools': '小工具',
   'expected.expand': '展开侧栏', 'expected.collapse': '收起侧栏',
   'expected.autoCollapse': '侧栏自动收起', 'expected.autoCollapseHint': '4 秒无操作后自动收起；手动调整后保持。',
@@ -10,12 +9,6 @@ export const zhExpected = {
   'expected.sidebarState': '当前侧栏状态', 'expected.sidebarStateHint': '随时手动展开或收起，刷新页面后恢复展开。',
   'expected.nav.workbench': '任务', 'expected.nav.project': '项目',
   'expected.nav.reimburse': '报销',
-  'expected.feedHint': '开源项目、调试发现和现场记录，集中在一个位置',
-  'expected.feedBoundary': '分享事实，不制造热度排名', 'expected.feedBoundaryHint': '近况计划按时间呈现，不生成成员积分、活跃度或产能排行。',
-  'expected.baseline': '赛季基准线', 'expected.baselineHint': '只呈现项目节点，不评价个人快慢', 'expected.baselineEmpty': '当前没有赛季基准线',
-  'expected.baselineProgress': '已通过 {done} / {total} 个项目节点', 'expected.baselineOpen': '展开基准线', 'expected.baselineClose': '收起基准线',
-  'expected.kbHint': '把排障过程、实验记录和调研留在可检索的位置', 'expected.kbNew': '新建归档', 'expected.kbDetail': '查看知识记录',
-  'expected.inventorySearch': '搜索物料、编号或规格', 'expected.inventoryNew': '登记物料', 'expected.inventoryRecord': '出入库记录', 'expected.inventoryImport': '批量导入',
   'expected.reimburseNew': '新建条目', 'expected.reimburseImport': '导入票据', 'expected.reimburseOpen': '查看 / 编辑',
   'expected.reimburseSelect': '选择条目 {title}', 'expected.selectAll': '选择全部', 'expected.exportSelected': '导出选中 ({count})',
   'expected.all': '全部', 'expected.reimbursePrivacy': '材料勾选表示本人自证已备；凭证原件只在条目详情内按本人 → 财务权限读取。',
@@ -24,7 +17,6 @@ export const zhExpected = {
 };
 export const enExpected: Record<keyof typeof zhExpected, string> = {
   'expected.resumeImport': 'Resume receipt review', 'expected.exportFileBase': 'selected-expenses',
-  'expected.pending': 'Pending', 'expected.baselineEyebrow': 'SEASON BASELINE',
   'expected.workspace': 'Workspace', 'expected.tools': 'Tools',
   'expected.expand': 'Expand sidebar', 'expected.collapse': 'Collapse sidebar',
   'expected.autoCollapse': 'Auto-collapse sidebar', 'expected.autoCollapseHint': 'Collapses after 4 seconds without activity; manual toggles stay put.',
@@ -32,11 +24,6 @@ export const enExpected: Record<keyof typeof zhExpected, string> = {
   'expected.font.normal': 'Standard', 'expected.font.large': 'Large', 'expected.font.xlarge': 'Extra large',
   'expected.sidebarState': 'Sidebar state', 'expected.sidebarStateHint': 'Toggle anytime. The sidebar starts expanded after reload.',
   'expected.nav.workbench': 'Tasks', 'expected.nav.project': 'Projects', 'expected.nav.reimburse': 'Expenses',
-  'expected.feedHint': 'Open source, debugging discoveries and field notes in one place',
-  'expected.feedBoundary': 'Share facts without popularity rankings', 'expected.feedBoundaryHint': 'Updates will appear chronologically, without member scores or productivity rankings.',
-  'expected.baseline': 'Season baseline', 'expected.baselineHint': 'Project milestones, without individual comparisons', 'expected.baselineEmpty': 'No season baseline yet', 'expected.baselineProgress': '{done} / {total} project milestones passed', 'expected.baselineOpen': 'Expand baseline', 'expected.baselineClose': 'Collapse baseline',
-  'expected.kbHint': 'Keep troubleshooting, experiments and research searchable', 'expected.kbNew': 'New archive', 'expected.kbDetail': 'View knowledge record',
-  'expected.inventorySearch': 'Search parts, IDs or specifications', 'expected.inventoryNew': 'Register part', 'expected.inventoryRecord': 'Record stock movement', 'expected.inventoryImport': 'Bulk import',
   'expected.reimburseNew': 'New entry', 'expected.reimburseImport': 'Import receipts', 'expected.reimburseOpen': 'View / edit', 'expected.reimburseSelect': 'Select entry {title}', 'expected.selectAll': 'Select all', 'expected.exportSelected': 'Export selected ({count})', 'expected.all': 'All', 'expected.reimbursePrivacy': 'Checks are self-declarations. Private evidence is only retrieved in entry details for its owner and finance.',
   'expected.searchTitle': 'Global search', 'expected.searchHint': 'Search tasks, knowledge and inventory.', 'expected.searchError': 'Search failed. Please retry.', 'expected.searchLoading': 'Searching…', 'expected.search': 'Search', 'expected.searchTask': 'Task',
 };

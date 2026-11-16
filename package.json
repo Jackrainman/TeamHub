@@ -1,7 +1,7 @@
 {
   "name": "teamhub",
   "private": true,
-  "version": "0.95.3",
+  "version": "0.95.4",
   "workspaces": [
     "apps/hub-contracts",
     "apps/hub-server",
@@ -17,7 +17,8 @@
     "test": "npm run build -w apps/hub-contracts && npm run test -w apps/hub-contracts && npm run test:local -w apps/hub-server && npm run test:local -w apps/hub-console",
     "build": "npm run build -w apps/hub-contracts && npm run build:local -w apps/hub-console && npm run build:local -w apps/hub-server",
     "dev": "node scripts/dev.mjs",
-    "verify:local": "npm run verify:docs && npm run verify:architecture && npm run test:tools && npm run verify:all -w apps/hub-contracts && npm run verify:local -w apps/hub-server && npm run verify:local -w apps/hub-console",
+    "verify:reachability": "node scripts/console-reachability.mjs",
+    "verify:local": "npm run verify:reachability && npm run verify:docs && npm run verify:architecture && npm run test:tools && npm run verify:all -w apps/hub-contracts && npm run verify:local -w apps/hub-server && npm run verify:local -w apps/hub-console",
     "test:e2e": "npm run build && npm run test:e2e -w apps/hub-console",
     "test:tools": "node --test scripts/test/*.test.mjs",
     "browser:install": "npm exec -w apps/hub-console -- playwright install chromium",

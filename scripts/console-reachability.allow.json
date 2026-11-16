@@ -1,0 +1,9 @@
+{
+  "$comment": "console 入口可达性允许清单：只收『模块图里不可达、但架构上必须存在』的文件。每条必须写 reason；能删的不要往这里放。",
+  "files": [
+    {
+      "path": "apps/hub-console/src/features/reimburse/index.ts",
+      "reason": "verify-architecture 的 reimburse 域模板要求存在的 UI 公共面 barrel（只 re-export ReimbursePage），运行期无人 import；删除会触发架构门失败。"
+    }
+  ]
+}

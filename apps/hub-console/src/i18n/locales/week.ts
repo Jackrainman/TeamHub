@@ -46,8 +46,6 @@ export const zhWeek = {
   'week.taskTitle': '任务标题', 'week.summary': '要完成什么', 'week.robot': '机器人目标', 'week.optional': '不指定',
   'week.complexity': '复杂度', 'week.complexity.trivial': '简单', 'week.complexity.normal': '常规', 'week.complexity.hard': '复杂',
   'week.saving': '保存中…', 'week.submit': '提交',
-  'week.teamNews': '队伍近况', 'week.planned': '规划中',
-  'week.plannedHint': '后续用于全员分享文字与链接',
   'week.fact.claimed': '认领', 'week.fact.assigned': '转派', 'week.fact.released': '退回任务池',
 };
 
@@ -99,7 +97,5 @@ export const enWeek: Record<keyof typeof zhWeek, string> = {
   'week.taskTitle': 'Task title', 'week.summary': 'What needs to be done', 'week.robot': 'Robot target', 'week.optional': 'Unspecified',
   'week.complexity': 'Complexity', 'week.complexity.trivial': 'Simple', 'week.complexity.normal': 'Normal', 'week.complexity.hard': 'Complex',
   'week.saving': 'Saving…', 'week.submit': 'Submit',
-  'week.teamNews': 'Team updates', 'week.planned': 'Planned',
-  'week.plannedHint': 'A future space for everyone to share text and links',
   'week.fact.claimed': 'Claimed', 'week.fact.assigned': 'Assigned', 'week.fact.released': 'Returned to pool',
 };
