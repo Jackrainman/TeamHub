@@ -9,6 +9,7 @@ import type {
   Member,
   MemberRole,
   Need,
+  Project,
   RosterImportFailure,
   RosterImportRow,
   Season,
@@ -47,6 +48,28 @@ export interface RosterImportOutcome {
  * 顶层）、parentGroupId=null、kind=custom 全由实现钉（新建组天然无子组 = 叶子组）。
  */
 export type GroupDraft = Pick<Group, 'name'>;
+
+/** createProject 入参：id/status/createdAt 由 store 钉；seasonId 缺省 = active ?? meta。 */
+export type ProjectDraft = {
+  name: string;
+  startsAt: string;
+  endsAt?: string | null;
+  seasonId?: string;
+};
+
+/** updateProject 补丁：只允许 name/起止；null = 清除对应日期。 */
+export type UpdateProjectDraft = {
+  name?: string;
+  startsAt?: string | null;
+  endsAt?: string | null;
+};
+
+export type CreateProjectResult =
+  | { ok: true; project: Project }
+  | { ok: false; reason: 'name-exists' };
+export type UpdateProjectResult =
+  | { ok: true; project: Project }
+  | { ok: false; reason: 'not-found' | 'name-exists' | 'date-order' };
 
 /**
  * 组管理写结果（刀④）判别联合，路由层映射 200/404/409：
@@ -261,6 +284,11 @@ export interface PmRepository {
    * ok 时回带被删的组（路由响应投影用）。
    */
   deleteGroup(groupId: string): Promise<DeleteGroupResult>;
+
+  /** 项目列表与写口；读不设 PM 旗标门槛，授权由路由层统一判定。 */
+  listProjects(): Promise<Project[]>;
+  createProject(draft: ProjectDraft): Promise<CreateProjectResult>;
+  updateProject(projectId: string, patch: UpdateProjectDraft): Promise<UpdateProjectResult>;
 
   /**
    * 空板默认组树（打磨轮刀⑤，onboarding-init-wizard-2026-07-25 §4）：real 模式真空板没有任何组 →

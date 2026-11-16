@@ -3,7 +3,7 @@ import {
   GOVERNANCE_SNAPSHOT_ARRAY_KEYS,
   governanceScenarioFixture,
 } from '@teamhub/hub-contracts';
-import type { GovernanceSnapshot } from '@teamhub/hub-contracts';
+import type { GovernanceSnapshot, Project } from '@teamhub/hub-contracts';
 import { FixedClock } from '../../src/clock.js';
 import type { Clock } from '../../src/clock.js';
 import { cloneArrayFields } from '../../src/store/clone-snapshot.js';
@@ -40,11 +40,13 @@ export class InMemoryPmRepositoryBase {
   protected readonly needSeq: IdSequence;
   protected readonly knowledgeNodeSeq: IdSequence;
   protected readonly seasonSeq: IdSequence;
+  protected readonly projectSeq: IdSequence;
   // 名册导入（ROSTER-IMPORT，K8）：members/groups 是 GovernanceSnapshot 字段、随 seed 传入构造，
   // 故计数器从 seed 长度起步即已含已加载数据（无 delete、单调增），无需 旧生产 Store 载入后 resync
   // （resources/sessions 才需 resync——它们不在 GovernanceSnapshot、构造后才 splice 进 live）。
   protected readonly memberSeq: IdSequence;
   protected readonly groupSeq: IdSequence;
+  protected readonly projects: Project[];
 
   constructor(
     seed: GovernanceSnapshot = governanceScenarioFixture,
@@ -62,8 +64,21 @@ export class InMemoryPmRepositoryBase {
     this.needSeq = createIdSequence(this.snapshot.needs.length);
     this.knowledgeNodeSeq = createIdSequence(this.snapshot.knowledgeNodes.length);
     this.seasonSeq = createIdSequence(this.snapshot.seasons.length);
+    this.projectSeq = createIdSequence(0);
     this.memberSeq = createIdSequence(this.snapshot.members.length);
     this.groupSeq = createIdSequence(this.snapshot.groups.length);
+    const projectId = this.snapshot.projectId;
+    const seasonId = this.snapshot.seasons.find((season) => season.status === 'active')?.id
+      ?? this.snapshot.seasonId;
+    this.projects = projectId ? [{
+      id: projectId,
+      seasonId,
+      name: projectId,
+      status: 'active',
+      createdAt: this.clock.now().toISOString(),
+      startsAt: null,
+      endsAt: null,
+    }] : [];
   }
 
   /**

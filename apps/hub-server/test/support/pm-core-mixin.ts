@@ -10,6 +10,7 @@ import type {
   Member,
   MemberRole,
   Need,
+  Project,
   RosterImportRow,
   Season,
   Task,
@@ -44,17 +45,21 @@ import {
 import { cloneArrayFields } from '../../src/store/clone-snapshot.js';
 import type {
   CreateGroupResult,
+  CreateProjectResult,
   DeleteGroupResult,
   DependencyDraft,
   GroupDraft,
   KnowledgeNodeDraft,
   NeedDraft,
   PmRepository,
+  ProjectDraft,
   RenameGroupResult,
   RosterImportOutcome,
   SetProjectManagerResult,
   SeasonDraft,
   TaskDraft,
+  UpdateProjectDraft,
+  UpdateProjectResult,
 } from '../../src/modules/pm/repository.js';
 import { nextSequentialId } from '../../src/store/id-sequence.js';
 import { GOVERNANCE_ARRAY_FIELDS } from './inmemory-pm-repository-base.js';
@@ -320,6 +325,51 @@ export function PmCoreMixin<T extends Base>(
       }
       const missingFromSheet = priorNames.filter((n) => !sheetNames.has(n));
       return { created, updated, failed, missingFromSheet, createdGroups, autoReviewers };
+    }
+
+    async listProjects(): Promise<Project[]> {
+      return [...this.projects];
+    }
+
+    async createProject(draft: ProjectDraft): Promise<CreateProjectResult> {
+      if (this.projects.some((project) => project.name === draft.name)) {
+        return { ok: false, reason: 'name-exists' };
+      }
+      const seasonId = draft.seasonId
+        ?? this.snapshot.seasons.find((season) => season.status === 'active')?.id
+        ?? this.snapshot.seasonId;
+      const project: Project = {
+        id: nextSequentialId('project-new', this.projectSeq),
+        seasonId,
+        name: draft.name,
+        status: 'active',
+        createdAt: this.clock.now().toISOString(),
+        startsAt: draft.startsAt,
+        endsAt: draft.endsAt ?? null,
+      };
+      this.projects.push(project);
+      return { ok: true, project };
+    }
+
+    async updateProject(projectId: string, patch: UpdateProjectDraft): Promise<UpdateProjectResult> {
+      const index = this.projects.findIndex((project) => project.id === projectId);
+      if (index < 0) return { ok: false, reason: 'not-found' };
+      const prior = this.projects[index];
+      if (patch.name !== undefined && patch.name !== prior.name
+        && this.projects.some((project) => project.name === patch.name)) {
+        return { ok: false, reason: 'name-exists' };
+      }
+      const next: Project = {
+        ...prior,
+        ...(patch.name !== undefined ? { name: patch.name } : {}),
+        ...(patch.startsAt !== undefined ? { startsAt: patch.startsAt } : {}),
+        ...(patch.endsAt !== undefined ? { endsAt: patch.endsAt } : {}),
+      };
+      if (next.startsAt && next.endsAt && Date.parse(next.endsAt) < Date.parse(next.startsAt)) {
+        return { ok: false, reason: 'date-order' };
+      }
+      this.projects[index] = next;
+      return { ok: true, project: next };
     }
 
     // ── 组管理最小版（PROGRAM-GROUP-ABSTRACT 刀④）：「可选组 = 叶子组且非哨兵」由 deriveLeafGroups 结构

@@ -15,6 +15,7 @@ import type {
   Member,
   MemberRole,
   Need,
+  Project,
   RosterImportRow,
   Season,
   Task,
@@ -27,17 +28,21 @@ import { createIdSequence, nextSequentialId } from '../../store/id-sequence.js';
 import type { IdSequence } from '../../store/id-sequence.js';
 import type {
   CreateGroupResult,
+  CreateProjectResult,
   DeleteGroupResult,
   DependencyDraft,
   PmRepository,
   GroupDraft,
   KnowledgeNodeDraft,
   NeedDraft,
+  ProjectDraft,
   RenameGroupResult,
   RosterImportOutcome,
   SetProjectManagerResult,
   SeasonDraft,
   TaskDraft,
+  UpdateProjectDraft,
+  UpdateProjectResult,
 } from './repository.js';
 import {
   buildAssignedTask,
@@ -102,6 +107,7 @@ import { SqliteDatabase } from '../../store/sqlite-db.js';
 const ENTITY_TABLES = [
   // pm-core 域
   'seasons',
+  'projects',
   'groups',
   'members',
   'tasks',
@@ -142,6 +148,7 @@ export class SqlitePmRepository implements PmRepository {
   private needSeq!: IdSequence;
   private knowledgeNodeSeq!: IdSequence;
   private seasonSeq!: IdSequence;
+  private projectSeq!: IdSequence;
   private memberSeq!: IdSequence;
   private groupSeq!: IdSequence;
 
@@ -177,7 +184,33 @@ export class SqlitePmRepository implements PmRepository {
     if (existing.length === 0 && sdb.getMeta('seasonId') === undefined) {
       seedFreshDatabase(sdb, seed);
     }
-    return new SqlitePmRepository(sdb, clock);
+    const repo = new SqlitePmRepository(sdb, clock);
+    repo.ensureSeedProject(seed);
+    return repo;
+  }
+
+  /** 老库幂等补一行当前项目；日期保持 null，绝不把入库时间伪装成项目开始日。 */
+  private ensureSeedProject(seed: GovernanceSnapshot): void {
+    try {
+      if (this.allRows('projects').length > 0) return;
+      const projectId = this.getMeta('projectId') ?? seed.projectId;
+      if (!projectId) return;
+      const seasons = this.allRows<Season>('seasons');
+      const seasonId = seasons.find((season) => season.status === 'active')?.id
+        ?? this.getMeta('seasonId') ?? seed.seasonId;
+      const project: Project = {
+        id: projectId,
+        seasonId,
+        name: projectId,
+        status: 'active',
+        createdAt: this.clock.now().toISOString(),
+        startsAt: null,
+        endsAt: null,
+      };
+      this.tx(() => this.insertRow('projects', project.id, project));
+    } catch (error) {
+      console.warn('Failed to ensure seed project', error);
+    }
   }
 
   // ── 低层行操作（委托 SqliteDatabase） ─────────────────────────────────
@@ -221,6 +254,7 @@ export class SqlitePmRepository implements PmRepository {
     this.needSeq = createIdSequence(this.maxSuffix('needs', 'need-new'));
     this.knowledgeNodeSeq = createIdSequence(this.maxSuffix('knowledge_nodes', 'kn-cl'));
     this.seasonSeq = createIdSequence(this.maxSuffix('seasons', 'season-new'));
+    this.projectSeq = createIdSequence(this.maxSuffix('projects', 'project-new'));
     this.memberSeq = createIdSequence(this.maxSuffix('members', 'member-new'));
     this.groupSeq = createIdSequence(this.maxSuffix('groups', 'grp-new'));
   }
@@ -447,6 +481,54 @@ export class SqlitePmRepository implements PmRepository {
       }
       const missingFromSheet = priorNames.filter((n) => !sheetNames.has(n));
       return { created, updated, failed, missingFromSheet, createdGroups, autoReviewers };
+    });
+  }
+
+  async listProjects(): Promise<Project[]> {
+    return this.allRows<Project>('projects');
+  }
+
+  async createProject(draft: ProjectDraft): Promise<CreateProjectResult> {
+    return this.tx(() => {
+      if (this.allRows<Project>('projects').some((project) => project.name === draft.name)) {
+        return { ok: false as const, reason: 'name-exists' as const };
+      }
+      const seasonId = draft.seasonId
+        ?? this.allRows<Season>('seasons').find((season) => season.status === 'active')?.id
+        ?? this.getMeta('seasonId') ?? '';
+      const project: Project = {
+        id: nextSequentialId('project-new', this.projectSeq),
+        seasonId,
+        name: draft.name,
+        status: 'active',
+        createdAt: this.clock.now().toISOString(),
+        startsAt: draft.startsAt,
+        endsAt: draft.endsAt ?? null,
+      };
+      this.insertRow('projects', project.id, project);
+      return { ok: true as const, project };
+    });
+  }
+
+  async updateProject(projectId: string, patch: UpdateProjectDraft): Promise<UpdateProjectResult> {
+    return this.tx(() => {
+      const prior = this.getRow<Project>('projects', projectId);
+      if (!prior) return { ok: false as const, reason: 'not-found' as const };
+      if (patch.name !== undefined && patch.name !== prior.name
+        && this.allRows<Project>('projects').some((project) => project.name === patch.name)) {
+        return { ok: false as const, reason: 'name-exists' as const };
+      }
+      const next: Project = {
+        ...prior,
+        ...(patch.name !== undefined ? { name: patch.name } : {}),
+        ...(patch.startsAt !== undefined ? { startsAt: patch.startsAt } : {}),
+        ...(patch.endsAt !== undefined ? { endsAt: patch.endsAt } : {}),
+      };
+      if (next.startsAt && next.endsAt && Date.parse(next.endsAt) < Date.parse(next.startsAt)) {
+        return { ok: false as const, reason: 'date-order' as const };
+      }
+      this.updateRow('projects', projectId, next);
+      return { ok: true as const, project: next };
     });
   }
 

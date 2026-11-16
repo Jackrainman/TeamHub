@@ -44,6 +44,7 @@ const APP_SETTINGS_ID = 'singleton';
  */
 export const TEAMHUB_BUSINESS_TABLES = [
   'seasons',
+  'projects',
   'groups',
   'members',
   'tasks',
