@@ -1,6 +1,6 @@
 /* ===== P1：shared/ui 原语新增层 =====================================
    皮肤仍由 02-base 的控件基线 + .btn/.card/.empty-state 提供；本文件只补
-   「基线没有的组件态」与右栏布局。颜色/尺寸只允许 var(--token)，禁止 !important。 */
+   「基线没有的组件态」与右栏布局。颜色/尺寸只允许 var(--token)，禁止重要性覆盖。 */
 
 /* ---- Button：loading 态（皮肤零改动） ---- */
 .ui-btn[aria-busy='true'] { cursor: progress; }
