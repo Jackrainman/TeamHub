@@ -34,13 +34,6 @@
   ],
   "todo": [
     {
-      "id": "NODE-ENGINE-DRIFT",
-      "title": "生产 Node 版本与 engines 声明漂移：三包原声明 engines.node>=24，服务器实际 v22.23.1（~/.local/bin/node 与 ~/.hermes/node/bin/node 同为 22），deploy 时 npm ci 每次刷 EBADENGINE。2026-11-13 已修复：在 22 下跑通全量门后把 engines 降到 >=22，README/deploy/architecture/CI 同步为 22 底线（commit 7cd87cd）",
-      "tag": "ops",
-      "batch": "done",
-      "note": "修复方式选 (b)：不引入第二套 Node，生产继续用 ~/.hermes/node 的 v22；若将来要用 Node 24 独有 API，需先装独立运行时，禁止升级 ~/.hermes/node（Hermes 网关依赖）"
-    },
-    {
       "id": "MODULE-REGISTRY",
       "title": "域注册表步骤 2-3：server 遍历 DOMAINS 装配 + console 页面 id 约束 + CODE_MAP 派生",
       "tag": "code",
@@ -54,7 +47,7 @@
       "tag": "code",
       "batch": "reimburse",
       "status": "implemented-pending-acceptance",
-      "note": "v0.86.0/v0.87.0 已实现：顶层文件一条确认项、未知金额 null、幂等创建/留档、补传逐文件归属、OCR 默认关闭显式试用。实施计划与样本探测明细见 git 历史（v0.86.0–v0.87.0）。剩：真实样本 OCR 真值对照、弱设备耗时/内存、真实账号完整业务验收；未部署。",
+      "note": "v0.86.0/v0.87.0 已实现：顶层文件一条确认项、未知金额 null、幂等创建/留档、补传逐文件归属、OCR 默认关闭显式试用。实施计划与样本探测明细见 git 历史（v0.86.0–v0.87.0）。剩：真实样本 OCR 真值对照、弱设备耗时/内存、真实账号完整业务验收；生产已上线（buildId 131c38f 起在跑）。",
       "dod": "每个合法顶层文件恰好一个确认项；多票包不拆项；未知金额不造 0；票种/缺材料/字段未识别/核对原因明确；普通成员只能改本人未锁条目；保存和补传不重复创建；原件不进列表/聚合；真实样本 OCR 验收、三包 verify:all、架构门和文档门通过，根 verify（CI，含浏览器 E2E）通过。"
     },
     {
@@ -79,28 +72,10 @@
       "batch": "later"
     },
     {
-      "id": "DIRECTION-GAPS-INVALID",
-      "title": "学习方向缺口机制存疑（用户 2026-09-04）：『缺口其实根本不缺』；2026-09-06 代码核查：deriveDirectionGaps 数据源完全是 needs（没人填就算不出）且语义=任务卡壳归因≠缺技能，用户拍板=先观察不动，学习方向整体挂起",
-      "tag": "discussion",
-      "batch": "later"
-    },
-    {
-      "id": "REIMBURSE-EVIDENCE-STORE",
-      "title": "凭证附件受控通道（D-094 拍板后立项）：条目级上传发票 PDF/付款截图/查验单原件 + 鉴权下载 + 下载留操作者痕迹 + 随批次打包交财务；附件永不进列表/聚合/无鉴权静态路径；待决子项：财务权限旗 2026-09-06 已拍板=不单独立「财务」旗，沿用超管/PM 旗；剩余=存放目录（部署动作）；用户手上已有一批含付款截图的真实票据可作验收样本；见 docs/domains/reimburse.md §7",
-      "tag": "code",
-      "batch": "reimburse"
-    },
-    {
       "id": "REIMBURSE-OCR-PROBE",
       "title": "扫描票本地 OCR 技术验证：真实样本测 tesseract.js 资源体积、单页耗时、低性能设备内存与核心字段识别率；达标后才评估接主流程，结果必须人工确认；解析全程留浏览器属 D-094 不变式①，与附件留档（D-094②）互不牵动；见 docs/domains/reimburse.md",
-      "note": "2026-11-04 已用用户指定本机样本做仅汇总程序抽测（16 图、32 PDF），并在现有 Edge 验证同源 OCR。结果见 REIMBURSE-PACKAGE-V1.verification。不得声称准确率达标；仍需脱敏真值、弱设备耗时/内存和扫描票代表性验收，默认 OCR 关闭。",
+      "note": "2026-11-04 已用用户指定本机样本做仅汇总程序抽测（16 图、32 PDF），并在现有 Edge 验证同源 OCR。结果见 docs/research/reimburse-test-report.md。不得声称准确率达标；仍需脱敏真值、弱设备耗时/内存和扫描票代表性验收，默认 OCR 关闭。",
       "tag": "research",
-      "batch": "later"
-    },
-    {
-      "id": "TESTS-PM-CORE",
-      "title": "pm-core.ts derive 已有 task-post-claim.test 覆盖；如需 1:1 专属文件可再补",
-      "tag": "code",
       "batch": "later"
     },
     {
@@ -157,25 +132,9 @@
       "title": "战队原则入口：右上角加「战队原则」入口，弹层/页面渲染该数据（改完经飞书私发审，勿发聊天框文本）",
       "tag": "code",
       "batch": "later"
-    },
-    {
-      "id": "GIT-BASELINE",
-      "title": "git 收基线：先 git 收个干净基线，每个 bug 一个 commit，逐步理清逻辑链；主分支只放稳定版，功能走开发分支，停掉后缀式版本管理",
-      "tag": "ops",
-      "batch": "later"
-    },
-    {
-      "id": "GIT-POLICY",
-      "title": "确认 git 用法：代码用 git（历史/回滚/对比/协作），内容文档用 DB；主分支只放稳定版，功能走开发分支；停掉后缀式版本管理",
-      "tag": "ops",
-      "batch": "later"
     }
   ],
   "directions": [
-    {
-      "id": "INIT-BURDEN",
-      "title": "初始化减负（用户拍板缓做 2026-08-30）：痛点=全队每年的内容冷启动，但年度内容不可预判（R1/R2 机构数/模块划分赛前无法预知）——预设模板/种子包现阶段=纸上谈兵；正解偏向『让记录变便宜』（HERMES-CHAT-MVP 已排队）而非『预设内容』；待真实赛季数据到来后再评估模板化"
-    },
     {
       "id": "KB-LARK-DESIGN",
       "title": "飞书 wiki/drive → KB 摄入（出现真实摄入需求时按单一 integration 边界重新立项）"
@@ -193,16 +152,73 @@
       "title": "AI 自动画 DAG 草图+人微调（卡 Hermes 触点）"
     },
     {
+      "id": "TEACHING-FLOW",
+      "title": "深度教学动线设计（简版已落地 v0.46.1：车队初始化移去机器人队页）——主页信息分层/初始化顺序显性化，待与用户讨论"
+    }
+  ],
+  "closed": [
+    {
+      "id": "NODE-ENGINE-DRIFT",
+      "title": "生产 Node 版本与 engines 声明漂移：三包原声明 engines.node>=24，服务器实际 v22.23.1（~/.local/bin/node 与 ~/.hermes/node/bin/node 同为 22），deploy 时 npm ci 每次刷 EBADENGINE。2026-11-13 已修复：在 22 下跑通全量门后把 engines 降到 >=22，README/deploy/architecture/CI 同步为 22 底线（commit 7cd87cd）",
+      "reason": "三包 engines 已统一 >=22，workflow node 22，commit 7cd87cd 已落",
+      "closed_at": "2026-11-17",
+      "buildId": "b0f17ee"
+    },
+    {
+      "id": "DIRECTION-GAPS-INVALID",
+      "title": "学习方向缺口机制存疑（用户 2026-09-04）：『缺口其实根本不缺』；2026-09-06 代码核查：deriveDirectionGaps 数据源完全是 needs（没人填就算不出）且语义=任务卡壳归因≠缺技能，用户拍板=先观察不动，学习方向整体挂起",
+      "reason": "用户 2026-09-06 已拍板挂起，无下一步动作",
+      "closed_at": "2026-11-17",
+      "buildId": "b0f17ee"
+    },
+    {
+      "id": "REIMBURSE-EVIDENCE-STORE",
+      "title": "凭证附件受控通道（D-094 拍板后立项）：条目级上传发票 PDF/付款截图/查验单原件 + 鉴权下载 + 下载留操作者痕迹 + 随批次打包交财务；附件永不进列表/聚合/无鉴权静态路径；待决子项：财务权限旗 2026-09-06 已拍板=不单独立「财务」旗，沿用超管/PM 旗；剩余=存放目录（部署动作）；用户手上已有一批含付款截图的真实票据可作验收样本；见 docs/domains/reimburse.md §7",
+      "reason": "6 个端点已上线，evidence 目录 52KB 有内容，生产 buildId 已在跑",
+      "closed_at": "2026-11-17",
+      "buildId": "b0f17ee"
+    },
+    {
+      "id": "TESTS-PM-CORE",
+      "title": "pm-core.ts derive 已有 task-post-claim.test 覆盖；如需 1:1 专属文件可再补",
+      "reason": "pm-core.ts 已不存在，derive 由 domains/pm/* + 现有测试覆盖",
+      "closed_at": "2026-11-17",
+      "buildId": "b0f17ee"
+    },
+    {
+      "id": "GIT-BASELINE",
+      "title": "git 收基线：先 git 收个干净基线，每个 bug 一个 commit，逐步理清逻辑链；主分支只放稳定版，功能走开发分支，停掉后缀式版本管理",
+      "reason": "已被 AGENTS §2 trunk-based 逐 bug 一 commit 取代",
+      "closed_at": "2026-11-17",
+      "buildId": "b0f17ee"
+    },
+    {
+      "id": "GIT-POLICY",
+      "title": "确认 git 用法：代码用 git（历史/回滚/对比/协作），内容文档用 DB；主分支只放稳定版，功能走开发分支；停掉后缀式版本管理",
+      "reason": "已被 trunk-based 决策取代；发布分支策略另立决策，不在本条悬空",
+      "closed_at": "2026-11-17",
+      "buildId": "b0f17ee"
+    },
+    {
+      "id": "INIT-BURDEN",
+      "title": "初始化减负（用户拍板缓做 2026-08-30）：痛点=全队每年的内容冷启动，但年度内容不可预判（R1/R2 机构数/模块划分赛前无法预知）——预设模板/种子包现阶段=纸上谈兵；正解偏向『让记录变便宜』（HERMES-CHAT-MVP 已排队）而非『预设内容』；待真实赛季数据到来后再评估模板化",
+      "reason": "用户 2026-08-30 已拍板缓做，理由仍成立",
+      "closed_at": "2026-11-17",
+      "buildId": "b0f17ee"
+    },
+    {
       "id": "AXIS-TREE-VIZ",
-      "title": "知识树展示（人的未来，后置）"
+      "title": "知识树展示（人的未来，后置）",
+      "reason": "KB 页已移出 console，无落点",
+      "closed_at": "2026-11-17",
+      "buildId": "b0f17ee"
     },
     {
       "id": "SCHED-NARROW",
-      "title": "排班收窄定位（退出日常动线，只服务关键窗口）"
-    },
-    {
-      "id": "TEACHING-FLOW",
-      "title": "深度教学动线设计（简版已落地 v0.46.1：车队初始化移去机器人队页）——主页信息分层/初始化顺序显性化，待与用户讨论"
+      "title": "排班收窄定位（退出日常动线，只服务关键窗口）",
+      "reason": "排班已事实退出导航，features/schedule 全不可达，仅需后续清理 registry.pages 元数据",
+      "closed_at": "2026-11-17",
+      "buildId": "b0f17ee"
     }
   ]
 }
