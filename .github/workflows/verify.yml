@@ -16,6 +16,8 @@ jobs:
       - name: Verify project
         id: verify
         shell: bash
+        env:
+          E2E_SHOTS: ${{ runner.temp }}/teamhub-e2e-shots
         run: |
           set -o pipefail
           npm run verify 2>&1 | tee "$RUNNER_TEMP/teamhub-verify.log"
@@ -31,3 +33,13 @@ jobs:
           const escaped = tail.replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
           console.log(`::error title=Verification failure details::${escaped}`);
           NODE
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-artifacts-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/teamhub-e2e-shots
+            ${{ runner.temp }}/teamhub-verify.log
+          if-no-files-found: ignore
+          retention-days: 7

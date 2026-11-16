@@ -17,7 +17,7 @@
     "test:local": "vitest run",
     "test:watch": "vitest",
     "health-check": "node e2e/health-check.cjs",
-    "test:e2e": "node e2e/suite/first-login-pin.cjs && node e2e/suite/weekly-workbench.cjs && node e2e/suite/expected-ui.cjs && node e2e/suite/lazy-pages.cjs && node e2e/suite/calendar.cjs && node e2e/suite/reimburse-workflow.cjs && node e2e/suite/right-rail.cjs && node e2e/suite/task-rail.cjs",
+    "test:e2e": "node ../../scripts/run-e2e.mjs",
     "verify:local": "npm run typecheck:local && npm run test:local && npm run build:local",
     "verify:all": "npm run build:contracts && npm run verify:local"
   },
