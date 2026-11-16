@@ -1,29 +1,32 @@
 import type { Project } from '@teamhub/hub-contracts';
 import { useI18n } from '../../../i18n';
-import type { BarGeometry } from './model';
+import { colorIndexOf, type MonthBar } from './calendar-month';
 
-export function ProjectBar({ project, geometry, today, current, onOpen }: {
+export function ProjectBar({ project, bar, today, onOpen }: {
   project: Project;
-  geometry: BarGeometry;
+  bar: MonthBar;
   today: string;
-  current: boolean;
   onOpen: () => void;
 }): JSX.Element {
   const { t } = useI18n();
-  const end = geometry.openEnded ? t('calendar.ongoing') : project.endsAt?.slice(0, 10) ?? today;
+  const start = project.startsAt?.slice(0, 10) ?? '';
+  const end = bar.openEnded ? t('calendar.ongoing') : project.endsAt?.slice(0, 10) ?? today;
+  const range = `${start} → ${end}`;
+  const clipped = bar.clippedStart || bar.clippedEnd ? ` · ${t('calendar.clipped')}` : '';
   return <button
     type="button"
-    className={`calendar-bar${geometry.openEnded ? ' calendar-bar--open' : ''}${current ? ' calendar-bar--current' : ''}`}
-    style={{ left: `${geometry.left * 100}%`, width: `${geometry.width * 100}%` }}
+    className="calendar-project-bar"
+    style={{ gridColumn: `${bar.startCol + 1} / ${bar.endCol + 2}`, gridRow: bar.lane + 1 }}
     data-project-id={project.id}
-    data-open-ended={geometry.openEnded ? 'true' : undefined}
-    data-clipped={geometry.clippedStart || geometry.clippedEnd ? 'true' : undefined}
-    data-clipped-start={geometry.clippedStart ? 'true' : undefined}
-    data-clipped-end={geometry.clippedEnd ? 'true' : undefined}
-    title={`${project.name} · ${project.startsAt?.slice(0, 10)} → ${end}${geometry.clippedStart || geometry.clippedEnd ? ` · ${t('calendar.clipped')}` : ''}`}
-    aria-label={`${project.name}, ${project.startsAt?.slice(0, 10)} → ${end}`}
+    data-lane={bar.lane}
+    data-continue-start={bar.clippedStart}
+    data-continue-end={bar.clippedEnd}
+    data-open-ended={bar.openEnded}
+    data-cal={colorIndexOf(project.id) + 1}
+    title={`${project.name} · ${range}${clipped}`}
+    aria-label={`${project.name}, ${range}`}
     onClick={onOpen}
   >
-    <span className="calendar-bar-name">{project.name}</span>
+    <span>{project.name}</span>
   </button>;
 }

@@ -1,7 +1,7 @@
 import type { BaselineMilestonePublic, BaselineSegment, Project } from '@teamhub/hub-contracts';
 import { useI18n, type Lang } from '../../../i18n';
 import { bandGeometry, barGeometry, dateKeyOf, type AxisTick, type CalendarAxis, type CalendarMode } from './model';
-import { ProjectBar } from './ProjectBar';
+import { TimelineBar } from './TimelineBar';
 import { CalendarMilestone } from './CalendarMilestone';
 
 export function MonthGrid({ axis, mode, projects, milestones, bands, today, projectId, onOpenProject, onOpenMilestone }: {
@@ -53,7 +53,7 @@ export function MonthGrid({ axis, mode, projects, milestones, bands, today, proj
             <CalendarBands bands={bands} axis={axis} />
             <div className="calendar-grid-lines" aria-hidden="true">{ticks.map((tick) => <span key={tick.key} />)}</div>
             {todayLeft !== null ? <div className="calendar-today-line" style={{ left: `${todayLeft}%` }} aria-hidden="true" /> : null}
-            {geometry ? <ProjectBar project={project} geometry={geometry} today={today} current={project.id === projectId} onOpen={() => onOpenProject(project)} /> : null}
+            {geometry ? <TimelineBar project={project} geometry={geometry} today={today} current={project.id === projectId} onOpen={() => onOpenProject(project)} /> : null}
           </div>
         </div>;
       })}
