@@ -38,7 +38,7 @@ export function useCalendarData(client: HubApiClient, source: string): {
   const projects = projectsQuery.data?.projects ?? [];
   const filteredProjects = useMemo(() => projects
     .filter((project) => project.status === 'active' && (!activeSeason || project.seasonId === activeSeason.id))
-    .sort((a, b) => (a.startsAt ?? '').localeCompare(b.startsAt ?? '') || a.name.localeCompare(b.name)), [projects, activeSeason]);
+    .sort((a, b) => (a.startsAt?.slice(0, 10) ?? '9999-99-99').localeCompare(b.startsAt?.slice(0, 10) ?? '9999-99-99') || a.name.localeCompare(b.name)), [projects, activeSeason]);
   const baselineQuery = useBaseline(client, source, activeSeason?.id);
   return { projectsQuery, seasonsQuery, baselineQuery, activeSeason, filteredProjects, hiddenCount: projects.length - filteredProjects.length };
 }

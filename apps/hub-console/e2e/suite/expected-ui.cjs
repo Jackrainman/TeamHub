@@ -1,4 +1,4 @@
-// E 原型验收：真实 SQLite、浏览器时钟、字号持久化与四个成品页。
+// E 原型验收：真实 SQLite、浏览器时钟、字号持久化与五个成品页。
 const { chromium } = require('playwright');
 const { spawn } = require('node:child_process');
 const { mkdtempSync, mkdirSync, rmSync, writeFileSync } = require('node:fs');
@@ -113,11 +113,11 @@ const { freePort } = require('./lib/free-port.cjs');
     await page.getByRole('button', { name: '标准', exact: true }).click();
     await capture('settings');
 
-    // 成品四页：侧栏只有 任务/项目/报销/设置，旧导航项（含「更多」二级入口）一律不存在。
+    // 成品五页：侧栏只有 任务/项目/日历/报销/设置，旧导航项（含「更多」二级入口）一律不存在。
     for (const label of ['队伍近况', '知识库', '库存与 BOM', '总览', '每日在场', '图纸档案', '机器人清单', '学习方向', '时间线', '更多']) {
-      assert.equal(await nav(label).count(), 0, `${label} 不在四页导航里`);
+      assert.equal(await nav(label).count(), 0, `${label} 不在五页导航里`);
     }
-    for (const [label, key] of [['项目', 'project'], ['报销', 'reimburse']]) {
+    for (const [label, key] of [['项目', 'project'], ['日历', 'calendar'], ['报销', 'reimburse']]) {
       await nav(label).click(); await page.waitForLoadState('networkidle');
       assert.equal(await page.locator('.console-main').evaluate(el => getComputedStyle(el).animationName), 'none');
       await capture(key);
@@ -174,7 +174,7 @@ const { freePort } = require('./lib/free-port.cjs');
     for (const width of [1000, 390]) {
       await page.setViewportSize({ width, height: 1000 });
       if (await expanded()) await page.locator('.sidebar-toggle').click();
-      for (const [label, key] of [['任务', 'workbench'], ['项目', 'project'], ['报销', 'reimburse'], ['设置', 'settings']]) {
+      for (const [label, key] of [['任务', 'workbench'], ['项目', 'project'], ['日历', 'calendar'], ['报销', 'reimburse'], ['设置', 'settings']]) {
         await nav(label).click(); await page.waitForLoadState('networkidle'); await capture(`${key}-${width}`);
       }
     }
@@ -190,7 +190,7 @@ const { freePort } = require('./lib/free-port.cjs');
     assert.equal(await loginPage.locator('.console-shell').evaluate(el => el.classList.contains('sidebar-expanded')), true, 'login gate does not consume sidebar idle time');
     await loginContext.close();
     assert.deepEqual(errors, []);
-    console.log(`PASS E expected UI: idle timeline, continuous transition, preferences, real drawers, private evidence, search, four shipped pages; screenshots ${shots}`);
+    console.log(`PASS E expected UI: idle timeline, continuous transition, preferences, real drawers, private evidence, search, five shipped pages; screenshots ${shots}`);
   } catch (error) {
     if (page) { await page.screenshot({ path: path.join(shots, 'expected-failure.png'), fullPage: true }); console.error(await page.locator('body').innerText()); }
     throw error;

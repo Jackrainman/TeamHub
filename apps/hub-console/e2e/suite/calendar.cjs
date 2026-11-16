@@ -1,0 +1,127 @@
+// Real SQLite + real browser acceptance for the read-only project calendar.
+const { chromium } = require('playwright');
+const { spawn } = require('node:child_process');
+const { mkdtempSync, mkdirSync, rmSync } = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { pathToFileURL } = require('node:url');
+const assert = require('node:assert/strict');
+const { freePort } = require('./lib/free-port.cjs');
+
+(async () => {
+  const root = path.resolve(__dirname, '../../..');
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'teamhub-calendar-e2e-'));
+  const shots = process.env.E2E_SHOTS || path.join(os.tmpdir(), 'p3b-shots');
+  mkdirSync(shots, { recursive: true });
+  const dbFile = path.join(dir, 'calendar.sqlite');
+  const { openUnifiedDb } = await import(pathToFileURL(path.join(root, 'hub-server/dist/store/sqlite-unified.js')));
+  const now = new Date();
+  const at = days => new Date(now.getTime() + days * 86400000).toISOString();
+  const db = openUnifiedDb(dbFile);
+  db.initialize({ dataMode: 'real', identityMode: 'anonymous' }, now);
+  const stores = db.openStores();
+  const season = await stores.gov.createSeason({ name: 'E2E 日历赛季', startsAt: at(-8), endsAt: at(45) });
+  const ongoing = await stores.gov.createProject({ name: 'E2E进行中项目', startsAt: at(-3), endsAt: null });
+  const finished = await stores.gov.createProject({ name: 'E2E跨周项目', startsAt: at(-2), endsAt: at(3) });
+  await stores.gov.createProject({ name: 'E2E未定开始', startsAt: null, endsAt: null });
+  assert.ok(ongoing.ok && finished.ok);
+  await stores.baseline.upsertBaseline(season.id, {
+    anchors: {}, segments: [], phases: [],
+    milestones: [
+      { id: 'e2e-gate', title: 'E2E门', kind: 'gate', plannedAt: at(2), status: 'pending' },
+      { id: 'e2e-passed', title: 'E2E已过', kind: 'milestone', plannedAt: at(-2), status: 'passed' },
+      { id: 'e2e-outside', title: '窗口外里程碑', kind: 'milestone', plannedAt: at(365), status: 'pending' },
+    ],
+  });
+  db.close();
+
+  const port = await freePort();
+  const base = `http://127.0.0.1:${port}`;
+  let child, browser, page;
+  const errors = [];
+  try {
+    child = spawn(process.execPath, [path.join(root, 'hub-server/dist/main.js')], {
+      windowsHide: true,
+      env: { ...process.env, HUB_HOST: '127.0.0.1', HUB_PORT: String(port), TEAMHUB_DB_FILE: dbFile, TEAMHUB_CONSOLE_DIST_DIR: path.resolve(__dirname, '../../dist') },
+      stdio: ['ignore', 'ignore', 'pipe'],
+    });
+    child.stderr.on('data', data => process.stderr.write(data));
+    for (let i = 0; ; i++) {
+      if (child.exitCode !== null || i > 100) throw new Error('calendar test server failed to start');
+      try { if ((await fetch(`${base}/health`)).ok) break; } catch {}
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    browser = await chromium.launch({ channel: process.env.E2E_BROWSER_CHANNEL || undefined });
+    page = await (await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' })).newPage();
+    page.setDefaultTimeout(10000);
+    page.on('pageerror', error => errors.push(String(error)));
+    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    await page.goto(base, { waitUntil: 'networkidle' });
+    await page.locator('.console-sidebar').getByRole('button', { name: '日历', exact: true }).click();
+    await page.locator('.calendar-page').waitFor();
+    await page.locator('.calendar-bar').first().waitFor();
+
+    async function capture(name, width, height) {
+      await page.setViewportSize({ width, height });
+      await page.waitForTimeout(100);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2), true, `overflow: ${name}`);
+      await page.screenshot({ path: path.join(shots, `${name}.png`), fullPage: true, animations: 'disabled' });
+    }
+
+    // 月视图：两个项目有横条，无开始日期项目保留行但不画条。
+    assert.equal(await page.locator('.calendar-bar').count(), 2);
+    assert.equal(await page.locator('.calendar-lane[data-no-start="true"] .calendar-bar').count(), 0);
+    const openGeometry = await page.locator('.calendar-bar[data-open-ended="true"]').evaluate(bar => {
+      const track = bar.parentElement.getBoundingClientRect();
+      const rect = bar.getBoundingClientRect();
+      const line = document.querySelector('.calendar-today-layer .calendar-today-line').getBoundingClientRect();
+      const days = Number(document.querySelector('.calendar-grid').dataset.axisDays);
+      return { halfDay: track.width / days / 2, delta: rect.right - (line.left + line.width / 2) };
+    });
+    assert.ok(Math.abs(openGeometry.delta - openGeometry.halfDay) < 3, 'open-ended bar reaches the end of today');
+    await capture('p3b-01-month-1440', 1440, 1000);
+
+    await page.locator('[data-mode="week"]').click();
+    await page.locator('.calendar-grid[data-mode="week"]').waitFor();
+    assert.equal(await page.locator('[data-tick="week"]').count(), 8);
+    assert.equal(await page.locator('[data-milestone-id="e2e-outside"]').count(), 0);
+    await capture('p3b-02-week-1440', 1440, 1000);
+
+    await page.locator('[data-mode="month"]').click();
+    await page.locator('.calendar-grid[data-mode="month"]').waitFor();
+    await capture('p3b-03-month-1000', 1000, 900);
+    assert.ok(await page.locator('[data-tick="month"]').count() >= 2, 'active season spans at least two month ticks');
+    await page.locator('[data-mode="week"]').click();
+    await page.locator('.calendar-grid[data-mode="week"]').waitFor();
+    assert.equal(await page.locator('[data-tick="week"]').count(), 8);
+    await capture('p3b-04-week-1000', 1000, 900);
+
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.locator('[data-milestone-id="e2e-gate"]').click();
+    const drawer = page.getByRole('dialog');
+    await drawer.waitFor();
+    assert.match(await drawer.getByRole('heading').innerText(), /里程碑 · E2E门/);
+    assert.match(await drawer.innerText(), /E2E门/);
+    assert.match(await drawer.innerText(), /E2E 日历赛季/);
+    await page.screenshot({ path: path.join(shots, 'p3b-05-drawer-milestone.png'), fullPage: true, animations: 'disabled' });
+    await page.keyboard.press('Escape');
+    await drawer.waitFor({ state: 'hidden' });
+
+    await page.locator('.calendar-bar[data-open-ended="true"]').click();
+    await drawer.waitFor();
+    assert.match(await drawer.getByRole('heading').innerText(), /E2E进行中项目/);
+    assert.match(await drawer.innerText(), /至今/);
+    await page.screenshot({ path: path.join(shots, 'p3b-06-drawer-project.png'), fullPage: true, animations: 'disabled' });
+    await page.keyboard.press('Escape');
+    await drawer.waitFor({ state: 'hidden' });
+    assert.deepEqual(errors, [], 'calendar has no browser errors');
+    console.log(`PASS calendar: month/week, lanes, milestones, drawers, 1000px overflow; screenshots ${shots}`);
+  } finally {
+    if (browser) await browser.close();
+    if (child && child.exitCode === null) {
+      const exited = new Promise(resolve => child.once('exit', resolve));
+      child.kill(); await exited;
+    }
+    rmSync(dir, { recursive: true, force: true });
+  }
+})().catch(error => { console.error(error); process.exit(1); });

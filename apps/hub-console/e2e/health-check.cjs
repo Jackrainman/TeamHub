@@ -1,21 +1,21 @@
 /**
  * TeamHub console 端到端体检（E2E smoke）。
  *
- * 用真实浏览器（Playwright + 缓存 chromium）逐页点过侧栏全部导航项（成品四页），
+ * 用真实浏览器（Playwright + 缓存 chromium）逐页点过侧栏全部导航项（成品五页），
  * 对每页：截图 + 抓控制台/页面错误 + 量正文长度（白屏哨兵）。任一页报错或白屏 → 退出码 1。
  *
  * 不依赖外部项目（历史上曾借 ~/feiyue-test 的 playwright，已收口为本包 devDependency）。
  *
  * 装置前置：server 在 SQLite app_settings **不存在**时进 setup 模式、只渲染首启动向导
- * （正常四页不挂）。故本脚本两种用法各需对应的起服前置：
- *   1. 常规四页体检（默认 HEALTH_EXPECT=normal）：使用已初始化 app_settings 的 SQLite，server 进正常模式再打。
+ * （正常五页不挂）。故本脚本两种用法各需对应的起服前置：
+ *   1. 常规五页体检（默认 HEALTH_EXPECT=normal）：使用已初始化 app_settings 的 SQLite，server 进正常模式再打。
  *      检测到向导 = 前置没做好，直接 fail-fast 报明。
  *   2. 向导渲染用例（HEALTH_EXPECT=wizard）：使用全新空 SQLite，server 进
  *      setup 模式；本脚本断言全屏向导 + 安装卡渲染、无报错 / 白屏。
  * server 生命周期与 app_settings 初始化由起服方负责（本脚本只连 BASE，沿脚本一贯的"外部起服"模型）。
  *
  * 用法：
- *   npm run health-check                                   # 默认打 http://localhost:4177，断言正常四页
+ *   npm run health-check                                   # 默认打 http://localhost:4177，断言正常五页
  *   TEAMHUB_BASE=http://host:4177 npm run health-check
  *   HEALTH_EXPECT=wizard npm run health-check              # 断言首启动向导渲染（起服须用空 SQLite）
  *   HEALTH_OUT=~/shots npm run health-check                # 自定义截图落点（默认系统临时目录）
@@ -41,7 +41,7 @@ const MIN_BODY = 80; // 正文短于此判为疑似白屏
   page.on('console', (m) => { if (m.type() === 'error') errors.push('[console] ' + m.text().slice(0, 240)); });
   page.on('pageerror', (e) => errors.push('[pageerror] ' + String(e).slice(0, 240)));
 
-  console.log(`[health] 打开 ${BASE}（期望：${EXPECT === 'wizard' ? '首启动向导' : '正常四页'}）`);
+  console.log(`[health] 打开 ${BASE}（期望：${EXPECT === 'wizard' ? '首启动向导' : '正常五页'}）`);
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.waitForTimeout(800);
 
@@ -71,7 +71,7 @@ const MIN_BODY = 80; // 正文短于此判为疑似白屏
     return;
   }
 
-  // ── 常规四页体检：起服须已有 app_settings（正常模式）。检测到向导 = 前置没做好，fail-fast ──────
+  // ── 常规五页体检：起服须已有 app_settings（正常模式）。检测到向导 = 前置没做好，fail-fast ──────
   if (wizardPresent) {
     await browser.close();
     console.error('[health] ✗ FAIL — server 处于 setup 模式（渲染的是首启动向导）。');

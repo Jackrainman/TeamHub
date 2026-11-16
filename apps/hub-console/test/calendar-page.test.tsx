@@ -50,6 +50,11 @@ describe('日历：空态', () => {
     expect(html).not.toContain('class="calendar-bar');
   });
 
+  test('未定开始项目排在有开始日期项目之后', () => {
+    const html = renderPage([{ ...project, id: 'no-start', name: '未定开始项目', startsAt: null, endsAt: null }, project]);
+    expect(html.indexOf('跨月项目')).toBeLessThan(html.indexOf('未定开始项目'));
+  });
+
   test('endsAt=null 横条标记开放结束并画到今天', () => {
     const html = renderPage([{ ...project, endsAt: null }]);
     expect(html).toContain('data-open-ended="true"');
