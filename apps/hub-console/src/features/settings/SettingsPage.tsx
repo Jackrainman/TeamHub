@@ -7,6 +7,7 @@ import { LANG_OPTIONS } from './settings-constants';
 import { StylePreviewSection } from './StylePreviewSection';
 import { IdentitySection } from './IdentitySection';
 import { SeasonsSection } from './SeasonsSection';
+import { ProjectsSection } from './ProjectsSection';
 import { GroupsSection } from './GroupsSection';
 import { MembersPermissionsSection } from './MembersSection';
 import { ExportSection } from './MiscSections';
@@ -58,6 +59,7 @@ export function SettingsPage({
       <StylePreviewSection />
 
       <SeasonsSection client={client} source={source} identity={identity} />
+      <ProjectsSection client={client} source={source} identity={identity} />
       <GroupsSection client={client} source={source} identity={identity} />
       <MembersPermissionsSection client={client} source={source} identity={identity} />
       <ExportSection />
