@@ -7,6 +7,8 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const assert = require('node:assert/strict');
 const { freePort } = require('./lib/free-port.cjs');
+const { contextOptions } = require('./lib/context.cjs');
+const { settle } = require('./lib/wait.cjs');
 
 (async () => {
   const root = path.resolve(__dirname, '../../..');
@@ -58,7 +60,7 @@ const { freePort } = require('./lib/free-port.cjs');
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     browser = await chromium.launch({ channel: process.env.E2E_BROWSER_CHANNEL || undefined });
-    const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
+    const context = await browser.newContext(contextOptions({ viewport: { width: 1440, height: 900 } }));
     assert.equal((await context.request.post(`${base}/api/session`, { data: { username: a.displayName } })).status(), 200);
     assert.equal((await context.request.put(`${base}/api/members/${a.id}/pin`, { data: { pin: 'test12345' } })).status(), 200);
     page = await context.newPage();
@@ -74,7 +76,7 @@ const { freePort } = require('./lib/free-port.cjs');
     const grouping = rail.getByLabel('清单分组', { exact: true });
     const row = title => rail.locator('.task-rail__row').filter({ hasText: title });
     const capture = async name => {
-      await page.waitForTimeout(400);
+      await settle(page);
       await page.screenshot({ path: path.join(shots, `${name}.png`), fullPage: false, animations: 'disabled' });
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 2), false, `overflow: ${name}`);
     };

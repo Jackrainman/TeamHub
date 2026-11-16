@@ -7,6 +7,8 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const assert = require('node:assert/strict');
 const { freePort } = require('./lib/free-port.cjs');
+const { contextOptions } = require('./lib/context.cjs');
+const { settle } = require('./lib/wait.cjs');
 
 (async () => {
   const root = path.resolve(__dirname, '../../..');
@@ -35,7 +37,7 @@ const { freePort } = require('./lib/free-port.cjs');
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     browser = await chromium.launch({ channel: process.env.E2E_BROWSER_CHANNEL || undefined });
-    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    const context = await browser.newContext(contextOptions({ viewport: { width: 1440, height: 1000 } }));
     page = await context.newPage();
     page.setDefaultTimeout(10000);
     page.on('pageerror', error => errors.push(String(error)));
@@ -47,13 +49,14 @@ const { freePort } = require('./lib/free-port.cjs');
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 2), false, `overflow: ${label}`);
     };
     const capture = async name => {
-      await page.waitForTimeout(400);
+      await settle(page);
       await page.screenshot({ path: path.join(shots, `${name}.png`), fullPage: false });
       await assertNoOverflow(name);
     };
     const openRail = async () => {
       await toggle.click();
-      await page.waitForTimeout(400);
+      await page.waitForFunction(() => document.querySelector('#console-rail-toggle')?.getAttribute('aria-expanded') === 'true');
+      await rail.waitFor({ state: 'visible' });
       assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
     };
 
@@ -82,7 +85,7 @@ const { freePort } = require('./lib/free-port.cjs');
     await capture('p1-02-rail-open-1440');
 
     await page.keyboard.press('Escape');
-    await page.waitForTimeout(400);
+    await page.waitForFunction(() => document.querySelector('#console-right-rail')?.getAttribute('aria-hidden') === 'true');
     assert.equal(await rail.getAttribute('aria-hidden'), 'true');
     assert.equal(await page.evaluate(() => document.activeElement?.id), 'console-rail-toggle');
     assert.equal(await page.evaluate(() => localStorage.getItem('teamhub.rightRailOpen')), 'false');
@@ -118,7 +121,7 @@ const { freePort } = require('./lib/free-port.cjs');
     await page.evaluate(theme => { document.documentElement.dataset.theme = theme; }, previousTheme);
 
     await page.setViewportSize({ width: 1100, height: 900 });
-    await page.waitForTimeout(400);
+    await settle(page);
     assert.equal(await rail.evaluate(el => getComputedStyle(el).display), 'none');
     assert.equal(await toggle.isVisible(), false);
     const narrowLayout = await page.evaluate(() => {
@@ -131,7 +134,7 @@ const { freePort } = require('./lib/free-port.cjs');
 
     for (const width of [1200, 1280, 1440]) {
       await page.setViewportSize({ width, height: 900 });
-      await page.waitForTimeout(400);
+      await settle(page);
       await assertNoOverflow(`rail-${width}`);
     }
     assert.deepEqual(errors, []);

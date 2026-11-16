@@ -8,6 +8,7 @@ const { pathToFileURL } = require('node:url');
 const assert = require('node:assert/strict');
 const { zipSync, strToU8 } = require('fflate');
 const { freePort } = require('./lib/free-port.cjs');
+const { contextOptions } = require('./lib/context.cjs');
 
 function xlsxBuffer() {
   return Buffer.from(zipSync({
@@ -53,7 +54,7 @@ function xlsxBuffer() {
     await new Promise(resolve => { child.once('exit', resolve); child.kill('SIGTERM'); });
   }
   async function login(member) {
-    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    const context = await browser.newContext(contextOptions({ viewport: { width: 1440, height: 1000 } }));
     contexts.push(context);
     assert.equal((await context.request.post(`${base}/api/session`, { data: { username: member.displayName } })).status(), 200);
     assert.equal((await context.request.put(`${base}/api/members/${member.id}/pin`, { data: { pin: 'test12345' } })).status(), 200);

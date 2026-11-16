@@ -7,6 +7,8 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const assert = require('node:assert/strict');
 const { freePort } = require('./lib/free-port.cjs');
+const { contextOptions } = require('./lib/context.cjs');
+const { settle } = require('./lib/wait.cjs');
 
 (async () => {
   const root = path.resolve(__dirname, '../../..');
@@ -56,7 +58,7 @@ const { freePort } = require('./lib/free-port.cjs');
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     browser = await chromium.launch({ channel: process.env.E2E_BROWSER_CHANNEL || undefined });
-    page = await (await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' })).newPage();
+    page = await (await browser.newContext(contextOptions({ viewport: { width: 1440, height: 1000 } }))).newPage();
     page.setDefaultTimeout(10000);
     page.on('pageerror', error => errors.push(String(error)));
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
@@ -67,7 +69,7 @@ const { freePort } = require('./lib/free-port.cjs');
 
     async function capture(name, width, height) {
       await page.setViewportSize({ width, height });
-      await page.waitForTimeout(100);
+      await settle(page);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2), true, `overflow: ${name}`);
       const wrap = await page.locator('.calendar-grid-wrap').evaluate(element => ({ client: element.clientWidth, scroll: element.scrollWidth }));
       assert.ok(wrap.scroll <= wrap.client + 1, `calendar grid overflow: ${name}: ${wrap.client}/${wrap.scroll}`);

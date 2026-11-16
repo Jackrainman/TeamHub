@@ -8,6 +8,7 @@ const { pathToFileURL } = require('node:url');
 const assert = require('node:assert/strict');
 const { gzipSync } = require('node:zlib');
 const { freePort } = require('./lib/free-port.cjs');
+const { contextOptions } = require('./lib/context.cjs');
 
 (async () => {
   const root = path.resolve(__dirname, '../../..');
@@ -42,7 +43,7 @@ const { freePort } = require('./lib/free-port.cjs');
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     browser = await chromium.launch({ channel: process.env.E2E_BROWSER_CHANNEL || undefined });
-    const context = await browser.newContext();
+    const context = await browser.newContext(contextOptions());
     const page = await context.newPage();
     page.setDefaultTimeout(10000);
     const requested = [], errors = [];
@@ -84,7 +85,7 @@ const { freePort } = require('./lib/free-port.cjs');
     assert.deepEqual(errors, []);
 
     // 使用新上下文避免模块缓存掩盖网络失败；只在这个场景主动阻断页面文件。
-    const failedContext = await browser.newContext();
+    const failedContext = await browser.newContext(contextOptions());
     const failedPage = await failedContext.newPage();
     failedPage.setDefaultTimeout(10000);
     const settingsRoute = '**/SettingsPage-*.js';

@@ -7,6 +7,8 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const assert = require('node:assert/strict');
 const { freePort } = require('./lib/free-port.cjs');
+const { contextOptions } = require('./lib/context.cjs');
+const { expectDialogs } = require('./lib/wait.cjs');
 
 (async () => {
   const root = path.resolve(__dirname, '../../..');
@@ -61,7 +63,7 @@ const { freePort } = require('./lib/free-port.cjs');
     child.kill(); await exited;
   }
   async function memberPage(member) {
-    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
+    const context = await browser.newContext(contextOptions({ viewport: { width: 1440, height: 1000 } }));
     const response = await context.request.post(`${base}/api/session`, { data: { username: member.displayName } });
     assert.equal(response.status(), 200);
     const pin = await context.request.put(`${base}/api/members/${member.id}/pin`, { data: { pin: 'test12345' } });
@@ -147,7 +149,7 @@ const { freePort } = require('./lib/free-port.cjs');
     assert.equal(await closingDrawer.getAttribute('aria-hidden'), 'true');
     assert.equal(await closingDrawer.getAttribute('inert'), '');
     await pageA.getByRole('button', { name: '新建任务', exact: true }).click();
-    assert.equal(await pageA.locator('.drawer').count(), 1, 'reopening cancels exit without a second drawer');
+    await expectDialogs(pageA, 1, 'reopening cancels exit without a second drawer');
     assert.equal(await dialogA.getAttribute('data-closing'), null);
     await dialogA.getByRole('button', { name: '关闭', exact: true }).click();
     await dialogA.waitFor({ state: 'detached' });

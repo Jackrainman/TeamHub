@@ -22,6 +22,7 @@ const { spawn } = require('node:child_process');
 const { mkdtempSync, rmSync, existsSync, mkdirSync } = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { contextOptions } = require('./lib/context.cjs');
 
 const PORT = Number(process.env.E2E_PORT || 4977);
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -148,7 +149,7 @@ async function post(url, body, cookie) {
 
     // ── 浏览器：新成员首登 → ForcePinGate → 设密码 → 进应用 ──
     browser = await chromium.launch({ channel: process.env.E2E_BROWSER_CHANNEL || undefined });
-    const page = await (await browser.newContext({ viewport: { width: 1440, height: 1000 } })).newPage();
+    const page = await (await browser.newContext(contextOptions({ viewport: { width: 1440, height: 1000 } }))).newPage();
     page.on('console', (m) => {
       if (m.type() !== 'error') return;
       // 登录流程天然会吃到闸的 401/403 响应（未登录探测/PIN_SETUP_REQUIRED），资源加载类报错属预期噪音

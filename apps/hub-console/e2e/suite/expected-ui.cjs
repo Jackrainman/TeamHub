@@ -7,6 +7,8 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const assert = require('node:assert/strict');
 const { freePort } = require('./lib/free-port.cjs');
+const { contextOptions } = require('./lib/context.cjs');
+const { expectDialogs, settle } = require('./lib/wait.cjs');
 
 (async () => {
   const root = path.resolve(__dirname, '../../..');
@@ -40,7 +42,7 @@ const { freePort } = require('./lib/free-port.cjs');
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     browser = await chromium.launch({ channel: process.env.E2E_BROWSER_CHANNEL || undefined });
-    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    const context = await browser.newContext(contextOptions({ viewport: { width: 1440, height: 1000 } }));
     assert.equal((await context.request.post(`${base}/api/session`, { data: { username: member.displayName } })).status(), 200);
     assert.equal((await context.request.put(`${base}/api/members/${member.id}/pin`, { data: { pin: 'test12345' } })).status(), 200);
     page = await context.newPage();
@@ -52,7 +54,8 @@ const { freePort } = require('./lib/free-port.cjs');
     const expanded = () => shell.evaluate(el => el.classList.contains('sidebar-expanded'));
     const nav = name => page.locator('.console-sidebar').getByRole('button', { name, exact: true });
     const capture = async name => {
-      await page.waitForTimeout(400); // 等待抽屉/侧栏 320ms 以内的过渡结束后复核最终布局。
+      // 等抽屉/侧栏过渡结束并复核最终布局。
+      await settle(page);
       await page.screenshot({ path: path.join(shots, `expected-${name}.png`), fullPage: false });
       if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 2)) console.error(await page.evaluate(() => [...document.querySelectorAll('main *')].filter(el => el.getBoundingClientRect().right > innerWidth + 2).slice(0, 15).map(el => ({ tag: el.tagName, class: el.className, width: el.getBoundingClientRect().width }))));
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 2), false, `overflow: ${name}`);
@@ -69,18 +72,23 @@ const { freePort } = require('./lib/free-port.cjs');
     // 以真实 hover 完成为计时起点（绝对时间戳会因 hover 耗时漂移而误判）；2.5s<4s 仍展开，随后等待空闲收起。
     await nav('项目').hover();
     await page.waitForFunction(() => document.querySelector('.console-shell').classList.contains('sidebar-expanded'));
+    // 计时语义：hover 后 2.5s 必须仍未收起（4s 空闲阈值），无法用状态等待替代。
     await page.waitForTimeout(2500);
     assert.equal(await expanded(), true, 'first hover resets 4s idle');
     await nav('任务').hover();
+    // 计时语义：hover 后 2.5s 必须仍未收起（4s 空闲阈值），无法用状态等待替代。
     await page.waitForTimeout(2500);
     assert.equal(await expanded(), true, 'second hover resets 4s idle');
     await page.waitForFunction(() => !document.querySelector('.console-shell').classList.contains('sidebar-expanded'), null, { timeout: 6000 });
     assert.equal(await expanded(), false, 'idle collapses after last activity');
     await capture('sidebar-collapsed');
     await page.locator('.sidebar-toggle').click();
+    // 计时语义：手动展开后 4.4s 必须仍展开，验证自动收起已禁用。
     await page.waitForTimeout(4400);
     assert.equal(await expanded(), true, 'manual expansion stays fixed');
     await capture('week');
+    // 仅连续过渡采样临时启用真实动效，context 与其余场景仍统一 reduce。
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
     const samples = await page.evaluate(async () => {
       const toggle = document.querySelector('.sidebar-toggle');
       const sidebar = document.querySelector('.console-sidebar');
@@ -93,6 +101,7 @@ const { freePort } = require('./lib/free-port.cjs');
       }
       return result;
     });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     assert.ok(samples.some(s => s.width > 80 && s.width < 225), 'continuous intermediate sidebar widths');
     assert.ok(samples.every((s, i) => !i || s.width <= samples[i - 1].width + 1), 'monotone collapse');
     assert.ok(Math.abs(samples.at(-1).width - 72) < 1);
@@ -108,6 +117,7 @@ const { freePort } = require('./lib/free-port.cjs');
     await page.getByRole('switch', { name: '侧栏自动收起' }).click();
     await page.reload({ waitUntil: 'networkidle' });
     assert.equal(await page.evaluate(() => document.documentElement.dataset.fontSize), 'xlarge');
+    // 计时语义：关闭自动收起后 4.3s 仍展开。
     await page.waitForTimeout(4300); assert.equal(await expanded(), true, 'disabled idle persists');
     await nav('设置').click(); await capture('settings-xlarge');
     await page.getByRole('button', { name: '标准', exact: true }).click();
@@ -159,7 +169,7 @@ const { freePort } = require('./lib/free-port.cjs');
     assert.equal(await page.evaluate(() => [...document.querySelectorAll('.drawer')].at(-1).contains(document.activeElement)), true);
     await page.keyboard.press('Escape');
     await page.getByRole('dialog', { name: '全局搜索' }).waitFor({ state: 'hidden' });
-    assert.equal(await page.getByRole('dialog').count(), 1);
+    await expectDialogs(page, 1, 'Esc 只关闭搜索抽屉');
     await page.keyboard.press('Escape');
 
     await page.keyboard.press('Control+k');
@@ -178,10 +188,11 @@ const { freePort } = require('./lib/free-port.cjs');
         await nav(label).click(); await page.waitForLoadState('networkidle'); await capture(`${key}-${width}`);
       }
     }
-    const loginContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    const loginContext = await browser.newContext(contextOptions({ viewport: { width: 1440, height: 1000 } }));
     const loginPage = await loginContext.newPage();
     await loginPage.goto(base, { waitUntil: 'networkidle' });
     await loginPage.locator('.auth-gate__username').waitFor();
+    // 计时语义：登录页静置 4.4s 后侧栏仍保持展开，验证登录门不消耗空闲计时。
     await loginPage.waitForTimeout(4400);
     await loginPage.locator('.auth-gate__username').fill(member.displayName);
     await loginPage.locator('.auth-gate__pin').fill('test12345');

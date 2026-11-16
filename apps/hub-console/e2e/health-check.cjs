@@ -26,6 +26,8 @@ const { chromium } = require('playwright');
 const { mkdirSync } = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { contextOptions } = require('./suite/lib/context.cjs');
+const { settle } = require('./suite/lib/wait.cjs');
 
 const BASE = process.env.TEAMHUB_BASE || 'http://localhost:4177';
 const OUT = process.env.HEALTH_OUT || path.join(os.tmpdir(), 'teamhub-health-shots');
@@ -35,7 +37,7 @@ const MIN_BODY = 80; // 正文短于此判为疑似白屏
 (async () => {
   mkdirSync(OUT, { recursive: true });
   const browser = await chromium.launch({ channel: process.env.E2E_BROWSER_CHANNEL || undefined });
-  const page = await (await browser.newContext({ viewport: { width: 1440, height: 1000 }, storageState: process.env.HEALTH_STORAGE_STATE || undefined })).newPage();
+  const page = await (await browser.newContext(contextOptions({ viewport: { width: 1440, height: 1000 }, storageState: process.env.HEALTH_STORAGE_STATE || undefined }))).newPage();
 
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push('[console] ' + m.text().slice(0, 240)); });
@@ -43,7 +45,7 @@ const MIN_BODY = 80; // 正文短于此判为疑似白屏
 
   console.log(`[health] 打开 ${BASE}（期望：${EXPECT === 'wizard' ? '首启动向导' : '正常五页'}）`);
   await page.goto(BASE, { waitUntil: 'networkidle' });
-  await page.waitForTimeout(800);
+  await settle(page);
 
   // 两态判别（SETUP-WIZARD 刀②）：全屏向导有 `.setup-wizard` 根、正常 app 有侧栏 `.nav-item`。
   const wizardPresent = (await page.locator('.setup-wizard').count()) > 0;
@@ -92,7 +94,7 @@ const MIN_BODY = 80; // 正文短于此判为疑似白屏
   for (let i = 0; i < navCount; i++) {
     const before = errors.length;
     await page.locator('.nav-item').nth(i).click();
-    await page.waitForTimeout(700);
+    await settle(page);
     const label = (await page.locator('.nav-item').nth(i).innerText()).trim().replace(/\s+/g, '');
     const bodyLen = await page.evaluate(
       () => document.querySelector('main, .console-main, #root')?.innerText.trim().length || 0,
@@ -109,12 +111,12 @@ const MIN_BODY = 80; // 正文短于此判为疑似白屏
   const poolBefore = errors.length;
   for (let i = 0; i < navCount; i++) {
     await page.locator('.nav-item').nth(i).click();
-    await page.waitForTimeout(300);
+    await settle(page);
     if (await page.locator('#project-view-pool-btn').count()) break;
   }
   if (await page.locator('#project-view-pool-btn').count()) {
     await page.locator('#project-view-pool-btn').click();
-    await page.waitForTimeout(800);
+    await settle(page);
     const bodyLen = await page.evaluate(
       () => document.querySelector('main, .console-main, #root')?.innerText.trim().length || 0,
     );
