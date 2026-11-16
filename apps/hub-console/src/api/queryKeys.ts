@@ -11,6 +11,7 @@ export const queryKeys = {
   tasksResourcesPreset: () => ['tasks', 'resourcesPreset'] as const,
   depGraph: (source: string) => ['dep-graph', source] as const,
   seasons: (source?: string) => (source ? ['seasons', source] as const : ['seasons'] as const),
+  projects: (source?: string) => (source ? ['projects', source] as const : ['projects'] as const),
   groups: (source?: string) => (source ? ['groups', source] as const : ['groups'] as const),
   members: () => ['members'] as const,
   resources: (source?: string) => (source ? ['resources', source] as const : ['resources'] as const),

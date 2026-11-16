@@ -6,6 +6,8 @@ import {
   CreateDependencyResponseSchema,
   CreateNeedResponseSchema,
   CreateSeasonResponseSchema,
+  ProjectResponseSchema,
+  ProjectsResponseSchema,
   CreateTaskResponseSchema,
   DepGraphSchema,
   GroupGapsResponseSchema,
@@ -31,6 +33,7 @@ import {
   type CreateGroupRequest,
   type CreateNeedRequest,
   type CreateNeedResponse,
+  type CreateProjectRequest,
   type CreateSeasonRequest,
   type CreateTaskRequest,
   type SelfReportTaskRequest,
@@ -40,6 +43,8 @@ import {
   type Group,
   type GroupGapsResponse,
   type GroupResponse,
+  type Project,
+  type ProjectResponse,
   type RenameGroupRequest,
   type ReviewTaskRequest,
   type ReviewTaskResponse,
@@ -51,6 +56,7 @@ import {
   type TaskStatus,
   type TaskWithMeta,
   type TransitionTaskStatusResponse,
+  type UpdateProjectRequest,
   type WaiveDependencyResponse,
 } from '@teamhub/hub-contracts';
 import type { HttpContext } from '../../api/http';
@@ -66,6 +72,9 @@ export interface PmSegment {
   getTasks(query?: { q?: string }): Promise<{ tasks: TaskWithMeta[]; currentWeek?: string }>;
   getSeasons(): Promise<{ seasons: Season[] }>;
   createSeason(req: CreateSeasonRequest): Promise<{ season: Season }>;
+  getProjects(): Promise<{ projects: Project[] }>;
+  createProject(req: CreateProjectRequest): Promise<ProjectResponse>;
+  updateProject(id: string, req: UpdateProjectRequest): Promise<ProjectResponse>;
   getGroups(): Promise<{ groups: Group[]; assignableGroupIds: string[] }>;
   createGroup(req: CreateGroupRequest): Promise<GroupResponse>;
   renameGroup(id: string, req: RenameGroupRequest): Promise<GroupResponse>;
@@ -106,6 +115,15 @@ export function createPmSegment(ctx: HttpContext): PmSegment {
     },
     async createSeason(req: CreateSeasonRequest) {
       return postJson(`${baseUrl}/api/seasons`, req, CreateSeasonResponseSchema, fetcher, writeToken);
+    },
+    async getProjects() {
+      return fetchJson(`${baseUrl}/api/projects`, ProjectsResponseSchema, fetcher);
+    },
+    async createProject(req: CreateProjectRequest) {
+      return postJson(`${baseUrl}/api/projects`, req, ProjectResponseSchema, fetcher, writeToken);
+    },
+    async updateProject(id: string, req: UpdateProjectRequest) {
+      return sendJson('PUT', `${baseUrl}/api/projects/${encodeURIComponent(id)}`, req, ProjectResponseSchema, fetcher, writeToken);
     },
     async getGroups() {
       return fetchJson(`${baseUrl}/api/groups`, GroupsResponseSchema, fetcher);

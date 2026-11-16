@@ -49,6 +49,13 @@ export function useGroups(
   });
 }
 
+export function useProjects(client: Pick<HubApiClient, 'getProjects'>) {
+  return useQuery({
+    queryKey: queryKeys.projects(),
+    queryFn: () => client.getProjects(),
+  });
+}
+
 export function useSeasons(client: Pick<HubApiClient, 'getSeasons'>) {
   return useQuery({
     queryKey: queryKeys.seasons(),
