@@ -158,7 +158,8 @@ const { freePort } = require('./lib/free-port.cjs');
     await page.keyboard.press('Shift+Tab');
     assert.equal(await page.evaluate(() => [...document.querySelectorAll('.drawer')].at(-1).contains(document.activeElement)), true);
     await page.keyboard.press('Escape');
-    await page.getByRole('dialog', { name: '全局搜索' }).waitFor({ state: 'hidden' });
+    // 只等 'hidden' 不够：抽屉退场动画期间元素仍在 DOM，count() 会数到 2。
+    await page.getByRole('dialog', { name: '全局搜索' }).waitFor({ state: 'detached' });
     assert.equal(await page.getByRole('dialog').count(), 1);
     await page.keyboard.press('Escape');
 
