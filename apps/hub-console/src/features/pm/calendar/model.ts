@@ -6,6 +6,24 @@ import {
 import type { TranslationKey } from '../../../i18n';
 
 export type CalendarMode = 'month' | 'week';
+export type CalendarScope = 'personal' | 'group' | 'team';
+
+export function filterProjectsByScope(
+  projects: readonly Project[],
+  scope: CalendarScope,
+  me: string | null | undefined,
+  myGroupId: string | null | undefined,
+): Project[] {
+  if (scope === 'personal') {
+    if (!me) return [];
+    return projects.filter(project => project.createdBy === me || project.memberIds?.includes(me) === true);
+  }
+  if (scope === 'group') {
+    if (!myGroupId) return [];
+    return projects.filter(project => project.groupIds.includes(myGroupId));
+  }
+  return [...projects];
+}
 
 export interface AxisTick {
   key: string;
