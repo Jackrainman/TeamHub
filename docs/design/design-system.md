@@ -88,7 +88,7 @@ placeholder 只放示例，不承担说明。格式、风险和约束写进 `Fie
 - 新样式优先复用 `.card`、`.empty-state`、`.gate-field` 等基类和现有 token。
 - 通用表单/布局原语统一放 `src/shared/ui/`（Button/Field/Input/Select/Textarea/Checkbox/Card/Stack/Toolbar/EmptyState），皮肤只由 `02-base.css` 控件基线与 `01-tokens.css` 提供，原语文件不得写颜色。
 - 原语新增态集中在 `src/styles/28-ui-primitives.css`，不得回写 `02-base.css` 的 CONTROL-BASELINE 段。
-- console 壳的右栏是槽位（`RightRail` + `useRightRail`），宽度 `--rail-width`，≥1200px 显示、以下自动收起；本期只放空态，不承载业务。
+- console 壳的右栏（`RightRail` + `useRightRail`）承载任务清单，宽度 `--rail-width`，≥1200px 显示、以下自动收起；清单支持我的/全队、时间与状态分组、紧凑/标准密度、详情和完成勾选，无权限完成时保留位置但不渲染复选框。
 
 ## 8. 文案与反监视
 
