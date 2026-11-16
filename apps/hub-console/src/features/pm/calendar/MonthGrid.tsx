@@ -1,15 +1,18 @@
-import type { Project } from '@teamhub/hub-contracts';
+import type { BaselineMilestonePublic, Project } from '@teamhub/hub-contracts';
 import { useI18n } from '../../../i18n';
 import { barGeometry, dateKeyOf, type CalendarAxis, type CalendarMode } from './model';
 import { ProjectBar } from './ProjectBar';
+import { CalendarMilestone } from './CalendarMilestone';
 
-export function MonthGrid({ axis, mode, projects, today, projectId, onOpenProject }: {
+export function MonthGrid({ axis, mode, projects, milestones, today, projectId, onOpenProject, onOpenMilestone }: {
   axis: CalendarAxis;
   mode: CalendarMode;
   projects: Project[];
+  milestones: BaselineMilestonePublic[];
   today: string;
   projectId: string;
   onOpenProject: (project: Project) => void;
+  onOpenMilestone: (milestone: BaselineMilestonePublic) => void;
 }): JSX.Element {
   const { t } = useI18n();
   const ticks = axis.ticks;
@@ -27,6 +30,12 @@ export function MonthGrid({ axis, mode, projects, today, projectId, onOpenProjec
       <div className="calendar-track calendar-project-track">
         <div className="calendar-grid-lines" aria-hidden="true">{ticks.map((tick) => <span key={tick.key} />)}</div>
         {todayLeft !== null ? <div className="calendar-today-line" style={{ left: `${todayLeft}%` }} title={t('calendar.today')}><span>{t('calendar.today')}</span></div> : null}
+      </div>
+      <div className="calendar-lane-heading">{t('calendar.lane.milestones')}</div>
+      <div className="calendar-track calendar-milestone-track">
+        <div className="calendar-grid-lines" aria-hidden="true">{ticks.map((tick) => <span key={tick.key} />)}</div>
+        {todayLeft !== null ? <div className="calendar-today-line" style={{ left: `${todayLeft}%` }} aria-hidden="true" /> : null}
+        {milestones.map((milestone) => <CalendarMilestone key={milestone.id} milestone={milestone} axis={axis} onOpen={() => onOpenMilestone(milestone)} />)}
       </div>
       {projects.map((project) => {
         const geometry = barGeometry(project, axis, today);
