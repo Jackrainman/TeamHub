@@ -11,6 +11,7 @@ import { TaskFacts } from './sub/TaskFacts';
 import { TaskTimeline } from './sub/TaskTimeline';
 import { TaskActionsPanel } from './sub/TaskActionsPanel';
 import { SideDrawer } from '../../components/SideDrawer';
+import { Field } from '../../shared/ui/Field';
 
 export function TaskDetailDrawer({
   client,
@@ -77,9 +78,16 @@ export function TaskDetailDrawer({
             },
           });
         }}>
-          <label className="gate-field">{t('rail.selfAccept.summary')}<textarea required maxLength={500} rows={4} value={actions.deliverySummary} onChange={event => actions.setDeliverySummary(event.target.value)} /></label>
-          <label className="gate-field">{t('rail.selfAccept.deliverable')}<textarea required maxLength={500} rows={4} value={actions.deliveryDeliverable} onChange={event => actions.setDeliveryDeliverable(event.target.value)} /></label>
-          <label className="gate-field">{t('rail.selfAccept.paths')}<textarea required rows={4} value={actions.deliveryPaths} onChange={event => actions.setDeliveryPaths(event.target.value)} /></label>
+          <p className="self-accept-form__hint">{t('rail.selfAccept.hint')}</p>
+          <Field label={t('rail.selfAccept.summary')} required>
+            <textarea required aria-required aria-label={t('rail.selfAccept.summary')} maxLength={500} rows={4} value={actions.deliverySummary} onChange={event => actions.setDeliverySummary(event.target.value)} />
+          </Field>
+          <Field label={t('rail.selfAccept.deliverable')} required>
+            <textarea required aria-required aria-label={t('rail.selfAccept.deliverable')} maxLength={500} rows={4} value={actions.deliveryDeliverable} onChange={event => actions.setDeliveryDeliverable(event.target.value)} />
+          </Field>
+          <Field label={t('rail.selfAccept.paths')} required>
+            <textarea required aria-required aria-label={t('rail.selfAccept.paths')} rows={4} value={actions.deliveryPaths} onChange={event => actions.setDeliveryPaths(event.target.value)} />
+          </Field>
           <button type="submit" className="btn btn--primary" disabled={actions.reviewMutation.isPending || !actions.deliverySummary.trim() || !actions.deliveryDeliverable.trim() || !actions.deliveryPaths.split('\n').some(path => path.trim())}>{t('rail.selfAccept.submit')}</button>
         </form>
       </SideDrawer>

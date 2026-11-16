@@ -54,7 +54,7 @@ export function TaskRailPanel({ client, source, identity, active }: {
           <Button size="sm" variant={effectiveScope === 'mine' ? 'primary' : 'secondary'} aria-pressed={effectiveScope === 'mine'} onClick={() => setScope('mine')}>{t('rail.scope.mine')}</Button>
           <Button size="sm" variant={effectiveScope === 'team' ? 'primary' : 'secondary'} aria-pressed={effectiveScope === 'team'} onClick={() => setScope('team')}>{t('rail.scope.team')}</Button>
         </div> : null}
-        <Select aria-label={t('rail.density')} value={density} onChange={event => setDensity(event.target.value as RailDensity)}>
+        <Select className="task-rail__density" aria-label={t('rail.density')} value={density} onChange={event => setDensity(event.target.value as RailDensity)}>
           <option value="standard">{t('rail.density.standard')}</option><option value="compact">{t('rail.density.compact')}</option>
         </Select>
       </Toolbar>

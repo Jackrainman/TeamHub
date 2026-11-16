@@ -94,13 +94,15 @@
 }
 
 /* ===== P2：右栏任务清单 ===== */
-.task-rail { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.task-rail { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
 .task-rail__controls { display: flex; flex-direction: column; gap: var(--space-2); }
 .task-rail__scope { display: flex; gap: var(--space-1); flex: none; }
+/* 密度下拉：定宽 + 不收缩，中英文档位文字都不贴边、不被工具栏挤扁。 */
+.task-rail__density { flex: none; inline-size: 6.5rem; white-space: nowrap; }
 .task-rail__note { margin: 0; color: var(--muted); font-size: var(--text-2xs); line-height: 1.5; }
 .task-rail__sections { display: flex; flex-direction: column; gap: var(--space-4); }
 .task-rail[data-density='compact'] .task-rail__sections { gap: var(--space-3); }
-.task-rail__section-title { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); margin: 0 0 var(--space-2); padding: 0 var(--space-3); color: var(--muted); font-size: var(--text-2xs); font-weight: var(--weight-medium); }
+.task-rail__section-title { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); margin: 0 0 var(--space-2); padding: 0 var(--space-3); color: var(--muted); font-size: var(--text-2xs); font-weight: var(--weight-medium); line-height: 1.5; }
 .task-rail__count { color: var(--faint); }
 .task-rail__list { display: flex; flex-direction: column; gap: 1px; margin: 0; padding: 0; list-style: none; }
 .task-rail__row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-2); align-items: start; padding: var(--space-3); border-radius: var(--radius-sm); transition: background-color var(--transition); }
@@ -113,7 +115,7 @@
 .task-rail__title { display: block; width: 100%; margin: 0; padding: 0; border: 0; background: none; color: var(--text); font: inherit; font-size: var(--text-sm); text-align: left; overflow-wrap: anywhere; cursor: pointer; }
 .task-rail__title:hover { text-decoration: underline; }
 .task-rail[data-density='compact'] .task-rail__title { font-size: var(--text-xs); }
-.task-rail__meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); margin-top: var(--space-1); color: var(--muted); font-size: var(--text-2xs); min-width: 0; }
+.task-rail__meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-2); margin-top: var(--space-1); color: var(--muted); font-size: var(--text-2xs); min-width: 0; }
 .task-rail__group { max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .task-rail__time { color: var(--faint); white-space: nowrap; }
 .badge--xs { padding: 0 var(--space-1); font-size: var(--text-2xs); }
@@ -125,3 +127,8 @@
 .task-detail__delivery dd { margin: var(--space-1) 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .task-detail__delivery ul { margin: 0; padding-left: var(--space-4); }
 .task-detail__self-accept { display: grid; gap: var(--space-4); }
+.self-accept-form__hint { margin: 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.5; }
+/* 标签↔输入框 6→8（--space-2），最后字段↔提交 16→24（--space-4 + --space-2）；
+   字段之间仍为 --space-4，字段区间距净高度不增。 */
+.task-detail__self-accept .kb-field { gap: var(--space-2); }
+.task-detail__self-accept > .btn { margin-top: var(--space-2); }
