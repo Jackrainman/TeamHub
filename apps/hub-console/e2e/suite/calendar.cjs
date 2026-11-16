@@ -1,4 +1,4 @@
-// Real SQLite + real browser acceptance for the calendar month and project creation.
+// Real SQLite + real browser acceptance for the fixed calendar month and project creation.
 const { chromium } = require('playwright');
 const { spawn } = require('node:child_process');
 const { mkdtempSync, mkdirSync, rmSync } = require('node:fs');
@@ -93,20 +93,13 @@ const { settle } = require('./lib/wait.cjs');
     await page.locator('.calendar-month-view').waitFor();
     await settle(page);
 
-    const seg = name => page.locator('.calendar-view-toggle button[data-view]').filter({ hasText: name });
     const capture = async name => {
       await settle(page);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2), true, `overflow: ${name}`);
       await page.screenshot({ path: path.join(shots, `${name}.png`), fullPage: true, animations: 'disabled' });
     };
-    const captureTimeline = async (name, width, height) => {
-      await page.setViewportSize({ width, height });
-      const wrap = await page.locator('.calendar-grid-wrap').evaluate(element => ({ client: element.clientWidth, scroll: element.scrollWidth }));
-      assert.ok(wrap.scroll <= wrap.client + 1, `calendar grid overflow: ${name}: ${wrap.client}/${wrap.scroll}`);
-      console.log(`calendar wrap ${name}: client=${wrap.client} scroll=${wrap.scroll}`);
-      await capture(name);
-    };
-
+    assert.equal(await page.locator('.calendar-view-toggle').count(), 0, 'timeline entry is retired');
+    assert.equal(await page.locator('.calendar-toolbar button').filter({ hasText: '时间轴' }).count(), 0);
     // 月视图默认 6×7，跨周条分段，无开始日期项目不进入横条区。
     assert.equal(await page.locator('.calendar-month-day').count(), 42);
     assert.equal(await page.locator('.calendar-month-week').count(), 6);
@@ -152,73 +145,7 @@ const { settle } = require('./lib/wait.cjs');
     assert.equal(await page.locator('.calendar-month-day[data-today="true"]').count(), 1);
     console.log('PASS calendar month: default 6x7, cross-week bars, no-start, drawer, navigation, overflow');
 
-    // 原时间轴仍覆盖月/周刻度、背景带、里程碑和抽屉。
-    await seg('时间轴').click();
-    await page.locator('.calendar-grid[data-mode="month"]').waitFor();
-    assert.equal(await page.locator('.calendar-month-view').count(), 0);
-    assert.equal(await page.locator('.calendar-lane[data-no-start="true"] .calendar-bar').count(), 0);
-    const monthTicks = await page.locator('[data-tick="month"]').allTextContents();
-    assert.ok(monthTicks.every(text => /^(?:\d{4}年)?\d{1,2}月$/.test(text.trim())), `month tick labels: ${monthTicks}`);
-    const trackCount = await page.locator('.calendar-track').count();
-    assert.equal(await page.locator('.calendar-band').count(), trackCount * 2, 'two segments paint every track');
-    assert.equal(await page.locator('.calendar-band[data-kind="semester"]').count(), trackCount);
-    assert.equal(await page.locator('.calendar-band[data-kind="vacation"]').count(), trackCount);
-    assert.equal(await page.locator('[data-milestone-id="e2e-outside"]').count(), 0);
-    const openGeometry = await page.locator('.calendar-bar[data-open-ended="true"]').evaluate(bar => {
-      const track = bar.parentElement.getBoundingClientRect();
-      const rect = bar.getBoundingClientRect();
-      const line = document.querySelector('.calendar-today-layer .calendar-today-line').getBoundingClientRect();
-      const days = Number(document.querySelector('.calendar-grid').dataset.axisDays);
-      return { halfDay: track.width / days / 2, delta: rect.right - (line.left + line.width / 2) };
-    });
-    assert.ok(Math.abs(openGeometry.delta - openGeometry.halfDay) < 3, 'open-ended bar reaches the end of today');
-    await captureTimeline('timeline-month-1440', 1440, 1000);
-
-    await page.locator('.calendar-mode button[data-mode="week"]').click();
-    await page.locator('.calendar-grid[data-mode="week"]').waitFor();
-    assert.equal(await page.locator('[data-tick="week"]').count(), 8);
-    const weekTicks = await page.locator('[data-tick="week"]').allTextContents();
-    assert.ok(weekTicks.every(text => /^\d{1,2}\/\d{1,2}$/.test(text.trim())), `week tick labels: ${weekTicks}`);
-    const visuals = await page.evaluate(() => {
-      const probe = document.createElement('span');
-      probe.style.color = 'var(--blue)';
-      document.body.append(probe);
-      const blue = getComputedStyle(probe).color;
-      probe.remove();
-      const line = getComputedStyle(document.querySelector('.calendar-today-layer .calendar-today-line'));
-      const label = getComputedStyle(document.querySelector('.calendar-today-layer .calendar-today-line span'));
-      const gate = getComputedStyle(document.querySelector('[data-milestone-id="e2e-gate"] > span'));
-      const dot = getComputedStyle(document.querySelector('[data-milestone-id="e2e-passed"] > span'));
-      return { blue, line: line.borderLeftColor, label: label.color, gateTransform: gate.transform, dotTransform: dot.transform, dotRadius: dot.borderTopLeftRadius };
-    });
-    assert.equal(visuals.line, visuals.blue);
-    assert.equal(visuals.label, visuals.blue);
-    assert.notEqual(visuals.gateTransform, 'none');
-    assert.equal(visuals.dotTransform, 'none');
-    assert.notEqual(visuals.dotRadius, '0px');
-    await captureTimeline('timeline-week-1440', 1440, 1000);
-
-    await page.reload({ waitUntil: 'networkidle' });
-    await page.locator('.console-sidebar').getByRole('button', { name: '日历', exact: true }).click();
-    await page.locator('.calendar-grid-wrap').waitFor();
-    assert.equal(await seg('时间轴').getAttribute('aria-pressed'), 'true', 'timeline survives reload');
-    await page.locator('[data-milestone-id="e2e-gate"]').click();
-    await drawer.waitFor();
-    assert.match(await drawer.getByRole('heading').innerText(), /里程碑 · E2E门/);
-    assert.match(await drawer.innerText(), /E2E 日历赛季/);
-    await page.keyboard.press('Escape');
-    await drawer.waitFor({ state: 'hidden' });
-    await page.locator('.calendar-bar[data-open-ended="true"]').click();
-    await drawer.waitFor();
-    assert.match(await drawer.getByRole('heading').innerText(), /E2E进行中项目/);
-    assert.match(await drawer.innerText(), /至今/);
-    assert.equal(await drawer.getByRole('button', { name: '去设置页编辑', exact: true }).count(), 1);
-    await page.keyboard.press('Escape');
-    await drawer.waitFor({ state: 'hidden' });
-    await captureTimeline('timeline-1000', 1000, 900);
-
-    await seg('月视图').click();
-    await page.locator('.calendar-month-view').waitFor();
+    await page.setViewportSize({ width: 1000, height: 900 });
     assert.equal(await page.locator('.calendar-month-day').count(), 42);
     const monthGrid = await page.locator('.calendar-month-view').evaluate(element => ({ client: element.clientWidth, scroll: element.scrollWidth }));
     assert.ok(monthGrid.scroll <= monthGrid.client + 1, `month grid overflow: ${monthGrid.client}/${monthGrid.scroll}`);
@@ -302,7 +229,7 @@ const { settle } = require('./lib/wait.cjs');
     console.log('PASS calendar project entry: no-dates hint, create drawer, immediate bar, form reset, 1000px');
 
     assert.deepEqual(errors, [], 'calendar has no browser errors');
-    console.log(`PASS calendar: month grid, navigation, persistence, overlap, timeline, drawers, 1000px overflow; screenshots ${shots}`);
+    console.log('PASS calendar: fixed month grid, navigation, overlap, project creation, drawers, 1000px overflow; screenshots ' + shots);
   } finally {
     if (browser) await browser.close();
     if (child && child.exitCode === null) {

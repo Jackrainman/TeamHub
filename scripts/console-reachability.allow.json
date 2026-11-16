@@ -4,6 +4,18 @@
     {
       "path": "apps/hub-console/src/features/reimburse/index.ts",
       "reason": "verify-architecture 的 reimburse 域模板要求存在的 UI 公共面 barrel（只 re-export ReimbursePage），运行期无人 import；删除会触发架构门失败。"
+    },
+    {
+      "path": "apps/hub-console/src/features/pm/calendar/MonthGrid.tsx",
+      "reason": "时间轴视图保留、UI 本期不暴露，下一期按个人/本组/全队范围恢复。"
+    },
+    {
+      "path": "apps/hub-console/src/features/pm/calendar/CalendarMilestone.tsx",
+      "reason": "时间轴视图保留、UI 本期不暴露，下一期按个人/本组/全队范围恢复。"
+    },
+    {
+      "path": "apps/hub-console/src/features/pm/calendar/TimelineBar.tsx",
+      "reason": "时间轴视图保留、UI 本期不暴露，下一期按个人/本组/全队范围恢复。"
     }
   ]
 }

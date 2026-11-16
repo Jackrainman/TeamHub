@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { BaselineMilestonePublic, Project, Season, SeasonBaselinePublic } from '@teamhub/hub-contracts';
+import type { Project, Season, SeasonBaselinePublic } from '@teamhub/hub-contracts';
 import { createHubApiClient } from '../src/api/client';
 import { queryKeys } from '../src/api/queryKeys';
 import type { PageIdentityCtx } from '../src/console-pages';
 import { LanguageProvider } from '../src/i18n';
-import { CalendarPage, type CalendarView } from '../src/features/pm/calendar/CalendarPage';
+import { CalendarPage } from '../src/features/pm/calendar/CalendarPage';
 
 const identity: PageIdentityCtx = { mode: 'anonymous', session: null, isLoading: false, canWrite: true };
 const season: Season = {
@@ -17,14 +17,7 @@ const project: Project = {
   id: 'project-a', seasonId: season.id, name: '跨月项目', status: 'active',
   createdAt: '2026-01-01T00:00:00.000Z', startsAt: '2026-11-10T00:00:00.000Z', endsAt: '2026-12-10T00:00:00.000Z',
 };
-const milestone: BaselineMilestonePublic = {
-  id: 'm-1', title: '测试门', kind: 'gate', plannedAt: '2026-11-20T00:00:00.000Z', status: 'pending',
-};
-
-function renderPage(projects: Project[], baseline: SeasonBaselinePublic | null = null, view?: CalendarView, pageIdentity: PageIdentityCtx = identity) {
-  if (view) {
-    vi.stubGlobal('window', { localStorage: { getItem: (key: string) => key === 'teamhub.calendar.view' ? view : null } });
-  }
+function renderPage(projects: Project[], baseline: SeasonBaselinePublic | null = null, pageIdentity: PageIdentityCtx = identity) {
   const cache = new QueryClient();
   cache.setQueryData(queryKeys.projects(), { projects });
   cache.setQueryData(queryKeys.seasons(), { seasons: [season] });
@@ -48,6 +41,7 @@ describe('日历：默认月视图', () => {
     expect(empty.match(/data-action="create-project"/g)).toHaveLength(2);
     expect(empty).toContain('2026年11月');
     expect(empty).not.toContain('calendar-grid-wrap');
+    expect(empty).not.toContain('calendar-view-toggle');
     expect(empty).not.toContain('empty-state');
 
     const populated = renderPage([project]);
@@ -68,7 +62,7 @@ describe('日历：默认月视图', () => {
 
   test('无写权限时新建按钮禁用并解释原因，有权限时常驻可用', () => {
     const readOnly: PageIdentityCtx = { mode: 'identity', session: null, isLoading: false, canWrite: false };
-    const locked = renderPage([{ ...project, startsAt: null, endsAt: null }], null, undefined, readOnly);
+    const locked = renderPage([{ ...project, startsAt: null, endsAt: null }], null, readOnly);
     const lockedButtons = locked.match(/<button[^>]*data-action="create-project"[^>]*>/g) ?? [];
     expect(lockedButtons).toHaveLength(2);
     expect(lockedButtons.every(button => button.includes('disabled=""'))).toBe(true);
@@ -102,44 +96,12 @@ describe('日历：默认月视图', () => {
   });
 });
 
-describe('日历：时间轴视图保持原行为', () => {
-  const baseline: SeasonBaselinePublic = {
-    id: 'baseline-1', seasonId: season.id, anchors: {}, phases: [],
-    segments: [
-      { kind: 'semester', startsAt: '2026-11-01T00:00:00.000Z', endsAt: '2026-11-30T00:00:00.000Z', label: '学期' },
-      { kind: 'vacation', startsAt: '2026-12-01T00:00:00.000Z', endsAt: '2026-12-10T00:00:00.000Z', label: '假期' },
-    ],
-    milestones: [milestone, { ...milestone, id: 'outside', plannedAt: '2027-01-01T00:00:00.000Z' }],
-  };
-
-  test('有 baseline 只画窗口内里程碑并保留背景带', () => {
-    const html = renderPage([project], baseline, 'timeline');
-    expect(html).toContain('calendar-grid-wrap');
-    expect(html).not.toContain('calendar-month-view');
-    expect(html.match(/class="calendar-milestone /g)).toHaveLength(1);
-    expect(html).toContain('data-milestone-id="m-1"');
-    expect(html).not.toContain('data-milestone-id="outside"');
-    expect(html.match(/class="calendar-band"/g)).toHaveLength(6);
-    expect(html.match(/class="calendar-band" data-kind="semester"/g)).toHaveLength(3);
-    expect(html.match(/class="calendar-band" data-kind="vacation"/g)).toHaveLength(3);
-  });
-
-  test('时间轴横条 left/width 只使用百分比', () => {
-    const html = renderPage([project], null, 'timeline');
-    const style = html.match(/class="calendar-bar[^>]*style="([^"]+)"/)?.[1] ?? '';
-    expect(style).toContain('left:');
-    expect(style).toContain('width:');
-    expect(style).toContain('%');
-    expect(style).not.toContain('px');
-  });
-});
-
 describe('日历：i18n', () => {
-  test('英文显示 Month / Timeline / 空态提示，不泄漏翻译 key', () => {
+  test('英文显示月历与空态提示，不暴露 Timeline 或翻译 key', () => {
     vi.stubGlobal('window', { localStorage: { getItem: () => 'en' } });
     const html = renderPage([]);
-    expect(html).toContain('Month');
-    expect(html).toContain('Timeline');
+    expect(html).toContain('Calendar');
+    expect(html).not.toContain('Timeline');
     expect(html).toContain('The active season has no projects yet, so there is nothing to draw on the calendar.');
     expect(html).toContain('November 2026');
     expect(html).not.toContain('calendar.view.');
