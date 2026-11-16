@@ -15,20 +15,23 @@ import type {
   CreateDependencyRequest,
   Delivery,
   CreateNeedRequest,
+  CreateProjectRequest,
   CreateSeasonRequest,
   CreateTaskRequest,
   Dependency,
   Group,
   Member,
   Need,
+  Project,
   Season,
   Task,
   TaskStatus,
   TaskWithMeta,
+  UpdateProjectRequest,
 } from '@teamhub/hub-contracts';
 import type { Clock } from '../../clock.js';
 import { isGateReviewer } from '../../authz.js';
-import type { PmRepository } from './repository.js';
+import type { PmRepository, UpdateProjectDraft } from './repository.js';
 
 /** 用例结果：ok:false 带 HTTP 语义（status+detail），route 只负责映射，不再夹业务判断。 */
 export type PmOutcome<T> =
@@ -107,6 +110,37 @@ export class PmService {
       return fail(400, `season name already exists: ${name}`);
     }
     return ok(await this.repository.createSeason({ name, startsAt, endsAt: endsAt ?? null }));
+  }
+
+  // ── 项目 ──
+
+  async listProjects(): Promise<Project[]> {
+    return this.repository.listProjects();
+  }
+
+  async createProject(input: CreateProjectRequest): Promise<PmOutcome<Project>> {
+    const name = input.name.trim();
+    const result = await this.repository.createProject({
+      name,
+      startsAt: input.startsAt,
+      endsAt: input.endsAt ?? null,
+      ...(input.seasonId ? { seasonId: input.seasonId } : {}),
+    });
+    if (!result.ok) return fail(409, `项目「${name}」已存在`);
+    return ok(result.project);
+  }
+
+  async updateProject(id: string, input: UpdateProjectRequest): Promise<PmOutcome<Project>> {
+    const patch: UpdateProjectDraft = {
+      ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+      ...(input.startsAt !== undefined ? { startsAt: input.startsAt } : {}),
+      ...(input.endsAt !== undefined ? { endsAt: input.endsAt } : {}),
+    };
+    const result = await this.repository.updateProject(id, patch);
+    if (result.ok) return ok(result.project);
+    if (result.reason === 'not-found') return fail(404, 'project not found');
+    if (result.reason === 'date-order') return fail(400, 'endsAt must not be earlier than startsAt');
+    return fail(409, `项目「${patch.name ?? id}」已存在`);
   }
 
   // ── 依赖链 / 方向缺口（纯派生） ──

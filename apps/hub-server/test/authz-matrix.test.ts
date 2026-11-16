@@ -75,6 +75,8 @@ const ROWS: MatrixRow[] = [
     payload: { name: '矩阵赛季', startsAt: '2026-09-01T00:00:00.000Z', endsAt: null },
     expect: ADMIN_ONLY,
   },
+  { method: 'POST', path: '/api/projects', payload: { name: '矩阵项目', startsAt: '2026-09-01T00:00:00.000Z' }, expect: ADMIN_ONLY },
+  { method: 'PUT', path: '/api/projects/:id', payload: { name: '矩阵项目改' }, expect: ADMIN_ONLY },
   { method: 'DELETE', path: '/api/members/:id/pin', expect: ADMIN_ONLY },
   { method: 'PUT', path: '/api/members/:id/gate-reviewer', payload: { gateReviewer: true }, expect: ADMIN_ONLY },
   { method: 'PUT', path: '/api/members/:id/role', payload: { role: 'member' }, expect: ADMIN_ONLY },
