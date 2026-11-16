@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useI18n } from '../i18n';
+import { isTopModal, popModal, pushModal } from '../shared/lib/modal-stack';
 
 /** 右侧模态抽屉；焦点留在最上层，关闭后回到打开它的控件。 */
 export function SideDrawer({
@@ -23,6 +24,7 @@ export function SideDrawer({
 }) {
   const { t } = useI18n();
   const panel = useRef<HTMLElement | null>(null);
+  const modalId = useRef(Symbol('side-drawer'));
   const [mounted, setMounted] = useState(open);
   const [closing, setClosing] = useState(false);
 
@@ -51,13 +53,17 @@ export function SideDrawer({
 
   useEffect(() => {
     if (!open) return;
+    pushModal(modalId.current);
+    return () => popModal(modalId.current);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     const previous = document.activeElement as HTMLElement | null;
-    // 退场中的抽屉已 inert，不能再吞其他抽屉的 Esc / Tab。
-    const topmost = () => [...document.querySelectorAll('.drawer:not([data-closing])')].at(-1) === panel.current;
     const controls = () => [...(panel.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href], [tabindex="0"]') ?? [])].filter(el => el.getClientRects().length > 0);
     if (!panel.current?.contains(document.activeElement)) (controls()[0] ?? panel.current)?.focus();
     const onKey = (event: KeyboardEvent) => {
-      if (!topmost() || event.defaultPrevented) return;
+      if (!isTopModal(modalId.current) || event.defaultPrevented) return;
       if (event.key === 'Escape') { event.preventDefault(); closeRef.current(); }
       if (event.key === 'Tab') {
         const items = controls();
