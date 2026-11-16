@@ -3,7 +3,7 @@ kind: canonical-domain
 status: active
 domain: pm
 truth_for: projects-tasks-dependencies-needs-claims-and-project-views
-last_reviewed: 2026-11-15
+last_reviewed: 2026-11-16
 ---
 
 # PM 领域
@@ -14,6 +14,7 @@ PM 管赛季项目中的 Task、Dependency、Need、挂单认领、指派、搭�
 
 ## 2. 当前行为（CURRENT）
 
+- Project 由 `projects` 表持久化；`GET /api/projects` 返回成员可读的项目列表，`POST /api/projects` 与 `PUT /api/projects/:id` 仅项目管理员写入。设置页「项目」提供新建/编辑表单，开始日期必填、结束日期可留空表示至今；两者都有值时结束日期不得早于开始日期。
 - Task 有待启动、进行中、卡住、完成、搁置等状态，支持 owner、group、robotTarget、里程碑和投资属性。
 - Dependency 是确认后才参与归因的有向边；Need 归到 provider group，不被转换为对个人派单。
 - API 已支持任务/依赖/Need 创建、状态流转、依赖豁免、任务认领/指派/退池/搭档、跨组确认、完成和复核。
