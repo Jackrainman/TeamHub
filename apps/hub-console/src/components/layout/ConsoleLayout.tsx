@@ -7,18 +7,20 @@ import { GlobalSearch as GlobalSearchBox } from '../../features/search/GlobalSea
 import { useConsolePreferences } from '../../shared/ConsolePreferences';
 import { RightRail } from '../../shared/ui/RightRail';
 import { useRightRail } from '../../shared/ui/useRightRail';
+import { TaskRailPanel } from '../../features/pm/rail/TaskRailPanel';
 
 export type { ConsolePage };
 interface ConsoleLayoutProps {
   page: ConsolePage; onNavigate: (page: ConsolePage) => void;
   pages: ConsolePageDescriptor[]; client: HubApiClient; actions?: ReactNode;
+  identity: import('../../console-pages').PageIdentityCtx;
 }
 // 显式导航顺序（四页成品）：任务/项目在工作区，报销/设置在小工具组。
 // 只在这里决定顺序，页面本身仍以 CONSOLE_PAGES 为唯一注册源。
 const PRIMARY: ConsolePage[] = ['workbench', 'project'];
 const TOOLS: ConsolePage[] = ['reimburse', 'settings'];
 
-export function ConsoleLayout({ children, page, onNavigate, pages, client, actions }: PropsWithChildren<ConsoleLayoutProps>) {
+export function ConsoleLayout({ children, page, onNavigate, pages, client, actions, identity }: PropsWithChildren<ConsoleLayoutProps>) {
   const { t } = useI18n();
   const p = useConsolePreferences();
   const rail = useRightRail();
@@ -51,6 +53,8 @@ export function ConsoleLayout({ children, page, onNavigate, pages, client, actio
       <header className="console-topbar"><div className="console-topbar-title"><strong>{active && t(active.labelKey)}</strong></div><GlobalSearchBox client={client} onNavigate={onNavigate} availablePages={pages.map(item => item.key)} /><button type="button" id="console-rail-toggle" className="icon-button console-rail-toggle" onClick={rail.toggle} aria-controls="console-right-rail" aria-expanded={rail.isOpen} aria-label={t(rail.isOpen ? 'rail.close' : 'rail.open')} title={t(rail.isOpen ? 'rail.close' : 'rail.open')}><PanelRight size={16} aria-hidden="true" /></button>{actions}</header>
       <main className="console-main" id="console-main" data-page={page}>{children}</main>
     </div>
-    <RightRail title={t('rail.title')} open={rail.isOpen} onClose={rail.close} />
+    <RightRail title={t('rail.title')} open={rail.isOpen} onClose={rail.close}>
+      <TaskRailPanel client={client} source="real" identity={identity} active={rail.isOpen} />
+    </RightRail>
   </div>;
 }

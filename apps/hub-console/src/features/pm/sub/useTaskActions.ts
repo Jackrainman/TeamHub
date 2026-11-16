@@ -1,6 +1,6 @@
-import { canReviewWeekTask } from '@teamhub/hub-contracts';
+import { canReviewWeekTask, taskAuthorId } from '@teamhub/hub-contracts';
 import { useState } from 'react';
-import type { ActorRef, MemberPublic, TaskWithMeta } from '@teamhub/hub-contracts';
+import type { ActorRef, Delivery, MemberPublic, TaskWithMeta } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../../api/client';
 import { queryKeys } from '../../../api/queryKeys';
 import type { PageIdentityCtx } from '../../../console-pages';
@@ -28,6 +28,10 @@ export function useTaskActions(
   const [rejectNote, setRejectNote] = useState('');
   const [releaseOpen, setReleaseOpen] = useState(false);
   const [releaseReason, setReleaseReason] = useState('');
+  const [selfAcceptOpen, setSelfAcceptOpen] = useState(false);
+  const [deliverySummary, setDeliverySummary] = useState('');
+  const [deliveryDeliverable, setDeliveryDeliverable] = useState('');
+  const [deliveryPaths, setDeliveryPaths] = useState('');
 
   const resetState = () => {
     setPartnerOpen(false);
@@ -36,6 +40,10 @@ export function useTaskActions(
     setRejectNote('');
     setReleaseOpen(false);
     setReleaseReason('');
+    setSelfAcceptOpen(false);
+    setDeliverySummary('');
+    setDeliveryDeliverable('');
+    setDeliveryPaths('');
     setConfirmActorId('');
     setCompleteActorId('');
     setReviewActorId('');
@@ -64,12 +72,13 @@ export function useTaskActions(
   });
   const reviewMutation = useHubMutation({
     invalidateKeys,
-    mutationFn: (vars: { outcome: 'accept' | 'reject'; note?: string; actor?: ActorRef }) =>
+    mutationFn: (vars: { outcome: 'accept' | 'reject'; note?: string; actor?: ActorRef; delivery?: Delivery }) =>
       client.reviewTask(task.id, {
         expectedRevision: task.revision ?? 0,
         outcome: vars.outcome,
         reviewedBy: vars.actor,
         note: vars.note,
+        delivery: vars.delivery,
       }),
     onSuccess: resetState,
   });
@@ -91,12 +100,22 @@ export function useTaskActions(
   const groupLeads = members.filter(
     (m) => m.role === 'groupAdmin' && m.groupId === task.groupId,
   );
-  const reviewers = members.filter((m) => m.gateReviewer);
+  const selectedReviewers = members.filter(member => task.reviewerIds?.includes(member.id));
+  const reviewers = task.weekLinks?.length || (!task.isBig && selectedReviewers.length)
+    ? selectedReviewers
+    : members.filter(member => member.gateReviewer);
   const canConfirmLead =
     identity.session?.role === 'groupAdmin' && identity.session?.groupId === task.groupId;
+  const selfAccept = !!identity.session && !task.weekLinks?.length && !task.isBig &&
+    !task.reviewerIds?.length && task.status === 'done' && task.completedBy?.id === identity.session.memberId;
+  const sessionId = identity.session?.memberId;
   const canReview = task.weekLinks?.length
-    ? !!identity.session && canReviewWeekTask(task, identity.session.memberId)
-    : identity.session?.gateReviewer === true;
+    ? !!sessionId && canReviewWeekTask(task, sessionId)
+    : task.isBig
+      ? identity.session?.gateReviewer === true
+      : task.reviewerIds?.length
+        ? !!sessionId && task.reviewerIds.includes(sessionId) && taskAuthorId(task) !== sessionId && task.completedBy?.id !== sessionId
+        : selfAccept;
   const canComplete = !task.weekLinks?.length || identity.session?.memberId === task.ownerId;
   const canRelease =
     identity.session?.memberId === task.ownerId ||
@@ -129,6 +148,7 @@ export function useTaskActions(
     releaseCandidates,
     canConfirmLead,
     canReview,
+    selfAccept,
     canComplete,
     canRelease,
     actionError,
@@ -144,6 +164,14 @@ export function useTaskActions(
     setReleaseOpen,
     releaseReason,
     setReleaseReason,
+    selfAcceptOpen,
+    setSelfAcceptOpen,
+    deliverySummary,
+    setDeliverySummary,
+    deliveryDeliverable,
+    setDeliveryDeliverable,
+    deliveryPaths,
+    setDeliveryPaths,
     confirmActorId,
     setConfirmActorId,
     completeActorId,

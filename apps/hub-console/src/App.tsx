@@ -194,7 +194,7 @@ function ConsoleApp({ apiClient, settings }: { apiClient: HubApiClient; settings
   };
 
   return (
-    <ConsolePreferencesProvider><ConsoleLayout page={page} onNavigate={setPage} pages={enabledPages} client={apiClient} actions={<div className="console-toolbar__actions">
+    <ConsolePreferencesProvider><ConsoleLayout page={page} onNavigate={setPage} pages={enabledPages} client={apiClient} identity={identity} actions={<div className="console-toolbar__actions">
           {/* 全局「快记欠条」入口（GATE-CHECKLIST-IOU 设计 §3，D-087）：任何人一句话贴条，默认挂下一道
               整车级门。无基准线时组件自身 return null（IdentityBar 同位先例）。 */}
           <ChecklistQuickRecord

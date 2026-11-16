@@ -11,11 +11,21 @@ import { useHubMutation } from '../../hooks/useHubMutation';
  * DepGraphPage/DirectionPage/PmCreatePanel 的裸 hook）。写侧走平台 useHubMutation。
  */
 
-export function useTasks(client: HubApiClient, source: string) {
+export function useTasks(client: HubApiClient, source: string, enabled = true) {
   return useQuery({
     queryKey: queryKeys.tasks(source),
     refetchInterval: 30_000,
     queryFn: () => client.getTasks(),
+    enabled,
+  });
+}
+
+export function useCompleteTask(client: HubApiClient, onError?: () => void) {
+  return useHubMutation({
+    meta: { silent: true },
+    invalidateKeys: [queryKeys.allTasks(), queryKeys.allDepGraphs()],
+    mutationFn: (taskId: string) => client.completeTask(taskId, {}),
+    onError,
   });
 }
 

@@ -10,6 +10,7 @@ import { TaskDetailBadges } from './sub/TaskDetailBadges';
 import { TaskFacts } from './sub/TaskFacts';
 import { TaskTimeline } from './sub/TaskTimeline';
 import { TaskActionsPanel } from './sub/TaskActionsPanel';
+import { SideDrawer } from '../../components/SideDrawer';
 
 export function TaskDetailDrawer({
   client,
@@ -53,8 +54,35 @@ export function TaskDetailDrawer({
         {canEdit && !editing && <button className="btn btn--secondary btn--sm" onClick={() => setEditing(true)}>{t('team.edit')}</button>}
       </div>}
       {canEdit && editing && <TaskEditor task={task} client={client} members={members} groups={groups} onClose={() => setEditing(false)} />}
+      <section className="task-detail__delivery" aria-label={t('delivery.title')}>
+        <h3>{t('delivery.title')}</h3>
+        {task.delivery ? <dl>
+          <div><dt>{t('delivery.summary')}</dt><dd>{task.delivery.summary}</dd></div>
+          <div><dt>{t('delivery.deliverable')}</dt><dd>{task.delivery.deliverable}</dd></div>
+          <div><dt>{t('delivery.paths')}</dt><dd><ul>{task.delivery.paths.map(path => <li key={path}>{path}</li>)}</ul></dd></div>
+        </dl> : <p className="task-detail__hint">{t('delivery.empty')}</p>}
+      </section>
       <TaskTimeline task={task} members={members} />
       {!readOnly && <TaskActionsPanel actions={actions} task={task} members={members} acceptance={acceptance} />}
+      <SideDrawer placement="center" open={actions.selfAcceptOpen} onClose={() => actions.setSelfAcceptOpen(false)} title={t('rail.selfAccept.title')}>
+        <form className="task-detail__self-accept" onSubmit={event => {
+          event.preventDefault();
+          actions.reviewMutation.mutate({
+            outcome: 'accept',
+            actor: actions.reviewActor(),
+            delivery: {
+              summary: actions.deliverySummary.trim(),
+              deliverable: actions.deliveryDeliverable.trim(),
+              paths: actions.deliveryPaths.split('\n').map(path => path.trim()).filter(Boolean),
+            },
+          });
+        }}>
+          <label className="gate-field">{t('rail.selfAccept.summary')}<textarea required maxLength={500} rows={4} value={actions.deliverySummary} onChange={event => actions.setDeliverySummary(event.target.value)} /></label>
+          <label className="gate-field">{t('rail.selfAccept.deliverable')}<textarea required maxLength={500} rows={4} value={actions.deliveryDeliverable} onChange={event => actions.setDeliveryDeliverable(event.target.value)} /></label>
+          <label className="gate-field">{t('rail.selfAccept.paths')}<textarea required rows={4} value={actions.deliveryPaths} onChange={event => actions.setDeliveryPaths(event.target.value)} /></label>
+          <button type="submit" className="btn btn--primary" disabled={actions.reviewMutation.isPending || !actions.deliverySummary.trim() || !actions.deliveryDeliverable.trim() || !actions.deliveryPaths.split('\n').some(path => path.trim())}>{t('rail.selfAccept.submit')}</button>
+        </form>
+      </SideDrawer>
     </div>
   );
 }

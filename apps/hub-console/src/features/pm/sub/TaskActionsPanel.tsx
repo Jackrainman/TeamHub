@@ -230,7 +230,13 @@ export function TaskActionsPanel({
             </div>
           ) : null}
 
-          {acceptance === 'awaitingReview' ? (
+          {actions.selfAccept ? (
+            <button type="button" className="btn btn--primary btn--sm" onClick={() => actions.setSelfAcceptOpen(true)}>
+              {t('rail.selfAccept.action')}
+            </button>
+          ) : null}
+
+          {acceptance === 'awaitingReview' && !actions.selfAccept ? (
             <div className="task-detail__panel">
               {!actions.isIdentity
                 ? renderOperatorPicker(
