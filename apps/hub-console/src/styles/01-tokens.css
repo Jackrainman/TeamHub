@@ -110,6 +110,7 @@
     linear-gradient(135deg, transparent 50%, currentColor 50%),
     linear-gradient(45deg, currentColor 50%, transparent 50%);
   --select-chevron-size: 5px;
+  --rail-width: 320px; /* P1 右栏宽度：唯一允许出现 320 的地方。 */
   /* 侧边栏次级文字（品牌副标题 / nav 项）——派生自 sidebar-text，warm 自动联动。 */
   --sidebar-text-muted: color-mix(in srgb, var(--sidebar-text) 62%, transparent);
   /* 主题可换 token（classic 默认值；warm 见下方 [data-theme='warm'] 覆盖）。 */
