@@ -9,13 +9,9 @@ import { Input } from '../../shared/ui/Input';
 import { FormActions } from '../../components/FormActions';
 import { FormGrid } from '../../components/FormGrid';
 import { humanizeFormError } from '../../utils';
-import { useProjects } from '../pm/hooks';
+import { isProjectRangeValid } from '../../shared/lib/project-utils';
+import { useProjectMutations, useProjects } from '../pm/hooks';
 import { sectionPermission } from './section-permission';
-import { useProjectMutations } from './hooks';
-
-export function isProjectRangeValid(startsAt: string, endsAt: string): boolean {
-  return !startsAt || !endsAt || endsAt >= startsAt;
-}
 
 /** 项目列表 + 一个新建/编辑共用表单；日期只存 UTC 零点，空结束日由展示层解释为至今。 */
 export function ProjectsSection({

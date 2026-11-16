@@ -56,6 +56,34 @@ export function useProjects(client: Pick<HubApiClient, 'getProjects'>) {
   });
 }
 
+/** 项目新建/编辑共用写动作；设置页与日历新建抽屉共享同一请求和缓存失效路径。 */
+export function useProjectMutations(
+  client: Pick<HubApiClient, 'createProject' | 'updateProject'>,
+  opts: {
+    create: { name: string; startsAt: string; endsAt: string };
+    update: { id: string; name: string; startsAt: string; endsAt: string } | null;
+    onSuccess: () => void;
+  },
+) {
+  const saveMutation = useHubMutation({
+    meta: { silent: true },
+    invalidateKeys: [queryKeys.projects()],
+    mutationFn: () => {
+      const value = opts.update ?? opts.create;
+      const request = {
+        name: value.name.trim(),
+        startsAt: `${value.startsAt}T00:00:00.000Z`,
+        endsAt: value.endsAt ? `${value.endsAt}T00:00:00.000Z` : null,
+      };
+      return opts.update
+        ? client.updateProject(opts.update.id, request)
+        : client.createProject(request);
+    },
+    onSuccess: () => opts.onSuccess(),
+  });
+  return { saveMutation };
+}
+
 export function useSeasons(client: Pick<HubApiClient, 'getSeasons'>) {
   return useQuery({
     queryKey: queryKeys.seasons(),

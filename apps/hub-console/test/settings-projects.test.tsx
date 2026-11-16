@@ -9,8 +9,8 @@ import type { PageIdentityCtx } from '../src/console-pages';
 import {
   ProjectForm,
   ProjectsSection,
-  isProjectRangeValid,
 } from '../src/features/settings/ProjectsSection';
+import { isProjectRangeValid } from '../src/shared/lib/project-utils';
 
 const anonymous: PageIdentityCtx = { mode: 'anonymous', session: null, isLoading: false, canWrite: true };
 const project: Project = {

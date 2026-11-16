@@ -1,4 +1,4 @@
-// Real SQLite + real browser acceptance for both calendar views.
+// Real SQLite + real browser acceptance for the calendar month and project creation.
 const { chromium } = require('playwright');
 const { spawn } = require('node:child_process');
 const { mkdtempSync, mkdirSync, rmSync } = require('node:fs');
@@ -20,7 +20,7 @@ const { settle } = require('./lib/wait.cjs');
   const now = new Date();
   const dateKey = date => date.toISOString().slice(0, 10);
   const at = days => new Date(now.getTime() + days * 86400000).toISOString();
-  const todayKey = dateKey(now);
+  const todayKey = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }).format(now);
   const addDays = (key, count) => {
     const date = new Date(`${key}T00:00:00.000Z`);
     date.setUTCDate(date.getUTCDate() + count);
@@ -223,6 +223,84 @@ const { settle } = require('./lib/wait.cjs');
     const monthGrid = await page.locator('.calendar-month-view').evaluate(element => ({ client: element.clientWidth, scroll: element.scrollWidth }));
     assert.ok(monthGrid.scroll <= monthGrid.client + 1, `month grid overflow: ${monthGrid.client}/${monthGrid.scroll}`);
     await capture('month-1000');
+
+    // 项目新建入口用独立 SQLite/端口验证匿名模式下的完整创建闭环。
+    const firstServerExit = new Promise(resolve => child.once('exit', resolve));
+    child.kill();
+    await firstServerExit;
+    child = null;
+    const entryDbFile = path.join(dir, 'calendar-entry.sqlite');
+    const entryDb = openUnifiedDb(entryDbFile);
+    entryDb.initialize({ dataMode: 'real', identityMode: 'anonymous' }, now);
+    const entryStores = entryDb.openStores();
+    const entrySeason = await entryStores.gov.createSeason({ name: 'E2E新建入口赛季', startsAt: at(-8), endsAt: at(45) });
+    assert.ok(entrySeason.id, 'calendar entry season is created');
+    const noDateCreation = await entryStores.gov.createProject({ name: 'E2E无日期', startsAt: null, endsAt: null });
+    assert.ok(noDateCreation.ok, 'calendar entry dateless project is created');
+    entryDb.close();
+
+    const entryPort = await freePort();
+    const entryBase = `http://127.0.0.1:${entryPort}`;
+    child = spawn(process.execPath, [path.join(root, 'hub-server/dist/main.js')], {
+      windowsHide: true,
+      env: { ...process.env, HUB_HOST: '127.0.0.1', HUB_PORT: String(entryPort), TEAMHUB_DB_FILE: entryDbFile, TEAMHUB_CONSOLE_DIST_DIR: path.resolve(__dirname, '../../dist'), TEAMHUB_WRITE_TOKEN: '' },
+      stdio: ['ignore', 'ignore', 'pipe'],
+    });
+    child.stderr.on('data', data => process.stderr.write(data));
+    for (let i = 0; ; i++) {
+      if (child.exitCode !== null || i > 100) throw new Error('calendar entry test server failed to start');
+      try { if ((await fetch(`${entryBase}/health`)).ok) break; } catch {}
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto(entryBase, { waitUntil: 'networkidle' });
+    await page.locator('.console-sidebar').getByRole('button', { name: '日历', exact: true }).click();
+    const emptyHint = page.locator('.calendar-empty-hint[data-empty-kind="no-dates"]');
+    await emptyHint.waitFor();
+    await emptyHint.filter({ hasText: '1 个项目还没有起止日期' }).waitFor();
+    assert.equal(await page.locator('.calendar-month-day').count(), 42);
+    assert.equal(await page.locator('.calendar-project-bar').count(), 0);
+    assert.equal(await page.locator('.calendar-month-unstarted button').filter({ hasText: 'E2E无日期' }).count(), 1);
+    await settle(page);
+    await capture('calendar-empty-1440');
+
+    await page.locator('.calendar-toolbar [data-action="create-project"]').click();
+    const createDrawer = page.getByRole('dialog', { name: '新建项目', exact: true });
+    await createDrawer.waitFor();
+    await createDrawer.locator('[data-field="name"] input').fill('E2E日历新建项目');
+    await createDrawer.locator('[data-field="startsAt"] input').fill(todayKey);
+    await createDrawer.locator('[data-field="endsAt"] input').fill(addDays(todayKey, 2));
+    assert.equal(await createDrawer.getByRole('button', { name: '新建项目', exact: true }).isDisabled(), false);
+    await settle(page);
+    await capture('calendar-create-form-1440');
+    await createDrawer.getByRole('button', { name: '新建项目', exact: true }).click();
+    try {
+      await createDrawer.waitFor({ state: 'hidden' });
+    } catch (error) {
+      console.error(`create project drawer did not close: ${await createDrawer.innerText()}`);
+      throw error;
+    }
+    await page.locator('.calendar-project-bar[title^="E2E日历新建项目 ·"]').first().waitFor();
+    assert.equal(await page.locator('.calendar-empty-hint').count(), 0);
+    await settle(page);
+    await capture('calendar-created-1440');
+
+    // 成功后再次打开必须得到空表单，不能带着上次提交内容。
+    await page.locator('.calendar-toolbar [data-action="create-project"]').click();
+    await createDrawer.waitFor();
+    assert.equal(await createDrawer.locator('[data-field="name"] input').inputValue(), '');
+    assert.equal(await createDrawer.locator('[data-field="startsAt"] input').inputValue(), '');
+    assert.equal(await createDrawer.locator('[data-field="endsAt"] input').inputValue(), '');
+    await page.keyboard.press('Escape');
+    await createDrawer.waitFor({ state: 'hidden' });
+    await page.setViewportSize({ width: 1000, height: 900 });
+    await settle(page);
+    await capture('calendar-1000');
+    const documentWidth = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, viewport: window.innerWidth }));
+    assert.ok(documentWidth.scroll <= documentWidth.viewport + 2, `entry page overflow: ${documentWidth.scroll}/${documentWidth.viewport}`);
+    console.log('PASS calendar project entry: no-dates hint, create drawer, immediate bar, form reset, 1000px');
+
     assert.deepEqual(errors, [], 'calendar has no browser errors');
     console.log(`PASS calendar: month grid, navigation, persistence, overlap, timeline, drawers, 1000px overflow; screenshots ${shots}`);
   } finally {

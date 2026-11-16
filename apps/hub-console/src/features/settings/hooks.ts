@@ -85,33 +85,6 @@ export function useCreateSeasonMutation(
   });
 }
 
-export function useProjectMutations(
-  client: HubApiClient,
-  opts: {
-    create: { name: string; startsAt: string; endsAt: string };
-    update: { id: string; name: string; startsAt: string; endsAt: string } | null;
-    onSuccess: () => void;
-  },
-) {
-  const saveMutation = useHubMutation({
-    meta: { silent: true },
-    invalidateKeys: [queryKeys.projects()],
-    mutationFn: () => {
-      const value = opts.update ?? opts.create;
-      const request = {
-        name: value.name.trim(),
-        startsAt: `${value.startsAt}T00:00:00.000Z`,
-        endsAt: value.endsAt ? `${value.endsAt}T00:00:00.000Z` : null,
-      };
-      return opts.update
-        ? client.updateProject(opts.update.id, request)
-        : client.createProject(request);
-    },
-    onSuccess: () => opts.onSuccess(),
-  });
-  return { saveMutation };
-}
-
 export function useGroupMutations(
   client: HubApiClient,
   opts: { createName: string; onCreateSuccess: () => void },

@@ -1,13 +1,16 @@
 import { useMemo, useState } from 'react';
+import { Plus } from 'lucide-react';
 import type { HubApiClient } from '../../../api/client';
 import type { ConsolePage, PageIdentityCtx } from '../../../console-pages';
 import { useI18n } from '../../../i18n';
-import { EmptyState } from '../../../shared/EmptyState';
+import { Button } from '../../../shared/ui/Button';
 import { useQueryGuard } from '../../../shared/QueryGate';
 import { MonthGrid } from './MonthGrid';
 import { MonthView } from './MonthView';
 import { monthLabel } from './calendar-month';
 import { CalendarDrawer, type CalendarSelection } from './CalendarDrawer';
+import { CalendarEmptyHint } from './CalendarEmptyHint';
+import { CalendarProjectDrawer } from './CalendarProjectDrawer';
 import { buildAxis, dateKeyOf, barGeometry, type CalendarMode } from './model';
 import { useCalendarData, useTodayKey } from './hooks';
 
@@ -41,12 +44,15 @@ export function CalendarPage({ client, source, projectId, identity, onNavigate, 
   const projects = useQueryGuard(projectsQuery, t('calendar.loading'), t('calendar.error'));
   const axis = useMemo(() => view === 'timeline' ? buildAxis(mode, today, activeSeason) : null, [view, mode, today, activeSeason]);
   const [selection, setSelection] = useState<CalendarSelection | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
   const milestones = baselineQuery.data?.baseline?.milestones ?? [];
   const bands = baselineQuery.data?.baseline?.segments ?? [];
   const outsideCount = view === 'timeline' && axis
     ? filteredProjects.filter(project => dateKeyOf(project.startsAt) && !barGeometry(project, axis, today)).length
     : 0;
   const anyStart = filteredProjects.some(project => dateKeyOf(project.startsAt));
+  const emptyKind = filteredProjects.length === 0 ? 'no-projects' : !anyStart ? 'no-dates' : null;
+  const lockHint = identity.canWrite ? null : t('identity.writeHint');
 
   function changeView(next: CalendarView): void {
     setView(next);
@@ -78,16 +84,26 @@ export function CalendarPage({ client, source, projectId, identity, onNavigate, 
         <div className="calendar-mode calendar-view-toggle" role="group" aria-label={t('calendar.view.aria')}>
           {(['month', 'timeline'] as const).map(value => <button type="button" key={value} data-view={value} aria-pressed={view === value} onClick={() => changeView(value)}>{t(`calendar.view.${value}`)}</button>)}
         </div>
+        <Button
+          variant="primary"
+          size="sm"
+          icon={<Plus size={16} aria-hidden="true" />}
+          data-action="create-project"
+          disabled={!identity.canWrite}
+          title={lockHint ?? undefined}
+          onClick={() => setCreateOpen(true)}
+        >{t('calendar.project.create')}</Button>
       </div>
     </header>
     {projects ? <>
+      {view === 'month' && emptyKind ? <CalendarEmptyHint kind={emptyKind} count={filteredProjects.length} canWrite={identity.canWrite} lockHint={lockHint} onCreate={() => setCreateOpen(true)} /> : null}
       {view === 'month' ? <MonthView year={anchor.year} month={anchor.month} projects={filteredProjects} today={today} onOpen={project => setSelection({ type: 'project', project })} /> : axis ? <MonthGrid axis={axis} mode={mode} projects={filteredProjects} milestones={milestones} bands={bands} today={today} projectId={projectId} onOpenProject={project => setSelection({ type: 'project', project })} onOpenMilestone={milestone => setSelection({ type: 'milestone', milestone, season: activeSeason })} /> : null}
       {!activeSeason ? <div className="state-band">{t('calendar.empty.season')}</div> : baselineQuery.isError ? <div className="state-band state-band-error">{t('calendar.error')}</div> : activeSeason && baselineQuery.data && !baselineQuery.data.baseline ? <div className="state-band">{t('calendar.empty.baseline')}</div> : null}
-      {filteredProjects.length === 0 ? <EmptyState title={t('calendar.empty.projects.title')} desc={t('calendar.empty.projects.desc')} action={<button type="button" className="btn btn-primary" onClick={() => onNavigate('settings')}>{t('calendar.drawer.editInSettings')}</button>} /> : null}
       {view === 'timeline' && filteredProjects.length > 0 && !anyStart ? <div className="state-band">{t('calendar.empty.noStarts')}</div> : null}
       {view === 'timeline' && outsideCount > 0 ? <div className="state-band">{t('calendar.outOfWindow', { count: outsideCount })}</div> : null}
       {hiddenCount > 0 ? <p className="calendar-footnote">{t('calendar.hiddenProjects', { count: hiddenCount })}</p> : null}
     </> : null}
     <CalendarDrawer selection={selection} today={today} canWrite={identity.canWrite} onClose={() => setSelection(null)} onNavigateSettings={() => onNavigate('settings')} />
+    <CalendarProjectDrawer client={client} open={createOpen} canWrite={identity.canWrite} onClose={() => setCreateOpen(false)} />
   </div>;
 }

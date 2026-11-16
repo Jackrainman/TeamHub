@@ -21,7 +21,7 @@ const milestone: BaselineMilestonePublic = {
   id: 'm-1', title: '测试门', kind: 'gate', plannedAt: '2026-11-20T00:00:00.000Z', status: 'pending',
 };
 
-function renderPage(projects: Project[], baseline: SeasonBaselinePublic | null = null, view?: CalendarView) {
+function renderPage(projects: Project[], baseline: SeasonBaselinePublic | null = null, view?: CalendarView, pageIdentity: PageIdentityCtx = identity) {
   if (view) {
     vi.stubGlobal('window', { localStorage: { getItem: (key: string) => key === 'teamhub.calendar.view' ? view : null } });
   }
@@ -31,7 +31,7 @@ function renderPage(projects: Project[], baseline: SeasonBaselinePublic | null =
   cache.setQueryData(queryKeys.baseline.season('test', season.id), { baseline });
   return renderToStaticMarkup(<QueryClientProvider client={cache}>
     <LanguageProvider>
-      <CalendarPage client={createHubApiClient()} source="test" projectId="project-a" identity={identity} onNavigate={() => {}} todayOverride="2026-11-16" />
+      <CalendarPage client={createHubApiClient()} source="test" projectId="project-a" identity={pageIdentity} onNavigate={() => {}} todayOverride="2026-11-16" />
     </LanguageProvider>
   </QueryClientProvider>);
 }
@@ -39,13 +39,16 @@ function renderPage(projects: Project[], baseline: SeasonBaselinePublic | null =
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('日历：默认月视图', () => {
-  test('默认渲染 6×7 月网格、项目条与 EmptyState', () => {
+  test('默认渲染 6×7 月网格、项目条与轻量空态', () => {
     const empty = renderPage([]);
     expect(empty).toContain('calendar-month-view');
     expect(empty.match(/class="calendar-month-day"/g)).toHaveLength(42);
-    expect(empty).toContain('还没有项目');
+    expect(empty).toContain('data-empty-kind="no-projects"');
+    expect(empty).toContain('当前赛季还没有项目，日历暂无可画内容');
+    expect(empty.match(/data-action="create-project"/g)).toHaveLength(2);
     expect(empty).toContain('2026年11月');
     expect(empty).not.toContain('calendar-grid-wrap');
+    expect(empty).not.toContain('empty-state');
 
     const populated = renderPage([project]);
     expect(populated.match(/class="calendar-month-day"/g)).toHaveLength(42);
@@ -58,8 +61,21 @@ describe('日历：默认月视图', () => {
     expect(html).toContain('calendar-month-unstarted');
     expect(html).toContain('跨月项目');
     expect(html).toContain('未定开始');
+    expect(html).toContain('data-empty-kind="no-dates"');
+    expect(html).toContain('当前赛季 1 个项目还没有起止日期，日历暂无可画内容');
     expect(html).not.toContain('class="calendar-project-bar"');
-    expect(html).not.toContain('所有项目都还没定开始日期');
+  });
+
+  test('无写权限时新建按钮禁用并解释原因，有权限时常驻可用', () => {
+    const readOnly: PageIdentityCtx = { mode: 'identity', session: null, isLoading: false, canWrite: false };
+    const locked = renderPage([{ ...project, startsAt: null, endsAt: null }], null, undefined, readOnly);
+    const lockedButtons = locked.match(/<button[^>]*data-action="create-project"[^>]*>/g) ?? [];
+    expect(lockedButtons).toHaveLength(2);
+    expect(lockedButtons.every(button => button.includes('disabled=""'))).toBe(true);
+    expect(locked).toContain('登录后才能提交');
+    const unlockedButton = renderPage([project]).match(/<button[^>]*data-action="create-project"[^>]*>/)?.[0] ?? '';
+    expect(unlockedButton).not.toBe('');
+    expect(unlockedButton).not.toContain('disabled');
   });
 
   test('未定开始项目排在有开始日期项目之后', () => {
@@ -119,12 +135,12 @@ describe('日历：时间轴视图保持原行为', () => {
 });
 
 describe('日历：i18n', () => {
-  test('英文显示 Month / Timeline / No projects yet，不泄漏翻译 key', () => {
+  test('英文显示 Month / Timeline / 空态提示，不泄漏翻译 key', () => {
     vi.stubGlobal('window', { localStorage: { getItem: () => 'en' } });
     const html = renderPage([]);
     expect(html).toContain('Month');
     expect(html).toContain('Timeline');
-    expect(html).toContain('No projects yet');
+    expect(html).toContain('The active season has no projects yet, so there is nothing to draw on the calendar.');
     expect(html).toContain('November 2026');
     expect(html).not.toContain('calendar.view.');
     expect(html).not.toContain('calendar.empty.');
