@@ -4,7 +4,9 @@ import type { HubApiClient } from '../../api/client';
 import { useSeasons } from '../../features/pm/hooks';
 import type { PageIdentityCtx } from '../../console-pages';
 import { useI18n } from '../../i18n';
-import { Field } from '../../components/Field';
+import { Field } from '../../shared/ui/Field';
+import { Button } from '../../shared/ui/Button';
+import { Input } from '../../shared/ui/Input';
 import { FormActions } from '../../components/FormActions';
 import { FormGrid } from '../../components/FormGrid';
 import { humanizeFormError, seasonRangeLabel, suggestSeason } from '../../utils';
@@ -98,22 +100,23 @@ export function SeasonsSection({
               })}
             </p>
             <p>
-              <button
+              <Button
                 type="button"
-                className="btn btn--secondary btn--sm"
+                variant="secondary"
+                size="sm"
                 onClick={applySuggestion}
                 disabled={writeLocked}
                 title={lockHint ?? undefined}
               >
                 {t('settings.seasons.suggestApply')}
-              </button>
+              </Button>
             </p>
           </div>
         ) : null}
         <form className="pm-form" onSubmit={submit} title={lockHint ?? undefined}>
           <FormGrid cols={3}>
             <Field label={t('settings.seasons.field.name')} required>
-              <input
+              <Input
                 value={name}
                 placeholder={t('settings.seasons.field.namePlaceholder')}
                 onChange={(e) => setName(e.target.value)}
@@ -122,7 +125,7 @@ export function SeasonsSection({
               />
             </Field>
             <Field label={t('settings.seasons.field.startsAt')} required>
-              <input
+              <Input
                 type="date"
                 value={startsAt}
                 onChange={(e) => setStartsAt(e.target.value)}
@@ -134,7 +137,7 @@ export function SeasonsSection({
               label={t('settings.seasons.field.endsAt')}
               error={!orderOk ? t('settings.seasons.dateOrder') : undefined}
             >
-              <input
+              <Input
                 type="date"
                 value={endsAt}
                 onChange={(e) => setEndsAt(e.target.value)}
