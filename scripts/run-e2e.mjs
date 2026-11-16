@@ -8,6 +8,7 @@ const suites = [
   'expected-ui',
   'lazy-pages',
   'calendar',
+  'calendar-scope',
   'reimburse-workflow',
   'right-rail',
   'task-rail',
