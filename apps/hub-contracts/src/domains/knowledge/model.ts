@@ -105,7 +105,8 @@ export const InvestigationRecordSchema = z.object({
   createdAt: isoDateTimeSchema,
 });
 
-export const ERROR_CODE_PATTERN = /^DBG-\d{8}-\d{3}$/;
+/** Knowledge-base issue identifier, unrelated to HTTP error response codes. */
+export const KB_ISSUE_CODE_PATTERN = /^DBG-\d{8}-\d{3}$/;
 
 /** 结案沉淀的错误表条目（跨赛季可检索的「这类 bug 长这样 / 根因 / 怎么修」）。 */
 export const ErrorEntrySchema = z.object({
@@ -114,7 +115,7 @@ export const ErrorEntrySchema = z.object({
   sourceIssueId: z.string().min(1).max(KB_ID_MAX),
   errorCode: z
     .string()
-    .regex(ERROR_CODE_PATTERN, 'errorCode 必须匹配 DBG-YYYYMMDD-NNN'),
+    .regex(KB_ISSUE_CODE_PATTERN, 'errorCode 必须匹配 DBG-YYYYMMDD-NNN'),
   title: z.string().min(1).max(KB_TITLE_MAX),
   category: z.string().max(KB_TEXT_MAX),
   symptom: z.string().max(KB_LONG_TEXT_MAX),

@@ -60,6 +60,13 @@ export type {
 // 共享基元（ActorRef / isoDateTime）+ 治理主轴域（D-028，拆 pm-core/schedule-infra 两文件）
 // + 成长轴 + 派生算法 + 在场排班（D-029）+ 知识库（KB-CORE）
 export * from './common.js';
+export {
+  ERROR_CODES,
+  ERROR_STATUS,
+  LEGACY_CODE_MAP,
+  isErrorCode,
+} from './common/error-codes.js';
+export type { ErrorCode, LegacyErrorCode } from './common/error-codes.js';
 // 倒排基准线标准纵切：显式导出正式 domain API；投资值对象仍由共享 investment 单源提供。
 export {
   BASELINE_DRIFT_ATTACHED_DONE_THRESHOLD,
@@ -136,7 +143,7 @@ export {
   ARCHIVE_FILE_NAME_PATTERN,
   ArchiveDocumentSchema,
   ArchiveGeneratedBySchema,
-  ERROR_CODE_PATTERN,
+  KB_ISSUE_CODE_PATTERN,
   ErrorEntriesResponseSchema,
   ErrorEntrySchema,
   InvestigationRecordSchema,

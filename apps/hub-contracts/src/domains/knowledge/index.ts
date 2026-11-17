@@ -2,7 +2,7 @@ export {
   ARCHIVE_FILE_NAME_PATTERN,
   ArchiveDocumentSchema,
   ArchiveGeneratedBySchema,
-  ERROR_CODE_PATTERN,
+  KB_ISSUE_CODE_PATTERN,
   ErrorEntrySchema,
   InvestigationRecordSchema,
   InvestigationRecordTypeSchema,
