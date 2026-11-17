@@ -1,175 +1,48 @@
 import { useEffect, useState } from 'react';
-import { getWeekKey, type SelfReportTaskRequest, type TaskStatus, type UpdateSelfTaskRequest } from '@teamhub/hub-contracts';
 import { useQuery } from '@tanstack/react-query';
-import type { CreateSeasonRequest, CreateTaskRequest, Season } from '@teamhub/hub-contracts';
+import type { SelfReportTaskRequest, TaskStatus, UpdateSelfTaskRequest } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { queryKeys } from '../../api/queryKeys';
 import { useHubMutation } from '../../hooks/useHubMutation';
-
-/**
- * pm 域远端状态唯一消费点（§10；前身 hooks/useTasks.ts + hooks/useRoster.ts 的组/赛季半 +
- * DepGraphPage/DirectionPage/PmCreatePanel 的裸 hook）。写侧走平台 useHubMutation。
- */
+import { currentShanghaiWeek } from '../../shared/lib/now';
 
 export function useTasks(client: HubApiClient, source: string, enabled = true) {
-  return useQuery({
-    queryKey: queryKeys.tasks(source),
-    refetchInterval: 30_000,
-    queryFn: () => client.getTasks(),
-    enabled,
-  });
+  return useQuery({ queryKey: queryKeys.tasks(source), refetchInterval: 30_000,
+    queryFn: () => client.getTasks(), enabled });
 }
-
 export function useCompleteTask(client: HubApiClient, onError?: () => void) {
-  return useHubMutation({
-    meta: { silent: true },
-    invalidateKeys: [queryKeys.allTasks(), queryKeys.allDepGraphs()],
-    mutationFn: (taskId: string) => client.completeTask(taskId, {}),
-    onError,
-  });
+  return useHubMutation({ meta: { silent: true }, invalidateKeys: [queryKeys.allTasks()],
+    mutationFn: (taskId: string) => client.completeTask(taskId, {}), onError });
 }
-
 export function useTasksSearch(client: HubApiClient, source: string, q: string) {
-  return useQuery({
-    queryKey: queryKeys.tasksSearch(source, q),
-    queryFn: () => client.getTasks({ q }),
-    enabled: q.length > 0,
-  });
+  return useQuery({ queryKey: queryKeys.tasksSearch(source, q), queryFn: () => client.getTasks({ q }), enabled: q.length > 0 });
 }
-
-export function useGroups(
-  client: Pick<HubApiClient, 'getGroups'>,
-  tag = 'default',
-  enabled = true,
-) {
-  return useQuery({
-    queryKey: queryKeys.groups(tag),
-    queryFn: () => client.getGroups(),
-    enabled,
-  });
+export function useGroups(client: Pick<HubApiClient, 'getGroups'>, tag = 'default', enabled = true) {
+  return useQuery({ queryKey: queryKeys.groups(tag), queryFn: () => client.getGroups(), enabled });
 }
-
-export function useProjects(client: Pick<HubApiClient, 'getProjects'>) {
-  return useQuery({
-    queryKey: queryKeys.projects(),
-    queryFn: () => client.getProjects(),
-  });
-}
-
-/** 项目新建/编辑共用写动作；设置页与日历新建抽屉共享同一请求和缓存失效路径。 */
-export function useProjectMutations(
-  client: Pick<HubApiClient, 'createProject' | 'updateProject'>,
-  opts: {
-    create: { name: string; startsAt: string; endsAt: string };
-    update: { id: string; name: string; startsAt: string; endsAt: string } | null;
-    onSuccess: () => void;
-  },
-) {
-  const saveMutation = useHubMutation({
-    meta: { silent: true },
-    invalidateKeys: [queryKeys.projects()],
-    mutationFn: () => {
-      const value = opts.update ?? opts.create;
-      const request = {
-        name: value.name.trim(),
-        startsAt: `${value.startsAt}T00:00:00.000Z`,
-        endsAt: value.endsAt ? `${value.endsAt}T00:00:00.000Z` : null,
-      };
-      return opts.update
-        ? client.updateProject(opts.update.id, request)
-        : client.createProject(request);
-    },
-    onSuccess: () => opts.onSuccess(),
-  });
-  return { saveMutation };
-}
-
-export function useSeasons(client: Pick<HubApiClient, 'getSeasons'>) {
-  return useQuery({
-    queryKey: queryKeys.seasons(),
-    queryFn: () => client.getSeasons(),
-  });
-}
-
-/** 依赖图。opts.cacheKey：首页 按会话身份分缓存；opts.enabled：身份门（未登录不发请求）。 */
-export function useDepGraph(
-  client: HubApiClient,
-  source: string,
-  opts?: { cacheKey?: string; enabled?: boolean },
-) {
-  return useQuery({
-    queryKey: opts?.cacheKey
-      ? [...queryKeys.depGraph(source), opts.cacheKey]
-      : queryKeys.depGraph(source),
-    queryFn: () => client.getDepGraph(),
-    enabled: opts?.enabled,
-  });
-}
-
-/** 方向缺口（DirectionPage）。 */
-export function useGroupGaps(client: HubApiClient, source: string) {
-  return useQuery({
-    queryKey: queryKeys.groupGaps(source),
-    queryFn: () => client.getGroupGaps(),
-  });
-}
-
-/** PmCreatePanel 建任务（提交后由调用方 reset + 通知父级刷新）。 */
-export function useCreateTask(client: Pick<HubApiClient, 'createTask'>, onCreated: () => void) {
-  return useHubMutation({
-    meta: { silent: true },
-    invalidateKeys: [queryKeys.tasks('pm')],
-    mutationFn: (req: CreateTaskRequest) => client.createTask(req),
-    onSuccess: () => onCreated(),
-  });
-}
-
-/** BaselineStates 一键建赛季（建议名+区间由组件算好传入）。 */
-export function useCreateSeason(client: { createSeason(req: CreateSeasonRequest): Promise<unknown> }, req: { name: string; startsAt: string; endsAt: string | null }, onCreated: () => void) {
-  return useHubMutation({
-    meta: { silent: true },
-    invalidateKeys: [queryKeys.seasons()],
-    mutationFn: () => client.createSeason(req),
-    onSuccess: () => onCreated(),
-  });
-}
-
-export type { Season };
-
-export type GroupsClient = Pick<HubApiClient, 'getGroups'>;
-export type SeasonsClient = Pick<HubApiClient, 'getSeasons'>;
-
 export function useCurrentWeek() {
-  const [week, setWeek] = useState(() => getWeekKey(new Date()));
+  const [week, setWeek] = useState(currentShanghaiWeek);
   useEffect(() => {
-    const timer = setInterval(() => setWeek(getWeekKey(new Date())), 30_000);
+    const timer = setInterval(() => setWeek(currentShanghaiWeek()), 30_000);
     return () => clearInterval(timer);
   }, []);
   return week;
 }
-
 export function useEditSelfTask(client: HubApiClient, taskId: string, onSaved: () => void) {
-  return useHubMutation({
-    invalidateKeys: [queryKeys.allTasks(), queryKeys.allDepGraphs()],
-    mutationFn: (input: UpdateSelfTaskRequest) => client.editSelfTask(taskId, input),
-    onSuccess: onSaved,
-  });
+  return useHubMutation({ invalidateKeys: [queryKeys.allTasks()],
+    mutationFn: (input: UpdateSelfTaskRequest) => client.editSelfTask(taskId, input), onSuccess: onSaved });
 }
-
 export function useWeekActions(client: HubApiClient, onCreated: () => void) {
-  const invalidateKeys = [queryKeys.allTasks(), queryKeys.allDepGraphs()];
+  const invalidateKeys = [queryKeys.allTasks()];
   const create = useHubMutation({ invalidateKeys,
     mutationFn: ({ weekKey, input }: { weekKey: string; input: SelfReportTaskRequest }) => client.selfReportTask(weekKey, input),
-    onSuccess: onCreated,
-  });
+    onSuccess: onCreated });
   const claim = useHubMutation({ invalidateKeys,
-    mutationFn: ({ taskId, weekKey }: { taskId: string; weekKey: string }) => client.claimTask(taskId, { weekKey }),
-  });
+    mutationFn: ({ taskId, weekKey }: { taskId: string; weekKey: string }) => client.claimTask(taskId, { weekKey }) });
   const link = useHubMutation({ invalidateKeys,
-    mutationFn: ({ taskId, weekKey }: { taskId: string; weekKey: string }) => client.linkTaskWeek(taskId, weekKey),
-  });
+    mutationFn: ({ taskId, weekKey }: { taskId: string; weekKey: string }) => client.linkTaskWeek(taskId, weekKey) });
   const status = useHubMutation({ invalidateKeys,
-    mutationFn: ({ taskId, status, expectedRevision }: { taskId: string; status: TaskStatus; expectedRevision?: number }) => client.updateTaskStatus(taskId, status, expectedRevision),
-  });
+    mutationFn: ({ taskId, status, expectedRevision }: { taskId: string; status: TaskStatus; expectedRevision?: number }) =>
+      client.updateTaskStatus(taskId, status, expectedRevision) });
   return { create, claim, link, status };
 }

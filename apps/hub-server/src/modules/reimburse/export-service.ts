@@ -18,7 +18,7 @@ const WORKFLOW_LABEL: Record<ReimburseEntry['workflowStatus'], string> = {
 };
 const COMPLETENESS_LABEL = { draft: '草稿', partial: '待补充', complete: '资料齐全' } as const;
 const DETAIL_HEADERS = [
-  '赛季', '批次', '支出类型', '提交人', '费用摘要', '商品明细', '实付金额', '核准金额', '打款金额',
+  '批次', '支出类型', '提交人', '费用摘要', '商品明细', '实付金额', '核准金额', '打款金额',
   '工作流', '资料完整度', '缺项', '发票号码', '发票日期', '付款凭证路径', '打款日期', '流水号', '备注',
 ];
 const MAX_PACKAGE_BYTES = 200 * 1024 * 1024;
@@ -67,7 +67,7 @@ function workbook(entries: readonly ReimburseEntry[], payouts: readonly Reimburs
       evidencePaths: paths,
     });
     return [
-      row.seasonId, row.batch, row.expenseType ? TYPE_LABEL[row.expenseType] : '', row.member,
+      row.batch, row.expenseType ? TYPE_LABEL[row.expenseType] : '', row.member,
       row.summary, row.items, money(row.totalAmountFen), money(row.approvedAmountFen), money(row.paidAmountFen),
       WORKFLOW_LABEL[row.workflowStatus], COMPLETENESS_LABEL[row.completeness],
       row.missingMaterials.map((item) => item === 'invoice' ? '缺发票' : '缺付款材料').join('、'),
@@ -126,13 +126,13 @@ export async function buildReimburseDelivery(
   }
   const xlsx = workbook(entries, payouts, batches, manifest, memberName);
   if (!includeEvidence) {
-    return { content: Buffer.from(xlsx), filename: `${entries[0]?.seasonId ?? '报账'}-报账明细.xlsx`, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', manifest };
+    return { content: Buffer.from(xlsx), filename: '报账明细.xlsx', contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', manifest };
   }
   files['报账明细.xlsx'] = xlsx;
   files['manifest.json'] = strToU8(JSON.stringify(manifest, null, 2));
   return {
     content: Buffer.from(zipSync(files)),
-    filename: `${entries[0]?.seasonId ?? '报账'}-报账交付.zip`,
+    filename: '报账交付.zip',
     contentType: 'application/zip', manifest,
   };
 }

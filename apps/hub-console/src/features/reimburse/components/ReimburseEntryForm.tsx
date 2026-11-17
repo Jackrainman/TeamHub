@@ -38,8 +38,6 @@ const EXPENSE_OPTIONS: { value: ReimburseExpenseType; labelKey: TranslationKey }
 export function ReimburseEntryForm({
   client,
   source,
-  projectId,
-  seasonId = 'unassigned',
   canWrite,
   writeLockedHint,
   initial,
@@ -54,8 +52,6 @@ export function ReimburseEntryForm({
 }: {
   client: ReimburseSegment;
   source: string;
-  projectId: string;
-  seasonId?: string;
   canWrite: boolean;
   writeLockedHint: string | null;
   /** 导入预填：变化时父组件用 key 重挂本表单；null/缺省 = 手动录入。 */
@@ -116,14 +112,14 @@ export function ReimburseEntryForm({
       items: d.items.map((row, i) => (i === index ? { ...row, ...partial } : row)),
     }));
 
-  const request = buildCreateEntryRequest(draft, projectId, seasonId);
+  const request = buildCreateEntryRequest(draft);
   const valid = request !== null;
 
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!request || !canWrite) return;
     if (editingEntry) {
-      const { projectId: _projectId, seasonId: _seasonId, materials: _materials, recognitionSource: _recognition, ...patch } = request;
+      const { materials: _materials, recognitionSource: _recognition, ...patch } = request;
       updateMutation.mutate({ id: editingEntry.id, patch: { ...patch, expectedRevision: editingEntry.revision } }, { onSuccess: () => onDone?.() });
     } else if (packageValid) saveMutation.mutate({ request, attachments, state: saveState });
   }

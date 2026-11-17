@@ -23,9 +23,6 @@ import {
   ReimburseEvidenceKindSchema,
   ReimburseEvidenceListResponseSchema,
   REIMBURSE_EVIDENCE_MAX_BYTES,
-  StockInContextResponseSchema,
-  StockInRequestSchema,
-  StockInResponseSchema,
   UpdateReimburseBatchRequestSchema,
   UpdateReimburseEntryRequestSchema,
   UpdateReimburseEntryResponseSchema,
@@ -193,11 +190,6 @@ export function registerReimburseRoutes(app: FastifyInstance, { service }: Reimb
     }));
   });
 
-  app.get('/api/reimburse/stock-in-context', async (request, reply) => {
-    return present(reply, async () => StockInContextResponseSchema.parse(
-      await service.getStockInContext(request.identity),
-    ));
-  });
 
   // ── 凭证受控留档（D-094）：上传仅本人；下载/删除/留痕查询本人或超管；字节无任何静态路径。 ──
   app.post('/api/reimburse/entries/:id/evidence', async (request, reply) => {
@@ -325,21 +317,4 @@ export function registerReimburseRoutes(app: FastifyInstance, { service }: Reimb
     }));
   });
 
-  app.post('/api/reimburse/entries/:id/stock-in', async (request, reply) => {
-    const body = parseBody(StockInRequestSchema, request, reply);
-    if (!body) return;
-    const actor = requireActor(request, reply, undefined, '入库确认须先登录');
-    if (!actor) return;
-    const { id } = request.params as { id: string };
-    return present(reply, async () => {
-      const result = service.stockIn({
-        entryId: id,
-        lines: body.lines,
-        actor,
-        canManageAll: await service.canManageAll(actor.id),
-      });
-      void reply.code(201);
-      return StockInResponseSchema.parse(result);
-    });
-  });
 }

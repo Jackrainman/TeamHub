@@ -11,9 +11,7 @@ export function TaskTimeline({ task, members = [] }: { task: TaskWithMeta; membe
       label: `${event.from ? `${t(STATUS_KEY[event.from])} → ` : ''}${t(STATUS_KEY[event.to])}`,
       by: event.by?.displayName, note: undefined as string | undefined,
     })),
-    ...(task.ownershipEvents ?? []).map(event => ({
-      at: event.at, label: t(`week.fact.${event.kind}`), by: event.by.displayName, note: event.reason,
-    })),
+
     ...(task.activity ?? []).map(event => ({
       at: event.at, label: t(`team.fact.${event.kind}`), by: event.by.displayName,
       note: [event.title, event.rawSummary, event.note, event.reviewerIds ? (event.reviewerIds.map(id => members.find(m => m.id === id)?.displayName ?? id).join('、') || t('team.noReviewers')) : undefined].filter(Boolean).join(' · '),

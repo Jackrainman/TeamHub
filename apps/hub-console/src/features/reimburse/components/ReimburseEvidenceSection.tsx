@@ -167,7 +167,7 @@ export function ReimburseEvidenceSection({
                           href={client.reimburseEvidenceDownloadUrl(entry.id, item.id)}
                           download
                         >
-                          {t('archive.download')}
+                          {t('reimb.evidence.download')}
                         </a>
                         {isOwner ? (
                           <button

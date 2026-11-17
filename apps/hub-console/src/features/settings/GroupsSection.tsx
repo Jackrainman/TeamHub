@@ -11,11 +11,7 @@ import { humanizeFormError } from '../../utils';
 import { sectionPermission } from './section-permission';
 import { useGroupMutations } from './hooks';
 
-// 组（PROGRAM-GROUP-ABSTRACT 刀④，D-072「设置页可增减组」前置缺口的最小版）：列**全量**组（组树展示
-// 需要非叶子/哨兵在场），用 server 派生位 `assignableGroupIds`（叶子组且非哨兵）分两类——叶子组=可选组
-// （可领任务/挂人），可改名、可删除；非叶子/哨兵组=不可选（含「全组联调」哨兵，故文案用中性的「不可选」
-// 而非「含子组」），不给改删控件。
-// 删除防孤儿（有成员/有子组/有任务 → 409）与非叶子拦截都在服务端 store 同一临界区判，detail 透出到表单。
+// 直属组管理：所有组均可分配任务；有成员或任务时服务端拒绝删除。
 export function GroupsSection({
   client,
   source,
@@ -26,7 +22,7 @@ export function GroupsSection({
   identity: PageIdentityCtx;
 }) {
   const { t } = useI18n();
-  // 写门锁 + 管理员前置资格判（照赛季/成员分区同律）：未登录 或 身份模式非持旗 → 写控件禁用 + 说明。
+  // 写门锁 + 管理员前置资格判：未登录或无项目管理权限时禁用写控件。
   const { writeLocked, lockHint } = sectionPermission(identity, t);
   const groupsQuery = useGroups(client, source);
 
@@ -127,8 +123,7 @@ export function GroupsSection({
   );
 }
 
-// 单个组行：叶子组（可选组）给改名（行内编辑）+ 删除控件；非叶子/哨兵组只标注「不可选」
-// （不可改删——服务端同判据 409 兜底）。改名行内编辑态为本行局部 state。
+// 单个直属组行：支持行内改名与删除；服务端负责成员/任务引用保护。
 function GroupRow({
   group,
   assignable,

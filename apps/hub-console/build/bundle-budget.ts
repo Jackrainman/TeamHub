@@ -34,7 +34,7 @@ export function inspectBundle(bundle: OutputBundle) {
       if (/[?&]url(?:&|$)/.test(id)) continue;
       const normalized = id.replace(/\\/g, '/').split('?')[0];
       if (/\/src\/features\/.*(?:Page|SetupWizard|BootstrapGate)\.tsx$/.test(normalized)
-        || /\/node_modules\/(?:pdfjs-dist|@xyflow|@dagrejs)\//.test(normalized)) {
+        || /\/node_modules\/pdfjs-dist\//.test(normalized)) {
         violations.push(`Eager feature dependency: ${normalized} (via ${chunk.fileName})`);
       }
     }

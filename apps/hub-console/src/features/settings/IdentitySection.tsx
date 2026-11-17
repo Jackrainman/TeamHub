@@ -41,7 +41,7 @@ export function IdentitySection({ identity }: { identity: PageIdentityCtx }) {
             <p className="settings-desc">{t('settings.identity.identity.restartNote')}</p>
           </>
         ) : (
-          // 切换登录模式的入口在下方「部署配置」（写入后自动重启生效），此处只留一句指路。
+          // （切换登录模式由初始化/部署流程负责，此处只读展示。）
           <p className="settings-desc">{t('settings.identity.anon.body')}</p>
         )}
       </div>

@@ -64,8 +64,6 @@ export default defineConfig({
     rollupOptions: {
       output: {
         // 稳定框架独立缓存，业务页面按需加载；首屏总量由 bundleBudgetPlugin 检查。
-        // @xyflow 不在此列——它只被懒加载的依赖图页
-        // 消费，留在那个按需 chunk 里。
         manualChunks: {
           'vendor-react': ['react', 'react-dom'],
           'vendor-data': ['@tanstack/react-query', 'zod'],

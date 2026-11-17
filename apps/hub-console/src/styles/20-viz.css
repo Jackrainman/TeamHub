@@ -81,28 +81,6 @@
   }
 }
 /* vv-draw keyframes 已随 .viz-spark 一并删除。 */
-/* 被卡红脉动（V2 依赖图消费；V0 先定义齐 keyframes 家族）。 */
-@keyframes vv-pulse-alert {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--red) 35%, transparent);
-  }
-  50% {
-    box-shadow: 0 0 0 5px color-mix(in srgb, var(--red) 12%, transparent);
-  }
-}
-
-/* tech 越界层：状态灯辉光（辉光预算「状态节点」类，与 baseline-dot 同族同强度）。 */
 :root[data-theme='tech'] .viz-dot {
   box-shadow: 0 0 8px 1px color-mix(in srgb, currentColor 45%, transparent);
-}
-
-/* ===== VISUAL-VITALITY V2 §4.4：依赖图节点（tech 越界层）=====
-   深底上 surface 节点偏暗、与画布融在一起 → 提亮一档；被卡节点吃 vv-pulse-alert
-   红脉动（该页唯一常驻动效，把「谁被卡」从要找变成会跳）。 */
-:root[data-theme='tech'] .dag-node {
-  background-color: var(--surface-raised);
-}
-:root[data-theme='tech'] .dag-node--blocked-idle {
-  animation: vv-pulse-alert var(--motion-breathe);
 }

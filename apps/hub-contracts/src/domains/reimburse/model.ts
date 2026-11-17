@@ -65,8 +65,6 @@ export const ReimburseHistoryEventSchema = z.object({
 
 export const ReimburseEntrySchema = z.object({
   id: z.string().min(1),
-  projectId: z.string().min(1),
-  seasonId: z.string().min(1).default('unassigned'),
   memberId: z.string().min(1),
   batchId: z.string().min(1).nullable(),
   kind: ReimburseEntryKindSchema,
@@ -102,8 +100,6 @@ export const ReimburseEntrySchema = z.object({
 
 export const ReimburseBatchSchema = z.object({
   id: z.string().min(1),
-  projectId: z.string().min(1),
-  seasonId: z.string().min(1).default('unassigned'),
   name: z.string().min(1),
   status: ReimburseBatchStatusSchema,
   createdAt: isoDateTimeSchema,
@@ -112,7 +108,6 @@ export const ReimburseBatchSchema = z.object({
 
 export const ReimbursePayoutSchema = z.object({
   id: z.string().min(1),
-  projectId: z.string().min(1),
   recipientId: z.string().min(1),
   entryIds: z.array(z.string().min(1)).min(1),
   amountFen: z.number().int().positive(),

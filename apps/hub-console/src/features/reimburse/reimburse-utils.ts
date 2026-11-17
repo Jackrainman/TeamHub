@@ -117,13 +117,7 @@ function optionalText(value: string): string | null {
  */
 export function buildCreateEntryRequest(
   draft: EntryDraft,
-  projectId: string,
-  seasonId = 'unassigned',
 ): CreateReimburseEntryRequest | null {
-  const normalizedProjectId = projectId.trim();
-  if (normalizedProjectId === '') {
-    return null;
-  }
   const totalAmountFen = yuanTextToFen(draft.totalYuan);
   if ((draft.totalYuan.trim() !== '' && totalAmountFen === null) || (totalAmountFen !== null && totalAmountFen < 0)) {
     return null;
@@ -161,8 +155,6 @@ export function buildCreateEntryRequest(
   }
 
   return {
-    projectId: normalizedProjectId,
-    seasonId,
     kind,
     expenseType: draft.expenseType,
     summary: optionalText(draft.summary) ?? optionalText(draft.actualItemName),

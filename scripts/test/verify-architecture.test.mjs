@@ -123,34 +123,20 @@ test('requires stale or reduced baseline entries to be removed or tightened', as
   assert.match(messages, /基线条目已清除，请删除该精确基线/);
 });
 
-test('freezes the completed reimburse vertical slice and rejects old aliases', async (context) => {
+test('enforces v1 boundaries, retired identifiers and composition-root-only module wiring', async (context) => {
   const root = fixture();
-  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  context.after(() => fs.rmSync(root, { recursive: true }));
+  write(root, 'apps/hub-server/src/store/v1-database.ts', 'export {};\n');
+  write(root, 'apps/hub-contracts/src/domains/seasons/index.ts', 'export {};\n');
+  write(root, 'apps/hub-server/src/modules/tasks/service.ts', "import '../reimburse/service.js';\nexport const value = { seasonId: 'retired' };\n");
   writeRegistry(root, [
-    { id: 'pm', title: '任务', packages: { console: 'tasks' } },
-    { id: 'reimburse', title: '报销', packages: { contracts: 'reimburse' } },
+    { id: 'tasks', title: '任务', packages: { server: 'tasks', console: 'tasks' } },
+    { id: 'reimburse', title: '报销', packages: { server: 'reimburse' } },
   ]);
-  write(root, 'apps/hub-contracts/src/domains/reimburse/index.ts', 'export {}\n');
-  write(root, 'apps/hub-contracts/src/reimbursement.ts', 'export {}\n');
-
   const messages = (await verifyArchitecture(root, { baseline: [] })).errors.join('\n');
-  assert.match(messages, /reimburse 模板缺少必需边界/);
-  assert.match(messages, /禁止恢复旧路径或兼容 alias/);
-});
-
-test('freezes the completed checklist vertical slice', async (context) => {
-  const root = fixture();
-  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  writeRegistry(root, [
-    { id: 'pm', title: '任务', packages: { console: 'tasks' } },
-    { id: 'checklist', title: '检查单', packages: { contracts: 'checklist' } },
-  ]);
-  write(root, 'apps/hub-contracts/src/domains/checklist/index.ts', 'export {}\n');
-  write(root, 'apps/hub-server/src/routes/checklist.ts', 'export {}\n');
-
-  const messages = (await verifyArchitecture(root, { baseline: [] })).errors.join('\n');
-  assert.match(messages, /checklist 模板缺少必需边界/);
-  assert.match(messages, /checklist 已迁移，禁止恢复旧路径或兼容 alias/);
+  assert.match(messages, /v1 禁止恢复退役实现目录/);
+  assert.match(messages, /含退役标识 seasonId/);
+  assert.match(messages, /模块禁止直接 import reimburse/);
 });
 
 test('rejects domain directories missing from the registry', async (context) => {

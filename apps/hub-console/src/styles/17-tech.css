@@ -1,60 +1,9 @@
 /* ===== 遥测轨道（tech 签名件，D1）——全页唯一高光集中处 =====
    把「基准线 vs 实际」时间轴改造成遥测 HUD：轨道底垫低透明度蓝图网格 + 发光状态点 + 「今天」信号青扫描线。
    仅在 [data-theme='tech'] 生效，light/warm/dark 三套此处渲染逐像素不变。 */
-/* 轨道底垫：更细的蓝图网格（20px 格）+ 收紧边框，一眼示波器/图纸质感。 */
-:root[data-theme='tech'] .baseline-track {
-  background-image:
-    linear-gradient(rgba(34, 211, 238, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(34, 211, 238, 0.05) 1px, transparent 1px);
-  background-size: 20px 20px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-}
 /* 里程碑/门节点=发光状态点（红黄绿 halo，约 25% 透明辉光；全页三处辉光之一）。 */
-:root[data-theme='tech'] .baseline-dot--red {
-  box-shadow:
-    0 0 0 3px rgba(248, 113, 113, 0.18),
-    0 0 12px 2px rgba(248, 113, 113, 0.42);
-}
-:root[data-theme='tech'] .baseline-dot--yellow {
-  box-shadow:
-    0 0 0 3px rgba(245, 166, 35, 0.18),
-    0 0 12px 2px rgba(245, 166, 35, 0.42);
-}
-:root[data-theme='tech'] .baseline-dot--green {
-  box-shadow:
-    0 0 0 3px rgba(52, 211, 153, 0.18),
-    0 0 12px 2px rgba(52, 211, 153, 0.42);
-}
 /* 「今天」=1px 信号青竖向扫描线（原 2px --text 深线 → 1px cyan 发光）+ 顶部小三角 + 3s 呼吸脉冲光晕。
    脉冲在 @media (prefers-reduced-motion: reduce) 下由全局 * 规则冻结（既有先例，不另写停用规则）。 */
-:root[data-theme='tech'] .baseline-now {
-  width: 1px;
-  background: var(--blue);
-  animation: tech-scan-glow 3s ease-in-out infinite;
-}
-:root[data-theme='tech'] .baseline-now::before {
-  content: '';
-  position: absolute;
-  top: -6px;
-  left: 50%;
-  transform: translateX(-50%);
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 5px solid var(--blue);
-  filter: drop-shadow(0 0 3px rgba(34, 211, 238, 0.8));
-}
-@keyframes tech-scan-glow {
-  0%,
-  100% {
-    box-shadow: 0 0 4px rgba(34, 211, 238, 0.45);
-  }
-  50% {
-    box-shadow: 0 0 10px rgba(34, 211, 238, 0.85);
-  }
-}
-
-/* 投资标签勾选行（PmCreatePanel） */
 .pm-check {
   display: inline-flex;
   align-items: center;
@@ -116,8 +65,7 @@
 }
 
 /* ⑤ seg 选中态强化：青 soft 底 + 青字 + 1px 内描边（原 surface 底在深色下几乎不可辨）。 */
-:root[data-theme='tech'] .seg__btn--active,
-:root[data-theme='tech'] .schedule-date-seg__btn.is-active {
+:root[data-theme='tech'] .seg__btn--active {
   background: var(--blue-soft);
   color: var(--blue);
   box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.35);

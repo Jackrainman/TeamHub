@@ -15,11 +15,9 @@ const BATCH_STATUS: { value: ReimburseBatchStatus; tone: string; key: Translatio
 ];
 
 /** 批次只归集与交付；汇总来自服务端 summaries，完成进度由条目 payout 派生。 */
-export function ReimburseBatchSection({ client, source, projectId, seasonId, batches, summaries }: {
+export function ReimburseBatchSection({ client, source, batches, summaries }: {
   client: ReimburseSegment;
   source: string;
-  projectId: string;
-  seasonId: string;
   batches: ReimburseBatch[];
   summaries: ReimburseBatchSummary[];
 }) {
@@ -27,10 +25,10 @@ export function ReimburseBatchSection({ client, source, projectId, seasonId, bat
   const [name, setName] = useState('');
   const createMutation = useCreateReimburseBatch(client, source, { onSuccess: () => setName(''), onError: () => {} });
   const updateMutation = useUpdateReimburseBatch(client, source);
-  const valid = projectId.trim().length > 0 && seasonId !== 'unassigned' && name.trim().length > 0;
+  const valid = name.trim().length > 0;
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (valid) createMutation.mutate({ projectId: projectId.trim(), seasonId, name: name.trim() });
+    if (valid) createMutation.mutate({ name: name.trim() });
   }
   return <section className="panel" aria-label={t('reimb.batch.title')}>
     <header className="pm-create__head"><div><h3>{t('reimb.batch.title')}</h3><p className="pm-create__note">{t('reimb.batch.subtitle')}</p></div></header>

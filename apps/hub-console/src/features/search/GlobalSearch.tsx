@@ -6,10 +6,12 @@ import type { ConsolePage } from '../../console-pages';
 import { SideDrawer } from '../../components/SideDrawer';
 import { useGlobalSearch } from './hooks';
 
-// 搜索结果 → 目标页：只有任务行在四页成品里还有落点（项目页）。知识/库存页收窄后
+// 搜索结果只落在仍存在的任务、成员与报销页。
 // 其行按「无落点」过滤掉，不做假跳转。
 const RESULT_TARGET: Record<string, { page: ConsolePage; label: TranslationKey }> = {
-  task: { page: 'project', label: 'expected.searchTask' },
+  task: { page: 'workbench', label: 'expected.searchTask' },
+  member: { page: 'settings', label: 'expected.searchMember' },
+  reimburse: { page: 'reimburse', label: 'expected.searchReimburse' },
 };
 export function GlobalSearch({ client, onNavigate, availablePages }: {
   client: HubApiClient; onNavigate: (page: ConsolePage) => void; availablePages: ConsolePage[];
@@ -34,10 +36,10 @@ export function GlobalSearch({ client, onNavigate, availablePages }: {
     return target && availablePages.includes(target.page) ? [{ ...result, target }] : [];
   });
   return <>
-    <button type="button" className="search-trigger" ref={trigger} onClick={() => setOpen(true)} aria-label={t('expected.searchTitle')}><Search size={16} /><span>{t('layout.search.placeholder')}</span><kbd>Ctrl / ⌘ K</kbd></button>
+    <button type="button" className="search-trigger" ref={trigger} onClick={() => setOpen(true)} aria-label={t('expected.searchTitle')}><Search size={16} /><span>{t('expected.searchHint')}</span><kbd>Ctrl / ⌘ K</kbd></button>
     <SideDrawer open={open} onClose={close} title={t('expected.searchTitle')}>
       <form className="search-dialog-form" onSubmit={event => { event.preventDefault(); const value = input.trim(); if (value === query) void search.refetch(); else setQuery(value); }}>
-        <div className="gate-field"><input autoFocus type="search" value={input} onChange={event => { setInput(event.target.value); if (!event.target.value.trim()) setQuery(''); }} aria-label={t('expected.searchTitle')} placeholder={t('layout.search.placeholder')} /></div>
+        <div className="gate-field"><input autoFocus type="search" value={input} onChange={event => { setInput(event.target.value); if (!event.target.value.trim()) setQuery(''); }} aria-label={t('expected.searchTitle')} placeholder={t('expected.searchHint')} /></div>
         <button type="submit" className="btn btn--primary" disabled={!input.trim()}>{t('expected.search')}</button>
       </form>
       {!query ? <p className="expected-page-hint">{t('expected.searchHint')}</p> : search.isFetching ? <p role="status">{t('expected.searchLoading')}</p> : search.isError ? <div role="alert"><p>{t('expected.searchError')}</p><button className="btn btn--secondary" onClick={() => void search.refetch()}>{t('week.retry')}</button></div> : <div className="search-results">

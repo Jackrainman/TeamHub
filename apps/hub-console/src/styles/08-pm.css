@@ -198,92 +198,9 @@
   gap: 12px;
 }
 
-.kb-tabs {
-  align-self: flex-start;
-}
-
-.kb-closeout-form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-}
-
-.kb-closeout__intro {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--text-base);
-  line-height: 1.6;
-}
-
-.kb-closeout__result {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  border: 1px solid var(--green);
-  border-radius: var(--radius-md);
-  background: var(--green-soft);
-}
-
-.kb-closeout__result-head {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin: 0;
-  color: var(--green);
-  font-size: var(--text-base);
-  font-weight: var(--weight-heavy);
-}
-
-.kb-closeout__searchable {
-  margin: 0;
-  color: var(--green);
-  font-size: var(--text-sm);
-}
-
-/* 依赖图录入浮层（DEPGRAPH-ENTRY-OVERLAY） */
-.dep-graph-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-.detail-note {
-  margin: -6px 0 0;
-  color: var(--faint);
-  font-size: var(--text-xs);
-  line-height: 1.4;
-}
-
 
 
 /* 总览「集成已移到设置页」一行入口（INTEGRATIONS-TO-SETTINGS） */
-.overview-integrations-hint {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  padding: 10px 14px;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface-muted);
-}
-
-.overview-integrations-hint .link-button {
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--blue);
-  font-size: var(--text-base);
-  font-weight: var(--weight-bold);
-  cursor: pointer;
-}
-
-.overview-integrations-hint span {
-  color: var(--muted);
-  font-size: var(--text-base);
-}
 
 /* 学习方向页（LEARN-DIRECTION-REDESIGN）+ 我的视图 + 差异化排班共用一档：组级/结构化卡片，
    无人维度、纯结构展示（原「缺人方向」S2/D-069 命名保留，class 名未随页面改名而改，降低改动面）。 */
@@ -378,12 +295,3 @@
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
 }
-.project-board-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); align-items: start; }
-.project-board-column.card { padding: var(--space-3); background: var(--surface-muted); }
-.project-board-column > h2 { display: flex; gap: var(--space-2); align-items: center; margin: 0 0 var(--space-3); font-size: var(--text-base); }
-.project-board-column .week-task { margin-bottom: var(--space-3); }
-.project-board-column .week-task:last-child { margin-bottom: 0; }
-.project-board-grid .week-task.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); transition: transform var(--transition); }
-.project-board-grid .week-task.card:hover { transform: translateY(-2px); }
-.project-board-grid .week-task__summary { display: block; font-size: var(--text-sm); color: var(--muted); line-height: 1.7; }
-@media (max-width: 900px) { .project-board-grid { grid-template-columns: minmax(0, 1fr); } }

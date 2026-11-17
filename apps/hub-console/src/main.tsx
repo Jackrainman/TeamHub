@@ -11,18 +11,13 @@ import './styles/01-tokens.css';
 import './styles/02-base.css';
 import './styles/03-settings.css';
 import './styles/04-setup.css';
-import './styles/05-overview.css';
-import './styles/06-kb.css';
-import './styles/07-archive.css';
+
 import './styles/08-pm.css';
-import './styles/11-inv.css';
-import './styles/12-fleet.css';
-import './styles/14-schedule.css';
-import './styles/16-relay-canvas.css';
+
 import './styles/17-tech.css';
-import './styles/19-timeline.css';
+
 import './styles/20-viz.css';
-import './styles/21-pool.css';
+
 import './styles/22-reimburse.css';
 import './styles/23-workbench.css';
 import './styles/24-notion.css';

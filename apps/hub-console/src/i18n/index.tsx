@@ -8,19 +8,10 @@ import {
 } from 'react';
 import type { PropsWithChildren } from 'react';
 import { translate, type Lang } from './translations';
-import type { VocabularyKey } from './vocabulary-overrides';
+import type { VocabularyKey } from './translations';
 
 export type { Lang, TranslationKey } from './translations';
-// 租户词汇覆盖层（HUB-MODULARIZATION 第6步）：装配层/垂直包据此在不改巨表的前提下覆盖个别文案。
-// AUDIT-DEBT-2026-07 §9-④ 审计债⑥：VocabularyKey 一并导出——垂直包新增巨表没有的 key 时，
-// 覆盖表与下面 `t()` 的 key 参数用同一个开放类型，两处不漂移。
-export {
-  setVocabularyOverrides,
-  resetVocabularyOverrides,
-  type VocabularyOverrides,
-  type VocabularyOverrideEntry,
-  type VocabularyKey,
-} from './vocabulary-overrides';
+export type { VocabularyKey } from './translations';
 
 const STORAGE_KEY = 'teamhub.lang';
 const DEFAULT_LANG: Lang = 'zh'; // 中文默认

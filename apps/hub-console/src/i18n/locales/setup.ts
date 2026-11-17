@@ -28,6 +28,8 @@ export const zhSetup = {
   'setup.landing.title': '装好了，三步就能开始用',
   'setup.landing.steps': '① 导入名册　② 登录你自己　③ 初始化管理员——都在下面这一页完成。',
   'setup.landing.dismiss': '知道了',
+  'gate.qa.haveRoster': '有现成名册表吗？',
+  'gate.who.error': '初始化管理员失败，请检查后重试',
 };
 
 export const enSetup = {
@@ -64,4 +66,6 @@ export const enSetup = {
   'setup.landing.steps':
     '(1) Import the roster  (2) Log in as yourself  (3) Initialize an admin — all on this page below.',
   'setup.landing.dismiss': 'Got it',
+  'gate.qa.haveRoster': 'Do you have a roster spreadsheet?',
+  'gate.who.error': 'Could not initialize the administrator. Check the form and retry.',
 };

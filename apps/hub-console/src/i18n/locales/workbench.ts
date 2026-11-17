@@ -2,34 +2,12 @@ export const zhWorkbench = {
   'toolbar.title.workbench': '首页',
   'workbench.myWeek.loading': '加载中…',
   'workbench.myWeek.error': '任务数据读取出错',
-  'workbench.stage.title': '整车六阶段',
-  'workbench.stage.moduleDesign': '模块设计',
-  'workbench.stage.moduleAssembly': '模块组装',
-  'workbench.stage.moduleTest': '模块测试',
-  'workbench.stage.integratedAssembly': '集成组装',
-  'workbench.stage.integratedTest': '集成测试',
-  'workbench.stage.convergence': '待联调',
-  'workbench.stage.convergenceTasks': '联调任务 {done}/{total}',
-  'workbench.stage.here': '{v} 当前在这：{title}',
-  'workbench.stage.allPassed': '{v} 节点全过，等联调冲线',
-  'workbench.stage.legend': 'V1/V2 = 该车当前所处阶段',
-  'workbench.stage.empty': '还没有赛季编排，六阶段暂无投影。',
+
 };
 
 export const enWorkbench = {
   'toolbar.title.workbench': 'Home',
   'workbench.myWeek.loading': 'Loading…',
   'workbench.myWeek.error': 'Failed to load tasks',
-  'workbench.stage.title': 'Six vehicle stages',
-  'workbench.stage.moduleDesign': 'Module design',
-  'workbench.stage.moduleAssembly': 'Module assembly',
-  'workbench.stage.moduleTest': 'Module testing',
-  'workbench.stage.integratedAssembly': 'Integration assembly',
-  'workbench.stage.integratedTest': 'Integration testing',
-  'workbench.stage.convergence': 'Convergence',
-  'workbench.stage.convergenceTasks': 'Convergence tasks {done}/{total}',
-  'workbench.stage.here': '{v} is here: {title}',
-  'workbench.stage.allPassed': '{v} passed all checkpoints — awaiting final convergence',
-  'workbench.stage.legend': 'V1/V2 = each vehicle\'s current stage',
-  'workbench.stage.empty': 'No season plan yet — stage projection unavailable.',
+
 };

@@ -201,7 +201,7 @@ export function deriveReimburseStructuralSummary(
 }
 
 export interface ReimburseDeliveryRow {
-  seasonId: string;
+
   batch: string;
   expenseType: ReimburseExpenseType | null;
   member: string;
@@ -228,7 +228,7 @@ export function deriveReimburseDeliveryRow(
   options: ReimburseExportOptions & { evidencePaths?: string[] } = {},
 ): ReimburseDeliveryRow {
   return {
-    seasonId: entry.seasonId,
+
     batch: entry.batchId ? options.resolveBatchName?.(entry.batchId) ?? entry.batchId : '',
     expenseType: entry.expenseType,
     member: options.resolveMemberName?.(entry.memberId) ?? entry.memberId,

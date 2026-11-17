@@ -3,7 +3,6 @@ import type { StoredReimburseEntry } from './repository.js';
 import { buildReimburseDelivery } from './export-service.js';
 import {
   REIMBURSE_EVIDENCE_MAX_PER_ENTRY,
-  StockInContextResponseSchema,
   canTransitionReimburseWorkflow,
   deriveBatchSummary,
   deriveReimburseCompleteness,
@@ -20,10 +19,6 @@ import {
 import type {
   ActorRef,
   CreateReimbursePayoutRequest,
-  InventorySnapshot,
-  PartAction,
-  PartActionSource,
-  PartType,
   ReimburseBatch,
   ReimburseEntry,
   ReimburseEntryAction,
@@ -38,8 +33,6 @@ import type {
   ReimburseProfile,
   ReimburseSummaryQuery,
   SessionIdentity,
-  StockInContextResponse,
-  StockInRequest,
   UpdateReimburseBatchRequest,
   UpdateReimburseEntryRequest,
 } from '@teamhub/hub-contracts';
@@ -59,37 +52,6 @@ const ACTION_HISTORY: Record<ReimburseEntryAction, ReimburseHistoryAction> = {
   approve: 'approved', revokeApproval: 'approvalRevoked', cancel: 'cancelled',
 };
 
-export type InventoryStockInPartDraft = Omit<
-  PartType,
-  'id' | 'lastCountedAt' | 'updatedAt'
-> & { id?: string };
-export type InventoryStockInActionDraft = Omit<
-  PartAction,
-  'id' | 'recordedAt' | 'recordedBy'
-> & { source: PartActionSource };
-export type InventoryStockInState = Pick<InventorySnapshot, 'partTypes' | 'actions'>;
-
-export interface ReimburseStockInPort {
-  readEntryForStockIn(id: string): ReimburseEntry | undefined;
-}
-
-export interface InventoryStockInPort {
-  readStockInSnapshot(): InventoryStockInState;
-  upsertStockInPartType(draft: InventoryStockInPartDraft, occurredAt: Date): PartType;
-  recordStockInAction(draft: InventoryStockInActionDraft, occurredAt: Date): PartAction;
-}
-
-export interface StockInReimburseEntryCommand {
-  entryId: string;
-  lines: StockInRequest['lines'];
-  actor: ActorRef;
-  canManageAll: boolean;
-}
-
-export interface StockInReimburseEntryResult {
-  partTypes: PartType[];
-  actions: PartAction[];
-}
 
 /**
  * 超管判定的窄 port（§8.2；前身 PmRepository.getSnapshot().members + isSuperAdmin 全量依赖）。
@@ -117,8 +79,6 @@ export class ReimburseService {
   constructor(
     private readonly repository: ReimburseRepository,
     private readonly admin: ReimburseAdminPort,
-    private readonly reimburseStockIn: ReimburseStockInPort,
-    private readonly inventory: InventoryStockInPort,
     private readonly unitOfWork: ApplicationUnitOfWork,
     private readonly identityMode: 'anonymous' | 'identity',
     private readonly evidenceStorage: ReimburseEvidenceStorage,
@@ -199,9 +159,6 @@ export class ReimburseService {
       if (patch.batchId) {
         const batch = this.repository.getBatch(patch.batchId);
         if (!batch) throw appError('validation', 'REIMBURSE_BATCH_NOT_FOUND', `未知批次: ${patch.batchId}`);
-        if (batch.projectId !== entry.projectId || batch.seasonId !== entry.seasonId) {
-          throw appError('validation', 'REIMBURSE_BATCH_SCOPE_MISMATCH', '批次与条目必须属于同一项目和赛季');
-        }
       }
       if (patch.expenseType !== undefined) patch.kind = patch.expenseType ? kindForExpenseType(patch.expenseType) : 'expense';
       else if (entry.expenseType) patch.kind = kindForExpenseType(entry.expenseType);
@@ -209,12 +166,7 @@ export class ReimburseService {
         const duplicate = this.repository.findEntryByInvoiceNo(patch.invoiceNo);
         if (duplicate && duplicate.id !== id) throw appError('conflict', 'REIMBURSE_INVOICE_DUPLICATE', '该发票已录入，请勿重复报销');
       }
-      const nextKind = patch.kind ?? entry.kind;
-      const nextItems = patch.items ?? entry.items;
-      const changesStock = nextKind !== entry.kind || JSON.stringify(nextItems) !== JSON.stringify(entry.items);
-      if (changesStock && this.inventory.readStockInSnapshot().actions.some(action => action.reimburseEntryId === id)) {
-        throw appError('conflict', 'REIMBURSE_STOCK_FIELDS_LOCKED', '该条目已有入库记录，不能修改类型或物资明细');
-      }
+
       const changedFields = Object.keys(patch).filter((key) => key !== 'batchId' &&
         JSON.stringify(patch[key as keyof typeof patch]) !== JSON.stringify(entry[key as keyof ReimburseEntry]));
       const batchChanged = patch.batchId !== undefined && patch.batchId !== entry.batchId;
@@ -308,14 +260,11 @@ export class ReimburseService {
         this.assertRevision(entry, expectedRevision);
         return entry;
       });
-      if (entries.some((entry) => entry.projectId !== entries[0].projectId)) {
-        throw appError('validation', 'REIMBURSE_PAYOUT_PROJECT_MISMATCH', '一次打款只能包含同项目条目');
-      }
       const recipientId = entries[0].memberId;
       const invalid = validateReimbursePayout(entries, recipientId, request.amountFen);
       if (invalid) throw appError('conflict', invalid, '打款条目须同属一人、已核准且总额一致');
       const payout = this.repository.createPayout({
-        projectId: entries[0].projectId, recipientId, entryIds: ids, amountFen: request.amountFen,
+        recipientId, entryIds: ids, amountFen: request.amountFen,
         paidAt: request.paidAt, method: request.method, transactionRef: request.transactionRef ?? null,
         note: request.note ?? null, recordedBy: actor.id,
         ...(clientRequestId ? { creationRequest: { id: clientRequestId, fingerprint } } : {}),
@@ -343,7 +292,6 @@ export class ReimburseService {
     const visibleIds = new Set(visible.map((entry) => entry.id));
     const entries = this.repository.listEntries().filter((entry) => visibleIds.has(entry.id) &&
       (!request.entryIds || request.entryIds.includes(entry.id)) &&
-      (!request.seasonId || entry.seasonId === request.seasonId) &&
       (!request.batchId || entry.batchId === request.batchId) &&
       (!request.expenseType || entry.expenseType === request.expenseType));
     if (entries.length === 0) throw appError('validation', 'REIMBURSE_EXPORT_EMPTY', '授权范围内没有可导出条目');
@@ -372,7 +320,6 @@ export class ReimburseService {
 
   async getStructuralSummary(identity: SessionIdentity | null, query: ReimburseSummaryQuery) {
     const entries = (await this.listEntries(identity)).filter((entry) =>
-      (!query.seasonId || entry.seasonId === query.seasonId) &&
       (!query.batchId || entry.batchId === query.batchId) &&
       (!query.expenseType || entry.expenseType === query.expenseType));
     const ids = new Set(entries.map((entry) => entry.id));
@@ -429,88 +376,6 @@ export class ReimburseService {
     return this.repository.updateBatch(id, patch)!;
   }
 
-  async getStockInContext(identity: SessionIdentity | null): Promise<StockInContextResponse> {
-    const entries = await this.listEntries(identity);
-    const visibleEntryIds = new Set(entries.map((entry) => entry.id));
-    const snapshot = this.inventory.readStockInSnapshot();
-    const quantities = new Map<string, Map<number, number>>();
-    for (const action of snapshot.actions) {
-      if (action.kind !== 'restock' || !action.reimburseEntryId || !visibleEntryIds.has(action.reimburseEntryId) || action.reimburseItemIndex === undefined) continue;
-      const entryQuantities = quantities.get(action.reimburseEntryId) ?? new Map<number, number>();
-      entryQuantities.set(
-        action.reimburseItemIndex,
-        (entryQuantities.get(action.reimburseItemIndex) ?? 0) + Math.abs(action.quantityDelta),
-      );
-      quantities.set(action.reimburseEntryId, entryQuantities);
-    }
-    return StockInContextResponseSchema.parse({
-      partTypes: snapshot.partTypes.map(({ id, partNumber, name, category, unit }) => ({ id, partNumber, name, category, unit })),
-      entries: entries.map((entry) => ({
-        entryId: entry.id,
-        stockedLines: [...(quantities.get(entry.id) ?? new Map())]
-          .map(([itemIndex, quantity]) => ({ itemIndex, quantity })),
-      })),
-    });
-  }
-
-  stockIn(command: StockInReimburseEntryCommand): StockInReimburseEntryResult {
-    return this.unitOfWork.run(command.actor, (context) => {
-      const entry = this.reimburseStockIn.readEntryForStockIn(command.entryId);
-      if (!entry) {
-        throw appError('not_found', 'REIMBURSE_ENTRY_NOT_FOUND', `未知报销条目: ${command.entryId}`);
-      }
-      if (entry.memberId !== command.actor.id && !command.canManageAll) {
-        throw appError('forbidden', 'REIMBURSE_STOCK_IN_FORBIDDEN', '只有条目本人或管理员能确认入库');
-      }
-      if (entry.kind !== 'goods') {
-        throw appError('validation', 'REIMBURSE_ENTRY_NOT_GOODS', '纯费用条目无物资可入库');
-      }
-      const snapshot = this.inventory.readStockInSnapshot();
-      this.validateLines(entry, command.lines, snapshot);
-      const actions: PartAction[] = [];
-      for (const line of command.lines) {
-        let partTypeId: string;
-        if ('partTypeId' in line.target) {
-          partTypeId = line.target.partTypeId;
-        } else {
-          const newPart = line.target.newPart;
-          partTypeId = this.inventory.upsertStockInPartType({
-            projectId: entry.projectId,
-            partNumber: newPart.partNumber,
-            name: newPart.name,
-            category: newPart.category,
-            unit: newPart.unit,
-            trackIndividually: false,
-            totalQuantity: 0,
-            allocations: [],
-            lowStockThreshold: 0,
-          }, context.occurredAt).id;
-        }
-        const item = entry.items[line.itemIndex];
-        actions.push(this.inventory.recordStockInAction({
-          projectId: entry.projectId,
-          partTypeId,
-          trackedPartId: null,
-          kind: 'restock',
-          quantityDelta: line.quantity,
-          fromHolder: null,
-          toHolder: null,
-          note: `报销入库·${item.name}`,
-          acquisition: 'selfPurchase',
-          reimburseEntryId: entry.id,
-          reimburseItemIndex: line.itemIndex,
-          source: 'human',
-        }, context.occurredAt));
-      }
-      const after = this.inventory.readStockInSnapshot();
-      const touched = new Set(actions.map((action) => action.partTypeId));
-      return { partTypes: after.partTypes.filter((part) => touched.has(part.id)), actions };
-    });
-  }
-
-  async canManageAll(memberId: string): Promise<boolean> {
-    return this.isAdmin(memberId);
-  }
 
   /** 先完整写字节再发布元数据；同 hash 重试只验证/修复原字节，不增加版本。 */
   async uploadEvidence(
@@ -694,31 +559,6 @@ export class ReimburseService {
     }
   }
 
-  private validateLines(entry: ReimburseEntry, lines: StockInRequest['lines'], snapshot: InventoryStockInState): void {
-    const stockedByLine = new Map<number, number>();
-    for (const action of snapshot.actions) {
-      if (action.kind !== 'restock' || action.reimburseEntryId !== entry.id || action.reimburseItemIndex === undefined) continue;
-      stockedByLine.set(action.reimburseItemIndex, (stockedByLine.get(action.reimburseItemIndex) ?? 0) + Math.abs(action.quantityDelta));
-    }
-    const requestedByLine = new Map<number, number>();
-    for (const line of lines) {
-      const item = entry.items[line.itemIndex];
-      if (!item) throw appError('validation', 'REIMBURSE_STOCK_LINE_NOT_FOUND', `明细行 #${line.itemIndex} 不存在（条目共 ${entry.items.length} 行）`, { itemIndex: line.itemIndex });
-      const requested = (requestedByLine.get(line.itemIndex) ?? 0) + line.quantity;
-      requestedByLine.set(line.itemIndex, requested);
-      const remaining = item.quantity - (stockedByLine.get(line.itemIndex) ?? 0);
-      if (requested > remaining) throw appError('validation', 'REIMBURSE_STOCK_QUANTITY_EXCEEDED', `明细行「${item.name}」剩余可入库 ${remaining}，本次累计申请 ${requested}（防重复入库）`, { itemIndex: line.itemIndex, remaining, requested });
-      const target = line.target;
-      if ('partTypeId' in target && !snapshot.partTypes.some((part) => part.id === target.partTypeId)) {
-        throw appError('validation', 'INVENTORY_PART_NOT_FOUND', `未知件: ${target.partTypeId}`, { partTypeId: target.partTypeId });
-      }
-      if ('newPart' in target && snapshot.partTypes.some((part) => part.partNumber === target.newPart.partNumber)) {
-        throw appError('validation', 'INVENTORY_PART_NUMBER_CONFLICT', `件号 ${target.newPart.partNumber} 已存在，请改用 partTypeId 入库`, { partNumber: target.newPart.partNumber });
-      }
-    }
-    const numbers = lines.flatMap((line) => 'newPart' in line.target ? [line.target.newPart.partNumber] : []);
-    if (new Set(numbers).size !== numbers.length) throw appError('validation', 'REIMBURSE_STOCK_DUPLICATE_PART_NUMBER', '同批新建件号重复');
-  }
 
   private assertRevision(entry: ReimburseEntry, expectedRevision: number): void {
     if (entry.revision !== expectedRevision) {

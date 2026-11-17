@@ -7,7 +7,6 @@ import type {
   UpdateReimburseEntryRequest,
   CreateReimburseBatchRequest,
   UpdateReimburseBatchRequest,
-  StockInRequest,
   UpdateReimburseProfileRequest,
   ReimburseEvidenceKind,
   ReimburseProfile,
@@ -18,7 +17,7 @@ import type {
   ReimburseSummaryQuery,
   ReimburseExportRequest,
 } from '@teamhub/hub-contracts';
-import type { HubApiClient } from '../../api/client';
+
 import { DEFAULT_REIMBURSE_PROFILE, derivePackageReview, kindForExpenseType, suggestPackageExpenseType } from '@teamhub/hub-contracts';
 import { useHubMutation } from '../../hooks/useHubMutation';
 import {
@@ -48,19 +47,10 @@ export function useReimburseEntries(
   client: ReimburseSegment,
   source: string,
   enabled: boolean,
-  seasonId = 'all',
 ) {
   return useQuery({
-    queryKey: queryKeys.reimburse.entries(source, seasonId),
+    queryKey: queryKeys.reimburse.entries(source),
     queryFn: () => client.getReimburseEntries(),
-    enabled,
-  });
-}
-
-export function useReimburseSeasons(client: Pick<HubApiClient, 'getSeasons'>, source: string, enabled: boolean) {
-  return useQuery({
-    queryKey: queryKeys.seasons(source),
-    queryFn: () => client.getSeasons(),
     enabled,
   });
 }
@@ -71,7 +61,7 @@ export function useReimbursePayouts(client: ReimburseSegment, source: string, en
 
 export function useReimburseSummary(client: ReimburseSegment, source: string, query: ReimburseSummaryQuery, enabled: boolean) {
   return useQuery({
-    queryKey: queryKeys.reimburse.summary(source, query.seasonId ?? 'all', query.batchId ?? 'all', query.expenseType ?? 'all'),
+    queryKey: queryKeys.reimburse.summary(source, query.batchId ?? 'all', query.expenseType ?? 'all'),
     queryFn: () => client.getReimburseSummary(query), enabled,
   });
 }
@@ -128,17 +118,6 @@ export function useUpdateReimburseProfile(client: ReimburseSegment, source: stri
   });
 }
 
-export function useReimburseStockInContext(
-  client: ReimburseSegment,
-  source: string,
-  enabled: boolean,
-) {
-  return useQuery({
-    queryKey: queryKeys.reimburse.stockInContext(source),
-    queryFn: () => client.getReimburseStockInContext(),
-    enabled,
-  });
-}
 
 /**
  * 凭证清单（D-094）：只在卡片展开「凭证留档」时发请求（enabled 门=收起零网络），
@@ -222,26 +201,6 @@ export function useUpdateReimburseEntry(client: ReimburseSegment, source: string
   });
 }
 
-/**
- * 入库确认（阶段 5）：落账改的是库存动作日志（restock + reimburseEntryId），
- * 故同时失效 reimburse entries 与本域窄入库上下文。错误交全局
- * MutationCache.onError toast 兜底。
- */
-export function useStockInEntry(
-  client: ReimburseSegment,
-  source: string,
-  opts?: { onSuccess?: () => void },
-) {
-  return useHubMutation({
-    invalidateKeys: [
-      queryKeys.reimburse.entries(source),
-      queryKeys.reimburse.stockInContext(source),
-    ],
-    mutationFn: (vars: { id: string; req: StockInRequest }) =>
-      client.stockInEntry(vars.id, vars.req),
-    onSuccess: () => opts?.onSuccess?.(),
-  });
-}
 
 export function useCreateReimburseBatch(
   client: ReimburseSegment,

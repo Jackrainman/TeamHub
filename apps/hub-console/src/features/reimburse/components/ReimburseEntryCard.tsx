@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { ReimburseSegment } from '../api';
 import {
   derivePurchaserCheckStatus,
@@ -11,13 +11,12 @@ import {
   type ReimbursePayout,
   type ReimburseProfile,
   type ReimburseReviewReason,
-  type StockInContextResponse,
 } from '@teamhub/hub-contracts';
 import { useUpdateReimburseEntry } from '../hooks';
 import { useI18n, type TranslationKey } from '../../../i18n';
 import { formatAmountFen } from '../reimburse-utils';
 import { ReimburseEvidenceSection } from './ReimburseEvidenceSection';
-import { StockInDialog } from './StockInDialog';
+
 import { ReimburseEntryForm } from './ReimburseEntryForm';
 import { ReimburseWorkflowActions } from './ReimburseWorkflowActions';
 
@@ -41,9 +40,9 @@ const REVIEW_REASON_KEY: Record<ReimburseReviewReason, TranslationKey> = {
 };
 
 /**
- * 单条报销条目卡片：发票要素 + deriveReimburseCompleteness 派生徽标（无手工状态机）+
- * 材料 checklist 两勾（点了即 PATCH）+ 凭证留档区 + actualItemName/note 就地编辑 + 超管装批/移出。
- * 错误一律交全局 MutationCache.onError toast（checklist/装批无内联错误位，不标 silent）。
+ * 单条报销条目卡片：发票要素 + 完整度派生徽标（无手工状态机）+
+ * 材料核对（点了即 PATCH）+ 凭证留档区 + actualItemName/note 就地编辑 + 管理员装批/移出。
+ * 错误一律交全局 MutationCache.onError toast。
  */
 export function ReimburseEntryCard({
   client,
@@ -53,7 +52,6 @@ export function ReimburseEntryCard({
   isSuperAdmin,
   canWrite,
   profile,
-  stockInContext,
   canViewEvidence,
   isOwner,
   payout = null,
@@ -65,8 +63,6 @@ export function ReimburseEntryCard({
   isSuperAdmin: boolean;
   canWrite: boolean;
   profile: ReimburseProfile;
-  /** 报销域窄入库上下文；不再读取库存完整快照。 */
-  stockInContext: StockInContextResponse | null;
   /** 凭证读者门：未登录 / 匿名模式下服务端不认人，整区隐藏（不发请求）。 */
   canViewEvidence: boolean;
   /** 本条目是否当前登录人自己的（凭证上传/删除只对本人开放）。 */
@@ -76,8 +72,6 @@ export function ReimburseEntryCard({
   const { t } = useI18n();
   const updateMutation = useUpdateReimburseEntry(client, source);
 
-  const [stockInOpen, setStockInOpen] = useState(false);
-  const [stockInDone, setStockInDone] = useState(false);
   const [editing, setEditing] = useState(false);
 
   const status = deriveReimburseCompleteness(entry);
@@ -90,15 +84,6 @@ export function ReimburseEntryCard({
   const contentLocked = !ownerEditable && !financeEditable;
   const writeDisabled = !canWrite || contentLocked || updateMutation.isPending;
 
-  const stocked = useMemo(
-    () => new Map(
-      (stockInContext?.entries.find((candidate) => candidate.entryId === entry.id)?.stockedLines ?? [])
-        .map((line) => [line.itemIndex, line.quantity] as const),
-    ),
-    [stockInContext, entry.id],
-  );
-  const canStockIn =
-    entry.kind === 'goods' && entry.items.length > 0 && stockInContext !== null && canWrite;
 
   return (
     <article className="card reimb-entry">
@@ -113,7 +98,7 @@ export function ReimburseEntryCard({
       <p>{t('reimb.package.type')}: {t(`reimb.invoiceType.${entry.invoiceType ?? 'unknown'}`)}</p>
       {(isOwner || isSuperAdmin) && <button className="btn btn--secondary btn--sm" disabled={writeDisabled}
         onClick={() => setEditing(value => !value)}>{t('reimb.entry.editFields')}</button>}
-      {editing && <ReimburseEntryForm client={client} source={source} projectId={entry.projectId} seasonId={entry.seasonId}
+      {editing && <ReimburseEntryForm client={client} source={source}
         canWrite={!writeDisabled} writeLockedHint={null} profile={profile} editingEntry={entry} onDone={() => setEditing(false)} />}
       <ReimburseWorkflowActions client={client} source={source} entry={entry} isOwner={isOwner} isFinance={isSuperAdmin} canWrite={canWrite} />
       {entry.approvedAmountFen !== null && <p>{t('reimb.workflow.approvedAmount')}: <strong>{formatAmountFen(entry.approvedAmountFen)}</strong></p>}
@@ -174,14 +159,6 @@ export function ReimburseEntryCard({
                 <td>{item.unit ?? '—'}</td>
                 <td>
                   {item.quantity}
-                  {stockInContext ? (
-                    <span className="reimb-entry__stocked">
-                      {t('reimb.stockIn.stocked', {
-                        stocked: stocked.get(index) ?? 0,
-                        total: item.quantity,
-                      })}
-                    </span>
-                  ) : null}
                 </td>
                 <td>{item.unitPriceFen === null ? '—' : formatAmountFen(item.unitPriceFen)}</td>
                 <td>{formatAmountFen(item.amountFen)}</td>
@@ -191,36 +168,6 @@ export function ReimburseEntryCard({
         </table>
       ) : null}
 
-      {canStockIn ? (
-        <div className="reimb-entry__stockin">
-          <button
-            type="button"
-            className="btn btn--sm btn--secondary"
-            onClick={() => setStockInOpen(true)}
-          >
-            {t('reimb.stockIn.button')}
-          </button>
-          {stockInDone ? (
-            <span className="form-hint" role="status">
-              {t('reimb.stockIn.done')}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
-      {stockInOpen && stockInContext ? (
-        <StockInDialog
-          client={client}
-          source={source}
-          entry={entry}
-          partTypes={stockInContext.partTypes}
-          stocked={stocked}
-          onClose={() => setStockInOpen(false)}
-          onStockedIn={() => {
-            setStockInOpen(false);
-            setStockInDone(true);
-          }}
-        />
-      ) : null}
 
       <div className="reimb-entry__materials" role="group" aria-label={t('reimb.entry.materials')}>
         <span className="reimb-entry__materials-title">{t('reimb.entry.materials')}</span>
@@ -283,7 +230,7 @@ export function ReimburseEntryCard({
             }
           >
             <option value="">{t('reimb.entry.batch.none')}</option>
-            {batches.filter((batch) => batch.seasonId === entry.seasonId).map((b) => (
+            {batches.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
               </option>

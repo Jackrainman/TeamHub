@@ -1,7 +1,7 @@
 import { useId } from 'react';
 
 // 通用组合框（候选 + 手填）：原生 <input list> + <datalist>，零弹层库、贴合既有原生控件风格。
-// 既能从候选里挑（机器人台账 26R1/26R2、近年赛季），又能直接打字填任意值——满足战队"编号会变、需手填"。
+// 可从候选选择，也可直接输入新值；编号变化不需要改代码。
 // 受控：value 字符串 + onChange(原始值，调用方按需 .trim())。datalist 在 <input> 之后、视觉不占位。
 export function Combobox({
   value,

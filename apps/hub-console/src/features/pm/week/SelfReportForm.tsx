@@ -3,8 +3,8 @@ import type { Group, MemberPublic, SelfReportTaskRequest } from '@teamhub/hub-co
 import { useI18n } from '../../../i18n';
 import { ReviewerPicker } from '../components/ReviewerPicker';
 
-export function SelfReportForm({ projectId, groups, defaultGroupId, pending, onSubmit, members, memberId }: {
-  projectId: string; groups: Group[]; defaultGroupId?: string; pending: boolean;
+export function SelfReportForm({ groups, defaultGroupId, pending, onSubmit, members, memberId }: {
+  groups: Group[]; defaultGroupId?: string; pending: boolean;
   members: MemberPublic[]; memberId: string;
   onSubmit: (input: SelfReportTaskRequest) => void;
 }) {
@@ -15,25 +15,25 @@ export function SelfReportForm({ projectId, groups, defaultGroupId, pending, onS
   const [robot, setRobot] = useState('');
   const [reviewerIds, setReviewerIds] = useState<string[]>([]);
   const [complexity, setComplexity] = useState<SelfReportTaskRequest['intrinsicComplexity']>('normal');
+  const [plannedStart, setPlannedStart] = useState('');
+  const [plannedEnd, setPlannedEnd] = useState('');
+  const validRange = !plannedStart || !plannedEnd || plannedEnd >= plannedStart;
+  const valid = Boolean(groupId && title.trim() && summary.trim() && validRange);
   return <form className="week-form" onSubmit={event => {
     event.preventDefault();
-    if (pending || !projectId || !groupId || !title.trim() || !summary.trim()) return;
-    onSubmit({ projectId, groupId, title: title.trim(), rawSummary: summary.trim(), intrinsicComplexity: complexity, reviewerIds,
-      ...(robot ? { robotTarget: robot as SelfReportTaskRequest['robotTarget'] } : {}),
-    });
+    if (pending || !valid) return;
+    onSubmit({ groupId, title: title.trim(), rawSummary: summary.trim(), intrinsicComplexity: complexity, reviewerIds,
+      plannedStart: plannedStart || null, plannedEnd: plannedEnd || null,
+      ...(robot ? { robotTarget: robot as SelfReportTaskRequest['robotTarget'] } : {}) });
   }}>
-    <label className="gate-field">{t('week.group')}<select required value={groupId} onChange={event => setGroupId(event.target.value)}>
-      <option value="">{t('week.chooseGroup')}</option>{groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
-    </select></label>
+    <label className="gate-field">{t('week.group')}<select required value={groupId} onChange={event => setGroupId(event.target.value)}><option value="">{t('week.chooseGroup')}</option>{groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label>
     <label className="gate-field">{t('week.taskTitle')}<input required autoFocus value={title} onChange={event => setTitle(event.target.value)} /></label>
     <label className="gate-field">{t('week.summary')}<textarea required rows={4} value={summary} onChange={event => setSummary(event.target.value)} /></label>
-    <label className="gate-field">{t('week.robot')}<select value={robot} onChange={event => setRobot(event.target.value)}>
-      <option value="">{t('week.optional')}</option>{['R1', 'R2', 'shared'].map(value => <option key={value} value={value}>{value}</option>)}
-    </select></label>
-    <label className="gate-field">{t('week.complexity')}<select value={complexity} onChange={event => setComplexity(event.target.value as typeof complexity)}>
-      {(['trivial', 'normal', 'hard'] as const).map(value => <option key={value} value={value}>{t(`week.complexity.${value}`)}</option>)}
-    </select></label>
+    <label className="gate-field">{t('calendar.task.start')}<input type="date" value={plannedStart} onChange={event => setPlannedStart(event.target.value)} /></label>
+    <label className="gate-field">{t('calendar.task.end')}<input type="date" value={plannedEnd} onChange={event => setPlannedEnd(event.target.value)} />{!validRange && <span role="alert">{t('calendar.task.dateOrder')}</span>}</label>
+    <label className="gate-field">{t('week.robot')}<select value={robot} onChange={event => setRobot(event.target.value)}><option value="">{t('week.optional')}</option>{['R1', 'R2', 'shared'].map(value => <option key={value} value={value}>{value}</option>)}</select></label>
+    <label className="gate-field">{t('week.complexity')}<select value={complexity} onChange={event => setComplexity(event.target.value as typeof complexity)}>{(['trivial', 'normal', 'hard'] as const).map(value => <option key={value} value={value}>{t(`week.complexity.${value}`)}</option>)}</select></label>
     <ReviewerPicker members={members} groups={groups} excludedIds={[memberId]} value={reviewerIds} onChange={setReviewerIds} disabled={pending} />
-    <button className="btn btn--primary" disabled={pending || !projectId || !groupId || !title.trim() || !summary.trim()}>{pending ? t('week.saving') : t('week.submit')}</button>
+    <button className="btn btn--primary" disabled={pending || !valid}>{pending ? t('week.saving') : t('week.submit')}</button>
   </form>;
 }

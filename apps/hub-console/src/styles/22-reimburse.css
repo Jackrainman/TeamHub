@@ -1,7 +1,3 @@
-/* 报销页（REIMBURSE-PROC 阶段 3）：卡片/空态/表单字段走 .card/.empty-state/.kb-field 基类与
-   .btn 族，本文件只补布局与少量无基类覆盖的控件（Field 外壳外的行内输入件，镜像
-   .kb-field input 的 token 写法，先例同 02-base 的 .detail-status-select select）。 */
-
 .reimb-page {
   display: flex;
   flex-direction: column;

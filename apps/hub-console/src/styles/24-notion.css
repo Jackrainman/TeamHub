@@ -95,7 +95,6 @@
   display: none; /* Notion 无顶部 tone 条，指标卡纯排版 */
 }
 
-:root[data-theme^='notion'] .kb-card:hover,
 :root[data-theme^='notion'] .gap-card:hover {
   box-shadow: var(--shadow-sm);
 }

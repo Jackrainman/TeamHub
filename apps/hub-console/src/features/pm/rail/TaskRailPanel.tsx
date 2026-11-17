@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { getWeekKey } from '@teamhub/hub-contracts';
+import { currentShanghaiWeek, currentTaskTime } from '../../../shared/lib/now';
 import type { HubApiClient } from '../../../api/client';
 import type { PageIdentityCtx } from '../../../console-pages';
 import { SideDrawer } from '../../../components/SideDrawer';
@@ -36,9 +36,9 @@ export function TaskRailPanel({ client, source, identity, active }: {
   const members = useMemo(() => membersQuery.data?.members ?? [], [membersQuery.data]);
   const memberId = identity.session?.memberId;
   const effectiveScope = memberId ? scope : 'team';
-  const now = useMemo(() => new Date(), [active]);
+  const now = useMemo(() => currentTaskTime(), [active]);
   const visible = useMemo(() => filterRailTasks(tasks, { scope: effectiveScope, status, sessionMemberId: memberId }), [tasks, effectiveScope, status, memberId]);
-  const sections = useMemo(() => groupRailTasks(visible, grouping, groups, now, tasksQuery.data?.currentWeek ?? getWeekKey(now)), [visible, grouping, groups, now, tasksQuery.data?.currentWeek]);
+  const sections = useMemo(() => groupRailTasks(visible, grouping, groups, now, tasksQuery.data?.currentWeek ?? currentShanghaiWeek()), [visible, grouping, groups, now, tasksQuery.data?.currentWeek]);
   const selected = tasks.find(task => task.id === taskId);
 
   useEffect(() => { if (!active) setTaskId(null); }, [active]);

@@ -1,7 +1,7 @@
 {
   "name": "@teamhub/hub-console",
   "private": true,
-  "version": "0.107.2",
+  "version": "0.107.3",
   "description": "Team Hub operations console shell",
   "type": "module",
   "scripts": {
@@ -25,12 +25,10 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@dagrejs/dagre": "^3.0.0",
     "@tanstack/react-query": "^5.90.12",
     "@teamhub/hub-contracts": "file:../hub-contracts",
     "@tesseract.js-data/chi_sim": "1.0.0",
     "@tesseract.js-data/eng": "1.0.0",
-    "@xyflow/react": "^12.11.0",
     "fflate": "0.8.3",
     "lucide-react": "^0.561.0",
     "pdfjs-dist": "^4.10.38",

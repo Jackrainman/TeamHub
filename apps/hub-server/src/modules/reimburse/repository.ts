@@ -26,7 +26,7 @@ export type ReimburseEntryDraft = Omit<
 export type StoredReimburseEntry = ReimburseEntry & Pick<ReimburseEntryDraft, 'creationRequest'>;
 export type ReimburseEntryInput = CreateReimburseEntryRequest & Pick<ReimburseEntry, 'memberId' | 'batchId'>;
 /** Repository 只接内部已鉴权补丁；请求中的 expectedRevision/changeReason 不得写入 JSON 行。 */
-export type ReimburseEntryPatch = Partial<Omit<ReimburseEntry, 'id' | 'projectId' | 'memberId' | 'createdAt'>>;
+export type ReimburseEntryPatch = Partial<Omit<ReimburseEntry, 'id' | 'memberId' | 'createdAt'>>;
 export type ReimburseBatchDraft = Omit<ReimburseBatch, 'id' | 'status' | 'createdAt' | 'updatedAt'>;
 export type ReimburseBatchPatch = UpdateReimburseBatchRequest;
 export type ReimburseEvidenceDownloadDraft = Omit<ReimburseEvidenceDownload, 'id' | 'at'>;

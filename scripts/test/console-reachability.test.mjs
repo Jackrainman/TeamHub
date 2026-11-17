@@ -25,7 +25,7 @@ test('可达性门：当前仓库不可达违规为 0，且退出码为 0', () =
     'apps/hub-console/src/App.tsx',
     'apps/hub-console/src/console-pages.tsx',
     'apps/hub-console/src/features/workbench/WorkbenchPage.tsx',
-    'apps/hub-console/src/features/project/ProjectPage.tsx',
+    'apps/hub-console/src/features/pm/calendar/CalendarPage.tsx',
     'apps/hub-console/src/features/reimburse/ReimbursePage.tsx',
     'apps/hub-console/src/features/settings/SettingsPage.tsx',
   ]) {
@@ -34,12 +34,11 @@ test('可达性门：当前仓库不可达违规为 0，且退出码为 0', () =
   assert.ok(report.reachableModules.length > 100, '可达集不应为空图');
 });
 
-test('可达性门：schedule/ 整目录按保护名单保留，不计违规', () => {
+test('可达性门：构建公共件受保护，退役页面不得复活', () => {
   const result = run('--json');
   const report = JSON.parse(result.stdout);
-  const schedule = report.deadModules.find((module) => module.path.endsWith('/features/schedule/SchedulePage.tsx'));
-  assert.ok(schedule, 'SchedulePage 应出现在不可达清单（当前无人 import）');
-  assert.equal(schedule.status, 'protected');
+  assert.ok(report.testOnlyReachable.includes('apps/hub-console/build/bundle-budget.ts'), '构建预算脚本应由测试保持可达');
+  assert.equal(report.reachableModules.some((file) => /features\/(?:project|pool|schedule|kb|inv|archive)\//.test(file)), false);
   for (const module of report.deadModules) {
     assert.ok(Number.isInteger(module.inDegree) && module.inDegree >= 0, `${module.path} 需要入度`);
   }

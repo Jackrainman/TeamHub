@@ -1,5 +1,3 @@
-export { registerSessionRoutes } from './session.js';
-export type { SessionRouteDeps } from './session.js';
-export { registerSetupRoutes } from './setup.js';
-export type { SetupRouteDeps } from './setup.js';
-export { registerSystemRoutes } from './system.js';
+export { registerSystemRoutes, RESTART_EXIT_CODE } from './routes.js';
+export type { SettingsRepository } from './repository.js';
+export { SqliteSettingsRepository } from './sqlite-repository.js';

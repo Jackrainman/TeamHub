@@ -1,7 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { SessionIdentity, ActorRef } from '@teamhub/hub-contracts';
-import type { PmRepository } from '../modules/pm/repository.js';
-import { isSuperAdmin } from '../authz.js';
+
 import { isApplicationError } from '../application/application-error.js';
 import { fail } from '../lib/fail.js';
 
@@ -54,19 +53,6 @@ export function parseQuery<T>(
   return parsed.data;
 }
 
-export async function requireSuperAdmin(
-  store: PmRepository,
-  request: FastifyRequest,
-  reply: FastifyReply,
-  detail = '该操作需管理员（superAdmin）',
-): Promise<boolean> {
-  const snapshot = await store.getSnapshot();
-  if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
-    void fail(reply, 'FORBIDDEN', { status: 403, detail });
-    return false;
-  }
-  return true;
-}
 
 export function requireActor(
   request: FastifyRequest,

@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from 'react';
 import type { ReimburseEntry } from '@teamhub/hub-contracts';
 import type { ReimburseSegment } from '../api';
 import { useCreateReimbursePayout } from '../hooks';
+import { currentTaskTime, localDateTimeToIso } from '../../../shared/lib/now';
 import { useI18n } from '../../../i18n';
 import { formatAmountFen } from '../reimburse-utils';
 import { Field } from '../../../components/Field';
@@ -16,7 +17,7 @@ export function ReimbursePayoutForm({ client, source, entries, onDone }: {
 }) {
   const { t } = useI18n();
   const mutation = useCreateReimbursePayout(client, source);
-  const [paidAt, setPaidAt] = useState(() => new Date().toISOString().slice(0, 16));
+  const [paidAt, setPaidAt] = useState(() => currentTaskTime().toISOString().slice(0, 16));
   const [method, setMethod] = useState<'bank' | 'wechat' | 'alipay' | 'cash' | 'other'>('bank');
   const [transactionRef, setTransactionRef] = useState('');
   const [note, setNote] = useState('');
@@ -29,7 +30,7 @@ export function ReimbursePayoutForm({ client, source, entries, onDone }: {
     if (!valid) return;
     mutation.mutate({
       entries: entries.map((entry) => ({ id: entry.id, expectedRevision: entry.revision })),
-      amountFen: total, paidAt: new Date(paidAt).toISOString(), method,
+      amountFen: total, paidAt: localDateTimeToIso(paidAt), method,
       transactionRef: transactionRef.trim() || null, note: note.trim() || null, clientRequestId: clientRequestId.current,
     }, { onSuccess: onDone });
   }

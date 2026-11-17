@@ -89,8 +89,6 @@
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 24px;
-  /* 紧凑行内控件（机器人队/接力卡片等即时编辑控件，有意比标准 kb-field 矮一档；文档化为分层而非随机不一致）。
-     同上 TODO：当前零消费，待紧凑控件收口时替换 .relay-card__eta-input 等处的裸 5px 8px / --text-sm。 */
   --control-pad-compact: 5px 8px;
   --control-text-compact: var(--text-sm);
   /* ===== 控件基线（2026-11-15，CONTROL-BASELINE）=====
@@ -163,11 +161,6 @@
   --cal-5: color-mix(in srgb, var(--blue) 55%, var(--amber));
   --cal-6: color-mix(in srgb, var(--green) 60%, var(--amber));
 }
-
-/* 暗色（批次H，2026-06-23）——第三套纯 CSS-variable 主题，架构同 warm（data-theme + 全站 var 消费，零组件改动）。
-   accent 取偏亮值（绝大多数用法是 accent 当文字/边框/徽章打在暗底/软底上）；soft 槽改暗色调背景（承载同名
-   accent 文字的徽章/软提示）。dep-graph 连线色已是 var() 自动随动；ReactFlow <Background> 点阵色走 JS
-   （DepGraphPage 按主题取值，SVG fill 不吃 var）。少数「亮 accent 实底 + 白字」按钮在末尾把字反成近黑。 */
 :root[data-theme='dark'] {
   --page-bg: #0e141b;
   --surface: #151d26;
@@ -203,14 +196,6 @@
   --shadow-md: 0 18px 50px rgba(0,0,0,.3);
 }
 :root[data-theme='dark'] .btn--primary:not(:disabled) { background: var(--accent); color: var(--text); }
-
-/* ===== 科技「遥测台」（tech，D1）——第 4 套主题 · 深色旗舰 · 默认 =====
-   取材=Robocon 战队真实世界：示波器屏 / EDA 深色工作台 / 图纸蓝图 / 遥测 HUD。
-   架构同 warm/dark（纯 CSS-variable + data-theme，全站 var 消费故零组件改动）；
-   token 块走 :root[data-theme='tech']（特异度 0,2,0 可靠覆盖 :root）。
-   关键配色对比度（自算，正文均 ≥4.5:1）：text #E6EDF7 / bg #0A0F1A ≈16.3:1；muted #8FA3BF / panel #101828 ≈6.9:1；
-   cyan #22D3EE / panel ≈9.8:1；amber #F5A623 / panel ≈8.8:1；green #34D399 ≈9.2:1；red #F87171 ≈6.4:1；
-   按钮深字 #05242C / cyan ≈9.0:1。各语义 accent 打在同名 -soft 深底上 ≥6:1。 */
 :root[data-theme='tech'] {
   --page-bg: #0a0f1a; /* 深蓝黑示波器屏，不许纯黑 */
   --surface: #101828; /* 面板 */
@@ -404,19 +389,7 @@
 
 /* 数据位换等宽栈（数字/编号/版本/日期/周数/计数徽标/表格数值列）——统一在既有数值类上加 font-family，
    不逐处内联（约束：一个 .u-mono 或对既有数值类统一加）。tabular-nums 让数字等宽对齐。 */
-:root[data-theme='tech'] .metric-tile strong,
-:root[data-theme='tech'] .baseline-countdown__num,
-:root[data-theme='tech'] .baseline-countdown__meta,
-:root[data-theme='tech'] .data-row__time,
-:root[data-theme='tech'] .kb-result-count,
-:root[data-theme='tech'] .archive-version-preview,
-:root[data-theme='tech'] .baseline-seg__label,
-:root[data-theme='tech'] .baseline-now span,
-:root[data-theme='tech'] .baseline-ms__meta,
-:root[data-theme='tech'] .baseline-chip,
-:root[data-theme='tech'] .inv-idle-value,
-:root[data-theme='tech'] .inv-idle-total,
-:root[data-theme='tech'] .inv-history__qty {
+:root[data-theme='tech'] .metric-tile strong, :root[data-theme='tech'] .data-row__time {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
@@ -435,29 +408,6 @@
     0 0 0 1px rgba(34, 211, 238, 0.5),
     0 0 14px rgba(34, 211, 238, 0.4);
 }
-
-/* @xyflow 内置控件（依赖图缩放按钮 + 「React Flow」归属徽标）默认浅色（#fefefe 白底 / rgba(255,255,255,.5)
-   徽标底），落在遥测台深底上是刺眼白块 —— 第三方组件不吃 CSS var（批次H 暗色同坑）。xyflow 暴露一组
-   --xy-* 变量作为主题接缝，按主题 remap 即随动（控件 SVG 图标 fill=currentColor，跟随 button color）。
-   QA 实测：project 依赖图左下缩放条 + 右下徽标原为白块。仅圈 [data-theme='tech']；dark/light/warm 不动（约束2，
-   dark 下同为白块属既有债、不在本轮 tech 视觉轮范围）。 */
-:root[data-theme='tech'] .react-flow {
-  --xy-controls-button-background-color: var(--surface-raised);
-  --xy-controls-button-background-color-hover: #22314c;
-  --xy-controls-button-color: var(--text);
-  --xy-controls-button-color-hover: var(--blue);
-  --xy-controls-button-border-color: var(--border);
-  --xy-attribution-background-color: transparent;
-}
-:root[data-theme='tech'] .react-flow__controls {
-  box-shadow: var(--shadow-sm);
-}
-/* 徽标背景透明后「React Flow」链接文字（xyflow 硬编码 #999 中性灰）改走主题次级色，与遥测台蓝灰调一致
-   （不改功能、纯观感；徽标仍在，只是不再是白块 + 文字融入配色）。 */
-:root[data-theme='tech'] .react-flow__attribution a {
-  color: var(--muted);
-}
-
 * {
   box-sizing: border-box;
 }

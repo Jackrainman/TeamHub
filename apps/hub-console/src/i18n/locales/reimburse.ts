@@ -160,6 +160,7 @@ export const zhReimburse = {
   'reimb.evidence.uploading': '上传中…',
   'reimb.evidence.none': '未上传',
   'reimb.evidence.delete': '删除',
+  'reimb.evidence.download': '下载',
   'reimb.evidence.kind.invoice': '发票原件',
   'reimb.evidence.kind.paymentShot': '付款截图',
   'reimb.evidence.kind.inspection': '发票查验结果（选填）',
@@ -180,18 +181,7 @@ export const zhReimburse = {
   'reimb.batch.status.collecting': '收集装批中',
   'reimb.batch.status.submitted': '已提交财务',
   'reimb.batch.flow': '批次状态流转',
-  'reimb.stockIn.button': '确认入库',
-  'reimb.stockIn.title': '确认入库',
-  'reimb.stockIn.hint':
-    '逐行确认本次入库的数量和去向：入到已有零件（已按品名给出匹配候选，可改选其他件），或按品名新建件。已入满的行不可再入。',
-  'reimb.stockIn.stocked': '已入 {stocked}/{total}',
-  'reimb.stockIn.full': '已全部入库',
-  'reimb.stockIn.field.quantity': '本次入库数量',
-  'reimb.stockIn.field.target': '入库去向',
-  'reimb.stockIn.target.new': '＋ 新建件',
-  'reimb.stockIn.submit': '确认入库',
-  'reimb.stockIn.submitting': '入库中…',
-  'reimb.stockIn.done': '已入库，库存台账已同步更新。',
+
   'reimb.export.title': '全员发票导出',
   'reimb.export.button': '导出 CSV',
   'reimb.export.empty': '还没有条目可导出',
@@ -228,8 +218,7 @@ export const zhReimburse = {
   'reimb.expenseType.unconfirmed': '待确认类型',
   'reimb.create.field.expenseType': '支出类型',
   'reimb.create.field.summary': '费用摘要',
-  'reimb.season': '赛季',
-  'reimb.season.unassigned': '未指定赛季',
+
   'reimb.view.title': '报账视图',
   'reimb.view.mine': '本人',
   'reimb.view.finance': '财务工作台',
@@ -299,9 +288,7 @@ export const zhReimburse = {
   'reimb.unmatched.files': '共 {count} 份',
   'reimb.unmatched.open': '打开',
   'reimb.unmatched.later': '稍后处理',
-  'reimb.batch.progress.empty': '无有效条目',
-  'reimb.batch.progress.processing': '处理中',
-  'reimb.batch.progress.completed': '全部完成',
+
 };
 
 export const enReimburse: Record<keyof typeof zhReimburse, string> = {
@@ -465,6 +452,7 @@ export const enReimburse: Record<keyof typeof zhReimburse, string> = {
   'reimb.evidence.uploading': 'Uploading…',
   'reimb.evidence.none': 'Not uploaded',
   'reimb.evidence.delete': 'Delete',
+  'reimb.evidence.download': 'Download',
   'reimb.evidence.kind.invoice': 'Invoice original',
   'reimb.evidence.kind.paymentShot': 'Payment screenshot',
   'reimb.evidence.kind.inspection': 'Invoice verification (optional)',
@@ -486,18 +474,7 @@ export const enReimburse: Record<keyof typeof zhReimburse, string> = {
   'reimb.batch.status.collecting': 'Collecting',
   'reimb.batch.status.submitted': 'Submitted to finance',
   'reimb.batch.flow': 'Batch status flow',
-  'reimb.stockIn.button': 'Confirm stock-in',
-  'reimb.stockIn.title': 'Confirm stock-in',
-  'reimb.stockIn.hint':
-    'Confirm the quantity and destination per row: stock into an existing part (matches suggested from the item name — you can pick any other part), or create a new part from the item name. Fully stocked rows cannot be stocked again.',
-  'reimb.stockIn.stocked': 'Stocked {stocked}/{total}',
-  'reimb.stockIn.full': 'Fully stocked',
-  'reimb.stockIn.field.quantity': 'Qty to stock in',
-  'reimb.stockIn.field.target': 'Stock into',
-  'reimb.stockIn.target.new': '+ New part',
-  'reimb.stockIn.submit': 'Stock in',
-  'reimb.stockIn.submitting': 'Stocking in…',
-  'reimb.stockIn.done': 'Stocked in; the inventory ledger has been updated.',
+
   'reimb.export.title': 'Export all invoices',
   'reimb.export.button': 'Export CSV',
   'reimb.export.empty': 'No entries to export yet',
@@ -534,8 +511,7 @@ export const enReimburse: Record<keyof typeof zhReimburse, string> = {
   'reimb.expenseType.unconfirmed': 'Type unconfirmed',
   'reimb.create.field.expenseType': 'Expense type',
   'reimb.create.field.summary': 'Expense summary',
-  'reimb.season': 'Season',
-  'reimb.season.unassigned': 'Unassigned season',
+
   'reimb.view.title': 'Reimbursement view',
   'reimb.view.mine': 'Mine',
   'reimb.view.finance': 'Finance workspace',
@@ -605,7 +581,5 @@ export const enReimburse: Record<keyof typeof zhReimburse, string> = {
   'reimb.unmatched.files': '{count} files',
   'reimb.unmatched.open': 'Open',
   'reimb.unmatched.later': 'Later',
-  'reimb.batch.progress.empty': 'No active entries',
-  'reimb.batch.progress.processing': 'Processing',
-  'reimb.batch.progress.completed': 'All completed',
+
 };

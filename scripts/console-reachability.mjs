@@ -43,12 +43,12 @@ const MODULE_DIRS = [SRC_DIR, path.join(CONSOLE_DIR, 'test'), path.join(CONSOLE_
 //  - schedule 整目录 + 它的样式：用户已定「日历页看项目贯穿区间」后续基于它改造。
 //  - shared/components/api：跨页公共件，即使当前无人 import 也保留（公共 API 面）。
 const PROTECTED_PREFIXES = [
-  'apps/hub-console/src/features/schedule/',
   'apps/hub-console/src/shared/',
   'apps/hub-console/src/components/',
   'apps/hub-console/src/api/',
+  'apps/hub-console/build/',
 ];
-const PROTECTED_FILES = ['apps/hub-console/src/styles/14-schedule.css'];
+const PROTECTED_FILES = [];
 
 const toPosix = (p) => p.split(path.sep).join('/');
 const rel = (abs) => toPosix(path.relative(ROOT, abs));

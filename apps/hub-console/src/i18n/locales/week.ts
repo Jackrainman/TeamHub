@@ -35,17 +35,17 @@ export const zhWeek = {
   'team.fact.accepted': '验收通过',
   'team.fact.rejected': '退回修改',
   'week.selfReport': '新建任务',
-  'week.view.active': '进行中', 'week.view.pool': '任务池', 'week.view.completed': '已完成',
+
   'week.loginHint': '登录后可以创建和推进自己的任务。',
   'week.retry': '重试', 'week.details': '查看详情',
-  'week.accepted': '已验收', 'week.awaiting': '待验收', 'week.peerRequired': '仅所选备位人可验收，一人通过即可。',
-  'week.waitingFor': '等待', 'week.blockUnknown': '上游任务或需求确认，详情见项目依赖图',
+  'week.accepted': '已验收', 'week.awaiting': '待验收',
+  'week.waitingFor': '等待', 'week.blockUnknown': '上游任务或需求确认，请联系负责人',
   'week.owner': '承担', 'week.completedBy': '完成', 'week.reviewedBy': '验收',
   'week.group': '小组', 'week.chooseGroup': '选择具体小组',
   'week.taskTitle': '任务标题', 'week.summary': '要完成什么', 'week.robot': '机器人目标', 'week.optional': '不指定',
   'week.complexity': '复杂度', 'week.complexity.trivial': '简单', 'week.complexity.normal': '常规', 'week.complexity.hard': '复杂',
   'week.saving': '保存中…', 'week.submit': '提交',
-  'week.fact.claimed': '认领', 'week.fact.assigned': '转派', 'week.fact.released': '退回任务池',
+
 };
 
 export const enWeek: Record<keyof typeof zhWeek, string> = {
@@ -85,15 +85,15 @@ export const enWeek: Record<keyof typeof zhWeek, string> = {
   'team.fact.accepted': 'Accepted',
   'team.fact.rejected': 'Returned for changes',
   'week.selfReport': 'New task',
-  'week.view.active': 'In progress', 'week.view.pool': 'Task pool', 'week.view.completed': 'Completed',
+
   'week.loginHint': 'Sign in to report, claim and progress tasks. Team scope shows task facts.',
   'week.retry': 'Retry', 'week.details': 'Details',
-  'week.accepted': 'Accepted', 'week.awaiting': 'Awaiting review', 'week.peerRequired': 'Only selected backups can review; one acceptance is enough.',
-  'week.waitingFor': 'Waiting for', 'week.blockUnknown': 'Upstream task or need confirmation; see the project graph',
+  'week.accepted': 'Accepted', 'week.awaiting': 'Awaiting review',
+  'week.waitingFor': 'Waiting for', 'week.blockUnknown': 'Upstream task or needs confirmation; contact the responsible member',
   'week.owner': 'Owner', 'week.completedBy': 'Completed', 'week.reviewedBy': 'Reviewed',
   'week.group': 'Group', 'week.chooseGroup': 'Choose a leaf group',
   'week.taskTitle': 'Task title', 'week.summary': 'What needs to be done', 'week.robot': 'Robot target', 'week.optional': 'Unspecified',
   'week.complexity': 'Complexity', 'week.complexity.trivial': 'Simple', 'week.complexity.normal': 'Normal', 'week.complexity.hard': 'Complex',
   'week.saving': 'Saving…', 'week.submit': 'Submit',
-  'week.fact.claimed': 'Claimed', 'week.fact.assigned': 'Assigned', 'week.fact.released': 'Returned to pool',
+
 };

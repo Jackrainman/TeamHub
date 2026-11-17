@@ -9,7 +9,7 @@ import type { HubApiClient } from '../../api/client';
 import { useI18n } from '../../i18n';
 import { humanizeFormError } from '../../utils';
 import { GRADE_KEY } from '../../shared/roster';
-import { WHO_GRADE_OPTIONS } from './setup-utils';
+const WHO_GRADE_OPTIONS: readonly MemberGrade[] = ['freshman', 'sophomore', 'junior', 'senior', 'grad1', 'grad2', 'grad3'];
 
 // ① 你是谁：姓名 + 所在组 + 年级下拉（GRADE-7-TIERS 刀⑥ 七档，默认大一）+ 组长申报 + 项目管理旗标 +
 // PIN → bootstrap 一笔落库（建人/认领 + 授旗 + 设 PIN + 登录态）。姓名命中既有成员 = 直接认领该行

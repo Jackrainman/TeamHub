@@ -85,7 +85,7 @@ export function groupRailTasks<T extends TaskWithMeta>(
   tasks: readonly T[],
   grouping: RailGrouping,
   groups: readonly Group[],
-  now = new Date(),
+  now: Date,
   currentWeekKey = getWeekKey(now),
 ): RailSection<T>[] {
   if (grouping === 'group') {

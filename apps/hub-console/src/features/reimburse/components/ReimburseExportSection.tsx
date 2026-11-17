@@ -9,6 +9,7 @@ import {
 } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../../api/client';
 import { useMembers } from '../../identity/hooks';
+import { currentTaskTime } from '../../../shared/lib/now';
 import { useI18n } from '../../../i18n';
 import {
   localizeReimburseExportRow,
@@ -54,7 +55,7 @@ export function ReimburseExportSection({ client, source, entries, batches, profi
         .map((row) => localizeReimburseExportRow(row, t));
       const csv = buildReimburseCsv(reimburseExportHeaders(t), rows);
       saveBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }),
-        suggestReimburseExportFilename(new Date(), key => t(compact && key === 'reimb.export.fileBase' ? 'expected.exportFileBase' : key)));
+        suggestReimburseExportFilename(currentTaskTime(), key => t(compact && key === 'reimb.export.fileBase' ? 'expected.exportFileBase' : key)));
     } finally { setBusy(false); }
   }
   function downloadServer(includeEvidence: boolean) {

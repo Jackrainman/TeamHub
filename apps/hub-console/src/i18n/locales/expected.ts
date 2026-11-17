@@ -7,13 +7,13 @@ export const zhExpected = {
   'expected.fontSizeHint': '调整整个工作区的文字大小，选择保存在本机浏览器。',
   'expected.font.normal': '标准', 'expected.font.large': '大', 'expected.font.xlarge': '特大',
   'expected.sidebarState': '当前侧栏状态', 'expected.sidebarStateHint': '随时手动展开或收起，刷新页面后恢复展开。',
-  'expected.nav.workbench': '任务', 'expected.nav.project': '项目', 'expected.nav.calendar': '日历',
-  'expected.nav.reimburse': '报销',
+  'expected.nav.workbench': '任务', 'expected.nav.calendar': '日历', 'expected.nav.reimburse': '报销',
   'expected.reimburseNew': '新建条目', 'expected.reimburseImport': '导入票据', 'expected.reimburseOpen': '查看 / 编辑',
   'expected.reimburseSelect': '选择条目 {title}', 'expected.selectAll': '选择全部', 'expected.exportSelected': '导出选中 ({count})',
   'expected.all': '全部', 'expected.reimbursePrivacy': '材料勾选表示本人自证已备；凭证原件只在条目详情内按本人 → 财务权限读取。',
-  'expected.searchTitle': '全局搜索', 'expected.searchHint': '输入关键词，同时检索任务、知识库和库存。', 'expected.searchError': '搜索失败，请重试', 'expected.searchLoading': '正在搜索…',
-  'expected.search': '搜索', 'expected.searchTask': '任务',
+  'expected.searchTitle': '全局搜索', 'expected.searchHint': '输入关键词，同时检索任务、成员和报销。',
+  'expected.searchError': '搜索失败，请重试', 'expected.searchLoading': '正在搜索…',
+  'expected.search': '搜索', 'expected.searchTask': '任务', 'expected.searchMember': '成员', 'expected.searchReimburse': '报销',
 };
 export const enExpected: Record<keyof typeof zhExpected, string> = {
   'expected.resumeImport': 'Resume receipt review', 'expected.exportFileBase': 'selected-expenses',
@@ -23,7 +23,7 @@ export const enExpected: Record<keyof typeof zhExpected, string> = {
   'expected.on': 'On', 'expected.off': 'Off', 'expected.fontSize': 'Text size', 'expected.fontSizeHint': 'Scale workspace text. Your choice is saved in this browser.',
   'expected.font.normal': 'Standard', 'expected.font.large': 'Large', 'expected.font.xlarge': 'Extra large',
   'expected.sidebarState': 'Sidebar state', 'expected.sidebarStateHint': 'Toggle anytime. The sidebar starts expanded after reload.',
-  'expected.nav.workbench': 'Tasks', 'expected.nav.project': 'Projects', 'expected.nav.calendar': 'Calendar', 'expected.nav.reimburse': 'Expenses',
+  'expected.nav.workbench': 'Tasks', 'expected.nav.calendar': 'Calendar', 'expected.nav.reimburse': 'Expenses',
   'expected.reimburseNew': 'New entry', 'expected.reimburseImport': 'Import receipts', 'expected.reimburseOpen': 'View / edit', 'expected.reimburseSelect': 'Select entry {title}', 'expected.selectAll': 'Select all', 'expected.exportSelected': 'Export selected ({count})', 'expected.all': 'All', 'expected.reimbursePrivacy': 'Checks are self-declarations. Private evidence is only retrieved in entry details for its owner and finance.',
-  'expected.searchTitle': 'Global search', 'expected.searchHint': 'Search tasks, knowledge and inventory.', 'expected.searchError': 'Search failed. Please retry.', 'expected.searchLoading': 'Searching…', 'expected.search': 'Search', 'expected.searchTask': 'Task',
+  'expected.searchTitle': 'Global search', 'expected.searchHint': 'Search tasks, members and expenses.', 'expected.searchError': 'Search failed. Please retry.', 'expected.searchLoading': 'Searching…', 'expected.search': 'Search', 'expected.searchTask': 'Task', 'expected.searchMember': 'Member', 'expected.searchReimburse': 'Expense',
 };

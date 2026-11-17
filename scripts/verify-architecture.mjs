@@ -139,15 +139,9 @@ function recordViolation(violations, rule, file, count = 1, detail = '') {
 function apiDomain(endpoint) {
   const root = endpoint === '/health' ? 'health' : endpoint.slice('/api/'.length).split('/')[0];
   const aliases = {
-    health: 'system', system: 'system', 'bot-channels': 'system', 'agent-backends': 'system',
-    'data-sources': 'system', events: 'system', bridge: 'system', git: 'system', search: 'system',
+    health: 'system', system: 'system', search: 'system',
     members: 'system', roster: 'system', session: 'system', setup: 'system',
-    tasks: 'pm', dependencies: 'pm', needs: 'pm', seasons: 'pm', groups: 'pm',
-    'dep-graph': 'pm', 'group-gaps': 'pm',
-    artifacts: 'artifacts', kb: 'knowledge', inventory: 'inventory', baseline: 'baseline',
-    checklist: 'checklist', integrations: 'integrations', reimburse: 'reimburse',
-    relay: 'schedule', 'relay-handoffs': 'schedule', 'resource-sessions': 'schedule', schedule: 'schedule',
-    resources: 'resources',
+    tasks: 'tasks', groups: 'tasks', weeks: 'tasks', reimburse: 'reimburse',
   };
   return aliases[root] ?? root;
 }
@@ -256,70 +250,43 @@ function compareBaseline(actual, baseline, errors) {
   }
 }
 
-function verifyMigratedDomainTemplates(repoRoot, errors) {
-  const verifyTemplate = (domain, marker, required, forbidden) => {
-    if (!fs.existsSync(path.join(repoRoot, marker))) return;
-    for (const relativePath of required) {
-      if (!fs.existsSync(path.join(repoRoot, relativePath))) {
-        errors.push(`${relativePath}: ${domain} 模板缺少必需边界`);
-      }
-    }
-    for (const relativePath of forbidden) {
-      if (fs.existsSync(path.join(repoRoot, relativePath))) {
-        errors.push(`${relativePath}: ${domain} 已迁移，禁止恢复旧路径或兼容 alias`);
-      }
-    }
-  };
-
-  verifyTemplate('reimburse', 'apps/hub-contracts/src/domains/reimburse/index.ts', [
+function verifyV1Boundaries(root, errors) {
+  const marker = 'apps/hub-server/src/store/v1-database.ts';
+  if (!fs.existsSync(path.join(root, marker))) return;
+  for (const relativePath of [
+    'apps/hub-contracts/src/domains/tasks/model.ts',
+    'apps/hub-contracts/src/domains/system/identity.ts',
     'apps/hub-contracts/src/domains/reimburse/model.ts',
-    'apps/hub-contracts/src/domains/reimburse/requests.ts',
-    'apps/hub-contracts/src/domains/reimburse/policies.ts',
-    'apps/hub-contracts/src/domains/reimburse/import.ts',
-    'apps/hub-contracts/src/domains/reimburse/export.ts',
-    'apps/hub-server/src/modules/reimburse/index.ts',
+    'apps/hub-server/src/modules/tasks/routes.ts',
+    'apps/hub-server/src/modules/system/routes.ts',
     'apps/hub-server/src/modules/reimburse/routes.ts',
-    'apps/hub-server/src/modules/reimburse/service.ts',
-    'apps/hub-server/src/modules/reimburse/repository.ts',
-    'apps/hub-server/src/modules/reimburse/sqlite-repository.ts',
-    'apps/hub-console/src/features/reimburse/index.ts',
-    'apps/hub-console/src/features/reimburse/api.ts',
-    'apps/hub-console/src/features/reimburse/hooks.ts',
+    'apps/hub-server/src/server.ts',
+    'apps/hub-console/src/features/workbench/WorkbenchPage.tsx',
+    'apps/hub-console/src/features/pm/calendar/CalendarPage.tsx',
     'apps/hub-console/src/features/reimburse/ReimbursePage.tsx',
-    'apps/hub-console/src/features/reimburse/components',
-  ], [
-    'apps/hub-contracts/src/reimbursement.ts',
-    'apps/hub-server/src/routes/reimburse.ts',
-    'apps/hub-server/src/store/reimburse-store.ts',
-    'apps/hub-server/src/store/sqlite-reimburse-store.ts',
-    'apps/hub-console/src/api/schemas/reimburse.ts',
-    'apps/hub-console/src/api/segments/reimburse.ts',
-    'apps/hub-console/src/hooks/useReimburse.ts',
-    'apps/hub-console/src/features/reimburse/sub',
-  ]);
-
-  verifyTemplate('checklist', 'apps/hub-contracts/src/domains/checklist/index.ts', [
-    'apps/hub-contracts/src/domains/checklist/model.ts',
-    'apps/hub-contracts/src/domains/checklist/requests.ts',
-    'apps/hub-contracts/src/domains/checklist/policies.ts',
-    'apps/hub-server/src/modules/checklist/index.ts',
-    'apps/hub-server/src/modules/checklist/routes.ts',
-    'apps/hub-server/src/modules/checklist/service.ts',
-    'apps/hub-server/src/modules/checklist/repository.ts',
-    'apps/hub-server/src/modules/checklist/sqlite-repository.ts',
-    'apps/hub-console/src/features/checklist/index.ts',
-    'apps/hub-console/src/features/checklist/api.ts',
-    'apps/hub-console/src/features/checklist/hooks.ts',
-    'apps/hub-console/src/features/checklist/components',
-  ], [
-    'apps/hub-contracts/src/checklist.ts',
-    'apps/hub-server/src/routes/checklist.ts',
-    'apps/hub-server/src/store/checklist-store.ts',
-    'apps/hub-server/src/store/sqlite-checklist-store.ts',
-    'apps/hub-console/src/features/checklist/GateChecklistCard.tsx',
-    'apps/hub-console/src/features/checklist/ChecklistQuickRecord.tsx',
-    'apps/hub-console/src/features/checklist/sub',
-  ]);
+    'apps/hub-console/src/features/settings/SettingsPage.tsx',
+  ]) if (!fs.existsSync(path.join(root, relativePath))) errors.push(`${relativePath}: v1 必需边界缺失`);
+  for (const [packageRoot, sourceRoot] of [
+    ['apps/hub-contracts', 'src/domains'], ['apps/hub-server', 'src/modules'], ['apps/hub-console', 'src/features'],
+  ]) for (const name of [...(packageRoot === 'apps/hub-console' ? [] : ['pm']), 'project', 'pool', 'seasons', 'inventory', 'inv', 'schedule', 'knowledge', 'kb', 'archive', 'checklist', 'baseline', 'dep-graph', 'reporting']) {
+    const relativePath = `${packageRoot}/${sourceRoot}/${name}`;
+    if (fs.existsSync(path.join(root, relativePath))) errors.push(`${relativePath}: v1 禁止恢复退役实现目录`);
+  }
+  for (const packageRoot of ['apps/hub-contracts', 'apps/hub-server', 'apps/hub-console']) {
+    for (const file of sourceFiles(root, packageRoot)) {
+      const retired = file.content.match(/\b(?:projectId|seasonId|milestoneId|enabledModules|GovernanceSnapshot|StockInRequest|StockInContext)\b/g) ?? [];
+      if (retired.length) errors.push(`${file.relativePath}: 含退役标识 ${[...new Set(retired)].join(', ')}`);
+      const moduleMatch = file.relativePath.match(/^apps\/hub-server\/src\/modules\/([^/]+)\//);
+      if (!moduleMatch) continue;
+      for (const specifier of importSpecifiers(file.content)) {
+        if (!specifier.startsWith('.')) continue;
+        const resolved = path.resolve(path.dirname(file.absolutePath), specifier);
+        const relative = toPosix(path.relative(root, resolved));
+        const target = relative.match(/^apps\/hub-server\/src\/modules\/([^/]+)\//);
+        if (target && target[1] !== moduleMatch[1]) errors.push(`${file.relativePath}: 模块禁止直接 import ${target[1]}，请由组合根装配`);
+      }
+    }
+  }
 }
 
 const DOMAIN_DIRECTORY_ROOTS = [
@@ -495,7 +462,7 @@ export async function verifyArchitecture(repoRoot = process.cwd(), options = {})
 
   const violations = collectMigrationViolations(root);
   compareBaseline(violations, options.baseline ?? ARCHITECTURE_BASELINE, errors);
-  verifyMigratedDomainTemplates(root, errors);
+  verifyV1Boundaries(root, errors);
   await verifyDomainRegistry(root, errors);
   return { errors, violations, summary: { packages: packages.length, baseline: violations.length } };
 }
