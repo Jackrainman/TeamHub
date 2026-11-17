@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "verify:docs": "node scripts/verify-docs-architecture.mjs",
-    "verify:architecture": "node scripts/verify-architecture.mjs",
+    "verify:architecture": "node scripts/verify-architecture.mjs && node scripts/verify-error-codes.mjs",
     "test:docs": "node --test scripts/test/verify-docs-architecture.test.mjs",
     "test:architecture": "node --test scripts/test/verify-architecture.test.mjs",
     "verify": "npm run verify:local && npm run test:e2e -w apps/hub-console",

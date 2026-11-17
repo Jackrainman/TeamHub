@@ -42,6 +42,12 @@ if ! node scripts/verify-architecture.mjs; then
   fail=1
 fi
 
+# 2.45) HTTP 错误码闭集门：统一出口、61 个旧码映射与中英文案必须同时成立。
+if ! node scripts/verify-error-codes.mjs; then
+  echo "✗ 错误码闭集检查失败（见上）。" >&2
+  fail=1
+fi
+
 # 2.5) 版本号 bump 哨兵（D-074）：改了 hub-* 源码却没动 VERSION → 提醒。
 #      默认 warn（不阻断 D-064 无人值守环）；VERSION_BUMP_STRICT=1 升硬门则 exit 1 → fail。
 if ! bash scripts/check-version-bump.sh; then
