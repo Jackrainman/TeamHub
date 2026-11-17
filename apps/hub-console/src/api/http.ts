@@ -11,19 +11,22 @@ export interface HttpContext {
 
 export class HubApiError extends Error {
   readonly status: number;
-  readonly code: ErrorCode | undefined;
+  readonly code: ErrorCode | null;
+  readonly detail: string | null;
   readonly fields: Readonly<Record<string, unknown>> | undefined;
 
   constructor(
     status: number,
-    detail: string,
-    code?: ErrorCode,
+    code: ErrorCode | null,
+    detail: string | null,
     fields?: Readonly<Record<string, unknown>>,
+    message?: string,
   ) {
-    super(detail);
+    super(message ?? (detail ? `${status}: ${detail}` : `Hub API ${status}`));
     this.name = 'HubApiError';
     this.status = status;
     this.code = code;
+    this.detail = detail;
     this.fields = fields;
   }
 }
@@ -48,9 +51,10 @@ export async function fetchJson<T>(
     const error = await readApiError(response);
     throw new HubApiError(
       response.status,
-      error.detail ?? `Hub API ${response.status}: ${url}`,
       error.code,
+      error.detail,
       error.fields,
+      error.detail === null ? `Hub API ${response.status}: ${url}` : undefined,
     );
   }
   return schema.parse(await response.json());
@@ -86,9 +90,10 @@ export async function sendJson<T>(
     const error = await readApiError(response);
     throw new HubApiError(
       response.status,
-      error.detail ?? `Hub API ${response.status}: ${url}`,
       error.code,
+      error.detail,
       error.fields,
+      error.detail === null ? `Hub API ${response.status}: ${url}` : undefined,
     );
   }
   return schema.parse(await response.json());
@@ -116,9 +121,10 @@ export async function postFormData<T>(
     const error = await readApiError(response);
     throw new HubApiError(
       response.status,
-      error.detail ?? `Hub API ${response.status}: ${url}`,
       error.code,
+      error.detail,
       error.fields,
+      error.detail === null ? `Hub API ${response.status}: ${url}` : undefined,
     );
   }
   return schema.parse(await response.json());
@@ -140,9 +146,10 @@ export async function postMultiFormData<T>(
     const error = await readApiError(response);
     throw new HubApiError(
       response.status,
-      error.detail ?? `Hub API ${response.status}: ${url}`,
       error.code,
+      error.detail,
       error.fields,
+      error.detail === null ? `Hub API ${response.status}: ${url}` : undefined,
     );
   }
   return schema.parse(await response.json());
@@ -150,7 +157,7 @@ export async function postMultiFormData<T>(
 
 async function readApiError(response: Response): Promise<{
   detail: string | null;
-  code?: ErrorCode;
+  code: ErrorCode | null;
   fields?: Readonly<Record<string, unknown>>;
 }> {
   try {
@@ -165,10 +172,10 @@ async function readApiError(response: Response): Promise<{
         : undefined;
     return {
       detail: typeof body.detail === 'string' ? body.detail : null,
-      code: isErrorCode(body.code) ? body.code : undefined,
+      code: isErrorCode(body.code) ? body.code : null,
       fields,
     };
   } catch {
-    return { detail: null };
+    return { detail: null, code: null };
   }
 }

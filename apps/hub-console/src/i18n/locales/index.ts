@@ -13,7 +13,8 @@ import { zhReimburse, enReimburse } from './reimburse';
 import { zhWorkbench, enWorkbench } from './workbench';
 import { zhCalendar, enCalendar } from './calendar';
 import { zhStyleGallery, enStyleGallery } from './stylegallery';
+import { zhErrors, enErrors } from './errors';
 
-export const zh = { ...zhExpected, ...zhWeek, ...zhBase, ...zhSettings, ...zhPm, ...zhSchedule, ...zhInv, ...zhKb, ...zhOverview, ...zhChecklist, ...zhSetup, ...zhReimburse, ...zhWorkbench, ...zhCalendar, ...zhStyleGallery };
+export const zh = { ...zhErrors, ...zhExpected, ...zhWeek, ...zhBase, ...zhSettings, ...zhPm, ...zhSchedule, ...zhInv, ...zhKb, ...zhOverview, ...zhChecklist, ...zhSetup, ...zhReimburse, ...zhWorkbench, ...zhCalendar, ...zhStyleGallery };
 
-export const en = { ...enExpected, ...enWeek, ...enBase, ...enSettings, ...enPm, ...enSchedule, ...enInv, ...enKb, ...enOverview, ...enChecklist, ...enSetup, ...enReimburse, ...enWorkbench, ...enCalendar, ...enStyleGallery };
+export const en = { ...enErrors, ...enExpected, ...enWeek, ...enBase, ...enSettings, ...enPm, ...enSchedule, ...enInv, ...enKb, ...enOverview, ...enChecklist, ...enSetup, ...enReimburse, ...enWorkbench, ...enCalendar, ...enStyleGallery };

@@ -2,11 +2,10 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App';
-import { HubApiError } from './api/http';
 import { GlobalToast } from './components/GlobalToast';
 import { showToast } from './utils/toast';
 import { LanguageProvider, getActiveLang } from './i18n';
-import { translate } from './i18n/translations';
+import { apiErrorMessage } from './i18n/api-error';
 import { ThemeProvider } from './theme';
 import './styles/01-tokens.css';
 import './styles/02-base.css';
@@ -45,13 +44,7 @@ const queryClient = new QueryClient({
   mutationCache: new MutationCache({
     onError: (error, _variables, _context, mutation) => {
       if (mutation.options.onError || mutation.meta?.silent) return;
-      showToast(
-        error instanceof HubApiError && error.code
-          ? translate(getActiveLang(), `error.${error.code}`)
-          : error instanceof Error
-            ? error.message
-            : String(error),
-      );
+      showToast(apiErrorMessage(error, getActiveLang()));
     },
   }),
 });

@@ -24,7 +24,7 @@ export {
 
 const STORAGE_KEY = 'teamhub.lang';
 const DEFAULT_LANG: Lang = 'zh'; // 中文默认
-let activeLang: Lang = DEFAULT_LANG;
+let activeLang: Lang = readInitialLang();
 
 interface I18nContextValue {
   lang: Lang;

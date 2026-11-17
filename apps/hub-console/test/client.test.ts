@@ -643,7 +643,7 @@ describe('hub console API client', () => {
 
     await expect(
       client.createTask({} as unknown as CreateTaskRequest),
-    ).rejects.toThrow('invalid body');
+    ).rejects.toThrow('400: invalid body');
   });
 
   test('库存写侧：upsertPartType / recordPartAction POST 正确路径、带 body、解析响应（C6）', async () => {

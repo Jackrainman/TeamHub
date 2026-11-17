@@ -87,7 +87,7 @@ export function humanizeFormError(
   fallbackKey: TranslationKey,
 ): string {
   if (error instanceof HubApiError && error.code) {
-    return t(`error.${error.code}`);
+    return t(`apiError.${error.code}`);
   }
   const detail = errorDetail(error);
   if (/401|unauthorized/i.test(detail)) return t('common.error401');
