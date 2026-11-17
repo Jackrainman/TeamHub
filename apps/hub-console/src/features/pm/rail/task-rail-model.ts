@@ -1,6 +1,6 @@
 import { deriveTaskAcceptance, getWeekKey, resolveCompletedAt, type Group, type TaskStatus, type TaskWithMeta } from '@teamhub/hub-contracts';
 
-export type RailTimeBucket = 'today' | 'week' | 'later' | 'archived';
+export type RailTimeBucket = 'today' | 'week' | 'later' | 'closed';
 export type RailScope = 'mine' | 'team';
 export type RailStatusFilter = 'active' | 'all' | TaskStatus | 'awaitingReview' | 'accepted';
 export type RailGrouping = 'time' | 'group' | 'status';
@@ -38,7 +38,7 @@ export function railTimeBucket(
   now: Date,
   currentWeekKey: string,
 ): RailTimeBucket {
-  if (task.status === 'done' || task.status === 'shelved') return 'archived';
+  if (task.status === 'done' || task.status === 'shelved') return 'closed';
   const latest = latestWeekKey(task);
   if (!latest) return shanghaiDay(task.createdAt) === shanghaiDay(now) ? 'today' : 'later';
   if (latest < currentWeekKey) return 'today';
@@ -96,7 +96,7 @@ export function groupRailTasks<T extends TaskWithMeta>(
     })).filter(section => section.tasks.length > 0);
   }
   const values = grouping === 'time'
-    ? ['today', 'week', 'later', 'archived'] as const
+    ? ['today', 'week', 'later', 'closed'] as const
     : ['pending', 'inProgress', 'blocked', 'awaitingReview', 'accepted', 'shelved'] as const;
   return values.map(value => ({
     key: `${grouping}:${value}`, kind: grouping, value,

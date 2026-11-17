@@ -57,6 +57,10 @@ export const zhBase = {
   'rail.density.standard': '标准',
 
   'rail.bucket.note': '分区按周关联与最近推进时间，不是截止日期。',
+  'rail.bucket.today': '今天',
+  'rail.bucket.week': '本周',
+  'rail.bucket.later': '后续',
+  'rail.bucket.closed': '已结束',
   'rail.loading': '正在加载任务…',
   'rail.loadError': '任务清单加载失败',
   'rail.actionError': '标记完成失败，任务未改变',
@@ -136,6 +140,10 @@ export const enBase = {
   'rail.density.standard': 'Standard',
 
   'rail.bucket.note': 'Buckets use week links and last activity, not due dates.',
+  'rail.bucket.today': 'Today',
+  'rail.bucket.week': 'This week',
+  'rail.bucket.later': 'Later',
+  'rail.bucket.closed': 'Closed',
   'rail.loading': 'Loading tasks…',
   'rail.loadError': 'Could not load tasks',
   'rail.actionError': 'Could not mark complete; nothing changed',

@@ -21,7 +21,7 @@ describe('persistent task rail', () => {
     const now = new Date('2026-11-17T04:00:00.000Z');
     const sections = groupRailTasks([task('today'), task('done', { status: 'done' })], 'time', [], now, '2026-W47');
     expect(sections.map(section => [section.value, section.tasks.map(item => item.id)])).toEqual([
-      ['today', ['today']], ['archived', ['done']],
+      ['today', ['today']], ['closed', ['done']],
     ]);
     expect(groupRailTasks([task('grouped')], 'group', [{ id: 'grp-1', name: '电路', kind: 'ec' }], now)[0].value).toBe('grp-1');
   });
