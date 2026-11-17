@@ -1,3 +1,9 @@
+import {
+  LEGACY_CODE_MAP,
+  type ErrorCode,
+  type LegacyErrorCode,
+} from '@teamhub/hub-contracts';
+
 export type ApplicationErrorKind =
   | 'validation'
   | 'unauthorized'
@@ -9,13 +15,26 @@ export type ApplicationErrorKind =
 export class ApplicationError extends Error {
   constructor(
     readonly kind: ApplicationErrorKind,
-    readonly code: string,
+    readonly code: ErrorCode,
     readonly detail: string,
     readonly fields?: Readonly<Record<string, unknown>>,
   ) {
     super(detail);
     this.name = 'ApplicationError';
   }
+}
+
+/** Business rules keep their precise legacy code; HTTP responses also retain it as fields.reason. */
+export function appError(
+  kind: ApplicationErrorKind,
+  legacyCode: LegacyErrorCode,
+  detail: string,
+  fields?: Readonly<Record<string, unknown>>,
+): ApplicationError {
+  return new ApplicationError(kind, LEGACY_CODE_MAP[legacyCode], detail, {
+    ...fields,
+    reason: legacyCode,
+  });
 }
 
 export function isApplicationError(error: unknown): error is ApplicationError {

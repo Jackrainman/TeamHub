@@ -142,7 +142,7 @@ function assertVerdict(verdict: Verdict, res: { statusCode: number; json: () => 
   expect(res.statusCode, ctx).not.toBe(401);
   // 业务 403（门验收人/组长/本人专属）容忍；闸级 403（PIN_SETUP_REQUIRED）不容忍
   if (res.statusCode === 403) {
-    expect((res.json() as { code?: string })?.code, ctx).not.toBe('PIN_SETUP_REQUIRED');
+    expect((res.json() as { fields?: { reason?: string } })?.fields?.reason, ctx).not.toBe('PIN_SETUP_REQUIRED');
   }
 }
 

@@ -21,6 +21,7 @@ import type { SessionManager } from '../../identity/session-store.js';
 import { isSuperAdmin, memberHasPmFlag } from '../../authz.js';
 import { hashPin } from '../../identity/pin.js';
 import { parseBody, isLoopbackOperator, buildSessionCookie } from '../../http/helpers.js';
+import { fail } from '../../lib/fail.js';
 export interface MemberRouteDeps {
   store: PmRepository;
   identityMode: IdentityMode;
@@ -38,7 +39,7 @@ export function registerMemberRoutes(app: FastifyInstance, deps: MemberRouteDeps
 
   app.put<{ Params: { id: string } }>('/api/members/:id/pin', async (request, reply) => {
     if (identityMode !== 'identity') {
-      void reply.code(404).send({ detail: '身份模式未启用' });
+      void fail(reply, 'NOT_FOUND', { status: 404, detail: '身份模式未启用' });
       return;
     }
     const { id } = request.params;
@@ -47,7 +48,7 @@ export function registerMemberRoutes(app: FastifyInstance, deps: MemberRouteDeps
     const snapshot = await store.getSnapshot();
     const target = snapshot.members.find((m) => m.id === id);
     if (!target) {
-      void reply.code(404).send({ detail: 'member not found' });
+      void fail(reply, 'NOT_FOUND', { status: 404, detail: 'member not found' });
       return;
     }
     const isSelf = request.identity?.memberId === id;
@@ -55,12 +56,12 @@ export function registerMemberRoutes(app: FastifyInstance, deps: MemberRouteDeps
     // 路人都能抢注未设 PIN 成员。首设走「免 PIN 登录 → mustSetPin 会话 → 本人 PUT pin」（auth-gate
     // 只放行这一路）；本机 loopback 操作员留灾难恢复口（与 DELETE pin 先例一致）。
     if (!isSelf && !isLoopbackOperator(request, deps.trustProxy)) {
-      void reply.code(403).send({ detail: '只能设置本人 PIN' });
+      void fail(reply, 'FORBIDDEN', { status: 403, detail: '只能设置本人 PIN' });
       return;
     }
     const updated = await store.setMemberPin(id, hashPin(pinData.pin));
     if (!updated) {
-      void reply.code(404).send({ detail: 'member not found' });
+      void fail(reply, 'NOT_FOUND', { status: 404, detail: 'member not found' });
       return;
     }
     // AUTH-LOGIN-USERNAME：新密码落库即清该成员所有在途会话的旧短 PIN 升级标记（同会话立即解禁）。
@@ -70,7 +71,7 @@ export function registerMemberRoutes(app: FastifyInstance, deps: MemberRouteDeps
 
   app.delete<{ Params: { id: string } }>('/api/members/:id/pin', async (request, reply) => {
     if (identityMode !== 'identity') {
-      void reply.code(404).send({ detail: '身份模式未启用' });
+      void fail(reply, 'NOT_FOUND', { status: 404, detail: '身份模式未启用' });
       return;
     }
     const { id } = request.params;
@@ -79,17 +80,17 @@ export function registerMemberRoutes(app: FastifyInstance, deps: MemberRouteDeps
       !isLoopbackOperator(request, deps.trustProxy) &&
       !isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')
     ) {
-      void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
+      void fail(reply, 'FORBIDDEN', { status: 403, detail: '该操作需管理员（superAdmin）' });
       return;
     }
     const target = snapshot.members.find((m) => m.id === id);
     if (!target) {
-      void reply.code(404).send({ detail: 'member not found' });
+      void fail(reply, 'NOT_FOUND', { status: 404, detail: 'member not found' });
       return;
     }
     const updated = await store.setMemberPin(id, null);
     if (!updated) {
-      void reply.code(404).send({ detail: 'member not found' });
+      void fail(reply, 'NOT_FOUND', { status: 404, detail: 'member not found' });
       return;
     }
     return ClearPinResponseSchema.parse({ member: MemberPublicSchema.parse(updated) });
@@ -97,14 +98,14 @@ export function registerMemberRoutes(app: FastifyInstance, deps: MemberRouteDeps
 
   app.post('/api/setup/super-admin', async (request, reply) => {
     if (identityMode !== 'identity') {
-      void reply.code(404).send({ detail: '身份模式未启用' });
+      void fail(reply, 'NOT_FOUND', { status: 404, detail: '身份模式未启用' });
       return;
     }
     const parsed = parseBody(SetupSuperAdminRequestSchema, request, reply);
     if (!parsed) return;
     const snapshot = await store.getSnapshot();
     if (snapshot.members.some((m) => memberHasPmFlag(m))) {
-      void reply.code(409).send({ detail: '已存在管理员（项目管理旗标）' });
+      void fail(reply, 'CONFLICT', { status: 409, detail: '已存在管理员（项目管理旗标）' });
       return;
     }
     let memberId: string;
@@ -116,7 +117,7 @@ export function registerMemberRoutes(app: FastifyInstance, deps: MemberRouteDeps
         memberId = existing.id;
       } else {
         if (!parsed.groupName) {
-          void reply.code(400).send({ detail: '新建成员需提供所在组' });
+          void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: '新建成员需提供所在组' });
           return;
         }
         const grade = parsed.grade ?? 'freshman';
@@ -131,7 +132,7 @@ export function registerMemberRoutes(app: FastifyInstance, deps: MemberRouteDeps
           },
         ]);
         if (importOutcome.failed.length > 0) {
-          void reply.code(400).send({ detail: importOutcome.failed[0].reason });
+          void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: importOutcome.failed[0].reason });
           return;
         }
         const after = await store.getSnapshot();
@@ -150,14 +151,14 @@ export function registerMemberRoutes(app: FastifyInstance, deps: MemberRouteDeps
     } else {
       const selfId = request.identity?.memberId;
       if (!selfId) {
-        void reply.code(401).send({ detail: 'login required' });
+        void fail(reply, 'UNAUTHENTICATED', { status: 401, detail: 'login required' });
         return;
       }
       memberId = selfId;
     }
     const pinned = await store.setMemberPin(memberId, hashPin(parsed.pin));
     if (!pinned) {
-      void reply.code(404).send({ detail: 'member not found' });
+      void fail(reply, 'NOT_FOUND', { status: 404, detail: 'member not found' });
       return;
     }
     if (parsed.projectManager !== false) {
@@ -166,7 +167,7 @@ export function registerMemberRoutes(app: FastifyInstance, deps: MemberRouteDeps
     const finalSnap = await store.getSnapshot();
     const member = finalSnap.members.find((m) => m.id === memberId);
     if (!member) {
-      void reply.code(404).send({ detail: 'member not found' });
+      void fail(reply, 'NOT_FOUND', { status: 404, detail: 'member not found' });
       return;
     }
     if (deps.sessions) {
@@ -196,12 +197,12 @@ export function registerMemberRoutes(app: FastifyInstance, deps: MemberRouteDeps
       identityMode === 'identity' &&
       !isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')
     ) {
-      void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
+      void fail(reply, 'FORBIDDEN', { status: 403, detail: '该操作需管理员（superAdmin）' });
       return;
     }
     const updated = await store.setMemberGateReviewer(id, parsed.gateReviewer);
     if (!updated) {
-      void reply.code(404).send({ detail: 'member not found' });
+      void fail(reply, 'NOT_FOUND', { status: 404, detail: 'member not found' });
       return;
     }
     return SetGateReviewerResponseSchema.parse({ member: MemberPublicSchema.parse(updated) });
@@ -216,12 +217,12 @@ export function registerMemberRoutes(app: FastifyInstance, deps: MemberRouteDeps
       identityMode === 'identity' &&
       !isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')
     ) {
-      void reply.code(403).send({ detail: '该操作需管理员（项目管理旗标）' });
+      void fail(reply, 'FORBIDDEN', { status: 403, detail: '该操作需管理员（项目管理旗标）' });
       return;
     }
     const updated = await store.setMemberRole(id, parsed.role);
     if (!updated) {
-      void reply.code(404).send({ detail: 'member not found' });
+      void fail(reply, 'NOT_FOUND', { status: 404, detail: 'member not found' });
       return;
     }
     return SetMemberRoleResponseSchema.parse({
@@ -240,7 +241,7 @@ export function registerMemberRoutes(app: FastifyInstance, deps: MemberRouteDeps
         identityMode === 'identity' &&
         !isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')
       ) {
-        void reply.code(403).send({ detail: '该操作需管理员（项目管理旗标）' });
+        void fail(reply, 'FORBIDDEN', { status: 403, detail: '该操作需管理员（项目管理旗标）' });
         return;
       }
       const result = await store.setProjectManager(id, parsed.projectManager, {
@@ -248,9 +249,9 @@ export function registerMemberRoutes(app: FastifyInstance, deps: MemberRouteDeps
       });
       if (!result.ok) {
         if (result.reason === 'last-projectmanager') {
-          void reply.code(409).send({ detail: '不能撤销最后一个项目管理成员' });
+          void fail(reply, 'CONFLICT', { status: 409, detail: '不能撤销最后一个项目管理成员' });
         } else {
-          void reply.code(404).send({ detail: 'member not found' });
+          void fail(reply, 'NOT_FOUND', { status: 404, detail: 'member not found' });
         }
         return;
       }

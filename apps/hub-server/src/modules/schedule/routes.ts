@@ -34,6 +34,7 @@ import {
   sessionActor,
 } from '../../http/helpers.js';
 import { ScheduleService, ScheduleValidationError } from './service.js';
+import { fail } from '../../lib/fail.js';
 
 const FLEET_IMPORT_MAX_BYTES = 1024 * 1024;
 
@@ -101,7 +102,7 @@ export function registerScheduleRoutes(app: FastifyInstance, deps: ScheduleRoute
       const issue = parsed.error.issues[0];
       const rowIdx = typeof issue?.path[1] === 'number' ? issue.path[1] : null;
       const detail = rowIdx !== null ? `第 ${rowIdx + 1} 台：${issue?.message ?? 'invalid body'}` : firstZodMsg(parsed.error);
-      void reply.code(400).send({ detail });
+      void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: detail });
       return;
     }
     const created = await service.createResourcesBatch(parsed.data);
@@ -114,7 +115,7 @@ export function registerScheduleRoutes(app: FastifyInstance, deps: ScheduleRoute
     const parsed = parseBody(UpdateResourceStatusRequestSchema, request, reply);
     if (!parsed) return;
     const resource = await service.updateResourceStatus(id, parsed);
-    if (!resource) { void reply.code(404).send({ detail: 'resource not found' }); return; }
+    if (!resource) { void fail(reply, 'NOT_FOUND', { status: 404, detail: 'resource not found' }); return; }
     return UpdateResourceResponseSchema.parse({ resource });
   });
 
@@ -123,7 +124,7 @@ export function registerScheduleRoutes(app: FastifyInstance, deps: ScheduleRoute
     const parsed = parseBody(UpdateResourceDefaultPresetRequestSchema, request, reply);
     if (!parsed) return;
     const resource = await service.setResourceDefaultPreset(id, parsed.defaultPreset);
-    if (!resource) { void reply.code(404).send({ detail: 'resource not found' }); return; }
+    if (!resource) { void fail(reply, 'NOT_FOUND', { status: 404, detail: 'resource not found' }); return; }
     return UpdateResourceDefaultPresetResponseSchema.parse({ resource });
   });
 
@@ -148,7 +149,7 @@ export function registerScheduleRoutes(app: FastifyInstance, deps: ScheduleRoute
       return CreateResourceSessionsBatchResponseSchema.parse({ sessions: created });
     } catch (err) {
       if (err instanceof ScheduleValidationError) {
-        void reply.code(400).send({ detail: err.detail });
+        void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: err.detail });
         return;
       }
       throw err;
@@ -160,14 +161,14 @@ export function registerScheduleRoutes(app: FastifyInstance, deps: ScheduleRoute
     const parsed = parseBody(UpdateResourceSessionRequestSchema, request, reply);
     if (!parsed) return;
     const session = await service.updateResourceSession(id, parsed);
-    if (!session) { void reply.code(404).send({ detail: 'resource session not found' }); return; }
+    if (!session) { void fail(reply, 'NOT_FOUND', { status: 404, detail: 'resource session not found' }); return; }
     return UpdateResourceSessionResponseSchema.parse({ session });
   });
 
   app.delete('/api/resource-sessions/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
     const ok = await service.deleteResourceSession(id);
-    if (!ok) { void reply.code(404).send({ detail: 'resource session not found' }); return; }
+    if (!ok) { void fail(reply, 'NOT_FOUND', { status: 404, detail: 'resource session not found' }); return; }
     return { deleted: id };
   });
 
@@ -188,7 +189,7 @@ export function registerScheduleRoutes(app: FastifyInstance, deps: ScheduleRoute
       return RelayHandoffResponseSchema.parse({ handoff });
     } catch (err) {
       if (err instanceof ScheduleValidationError) {
-        void reply.code(400).send({ detail: err.detail });
+        void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: err.detail });
         return;
       }
       throw err;
@@ -198,7 +199,7 @@ export function registerScheduleRoutes(app: FastifyInstance, deps: ScheduleRoute
   app.delete('/api/relay-handoffs/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
     const ok = await service.deleteRelayHandoff(id);
-    if (!ok) { void reply.code(404).send({ detail: 'relay handoff not found' }); return; }
+    if (!ok) { void fail(reply, 'NOT_FOUND', { status: 404, detail: 'relay handoff not found' }); return; }
     return { deleted: id };
   });
 }

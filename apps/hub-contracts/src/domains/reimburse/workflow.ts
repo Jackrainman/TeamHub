@@ -5,6 +5,7 @@ import type {
   ReimburseCompleteness,
   ReimburseWorkflowStatus,
 } from './model.js';
+import type { LegacyErrorCode } from '../../common/error-codes.js';
 
 const WORKFLOW_EDGES: Readonly<Record<ReimburseWorkflowStatus, readonly ReimburseWorkflowStatus[]>> = {
   draft: ['submitted', 'cancelled'],
@@ -29,7 +30,7 @@ export function kindForExpenseType(type: ReimburseExpenseType): ReimburseEntryKi
 
 export function validateReimburseSubmission(
   entry: Pick<ReimburseEntry, 'expenseType' | 'workflowStatus'>,
-): string | null {
+): LegacyErrorCode | null {
   if (entry.workflowStatus !== 'draft' && entry.workflowStatus !== 'returned') {
     return 'REIMBURSE_WORKFLOW_INVALID';
   }
@@ -40,7 +41,7 @@ export function validateReimburseApproval(
   entry: Pick<ReimburseEntry, 'totalAmountFen' | 'workflowStatus'> & { completeness: ReimburseCompleteness },
   approvedAmountFen: number | null,
   note: string | null,
-): string | null {
+): LegacyErrorCode | null {
   if (entry.workflowStatus !== 'reviewing') return 'REIMBURSE_WORKFLOW_INVALID';
   if (approvedAmountFen === null) return 'REIMBURSE_APPROVED_AMOUNT_REQUIRED';
   const adjusted = entry.totalAmountFen !== approvedAmountFen;
@@ -54,7 +55,7 @@ export function validateReimbursePayout(
   entries: readonly Pick<ReimburseEntry, 'memberId' | 'workflowStatus' | 'approvedAmountFen' | 'reviewedRevision' | 'revision' | 'payoutId'>[],
   recipientId: string,
   amountFen: number,
-): string | null {
+): LegacyErrorCode | null {
   if (entries.length === 0) return 'REIMBURSE_PAYOUT_EMPTY';
   if (entries.some((entry) => entry.memberId !== recipientId)) return 'REIMBURSE_PAYOUT_RECIPIENT_MISMATCH';
   if (entries.some((entry) => entry.workflowStatus !== 'pendingPayment'

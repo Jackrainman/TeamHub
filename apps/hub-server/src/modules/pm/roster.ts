@@ -11,6 +11,7 @@ import type { IdentityMode, RosterImportFailure, RosterImportRow } from '@teamhu
 import type { PmRepository } from './repository.js';
 import { isSuperAdmin } from '../../authz.js';
 import { parseBody, readCsvUpload } from '../../http/helpers.js';
+import { fail } from '../../lib/fail.js';
 
 const ROSTER_MAX_BYTES = 1024 * 1024;
 
@@ -30,11 +31,11 @@ export function registerRosterRoutes(app: FastifyInstance, deps: RosterRouteDeps
     const emptyRoster = snapshot.members.length === 0;
     if (identityMode === 'identity' && !emptyRoster) {
       if (!request.identity) {
-        void reply.code(401).send({ detail: 'login required' });
+        void fail(reply, 'UNAUTHENTICATED', { status: 401, detail: 'login required' });
         return false;
       }
       if (!isSuperAdmin(snapshot.members, request.identity.memberId)) {
-        void reply.code(403).send({ detail: '该操作需管理员（superAdmin）' });
+        void fail(reply, 'FORBIDDEN', { status: 403, detail: '该操作需管理员（superAdmin）' });
         return false;
       }
     }

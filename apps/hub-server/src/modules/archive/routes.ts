@@ -8,6 +8,7 @@ import {
 import { isApplicationError } from '../../application/application-error.js';
 import type { ApplicationError } from '../../application/application-error.js';
 import { parseBody } from '../../http/helpers.js';
+import { fail } from '../../lib/fail.js';
 import type { ArchiveService } from './service.js';
 
 /**
@@ -19,14 +20,18 @@ import type { ArchiveService } from './service.js';
 function sendUploadError(error: unknown, reply: FastifyReply): boolean {
   if (isApplicationError(error)) {
     const status = uploadStatusOf(error);
-    void reply.code(status).send({ code: error.code, detail: error.detail });
+    void fail(reply, error.code, {
+      status,
+      detail: error.detail,
+      fields: error.fields,
+    });
     return true;
   }
   return false;
 }
 
 function uploadStatusOf(error: ApplicationError): number {
-  switch (error.code) {
+  switch (error.fields?.reason) {
     case 'ARTIFACT_NOT_FOUND':
       return 404;
     case 'ARTIFACT_UNSUPPORTED_EXT':
@@ -39,9 +44,11 @@ function uploadStatusOf(error: ApplicationError): number {
 /** 下载端点错误 → 状态码（未配置目录/未知归档物/无文件=404、路径逃逸=400）。 */
 function sendDownloadError(error: unknown, reply: FastifyReply): boolean {
   if (isApplicationError(error)) {
-    void reply
-      .code(error.code === 'ARTIFACT_ILLEGAL_PATH' ? 400 : 404)
-      .send({ code: error.code, detail: error.detail });
+    void fail(reply, error.code, {
+      status: error.fields?.reason === 'ARTIFACT_ILLEGAL_PATH' ? 400 : 404,
+      detail: error.detail,
+      fields: error.fields,
+    });
     return true;
   }
   return false;
@@ -85,11 +92,11 @@ export function registerArchiveRoutes(app: FastifyInstance, service: ArchiveServ
       try {
         data = await request.file();
       } catch {
-        void reply.code(400).send({ detail: '请求体不是 multipart 表单' });
+        void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: '请求体不是 multipart 表单' });
         return reply;
       }
       if (!data) {
-        void reply.code(400).send({ detail: '未收到文件' });
+        void fail(reply, 'FILE_MISSING', { status: 400, detail: '未收到文件' });
         return reply;
       }
       let buf: Buffer;
@@ -97,14 +104,14 @@ export function registerArchiveRoutes(app: FastifyInstance, service: ArchiveServ
         buf = await data.toBuffer();
       } catch (err) {
         if ((err as { code?: string })?.code === 'FST_REQ_FILE_TOO_LARGE') {
-          void reply.code(413).send({ detail: '文件过大（上限 50MB）' });
+          void fail(reply, 'FILE_TOO_LARGE', { status: 413, detail: '文件过大（上限 50MB）' });
           return reply;
         }
-        void reply.code(400).send({ detail: '读取文件失败' });
+        void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: '读取文件失败' });
         return reply;
       }
       if (data.file.truncated) {
-        void reply.code(413).send({ detail: '文件过大（上限 50MB）' });
+        void fail(reply, 'FILE_TOO_LARGE', { status: 413, detail: '文件过大（上限 50MB）' });
         return reply;
       }
       try {

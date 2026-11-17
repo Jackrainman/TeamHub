@@ -22,6 +22,7 @@ import type {
 } from '@teamhub/hub-contracts';
 import { parseBody, readCsvUpload } from '../../http/helpers.js';
 import { HermesUnknownCommandError, InventoryService } from './service.js';
+import { fail } from '../../lib/fail.js';
 
 const INVENTORY_IMPORT_MAX_BYTES = 1024 * 1024;
 
@@ -67,7 +68,7 @@ export function registerInventoryRoutes(app: FastifyInstance, deps: InventoryRou
       return CreatePartActionResponseSchema.parse({ action });
     } catch (err) {
       if (err instanceof InvalidPartActionError) {
-        void reply.code(400).send({ detail: err.message });
+        void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: err.message });
         return;
       }
       throw err;
@@ -134,7 +135,7 @@ export function registerInventoryRoutes(app: FastifyInstance, deps: InventoryRou
       return HermesInboundResponseSchema.parse(await service.handleHermesInbound(parsed));
     } catch (err) {
       if (err instanceof HermesUnknownCommandError) {
-        void reply.code(400).send({ detail: err.message });
+        void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: err.message });
         return;
       }
       if (err instanceof InvalidPartActionError) {

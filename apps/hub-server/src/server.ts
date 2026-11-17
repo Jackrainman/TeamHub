@@ -71,6 +71,7 @@ import type {
   ReimburseStockInPort,
 } from './modules/reimburse/service.js';
 import type { ApplicationUnitOfWork } from './application/unit-of-work.js';
+import { fail } from './lib/fail.js';
 
 /**
  * 部署配置写通道运行时依赖（SETUP-WIZARD 刀③，setup-wizard.md §6）：设置页「部署配置」写区背后的
@@ -416,7 +417,7 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
       return;
     }
 
-    void reply.code(404).send({ detail: 'Not found' });
+    void fail(reply, 'NOT_FOUND', { status: 404, detail: 'Not found' });
   });
 
   return app;

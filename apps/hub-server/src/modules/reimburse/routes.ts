@@ -5,6 +5,7 @@ import {
   CreateReimburseEntryResponseSchema,
   DeleteReimburseEvidenceResponseSchema,
   GetReimburseProfileResponseSchema,
+  LEGACY_CODE_MAP,
   ReimburseBatchResponseSchema,
   ReimburseBatchesResponseSchema,
   ReimburseEntriesResponseSchema,
@@ -35,6 +36,7 @@ import {
 } from '@teamhub/hub-contracts';
 import { isApplicationError } from '../../application/application-error.js';
 import { parseBody, parseQuery, requireActor, sendApplicationError } from '../../http/helpers.js';
+import { fail } from '../../lib/fail.js';
 import type { ReimburseService } from './service.js';
 
 export interface ReimburseRouteDeps {
@@ -46,8 +48,8 @@ const EVIDENCE_MAX_MB = REIMBURSE_EVIDENCE_MAX_BYTES / 1024 / 1024;
 
 /** 凭证上传错误特例：非法后缀按 HTTP 语义回 415（照 archive 上传先例），其余交 sendApplicationError。 */
 function sendEvidenceUploadError(error: unknown, reply: FastifyReply): boolean {
-  if (isApplicationError(error) && error.code === 'REIMBURSE_EVIDENCE_UNSUPPORTED_EXT') {
-    void reply.code(415).send({ code: error.code, detail: error.detail });
+  if (isApplicationError(error) && error.fields?.reason === 'REIMBURSE_EVIDENCE_UNSUPPORTED_EXT') {
+    void fail(reply, error.code, { status: 415, detail: error.detail, fields: error.fields });
     return true;
   }
   return sendApplicationError(error, reply);
@@ -100,7 +102,11 @@ export function registerReimburseRoutes(app: FastifyInstance, { service }: Reimb
     const { id, action: rawAction } = request.params as { id: string; action: string };
     const action = ReimburseEntryActionSchema.safeParse(rawAction);
     if (!action.success) {
-      void reply.code(400).send({ code: 'REIMBURSE_ACTION_UNKNOWN', detail: '未知报账动作' });
+      void fail(reply, LEGACY_CODE_MAP.REIMBURSE_ACTION_UNKNOWN, {
+        status: 400,
+        detail: '未知报账动作',
+        fields: { reason: 'REIMBURSE_ACTION_UNKNOWN' },
+      });
       return reply;
     }
     return present(reply, async () => ReimburseEntryActionResponseSchema.parse({
@@ -201,11 +207,11 @@ export function registerReimburseRoutes(app: FastifyInstance, { service }: Reimb
     try {
       data = await request.file({ limits: { fileSize: REIMBURSE_EVIDENCE_MAX_BYTES } });
     } catch {
-      void reply.code(400).send({ detail: '请求体不是 multipart 表单' });
+      void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: '请求体不是 multipart 表单' });
       return reply;
     }
     if (!data) {
-      void reply.code(400).send({ detail: '未收到文件' });
+      void fail(reply, 'FILE_MISSING', { status: 400, detail: '未收到文件' });
       return reply;
     }
     // kind 是 multipart 字段（客户端须先拼 kind 再拼 file，busboy 才保证字段可读）。
@@ -214,14 +220,18 @@ export function registerReimburseRoutes(app: FastifyInstance, { service }: Reimb
       kindField && !Array.isArray(kindField) && kindField.type === 'field' ? kindField.value : undefined;
     const kind = ReimburseEvidenceKindSchema.safeParse(rawKind);
     if (!kind.success) {
-      void reply.code(400).send({ detail: 'kind 须为 invoice / paymentShot / inspection' });
+      void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: 'kind 须为 invoice / paymentShot / inspection' });
       return reply;
     }
     const revisionField = data.fields['expectedRevision'];
     const rawRevision = revisionField && !Array.isArray(revisionField) && revisionField.type === 'field' ? revisionField.value : undefined;
     const revision = ReimburseEvidenceMutationRequestSchema.safeParse({ expectedRevision: Number(rawRevision) });
     if (!revision.success) {
-      void reply.code(400).send({ code: 'REIMBURSE_REVISION_REQUIRED', detail: '上传须携带当前条目版本' });
+      void fail(reply, LEGACY_CODE_MAP.REIMBURSE_REVISION_REQUIRED, {
+        status: 400,
+        detail: '上传须携带当前条目版本',
+        fields: { reason: 'REIMBURSE_REVISION_REQUIRED' },
+      });
       return reply;
     }
     let buf: Buffer;
@@ -229,14 +239,14 @@ export function registerReimburseRoutes(app: FastifyInstance, { service }: Reimb
       buf = await data.toBuffer();
     } catch (err) {
       if ((err as { code?: string })?.code === 'FST_REQ_FILE_TOO_LARGE') {
-        void reply.code(413).send({ detail: `文件过大（上限 ${EVIDENCE_MAX_MB}MB）` });
+        void fail(reply, 'FILE_TOO_LARGE', { status: 413, detail: `文件过大（上限 ${EVIDENCE_MAX_MB}MB）` });
         return reply;
       }
-      void reply.code(400).send({ detail: '读取文件失败' });
+      void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: '读取文件失败' });
       return reply;
     }
     if (data.file.truncated) {
-      void reply.code(413).send({ detail: `文件过大（上限 ${EVIDENCE_MAX_MB}MB）` });
+      void fail(reply, 'FILE_TOO_LARGE', { status: 413, detail: `文件过大（上限 ${EVIDENCE_MAX_MB}MB）` });
       return reply;
     }
     const { id } = request.params as { id: string };

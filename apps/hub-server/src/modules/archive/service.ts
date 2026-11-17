@@ -2,7 +2,7 @@ import { extname } from 'node:path';
 
 import { deriveArtifactKind, nextArtifactVersionNo } from '@teamhub/hub-contracts';
 import type { ArtifactRef, CreateArtifactRequest } from '@teamhub/hub-contracts';
-import { ApplicationError } from '../../application/application-error.js';
+import { ApplicationError, appError } from '../../application/application-error.js';
 import type { Clock } from '../../clock.js';
 import type {
   ArtifactDraft,
@@ -89,16 +89,16 @@ export class ArchiveService {
   async uploadFile(id: string, upload: { filename?: string; buf: Buffer }): Promise<ArtifactRef> {
     const dir = this.storage.dir();
     if (!dir) {
-      throw new ApplicationError('validation', 'ARTIFACT_STORAGE_UNCONFIGURED', '未配置归档物文件目录');
+      throw appError('validation', 'ARTIFACT_STORAGE_UNCONFIGURED', '未配置归档物文件目录');
     }
     const artifacts = await this.repository.listArtifacts();
     if (!artifacts.some((a) => a.id === id)) {
-      throw new ApplicationError('not_found', 'ARTIFACT_NOT_FOUND', '归档物不存在');
+      throw appError('not_found', 'ARTIFACT_NOT_FOUND', '归档物不存在');
     }
     const ext = extname(upload.filename ?? '').toLowerCase();
     const contentType = ARTIFACT_ALLOWED_EXT.get(ext);
     if (!contentType) {
-      throw new ApplicationError(
+      throw appError(
         'validation',
         'ARTIFACT_UNSUPPORTED_EXT',
         `不支持的文件类型：${ext || '（无后缀）'}`,
@@ -113,7 +113,7 @@ export class ArchiveService {
       const updated = await this.repository.setArtifactFile(id, meta);
       if (!updated) {
         await this.storage.remove(dir, id).catch(() => {});
-        throw new ApplicationError('not_found', 'ARTIFACT_NOT_FOUND', '归档物不存在');
+        throw appError('not_found', 'ARTIFACT_NOT_FOUND', '归档物不存在');
       }
       return updated;
     } catch (err) {
@@ -127,21 +127,21 @@ export class ArchiveService {
   async download(id: string): Promise<ArchiveDownload> {
     const dir = this.storage.dir();
     if (!dir) {
-      throw new ApplicationError('not_found', 'ARTIFACT_STORAGE_UNCONFIGURED', '未配置归档物文件目录');
+      throw appError('not_found', 'ARTIFACT_STORAGE_UNCONFIGURED', '未配置归档物文件目录');
     }
     const artifacts = await this.repository.listArtifacts();
     const artifact = artifacts.find((a) => a.id === id);
     if (!artifact) {
-      throw new ApplicationError('not_found', 'ARTIFACT_NOT_FOUND', '归档物不存在');
+      throw appError('not_found', 'ARTIFACT_NOT_FOUND', '归档物不存在');
     }
     let file: { filename: string; ext: string; content: Buffer } | null;
     try {
       file = await this.storage.read(dir, id);
     } catch {
-      throw new ApplicationError('validation', 'ARTIFACT_ILLEGAL_PATH', '非法路径');
+      throw appError('validation', 'ARTIFACT_ILLEGAL_PATH', '非法路径');
     }
     if (!file) {
-      throw new ApplicationError('not_found', 'ARTIFACT_FILE_MISSING', '该归档物暂无可下载文件');
+      throw appError('not_found', 'ARTIFACT_FILE_MISSING', '该归档物暂无可下载文件');
     }
     return {
       artifact,

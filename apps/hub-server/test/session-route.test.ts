@@ -417,7 +417,7 @@ describe('AUTH-LOGIN-USERNAME：用户名登录 / 重名 409 / 旧短 PIN 强制
       // 业务请求被首登/升级闸拦：403 PIN_SETUP_REQUIRED
       const blocked = await app.inject({ method: 'GET', url: '/api/members', headers: { cookie } });
       expect(blocked.statusCode).toBe(403);
-      expect(blocked.json().code).toBe('PIN_SETUP_REQUIRED');
+      expect(blocked.json()).toMatchObject({ code: 'SETUP_REQUIRED', fields: { reason: 'PIN_SETUP_REQUIRED' } });
 
       // 重设 ≥8 位密码 → 200，同会话立即解禁
       const set = await app.inject({

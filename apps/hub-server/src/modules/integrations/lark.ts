@@ -18,6 +18,7 @@ import {
   createLarkChat,
 } from './lark-client.js';
 import { parseBody, isLoopbackOperator } from '../../http/helpers.js';
+import { fail } from '../../lib/fail.js';
 
 export interface LarkRouteDeps {
   store: PmRepository;
@@ -87,7 +88,7 @@ export function registerLarkRoutes(app: FastifyInstance, deps: LarkRouteDeps): v
   app.get('/api/integrations/lark/chats', async (_request, reply) => {
     const cfg = larkStore.getConfig();
     if (!cfg || !cfg.appId || !cfg.appSecret) {
-      void reply.code(400).send({ detail: '飞书未配置，先保存 App ID / App Secret' });
+      void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: '飞书未配置，先保存 App ID / App Secret' });
       return;
     }
     const { chats, error } = await listLarkChats(cfg.appId, cfg.appSecret);
@@ -104,7 +105,7 @@ export function registerLarkRoutes(app: FastifyInstance, deps: LarkRouteDeps): v
     if (!parsed) return;
     const cfg = larkStore.getConfig();
     if (!cfg || !cfg.appId || !cfg.appSecret) {
-      void reply.code(400).send({ detail: '飞书未配置，先保存 App ID / App Secret' });
+      void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: '飞书未配置，先保存 App ID / App Secret' });
       return;
     }
     const { chat, error } = await createLarkChat(cfg.appId, cfg.appSecret, parsed.name);
@@ -117,7 +118,7 @@ export function registerLarkRoutes(app: FastifyInstance, deps: LarkRouteDeps): v
 
   app.get('/api/hermes/credential', async (request, reply) => {
     if (!isLoopbackOperator(request, trustProxy)) {
-      void reply.code(403).send({ detail: 'forbidden' });
+      void fail(reply, 'FORBIDDEN', { status: 403, detail: 'forbidden' });
       return;
     }
     return { token: larkStore.getWriteToken() };
@@ -126,7 +127,7 @@ export function registerLarkRoutes(app: FastifyInstance, deps: LarkRouteDeps): v
   app.post('/api/integrations/lark/push-reminder', async (request, reply) => {
     const cfg = larkStore.getConfig();
     if (!cfg || cfg.status !== 'connected') {
-      void reply.code(400).send({ detail: '飞书未配置或未连接' });
+      void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: '飞书未配置或未连接' });
       return;
     }
     const snapshot = await store.getSnapshot();

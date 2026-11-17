@@ -31,6 +31,7 @@ import {
   buildSystemStatusResponse,
 } from '../../status.js';
 import { parseBody } from '../../http/helpers.js';
+import { fail } from '../../lib/fail.js';
 
 export function registerSystemRoutes(
   app: FastifyInstance,
@@ -60,7 +61,7 @@ export function registerSystemRoutes(
   app.get('/api/agent-backends/:backendId/health', async (request, reply) => {
     const { backendId } = request.params as { backendId: string };
     if (!isMockAgentBackendId(backendId)) {
-      void reply.code(404).send({ detail: 'Agent backend not found' });
+      void fail(reply, 'NOT_FOUND', { status: 404, detail: 'Agent backend not found' });
       return;
     }
     return AgentBackendHealthResponseSchema.parse(getMockAgentBackendHealth(backendId));
@@ -69,7 +70,7 @@ export function registerSystemRoutes(
   app.get('/api/agent-backends/:backendId/capabilities', async (request, reply) => {
     const { backendId } = request.params as { backendId: string };
     if (!isMockAgentBackendId(backendId)) {
-      void reply.code(404).send({ detail: 'Agent backend not found' });
+      void fail(reply, 'NOT_FOUND', { status: 404, detail: 'Agent backend not found' });
       return;
     }
     return AgentBackendCapabilitiesResponseSchema.parse(getMockAgentBackendCapabilities(backendId));
@@ -78,7 +79,7 @@ export function registerSystemRoutes(
   app.post('/api/agent-backends/:backendId/invoke', async (request, reply) => {
     const { backendId } = request.params as { backendId: string };
     if (!isMockAgentBackendId(backendId)) {
-      void reply.code(404).send({ detail: 'Agent backend not found' });
+      void fail(reply, 'NOT_FOUND', { status: 404, detail: 'Agent backend not found' });
       return;
     }
     const data = parseBody(AgentBackendInvokeRequestSchema, request, reply);

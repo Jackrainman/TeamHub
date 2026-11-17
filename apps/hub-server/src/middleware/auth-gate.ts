@@ -2,6 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import type { IdentityMode } from '@teamhub/hub-contracts';
 import { isLoopbackOperator, readSessionCookie } from '../http/helpers.js';
 import type { SessionManager } from '../identity/session-store.js';
+import { LEGACY_CODE_MAP } from '@teamhub/hub-contracts';
+import { fail } from '../lib/fail.js';
 
 /**
  * 读闸门 + 首登 PIN 闸（AUTH-GATE 公网加固，D-083 身份模式收紧；AUTH-LOGIN-USERNAME 再收紧）。
@@ -73,7 +75,7 @@ export function registerAuthGate(app: FastifyInstance, opts: AuthGateOptions): v
       ) {
         return;
       }
-      void reply.code(401).send({ detail: 'login required' });
+      void fail(reply, 'UNAUTHENTICATED', { status: 401, detail: 'login required' });
       return reply;
     }
 
@@ -90,10 +92,7 @@ export function registerAuthGate(app: FastifyInstance, opts: AuthGateOptions): v
       ) {
         return;
       }
-      void reply.code(403).send({
-        code: 'PIN_SETUP_REQUIRED',
-        detail: '首次登录须先设置 PIN',
-      });
+      void fail(reply, LEGACY_CODE_MAP.PIN_SETUP_REQUIRED, { status: 403, detail: '首次登录须先设置 PIN', fields: { reason: 'PIN_SETUP_REQUIRED' } });
       return reply;
     }
   });

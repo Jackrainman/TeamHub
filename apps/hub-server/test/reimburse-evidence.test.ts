@@ -274,7 +274,7 @@ describe('POST /api/reimburse/entries/:id/evidence — 上传', () => {
     try {
       const res = await upload(app, cookieA, entry.id, 'invoice', 'x.pdf');
       expect(res.statusCode).toBe(400);
-      expect(res.json().code).toBe('REIMBURSE_EVIDENCE_STORAGE_UNCONFIGURED');
+      expect(res.json()).toMatchObject({ code: 'STORAGE_UNCONFIGURED', fields: { reason: 'REIMBURSE_EVIDENCE_STORAGE_UNCONFIGURED' } });
     } finally {
       process.env.TEAMHUB_EVIDENCE_FILES_DIR = dir;
     }
@@ -396,7 +396,7 @@ describe('GET /api/reimburse/entries/:id/evidence/:evidenceId/download — 读�
       headers: { cookie: cookieA },
     });
     expect(missing.statusCode).toBe(404);
-    expect(missing.json().code).toBe('REIMBURSE_EVIDENCE_FILE_MISSING');
+    expect(missing.json()).toMatchObject({ code: 'FILE_MISSING', fields: { reason: 'REIMBURSE_EVIDENCE_FILE_MISSING' } });
 
     const unknown = await app.inject({
       method: 'GET',

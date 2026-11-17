@@ -14,6 +14,7 @@ import {
   KnowledgeService,
 } from './service.js';
 import type { KbImportDocInput } from './service.js';
+import { fail } from '../../lib/fail.js';
 
 const KB_IMPORT_DOC_MAX_BYTES = 1024 * 1024;
 const KB_IMPORT_DOCS_MAX_FILES = 20;
@@ -68,7 +69,7 @@ export function registerKnowledgeRoutes(app: FastifyInstance, deps: KnowledgeRou
       return KbCloseoutResponseSchema.parse(result);
     } catch (err) {
       if (err instanceof KbCloseoutRejectedError) {
-        void reply.code(422).send({ detail: err.reason });
+        void fail(reply, 'VALIDATION_FAILED', { status: 422, detail: err.reason });
         return;
       }
       if (err instanceof KbCloseoutDivergenceError) {
@@ -118,10 +119,10 @@ export function registerKnowledgeRoutes(app: FastifyInstance, deps: KnowledgeRou
       }
     } catch (err) {
       if ((err as { code?: string })?.code === 'FST_FILES_LIMIT') {
-        void reply.code(413).send({ detail: '文件数过多（单批上限 20 个）' });
+        void fail(reply, 'FILE_TOO_LARGE', { status: 413, detail: '文件数过多（单批上限 20 个）' });
         return;
       }
-      void reply.code(400).send({ detail: '请求体不是 multipart 表单' });
+      void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: '请求体不是 multipart 表单' });
       return;
     }
     const outcome = await service.importDocs(inputs);

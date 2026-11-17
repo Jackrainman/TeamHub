@@ -20,6 +20,8 @@ import { sendLarkMessage } from '../integrations/lark-client.js';
 import { parseBody, requireActor } from '../../http/helpers.js';
 import type { PmOutcome } from './service.js';
 import type { TaskRouteDeps } from './tasks.js';
+import { LEGACY_CODE_MAP } from '@teamhub/hub-contracts';
+import { fail } from '../../lib/fail.js';
 
 function sendOutcome<T>(
   reply: FastifyReply,
@@ -47,10 +49,10 @@ export function registerTaskClaimRoutes(app: FastifyInstance, deps: TaskRouteDep
     if (!parsed) return;
     const memberId = request.identity?.memberId ?? parsed.memberId;
     if (!memberId) {
-      void reply.code(400).send({ detail: '认领必须留名（memberId）' });
+      void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: '认领必须留名（memberId）' });
       return;
     }
-    if (parsed.weekKey && !request.identity) return reply.code(403).send({ code: 'PM_SESSION_REQUIRED', detail: '请先登录后认领周任务' });
+    if (parsed.weekKey && !request.identity) return fail(reply, LEGACY_CODE_MAP.PM_SESSION_REQUIRED, { status: 403, detail: '请先登录后认领周任务', fields: { reason: 'PM_SESSION_REQUIRED' } });
     const outcome = await service.claimTask(taskId, memberId, parsed.weekKey);
     if (!outcome.ok) {
       void reply.code(outcome.status).send({ detail: outcome.detail });
@@ -77,11 +79,11 @@ export function registerTaskClaimRoutes(app: FastifyInstance, deps: TaskRouteDep
     const snapshot = await store.getSnapshot();
     const task = snapshot.tasks.find((t) => t.id === taskId);
     if (!task) {
-      void reply.code(404).send({ detail: 'task not found' });
+      void fail(reply, 'NOT_FOUND', { status: 404, detail: 'task not found' });
       return;
     }
     if (!isGroupLeadOf(snapshot.members, actor.id, task.groupId)) {
-      void reply.code(403).send({ detail: '指派权属该组组长' });
+      void fail(reply, 'FORBIDDEN', { status: 403, detail: '指派权属该组组长' });
       return;
     }
     return sendOutcome(
@@ -100,11 +102,11 @@ export function registerTaskClaimRoutes(app: FastifyInstance, deps: TaskRouteDep
     const snapshot = await store.getSnapshot();
     const task = snapshot.tasks.find((t) => t.id === taskId);
     if (!task) {
-      void reply.code(404).send({ detail: 'task not found' });
+      void fail(reply, 'NOT_FOUND', { status: 404, detail: 'task not found' });
       return;
     }
     if (task.ownerId !== actor.id && !isGroupLeadOf(snapshot.members, actor.id, task.groupId)) {
-      void reply.code(403).send({ detail: '退池权属当前完成人或本组组长' });
+      void fail(reply, 'FORBIDDEN', { status: 403, detail: '退池权属当前完成人或本组组长' });
       return;
     }
     return sendOutcome(
@@ -134,11 +136,11 @@ export function registerTaskClaimRoutes(app: FastifyInstance, deps: TaskRouteDep
     const snapshot = await store.getSnapshot();
     const task = snapshot.tasks.find((t) => t.id === taskId);
     if (!task) {
-      void reply.code(404).send({ detail: 'task not found' });
+      void fail(reply, 'NOT_FOUND', { status: 404, detail: 'task not found' });
       return;
     }
     if (!isGroupLeadOf(snapshot.members, actor.id, task.groupId)) {
-      void reply.code(403).send({ detail: '跨组确认权属该组组长' });
+      void fail(reply, 'FORBIDDEN', { status: 403, detail: '跨组确认权属该组组长' });
       return;
     }
     return sendOutcome(

@@ -14,6 +14,7 @@ import {
   buildSessionCookie,
   clearSessionCookie,
 } from '../../http/helpers.js';
+import { fail } from '../../lib/fail.js';
 
 export interface SessionRouteDeps {
   store: PmRepository;
@@ -99,7 +100,7 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
 
   app.post('/api/session', async (request: FastifyRequest, reply) => {
     if (identityMode !== 'identity' || !sessions) {
-      void reply.code(404).send({ detail: '身份模式未启用' });
+      void fail(reply, 'NOT_FOUND', { status: 404, detail: '身份模式未启用' });
       return;
     }
     const parsed = parseBody(SessionRequestSchema, request, reply);
@@ -108,9 +109,7 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
     const limitKey = `${request.ip}|${username}`;
     const lockedMs = limiter.lockedForMs(limitKey);
     if (lockedMs > 0) {
-      void reply
-        .code(429)
-        .send({ detail: `尝试次数过多，请 ${Math.ceil(lockedMs / 60000)} 分钟后再试` });
+      void fail(reply, 'FORBIDDEN', { status: 429, detail: `尝试次数过多，请 ${Math.ceil(lockedMs / 60000)} 分钟后再试` });
       return;
     }
     const snapshot = await store.getSnapshot();
@@ -118,7 +117,7 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
     //（不进 401 防枚举分支：重名事实不是攻击者能利用的情报，而是必须人工修复的数据问题）。
     const lookup = lookupMemberByDisplayName(snapshot.members, username);
     if (lookup.kind === 'duplicate') {
-      void reply.code(409).send({ detail: '姓名重名，数据需管理员修复后才能登录' });
+      void fail(reply, 'CONFLICT', { status: 409, detail: '姓名重名，数据需管理员修复后才能登录' });
       return;
     }
     const member = lookup.kind === 'ok' ? lookup.member : undefined;
@@ -130,7 +129,7 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
       : false;
     if (!authOk || !member) {
       limiter.fail(limitKey);
-      void reply.code(401).send({ detail: '登录失败' });
+      void fail(reply, 'UNAUTHENTICATED', { status: 401, detail: '登录失败' });
       return;
     }
     limiter.ok(limitKey);
@@ -158,7 +157,7 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
 
   app.delete('/api/session', async (request, reply) => {
     if (identityMode !== 'identity' || !sessions) {
-      void reply.code(404).send({ detail: '身份模式未启用' });
+      void fail(reply, 'NOT_FOUND', { status: 404, detail: '身份模式未启用' });
       return;
     }
     const token = readSessionCookie(request);

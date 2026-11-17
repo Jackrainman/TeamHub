@@ -30,7 +30,7 @@ function scanLegacyCodes(): Set<string> {
   const patterns = [
     /new\s+ApplicationError\(\s*['"][^'"]+['"]\s*,\s*['"]([A-Z][A-Z0-9_]{3,})['"]/g,
     /\bappError\(\s*['"][^'"]+['"]\s*,\s*['"]([A-Z][A-Z0-9_]{3,})['"]/g,
-    /\bfail\(\s*reply\s*,\s*['"]([A-Z][A-Z0-9_]{3,})['"]/g,
+    /\bfail\(\s*reply\s*,\s*LEGACY_CODE_MAP\.([A-Z][A-Z0-9_]{3,})/g,
     /reply\.code\(\s*\d+\s*\)\.send\(\s*\{\s*code\s*:\s*['"]([A-Z][A-Z0-9_]{3,})['"]/g,
   ];
   const codes = new Set<string>();

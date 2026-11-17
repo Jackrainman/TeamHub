@@ -217,7 +217,7 @@ describe('hub-server routes', () => {
     });
 
     expect(response.statusCode).toBe(404);
-    expect(response.json()).toEqual({ detail: 'Agent backend not found' });
+    expect(response.json()).toEqual({ code: 'NOT_FOUND', detail: 'Agent backend not found' });
   });
 
   test('GET /api/events returns mock-first event fixtures', async () => {
@@ -477,7 +477,7 @@ describe('hub-server routes', () => {
     });
 
     expect(response.statusCode).toBe(404);
-    expect(response.json()).toEqual({ detail: 'Not found' });
+    expect(response.json()).toEqual({ code: 'NOT_FOUND', detail: 'Not found' });
   });
 });
 
@@ -560,7 +560,7 @@ describe('hub-server static console', () => {
         url: '/api/missing',
       });
       expect(missingApi.statusCode).toBe(404);
-      expect(missingApi.json()).toEqual({ detail: 'Not found' });
+      expect(missingApi.json()).toEqual({ code: 'NOT_FOUND', detail: 'Not found' });
     } finally {
       await staticApp.close();
       await rm(consoleDistDir, { force: true, recursive: true });

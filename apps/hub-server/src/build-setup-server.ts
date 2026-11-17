@@ -7,6 +7,7 @@ import {
 import { tryServeStaticConsole } from './static-console.js';
 import { buildHealthResponse } from './status.js';
 import type { AppSettingsService } from './store/sqlite-unified.js';
+import { fail } from './lib/fail.js';
 
 /** exit code 42 = 请求重启（start-teamhub.sh 循环 / compose restart:on-failure 据此拉起正常模式）。 */
 export const RESTART_EXIT_CODE = 42;
@@ -65,18 +66,16 @@ export function buildSetupServer(
   app.post('/api/setup/init', async (request, reply) => {
     const parsed = SetupInitRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
-      void reply
-        .code(400)
-        .send({ detail: parsed.error.issues[0]?.message ?? 'invalid body' });
+      void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: parsed.error.issues[0]?.message ?? 'invalid body' });
       return reply;
     }
     const state = options.settingsService.getDatabaseState();
     if (state === 'initialized') {
-      void reply.code(409).send({ detail: 'TeamHub 已初始化' });
+      void fail(reply, 'CONFLICT', { status: 409, detail: 'TeamHub 已初始化' });
       return reply;
     }
     if (state === 'unclaimed') {
-      void reply.code(409).send({ detail: '数据库含未认领业务数据，拒绝初始化覆盖' });
+      void fail(reply, 'CONFLICT', { status: 409, detail: '数据库含未认领业务数据，拒绝初始化覆盖' });
       return reply;
     }
     options.settingsService.initialize(parsed.data, now());
@@ -91,7 +90,7 @@ export function buildSetupServer(
     if (await tryServeStaticConsole(request, reply, options.consoleDistDir)) {
       return;
     }
-    void reply.code(404).send({ detail: 'Not found' });
+    void fail(reply, 'NOT_FOUND', { status: 404, detail: 'Not found' });
   });
 
   return app;

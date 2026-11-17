@@ -3,6 +3,7 @@ import type { SessionIdentity, ActorRef } from '@teamhub/hub-contracts';
 import type { PmRepository } from '../modules/pm/repository.js';
 import { isSuperAdmin } from '../authz.js';
 import { isApplicationError } from '../application/application-error.js';
+import { fail } from '../lib/fail.js';
 
 const APPLICATION_ERROR_STATUS = {
   validation: 400,
@@ -14,12 +15,11 @@ const APPLICATION_ERROR_STATUS = {
 
 export function sendApplicationError(error: unknown, reply: FastifyReply): boolean {
   if (!isApplicationError(error)) return false;
-  const body: { code: string; detail: string; fields?: Readonly<Record<string, unknown>> } = {
-    code: error.code,
+  void fail(reply, error.code, {
+    status: APPLICATION_ERROR_STATUS[error.kind],
     detail: error.detail,
-  };
-  if (error.fields) body.fields = error.fields;
-  void reply.code(APPLICATION_ERROR_STATUS[error.kind]).send(body);
+    fields: error.fields,
+  });
   return true;
 }
 
@@ -34,7 +34,7 @@ export function parseBody<T>(
 ): T | null {
   const parsed = schema.safeParse(request.body ?? {});
   if (!parsed.success) {
-    void reply.code(400).send({ detail: firstZodMsg(parsed.error) });
+    void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: firstZodMsg(parsed.error) });
     return null;
   }
   return parsed.data;
@@ -48,7 +48,7 @@ export function parseQuery<T>(
 ): T | null {
   const parsed = schema.safeParse(request.query ?? {});
   if (!parsed.success) {
-    void reply.code(400).send({ detail: firstZodMsg(parsed.error, fallback) });
+    void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: firstZodMsg(parsed.error, fallback) });
     return null;
   }
   return parsed.data;
@@ -62,7 +62,7 @@ export async function requireSuperAdmin(
 ): Promise<boolean> {
   const snapshot = await store.getSnapshot();
   if (!isSuperAdmin(snapshot.members, request.identity?.memberId ?? '')) {
-    void reply.code(403).send({ detail });
+    void fail(reply, 'FORBIDDEN', { status: 403, detail });
     return false;
   }
   return true;
@@ -76,7 +76,7 @@ export function requireActor(
 ): ActorRef | null {
   const actor: ActorRef | undefined = request.identity ? sessionActor(request.identity) : fallback;
   if (!actor) {
-    void reply.code(400).send({ detail });
+    void fail(reply, 'VALIDATION_FAILED', { status: 400, detail });
     return null;
   }
   return actor;
@@ -95,11 +95,11 @@ export async function readCsvUpload(
   try {
     data = await request.file({ limits: { fileSize: opts.maxBytes, files: 1 } });
   } catch {
-    void reply.code(400).send({ detail: '请求体不是 multipart 表单' });
+    void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: '请求体不是 multipart 表单' });
     return null;
   }
   if (!data) {
-    void reply.code(400).send({ detail: '未收到文件' });
+    void fail(reply, 'FILE_MISSING', { status: 400, detail: '未收到文件' });
     return null;
   }
   let buf: Buffer;
@@ -107,19 +107,19 @@ export async function readCsvUpload(
     buf = await data.toBuffer();
   } catch (err) {
     if ((err as { code?: string })?.code === 'FST_REQ_FILE_TOO_LARGE') {
-      void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
+      void fail(reply, 'FILE_TOO_LARGE', { status: 413, detail: '文件过大（上限 1MB）' });
       return null;
     }
-    void reply.code(400).send({ detail: '读取文件失败' });
+    void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: '读取文件失败' });
     return null;
   }
   if (data.file.truncated) {
-    void reply.code(413).send({ detail: '文件过大（上限 1MB）' });
+    void fail(reply, 'FILE_TOO_LARGE', { status: 413, detail: '文件过大（上限 1MB）' });
     return null;
   }
   const text = opts.decode(buf);
   if (text === null) {
-    void reply.code(400).send({ detail: '编码无法识别，请另存为 CSV UTF-8' });
+    void fail(reply, 'VALIDATION_FAILED', { status: 400, detail: '编码无法识别，请另存为 CSV UTF-8' });
     return null;
   }
   return text;

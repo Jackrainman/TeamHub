@@ -43,7 +43,7 @@ import type {
   UpdateReimburseBatchRequest,
   UpdateReimburseEntryRequest,
 } from '@teamhub/hub-contracts';
-import { ApplicationError } from '../../application/application-error.js';
+import { appError } from '../../application/application-error.js';
 import type { ApplicationUnitOfWork } from '../../application/unit-of-work.js';
 import type {
   ReimburseBatchDraft,
@@ -128,7 +128,7 @@ export class ReimburseService {
     const entries = this.repository.listEntries();
     if (this.identityMode !== 'identity') return entries.map(withoutEvidence);
     if (!identity) {
-      throw new ApplicationError('unauthorized', 'REIMBURSE_LOGIN_REQUIRED', '登录后查看报销条目');
+      throw appError('unauthorized', 'REIMBURSE_LOGIN_REQUIRED', '登录后查看报销条目');
     }
     const visible = (await this.isAdmin(identity.memberId))
       ? entries
@@ -159,7 +159,7 @@ export class ReimburseService {
         .find(entry => entry.memberId === input.memberId && entry.creationRequest?.id === clientRequestId);
       if (prior) {
         if (prior.creationRequest?.fingerprint !== fingerprint) {
-          throw new ApplicationError('conflict', 'REIMBURSE_REQUEST_CONFLICT', '该保存请求已用于另一份内容，请刷新条目后重试');
+          throw appError('conflict', 'REIMBURSE_REQUEST_CONFLICT', '该保存请求已用于另一份内容，请刷新条目后重试');
         }
         return withoutEvidence(prior);
       }
@@ -168,7 +168,7 @@ export class ReimburseService {
     if (draft.invoiceNo) {
       const duplicate = this.repository.findEntryByInvoiceNo(draft.invoiceNo);
       if (duplicate) {
-        throw new ApplicationError('conflict', 'REIMBURSE_INVOICE_DUPLICATE',
+        throw appError('conflict', 'REIMBURSE_INVOICE_DUPLICATE',
           `发票号 ${draft.invoiceNo} 已录入过（条目 ${duplicate.id}），勿重复报销`);
       }
     }
@@ -183,37 +183,37 @@ export class ReimburseService {
       const { expectedRevision: _revision, changeReason, ...patch } = request;
       const contentKeys = Object.keys(patch).filter((key) => key !== 'batchId');
       if (patch.batchId !== undefined && !admin) {
-        throw new ApplicationError('forbidden', 'REIMBURSE_BATCH_FORBIDDEN', '只有财务能调整批次归属');
+        throw appError('forbidden', 'REIMBURSE_BATCH_FORBIDDEN', '只有财务能调整批次归属');
       }
       if (patch.batchId !== undefined && (entry.workflowStatus === 'completed' || entry.workflowStatus === 'cancelled')) {
-        throw new ApplicationError('conflict', 'REIMBURSE_ENTRY_LOCKED', '完成或撤销条目不可调整批次');
+        throw appError('conflict', 'REIMBURSE_ENTRY_LOCKED', '完成或撤销条目不可调整批次');
       }
       if (contentKeys.length > 0) {
         if (entry.memberId !== actor.id && !admin) {
-          throw new ApplicationError('forbidden', 'REIMBURSE_ENTRY_FORBIDDEN', '只有条目本人或财务能修改条目');
+          throw appError('forbidden', 'REIMBURSE_ENTRY_FORBIDDEN', '只有条目本人或财务能修改条目');
         }
         const allowed = admin ? entry.workflowStatus === 'reviewing'
           : entry.memberId === actor.id && (entry.workflowStatus === 'draft' || entry.workflowStatus === 'returned');
-        if (!allowed) throw new ApplicationError('conflict', 'REIMBURSE_ENTRY_LOCKED', '当前工作流状态不允许修改条目');
+        if (!allowed) throw appError('conflict', 'REIMBURSE_ENTRY_LOCKED', '当前工作流状态不允许修改条目');
       }
       if (patch.batchId) {
         const batch = this.repository.getBatch(patch.batchId);
-        if (!batch) throw new ApplicationError('validation', 'REIMBURSE_BATCH_NOT_FOUND', `未知批次: ${patch.batchId}`);
+        if (!batch) throw appError('validation', 'REIMBURSE_BATCH_NOT_FOUND', `未知批次: ${patch.batchId}`);
         if (batch.projectId !== entry.projectId || batch.seasonId !== entry.seasonId) {
-          throw new ApplicationError('validation', 'REIMBURSE_BATCH_SCOPE_MISMATCH', '批次与条目必须属于同一项目和赛季');
+          throw appError('validation', 'REIMBURSE_BATCH_SCOPE_MISMATCH', '批次与条目必须属于同一项目和赛季');
         }
       }
       if (patch.expenseType !== undefined) patch.kind = patch.expenseType ? kindForExpenseType(patch.expenseType) : 'expense';
       else if (entry.expenseType) patch.kind = kindForExpenseType(entry.expenseType);
       if (patch.invoiceNo) {
         const duplicate = this.repository.findEntryByInvoiceNo(patch.invoiceNo);
-        if (duplicate && duplicate.id !== id) throw new ApplicationError('conflict', 'REIMBURSE_INVOICE_DUPLICATE', '该发票已录入，请勿重复报销');
+        if (duplicate && duplicate.id !== id) throw appError('conflict', 'REIMBURSE_INVOICE_DUPLICATE', '该发票已录入，请勿重复报销');
       }
       const nextKind = patch.kind ?? entry.kind;
       const nextItems = patch.items ?? entry.items;
       const changesStock = nextKind !== entry.kind || JSON.stringify(nextItems) !== JSON.stringify(entry.items);
       if (changesStock && this.inventory.readStockInSnapshot().actions.some(action => action.reimburseEntryId === id)) {
-        throw new ApplicationError('conflict', 'REIMBURSE_STOCK_FIELDS_LOCKED', '该条目已有入库记录，不能修改类型或物资明细');
+        throw appError('conflict', 'REIMBURSE_STOCK_FIELDS_LOCKED', '该条目已有入库记录，不能修改类型或物资明细');
       }
       const changedFields = Object.keys(patch).filter((key) => key !== 'batchId' &&
         JSON.stringify(patch[key as keyof typeof patch]) !== JSON.stringify(entry[key as keyof ReimburseEntry]));
@@ -246,12 +246,12 @@ export class ReimburseService {
       this.assertRevision(entry, request.expectedRevision);
       const ownerAction = action === 'submit' || action === 'cancel';
       if (ownerAction ? entry.memberId !== actor.id : !admin) {
-        throw new ApplicationError('forbidden', 'REIMBURSE_WORKFLOW_FORBIDDEN', '当前身份无权执行该报账动作');
+        throw appError('forbidden', 'REIMBURSE_WORKFLOW_FORBIDDEN', '当前身份无权执行该报账动作');
       }
       let patch: Parameters<ReimburseRepository['updateEntry']>[1] = {};
       if (action === 'submit') {
         const invalid = validateReimburseSubmission(entry);
-        if (invalid) throw new ApplicationError('conflict', invalid, '提交前须确认支出类型，且条目须处于草稿或退回状态');
+        if (invalid) throw appError('conflict', invalid, '提交前须确认支出类型，且条目须处于草稿或退回状态');
         patch = { workflowStatus: 'submitted', recognitionConfirmedRevision: entry.revision,
           checkedRevision: null, reviewedRevision: null, approvedAmountFen: null };
       } else if (action === 'cancel') {
@@ -265,18 +265,18 @@ export class ReimburseService {
         patch = { checkedRevision: entry.revision };
       } else if (action === 'return') {
         if (!canTransitionReimburseWorkflow(entry.workflowStatus, 'returned')) this.throwInvalidTransition(entry.workflowStatus, 'returned');
-        if (!request.reason?.trim()) throw new ApplicationError('validation', 'REIMBURSE_RETURN_REASON_REQUIRED', '退回必须填写具体原因');
+        if (!request.reason?.trim()) throw appError('validation', 'REIMBURSE_RETURN_REASON_REQUIRED', '退回必须填写具体原因');
         patch = { workflowStatus: 'returned', returnReason: request.reason,
           checkedRevision: null, reviewedRevision: null, approvedAmountFen: null };
       } else if (action === 'approve') {
         const amount = request.approvedAmountFen ?? null;
         const invalid = validateReimburseApproval({ ...entry, completeness: deriveReimburseCompleteness(entry) }, amount, request.reason ?? null);
-        if (invalid) throw new ApplicationError('validation', invalid, '核准须填写金额；有缺项或调整金额时必须填写处理意见');
+        if (invalid) throw appError('validation', invalid, '核准须填写金额；有缺项或调整金额时必须填写处理意见');
         patch = { workflowStatus: 'pendingPayment', approvedAmountFen: amount,
           reviewedRevision: entry.revision, reviewNote: request.reason ?? null };
       } else {
         if (!canTransitionReimburseWorkflow(entry.workflowStatus, 'reviewing')) this.throwInvalidTransition(entry.workflowStatus, 'reviewing');
-        if (!request.reason?.trim()) throw new ApplicationError('validation', 'REIMBURSE_REVOKE_REASON_REQUIRED', '撤销核准必须说明理由');
+        if (!request.reason?.trim()) throw appError('validation', 'REIMBURSE_REVOKE_REASON_REQUIRED', '撤销核准必须说明理由');
         patch = { workflowStatus: 'reviewing', approvedAmountFen: null, reviewedRevision: null, reviewNote: request.reason };
       }
       const history = this.history(entry, ACTION_HISTORY[action], actor.id, occurredAt.toISOString(), {
@@ -289,31 +289,31 @@ export class ReimburseService {
   }
 
   async createPayout(request: CreateReimbursePayoutRequest, actor: ActorRef): Promise<ReimbursePayout> {
-    if (!(await this.isAdmin(actor.id))) throw new ApplicationError('forbidden', 'REIMBURSE_ADMIN_REQUIRED', '仅财务能登记打款');
+    if (!(await this.isAdmin(actor.id))) throw appError('forbidden', 'REIMBURSE_ADMIN_REQUIRED', '仅财务能登记打款');
     const { clientRequestId, ...facts } = request;
     const fingerprint = createHash('sha256').update(JSON.stringify(facts)).digest('hex');
     if (clientRequestId) {
       const prior = (this.repository.listPayouts() as StoredReimbursePayout[])
         .find((payout) => payout.creationRequest?.id === clientRequestId);
       if (prior) {
-        if (prior.creationRequest?.fingerprint !== fingerprint) throw new ApplicationError('conflict', 'REIMBURSE_REQUEST_CONFLICT', '该打款请求 ID 已用于另一笔打款');
+        if (prior.creationRequest?.fingerprint !== fingerprint) throw appError('conflict', 'REIMBURSE_REQUEST_CONFLICT', '该打款请求 ID 已用于另一笔打款');
         return this.withoutPayoutInternal(prior);
       }
     }
     return this.unitOfWork.run(actor, ({ occurredAt }) => {
       const ids = request.entries.map((entry) => entry.id);
-      if (new Set(ids).size !== ids.length) throw new ApplicationError('validation', 'REIMBURSE_PAYOUT_DUPLICATE_ENTRY', '同一打款不能重复选择条目');
+      if (new Set(ids).size !== ids.length) throw appError('validation', 'REIMBURSE_PAYOUT_DUPLICATE_ENTRY', '同一打款不能重复选择条目');
       const entries = request.entries.map(({ id, expectedRevision }) => {
         const entry = this.requireEntry(id);
         this.assertRevision(entry, expectedRevision);
         return entry;
       });
       if (entries.some((entry) => entry.projectId !== entries[0].projectId)) {
-        throw new ApplicationError('validation', 'REIMBURSE_PAYOUT_PROJECT_MISMATCH', '一次打款只能包含同项目条目');
+        throw appError('validation', 'REIMBURSE_PAYOUT_PROJECT_MISMATCH', '一次打款只能包含同项目条目');
       }
       const recipientId = entries[0].memberId;
       const invalid = validateReimbursePayout(entries, recipientId, request.amountFen);
-      if (invalid) throw new ApplicationError('conflict', invalid, '打款条目须同属一人、已核准且总额一致');
+      if (invalid) throw appError('conflict', invalid, '打款条目须同属一人、已核准且总额一致');
       const payout = this.repository.createPayout({
         projectId: entries[0].projectId, recipientId, entryIds: ids, amountFen: request.amountFen,
         paidAt: request.paidAt, method: request.method, transactionRef: request.transactionRef ?? null,
@@ -331,7 +331,7 @@ export class ReimburseService {
   }
 
   async listPayouts(identity: SessionIdentity | null): Promise<ReimbursePayout[]> {
-    if (!identity) throw new ApplicationError('unauthorized', 'REIMBURSE_LOGIN_REQUIRED', '登录后查看打款事实');
+    if (!identity) throw appError('unauthorized', 'REIMBURSE_LOGIN_REQUIRED', '登录后查看打款事实');
     const admin = await this.isAdmin(identity.memberId);
     return (this.repository.listPayouts() as StoredReimbursePayout[])
       .filter((payout) => admin || payout.recipientId === identity.memberId)
@@ -346,7 +346,7 @@ export class ReimburseService {
       (!request.seasonId || entry.seasonId === request.seasonId) &&
       (!request.batchId || entry.batchId === request.batchId) &&
       (!request.expenseType || entry.expenseType === request.expenseType));
-    if (entries.length === 0) throw new ApplicationError('validation', 'REIMBURSE_EXPORT_EMPTY', '授权范围内没有可导出条目');
+    if (entries.length === 0) throw appError('validation', 'REIMBURSE_EXPORT_EMPTY', '授权范围内没有可导出条目');
     const entryIds = new Set(entries.map((entry) => entry.id));
     const payouts = (await this.listPayouts(identity)).filter((payout) => payout.entryIds.some((id) => entryIds.has(id)));
     const names = await this.admin.displayNames?.() ?? {};
@@ -364,7 +364,7 @@ export class ReimburseService {
       return result;
     } catch (error) {
       if (error instanceof Error && error.message === 'REIMBURSE_EXPORT_TOO_LARGE') {
-        throw new ApplicationError('validation', 'REIMBURSE_EXPORT_TOO_LARGE', '交付包原件总量超过 200MB，请分批导出');
+        throw appError('validation', 'REIMBURSE_EXPORT_TOO_LARGE', '交付包原件总量超过 200MB，请分批导出');
       }
       throw error;
     }
@@ -421,10 +421,10 @@ export class ReimburseService {
   ): Promise<ReimburseBatch> {
     await this.requireAdmin(identity);
     const batch = this.repository.getBatch(id);
-    if (!batch) throw new ApplicationError('not_found', 'REIMBURSE_BATCH_NOT_FOUND', `未知批次: ${id}`);
+    if (!batch) throw appError('not_found', 'REIMBURSE_BATCH_NOT_FOUND', `未知批次: ${id}`);
     // 批次只是归集容器；不再以 blocked 拒绝整批，也不提供无打款事实的 reimbursed 状态。
     if (patch.status && patch.status !== batch.status && !(batch.status === 'collecting' && patch.status === 'submitted')) {
-      throw new ApplicationError('conflict', 'REIMBURSE_BATCH_TRANSITION', '批次只允许从收集中推进为已提交');
+      throw appError('conflict', 'REIMBURSE_BATCH_TRANSITION', '批次只允许从收集中推进为已提交');
     }
     return this.repository.updateBatch(id, patch)!;
   }
@@ -457,13 +457,13 @@ export class ReimburseService {
     return this.unitOfWork.run(command.actor, (context) => {
       const entry = this.reimburseStockIn.readEntryForStockIn(command.entryId);
       if (!entry) {
-        throw new ApplicationError('not_found', 'REIMBURSE_ENTRY_NOT_FOUND', `未知报销条目: ${command.entryId}`);
+        throw appError('not_found', 'REIMBURSE_ENTRY_NOT_FOUND', `未知报销条目: ${command.entryId}`);
       }
       if (entry.memberId !== command.actor.id && !command.canManageAll) {
-        throw new ApplicationError('forbidden', 'REIMBURSE_STOCK_IN_FORBIDDEN', '只有条目本人或管理员能确认入库');
+        throw appError('forbidden', 'REIMBURSE_STOCK_IN_FORBIDDEN', '只有条目本人或管理员能确认入库');
       }
       if (entry.kind !== 'goods') {
-        throw new ApplicationError('validation', 'REIMBURSE_ENTRY_NOT_GOODS', '纯费用条目无物资可入库');
+        throw appError('validation', 'REIMBURSE_ENTRY_NOT_GOODS', '纯费用条目无物资可入库');
       }
       const snapshot = this.inventory.readStockInSnapshot();
       this.validateLines(entry, command.lines, snapshot);
@@ -532,11 +532,11 @@ export class ReimburseService {
     upload: { filename?: string; buf: Buffer }, actor: ActorRef, expectedRevision: number,
   ): Promise<{ evidence: ReimburseEvidence; entry: ReimburseEntry }> {
     const dir = this.evidenceStorage.dir();
-    if (!dir) throw new ApplicationError('validation', 'REIMBURSE_EVIDENCE_STORAGE_UNCONFIGURED', '未配置凭证留档目录');
+    if (!dir) throw appError('validation', 'REIMBURSE_EVIDENCE_STORAGE_UNCONFIGURED', '未配置凭证留档目录');
     const entry = this.requireEntry(entryId);
-    if (entry.memberId !== actor.id) throw new ApplicationError('forbidden', 'REIMBURSE_EVIDENCE_FORBIDDEN', '只有条目本人能上传凭证');
+    if (entry.memberId !== actor.id) throw appError('forbidden', 'REIMBURSE_EVIDENCE_FORBIDDEN', '只有条目本人能上传凭证');
     const ext = evidenceExtOf(upload.filename);
-    if (!isEvidenceExtAllowed(ext)) throw new ApplicationError('validation', 'REIMBURSE_EVIDENCE_UNSUPPORTED_EXT', `不支持的凭证类型：${ext || '（无后缀）'}`);
+    if (!isEvidenceExtAllowed(ext)) throw appError('validation', 'REIMBURSE_EVIDENCE_UNSUPPORTED_EXT', `不支持的凭证类型：${ext || '（无后缀）'}`);
     const sha256 = this.evidenceStorage.sha256(upload.buf);
     const existing = entry.evidence.find(item => item.sha256 === sha256 && item.kind === kind);
     if (existing) {
@@ -546,10 +546,10 @@ export class ReimburseService {
     }
     this.assertRevision(entry, expectedRevision);
     if (entry.workflowStatus !== 'draft' && entry.workflowStatus !== 'returned') {
-      throw new ApplicationError('conflict', 'REIMBURSE_ENTRY_LOCKED', '只有草稿或退回条目可补传原件');
+      throw appError('conflict', 'REIMBURSE_ENTRY_LOCKED', '只有草稿或退回条目可补传原件');
     }
     if (entry.evidence.length >= REIMBURSE_EVIDENCE_MAX_PER_ENTRY) {
-      throw new ApplicationError('validation', 'REIMBURSE_EVIDENCE_LIMIT', `单个条目最多留档 ${REIMBURSE_EVIDENCE_MAX_PER_ENTRY} 份凭证`);
+      throw appError('validation', 'REIMBURSE_EVIDENCE_LIMIT', `单个条目最多留档 ${REIMBURSE_EVIDENCE_MAX_PER_ENTRY} 份凭证`);
     }
     const originalName = (upload.filename ?? '').split(/[\\/]/).pop()!.trim() || `evidence${ext}`;
     const at = new Date().toISOString();
@@ -567,7 +567,7 @@ export class ReimburseService {
         revision, materials, checkedRevision: null, reviewedRevision: null,
         recognitionConfirmedRevision: null, history: [...entry.history, history],
       });
-      if (!updated) throw new ApplicationError('not_found', 'REIMBURSE_ENTRY_NOT_FOUND', `未知报销条目: ${entryId}`);
+      if (!updated) throw appError('not_found', 'REIMBURSE_ENTRY_NOT_FOUND', `未知报销条目: ${entryId}`);
       return { evidence, entry: withoutEvidence(updated) };
     } catch (error) {
       await this.evidenceStorage.remove(dir, evidence.id).catch(() => {});
@@ -590,22 +590,22 @@ export class ReimburseService {
   ): Promise<ReimburseEvidenceDownloadResult> {
     const dir = this.evidenceStorage.dir();
     if (!dir) {
-      throw new ApplicationError('not_found', 'REIMBURSE_EVIDENCE_STORAGE_UNCONFIGURED', '未配置凭证留档目录');
+      throw appError('not_found', 'REIMBURSE_EVIDENCE_STORAGE_UNCONFIGURED', '未配置凭证留档目录');
     }
     const entry = this.requireEntry(entryId);
     await this.assertEvidenceReadable(entry, actor);
     const evidence = (entry.evidence ?? []).find((item) => item.id === evidenceId);
     if (!evidence) {
-      throw new ApplicationError('not_found', 'REIMBURSE_EVIDENCE_NOT_FOUND', `未知凭证: ${evidenceId}`);
+      throw appError('not_found', 'REIMBURSE_EVIDENCE_NOT_FOUND', `未知凭证: ${evidenceId}`);
     }
     let file: { filename: string; ext: string; content: Buffer } | null;
     try {
       file = await this.evidenceStorage.read(dir, evidenceId);
     } catch {
-      throw new ApplicationError('validation', 'REIMBURSE_EVIDENCE_ILLEGAL_PATH', '非法路径');
+      throw appError('validation', 'REIMBURSE_EVIDENCE_ILLEGAL_PATH', '非法路径');
     }
     if (!file) {
-      throw new ApplicationError('not_found', 'REIMBURSE_EVIDENCE_FILE_MISSING', '该凭证文件缺失（元数据在、字节不在）');
+      throw appError('not_found', 'REIMBURSE_EVIDENCE_FILE_MISSING', '该凭证文件缺失（元数据在、字节不在）');
     }
     this.repository.appendEvidenceDownload({ entryId, evidenceId, actorId: actor.id });
     return {
@@ -621,11 +621,11 @@ export class ReimburseService {
   ): { evidence: ReimburseEvidence; entry: ReimburseEntry } {
     return this.unitOfWork.run(actor, ({ occurredAt }) => {
       const entry = this.requireEntry(entryId);
-      if (entry.memberId !== actor.id) throw new ApplicationError('forbidden', 'REIMBURSE_EVIDENCE_FORBIDDEN', '只有条目本人能修改原件用途');
+      if (entry.memberId !== actor.id) throw appError('forbidden', 'REIMBURSE_EVIDENCE_FORBIDDEN', '只有条目本人能修改原件用途');
       this.assertRevision(entry, expectedRevision);
-      if (entry.workflowStatus !== 'draft' && entry.workflowStatus !== 'returned') throw new ApplicationError('conflict', 'REIMBURSE_ENTRY_LOCKED', '当前状态不可修改原件用途');
+      if (entry.workflowStatus !== 'draft' && entry.workflowStatus !== 'returned') throw appError('conflict', 'REIMBURSE_ENTRY_LOCKED', '当前状态不可修改原件用途');
       const target = entry.evidence.find((item) => item.id === evidenceId);
-      if (!target) throw new ApplicationError('not_found', 'REIMBURSE_EVIDENCE_NOT_FOUND', `未知凭证: ${evidenceId}`);
+      if (!target) throw appError('not_found', 'REIMBURSE_EVIDENCE_NOT_FOUND', `未知凭证: ${evidenceId}`);
       if (target.kind === kind) return { evidence: target, entry: withoutEvidence(entry) };
       const evidence = entry.evidence.map((item) => item.id === evidenceId ? { ...item, kind } : item);
       const revision = entry.revision + 1;
@@ -657,13 +657,13 @@ export class ReimburseService {
 
   private async deleteEvidenceOnce(entryId: string, evidenceId: string, actor: ActorRef, expectedRevision: number): Promise<ReimburseEvidence[]> {
     const entry = this.requireEntry(entryId);
-    if (entry.memberId !== actor.id) throw new ApplicationError('forbidden', 'REIMBURSE_EVIDENCE_FORBIDDEN', '只有条目本人能删除原件');
+    if (entry.memberId !== actor.id) throw appError('forbidden', 'REIMBURSE_EVIDENCE_FORBIDDEN', '只有条目本人能删除原件');
     this.assertRevision(entry, expectedRevision);
     if (entry.workflowStatus !== 'draft' && entry.workflowStatus !== 'returned') {
-      throw new ApplicationError('conflict', 'REIMBURSE_ENTRY_LOCKED', '只有草稿或退回条目可删除原件');
+      throw appError('conflict', 'REIMBURSE_ENTRY_LOCKED', '只有草稿或退回条目可删除原件');
     }
     const target = entry.evidence.find((item) => item.id === evidenceId);
-    if (!target) throw new ApplicationError('not_found', 'REIMBURSE_EVIDENCE_NOT_FOUND', `未知凭证: ${evidenceId}`);
+    if (!target) throw appError('not_found', 'REIMBURSE_EVIDENCE_NOT_FOUND', `未知凭证: ${evidenceId}`);
     const revision = entry.revision + 1;
     const at = new Date().toISOString();
     const history = this.history(entry, 'evidenceRemoved', actor.id, at, { revision, changedFields: [`evidence:${target.kind}`] });
@@ -674,7 +674,7 @@ export class ReimburseService {
       revision, materials, checkedRevision: null, reviewedRevision: null,
       recognitionConfirmedRevision: null, history: [...entry.history, history],
     });
-    if (!updated) throw new ApplicationError('not_found', 'REIMBURSE_EVIDENCE_NOT_FOUND', `未知凭证: ${evidenceId}`);
+    if (!updated) throw appError('not_found', 'REIMBURSE_EVIDENCE_NOT_FOUND', `未知凭证: ${evidenceId}`);
     const dir = this.evidenceStorage.dir();
     if (dir) await this.evidenceStorage.remove(dir, evidenceId).catch(() => {});
     return updated.evidence;
@@ -690,7 +690,7 @@ export class ReimburseService {
   /** D-094 读者链：条目本人或超管（「承担财务职责的成员」拍板沿用超管旗）。 */
   private async assertEvidenceReadable(entry: ReimburseEntry, actor: ActorRef): Promise<void> {
     if (entry.memberId !== actor.id && !(await this.isAdmin(actor.id))) {
-      throw new ApplicationError('forbidden', 'REIMBURSE_EVIDENCE_FORBIDDEN', '只有条目本人或管理员能读凭证');
+      throw appError('forbidden', 'REIMBURSE_EVIDENCE_FORBIDDEN', '只有条目本人或管理员能读凭证');
     }
   }
 
@@ -703,26 +703,26 @@ export class ReimburseService {
     const requestedByLine = new Map<number, number>();
     for (const line of lines) {
       const item = entry.items[line.itemIndex];
-      if (!item) throw new ApplicationError('validation', 'REIMBURSE_STOCK_LINE_NOT_FOUND', `明细行 #${line.itemIndex} 不存在（条目共 ${entry.items.length} 行）`, { itemIndex: line.itemIndex });
+      if (!item) throw appError('validation', 'REIMBURSE_STOCK_LINE_NOT_FOUND', `明细行 #${line.itemIndex} 不存在（条目共 ${entry.items.length} 行）`, { itemIndex: line.itemIndex });
       const requested = (requestedByLine.get(line.itemIndex) ?? 0) + line.quantity;
       requestedByLine.set(line.itemIndex, requested);
       const remaining = item.quantity - (stockedByLine.get(line.itemIndex) ?? 0);
-      if (requested > remaining) throw new ApplicationError('validation', 'REIMBURSE_STOCK_QUANTITY_EXCEEDED', `明细行「${item.name}」剩余可入库 ${remaining}，本次累计申请 ${requested}（防重复入库）`, { itemIndex: line.itemIndex, remaining, requested });
+      if (requested > remaining) throw appError('validation', 'REIMBURSE_STOCK_QUANTITY_EXCEEDED', `明细行「${item.name}」剩余可入库 ${remaining}，本次累计申请 ${requested}（防重复入库）`, { itemIndex: line.itemIndex, remaining, requested });
       const target = line.target;
       if ('partTypeId' in target && !snapshot.partTypes.some((part) => part.id === target.partTypeId)) {
-        throw new ApplicationError('validation', 'INVENTORY_PART_NOT_FOUND', `未知件: ${target.partTypeId}`, { partTypeId: target.partTypeId });
+        throw appError('validation', 'INVENTORY_PART_NOT_FOUND', `未知件: ${target.partTypeId}`, { partTypeId: target.partTypeId });
       }
       if ('newPart' in target && snapshot.partTypes.some((part) => part.partNumber === target.newPart.partNumber)) {
-        throw new ApplicationError('validation', 'INVENTORY_PART_NUMBER_CONFLICT', `件号 ${target.newPart.partNumber} 已存在，请改用 partTypeId 入库`, { partNumber: target.newPart.partNumber });
+        throw appError('validation', 'INVENTORY_PART_NUMBER_CONFLICT', `件号 ${target.newPart.partNumber} 已存在，请改用 partTypeId 入库`, { partNumber: target.newPart.partNumber });
       }
     }
     const numbers = lines.flatMap((line) => 'newPart' in line.target ? [line.target.newPart.partNumber] : []);
-    if (new Set(numbers).size !== numbers.length) throw new ApplicationError('validation', 'REIMBURSE_STOCK_DUPLICATE_PART_NUMBER', '同批新建件号重复');
+    if (new Set(numbers).size !== numbers.length) throw appError('validation', 'REIMBURSE_STOCK_DUPLICATE_PART_NUMBER', '同批新建件号重复');
   }
 
   private assertRevision(entry: ReimburseEntry, expectedRevision: number): void {
     if (entry.revision !== expectedRevision) {
-      throw new ApplicationError('conflict', 'REIMBURSE_REVISION_CONFLICT', '条目已被更新，请刷新后重试', {
+      throw appError('conflict', 'REIMBURSE_REVISION_CONFLICT', '条目已被更新，请刷新后重试', {
         expectedRevision, actualRevision: entry.revision,
       });
     }
@@ -743,18 +743,18 @@ export class ReimburseService {
   }
 
   private throwInvalidTransition(from: ReimburseEntry['workflowStatus'], to: ReimburseEntry['workflowStatus']): never {
-    throw new ApplicationError('conflict', 'REIMBURSE_WORKFLOW_INVALID', `不允许从 ${from} 转为 ${to}`, { from, to });
+    throw appError('conflict', 'REIMBURSE_WORKFLOW_INVALID', `不允许从 ${from} 转为 ${to}`, { from, to });
   }
 
   private requireEntry(id: string): ReimburseEntry {
     const entry = this.repository.getEntry(id);
-    if (!entry) throw new ApplicationError('not_found', 'REIMBURSE_ENTRY_NOT_FOUND', `未知报销条目: ${id}`);
+    if (!entry) throw appError('not_found', 'REIMBURSE_ENTRY_NOT_FOUND', `未知报销条目: ${id}`);
     return entry;
   }
 
   private async requireAdmin(identity: SessionIdentity | null): Promise<void> {
     if (!identity || !(await this.isAdmin(identity.memberId))) {
-      throw new ApplicationError('forbidden', 'REIMBURSE_ADMIN_REQUIRED', '仅超管可操作报销批次或配置');
+      throw appError('forbidden', 'REIMBURSE_ADMIN_REQUIRED', '仅超管可操作报销批次或配置');
     }
   }
 

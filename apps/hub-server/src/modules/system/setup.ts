@@ -8,6 +8,7 @@ import { RESTART_EXIT_CODE } from '../../build-setup-server.js';
 import type { SetupControl } from '../../server.js';
 import type { PmRepository } from '../pm/repository.js';
 import { parseBody, requireSuperAdmin } from '../../http/helpers.js';
+import { fail } from '../../lib/fail.js';
 
 export interface SetupRouteDeps {
   store: PmRepository;
@@ -32,7 +33,7 @@ export function registerSetupRoutes(app: FastifyInstance, deps: SetupRouteDeps):
   });
 
   app.post('/api/setup/init', async (_request, reply) => {
-    void reply.code(409).send({ detail: 'TeamHub 已初始化' });
+    void fail(reply, 'CONFLICT', { status: 409, detail: 'TeamHub 已初始化' });
     return reply;
   });
 
@@ -60,9 +61,7 @@ export function registerSetupRoutes(app: FastifyInstance, deps: SetupRouteDeps):
     }
     const settings = setupControl.settingsService.getSettings();
     if (!settings || settings.dataMode !== 'demo') {
-      void reply
-        .code(409)
-        .send({ detail: '当前已是正式（real）部署，转正式门只在演示（demo）态可用' });
+      void fail(reply, 'CONFLICT', { status: 409, detail: '当前已是正式（real）部署，转正式门只在演示（demo）态可用' });
       return reply;
     }
 

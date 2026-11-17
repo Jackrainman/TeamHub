@@ -83,7 +83,7 @@ describe('首登 PIN 闸（mustSetPin）', () => {
       // 业务读/写全 403 PIN_SETUP_REQUIRED
       const read = await app.inject({ method: 'GET', url: '/api/tasks', headers: { cookie } });
       expect(read.statusCode).toBe(403);
-      expect(read.json().code).toBe('PIN_SETUP_REQUIRED');
+      expect(read.json()).toMatchObject({ code: 'SETUP_REQUIRED', fields: { reason: 'PIN_SETUP_REQUIRED' } });
       const write = await app.inject({
         method: 'POST',
         url: '/api/dependencies',
@@ -151,7 +151,7 @@ describe('首登 PIN 闸（mustSetPin）', () => {
       // 业务端点仍被首登闸拦（放行面未扩大）
       const blocked = await app.inject({ method: 'GET', url: '/api/tasks', headers: { cookie } });
       expect(blocked.statusCode).toBe(403);
-      expect(blocked.json().code).toBe('PIN_SETUP_REQUIRED');
+      expect(blocked.json()).toMatchObject({ code: 'SETUP_REQUIRED', fields: { reason: 'PIN_SETUP_REQUIRED' } });
     } finally {
       await app.close();
     }

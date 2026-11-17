@@ -105,7 +105,7 @@ describe('倒排基准线路由（BASELINE-CORE，S4）', () => {
         },
       });
       expect(bad.statusCode).toBe(400);
-      expect(bad.json().code).toBe('BASELINE_SEGMENT_RANGE_INVALID');
+      expect(bad.json()).toMatchObject({ code: 'VALIDATION_FAILED', fields: { reason: 'BASELINE_SEGMENT_RANGE_INVALID' } });
 
       const good = await app.inject({
         method: 'PATCH',

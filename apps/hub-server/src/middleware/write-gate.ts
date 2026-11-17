@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { IdentityMode } from '@teamhub/hub-contracts';
 import { isLoopbackOperator } from '../http/helpers.js';
+import { fail } from '../lib/fail.js';
 
 export interface WriteGateOptions {
   writeToken?: string;
@@ -40,7 +41,7 @@ export function registerWriteGate(app: FastifyInstance, opts: WriteGateOptions):
       !sessionAuthed &&
       request.headers.authorization !== `Bearer ${writeToken}`
     ) {
-      void reply.code(401).send({ detail: 'unauthorized' });
+      void fail(reply, 'UNAUTHENTICATED', { status: 401, detail: 'unauthorized' });
       return reply;
     }
     if (identityMode === 'identity') {
@@ -51,7 +52,7 @@ export function registerWriteGate(app: FastifyInstance, opts: WriteGateOptions):
         !isPinRecovery &&
         !request.identity
       ) {
-        void reply.code(401).send({ detail: 'login required' });
+        void fail(reply, 'UNAUTHENTICATED', { status: 401, detail: 'login required' });
         return reply;
       }
     }
@@ -64,7 +65,7 @@ export function registerWriteGate(app: FastifyInstance, opts: WriteGateOptions):
       }
       rateHits.set(ip, { count: 1, resetAt: nowMs + rateLimit.windowMs });
     } else if (hit.count >= rateLimit.max) {
-      void reply.code(429).send({ detail: 'rate limit exceeded' });
+      void fail(reply, 'FORBIDDEN', { status: 429, detail: 'rate limit exceeded' });
       return reply;
     } else {
       hit.count += 1;

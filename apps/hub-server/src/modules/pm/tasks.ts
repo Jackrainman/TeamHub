@@ -31,6 +31,8 @@ import type { LarkIntegrationStore } from '../integrations/lark-store.js';
 import { PmService } from './service.js';
 import type { PmOutcome } from './service.js';
 import type { FastifyReply } from 'fastify';
+import { LEGACY_CODE_MAP } from '@teamhub/hub-contracts';
+import { fail } from '../../lib/fail.js';
 
 export interface TaskRouteDeps {
   store: PmRepository;
@@ -62,7 +64,7 @@ export function registerTaskRoutes(app: FastifyInstance, deps: TaskRouteDeps): v
   const { store, service, identityMode } = deps;
 
   app.post('/api/tasks/:taskId/edit', async (request, reply) => {
-    if (!request.identity) return reply.code(403).send({ code: 'PM_SESSION_REQUIRED', detail: '请先登录' });
+    if (!request.identity) return fail(reply, LEGACY_CODE_MAP.PM_SESSION_REQUIRED, { status: 403, detail: '请先登录', fields: { reason: 'PM_SESSION_REQUIRED' } });
     const input = parseBody(UpdateSelfTaskRequestSchema, request, reply);
     if (!input) return;
     const { taskId } = request.params as { taskId: string };
@@ -142,7 +144,7 @@ export function registerTaskRoutes(app: FastifyInstance, deps: TaskRouteDeps): v
   // ── 任务 ──
 
   app.post('/api/weeks/:weekKey/tasks', async (request, reply) => {
-    if (!request.identity) return reply.code(403).send({ code: 'PM_SESSION_REQUIRED', detail: '请先登录后自报任务' });
+    if (!request.identity) return fail(reply, LEGACY_CODE_MAP.PM_SESSION_REQUIRED, { status: 403, detail: '请先登录后自报任务', fields: { reason: 'PM_SESSION_REQUIRED' } });
     const parsed = parseBody(SelfReportTaskRequestSchema, request, reply);
     if (!parsed) return;
     const { weekKey } = request.params as { weekKey: string };
@@ -151,7 +153,7 @@ export function registerTaskRoutes(app: FastifyInstance, deps: TaskRouteDeps): v
   });
 
   app.post('/api/tasks/:taskId/weeks', async (request, reply) => {
-    if (!request.identity) return reply.code(403).send({ code: 'PM_SESSION_REQUIRED', detail: '请先登录后延续任务' });
+    if (!request.identity) return fail(reply, LEGACY_CODE_MAP.PM_SESSION_REQUIRED, { status: 403, detail: '请先登录后延续任务', fields: { reason: 'PM_SESSION_REQUIRED' } });
     const parsed = parseBody(LinkTaskWeekRequestSchema, request, reply);
     if (!parsed) return;
     const { taskId } = request.params as { taskId: string };

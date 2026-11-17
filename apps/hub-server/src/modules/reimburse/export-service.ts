@@ -116,7 +116,8 @@ export async function buildReimburseDelivery(
           files[path] = new Uint8Array(content);
           target.evidence.push({ evidenceId: evidence.id, role: evidence.kind, originalName: evidence.originalName, sha256: evidence.sha256, path, status: 'archived' });
         } catch (error) {
-          const code = (error as { code?: string })?.code ?? (error instanceof Error ? error.message : 'READ_FAILED');
+          const reason = (error as { fields?: { reason?: string } })?.fields?.reason;
+          const code = reason ?? (error as { code?: string })?.code ?? (error instanceof Error ? error.message : 'READ_FAILED');
           if (code === 'REIMBURSE_EXPORT_TOO_LARGE') throw error;
           target.evidence.push({ evidenceId: evidence.id, role: evidence.kind, originalName: evidence.originalName, sha256: evidence.sha256, path, status: 'failed', failure: code });
         }
