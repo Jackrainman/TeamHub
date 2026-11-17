@@ -1,4 +1,5 @@
-import type { MemberRole, RosterImportRow, RosterPreviewResponse } from '@teamhub/hub-contracts';
+import { useQueryClient } from '@tanstack/react-query';
+import type { MemberPublic, MemberRole, RosterImportRow, RosterPreviewResponse } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../api/client';
 import { queryKeys } from '../../api/queryKeys';
 import { useHubMutation } from '../../hooks/useHubMutation';
@@ -25,11 +26,20 @@ export function useGroupMutations(client: HubApiClient, opts: { createName: stri
   return { createMutation, renameMutation, deleteMutation };
 }
 export function useMemberMutations(client: HubApiClient) {
-  const roleMutation = useHubMutation({ meta: { silent: true }, invalidateKeys: [queryKeys.members()],
-    mutationFn: (vars: { id: string; role: MemberRole }) => client.setMemberRole(vars.id, { role: vars.role }) });
-  const pmMutation = useHubMutation({ meta: { silent: true }, invalidateKeys: [queryKeys.members()],
-    mutationFn: (vars: { id: string; projectManager: boolean }) => client.setMemberProjectManager(vars.id, { projectManager: vars.projectManager }) });
-  const clearPinMutation = useHubMutation({ meta: { silent: true }, invalidateKeys: [queryKeys.members()],
-    mutationFn: (vars: { id: string }) => client.clearMemberPin(vars.id) });
+  const queryClient = useQueryClient();
+  const syncMember = (member: MemberPublic) => {
+    queryClient.setQueriesData<{ members: MemberPublic[] }>({ queryKey: queryKeys.members() }, (current) =>
+      current ? { ...current, members: current.members.map((item) => item.id === member.id ? member : item) } : current);
+    void queryClient.invalidateQueries({ queryKey: queryKeys.members() });
+  };
+  const roleMutation = useHubMutation({ meta: { silent: true }, invalidateKeys: [],
+    mutationFn: (vars: { id: string; role: MemberRole }) => client.setMemberRole(vars.id, { role: vars.role }),
+    onSuccess: (data) => syncMember(data.member) });
+  const pmMutation = useHubMutation({ meta: { silent: true }, invalidateKeys: [],
+    mutationFn: (vars: { id: string; projectManager: boolean }) => client.setMemberProjectManager(vars.id, { projectManager: vars.projectManager }),
+    onSuccess: (data) => syncMember(data.member) });
+  const clearPinMutation = useHubMutation({ meta: { silent: true }, invalidateKeys: [],
+    mutationFn: (vars: { id: string }) => client.clearMemberPin(vars.id),
+    onSuccess: (data) => syncMember(data.member) });
   return { roleMutation, pmMutation, clearPinMutation };
 }

@@ -8,8 +8,8 @@ import type { Task, TaskWithMeta } from '../src/index.js';
 function task(patch: Partial<Task> = {}): TaskWithMeta {
   return {
     id: 'task-1', groupId: 'grp-1', title: '任务', rawSummary: '摘要', status: 'pending',
-    statusSource: 'console', ownerId: 'member-1', collaboratorIds: [], intrinsicComplexity: 'normal',
-    lastProgressAt: null, createdAt: '2026-11-01T00:00:00.000Z', updatedAt: '2026-11-01T00:00:00.000Z',
+    ownerId: 'member-1', collaboratorIds: [], intrinsicComplexity: 'normal',
+    createdAt: '2026-11-01T00:00:00.000Z', updatedAt: '2026-11-01T00:00:00.000Z',
     ...patch,
   };
 }

@@ -55,13 +55,13 @@ export class SqliteSettingsRepository implements SettingsRepository {
   setMemberRole(id: string, role: MemberRole): Member | undefined {
     return this.db.tx(() => {
       const member = this.getMember(id);
-      return member ? this.saveMember({ ...member, role, updatedBy: 'console', updatedAt: new Date().toISOString() }) : undefined;
+      return member ? this.saveMember({ ...member, role, updatedAt: new Date().toISOString() }) : undefined;
     });
   }
   setGateReviewer(id: string, value: boolean): Member | undefined {
     return this.db.tx(() => {
       const member = this.getMember(id);
-      return member ? this.saveMember({ ...member, gateReviewer: value, updatedBy: 'console', updatedAt: new Date().toISOString() }) : undefined;
+      return member ? this.saveMember({ ...member, gateReviewer: value, updatedAt: new Date().toISOString() }) : undefined;
     });
   }
   setProjectManager(id: string, value: boolean): MemberResult {
@@ -71,14 +71,14 @@ export class SqliteSettingsRepository implements SettingsRepository {
       if (!value && member.projectManager && this.listMembers().filter((item) => item.projectManager).length <= 1) {
         return { ok: false as const, reason: 'last-project-manager' as const };
       }
-      return { ok: true as const, member: this.saveMember({ ...member, projectManager: value, updatedBy: 'console', updatedAt: new Date().toISOString() }) };
+      return { ok: true as const, member: this.saveMember({ ...member, projectManager: value, updatedAt: new Date().toISOString() }) };
     });
   }
   setMemberPin(id: string, pinHash: string | null): Member | undefined {
     return this.db.tx(() => {
       const member = this.getMember(id);
       if (!member) return undefined;
-      const next = { ...member, updatedBy: 'console', updatedAt: new Date().toISOString() };
+      const next = { ...member, updatedAt: new Date().toISOString() };
       if (pinHash === null) delete next.pinHash;
       else next.pinHash = pinHash;
       return this.saveMember(next);
@@ -100,13 +100,13 @@ export class SqliteSettingsRepository implements SettingsRepository {
         const existing = this.listMembers().find((member) => member.displayName === row.displayName);
         if (existing) {
           this.saveMember({ ...existing, grade: row.grade, groupId: group.id, gateReviewer: row.gateReviewer,
-            updatedBy: 'console', updatedAt: new Date().toISOString() });
+            updatedAt: new Date().toISOString() });
           result.updated.push(existing.displayName);
         } else {
           const member = MemberSchema.parse({
             id: nextId(this.db, 'members', 'member-v1'), displayName: row.displayName, role: 'member',
-            grade: row.grade, groupId: group.id, status: 'idle', currentTaskId: null,
-            updatedBy: 'console', updatedAt: new Date().toISOString(), gateReviewer: row.gateReviewer,
+            grade: row.grade, groupId: group.id,
+            updatedAt: new Date().toISOString(), gateReviewer: row.gateReviewer,
           });
           this.db.insertRow('members', member.id, member);
           result.created.push(member.displayName);
@@ -135,13 +135,13 @@ export class SqliteSettingsRepository implements SettingsRepository {
         member = MemberSchema.parse({
           id: nextId(this.db, 'members', 'member-v1'), displayName: input.displayName,
           role: input.asGroupLead ? 'groupAdmin' : 'member', grade, groupId: group.id,
-          status: 'idle', currentTaskId: null, updatedBy: 'console', updatedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
           gateReviewer: GATE_REVIEWER_DEFAULT_GRADES.has(grade),
         });
         this.db.insertRow('members', member.id, member);
       }
       return this.saveMember({ ...member, projectManager: true, pinHash: input.pinHash,
-        role: input.asGroupLead ? 'groupAdmin' : member.role, updatedBy: 'console', updatedAt: new Date().toISOString() });
+        role: input.asGroupLead ? 'groupAdmin' : member.role, updatedAt: new Date().toISOString() });
     });
   }
 }

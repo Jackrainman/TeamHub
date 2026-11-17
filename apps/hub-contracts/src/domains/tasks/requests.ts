@@ -7,7 +7,7 @@ const taskResponse = z.object({ task: TaskSchema });
 const actor = ActorRefSchema.optional();
 const revision = z.number().int().nonnegative().optional();
 const CreateTaskObjectSchema = TaskObjectSchema.pick({
-  groupId: true, title: true, rawSummary: true, polishedSummary: true,
+  groupId: true, title: true, rawSummary: true,
   ownerId: true, collaboratorIds: true, robotTarget: true, targetLabel: true,
   intrinsicComplexity: true, plannedStart: true, plannedEnd: true,
 }).extend({ status: z.enum(['pending', 'inProgress']).optional() });

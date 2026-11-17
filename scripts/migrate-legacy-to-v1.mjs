@@ -9,10 +9,11 @@ const TABLES = ['groups', 'members', 'tasks', 'reimburse_entries', 'reimburse_ba
 const TASK_DROPPED = new Set([
   'projectId', 'seasonId', 'milestoneId', 'convergenceScope', 'investment', 'assignReason',
   'assignedBy', 'partnerMemberId', 'crossClaimConfirmedBy', 'ownershipEvents',
+  'polishedSummary', 'lastProgressAt', 'statusSource',
 ]);
 const GROUP_DROPPED = new Set(['seasonId', 'parentGroupId']);
 const REIMBURSE_DROPPED = new Set(['projectId', 'seasonId']);
-const MEMBER_DROPPED = new Set(['pinPlaintext']);
+const MEMBER_DROPPED = new Set(['pinPlaintext', 'status', 'currentTaskId', 'updatedBy']);
 
 function readRows(db, table) {
   return db.prepare(`SELECT data FROM ${table} ORDER BY rowid`).all().map((row) => JSON.parse(row.data));
@@ -122,17 +123,13 @@ export function migrateLegacyToV1(options) {
 
   const groupIds = uniqueIds(groups, 'groups');
   const memberIds = uniqueIds(members, 'members');
-  const taskIds = uniqueIds(tasks, 'tasks');
+  uniqueIds(tasks, 'tasks');
   const entryIds = uniqueIds(entries, 'reimburse_entries');
   const batchIds = uniqueIds(batches, 'reimburse_batches');
   const dangling = [];
   const report = { dangling };
   for (const member of members) {
     countDangling(report, 'members', member.id, 'groupId', member.groupId && !groupIds.has(member.groupId));
-    if (member.currentTaskId && !taskIds.has(member.currentTaskId)) {
-      member.currentTaskId = null;
-      discardedFields['members.currentTaskId(cleared)'] = (discardedFields['members.currentTaskId(cleared)'] ?? 0) + 1;
-    }
   }
   for (const task of tasks) {
     countDangling(report, 'tasks', task.id, 'groupId', !groupIds.has(task.groupId));

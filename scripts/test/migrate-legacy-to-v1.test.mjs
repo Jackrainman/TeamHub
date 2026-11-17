@@ -31,8 +31,10 @@ function fixture() {
   insert('members', { id: 'member-1', displayName: '测试成员', role: 'member', grade: 'junior', groupId: 'grp-1',
     status: 'idle', currentTaskId: null, updatedBy: 'console', updatedAt: '2026-01-01T00:00:00.000Z', pinHash: 'test-pin-sentinel' });
   insert('tasks', { id: 'task-1', projectId: 'old-project', groupId: 'grp-1', title: '跨周任务', rawSummary: '测试',
-    status: 'inProgress', statusSource: 'console', ownerId: 'member-1', collaboratorIds: [], intrinsicComplexity: 'normal',
+    polishedSummary: '旧摘要', status: 'inProgress', statusSource: 'console', ownerId: 'member-1', collaboratorIds: [], intrinsicComplexity: 'normal',
     lastProgressAt: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
+    createdBy: { id: 'member-1', displayName: '测试成员', source: 'console' },
+    completedBy: { id: 'member-1', displayName: '测试成员', source: 'console' },
     weekLinks: [{ weekKey: '2026-W02', linkedAt: '2026-01-01T00:00:00.000Z', linkedBy: { id: 'member-1', displayName: '测试成员', source: 'console' } },
       { weekKey: '2026-W01', linkedAt: '2026-01-01T00:00:00.000Z', linkedBy: { id: 'member-1', displayName: '测试成员', source: 'console' } }],
     ownershipEvents: [] });
@@ -64,6 +66,12 @@ test('dry-run is read-only and write preserves ids, derives inclusive dates and 
   assert.equal(dry.after.unscheduledTasks, 1);
   assert.equal(dry.evidence.missing, 0);
   assert.equal(dry.danglingReferences, 0);
+  assert.equal(dry.discardedFields['tasks.polishedSummary'], 1);
+  assert.equal(dry.discardedFields['tasks.lastProgressAt'], 2);
+  assert.equal(dry.discardedFields['tasks.statusSource'], 2);
+  assert.equal(dry.discardedFields['members.status'], 1);
+  assert.equal(dry.discardedFields['members.currentTaskId'], 1);
+  assert.equal(dry.discardedFields['members.updatedBy'], 1);
   assert.equal(fs.existsSync(value.output), false);
   assert.equal(fs.existsSync(value.outputAttachments), false);
 
@@ -78,9 +86,20 @@ test('dry-run is read-only and write preserves ids, derives inclusive dates and 
   assert.equal(first.plannedEnd, '2026-01-11');
   assert.equal(first.projectId, undefined);
   assert.equal(first.ownershipEvents, undefined);
+  assert.equal(first.polishedSummary, undefined);
+  assert.equal(first.lastProgressAt, undefined);
+  assert.equal(first.statusSource, undefined);
+  assert.equal(first.updatedAt, '2026-01-01T00:00:00.000Z');
+  assert.equal(first.createdBy.id, 'member-1');
+  assert.equal(first.completedBy.id, 'member-1');
   assert.equal(second.plannedStart, null);
   assert.equal(second.plannedEnd, null);
-  assert.equal(JSON.parse(db.prepare('SELECT data FROM members WHERE id = ?').get('member-1').data).pinHash, 'test-pin-sentinel');
+  const member = JSON.parse(db.prepare('SELECT data FROM members WHERE id = ?').get('member-1').data);
+  assert.equal(member.pinHash, 'test-pin-sentinel');
+  assert.equal(member.status, undefined);
+  assert.equal(member.currentTaskId, undefined);
+  assert.equal(member.updatedBy, undefined);
+  assert.equal(member.updatedAt, '2026-01-01T00:00:00.000Z');
   assert.equal(JSON.parse(db.prepare('SELECT data FROM groups WHERE id = ?').get('grp-1').data).seasonId, undefined);
   assert.equal(JSON.parse(db.prepare('SELECT data FROM reimburse_entries WHERE id = ?').get('entry-1').data).workflowStatus, 'draft');
   assert.equal(fs.readFileSync(path.join(value.outputAttachments, 'evidence-1.pdf'), 'utf8'), 'fixture evidence');

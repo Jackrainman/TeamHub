@@ -49,7 +49,7 @@ export class TasksService {
     const now = this.now();
     const status = input.status ?? 'pending';
     const task = TaskSchema.parse({
-      ...input, id: this.nextId(), status, statusSource: 'console', lastProgressAt: null,
+      ...input, id: this.nextId(), status,
       createdAt: now, updatedAt: now, createdBy: actor, revision: 0,
       activity: [{ kind: 'created', at: now, by: actor, title: input.title, rawSummary: input.rawSummary }],
       transitions: [{ from: null, to: status, at: now, by: actor }],
@@ -63,7 +63,7 @@ export class TasksService {
     const now = this.now();
     const task = TaskSchema.parse({
       ...input, id: this.nextId(), ownerId: actor.id, collaboratorIds: [], status: 'inProgress',
-      statusSource: 'console', lastProgressAt: null, createdAt: now, updatedAt: now,
+      createdAt: now, updatedAt: now,
       createdBy: actor, claimedAt: now, reviewerIds: [...new Set(input.reviewerIds ?? [])],
       weekLinks: [{ weekKey, linkedAt: now, linkedBy: actor }], revision: 0,
       activity: [{ kind: 'created', at: now, by: actor, title: input.title, rawSummary: input.rawSummary,
@@ -113,7 +113,7 @@ export class TasksService {
     const at = this.now();
     return ok(this.repository.updateTask(taskId, (current) => ({
       ...current, ownerId: actor.id, claimedAt: at, status: current.status === 'pending' ? 'inProgress' : current.status,
-      statusSource: 'console', updatedAt: at, revision: (current.revision ?? 0) + 1,
+      updatedAt: at, revision: (current.revision ?? 0) + 1,
       ...(weekKey && !current.weekLinks?.some((link) => link.weekKey === weekKey)
         ? { weekLinks: [...(current.weekLinks ?? []), { weekKey, linkedAt: at, linkedBy: actor }] } : {}),
       transitions: [...(current.transitions ?? []), { from: current.status, to: current.status === 'pending' ? 'inProgress' : current.status, at, by: actor }],
@@ -127,7 +127,7 @@ export class TasksService {
     const at = this.now();
     return ok(this.repository.updateTask(taskId, (current) => {
       const { reviewedBy: _reviewedBy, reviewedAt: _reviewedAt, reviewNote: _note, delivery: _delivery, ...rest } = current;
-      return { ...rest, status: 'done', statusSource: 'console', completedBy: actor, completedAt: at,
+      return { ...rest, status: 'done', completedBy: actor, completedAt: at,
         revision: (current.revision ?? 0) + 1, updatedAt: at,
         transitions: [...(current.transitions ?? []), { from: current.status, to: 'done' as const, at, by: actor }] };
     })!);
@@ -141,7 +141,7 @@ export class TasksService {
     if (!task.ownerId || (task.ownerId !== actor.id && !this.isAdmin(actor))) return failure(403, 'Only the owner may progress a task');
     const at = this.now();
     return ok(this.repository.updateTask(taskId, (current) => ({
-      ...current, status, statusSource: 'console', revision: (current.revision ?? 0) + 1, updatedAt: at,
+      ...current, status, revision: (current.revision ?? 0) + 1, updatedAt: at,
       transitions: [...(current.transitions ?? []), { from: current.status, to: status, at, by: actor }],
     }))!);
   }
@@ -164,7 +164,7 @@ export class TasksService {
       const { reviewedBy: _reviewedBy, reviewedAt: _reviewedAt, reviewNote: _note, ...rest } = current;
       const rejecting = input.outcome === 'reject';
       return {
-        ...rest, status: rejecting ? 'inProgress' : 'done', statusSource: 'console',
+        ...rest, status: rejecting ? 'inProgress' : 'done',
         ...(rejecting ? {} : { reviewedBy: actor, reviewedAt: at, delivery }),
         ...(input.note !== undefined ? { reviewNote: input.note } : {}),
         revision: (current.revision ?? 0) + 1, updatedAt: at,

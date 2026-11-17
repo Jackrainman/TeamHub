@@ -3,8 +3,8 @@ import type { TaskWithMeta } from '@teamhub/hub-contracts';
 import { filterRailTasks, groupRailTasks, railDisplayStatus } from '../src/features/pm/rail/task-rail-model';
 
 function task(id: string, patch: Partial<TaskWithMeta> = {}): TaskWithMeta {
-  return { id, groupId: 'grp-1', title: id, rawSummary: 'fixture', status: 'pending', statusSource: 'console',
-    ownerId: 'me', collaboratorIds: [], intrinsicComplexity: 'normal', lastProgressAt: null,
+  return { id, groupId: 'grp-1', title: id, rawSummary: 'fixture', status: 'pending',
+    ownerId: 'me', collaboratorIds: [], intrinsicComplexity: 'normal',
     createdAt: '2026-11-17T01:00:00.000Z', updatedAt: '2026-11-17T01:00:00.000Z', ...patch };
 }
 describe('persistent task rail', () => {

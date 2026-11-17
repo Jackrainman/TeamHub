@@ -4,8 +4,8 @@ import { buildMonthGrid, layoutWeekBars } from '../src/features/pm/calendar/cale
 import { addDays, dateKeyOf, filterTasksByScope } from '../src/features/pm/calendar/model';
 
 function task(id: string, plannedStart?: string, plannedEnd?: string, patch: Partial<Task> = {}): Task {
-  return { id, groupId: 'grp-1', title: id, rawSummary: 'calendar fixture', status: 'pending', statusSource: 'console',
-    ownerId: 'me', collaboratorIds: [], intrinsicComplexity: 'normal', lastProgressAt: null,
+  return { id, groupId: 'grp-1', title: id, rawSummary: 'calendar fixture', status: 'pending',
+    ownerId: 'me', collaboratorIds: [], intrinsicComplexity: 'normal',
     createdAt: '2026-11-01T00:00:00.000Z', updatedAt: '2026-11-01T00:00:00.000Z', plannedStart, plannedEnd, ...patch };
 }
 describe('Task month calendar', () => {

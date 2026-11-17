@@ -17,16 +17,12 @@ export const MemberRoleSchema = z.enum(['groupAdmin', 'member']);
 export const MemberGradeSchema = z.enum([
   'freshman', 'sophomore', 'junior', 'senior', 'graduate', 'grad1', 'grad2', 'grad3',
 ]);
-export const MemberStatusSchema = z.enum(['idle', 'working', 'blocked', 'offline']);
 export const MemberSchema = z.object({
   id: z.string().min(1),
   displayName: z.string().trim().min(1),
   role: MemberRoleSchema,
   grade: MemberGradeSchema,
   groupId: z.string().min(1),
-  status: MemberStatusSchema,
-  currentTaskId: z.string().min(1).nullable(),
-  updatedBy: z.string().min(1),
   updatedAt: isoDateTimeSchema,
   pinHash: z.string().min(1).optional(),
   gateReviewer: z.boolean().optional(),
@@ -78,9 +74,7 @@ export const TaskObjectSchema = z.object({
   groupId: z.string().min(1),
   title: z.string().trim().min(1),
   rawSummary: z.string().trim().min(1),
-  polishedSummary: z.string().trim().min(1).optional(),
   status: TaskStatusSchema,
-  statusSource: z.string().min(1),
   ownerId: z.string().min(1).nullable(),
   collaboratorIds: z.array(z.string().min(1)),
   robotTarget: RobotTargetSchema.optional(),
@@ -88,7 +82,6 @@ export const TaskObjectSchema = z.object({
   intrinsicComplexity: TaskComplexitySchema,
   plannedStart: DateKeySchema.nullable().optional(),
   plannedEnd: DateKeySchema.nullable().optional(),
-  lastProgressAt: isoDateTimeSchema.nullable(),
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
   createdBy: ActorRefSchema.optional(),
