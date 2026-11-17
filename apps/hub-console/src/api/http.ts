@@ -1,3 +1,4 @@
+import { isErrorCode, type ErrorCode } from '@teamhub/hub-contracts';
 import { z } from 'zod';
 
 export type FetchLike = typeof fetch;
@@ -6,6 +7,25 @@ export interface HttpContext {
   baseUrl: string;
   fetcher: FetchLike;
   writeToken?: string;
+}
+
+export class HubApiError extends Error {
+  readonly status: number;
+  readonly code: ErrorCode | undefined;
+  readonly fields: Readonly<Record<string, unknown>> | undefined;
+
+  constructor(
+    status: number,
+    detail: string,
+    code?: ErrorCode,
+    fields?: Readonly<Record<string, unknown>>,
+  ) {
+    super(detail);
+    this.name = 'HubApiError';
+    this.status = status;
+    this.code = code;
+    this.fields = fields;
+  }
 }
 
 export const DeletedResponseSchema = z.object({ deleted: z.string().min(1) });
@@ -25,9 +45,12 @@ export async function fetchJson<T>(
 ): Promise<T> {
   const response = await fetcher(url);
   if (!response.ok) {
-    const detail = await readDetail(response);
-    throw new Error(
-      detail ? `${response.status}: ${detail}` : `Hub API ${response.status}: ${url}`,
+    const error = await readApiError(response);
+    throw new HubApiError(
+      response.status,
+      error.detail ?? `Hub API ${response.status}: ${url}`,
+      error.code,
+      error.fields,
     );
   }
   return schema.parse(await response.json());
@@ -60,9 +83,12 @@ export async function sendJson<T>(
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   if (!response.ok) {
-    const detail = await readDetail(response);
-    throw new Error(
-      detail ? `${response.status}: ${detail}` : `Hub API ${response.status}: ${url}`,
+    const error = await readApiError(response);
+    throw new HubApiError(
+      response.status,
+      error.detail ?? `Hub API ${response.status}: ${url}`,
+      error.code,
+      error.fields,
     );
   }
   return schema.parse(await response.json());
@@ -87,9 +113,12 @@ export async function postFormData<T>(
   if (writeToken) headers.authorization = `Bearer ${writeToken}`;
   const response = await fetcher(url, { method: 'POST', headers, body: form });
   if (!response.ok) {
-    const detail = await readDetail(response);
-    throw new Error(
-      detail ? `${response.status}: ${detail}` : `Hub API ${response.status}: ${url}`,
+    const error = await readApiError(response);
+    throw new HubApiError(
+      response.status,
+      error.detail ?? `Hub API ${response.status}: ${url}`,
+      error.code,
+      error.fields,
     );
   }
   return schema.parse(await response.json());
@@ -108,19 +137,38 @@ export async function postMultiFormData<T>(
   if (writeToken) headers.authorization = `Bearer ${writeToken}`;
   const response = await fetcher(url, { method: 'POST', headers, body: form });
   if (!response.ok) {
-    const detail = await readDetail(response);
-    throw new Error(
-      detail ? `${response.status}: ${detail}` : `Hub API ${response.status}: ${url}`,
+    const error = await readApiError(response);
+    throw new HubApiError(
+      response.status,
+      error.detail ?? `Hub API ${response.status}: ${url}`,
+      error.code,
+      error.fields,
     );
   }
   return schema.parse(await response.json());
 }
 
-async function readDetail(response: Response): Promise<string | null> {
+async function readApiError(response: Response): Promise<{
+  detail: string | null;
+  code?: ErrorCode;
+  fields?: Readonly<Record<string, unknown>>;
+}> {
   try {
-    const body = (await response.json()) as { detail?: unknown };
-    return typeof body.detail === 'string' ? body.detail : null;
+    const body = (await response.json()) as {
+      detail?: unknown;
+      code?: unknown;
+      fields?: unknown;
+    };
+    const fields =
+      body.fields && typeof body.fields === 'object' && !Array.isArray(body.fields)
+        ? (body.fields as Readonly<Record<string, unknown>>)
+        : undefined;
+    return {
+      detail: typeof body.detail === 'string' ? body.detail : null,
+      code: isErrorCode(body.code) ? body.code : undefined,
+      fields,
+    };
   } catch {
-    return null;
+    return { detail: null };
   }
 }

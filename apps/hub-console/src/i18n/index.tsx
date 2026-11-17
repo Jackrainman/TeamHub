@@ -24,6 +24,7 @@ export {
 
 const STORAGE_KEY = 'teamhub.lang';
 const DEFAULT_LANG: Lang = 'zh'; // 中文默认
+let activeLang: Lang = DEFAULT_LANG;
 
 interface I18nContextValue {
   lang: Lang;
@@ -43,9 +44,13 @@ function readInitialLang(): Lang {
 }
 
 export function LanguageProvider({ children }: PropsWithChildren) {
-  const [lang, setLangState] = useState<Lang>(readInitialLang);
+  const [lang, setLangState] = useState<Lang>(() => {
+    activeLang = readInitialLang();
+    return activeLang;
+  });
 
   useEffect(() => {
+    activeLang = lang;
     document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
     window.localStorage.setItem(STORAGE_KEY, lang);
   }, [lang]);
@@ -66,6 +71,10 @@ export function LanguageProvider({ children }: PropsWithChildren) {
     [lang, setLang, toggleLang, t],
   );
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+}
+
+export function getActiveLang(): Lang {
+  return activeLang;
 }
 
 export function useI18n(): I18nContextValue {
