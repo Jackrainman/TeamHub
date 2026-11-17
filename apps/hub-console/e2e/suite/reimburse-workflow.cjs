@@ -53,15 +53,21 @@ function xlsxBuffer() {
     if (!child || child.exitCode !== null) return;
     await new Promise(resolve => { child.once('exit', resolve); child.kill('SIGTERM'); });
   }
-  async function login(member) {
-    const context = await browser.newContext(contextOptions({ viewport: { width: 1440, height: 1000 } }));
+  async function login(member, lang = 'zh') {
+    const context = await browser.newContext(contextOptions({
+      viewport: { width: 1440, height: 1000 },
+      locale: lang === 'en' ? 'en-US' : 'zh-CN',
+    }));
     contexts.push(context);
-    assert.equal((await context.request.post(`${base}/api/session`, { data: { username: member.displayName } })).status(), 200);
+    if (lang === 'en') {
+      await context.addInitScript(() => localStorage.setItem('teamhub.lang', 'en'));
+    }
+    assert.equal((await context.request.post(`${base}/api/session`, { data: { username: member.displayName, pin: lang === 'en' ? 'test12345' : undefined } })).status(), 200);
     assert.equal((await context.request.put(`${base}/api/members/${member.id}/pin`, { data: { pin: 'test12345' } })).status(), 200);
     const page = await context.newPage();
     page.setDefaultTimeout(10000);
     await page.goto(base, { waitUntil: 'networkidle' });
-    await page.locator('.console-sidebar').getByRole('button', { name: '报销', exact: true }).click();
+    await page.locator('.console-sidebar').getByRole('button', { name: lang === 'en' ? 'Expenses' : '报销', exact: true }).click();
     await page.locator('.reimb-page').waitFor();
     return page;
   }
@@ -178,7 +184,28 @@ function xlsxBuffer() {
     await ownerPage.keyboard.press('Escape');
     const afterImport = await ownerPage.context().request.get(`${base}/api/reimburse/entries`);
     assert.equal((await afterImport.json()).entries.length, 2, '导入确认前不写服务器');
-    console.log('[e2e:reimburse-workflow] 通过：混合导入/未匹配池/提交/核对/核准/合并打款/XLSX+ZIP/重启存活');
+
+    // Real server conflict: the closed code, not the Chinese detail, drives the English inline banner.
+    const englishPage = await login(owner, 'en');
+    await englishPage.getByRole('button', { name: 'New entry', exact: true }).click();
+    const englishDialog = englishPage.getByRole('dialog');
+    await englishDialog.locator('.seg__btn').filter({ hasText: 'Other' }).first().click();
+    await englishDialog.getByLabel('Expense summary', { exact: true }).fill('English duplicate invoice');
+    await englishDialog.getByLabel('Invoice number', { exact: true }).fill('E2E-采购-A');
+    await englishDialog.getByLabel('Invoice date', { exact: true }).fill('2026-11-01');
+    await englishDialog.getByLabel('Seller', { exact: true }).fill('Synthetic merchant');
+    await englishDialog.getByLabel('Purchaser name', { exact: true }).fill('Harbin Institute of Technology');
+    await englishDialog.getByLabel('Purchaser tax ID', { exact: true }).fill('12100000400000456B');
+    await englishDialog.getByLabel('Total incl. tax (yuan)', { exact: true }).fill('10.00');
+    await englishDialog.getByRole('button', { name: 'Record it', exact: true }).click();
+    const conflictBanner = englishDialog.getByRole('alert');
+    await conflictBanner.waitFor();
+    const conflictText = await conflictBanner.innerText();
+    assert.equal(conflictText, 'This conflicts with data that already exists or was just changed. Refresh and try again.');
+    assert.ok(!conflictText.includes('发票号 E2E-采购-A 已录入过'));
+    assert.ok(!conflictText.includes('勿重复报销'));
+    assert.ok(!/\p{Script=Han}/u.test(conflictText), '英文冲突提示不得泄露中文 detail');
+    console.log('[e2e:reimburse-workflow] 通过：混合导入/未匹配池/提交/核对/核准/合并打款/XLSX+ZIP/重启存活/英文冲突文案');
   } finally {
     for (const context of contexts) await context.close().catch(() => {});
     if (browser) await browser.close().catch(() => {});
