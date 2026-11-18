@@ -23,8 +23,10 @@ const { startV1Server, withBrowser, login, PASSWORDS } = require('./lib/v1.cjs')
       await page.goto(hub.baseUrl);
       await page.locator('.auth-gate__username').fill('newbie');
       await page.locator('.auth-gate__card button[type="submit"]').click();
-      await page.locator('.auth-gate__pin').first().waitFor();
       const pins = page.locator('.auth-gate__pin');
+      // 登录页也有一个 .auth-gate__pin；必须等首登表单的确认框出现，再同时填写两项。
+      await pins.nth(1).waitFor();
+      assert.equal(await pins.count(), 2);
       await pins.nth(0).fill('newbie-password');
       await pins.nth(1).fill('newbie-password');
       await page.locator('.auth-gate__card button[type="submit"]').click();
