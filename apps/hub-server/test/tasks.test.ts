@@ -9,7 +9,7 @@ describe('v1 task lifecycle', () => {
   it('logs in with PIN and persists create → complete → delivery → accept → reopen', async () => {
     hub = createTestHub();
     const cookie = await login(hub.app, 'owner', TEST_PASSWORDS.owner);
-    const groupId = new (await import('../src/modules/system/sqlite-repository.js')).SqliteSettingsRepository(hub.database.db).listGroups()[0].id;
+    const groupId = hub.system.listGroups()[0].id;
     const created = await hub.app.inject({ method: 'POST', url: '/api/tasks', headers: { cookie }, payload: {
       groupId, title: 'v1 交付任务', rawSummary: '验证交付与验收', ownerId: memberId(hub, 'owner'),
       collaboratorIds: [], intrinsicComplexity: 'normal', plannedStart: '2026-11-16', plannedEnd: '2026-11-22',
@@ -46,7 +46,7 @@ describe('v1 task lifecycle', () => {
     hub = createTestHub();
     const owner = await login(hub.app, 'owner', TEST_PASSWORDS.owner);
     const reviewer = await login(hub.app, 'reviewer', TEST_PASSWORDS.reviewer);
-    const groupId = new (await import('../src/modules/system/sqlite-repository.js')).SqliteSettingsRepository(hub.database.db).listGroups()[0].id;
+    const groupId = hub.system.listGroups()[0].id;
     const reviewerId = memberId(hub, 'reviewer');
     const created = await hub.app.inject({ method: 'POST', url: '/api/weeks/2026-W47/tasks', headers: { cookie: owner }, payload: {
       groupId, title: '周任务', rawSummary: '同伴验收', intrinsicComplexity: 'normal', reviewerIds: [reviewerId],
@@ -69,7 +69,7 @@ describe('v1 task lifecycle', () => {
   it('claims an ownerless task and enforces explicit write authentication', async () => {
     hub = createTestHub();
     const owner = await login(hub.app, 'owner', TEST_PASSWORDS.owner);
-    const groupId = new (await import('../src/modules/system/sqlite-repository.js')).SqliteSettingsRepository(hub.database.db).listGroups()[0].id;
+    const groupId = hub.system.listGroups()[0].id;
     const created = await hub.app.inject({ method: 'POST', url: '/api/tasks', headers: { cookie: owner }, payload: {
       groupId, title: '待认领', rawSummary: '认领路径', ownerId: null, collaboratorIds: [], intrinsicComplexity: 'normal',
     } });

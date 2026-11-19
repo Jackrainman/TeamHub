@@ -38,6 +38,7 @@ import type {
 } from '@teamhub/hub-contracts';
 import { appError } from '../../application/application-error.js';
 import type { ApplicationUnitOfWork } from '../../application/unit-of-work.js';
+import type { ReimburseAdminPort } from './public.js';
 import type {
   ReimburseBatchDraft,
   ReimburseEntryDraft,
@@ -52,15 +53,6 @@ const ACTION_HISTORY: Record<ReimburseEntryAction, ReimburseHistoryAction> = {
   approve: 'approved', revokeApproval: 'approvalRevoked', cancel: 'cancelled',
 };
 
-
-/**
- * 超管判定的窄 port（§8.2；前身 PmRepository.getSnapshot().members + isSuperAdmin 全量依赖）。
- * 组合根用 pm 成员表适配注入；reimburse 域不反向感知成员实体。
- */
-export interface ReimburseAdminPort {
-  isSuperAdmin(memberId: string): Promise<boolean>;
-  displayNames?(): Promise<Record<string, string>>;
-}
 
 /** D-094「永不进列表」：条目对象出 HTTP 前把 evidence 剥成空数组，原件元数据只走凭证专属端点。 */
 function withoutEvidence(entry: ReimburseEntry): ReimburseEntry {

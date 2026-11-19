@@ -9,7 +9,8 @@ import {
 import type { ActorRef, IdentityMode } from '@teamhub/hub-contracts';
 import { parseBody, parseQuery, requireActor, sessionActor } from '../../http/helpers.js';
 import { fail } from '../../lib/fail.js';
-import type { TaskDirectoryPort, TaskOutcome, TasksService } from './service.js';
+import type { TaskOutcome, TasksService } from './service.js';
+import type { TaskDirectoryPort } from './public.js';
 
 function present<T>(reply: FastifyReply, outcome: TaskOutcome<T>, render: (value: T) => unknown, created = false) {
   if (!outcome.ok) return fail(reply, outcome.code, { status: outcome.status, detail: outcome.detail });

@@ -9,7 +9,7 @@ import {
   SetupConfigRequestSchema, SetupStateResponseSchema, SetupSuperAdminRequestSchema, SetupSuperAdminResponseSchema,
   SystemStatusResponseSchema,
 } from '@teamhub/hub-contracts';
-import type { AppSettings, IdentityMode, SessionIdentity, Task } from '@teamhub/hub-contracts';
+import type { AppSettings, IdentityMode, SessionIdentity } from '@teamhub/hub-contracts';
 import { hashPin, verifyPin } from '../../identity/pin.js';
 import type { SessionManager } from '../../identity/session-store.js';
 import {
@@ -20,12 +20,13 @@ import { isSuperAdmin } from '../../authz.js';
 import { buildHealthResponse, buildSystemStatusResponse } from '../../status.js';
 import type { SettingsRepository } from './repository.js';
 import type { V1Database } from '../../store/v1-database.js';
+import type { SystemTasksPort } from './public.js';
 
 export const RESTART_EXIT_CODE = 42;
 export interface SystemRouteDeps {
   repository: SettingsRepository;
   settings: AppSettings;
-  tasks: { listTasks(): Task[] };
+  tasks: SystemTasksPort;
   identityMode: IdentityMode;
   sessions: SessionManager | null;
   trustProxy: boolean | string;

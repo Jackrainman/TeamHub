@@ -9,16 +9,13 @@ import { tryServeStaticConsole } from './static-console.js';
 import { SESSION_TTL_MS, buildSessionCookie, readSessionCookie } from './http/helpers.js';
 import { registerWriteGate } from './middleware/write-gate.js';
 import { registerAuthGate } from './middleware/auth-gate.js';
-import { isSuperAdmin } from './authz.js';
 import { fail } from './lib/fail.js';
 import type { V1Database } from './store/v1-database.js';
 import { SqliteApplicationUnitOfWork } from './infrastructure/sqlite-application-unit-of-work.js';
-import { SqliteSettingsRepository, registerSystemRoutes } from './modules/system/index.js';
-import { SqliteTasksRepository, TasksService, registerTaskRoutes } from './modules/tasks/index.js';
-import {
-  LocalEvidenceFileStorage, registerReimburseRoutes, ReimburseService, SqliteReimburseRepository,
-} from './modules/reimburse/index.js';
-import { registerSearchRoutes } from './modules/search/index.js';
+import { createSystemModule } from './modules/system/index.js';
+import { createTasksModule } from './modules/tasks/index.js';
+import { createReimburseModule } from './modules/reimburse/index.js';
+import { createSearchModule } from './modules/search/index.js';
 
 declare module 'fastify' {
   interface FastifyRequest { identity: SessionIdentity | null }
@@ -43,17 +40,23 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
   });
   const clock = options.clock ?? new RealClock();
   const db = options.database.db;
-  const settingsRepository = new SqliteSettingsRepository(db);
-  const tasksRepository = new SqliteTasksRepository(db);
-  const tasksService = new TasksService(tasksRepository, settingsRepository, clock);
   const unitOfWork = new SqliteApplicationUnitOfWork(db, clock);
-  const reimburseRepository = SqliteReimburseRepository.fromSharedDb(db, clock);
-  const reimburseService = new ReimburseService(reimburseRepository, {
-    isSuperAdmin: async (memberId) => isSuperAdmin(settingsRepository.listMembers(), memberId),
-    displayNames: async () => Object.fromEntries(settingsRepository.listMembers().map((member) => [member.id, member.displayName])),
-  }, unitOfWork, settings.identityMode, new LocalEvidenceFileStorage());
   const sessions = settings.identityMode === 'identity'
     ? new SessionManager(new SqliteSessionStore(db), SESSION_TTL_MS) : null;
+
+  const system = createSystemModule(db);
+  const tasks = createTasksModule({
+    db, clock, directory: system.publicApi, identityMode: settings.identityMode,
+  });
+  const reimburse = createReimburseModule({
+    db, clock, admin: system.publicApi, unitOfWork, identityMode: settings.identityMode,
+  });
+  const search = createSearchModule({
+    tasks: tasks.publicApi,
+    members: system.publicApi,
+    reimburse: reimburse.publicApi,
+  });
+
   app.decorateRequest('identity', null);
   if (sessions) {
     app.addHook('onRequest', async (request, reply) => {
@@ -68,7 +71,7 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
     identityMode: settings.identityMode,
     trustProxy: options.trustProxy ?? false,
     sessions,
-    memberHasPin: async (memberId) => Boolean(settingsRepository.getMember(memberId)?.pinHash),
+    memberHasPin: async (memberId) => system.publicApi.memberHasPin(memberId),
   });
   registerWriteGate(app, {
     writeToken: options.writeToken,
@@ -77,17 +80,18 @@ export function buildHubServer(options: BuildHubServerOptions): FastifyInstance 
     trustProxy: options.trustProxy ?? false,
   });
   void app.register(multipart, { limits: { fileSize: 50 * 1024 * 1024, files: 1 } });
-  registerSystemRoutes(app, {
-    repository: settingsRepository, settings, tasks: tasksRepository, identityMode: settings.identityMode,
-    sessions, trustProxy: options.trustProxy ?? false, cookieSecure: options.cookieSecure,
+  system.registerRoutes(app, {
+    settings,
+    tasks: tasks.publicApi,
+    identityMode: settings.identityMode,
+    sessions,
+    trustProxy: options.trustProxy ?? false,
+    cookieSecure: options.cookieSecure,
     setupControl: options.setupControl ? { database: options.database, ...options.setupControl } : undefined,
   });
-  registerTaskRoutes(app, { service: tasksService, directory: settingsRepository, identityMode: settings.identityMode });
-  registerReimburseRoutes(app, { service: reimburseService });
-  registerSearchRoutes(app, {
-    tasks: () => tasksRepository.listTasks(), members: () => settingsRepository.listMembers(),
-    reimburse: (identity) => reimburseService.listEntries(identity),
-  });
+  tasks.registerRoutes(app);
+  reimburse.registerRoutes(app);
+  search.registerRoutes(app);
   app.setNotFoundHandler(async (request, reply) => {
     if (await tryServeStaticConsole(request, reply, options.consoleDistDir)) return;
     return fail(reply, 'NOT_FOUND', { status: 404, detail: 'Not found' });

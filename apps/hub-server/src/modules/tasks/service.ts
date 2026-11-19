@@ -3,16 +3,13 @@ import {
   shanghaiDateKey, taskAuthorId, TaskSchema,
 } from '@teamhub/hub-contracts';
 import type {
-  ActorRef, CreateTaskRequest, Delivery, Group, Member, ReviewTaskRequest,
+  ActorRef, CreateTaskRequest, Delivery, ReviewTaskRequest,
   SelfReportTaskRequest, Task, TaskStatus, UpdateSelfTaskRequest,
 } from '@teamhub/hub-contracts';
 import type { Clock } from '../../clock.js';
 import type { TasksRepository } from './repository.js';
+import type { TaskDirectoryPort } from './public.js';
 
-export interface TaskDirectoryPort {
-  listMembers(): Member[];
-  listGroups(): Group[];
-}
 export type TaskOutcome<T> = { ok: true; value: T } | {
   ok: false; status: 400 | 403 | 404 | 409; code: 'VALIDATION_FAILED' | 'FORBIDDEN' | 'NOT_FOUND' | 'CONFLICT' | 'DELIVERY_REQUIRED'; detail: string;
 };
