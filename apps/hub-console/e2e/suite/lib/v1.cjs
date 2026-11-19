@@ -13,20 +13,30 @@ async function startV1Server(options = {}) {
   const databasePath = path.join(root, 'teamhub.sqlite');
   const evidenceDir = path.join(root, 'evidence');
   const { openV1Database } = await load('apps/hub-server/dist/store/v1-database.js');
-  const { SqliteSettingsRepository } = await load('apps/hub-server/dist/modules/system/sqlite-repository.js');
+  const { GroupSchema, MemberSchema } = await load('apps/hub-contracts/dist/index.js');
+  const { createSystemModule } = await load('apps/hub-server/dist/modules/system/public.js');
   const { hashPin } = await load('apps/hub-server/dist/identity/pin.js');
   const { buildHubServer } = await load('apps/hub-server/dist/server.js');
   const database = openV1Database(databasePath);
   database.initialize({ dataMode: 'real', identityMode: 'identity' }, new Date('2026-11-17T04:00:00.000Z'));
-  const settings = new SqliteSettingsRepository(database.db);
-  settings.createGroup('电路');
-  settings.importRoster([
-    { displayName: 'owner', grade: 'junior', groupName: '电路', gateReviewer: false, gateReviewerAuto: false },
-    { displayName: 'reviewer', grade: 'senior', groupName: '电路', gateReviewer: true, gateReviewerAuto: true },
-    { displayName: 'newbie', grade: 'freshman', groupName: '电路', gateReviewer: false, gateReviewerAuto: false },
-  ]);
-  settings.bootstrapAdministrator({ displayName: 'admin', groupName: '电路', grade: 'senior', pinHash: hashPin(PASSWORDS.admin) });
-  for (const name of ['owner', 'reviewer']) settings.setMemberPin(settings.listMembers().find(member => member.displayName === name).id, hashPin(PASSWORDS[name]));
+  const group = GroupSchema.parse({ id: 'grp-v1-1', name: '电路', kind: 'custom' });
+  const members = [
+    { id: 'member-v1-1', displayName: 'owner', grade: 'junior', gateReviewer: false, projectManager: false },
+    { id: 'member-v1-2', displayName: 'reviewer', grade: 'senior', gateReviewer: true, projectManager: false },
+    { id: 'member-v1-3', displayName: 'newbie', grade: 'freshman', gateReviewer: false, projectManager: false },
+    { id: 'member-v1-4', displayName: 'admin', grade: 'senior', gateReviewer: true, projectManager: true },
+  ].map(member => MemberSchema.parse({
+    ...member,
+    role: 'member',
+    groupId: group.id,
+    updatedAt: '2026-11-17T04:00:00.000Z',
+    ...(member.displayName === 'newbie' ? {} : { pinHash: hashPin(PASSWORDS[member.displayName]) }),
+  }));
+  database.db.tx(() => {
+    database.db.insertRow('groups', group.id, group);
+    for (const member of members) database.db.insertRow('members', member.id, member);
+  });
+  const settings = createSystemModule(database.db).publicApi;
   const previousEvidence = process.env.TEAMHUB_EVIDENCE_FILES_DIR;
   process.env.TEAMHUB_EVIDENCE_FILES_DIR = evidenceDir;
   const app = buildHubServer({ database, consoleDistDir: path.join(ROOT, 'apps/hub-console/dist') });
@@ -45,9 +55,11 @@ async function startV1Server(options = {}) {
     const today = formatter.format(now);
     const epoch = Date.parse(`${today}T00:00:00.000Z`) / 86400000;
     const key = offset => new Date((epoch + offset) * 86400000).toISOString().slice(0, 10);
+    const weekday = new Date(`${today}T00:00:00.000Z`).getUTCDay();
+    const mondayOffset = -((weekday + 6) % 7);
     const seeds = [
       { title: 'E2E交付任务', summary: '完成、交付、验收、刷新', start: key(-1), end: key(1) },
-      { title: 'E2E跨周任务', summary: '跨周与结束日', start: key(-3), end: key(3) },
+      { title: 'E2E跨周任务', summary: '跨周与结束日', start: key(mondayOffset), end: key(mondayOffset + 13) },
       { title: 'E2E未安排任务', summary: '没有计划日期', start: null, end: null },
       { title: 'E2E他人任务', summary: '范围过滤', start: key(0), end: key(0), ownerId: ids.reviewer },
     ];

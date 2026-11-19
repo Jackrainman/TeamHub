@@ -111,7 +111,7 @@ function importSpecifiers(content) {
   const values = [];
   const patterns = [
     /\b(?:import|export)\s+(?:type\s+)?(?:[^'";]*?\s+from\s+)?['"]([^'"]+)['"]/g,
-    /\b(?:import|require)\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
+    /\b(?:import|require|load)\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
   ];
   for (const pattern of patterns) {
     for (const match of content.matchAll(pattern)) values.push(match[1]);
@@ -120,12 +120,13 @@ function importSpecifiers(content) {
 }
 
 const HUB_SERVER_PACKAGE_INTERNAL = '@teamhub/hub-server/src/modules/';
-const PUBLIC_MODULE_ENTRY = /^apps\/hub-server\/src\/modules\/([^/]+)\/(?:public|index)\.[cm]?[jt]sx?$/;
+const PUBLIC_MODULE_ENTRY = /^apps\/hub-server\/(?:src|dist)\/modules\/([^/]+)\/(?:public|index)\.[cm]?[jt]sx?$/;
+const MODULE_TARGET_FILE = /^apps\/hub-server\/(?:src|dist)\/modules\/([^/]+)\//;
 const MODULE_SOURCE_FILE = /^apps\/hub-server\/src\/modules\/([^/]+)\//;
 const COMPOSITION_ROOT = /^apps\/hub-server\/src\/(?:server\.[cm]?[jt]s|application\/workflows\/)/;
 
 function moduleBoundaryFiles(root) {
-  return ['src', 'test'].flatMap((directory) => listFiles(path.join(root, 'apps/hub-server', directory), {
+  return ['apps/hub-server/src', 'apps/hub-server/test', 'apps/hub-console/e2e'].flatMap((directory) => listFiles(path.join(root, directory), {
     skip: new Set(['node_modules', 'dist', 'build', 'coverage']),
   }))
     .filter((filePath) => SOURCE_EXTENSIONS.has(path.extname(filePath).toLowerCase()))
@@ -146,10 +147,11 @@ function verifyModulePublicBoundaries(root, errors) {
         errors.push(`module-package-internal @ ${file.relativePath}: 禁止包深路径 ${specifier}；请使用模块 public 入口`);
         continue;
       }
-      if (!specifier.startsWith('.')) continue;
-      const resolved = path.resolve(path.dirname(file.absolutePath), specifier);
-      const targetPath = toPosix(path.relative(root, resolved));
-      const targetModule = targetPath.match(MODULE_SOURCE_FILE)?.[1];
+      if (!specifier.startsWith('.') && !specifier.startsWith('apps/hub-server/')) continue;
+      const targetPath = specifier.startsWith('apps/hub-server/')
+        ? specifier
+        : toPosix(path.relative(root, path.resolve(path.dirname(file.absolutePath), specifier)));
+      const targetModule = targetPath.match(MODULE_TARGET_FILE)?.[1];
       if (!targetModule) continue;
       importedModules.add(targetModule);
       if (importerModule) {

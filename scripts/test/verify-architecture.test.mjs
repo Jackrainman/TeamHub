@@ -216,6 +216,10 @@ test('allows public module entries and multi-module wiring only in composition r
     "import { createSystemModule } from '../src/modules/system/public.js';",
     'export const provider = createSystemModule;',
   ].join('\n'));
+  write(root, 'apps/hub-console/e2e/suite/lib/public.cjs', [
+    "const { createSystemModule } = await load('apps/hub-server/dist/modules/system/public.js');",
+    'module.exports = { createSystemModule };',
+  ].join('\n'));
 
   assert.deepEqual((await verifyArchitecture(root, { baseline: [] })).errors, []);
 });
@@ -244,10 +248,12 @@ test('rejects module deep imports, package internals and unauthorized multi-modu
     "import '../modules/system/index.js';",
   ].join('\n'));
   write(root, 'apps/hub-server/test/deep-import.test.ts', "import '../src/modules/tasks/service.js';\n");
+  write(root, 'apps/hub-console/e2e/suite/lib/deep.cjs', "await load('apps/hub-server/dist/modules/tasks/sqlite-repository.js');\n");
 
   const messages = (await verifyArchitecture(root, { baseline: [] })).errors.join('\n');
   assert.match(messages, /module-public-api.*deep\.ts/);
   assert.match(messages, /module-public-api.*deep-import\.test\.ts/);
+  assert.match(messages, /module-public-api.*deep\.cjs/);
   assert.match(messages, /module-package-internal/);
   assert.match(messages, /module-composition-root.*read\.ts/);
   assert.match(messages, /module-index-public-only.*system\/index\.ts/);
