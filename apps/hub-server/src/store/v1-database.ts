@@ -26,6 +26,7 @@ export class V1Database {
           db.ensureEntityTables(ENTITY_TABLES);
           db.ensureSingletonEntityTable('reimburse_profile', 'singleton');
           db.ensureSessionTable();
+          db.setMeta('schema_kind', 'unified');
           db.setUserVersion(V1_SCHEMA_VERSION);
         });
       } catch (error) {
@@ -37,6 +38,7 @@ export class V1Database {
       db.ensureEntityTables(ENTITY_TABLES);
       db.ensureSingletonEntityTable('reimburse_profile', 'singleton');
       db.ensureSessionTable();
+      if (db.getMeta('schema_kind') === undefined) db.setMeta('schema_kind', 'unified');
     }
     return new V1Database(db);
   }

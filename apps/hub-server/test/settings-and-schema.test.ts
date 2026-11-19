@@ -25,6 +25,7 @@ describe('v1 schema and settings', () => {
     expect(current.db.rowCount('groups')).toBe(0);
     expect(current.db.rowCount('members')).toBe(0);
     expect(current.db.rowCount('tasks')).toBe(0);
+    expect(current.db.getMeta('schema_kind')).toBe('unified');
     current.close();
     fs.rmSync(root, { recursive: true, force: true });
   });

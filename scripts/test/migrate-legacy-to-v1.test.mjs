@@ -79,6 +79,7 @@ test('dry-run is read-only and write preserves ids, derives inclusive dates and 
   assert.equal(result.evidence.copied, 1);
   const db = new DatabaseSync(value.output, { readOnly: true });
   assert.equal(Number(db.prepare('PRAGMA user_version').get().user_version), 1);
+  assert.equal(db.prepare('SELECT value FROM meta WHERE key = ?').get('schema_kind').value, 'unified');
   assert.equal(db.prepare('SELECT count(*) count FROM sessions').get().count, 0);
   const first = JSON.parse(db.prepare('SELECT data FROM tasks WHERE id = ?').get('task-1').data);
   const second = JSON.parse(db.prepare('SELECT data FROM tasks WHERE id = ?').get('task-2').data);

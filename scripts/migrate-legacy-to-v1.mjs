@@ -220,6 +220,7 @@ export function migrateLegacyToV1(options) {
       for (const [table, rows] of Object.entries({ groups, members, tasks,
         reimburse_entries: entries, reimburse_batches: batches, reimburse_payouts: payouts,
         reimburse_evidence_downloads: downloads })) for (const row of rows) insert(table, row);
+      target.prepare('INSERT INTO meta (key, value) VALUES (?, ?)').run('schema_kind', 'unified');
       target.prepare('INSERT INTO app_settings (id, data) VALUES (?, ?)').run('singleton', JSON.stringify(migratedSettings));
       target.prepare('INSERT INTO reimburse_profile (id, data) VALUES (?, ?)').run('singleton',
         profile?.data ?? JSON.stringify({ expectedPurchaserName: '', expectedPurchaserTaxNo: '' }));
