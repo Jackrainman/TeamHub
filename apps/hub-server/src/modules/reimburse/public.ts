@@ -14,8 +14,13 @@ export interface ReimburseAdminPort {
   displayNames?(): Promise<Record<string, string>>;
 }
 
+export type ReimburseSearchRow = Pick<
+  ReimburseEntry,
+  'id' | 'summary' | 'invoiceNo' | 'workflowStatus' | 'totalAmountFen'
+>;
+
 export interface ReimbursePublicApi {
-  listForSearch(identity: SessionIdentity | null): Promise<ReimburseEntry[]>;
+  listForSearch(identity: SessionIdentity | null): Promise<ReimburseSearchRow[]>;
 }
 
 export interface ReimburseModule {
@@ -42,7 +47,13 @@ export function createReimburseModule(options: CreateReimburseModuleOptions): Re
   );
   return {
     publicApi: {
-      listForSearch: (identity) => service.listEntries(identity),
+      listForSearch: async (identity) => (await service.listEntries(identity)).map((entry) => ({
+        id: entry.id,
+        summary: entry.summary,
+        invoiceNo: entry.invoiceNo,
+        workflowStatus: entry.workflowStatus,
+        totalAmountFen: entry.totalAmountFen,
+      })),
     },
     registerRoutes(app) {
       registerReimburseRoutes(app, { service });

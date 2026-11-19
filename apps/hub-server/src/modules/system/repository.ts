@@ -1,4 +1,5 @@
 import type { Group, Member, MemberRole, RosterImportFailure, RosterImportRow } from '@teamhub/hub-contracts';
+import type { SystemTasksPort } from './public.js';
 
 export interface RosterImportOutcome {
   created: string[]; updated: string[]; failed: RosterImportFailure[];
@@ -12,7 +13,7 @@ export interface SettingsRepository {
   getMember(id: string): Member | undefined;
   createGroup(name: string): GroupResult;
   renameGroup(id: string, name: string): GroupResult;
-  deleteGroup(id: string): GroupResult;
+  deleteGroup(id: string, tasks: SystemTasksPort): GroupResult;
   setMemberRole(id: string, role: MemberRole): Member | undefined;
   setGateReviewer(id: string, value: boolean): Member | undefined;
   setProjectManager(id: string, value: boolean): MemberResult;

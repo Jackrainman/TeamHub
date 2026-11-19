@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { Group, IdentityMode, Member, Task } from '@teamhub/hub-contracts';
+import type { Group, IdentityMode, Member, Task, TaskStatus } from '@teamhub/hub-contracts';
 import type { Clock } from '../../clock.js';
 import type { SqliteDatabase } from '../../store/sqlite-db.js';
 import { SqliteTasksRepository } from './sqlite-repository.js';
@@ -12,8 +12,22 @@ export interface TaskDirectoryPort {
   listGroups(): Group[];
 }
 
+export interface TaskExportRow {
+  id: string;
+  title: string;
+  groupId: string;
+  status: TaskStatus;
+  plannedStart?: string | null;
+  plannedEnd?: string | null;
+  rawSummary: string;
+}
+
+export type TaskSearchRow = Pick<Task, 'id' | 'title' | 'rawSummary'>;
+
 export interface TasksPublicApi {
-  listTasks(): Task[];
+  hasTasksInGroup(groupId: string): boolean;
+  listForExport(): TaskExportRow[];
+  listForSearch(): TaskSearchRow[];
 }
 
 export interface TasksModule {
@@ -33,7 +47,21 @@ export function createTasksModule(options: CreateTasksModuleOptions): TasksModul
   const service = new TasksService(repository, options.directory, options.clock);
   return {
     publicApi: {
-      listTasks: () => service.listTasks(),
+      hasTasksInGroup: (groupId) => service.listTasks().some((task) => task.groupId === groupId),
+      listForExport: () => service.listTasks().map((task) => ({
+        id: task.id,
+        title: task.title,
+        groupId: task.groupId,
+        status: task.status,
+        plannedStart: task.plannedStart,
+        plannedEnd: task.plannedEnd,
+        rawSummary: task.rawSummary,
+      })),
+      listForSearch: () => service.listTasks().map((task) => ({
+        id: task.id,
+        title: task.title,
+        rawSummary: task.rawSummary,
+      })),
     },
     registerRoutes(app) {
       registerTaskRoutes(app, {

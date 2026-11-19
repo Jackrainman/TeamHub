@@ -2,10 +2,17 @@ import type { FastifyInstance } from 'fastify';
 import type { Member, ReimburseEntry, SessionIdentity, Task } from '@teamhub/hub-contracts';
 import { registerSearchRoutes } from './routes.js';
 
+export type SearchTaskRow = Pick<Task, 'id' | 'title' | 'rawSummary'>;
+export type SearchMemberRow = Pick<Member, 'id' | 'displayName' | 'groupId'>;
+export type SearchReimburseRow = Pick<
+  ReimburseEntry,
+  'id' | 'summary' | 'invoiceNo' | 'workflowStatus' | 'totalAmountFen'
+>;
+
 export interface SearchModuleOptions {
-  tasks: { listTasks(): Task[] };
-  members: { listMembers(): Member[] };
-  reimburse: { listForSearch(identity: SessionIdentity | null): Promise<ReimburseEntry[]> };
+  tasks: { listForSearch(): SearchTaskRow[] };
+  members: { listForSearch(): SearchMemberRow[] };
+  reimburse: { listForSearch(identity: SessionIdentity | null): Promise<SearchReimburseRow[]> };
 }
 
 export interface SearchModule {
@@ -17,8 +24,8 @@ export function createSearchModule(options: SearchModuleOptions): SearchModule {
   return {
     registerRoutes(app) {
       registerSearchRoutes(app, {
-        tasks: () => options.tasks.listTasks(),
-        members: () => options.members.listMembers(),
+        tasks: () => options.tasks.listForSearch(),
+        members: () => options.members.listForSearch(),
         reimburse: (identity) => options.reimburse.listForSearch(identity),
       });
     },

@@ -1,13 +1,14 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import type { Member, ReimburseEntry, SessionIdentity, Task } from '@teamhub/hub-contracts';
+import type { SessionIdentity } from '@teamhub/hub-contracts';
 import { parseQuery } from '../../http/helpers.js';
+import type { SearchMemberRow, SearchReimburseRow, SearchTaskRow } from './public.js';
 
 const QuerySchema = z.object({ q: z.string().trim().min(1).max(100) });
 export interface SearchPorts {
-  tasks(): Task[];
-  members(): Member[];
-  reimburse(identity: SessionIdentity | null): Promise<ReimburseEntry[]>;
+  tasks(): SearchTaskRow[];
+  members(): SearchMemberRow[];
+  reimburse(identity: SessionIdentity | null): Promise<SearchReimburseRow[]>;
 }
 export function registerSearchRoutes(app: FastifyInstance, ports: SearchPorts): void {
   app.get('/api/search', async (request, reply) => {

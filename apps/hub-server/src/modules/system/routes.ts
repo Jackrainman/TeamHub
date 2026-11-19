@@ -101,7 +101,7 @@ export function registerSystemRoutes(app: FastifyInstance, deps: SystemRouteDeps
   app.delete('/api/groups/:id', async (request, reply) => {
     if (!requireAdmin(request, reply)) return;
     const { id } = request.params as { id: string };
-    const result = repository.deleteGroup(id);
+    const result = repository.deleteGroup(id, deps.tasks);
     if (!result.ok) return fail(reply, result.reason === 'not-found' ? 'NOT_FOUND' : 'CONFLICT', {
       status: result.reason === 'not-found' ? 404 : 409,
       detail: result.reason === 'has-members' ? '该组下还有成员' : result.reason === 'has-tasks' ? '该组下还有任务' : 'group not found',
@@ -224,7 +224,7 @@ export function registerSystemRoutes(app: FastifyInstance, deps: SystemRouteDeps
   });
   app.get('/api/export/tasks', async (_request, reply) => {
     void reply.type('text/csv; charset=utf-8');
-    return buildCsv(['id', '标题', '组', '状态', '开始', '结束', '摘要'], deps.tasks.listTasks().map((task) => [
+    return buildCsv(['id', '标题', '组', '状态', '开始', '结束', '摘要'], deps.tasks.listForExport().map((task) => [
       task.id, task.title, task.groupId, task.status, task.plannedStart ?? '', task.plannedEnd ?? '', task.rawSummary,
     ]));
   });

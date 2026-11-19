@@ -2,6 +2,7 @@ import { GATE_REVIEWER_DEFAULT_GRADES, GroupSchema, MemberSchema } from '@teamhu
 import type { Group, Member, MemberRole, RosterImportRow } from '@teamhub/hub-contracts';
 import type { SqliteDatabase } from '../../store/sqlite-db.js';
 import type { GroupResult, MemberResult, RosterImportOutcome, SettingsRepository } from './repository.js';
+import type { SystemTasksPort } from './public.js';
 
 function nextId(db: SqliteDatabase, table: string, prefix: string): string {
   return `${prefix}-${db.maxSuffix(table, prefix) + 1}`;
@@ -40,14 +41,12 @@ export class SqliteSettingsRepository implements SettingsRepository {
       return { ok: true as const, group: this.saveGroup({ ...GroupSchema.parse(group), name }) };
     });
   }
-  deleteGroup(id: string): GroupResult {
+  deleteGroup(id: string, tasks: SystemTasksPort): GroupResult {
     return this.db.tx(() => {
       const group = this.db.getRow<Group>('groups', id);
       if (!group) return { ok: false as const, reason: 'not-found' as const };
       if (this.listMembers().some((member) => member.groupId === id)) return { ok: false as const, reason: 'has-members' as const };
-      if (this.db.rowCount('tasks') > 0 && this.db.allRows<{ groupId: string }>('tasks').some((task) => task.groupId === id)) {
-        return { ok: false as const, reason: 'has-tasks' as const };
-      }
+      if (tasks.hasTasksInGroup(id)) return { ok: false as const, reason: 'has-tasks' as const };
       this.db.deleteRow('groups', id);
       return { ok: true as const, group: GroupSchema.parse(group) };
     });
