@@ -18,7 +18,7 @@ import { SqliteTasksRepository, TasksService, registerTaskRoutes } from './modul
 import {
   LocalEvidenceFileStorage, registerReimburseRoutes, ReimburseService, SqliteReimburseRepository,
 } from './modules/reimburse/index.js';
-import { registerSearchRoutes } from './modules/search/routes.js';
+import { registerSearchRoutes } from './modules/search/index.js';
 
 declare module 'fastify' {
   interface FastifyRequest { identity: SessionIdentity | null }
