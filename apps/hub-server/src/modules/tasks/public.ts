@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { Group, IdentityMode, Member, Task, TaskStatus } from '@teamhub/hub-contracts';
+import type { Group, IdentityMode, MemberPublic, Task, TaskStatus } from '@teamhub/hub-contracts';
 import type { Clock } from '../../clock.js';
 import type { SqliteDatabase } from '../../store/sqlite-db.js';
 import { SqliteTasksRepository } from './sqlite-repository.js';
@@ -8,7 +8,7 @@ import { registerTaskRoutes } from './routes.js';
 
 /** 任务模块消费的名册目录；由 system.publicApi 在组合根注入。 */
 export interface TaskDirectoryPort {
-  listMembers(): Member[];
+  listMembers(): MemberPublic[];
   listGroups(): Group[];
 }
 

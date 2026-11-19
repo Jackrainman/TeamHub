@@ -3,7 +3,7 @@ import {
   shanghaiDateKey, taskAuthorId, TaskSchema,
 } from '@teamhub/hub-contracts';
 import type {
-  ActorRef, CreateTaskRequest, Delivery, ReviewTaskRequest,
+  ActorRef, CreateTaskRequest, Delivery, MemberPublic, ReviewTaskRequest,
   SelfReportTaskRequest, Task, TaskStatus, UpdateSelfTaskRequest,
 } from '@teamhub/hub-contracts';
 import type { Clock } from '../../clock.js';
@@ -26,11 +26,12 @@ export class TasksService {
     return `task-v1-${Math.max(0, ...ids) + 1}`;
   }
   private isAdmin(actor: ActorRef): boolean {
-    return this.directory.listMembers().some((member) => member.id === actor.id && member.projectManager === true);
+    const members: MemberPublic[] = this.directory.listMembers();
+    return members.some((member) => member.id === actor.id && member.projectManager === true);
   }
   private validGroup(id: string): boolean { return this.directory.listGroups().some((group) => group.id === id); }
   private validReviewers(ids: readonly string[] | undefined, actorId: string, task?: Task): boolean {
-    const members = this.directory.listMembers();
+    const members: MemberPublic[] = this.directory.listMembers();
     return !ids?.some((id) => id === actorId || id === task?.ownerId || id === task?.completedBy?.id || !members.some((member) => member.id === id));
   }
   listTasks(query?: { q?: string; scope?: 'mine' | 'team' }, actor?: ActorRef): Task[] {
@@ -42,7 +43,10 @@ export class TasksService {
   }
   createTask(input: CreateTaskRequest, actor: ActorRef): TaskOutcome<Task> {
     if (!this.validGroup(input.groupId)) return failure(400, 'Valid group required');
-    if (input.ownerId && !this.directory.listMembers().some((member) => member.id === input.ownerId)) return failure(400, 'Owner is not a member');
+    if (input.ownerId) {
+      const members: MemberPublic[] = this.directory.listMembers();
+      if (!members.some((member) => member.id === input.ownerId)) return failure(400, 'Owner is not a member');
+    }
     const now = this.now();
     const status = input.status ?? 'pending';
     const task = TaskSchema.parse({

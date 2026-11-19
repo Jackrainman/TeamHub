@@ -6,7 +6,7 @@ import {
   TasksQuerySchema, TasksResponseSchema, TransitionTaskStatusRequestSchema, TransitionTaskStatusResponseSchema,
   UpdateSelfTaskRequestSchema,
 } from '@teamhub/hub-contracts';
-import type { ActorRef, IdentityMode } from '@teamhub/hub-contracts';
+import type { ActorRef, IdentityMode, MemberPublic } from '@teamhub/hub-contracts';
 import { parseBody, parseQuery, requireActor, sessionActor } from '../../http/helpers.js';
 import { fail } from '../../lib/fail.js';
 import type { TaskOutcome, TasksService } from './service.js';
@@ -68,7 +68,7 @@ export function registerTaskRoutes(app: FastifyInstance, deps: TaskRouteDeps): v
     if (!input) return;
     let actor: ActorRef | null = request.identity ? sessionActor(request.identity) : null;
     if (!actor && input.memberId) {
-      const member = directory.listMembers().find((item) => item.id === input.memberId);
+      const member: MemberPublic | undefined = directory.listMembers().find((item) => item.id === input.memberId);
       actor = member ? { id: member.id, displayName: member.displayName, source: 'console' } : null;
     }
     if (!actor) return fail(reply, 'SESSION_REQUIRED', { status: 403, detail: '认领须先登录或选择本人' });

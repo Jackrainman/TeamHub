@@ -12,6 +12,16 @@ let hub: TestHub | undefined;
 afterEach(async () => { if (hub) await hub.close(); hub = undefined; });
 
 describe('tasks → system directory public contract', () => {
+  it('does not expose PIN hashes through the system or task directory public APIs', () => {
+    hub = createTestHub();
+    const directory: TaskDirectoryPort = hub.system;
+
+    expect(hub.system.listMembers()).toHaveLength(3);
+    for (const member of hub.system.listMembers()) expect(member).not.toHaveProperty('pinHash');
+    expect(directory.listMembers()).toHaveLength(3);
+    for (const member of directory.listMembers()) expect(member).not.toHaveProperty('pinHash');
+  });
+
   it('provides members and groups used by task creation', async () => {
     hub = createTestHub();
     const directory: TaskDirectoryPort = hub.system;

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import type { AppSettings, Group, IdentityMode, Member, TaskStatus } from '@teamhub/hub-contracts';
+import { MemberPublicSchema } from '@teamhub/hub-contracts';
+import type { AppSettings, Group, IdentityMode, Member, MemberPublic, TaskStatus } from '@teamhub/hub-contracts';
 import { isSuperAdmin } from '../../authz.js';
 import type { SessionManager } from '../../identity/session-store.js';
 import type { SqliteDatabase } from '../../store/sqlite-db.js';
@@ -26,7 +27,7 @@ export interface SystemTasksPort {
 export type MemberSearchRow = Pick<Member, 'id' | 'displayName' | 'groupId'>;
 
 export interface SystemPublicApi {
-  listMembers(): Member[];
+  listMembers(): MemberPublic[];
   listGroups(): Group[];
   listForSearch(): MemberSearchRow[];
   memberHasPin(memberId: string): boolean;
@@ -58,7 +59,7 @@ export function createSystemModule(db: SqliteDatabase): SystemModule {
   const repository = new SqliteSettingsRepository(db);
   return {
     publicApi: {
-      listMembers: () => repository.listMembers(),
+      listMembers: () => repository.listMembers().map((member) => MemberPublicSchema.parse(member)),
       listGroups: () => repository.listGroups(),
       listForSearch: () => repository.listMembers().map((member) => ({
         id: member.id,
