@@ -119,6 +119,64 @@ function importSpecifiers(content) {
   return values;
 }
 
+const HUB_SERVER_PACKAGE_INTERNAL = '@teamhub/hub-server/src/modules/';
+const PUBLIC_MODULE_ENTRY = /^apps\/hub-server\/src\/modules\/([^/]+)\/(?:public|index)\.[cm]?[jt]sx?$/;
+const MODULE_SOURCE_FILE = /^apps\/hub-server\/src\/modules\/([^/]+)\//;
+const COMPOSITION_ROOT = /^apps\/hub-server\/src\/(?:server\.[cm]?[jt]s|application\/workflows\/)/;
+
+function moduleBoundaryFiles(root) {
+  return ['src', 'test'].flatMap((directory) => listFiles(path.join(root, 'apps/hub-server', directory), {
+    skip: new Set(['node_modules', 'dist', 'build', 'coverage']),
+  }))
+    .filter((filePath) => SOURCE_EXTENSIONS.has(path.extname(filePath).toLowerCase()))
+    .map((filePath) => ({
+      absolutePath: filePath,
+      relativePath: toPosix(path.relative(root, filePath)),
+      content: fs.readFileSync(filePath, 'utf8'),
+    }));
+}
+
+function verifyModulePublicBoundaries(root, errors) {
+  const files = moduleBoundaryFiles(root);
+  for (const file of files) {
+    const importerModule = file.relativePath.match(MODULE_SOURCE_FILE)?.[1];
+    const importedModules = new Set();
+    for (const specifier of importSpecifiers(file.content)) {
+      if (specifier.startsWith(HUB_SERVER_PACKAGE_INTERNAL)) {
+        errors.push(`module-package-internal @ ${file.relativePath}: 禁止包深路径 ${specifier}；请使用模块 public 入口`);
+        continue;
+      }
+      if (!specifier.startsWith('.')) continue;
+      const resolved = path.resolve(path.dirname(file.absolutePath), specifier);
+      const targetPath = toPosix(path.relative(root, resolved));
+      const targetModule = targetPath.match(MODULE_SOURCE_FILE)?.[1];
+      if (!targetModule) continue;
+      importedModules.add(targetModule);
+      if (importerModule) {
+        if (importerModule !== targetModule) {
+          errors.push(`module-public-api @ ${file.relativePath}: 模块 ${importerModule} 不得 import ${targetModule}；请由组合根注入 public port`);
+        }
+      } else if (!PUBLIC_MODULE_ENTRY.test(targetPath)) {
+        errors.push(`module-public-api @ ${file.relativePath}: 只允许 modules/<id>/public.js 或 index.js，禁止深路径 ${specifier}`);
+      }
+    }
+    if (!importerModule && importedModules.size > 1 && !COMPOSITION_ROOT.test(file.relativePath)) {
+      errors.push(`module-composition-root @ ${file.relativePath}: 多模块装配（${[...importedModules].sort().join(', ')}）只允许 server.ts 与 application/workflows/**`);
+    }
+
+    const indexMatch = file.relativePath.match(/^apps\/hub-server\/src\/modules\/[^/]+\/index\.[cm]?[jt]sx?$/);
+    if (indexMatch) {
+      if (!/^\s*export\s+\*\s+from\s+['"]\.\/public\.js['"];?\s*$/.test(file.content)) {
+        errors.push(`module-index-public-only @ ${file.relativePath}: index 只能 re-export ./public.js`);
+      }
+      const publicPath = file.relativePath.replace(/index\.[cm]?[jt]sx?$/, 'public.ts');
+      if (!fs.existsSync(path.join(root, publicPath))) {
+        errors.push(`module-index-public-only @ ${file.relativePath}: 缺少对应 public.ts`);
+      }
+    }
+  }
+}
+
 function matchesPackage(specifier, packageName) {
   return specifier === packageName || specifier.startsWith(`${packageName}/`);
 }
@@ -462,6 +520,7 @@ export async function verifyArchitecture(repoRoot = process.cwd(), options = {})
 
   const violations = collectMigrationViolations(root);
   compareBaseline(violations, options.baseline ?? ARCHITECTURE_BASELINE, errors);
+  verifyModulePublicBoundaries(root, errors);
   verifyV1Boundaries(root, errors);
   await verifyDomainRegistry(root, errors);
   return { errors, violations, summary: { packages: packages.length, baseline: violations.length } };

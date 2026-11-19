@@ -190,3 +190,65 @@ test('rejects SQLite imports in D-090 module route files', async (context) => {
   const messages = (await verifyArchitecture(root, { baseline: [] })).errors.join('\n');
   assert.match(messages, /route-imports-sqlite/);
 });
+
+test('allows public module entries and multi-module wiring only in composition roots', async (context) => {
+  const root = fixture();
+  context.after(() => fs.rmSync(root, { recursive: true }));
+  writeRegistry(root, [
+    { id: 'tasks', title: '任务', packages: { server: 'tasks', console: 'tasks' } },
+    { id: 'system', title: '系统', packages: { server: 'system' } },
+  ]);
+  for (const moduleId of ['tasks', 'system']) {
+    write(root, `apps/hub-server/src/modules/${moduleId}/public.ts`, 'export {};\n');
+    write(root, `apps/hub-server/src/modules/${moduleId}/index.ts`, "export * from './public.js';\n");
+  }
+  write(root, 'apps/hub-server/src/server.ts', [
+    "import { createTasksModule } from './modules/tasks/public.js';",
+    "import { createSystemModule } from './modules/system/index.js';",
+    'export const wire = () => [createTasksModule, createSystemModule];',
+  ].join('\n'));
+  write(root, 'apps/hub-server/src/application/workflows/export.ts', [
+    "import type { TasksPublicApi } from '../../modules/tasks/public.js';",
+    "import type { SystemPublicApi } from '../../modules/system/public.js';",
+    'export const run = (_tasks: TasksPublicApi, _system: SystemPublicApi) => {};',
+  ].join('\n'));
+  write(root, 'apps/hub-server/test/public-contract.test.ts', [
+    "import { createSystemModule } from '../src/modules/system/public.js';",
+    'export const provider = createSystemModule;',
+  ].join('\n'));
+
+  assert.deepEqual((await verifyArchitecture(root, { baseline: [] })).errors, []);
+});
+
+test('rejects module deep imports, package internals and unauthorized multi-module assembly', async (context) => {
+  const root = fixture();
+  context.after(() => fs.rmSync(root, { recursive: true }));
+  writeRegistry(root, [
+    { id: 'tasks', title: '任务', packages: { server: 'tasks', console: 'tasks' } },
+    { id: 'system', title: '系统', packages: { server: 'system' } },
+  ]);
+  for (const moduleId of ['tasks', 'system']) {
+    write(root, `apps/hub-server/src/modules/${moduleId}/public.ts`, 'export {};\n');
+    write(root, `apps/hub-server/src/modules/${moduleId}/service.ts`, 'export {};\n');
+  }
+  write(root, 'apps/hub-server/src/modules/system/index.ts', "export { SystemService } from './service.js';\n");
+  write(root, 'apps/hub-server/src/consumers/deep.ts', [
+    "import '../modules/tasks/service.js';",
+    "import '../modules/tasks/repository.js';",
+    "import '../modules/tasks/sqlite-repository.js';",
+    "import '../modules/tasks/routes.js';",
+    "import '@teamhub/hub-server/src/modules/system/public.js';",
+  ].join('\n'));
+  write(root, 'apps/hub-server/src/application/read.ts', [
+    "import '../modules/tasks/public.js';",
+    "import '../modules/system/index.js';",
+  ].join('\n'));
+  write(root, 'apps/hub-server/test/deep-import.test.ts', "import '../src/modules/tasks/service.js';\n");
+
+  const messages = (await verifyArchitecture(root, { baseline: [] })).errors.join('\n');
+  assert.match(messages, /module-public-api.*deep\.ts/);
+  assert.match(messages, /module-public-api.*deep-import\.test\.ts/);
+  assert.match(messages, /module-package-internal/);
+  assert.match(messages, /module-composition-root.*read\.ts/);
+  assert.match(messages, /module-index-public-only.*system\/index\.ts/);
+});
