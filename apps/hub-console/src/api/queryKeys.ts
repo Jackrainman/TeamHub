@@ -13,6 +13,7 @@ export const queryKeys = {
     summary: (source: string, batchId: string, expenseType: string) =>
       ['reimburse', source, 'summary', batchId, expenseType] as const,
     profile: (source: string) => ['reimburse', source, 'profile'] as const,
+    imports: (source: string) => ['reimburse', source, 'imports'] as const,
     evidence: (source: string, entryId: string) =>
       ['reimburse', source, 'entries', entryId, 'evidence'] as const,
   },

@@ -128,6 +128,13 @@ export function ReimburseEvidenceSection({
               {t(REJECT_KEY[reject], { mb: MAX_MB, accept: REIMBURSE_EVIDENCE_ACCEPT })}
             </p>
           ) : null}
+          {isOwner && locked ? (
+            <p className="form-hint form-hint--warn" role="note">
+              {entry.workflowStatus !== 'draft' && entry.workflowStatus !== 'returned'
+                ? '当前流程状态不能删除或修改凭证；已提交的条目需先退回，草稿或退回状态才可操作。'
+                : '当前账号为只读，不能删除或修改凭证。'}
+            </p>
+          ) : null}
           {uploadMutation.isPending ? (
             <p className="form-hint" role="status">{t('reimb.evidence.uploading')}</p>
           ) : null}

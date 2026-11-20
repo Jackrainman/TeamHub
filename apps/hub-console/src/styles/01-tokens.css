@@ -96,6 +96,7 @@
      `:where(input, select, textarea)` 段。颜色一律引用语义 token，light/dark/tech/warm
      等主题切换自动随动，禁止在这里写死颜色。尺寸走既有 4px 刻度 token。 */
   --control-height: 36px;
+  --dialog-width-wide: 880px;
   --control-pad-y: var(--space-2);
   --control-pad-x: 11px;
   --control-radius: var(--radius-md);

@@ -16,6 +16,7 @@ import type {
   CreateReimbursePayoutRequest,
   ReimburseSummaryQuery,
   ReimburseExportRequest,
+  ConfirmReimburseImportRequest,
 } from '@teamhub/hub-contracts';
 
 import { DEFAULT_REIMBURSE_PROFILE, derivePackageReview, kindForExpenseType, suggestPackageExpenseType } from '@teamhub/hub-contracts';
@@ -52,6 +53,55 @@ export function useReimburseEntries(
     queryKey: queryKeys.reimburse.entries(source),
     queryFn: () => client.getReimburseEntries(),
     enabled,
+  });
+}
+
+export function useReimburseImportJobs(client: ReimburseSegment, source: string, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.reimburse.imports(source),
+    queryFn: () => client.getReimburseImports(),
+    enabled,
+    refetchInterval: query => {
+      const jobs = query.state.data?.jobs ?? [];
+      const active = jobs.some(job => job.status === 'parsing' && Date.now() - Date.parse(job.createdAt) < 10 * 60 * 1000);
+      return active ? 2000 : false;
+    },
+  });
+}
+
+export function useUploadReimburseImport(client: ReimburseSegment, source: string) {
+  return useHubMutation({
+    invalidateKeys: [queryKeys.reimburse.imports(source)],
+    mutationFn: (files: File[]) => client.uploadReimburseImport(files),
+  });
+}
+
+export function useConfirmReimburseImport(client: ReimburseSegment, source: string, onSuccess?: () => void) {
+  return useHubMutation({
+    invalidateKeys: [queryKeys.reimburse.imports(source), queryKeys.reimburse.entries(source), queryKeys.reimburse.batches(source)],
+    mutationFn: (vars: { id: string; request: ConfirmReimburseImportRequest }) => client.confirmReimburseImport(vars.id, vars.request),
+    onSuccess,
+  });
+}
+
+export function useDeleteReimburseImportFile(client: ReimburseSegment, source: string) {
+  return useHubMutation({
+    invalidateKeys: [queryKeys.reimburse.imports(source)],
+    mutationFn: (vars: { id: string; fileId: string }) => client.deleteReimburseImportFile(vars.id, vars.fileId),
+  });
+}
+
+export function useDismissReimburseImportPair(client: ReimburseSegment, source: string) {
+  return useHubMutation({
+    invalidateKeys: [queryKeys.reimburse.imports(source)],
+    mutationFn: (vars: { id: string; pairId: string }) => client.dismissReimburseImportPair(vars.id, vars.pairId),
+  });
+}
+
+export function useCloseReimburseImport(client: ReimburseSegment, source: string) {
+  return useHubMutation({
+    invalidateKeys: [queryKeys.reimburse.imports(source)],
+    mutationFn: (id: string) => client.closeReimburseImport(id),
   });
 }
 

@@ -1,18 +1,20 @@
 import { ReceiptText, Settings2, Plus, Upload, WalletCards } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import {
   DEFAULT_REIMBURSE_PROFILE, deriveReimburseCompleteness,
-  type ReimburseCompleteness, type ReimburseExpenseType, type ReimburseWorkflowStatus,
+  type ReimburseCompleteness, type ReimburseExpenseType, type ReimburseImportJob,
+  type ReimburseImportPair, type ReimburseWorkflowStatus,
 } from '@teamhub/hub-contracts';
 import { ReimburseTable } from './components/ReimburseTable';
-import { formatAmountFen, type EntryDraft } from './reimburse-utils';
+import { formatAmountFen } from './reimburse-utils';
 import { EmptyState } from '../../shared/EmptyState';
 import { useQueryGuard } from '../../shared/QueryGate';
 import { SideDrawer } from '../../components/SideDrawer';
 import { SegToggle } from '../../components/SegToggle';
 import {
-  useReimburseBatches, useReimburseEntries, useReimburseImportController,
-  useReimbursePayouts, useReimburseProfile,
+  useCloseReimburseImport, useConfirmReimburseImport, useDeleteReimburseImportFile,
+  useDismissReimburseImportPair, useReimburseBatches, useReimburseEntries, useReimburseImportJobs,
+  useReimbursePayouts, useReimburseProfile, useUploadReimburseImport,
 } from './hooks';
 import type { ReimburseSegment } from './api';
 import type { HubApiClient } from '../../api/client';
@@ -23,12 +25,32 @@ import { ReimburseEntryForm } from './components/ReimburseEntryForm';
 import { ReimburseEntryCard } from './components/ReimburseEntryCard';
 import { ReimburseBatchSection } from './components/ReimburseBatchSection';
 import { ReimburseImportZone } from './components/ReimburseImportZone';
+import { ReimburseImportJobs } from './components/ReimburseImportJobs';
 import { ReimburseExportSection } from './components/ReimburseExportSection';
 import { ReimburseProfileSection } from './components/ReimburseProfileSection';
 import { ReimburseSupplementForm } from './components/ReimburseSupplementForm';
-import { ReimburseUnmatchedPool } from './components/ReimburseUnmatchedPool';
 import { ReimbursePayoutForm } from './components/ReimbursePayoutForm';
 import { ReimburseStructuralSummary } from './components/ReimburseStructuralSummary';
+import { draftFromParsedInvoice } from './reimburse-import';
+import { Field, Select } from '../../shared/ui';
+
+function importFormInitial(job: ReimburseImportJob, pair: ReimburseImportPair) {
+  const draft = pair.draft;
+  const base = draftFromParsedInvoice({
+    invoiceNo: draft.invoiceNo ?? '', invoiceDate: draft.invoiceDate ?? null,
+    seller: draft.seller ?? null, purchaserName: draft.purchaserName ?? null, purchaserTaxNo: draft.purchaserTaxNo ?? null,
+    recognitionSource: draft.recognitionSource, totalAmountFen: draft.totalAmountFen, items: draft.items,
+  });
+  const firstFile = job.files.find(file => pair.fileIds.includes(file.id));
+  return {
+    draft: {
+      ...base, kind: draft.kind, expenseType: draft.expenseType, summary: draft.summary ?? '',
+      invoiceType: draft.invoiceType ?? 'unknown', actualItemName: draft.actualItemName ?? '', note: draft.note ?? '',
+    },
+    fileName: firstFile?.displayName ?? pair.id,
+    notice: pair.status === 'matched' ? 'recognized' as const : 'unrecognized' as const,
+  };
+}
 
 export function ReimbursePage({ client, source, identity }: {
   client: ReimburseSegment & Pick<HubApiClient, 'getMembers'>;
@@ -39,18 +61,25 @@ export function ReimbursePage({ client, source, identity }: {
   const session = identity.session;
   const isFinance = identity.mode === 'identity' && session?.projectManager === true;
   const enabled = identity.mode !== 'identity' || session !== null;
+  const importsEnabled = identity.mode === 'identity' && session !== null;
   const [view, setView] = useState<'mine' | 'finance'>('mine');
   const cacheSource = `${source}:${identityCacheKey(session)}`;
   const entriesQuery = useReimburseEntries(client, cacheSource, enabled);
   const batchesQuery = useReimburseBatches(client, cacheSource, isFinance);
   const payoutsQuery = useReimbursePayouts(client, cacheSource, session !== null);
   const profileQuery = useReimburseProfile(client, cacheSource, enabled);
+  const importsQuery = useReimburseImportJobs(client, cacheSource, importsEnabled);
+  const uploadImport = useUploadReimburseImport(client, cacheSource);
+  const deleteImportFile = useDeleteReimburseImportFile(client, cacheSource);
+  const dismissImportPair = useDismissReimburseImportPair(client, cacheSource);
+  const closeImport = useCloseReimburseImport(client, cacheSource);
   const [entryId, setEntryId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createPreset, setCreatePreset] = useState<ReimburseExpenseType | null>(null);
   const [importOpen, setImportOpen] = useState(false);
-  const [importPaused, setImportPaused] = useState(false);
-  const [reviewDraft, setReviewDraft] = useState<{ jobId: number; draft: EntryDraft } | null>(null);
+  const [review, setReview] = useState<{ jobId: string; pairId: string } | null>(null);
+  const [joinBatch, setJoinBatch] = useState(false);
+  const [reviewBatchId, setReviewBatchId] = useState('all');
   const [completeness, setCompleteness] = useState<ReimburseCompleteness | 'all'>('all');
   const [workflow, setWorkflow] = useState<ReimburseWorkflowStatus | 'all'>('all');
   const [expenseType, setExpenseType] = useState<ReimburseExpenseType | 'all'>('all');
@@ -59,11 +88,10 @@ export function ReimbursePage({ client, source, identity }: {
   const [adminOpen, setAdminOpen] = useState(false);
   const [payoutOpen, setPayoutOpen] = useState(false);
   const [supplementIds, setSupplementIds] = useState<string[]>([]);
-  const importController = useReimburseImportController(profileQuery.data?.profile);
-  const currentJobId = importController.currentJobId;
-  const rememberReviewDraft = useCallback((draft: EntryDraft) => {
-    if (currentJobId !== null) setReviewDraft({ jobId: currentJobId, draft });
-  }, [currentJobId]);
+  const confirmImport = useConfirmReimburseImport(client, cacheSource, () => {
+    setReview(null);
+    void entriesQuery.refetch();
+  });
 
   if (identity.isLoading) return <div className="state-band" role="status">{t('reimb.loading')}</div>;
   if (identity.mode === 'identity' && !session) return <div className="reimb-page"><div className="state-band state-band--page">{t('reimb.needLogin')}</div></div>;
@@ -73,6 +101,7 @@ export function ReimbursePage({ client, source, identity }: {
   if (profileGate.guard) return profileGate.guard;
 
   const entries = [...gate.data.entries].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const jobs = importsQuery.data?.jobs ?? [];
   const myMemberId = identity.mode === 'identity' ? session?.memberId ?? null : null;
   const batches = batchesQuery.data?.batches ?? [];
   const summaries = batchesQuery.data?.summaries ?? [];
@@ -91,43 +120,77 @@ export function ReimbursePage({ client, source, identity }: {
     && (expenseType === 'all' || entry.expenseType === expenseType));
   const selectedPayout = selectedEntry?.payoutId
     ? payoutsQuery.data?.payouts.find(payout => payout.id === selectedEntry.payoutId) : null;
-  const openCreate = (preset: ReimburseExpenseType | null = null) => { setCreatePreset(preset); setCreateOpen(true); };
+  const openCreate = (preset: ReimburseExpenseType | null = null) => { setCreatePreset(preset); setImportOpen(false); setCreateOpen(true); };
+  const reviewJob = review ? jobs.find(job => job.id === review.jobId) : undefined;
+  const reviewPair = reviewJob?.pairs.find(pair => pair.id === review?.pairId);
+  const openReview = (jobId: string, pairId: string) => {
+    setReview({ jobId, pairId }); setJoinBatch(false); setReviewBatchId('all');
+  };
 
   return <div className="reimb-page">
+    <div className="reimb-page__title-row">
+      <h1>报销</h1>
+      {isFinance && <button type="button" className="btn btn--secondary btn--icon" aria-label={t('reimb.admin.open')} title={t('reimb.admin.open')} onClick={() => setAdminOpen(true)}><Settings2 size={18} /></button>}
+    </div>
     <div className="reimb-page__head"><p className="gaps-intro">{t('reimb.intro')}</p>
       {isFinance && <SegToggle value={view} onChange={setView} ariaLabel={t('reimb.view.title')} options={[{ value: 'mine', label: t('reimb.view.mine') }, { value: 'finance', label: t('reimb.view.finance') }]} />}
-      <button className="btn btn--secondary" onClick={() => setImportOpen(true)} disabled={!identity.canWrite}><Upload size={16} />{t('expected.reimburseImport')}</button>
-      <button className="btn btn--primary" onClick={() => importController.currentJobId !== null ? setImportPaused(false) : openCreate()} disabled={!identity.canWrite}><Plus size={16} />{t('expected.reimburseNew')}</button>
-      {isFinance && <button className="btn btn--secondary btn--sm" onClick={() => setAdminOpen(true)}><Settings2 size={14} />{t('reimb.admin.open')}</button>}
+      <div className="reimb-page__actions">
+        <button className="btn btn--secondary" onClick={() => setImportOpen(true)} disabled={!identity.canWrite || !importsEnabled}><Upload size={16} />{t('expected.reimburseImport')}</button>
+        <button className="btn btn--primary" onClick={() => openCreate()} disabled={!identity.canWrite}><Plus size={16} />{t('expected.reimburseNew')}</button>
+      </div>
     </div>
-    {view === 'mine' && <div className="domain-actions"><span className="reimb-preset-label">{t('reimb.quickPreset')}</span><button className="btn btn--sm btn--secondary" onClick={() => openCreate('taxi')}>{t('reimb.expenseType.taxi')}</button><button className="btn btn--sm btn--secondary" onClick={() => openCreate('ticket')}>{t('reimb.expenseType.ticket')}</button></div>}
     {isFinance && profileUntouched && <p className="reimb-admin-guide" role="note">{t('reimb.admin.guide')}</p>}
-    <SideDrawer open={importOpen} onClose={() => setImportOpen(false)} title={t('expected.reimburseImport')}>
-      <ReimburseImportZone onFiles={(files, useOcr) => { setImportPaused(false); void importController.importFiles(files, useOcr); setImportOpen(false); }} busy={importController.parsing} />
+
+    <SideDrawer open={importOpen} onClose={() => setImportOpen(false)} title={t('expected.reimburseImport')} placement="center">
+      <div className="reimb-import-modal">
+        <div className="reimb-import-presets"><span>快捷预设：</span>
+          {(['taxi', 'ticket', 'purchase'] as const).map(preset => <button key={preset} type="button" className="btn btn--secondary btn--sm" onClick={() => openCreate(preset)}>{t(`reimb.expenseType.${preset}`)}</button>)}
+        </div>
+        <ReimburseImportZone onFiles={files => uploadImport.mutate(files)} busy={uploadImport.isPending} />
+        <p className="reimb-import-modal__note">上传后由服务器解析与 OCR；可直接关闭此弹窗，在下方「导入任务」继续处理。</p>
+      </div>
     </SideDrawer>
-    {importController.parsing && <p role="status">{t('reimb.package.progress', importController.progress)} <button className="btn btn--sm btn--ghost" onClick={importController.cancel}>{t('reimb.package.cancel')}</button></p>}
-    {importController.fails.length > 0 && <ul className="reimb-import__notices">{importController.fails.map(fail => <li key={fail.id} className="form-hint form-hint--warn" role="alert">{t(`reimb.import.failed.${fail.reason}`, { file: fail.fileName })}<button className="btn btn--sm btn--ghost" onClick={() => importController.dismissFail(fail.id)}>{t('reimb.import.dismiss')}</button></li>)}</ul>}
-    <ReimburseUnmatchedPool jobs={importController.jobs} currentId={currentJobId} onOpen={id => { importController.openJob(id); setImportPaused(false); }} onDefer={importController.defer} />
-    {importPaused && currentJobId !== null && <div className="domain-actions"><button className="btn btn--secondary btn--sm" onClick={() => setImportPaused(false)}>{t('expected.resumeImport')}</button></div>}
-    <SideDrawer open={createOpen || (currentJobId !== null && !importPaused)} onClose={() => { setCreateOpen(false); setImportPaused(true); }} title={t('expected.reimburseNew')}>
-      <ReimburseEntryForm key={currentJobId === null ? `manual-${createPreset ?? 'blank'}` : `import-${currentJobId}`}
-        client={client} source={cacheSource} profile={profile} canWrite={identity.canWrite}
+
+    <ReimburseImportJobs jobs={jobs} canWrite={identity.canWrite && importsEnabled}
+      onReview={openReview} onOpenEntry={setEntryId}
+      onDeleteFile={(jobId, fileId) => deleteImportFile.mutate({ id: jobId, fileId })}
+      onDismiss={(jobId, pairId) => dismissImportPair.mutate({ id: jobId, pairId })}
+      onClose={jobId => closeImport.mutate(jobId)} />
+
+    <SideDrawer open={createOpen} onClose={() => setCreateOpen(false)} title={t('expected.reimburseNew')} placement="center">
+      <ReimburseEntryForm key={`manual-${createPreset ?? 'blank'}`} client={client} source={cacheSource} profile={profile} canWrite={identity.canWrite}
         writeLockedHint={identity.canWrite ? null : t('identity.writeHint')} presetExpenseType={createPreset}
-        initial={importController.formInitial && reviewDraft?.jobId === currentJobId ? { ...importController.formInitial, draft: reviewDraft.draft } : importController.formInitial}
-        importTargets={importController.jobs.filter(job => job.id !== currentJobId).map(job => ({ id: job.id, label: job.fileName }))}
-        onSplitAttachment={path => currentJobId !== null && importController.splitAttachment(currentJobId, path)}
-        onMoveAttachment={(path, targetId) => currentJobId !== null && importController.moveAttachment(currentJobId, path, targetId)}
-        onDraftChange={rememberReviewDraft} onDone={currentJobId === null ? () => { setCreateOpen(false); void entriesQuery.refetch(); } : () => { importController.advance(); void entriesQuery.refetch(); }} />
+        onDone={() => { setCreateOpen(false); void entriesQuery.refetch(); }} />
     </SideDrawer>
+
+    <SideDrawer open={!!reviewPair && !!reviewJob} onClose={() => setReview(null)} title={reviewPair?.status === 'pending' ? '手动建单' : '核对并建单'} placement="center">
+      {reviewPair && reviewJob && <div className="reimb-import-review">
+        {reviewPair.reasons.includes('ocr-recognition') && <p className="form-hint form-hint--warn">字段来自 OCR，请逐项核对；无法可靠识别的发票号已留空。</p>}
+        {isFinance && batches.length > 0 && <div className="reimb-import-review__batch">
+          <label><input type="checkbox" checked={joinBatch} onChange={event => setJoinBatch(event.target.checked)} />确认后加入批次（默认不加入）</label>
+          {joinBatch && <Field label="批次"><Select value={reviewBatchId} onChange={event => setReviewBatchId(event.target.value)}><option value="all">请选择批次</option>{batches.map(batch => <option key={batch.id} value={batch.id}>{batch.name}</option>)}</Select></Field>}
+        </div>}
+        <ReimburseEntryForm key={reviewPair.id} client={client} source={cacheSource} profile={profile} canWrite={identity.canWrite}
+          writeLockedHint={identity.canWrite ? null : t('identity.writeHint')} initial={importFormInitial(reviewJob, reviewPair)}
+          submitLabel={reviewPair.status === 'pending' ? '手动建单' : '确认并建单'} requestPending={confirmImport.isPending}
+          onSubmitRequest={(request, clientRequestId) => confirmImport.mutate({ id: reviewJob.id, request: { items: [{
+            pairId: reviewPair.id, draft: request, clientRequestId,
+            batchId: joinBatch && reviewBatchId !== 'all' ? reviewBatchId : null,
+          }] } })} />
+      </div>}
+    </SideDrawer>
+
     <div className="week-summary"><span><b>{entries.length}</b>{t('reimb.entries.title')}</span><span><b>{formatAmountFen(entries.reduce((sum, entry) => sum + (entry.totalAmountFen ?? 0), 0))}</b>{t('reimb.export.col.totalYuan')}</span></div>
     <div className="reimb-filters">
-      <select aria-label={t('reimb.export.col.status')} value={completeness} onChange={event => setCompleteness(event.target.value as typeof completeness)}><option value="all">{t('expected.all')}</option>{(['draft', 'partial', 'complete'] as const).map(value => <option key={value} value={value}>{t(`reimb.status.${value}`)}</option>)}</select>
-      <select aria-label={t('reimb.workflow.title')} value={workflow} onChange={event => setWorkflow(event.target.value as typeof workflow)}><option value="all">{t('expected.all')}</option>{(['draft', 'submitted', 'reviewing', 'returned', 'pendingPayment', 'completed', 'cancelled'] as const).map(value => <option key={value} value={value}>{t(`reimb.workflow.status.${value}`)}</option>)}</select>
-      <select aria-label={t('reimb.create.field.expenseType')} value={expenseType} onChange={event => setExpenseType(event.target.value as typeof expenseType)}><option value="all">{t('expected.all')}</option>{(['purchase', 'taxi', 'ticket', 'other'] as const).map(value => <option key={value} value={value}>{t(`reimb.expenseType.${value}`)}</option>)}</select>
-      {view === 'finance' && <select aria-label={t('reimb.entry.batch')} value={batchId} onChange={event => setBatchId(event.target.value)}><option value="all">{t('expected.all')}</option>{batches.map(batch => <option key={batch.id} value={batch.id}>{batch.name}</option>)}</select>}
-      <button className="btn btn--secondary btn--sm" disabled={!canSupplement} onClick={() => setSupplementIds(selectedEntries.map(entry => entry.id))}>{t('reimb.supplement.open')}</button>
-      <ReimburseExportSection client={client} source={cacheSource} entries={selectedEntries} batches={batches} profile={profile} compact />
-      {view === 'finance' && <button className="btn btn--primary btn--sm" disabled={selectedEntries.length === 0} onClick={() => setPayoutOpen(true)}><WalletCards size={14} />{t('reimb.payout.open')}</button>}
+      <Field label="状态"><Select aria-label={t('reimb.export.col.status')} value={completeness} onChange={event => setCompleteness(event.target.value as typeof completeness)}><option value="all">{t('expected.all')}</option>{(['draft', 'partial', 'complete'] as const).map(value => <option key={value} value={value}>{t(`reimb.status.${value}`)}</option>)}</Select></Field>
+      <Field label="流程"><Select aria-label={t('reimb.workflow.title')} value={workflow} onChange={event => setWorkflow(event.target.value as typeof workflow)}><option value="all">{t('expected.all')}</option>{(['draft', 'submitted', 'reviewing', 'returned', 'pendingPayment', 'completed', 'cancelled'] as const).map(value => <option key={value} value={value}>{t(`reimb.workflow.status.${value}`)}</option>)}</Select></Field>
+      <Field label="类型"><Select aria-label={t('reimb.create.field.expenseType')} value={expenseType} onChange={event => setExpenseType(event.target.value as typeof expenseType)}><option value="all">{t('expected.all')}</option>{(['purchase', 'taxi', 'ticket', 'other'] as const).map(value => <option key={value} value={value}>{t(`reimb.expenseType.${value}`)}</option>)}</Select></Field>
+      {view === 'finance' && <Field label="批次"><Select aria-label={t('reimb.entry.batch')} value={batchId} onChange={event => setBatchId(event.target.value)}><option value="all">{t('expected.all')}</option>{batches.map(batch => <option key={batch.id} value={batch.id}>{batch.name}</option>)}</Select></Field>}
+      <div className="reimb-filters__actions">
+        <button className="btn btn--secondary btn--sm" disabled={!canSupplement} onClick={() => setSupplementIds(selectedEntries.map(entry => entry.id))}>{t('reimb.supplement.open')}</button>
+        <ReimburseExportSection client={client} source={cacheSource} entries={selectedEntries} batches={batches} profile={profile} compact />
+        {view === 'finance' && <button className="btn btn--primary btn--sm" disabled={selectedEntries.length === 0} onClick={() => setPayoutOpen(true)}><WalletCards size={14} />{t('reimb.payout.open')}</button>}
+      </div>
     </div>
     {view === 'finance' && <ReimburseStructuralSummary client={client} source={cacheSource} query={{ ...(batchId === 'all' ? {} : { batchId }) }} enabled={isFinance} />}
     <section aria-label={t('reimb.entries.title')}>
@@ -146,7 +209,7 @@ export function ReimbursePage({ client, source, identity }: {
     <SideDrawer open={payoutOpen} onClose={() => setPayoutOpen(false)} title={t('reimb.payout.open')}>
       <ReimbursePayoutForm client={client} source={cacheSource} entries={selectedEntries} onDone={() => { setPayoutOpen(false); setSelectedIds([]); }} />
     </SideDrawer>
-    {isFinance && <SideDrawer open={adminOpen} onClose={() => setAdminOpen(false)} title={t('reimb.admin.open')}><div className="reimb-admin-stack">
+    {isFinance && <SideDrawer open={adminOpen} onClose={() => setAdminOpen(false)} title={t('reimb.admin.open')} placement="center"><div className="reimb-admin-stack">
       <ReimburseExportSection client={client} source={cacheSource} entries={entries} batches={batches} profile={profile} />
       <ReimburseBatchSection client={client} source={cacheSource} batches={batches} summaries={summaries} />
       <ReimburseProfileSection client={client} source={cacheSource} profile={profile} />

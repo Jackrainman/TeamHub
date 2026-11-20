@@ -2,7 +2,7 @@ import { useRef, useState, type ClipboardEvent, type DragEvent } from 'react';
 import { FileUp } from 'lucide-react';
 import { useI18n } from '../../../i18n';
 
-const INVOICE_ACCEPT = '.pdf,.xml,.ofd,.zip,.jpg,.jpeg,.png,.xlsx';
+const INVOICE_ACCEPT = '.pdf,.xml,.ofd,.zip,.jpg,.jpeg,.png';
 
 /**
  * 发票导入区（REIMBURSE-PROC 阶段 4）：点击选文件（隐藏 input）/ 拖拽 onDrop / 粘贴 onPaste
@@ -13,13 +13,12 @@ export function ReimburseImportZone({
   onFiles,
   busy,
 }: {
-  onFiles: (files: File[], useOcr: boolean) => void;
+  onFiles: (files: File[]) => void;
   busy: boolean;
 }) {
   const { t } = useI18n();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [useOcr, setUseOcr] = useState(false);
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -27,7 +26,7 @@ export function ReimburseImportZone({
     setDragOver(false);
     const files = Array.from(event.dataTransfer.files);
     if (files.length > 0) {
-      onFiles(files, useOcr);
+      onFiles(files);
     }
   }
 
@@ -36,7 +35,7 @@ export function ReimburseImportZone({
     const files = Array.from(event.clipboardData.files);
     if (files.length > 0) {
       event.preventDefault();
-      onFiles(files, useOcr);
+      onFiles(files);
     }
   }
 
@@ -60,7 +59,6 @@ export function ReimburseImportZone({
         {t('reimb.import.title')}
       </p>
       <p className="reimb-import__hint">{t('reimb.import.hint')}</p>
-      <label><input type="checkbox" checked={useOcr} onChange={e => setUseOcr(e.target.checked)} disabled={busy} />{t('reimb.package.ocrTrial')}</label>
       <div>
         <button
           type="button"
@@ -79,7 +77,7 @@ export function ReimburseImportZone({
           onChange={(e) => {
             const files = Array.from(e.target.files ?? []);
             if (files.length > 0) {
-              onFiles(files, useOcr);
+              onFiles(files);
             }
             e.target.value = '';
           }}

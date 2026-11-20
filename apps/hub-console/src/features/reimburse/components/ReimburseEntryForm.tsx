@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import type { ReimburseSegment } from '../api';
-import { derivePackageReview, DEFAULT_REIMBURSE_PROFILE, kindForExpenseType, type InvoiceType, type ReimburseEntry, type ReimburseExpenseType, type ReimburseProfile } from '@teamhub/hub-contracts';
+import { derivePackageReview, DEFAULT_REIMBURSE_PROFILE, kindForExpenseType, type CreateReimburseEntryRequest, type InvoiceType, type ReimburseEntry, type ReimburseExpenseType, type ReimburseProfile } from '@teamhub/hub-contracts';
 import {
   useSaveReimbursePackage,
   useUpdateReimburseEntry,
@@ -49,6 +49,9 @@ export function ReimburseEntryForm({
   onSplitAttachment,
   onMoveAttachment,
   presetExpenseType = null,
+  onSubmitRequest,
+  requestPending = false,
+  submitLabel,
 }: {
   client: ReimburseSegment;
   source: string;
@@ -65,6 +68,9 @@ export function ReimburseEntryForm({
   onSplitAttachment?: (path: string) => void;
   onMoveAttachment?: (path: string, targetId: number) => void;
   presetExpenseType?: ReimburseExpenseType | null;
+  onSubmitRequest?: (request: CreateReimburseEntryRequest, clientRequestId: string) => void;
+  requestPending?: boolean;
+  submitLabel?: string;
 }) {
   const { t } = useI18n();
   const [draft, setDraft] = useState<EntryDraft>(() => {
@@ -91,7 +97,7 @@ export function ReimburseEntryForm({
   });
   const updateMutation = useUpdateReimburseEntry(client, source);
   const mutation = editingEntry ? updateMutation : saveMutation;
-  const frozen = mutation.isPending || !!saveState.request;
+  const frozen = mutation.isPending || requestPending || !!saveState.request;
   const review = derivePackageReview(attachments.filter(a => a.included), profile);
   const packageValid = attachments.filter(a => a.included).length <= 12 &&
     !review.reviewReasons.some(reason => reason === 'multiple-invoices' || reason === 'ambiguous-invoices');
@@ -118,7 +124,9 @@ export function ReimburseEntryForm({
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!request || !canWrite) return;
-    if (editingEntry) {
+    if (onSubmitRequest) {
+      onSubmitRequest(request, saveState.clientRequestId);
+    } else if (editingEntry) {
       const { materials: _materials, recognitionSource: _recognition, ...patch } = request;
       updateMutation.mutate({ id: editingEntry.id, patch: { ...patch, expectedRevision: editingEntry.revision } }, { onSuccess: () => onDone?.() });
     } else if (packageValid) saveMutation.mutate({ request, attachments, state: saveState });
@@ -295,9 +303,9 @@ export function ReimburseEntryForm({
           </button>
         ) : null}
         <FormActions
-          submitLabel={t(editingEntry ? 'reimb.entry.saveMeta' : saveState.request ? 'reimb.package.retry' : 'reimb.create.submit')}
+          submitLabel={submitLabel ?? t(editingEntry ? 'reimb.entry.saveMeta' : saveState.request ? 'reimb.package.retry' : 'reimb.create.submit')}
           submittingLabel={t('reimb.create.submitting')}
-          submitting={mutation.isPending}
+          submitting={mutation.isPending || requestPending}
           disabled={!valid || !canWrite || !packageValid}
           lockedHint={writeLockedHint}
           error={

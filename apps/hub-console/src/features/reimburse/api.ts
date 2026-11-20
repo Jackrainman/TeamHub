@@ -5,6 +5,7 @@ import {
   ReimburseEvidenceListResponseSchema, UploadReimburseEvidenceResponseSchema,
   DeleteReimburseEvidenceResponseSchema, ReimburseEntryActionResponseSchema,
   ReimbursePayoutResponseSchema, ReimbursePayoutsResponseSchema, ReimburseSummaryResponseSchema,
+  ReimburseImportJobResponseSchema, ReimburseImportJobsResponseSchema,
   type CreateReimburseEntryRequest, type CreateReimburseEntryResponse,
   type UpdateReimburseEntryRequest, type UpdateReimburseEntryResponse,
   type CreateReimburseBatchRequest, type UpdateReimburseBatchRequest,
@@ -16,9 +17,10 @@ import {
   type CreateReimbursePayoutRequest, type ReimbursePayoutResponse, type ReimbursePayoutsResponse,
   type ReimburseSummaryQuery, type ReimburseSummaryResponse, type ReimburseExportRequest,
   type UpdateReimburseEvidenceRequest,
+  type ReimburseImportJobResponse, type ReimburseImportJobsResponse, type ConfirmReimburseImportRequest,
 } from '@teamhub/hub-contracts';
 import type { HttpContext } from '../../api/http';
-import { fetchJson, postFormData, postJson, sendJson } from '../../api/http';
+import { fetchJson, postFormData, postJson, postMultiFormData, sendJson } from '../../api/http';
 
 export interface ReimburseSegment {
   getReimburseEntries(): Promise<ReimburseEntriesResponse>;
@@ -38,6 +40,12 @@ export interface ReimburseSegment {
   getReimburseSummary(req: ReimburseSummaryQuery): Promise<ReimburseSummaryResponse>;
   exportReimburse(req: ReimburseExportRequest): Promise<{ blob: Blob; filename: string }>;
   updateReimburseEvidenceKind(id: string, evidenceId: string, req: UpdateReimburseEvidenceRequest): Promise<UploadReimburseEvidenceResponse>;
+  getReimburseImports(): Promise<ReimburseImportJobsResponse>;
+  uploadReimburseImport(files: File[]): Promise<ReimburseImportJobResponse>;
+  confirmReimburseImport(id: string, req: ConfirmReimburseImportRequest): Promise<ReimburseImportJobResponse>;
+  deleteReimburseImportFile(id: string, fileId: string): Promise<ReimburseImportJobResponse>;
+  dismissReimburseImportPair(id: string, pairId: string): Promise<ReimburseImportJobResponse>;
+  closeReimburseImport(id: string): Promise<ReimburseImportJobResponse>;
   reimburseEvidenceDownloadUrl(id: string, evidenceId: string): string;
 }
 export function createReimburseSegment(ctx: HttpContext): ReimburseSegment {
@@ -85,6 +93,22 @@ export function createReimburseSegment(ctx: HttpContext): ReimburseSegment {
     updateReimburseEvidenceKind(id, evidenceId, req) {
       return sendJson('PATCH', `${baseUrl}/api/reimburse/entries/${encodeURIComponent(id)}/evidence/${encodeURIComponent(evidenceId)}`,
         req, UploadReimburseEvidenceResponseSchema, fetcher, writeToken);
+    },
+    async getReimburseImports() { return fetchJson(`${baseUrl}/api/reimburse/imports`, ReimburseImportJobsResponseSchema, fetcher); },
+    async uploadReimburseImport(files) {
+      return postMultiFormData(`${baseUrl}/api/reimburse/imports`, files, ReimburseImportJobResponseSchema, fetcher, writeToken);
+    },
+    async confirmReimburseImport(id, req) {
+      return postJson(`${baseUrl}/api/reimburse/imports/${encodeURIComponent(id)}/confirm`, req, ReimburseImportJobResponseSchema, fetcher, writeToken);
+    },
+    async deleteReimburseImportFile(id, fileId) {
+      return sendJson('DELETE', `${baseUrl}/api/reimburse/imports/${encodeURIComponent(id)}/files/${encodeURIComponent(fileId)}`, undefined, ReimburseImportJobResponseSchema, fetcher, writeToken);
+    },
+    async dismissReimburseImportPair(id, pairId) {
+      return postJson(`${baseUrl}/api/reimburse/imports/${encodeURIComponent(id)}/pairs/${encodeURIComponent(pairId)}/dismiss`, {}, ReimburseImportJobResponseSchema, fetcher, writeToken);
+    },
+    async closeReimburseImport(id) {
+      return sendJson('DELETE', `${baseUrl}/api/reimburse/imports/${encodeURIComponent(id)}`, undefined, ReimburseImportJobResponseSchema, fetcher, writeToken);
     },
     reimburseEvidenceDownloadUrl(id, evidenceId) {
       return `${baseUrl}/api/reimburse/entries/${encodeURIComponent(id)}/evidence/${encodeURIComponent(evidenceId)}/download`;
