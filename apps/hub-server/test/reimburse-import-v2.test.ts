@@ -73,6 +73,11 @@ describe('reimburse import job persistence', () => {
       expect(replay.statusCode).toBe(200);
       expect(replay.json().job.confirmedEntryIds).toEqual([entryId]);
       expect(hub.database.db.rowCount('reimburse_entries')).toBe(1);
+      const duplicateUpload = await upload(hub.app, cookie);
+      const duplicateJob = await readyJob(hub.app, cookie, duplicateUpload.json().job.id);
+      expect(duplicateJob.files.every((file: { status: string }) => file.status === 'duplicate')).toBe(true);
+      expect(duplicateJob.pairs).toEqual([]);
+      expect(fs.existsSync(path.join(hub.root, 'imports', duplicateJob.id))).toBe(false);
     } finally { await hub.close(); }
   });
 

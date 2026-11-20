@@ -136,7 +136,7 @@ export function ReimbursePage({ client, source, identity }: {
       {isFinance && <SegToggle value={view} onChange={setView} ariaLabel={t('reimb.view.title')} options={[{ value: 'mine', label: t('reimb.view.mine') }, { value: 'finance', label: t('reimb.view.finance') }]} />}
       <div className="reimb-page__actions">
         <button className="btn btn--secondary" onClick={() => setImportOpen(true)} disabled={!identity.canWrite || !importsEnabled}><Upload size={16} />{t('expected.reimburseImport')}</button>
-        <button className="btn btn--primary" onClick={() => openCreate()} disabled={!identity.canWrite}><Plus size={16} />{t('expected.reimburseNew')}</button>
+        <button className="btn btn--primary" onClick={() => openCreate()} disabled={!identity.canWrite}><Plus size={16} />{t('reimb.create.title')}</button>
       </div>
     </div>
     {isFinance && profileUntouched && <p className="reimb-admin-guide" role="note">{t('reimb.admin.guide')}</p>}
@@ -157,7 +157,7 @@ export function ReimbursePage({ client, source, identity }: {
       onDismiss={(jobId, pairId) => dismissImportPair.mutate({ id: jobId, pairId })}
       onClose={jobId => closeImport.mutate(jobId)} />
 
-    <SideDrawer open={createOpen} onClose={() => setCreateOpen(false)} title={t('expected.reimburseNew')} placement="center">
+    <SideDrawer open={createOpen} onClose={() => setCreateOpen(false)} title={t('reimb.create.title')} placement="center">
       <ReimburseEntryForm key={`manual-${createPreset ?? 'blank'}`} client={client} source={cacheSource} profile={profile} canWrite={identity.canWrite}
         writeLockedHint={identity.canWrite ? null : t('identity.writeHint')} presetExpenseType={createPreset}
         onDone={() => { setCreateOpen(false); void entriesQuery.refetch(); }} />

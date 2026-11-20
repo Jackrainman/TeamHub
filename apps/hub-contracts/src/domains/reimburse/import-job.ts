@@ -3,7 +3,7 @@ import { isoDateTimeSchema } from '../../common.js';
 import { classifyPackageText } from './import-package.js';
 import { kindForExpenseType } from './workflow.js';
 import {
-  InvoiceRecognitionSourceSchema, InvoiceTypeSchema, ReimburseItemSchema,
+  InvoiceRecognitionSourceSchema, ReimburseItemSchema,
 } from './model.js';
 import {
   CreateReimburseEntryRequestSchema,
