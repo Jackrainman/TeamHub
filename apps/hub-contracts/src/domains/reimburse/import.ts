@@ -13,12 +13,16 @@ export interface ParsedInvoice {
 }
 
 /**
- * 元金额文本 → 分（int）。容忍 ¥/￥、千分位、数字间空格（PDF 文本流常见 "¥ 1,234.56"）；
- * 超两位小数或无法解析 → null（不硬凑）。
+ * 元金额文本 → 分（int）。容忍 ¥/￥、千分位及其后空白、小数点两侧空白（OCR 常见 "¥45. 87"）；
+ * 超两位小数、数字被空白拆成两段或无法解析 → null（不把两个金额粘连）。
  */
 function yuanTextToFen(raw: string): number | null {
-  const cleaned = raw.replace(/[¥￥\s,，]/g, '');
-  const m = /^(-?\d+)(?:\.(\d{1,2}))?$/.exec(cleaned);
+  const cleaned = raw.replace(/[¥￥]/g, '').trim()
+    .replace(/(?<=\d)\s*\.\s*(?=\d)/g, '.')
+    .replace(/(?<=\d)[,，]\s*(?=\d)/g, ',');
+  if (/\s/.test(cleaned)) return null;
+  const normalized = cleaned.replace(/[,，]/g, '');
+  const m = /^(-?\d+)(?:\.(\d{1,2}))?$/.exec(normalized);
   if (!m) {
     return null;
   }
@@ -565,6 +569,29 @@ function parsePdfItemLine(line: string, pendingName: string): PdfItemTail | null
   return null;
 }
 
+interface SplitPartyColumns {
+  purchaserName: string | null;
+  purchaserTaxNo: string | null;
+  seller: string | null;
+}
+
+/** 部分 PDF 文本层先集中输出购销标签，再按购方名称/税号、销方名称/税号输出值。 */
+function extractSplitPartyColumns(lines: string[]): SplitPartyColumns | null {
+  if (!lines.some(line => line.replace(/\s/g, '') === '名称：名称：')) return null;
+  const taxIndexes = lines.map((line, index) => ({ value: line.trim(), index }))
+    .filter(({ value }) => /^(?:[0-9A-Z]{15}|[0-9A-Z]{18}|(?!\d{20}$)[0-9A-Z]{20})$/.test(value));
+  if (taxIndexes.length < 2) return null;
+  const nameBefore = (index: number): string | null => {
+    const value = lines[index - 1]?.trim() ?? '';
+    return value && !/[:：]/.test(value) && !/^\d{4}年/.test(value) ? value : null;
+  };
+  return {
+    purchaserName: nameBefore(taxIndexes[0].index),
+    purchaserTaxNo: taxIndexes[0].value,
+    seller: nameBefore(taxIndexes[1].index),
+  };
+}
+
 /**
  * 发票 PDF 文本行 → 结构化字段。`textLines` 为 pdf.js 按行抽取的文本（前端本地解析，文件不上传）。
  * 只覆盖主流数电票版式：发票号码/开票日期（容忍字符间空格）、购销布局行与「销售方信息」块、
@@ -581,9 +608,10 @@ export function parseInvoicePdfText(
 
   const invoiceNo = extractPdfInvoiceNo(text);
   const invoiceDate = extractPdfInvoiceDate(text);
-  const seller = extractPdfSeller(lines);
-  const purchaserName = extractPdfPurchaserName(lines);
-  const purchaserTaxNo = extractPdfPurchaserTaxNo(lines);
+  const splitParties = extractSplitPartyColumns(lines);
+  const seller = splitParties?.seller ?? extractPdfSeller(lines);
+  const purchaserName = splitParties?.purchaserName ?? extractPdfPurchaserName(lines);
+  const purchaserTaxNo = splitParties?.purchaserTaxNo ?? extractPdfPurchaserTaxNo(lines);
 
   // 价税合计：优先「价税合计（小写）」同行金额，兜底全局最大 ¥ 金额（tidoc 同款）。
   let totalAmountFen: number | null = null;
@@ -603,6 +631,20 @@ export function parseInvoicePdfText(
     if (/价税合计/.test(line) && /小写/.test(line)) {
       totalAmountFen = fen;
     }
+  }
+  if (totalAmountFen === null && recognitionSource === 'ocr') {
+    let derivedTotal = 0;
+    let hasDerivedTotal = false;
+    for (const line of lines) {
+      const match = /(-?[0-9][0-9,，]*(?:\.\s*\d{1,2})?)\s+-?\d+(?:\.\d+)?%\s+(-?[0-9][0-9,，]*(?:\.\s*\d{1,2})?)/.exec(line);
+      if (!match) continue;
+      const net = yuanTextToFen(match[1]);
+      const tax = yuanTextToFen(match[2]);
+      if (net === null || tax === null) continue;
+      derivedTotal += net + tax;
+      hasDerivedTotal = true;
+    }
+    if (hasDerivedTotal) totalAmountFen = derivedTotal;
   }
   if (totalAmountFen === null && amounts.length > 0) {
     totalAmountFen = Math.max(...amounts);

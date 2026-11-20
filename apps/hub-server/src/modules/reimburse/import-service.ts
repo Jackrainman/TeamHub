@@ -41,6 +41,20 @@ function displayNameFor(file: ReimburseImportFile, at: string): string {
     : `${date}-${amount}-付款${file.ext}`;
 }
 
+function importParseError(ext: string, error: unknown): string {
+  const kind = ext === '.pdf' ? 'pdf'
+    : ext === '.png' || ext === '.jpg' || ext === '.jpeg' ? 'ocr'
+      : ext === '.ofd' ? 'ofd' : ext === '.xml' ? 'xml' : 'parse';
+  const message = error instanceof Error ? error.message : '';
+  // 只透传已知、固定且不含输入内容的原因；其他异常不向前端泄露路径、堆栈或文件文本。
+  const reason = /Uint8Array.*Buffer/i.test(message) ? 'Uint8Array required'
+    : /timeout/i.test(message) ? 'timeout'
+      : /invalid pdf/i.test(message) ? 'invalid PDF'
+        : /language directory unconfigured/i.test(message) ? 'language directory unconfigured'
+          : kind === 'ocr' ? 'recognition failed' : 'parse failed';
+  return `${kind}: ${reason}`;
+}
+
 export class ReimburseImportService {
   private queue: Promise<void> = Promise.resolve();
 
@@ -144,7 +158,7 @@ export class ReimburseImportService {
       this.jobs.saveJob(job);
       const parsedFiles: ReimburseImportFile[] = [];
       for (const file of job.files) {
-        if (file.status === 'duplicate' || file.status === 'removed' || file.error === 'nested zip unsupported') {
+        if (file.status === 'duplicate' || file.status === 'removed' || file.status === 'mounted' || file.error === 'nested zip unsupported') {
           parsedFiles.push(file); continue;
         }
         if (!ALLOWED_EXTENSIONS.has(file.ext) || file.ext === '.zip') {
@@ -155,13 +169,15 @@ export class ReimburseImportService {
           const next = { ...file, ...parsed, status: 'parsed' as const, error: null };
           next.displayName = displayNameFor(next, job.createdAt);
           parsedFiles.push(next);
-        } catch {
-          parsedFiles.push({ ...file, status: 'unreadable', error: 'parse or OCR failed' });
+        } catch (error) {
+          parsedFiles.push({ ...file, status: 'unreadable', error: importParseError(file.ext, error) });
         }
         this.jobs.saveJob({ ...job, files: parsedFiles.concat(job.files.slice(parsedFiles.length)), updatedAt: this.clock.now().toISOString() });
       }
       const ready = { ...job, files: parsedFiles, updatedAt: this.clock.now().toISOString() };
-      this.jobs.saveJob({ ...ready, status: 'ready', pairs: this.recalculate(ready), error: null });
+      const pairs = this.recalculate(ready);
+      const status = pairs.length > 0 && pairs.every(pair => pair.status === 'confirmed' || pair.status === 'dismissed') ? 'closed' as const : 'ready' as const;
+      this.jobs.saveJob({ ...ready, status, pairs, error: null });
     } catch {
       const current = this.jobs.getJob(id);
       if (current) this.jobs.saveJob({ ...current, status: 'closed', error: 'parse failed', updatedAt: this.clock.now().toISOString() });
@@ -172,7 +188,10 @@ export class ReimburseImportService {
     const retained = job.pairs.filter(pair => pair.status === 'confirmed' || pair.status === 'dismissed');
     const retainedFiles = new Set(retained.flatMap(pair => pair.fileIds));
     const candidates = job.files.filter(file => !retainedFiles.has(file.id));
-    return [...retained, ...matchReimburseImportFiles(candidates, () => `reip-${randomUUID()}`)];
+    const previousIds = new Map(job.pairs.map(pair => [pair.fileIds.slice().sort().join(','), pair.id]));
+    const generated = matchReimburseImportFiles(candidates, () => `reip-${randomUUID()}`)
+      .map(pair => ({ ...pair, id: previousIds.get(pair.fileIds.slice().sort().join(',')) ?? pair.id }));
+    return [...retained, ...generated];
   }
 
   private requireJob(id: string): ReimburseImportJob {
@@ -201,6 +220,20 @@ export class ReimburseImportService {
     const job = this.requireJob(id);
     if (!(await this.canRead(job, actor))) throw appError('forbidden', 'REIMBURSE_ENTRY_FORBIDDEN', '只有本人或财务能查看导入作业');
     return job;
+  }
+
+  reparseJob(id: string, actor: ActorRef): ReimburseImportJob {
+    const job = this.requireJob(id);
+    this.requireOwner(job, actor);
+    if (job.status === 'parsing') throw appError('conflict', 'REIMBURSE_ENTRY_LOCKED', '解析完成后才能重新解析');
+    const retainedFiles = new Set(job.pairs.filter(pair => pair.status === 'confirmed' || pair.status === 'dismissed')
+      .flatMap(pair => pair.fileIds));
+    const hasCandidates = job.files.some(file => !retainedFiles.has(file.id)
+      && file.status !== 'duplicate' && file.status !== 'removed' && file.status !== 'mounted');
+    if (!hasCandidates) return job;
+    const parsing = this.jobs.saveJob({ ...job, status: 'parsing', error: null, updatedAt: this.clock.now().toISOString() });
+    this.queue = this.queue.catch(() => {}).then(() => this.processJob(id));
+    return parsing;
   }
 
   async deleteFile(id: string, fileId: string, actor: ActorRef): Promise<ReimburseImportJob> {

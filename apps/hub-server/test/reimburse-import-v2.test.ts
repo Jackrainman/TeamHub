@@ -81,6 +81,65 @@ describe('reimburse import job persistence', () => {
     } finally { await hub.close(); }
   });
 
+  it('stores a concise diagnostic category without exposing stacks or file contents', async () => {
+    const hub = createTestHub();
+    try {
+      const cookie = await login(hub.app, 'owner', TEST_PASSWORDS.owner);
+      const form = new FormData();
+      form.append('files', Buffer.from('sensitive broken pdf contents'), 'broken.pdf');
+      const uploaded = await hub.app.inject({ method: 'POST', url: '/api/reimburse/imports', headers: { cookie, ...form.getHeaders() }, payload: form.getBuffer() });
+      const job = await readyJob(hub.app, cookie, uploaded.json().job.id);
+      expect(job.files[0]).toMatchObject({ status: 'unreadable', error: 'pdf: invalid PDF' });
+      expect(job.files[0].error).not.toContain('sensitive broken pdf contents');
+      expect(job.files[0].error).not.toContain('\n');
+    } finally { await hub.close(); }
+  });
+
+  it('reparses stored files for the owner and is idempotent across repeated requests', async () => {
+    const hub = createTestHub();
+    try {
+      const cookie = await login(hub.app, 'owner', TEST_PASSWORDS.owner);
+      const uploaded = await upload(hub.app, cookie);
+      const id = uploaded.json().job.id as string;
+      const original = await readyJob(hub.app, cookie, id);
+
+      const first = await hub.app.inject({ method: 'POST', url: `/api/reimburse/imports/${id}/reparse`, headers: { cookie } });
+      expect(first.statusCode, first.body).toBe(202);
+      const reparsed = await readyJob(hub.app, cookie, id);
+      expect(reparsed.files.map((file: { id: string }) => file.id)).toEqual(original.files.map((file: { id: string }) => file.id));
+      expect(reparsed.pairs).toHaveLength(1);
+      expect(reparsed.pairs[0]).toMatchObject({ status: 'matched', amountFen: 2450 });
+
+      const replay = await hub.app.inject({ method: 'POST', url: `/api/reimburse/imports/${id}/reparse`, headers: { cookie } });
+      expect(replay.statusCode, replay.body).toBe(202);
+      const replayed = await readyJob(hub.app, cookie, id);
+      expect(replayed.pairs).toEqual(reparsed.pairs);
+      expect(replayed.files).toEqual(reparsed.files);
+      expect(hub.database.db.rowCount('reimburse_entries')).toBe(0);
+
+      const reviewerCookie = await login(hub.app, 'reviewer', TEST_PASSWORDS.reviewer);
+      const forbidden = await hub.app.inject({ method: 'POST', url: `/api/reimburse/imports/${id}/reparse`, headers: { cookie: reviewerCookie } });
+      expect(forbidden.statusCode).toBe(403);
+    } finally { await hub.close(); }
+  });
+
+  it('does not reopen an abandoned job after its import bytes were deleted', async () => {
+    const hub = createTestHub();
+    try {
+      const cookie = await login(hub.app, 'owner', TEST_PASSWORDS.owner);
+      const uploaded = await upload(hub.app, cookie);
+      const id = uploaded.json().job.id as string;
+      await readyJob(hub.app, cookie, id);
+      const closed = await hub.app.inject({ method: 'DELETE', url: `/api/reimburse/imports/${id}`, headers: { cookie } });
+      expect(closed.json().job.status).toBe('closed');
+
+      const reparsed = await hub.app.inject({ method: 'POST', url: `/api/reimburse/imports/${id}/reparse`, headers: { cookie } });
+      expect(reparsed.statusCode, reparsed.body).toBe(202);
+      expect(reparsed.json().job.status).toBe('closed');
+      expect(reparsed.json().job.files.every((file: { status: string }) => file.status === 'removed')).toBe(true);
+    } finally { await hub.close(); }
+  });
+
   it('deletes one pending file and immediately recomputes a unique match', async () => {
     const hub = createTestHub();
     try {

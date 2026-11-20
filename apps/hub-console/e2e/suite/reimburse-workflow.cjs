@@ -8,8 +8,8 @@ const { startV1Server, withBrowser, login, assertNoOverflow } = require('./lib/v
       await login(page, hub, 'admin');
       await page.getByRole('button', { name: '报销', exact: true }).click();
       await page.locator('.reimb-page').waitFor();
-      await page.getByRole('button', { name: '导入票据', exact: true }).click();
-      await page.getByRole('dialog', { name: '导入票据', exact: true }).getByRole('button', { name: '打车', exact: true }).click();
+      await page.getByRole('button', { name: '新建一笔', exact: true }).click();
+      await page.getByRole('dialog', { name: '新建一笔', exact: true }).locator('.reimb-import-presets').getByRole('button', { name: '打车', exact: true }).click();
       await page.getByLabel('费用摘要', { exact: true }).fill('E2E交通报销');
       await page.getByLabel('发票号码', { exact: true }).fill('E2E-TAXI-001');
       await page.getByLabel('开票日期', { exact: true }).fill('2026-11-01');

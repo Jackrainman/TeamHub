@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  classifyPackageText,
   extractPaymentAmountFen,
   matchReimburseImportFiles,
+  parseInvoicePdfText,
   type ReimburseImportFile,
 } from '../src/index.js';
 
@@ -82,9 +84,35 @@ describe('reimburse import v2 matching', () => {
     expect(recomputed[0]).toMatchObject({ status: 'matched', invoiceFileIds: [invoice.id], paymentFileIds: [firstPayment.id] });
   });
 
+  it('derives an OCR total from net and tax when the total row is lost', () => {
+    const parsed = parseInvoicePdfText([
+      '电子发票',
+      '纸制品 箱 1 40. 59 40. 59 13% 5.28',
+      '合 计 ¥40.59 ¥5. 2 引',
+    ], 'ocr');
+    expect(parsed?.totalAmountFen).toBe(4587);
+  });
+
+  it('normalizes decimal-point whitespace without joining two separated amounts', () => {
+    expect(parseInvoicePdfText(['电子发票', '价税合计（小写）¥45. 87'], 'ocr')?.totalAmountFen).toBe(4587);
+    expect(parseInvoicePdfText(['电子发票', '价税合计（小写）¥45 87'], 'ocr')?.totalAmountFen ?? null).toBeNull();
+  });
+
+  it('recognizes invoice-photo layout signals without classifying payment screenshots as invoices', () => {
+    const invoicePhoto = '开票日期: 2026年10月01日\n项目名称 税率/征收率 税额\n价税合计（小写）¥45.87';
+    expect(classifyPackageText(invoicePhoto)).toBe('invoice');
+    expect(classifyPackageText('交易成功\n先用后付 实付:45.87\n支付方式: 先用后付')).toBe('paymentShot');
+    expect(classifyPackageText('微信支付\n支付成功\n¥45.87')).toBe('paymentShot');
+  });
+
   it('extracts the labelled payment amount before the largest currency amount', () => {
     expect(extractPaymentAmountFen('支付金额 ￥1,234.56\n其他金额 ¥9999.99')).toBe(123456);
     expect(extractPaymentAmountFen('账户余额 ¥9999.99\n实付：¥88.00')).toBe(8800);
+    expect(extractPaymentAmountFen('先用后付 实付:45.87\n已从微信文付付款冯45.87')).toBe(4587);
+    expect(extractPaymentAmountFen('先 用 后 付 实 付 :45.87\n已 从 微 信 支付 付款 45.87')).toBe(4587);
+    expect(extractPaymentAmountFen('商品 总 价 ¥240.00\n实 付款 ^ ¥191.00')).toBe(19100);
+    expect(extractPaymentAmountFen('实 付 :45. 87')).toBe(4587);
+    expect(extractPaymentAmountFen('实 付 :45 87')).toBeNull();
     expect(extractPaymentAmountFen('没有金额')).toBeNull();
   });
 });

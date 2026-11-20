@@ -495,6 +495,7 @@
 .reimb-page__title-row { justify-content: space-between; }
 .reimb-page__title-row h1 { margin: 0; font-size: var(--text-2xl); }
 .reimb-page__actions { margin-left: auto; }
+.reimb-page__mode-hint { flex: 1 0 100%; margin: 0; color: var(--muted); font-size: var(--text-sm); text-align: right; }
 .reimb-page__head .reimb-page__actions .btn { margin-left: 0; min-height: var(--control-height); }
 .btn--icon { width: var(--control-height); min-height: var(--control-height); padding: 0; justify-content: center; }
 .reimb-filters { align-items: flex-end; gap: var(--space-3); }

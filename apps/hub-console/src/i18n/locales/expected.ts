@@ -8,7 +8,7 @@ export const zhExpected = {
   'expected.font.normal': '标准', 'expected.font.large': '大', 'expected.font.xlarge': '特大',
   'expected.sidebarState': '当前侧栏状态', 'expected.sidebarStateHint': '随时手动展开或收起，刷新页面后恢复展开。',
   'expected.nav.workbench': '任务', 'expected.nav.calendar': '日历', 'expected.nav.reimburse': '报销',
-  'expected.reimburseNew': '新建条目', 'expected.reimburseImport': '导入票据', 'expected.reimburseOpen': '查看 / 编辑',
+  'expected.reimburseNew': '新建条目', 'expected.reimburseImport': '批量导入', 'expected.reimburseOpen': '查看 / 编辑',
   'expected.reimburseSelect': '选择条目 {title}', 'expected.selectAll': '选择全部', 'expected.exportSelected': '导出选中 ({count})',
   'expected.all': '全部', 'expected.reimbursePrivacy': '材料勾选表示本人自证已备；凭证原件只在条目详情内按本人 → 财务权限读取。',
   'expected.searchTitle': '全局搜索', 'expected.searchHint': '输入关键词，同时检索任务、成员和报销。',
@@ -24,6 +24,6 @@ export const enExpected: Record<keyof typeof zhExpected, string> = {
   'expected.font.normal': 'Standard', 'expected.font.large': 'Large', 'expected.font.xlarge': 'Extra large',
   'expected.sidebarState': 'Sidebar state', 'expected.sidebarStateHint': 'Toggle anytime. The sidebar starts expanded after reload.',
   'expected.nav.workbench': 'Tasks', 'expected.nav.calendar': 'Calendar', 'expected.nav.reimburse': 'Expenses',
-  'expected.reimburseNew': 'New entry', 'expected.reimburseImport': 'Import receipts', 'expected.reimburseOpen': 'View / edit', 'expected.reimburseSelect': 'Select entry {title}', 'expected.selectAll': 'Select all', 'expected.exportSelected': 'Export selected ({count})', 'expected.all': 'All', 'expected.reimbursePrivacy': 'Checks are self-declarations. Private evidence is only retrieved in entry details for its owner and finance.',
+  'expected.reimburseNew': 'New entry', 'expected.reimburseImport': 'Batch import', 'expected.reimburseOpen': 'View / edit', 'expected.reimburseSelect': 'Select entry {title}', 'expected.selectAll': 'Select all', 'expected.exportSelected': 'Export selected ({count})', 'expected.all': 'All', 'expected.reimbursePrivacy': 'Checks are self-declarations. Private evidence is only retrieved in entry details for its owner and finance.',
   'expected.searchTitle': 'Global search', 'expected.searchHint': 'Search tasks, members and expenses.', 'expected.searchError': 'Search failed. Please retry.', 'expected.searchLoading': 'Searching…', 'expected.search': 'Search', 'expected.searchTask': 'Task', 'expected.searchMember': 'Member', 'expected.searchReimburse': 'Expense',
 };

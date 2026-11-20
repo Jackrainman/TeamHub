@@ -49,7 +49,7 @@ export function classifyPackageText(text: string): PackageRole {
   const compact = text.replace(/\s/g, '');
   if (/查验结果|发票查验|查验一致/.test(compact)) return 'inspection';
   if (/发票号码|电子客票号|铁路电子客票|<Invoice[\s>]|<EIid>|<[^>]*:xbrl/i.test(text) ||
-    /发票号码|铁路电子客票/.test(compact)) return 'invoice';
+    /发票号码|铁路电子客票|价税合计|开票日期|税率|征收率|销售方|电子发票/.test(compact)) return 'invoice';
   if (/付款成功|支付成功|交易成功|支付方式|交易单号|商户单号/.test(compact)) return 'paymentShot';
   return 'unknown';
 }

@@ -84,6 +84,13 @@ export function useConfirmReimburseImport(client: ReimburseSegment, source: stri
   });
 }
 
+export function useReparseReimburseImport(client: ReimburseSegment, source: string) {
+  return useHubMutation({
+    invalidateKeys: [queryKeys.reimburse.imports(source)],
+    mutationFn: (id: string) => client.reparseReimburseImport(id),
+  });
+}
+
 export function useDeleteReimburseImportFile(client: ReimburseSegment, source: string) {
   return useHubMutation({
     invalidateKeys: [queryKeys.reimburse.imports(source)],

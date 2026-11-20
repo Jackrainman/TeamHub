@@ -14,7 +14,7 @@ import { SegToggle } from '../../components/SegToggle';
 import {
   useCloseReimburseImport, useConfirmReimburseImport, useDeleteReimburseImportFile,
   useDismissReimburseImportPair, useReimburseBatches, useReimburseEntries, useReimburseImportJobs,
-  useReimbursePayouts, useReimburseProfile, useUploadReimburseImport,
+  useReimbursePayouts, useReimburseProfile, useReparseReimburseImport, useUploadReimburseImport,
 } from './hooks';
 import type { ReimburseSegment } from './api';
 import type { HubApiClient } from '../../api/client';
@@ -70,6 +70,7 @@ export function ReimbursePage({ client, source, identity }: {
   const profileQuery = useReimburseProfile(client, cacheSource, enabled);
   const importsQuery = useReimburseImportJobs(client, cacheSource, importsEnabled);
   const uploadImport = useUploadReimburseImport(client, cacheSource);
+  const reparseImport = useReparseReimburseImport(client, cacheSource);
   const deleteImportFile = useDeleteReimburseImportFile(client, cacheSource);
   const dismissImportPair = useDismissReimburseImportPair(client, cacheSource);
   const closeImport = useCloseReimburseImport(client, cacheSource);
@@ -135,6 +136,7 @@ export function ReimbursePage({ client, source, identity }: {
     <div className="reimb-page__head"><p className="gaps-intro">{t('reimb.intro')}</p>
       {isFinance && <SegToggle value={view} onChange={setView} ariaLabel={t('reimb.view.title')} options={[{ value: 'mine', label: t('reimb.view.mine') }, { value: 'finance', label: t('reimb.view.finance') }]} />}
       <div className="reimb-page__actions">
+        <p className="reimb-page__mode-hint">{t('reimb.entryModeHint')}</p>
         <button className="btn btn--secondary" onClick={() => setImportOpen(true)} disabled={!identity.canWrite || !importsEnabled}><Upload size={16} />{t('expected.reimburseImport')}</button>
         <button className="btn btn--primary" onClick={() => openCreate()} disabled={!identity.canWrite}><Plus size={16} />{t('reimb.create.title')}</button>
       </div>
@@ -143,21 +145,21 @@ export function ReimbursePage({ client, source, identity }: {
 
     <SideDrawer open={importOpen} onClose={() => setImportOpen(false)} title={t('expected.reimburseImport')} placement="center">
       <div className="reimb-import-modal">
-        <div className="reimb-import-presets"><span>快捷预设：</span>
-          {(['taxi', 'ticket', 'purchase'] as const).map(preset => <button key={preset} type="button" className="btn btn--secondary btn--sm" onClick={() => openCreate(preset)}>{t(`reimb.expenseType.${preset}`)}</button>)}
-        </div>
         <ReimburseImportZone onFiles={files => uploadImport.mutate(files)} busy={uploadImport.isPending} />
         <p className="reimb-import-modal__note">上传后由服务器解析与 OCR；可直接关闭此弹窗，在下方「导入任务」继续处理。</p>
       </div>
     </SideDrawer>
 
     <ReimburseImportJobs jobs={jobs} canWrite={identity.canWrite && importsEnabled}
-      onReview={openReview} onOpenEntry={setEntryId}
+      onReview={openReview} onOpenEntry={setEntryId} onReparse={jobId => reparseImport.mutate(jobId)}
       onDeleteFile={(jobId, fileId) => deleteImportFile.mutate({ id: jobId, fileId })}
       onDismiss={(jobId, pairId) => dismissImportPair.mutate({ id: jobId, pairId })}
       onClose={jobId => closeImport.mutate(jobId)} />
 
     <SideDrawer open={createOpen} onClose={() => setCreateOpen(false)} title={t('reimb.create.title')} placement="center">
+      <div className="reimb-import-presets"><span>{t('reimb.quickPreset')}</span>
+        {(['taxi', 'ticket', 'purchase'] as const).map(preset => <button key={preset} type="button" className="btn btn--secondary btn--sm" onClick={() => setCreatePreset(preset)}>{t(`reimb.expenseType.${preset}`)}</button>)}
+      </div>
       <ReimburseEntryForm key={`manual-${createPreset ?? 'blank'}`} client={client} source={cacheSource} profile={profile} canWrite={identity.canWrite}
         writeLockedHint={identity.canWrite ? null : t('identity.writeHint')} presetExpenseType={createPreset}
         onDone={() => { setCreateOpen(false); void entriesQuery.refetch(); }} />

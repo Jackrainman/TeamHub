@@ -43,6 +43,7 @@ export interface ReimburseSegment {
   getReimburseImports(): Promise<ReimburseImportJobsResponse>;
   uploadReimburseImport(files: File[]): Promise<ReimburseImportJobResponse>;
   confirmReimburseImport(id: string, req: ConfirmReimburseImportRequest): Promise<ReimburseImportJobResponse>;
+  reparseReimburseImport(id: string): Promise<ReimburseImportJobResponse>;
   deleteReimburseImportFile(id: string, fileId: string): Promise<ReimburseImportJobResponse>;
   dismissReimburseImportPair(id: string, pairId: string): Promise<ReimburseImportJobResponse>;
   closeReimburseImport(id: string): Promise<ReimburseImportJobResponse>;
@@ -100,6 +101,9 @@ export function createReimburseSegment(ctx: HttpContext): ReimburseSegment {
     },
     async confirmReimburseImport(id, req) {
       return postJson(`${baseUrl}/api/reimburse/imports/${encodeURIComponent(id)}/confirm`, req, ReimburseImportJobResponseSchema, fetcher, writeToken);
+    },
+    async reparseReimburseImport(id) {
+      return postJson(`${baseUrl}/api/reimburse/imports/${encodeURIComponent(id)}/reparse`, {}, ReimburseImportJobResponseSchema, fetcher, writeToken);
     },
     async deleteReimburseImportFile(id, fileId) {
       return sendJson('DELETE', `${baseUrl}/api/reimburse/imports/${encodeURIComponent(id)}/files/${encodeURIComponent(fileId)}`, undefined, ReimburseImportJobResponseSchema, fetcher, writeToken);

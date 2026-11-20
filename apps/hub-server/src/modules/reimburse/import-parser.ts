@@ -117,7 +117,7 @@ async function ocr(inputs: Buffer[]): Promise<{ text: string; confidence: number
 
 async function pdfTextAndOcrImages(data: Uint8Array): Promise<{ lines: string[]; ocrImages: Buffer[] }> {
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  const document = await pdfjs.getDocument({ data, useSystemFonts: true }).promise;
+  const document = await pdfjs.getDocument({ data: new Uint8Array(data), useSystemFonts: true }).promise;
   const lines: string[] = [];
   const ocrImages: Buffer[] = [];
   for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {

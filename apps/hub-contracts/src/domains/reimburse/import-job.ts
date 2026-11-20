@@ -146,19 +146,25 @@ function draftForInvoice(invoice: ParsedInvoice | null, confidence: number | nul
 
 /** 元文本转分；只接受至多两位小数，不用浮点金额做配对。 */
 function paymentYuanToFen(raw: string): number | null {
-  const cleaned = raw.replace(/[¥￥\s,，]/g, '');
-  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(cleaned);
+  const cleaned = raw.replace(/[¥￥]/g, '').trim()
+    .replace(/(?<=\d)\s*\.\s*(?=\d)/g, '.')
+    .replace(/(?<=\d)[,，]\s*(?=\d)/g, ',');
+  if (/\s/.test(cleaned)) return null;
+  const normalized = cleaned.replace(/[,，]/g, '');
+  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(normalized);
   if (!match) return null;
   return Number.parseInt(match[1], 10) * 100 + Number.parseInt((match[2] ?? '').padEnd(2, '0'), 10);
 }
 
 const CURRENCY = String.raw`[¥￥]\s*([0-9][0-9,，\s]*(?:\.\s*\d{1,2})?)`;
+const PAYMENT_LABEL = String.raw`支\s*付\s*金\s*额|实\s*付\s*款?|合\s*计|交\s*易\s*金\s*额`;
 /** 付款截图金额：优先标签同行，其次全图最大 ¥ 金额。 */
 export function extractPaymentAmountFen(text: string): number | null {
   const lines = text.split(/\r?\n/);
   for (const line of lines) {
-    if (!/支付金额|实付|合计|交易金额/.test(line)) continue;
-    const match = new RegExp(CURRENCY).exec(line);
+    if (!new RegExp(PAYMENT_LABEL).test(line)) continue;
+    const match = new RegExp(CURRENCY).exec(line)
+      ?? new RegExp(String.raw`(?:${PAYMENT_LABEL})\s*[:：]?\s*([0-9][0-9,，]*(?:\.\s*\d{1,2})?)(?!\s*\d)`).exec(line);
     const amount = match ? paymentYuanToFen(match[1]) : null;
     if (amount !== null) return amount;
   }

@@ -12,8 +12,11 @@ const payment = '支付成功\n交易金额：￥36.80\n交易单号：E2E-IMPOR
       await page.getByRole('button', { name: '报销', exact: true }).click();
       await page.locator('.reimb-page').waitFor();
       for (const label of ['状态', '流程', '类型']) await assert.equal(await page.getByLabel(label, { exact: true }).count(), 1);
-      await page.getByRole('button', { name: '导入票据', exact: true }).click();
-      const dialog = page.getByRole('dialog', { name: '导入票据', exact: true });
+      await page.getByText('一笔 → 新建一笔；一包 → 批量导入', { exact: true }).waitFor();
+      await page.getByRole('button', { name: '批量导入', exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: '批量导入', exact: true });
+      await dialog.getByText('一次传多张，系统自动配对，你只确认', { exact: true }).waitFor();
+      await assert.equal(await dialog.getByRole('button', { name: '打车', exact: true }).count(), 0);
       await dialog.locator('input[type="file"]').setInputFiles([
         { name: 'invoice.xml', mimeType: 'application/xml', buffer: Buffer.from(invoice) },
         { name: 'payment.xml', mimeType: 'application/xml', buffer: Buffer.from(payment) },
@@ -25,6 +28,9 @@ const payment = '支付成功\n交易金额：￥36.80\n交易单号：E2E-IMPOR
       await page.locator('.reimb-import-job[data-job-status="ready"]').waitFor();
       await page.getByRole('button', { name: '核对并建单', exact: true }).click();
       await page.getByRole('button', { name: '确认并建单', exact: true }).click();
+      await page.locator('.reimb-import-job[data-job-status="closed"]').waitFor();
+      const closedJob = page.locator('.reimb-import-job[data-job-status="closed"]');
+      await closedJob.getByRole('button', { name: '重新解析', exact: true }).click();
       await page.locator('.reimb-import-job[data-job-status="closed"]').waitFor();
       await page.locator('.reimb-table tbody tr').filter({ hasText: 'E2E导入商店' }).waitFor();
       await page.locator('.reimb-import-job__files summary').click();

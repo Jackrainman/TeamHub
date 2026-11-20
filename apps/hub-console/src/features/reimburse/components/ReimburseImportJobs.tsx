@@ -30,11 +30,12 @@ function PairFiles({ job, pair, onDeleteFile, canDelete }: {
   </ul>;
 }
 
-export function ReimburseImportJobs({ jobs, canWrite, onReview, onOpenEntry, onDeleteFile, onDismiss, onClose }: {
+export function ReimburseImportJobs({ jobs, canWrite, onReview, onOpenEntry, onReparse, onDeleteFile, onDismiss, onClose }: {
   jobs: ReimburseImportJob[];
   canWrite: boolean;
   onReview: (jobId: string, pairId: string) => void;
   onOpenEntry: (entryId: string) => void;
+  onReparse: (jobId: string) => void;
   onDeleteFile: (jobId: string, fileId: string) => void;
   onDismiss: (jobId: string, pairId: string) => void;
   onClose: (jobId: string) => void;
@@ -49,16 +50,19 @@ export function ReimburseImportJobs({ jobs, canWrite, onReview, onOpenEntry, onD
         <span>待确认 <strong>{matched}</strong></span><span>待定 <strong>{pending}</strong></span><span>已建单 <strong>{confirmed}</strong></span>
       </div>
     </header>
-    {jobs.length === 0 ? <p className="reimb-import-jobs__empty">还没有导入任务。点击右上角「导入票据」开始。</p> : <div className="reimb-import-jobs__list">
+    {jobs.length === 0 ? <p className="reimb-import-jobs__empty">还没有导入任务。点击右上角「批量导入」开始。</p> : <div className="reimb-import-jobs__list">
       {jobs.map(job => {
         const matchedPairs = job.pairs.filter(pair => pair.status === 'matched');
         const pendingPairs = job.pairs.filter(pair => pair.status === 'pending');
         const confirmedPairs = job.pairs.filter(pair => pair.status === 'confirmed');
         return <article className="reimb-import-job" key={job.id} data-job-status={job.status}>
           <header><div><strong>导入作业 {job.id.slice(-8)}</strong><small>{job.createdAt.slice(0, 16).replace('T', ' ')} · {job.status === 'parsing' ? '解析中' : job.status === 'ready' ? '可审阅' : '已关闭'}</small></div>
-            {canWrite && job.status !== 'closed' && job.status !== 'parsing' && <button type="button" className="btn btn--sm btn--ghost" onClick={() => onClose(job.id)}>放弃作业</button>}
+            {canWrite && job.status !== 'parsing' && <div>
+              <button type="button" className="btn btn--sm btn--secondary" onClick={() => onReparse(job.id)}>重新解析</button>
+              {job.status !== 'closed' && <button type="button" className="btn btn--sm btn--ghost" onClick={() => onClose(job.id)}>放弃作业</button>}
+            </div>}
           </header>
-          {job.error && <p className="form-hint form-hint--warn" role="alert">{job.error === 'interrupted' ? '服务重启中断了识别，请重新上传未建单文件。' : '本次导入未能完成，请重试。'}</p>}
+          {job.error && <p className="form-hint form-hint--warn" role="alert">{job.error === 'interrupted' ? '服务重启中断了识别，请重新解析。' : '本次导入未能完成，请重试。'}</p>}
           <div className="reimb-import-pools">
             <section className="reimb-import-pool" aria-label="待确认">
               <h3>待确认 <span>{matchedPairs.length}</span></h3>

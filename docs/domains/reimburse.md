@@ -27,15 +27,15 @@ Reimburse 是实际垫付支付的主台账，覆盖草稿、提交、财务核�
 - 入口只收 `.pdf/.ofd/.xml/.jpg/.jpeg/.png/.zip`；单文件 20MB、单次 50 文件。ZIP 解包成员逐条落盘，嵌套 ZIP 记不支持；散图、PDF/XML/OFD、ZIP 从同一居中弹窗混合上传。旧 XLSX 与浏览器 OCR 代码暂保留，但当前 UI 不再走旧通道。
 - 数据模型为 `reimburse_import_jobs(id,data)` 与 `imports/<jobId>/<fileId>.<ext>` 私有字节。三层状态不合并：file 为上传中 `uploading`→已解析 `parsed`→已挂载 `mounted`，另有无法识别 `unreadable`、重复 `duplicate`、待定 `pending`、已删除 `removed`；pair 为等待证据/待定 `pending`、已配对待确认 `matched`、已建单 `confirmed`、已忽略 `dismissed`；job 仅为解析中 `parsing`→可审阅 `ready`→已关闭 `closed`，整包失败或进程重启中断也进入 `closed` 并记原因。
 - POST 保存后立即返回，服务端异步解析；前端每 2 秒轮询，10 分钟后停止。PDF 先抽文字层，无文字再 OCR；图片一律 OCR。tesseract.js 使用仓库内 `@tesseract.js-data` 的 `chi_sim+eng`，禁止联网下载；OCR 并发 1、单文件 60 秒，单文件失败只记 `unreadable/error`。
-- 发票金额取 `totalAmountFen`；付款截图优先支付金额/实付/合计/交易金额同行的 ¥ 金额，否则取全图最大 ¥ 金额。同金额 invoice×paymentShot 唯一时才生成高置信 `matched`；同额多候选全部 `pending/ambiguous-amount`，缺角色为 `no-match`，无金额为 `no-amount`，不支持为 `unsupported`。不跨人/作业，不猜发票号，不自动提交。
+- 发票金额取 `totalAmountFen`；付款截图优先支付金额/实付（含实付款）/合计/交易金额同行金额，标签允许 OCR 字间空白且金额可省略 ¥，否则取全图最大 ¥ 金额。金额只归一化千分位与小数点两侧空白，不把空白隔开的两段数字粘成一笔。同金额 invoice×paymentShot 唯一时才生成高置信 `matched`；同额多候选全部 `pending/ambiguous-amount`，缺角色为 `no-match`，无金额为 `no-amount`，不支持为 `unsupported`。不跨人/作业，不猜发票号，不自动提交。
 - 删除单个文件走 `DELETE /api/reimburse/imports/:id/files/:fileId`；保留 originalName、sha256、removedAt 并追加 `history:file-removed`，立即重算该 job 配对，金额重复删除一张后可自动成为唯一配对。待定区动作只有删除文件、手动建单、忽略；忽略走 `POST .../pairs/:pairId/dismiss`。换文件就是删除后重传，已建单文件须改走条目凭证规则。
 - 上传按 sha256 对同一 member 的现存文件去重，`duplicate` 不存盘、不参与匹配。显示名可自动改为发票 `YYYYMMDD-销方-金额.ext`、付款 `YYYYMMDD-金额-付款.ext`；originalName 不变，磁盘仍用 UUID。作业记录长期保留，30 天到期只清导入字节，不删条目证据。
-- API 为 `POST/GET /api/reimburse/imports`、`GET/DELETE /api/reimburse/imports/:id`、`POST .../:id/confirm` 加上述文件删除与忽略端点。本人管理自己的作业；财务可按 memberId 只读查看他人作业，不可确认、删除或下载导入字节，下载仍走条目凭证通道并留审计。
-- UI 常驻「导入任务」，只分待确认/待定/已建单三池；关闭弹窗不丢任务。主操作仅新建报销/导入票据，报销管理收进标题右侧设置图标；快捷预设打车/车票/采购位于导入弹窗顶部，筛选有状态/流程/类型可见标签（财务另有批次）。小于 1200px 单列，不做通知提醒或移动端拍照。
+- API 为 `POST/GET /api/reimburse/imports`、`GET/DELETE /api/reimburse/imports/:id`、`POST .../:id/reparse`、`POST .../:id/confirm` 加上述文件删除与忽略端点。本人可让已落盘文件异步重新解析并重算配对，重复请求复用同一配对且不重复建单；财务可按 memberId 只读查看他人作业，不可确认、删除、重新解析或下载导入字节，下载仍走条目凭证通道并留审计。
+- UI 常驻「导入任务」，只分待确认/待定/已建单三池；关闭弹窗不丢任务，待定与已关闭作业可点「重新解析」。主操作仅「新建一笔」/「批量导入」，旁边静态说明「一笔 → 新建一笔；一包 → 批量导入」；报销管理收进标题右侧设置图标。快捷预设打车/车票/采购位于「新建一笔」弹窗顶部；「批量导入」弹窗说明一次传多张、自动配对、只确认。筛选有状态/流程/类型可见标签（财务另有批次）。小于 1200px 单列，不做通知提醒或移动端拍照。
 
 ## 4. 本人与财务工作台
 
-- 保留表格 + 居中模态表单/导入弹窗，条目详情仍用 `SideDrawer`。本人列表展示摘要、类型、申请金额、资料完整度、工作流、退回提示与核准/打款结果；状态、流程、类型筛选均有可见标签，快捷预设收进导入弹窗。
+- 保留表格 + 居中模态表单/导入弹窗，条目详情仍用 `SideDrawer`。本人列表展示摘要、类型、申请金额、资料完整度、工作流、退回提示与核准/打款结果；状态、流程、类型筛选均有可见标签，快捷预设收进「新建一笔」弹窗。
 - 详情依次呈现字段、采购明细、票据摘要、原件、退回意见与历史、核准/打款结果和可选入库；只有一个编辑草稿。
 - 财务从管理员抽屉升级为工作台，按待接收、核对中、退回、待打款、完成等状态组织，支持赛季、批次、类型和缺项筛选。详情同屏查看字段与受控原件并执行核对、退回、核准。
 - 结构汇总由服务端同源返回，只按支出类型等结构维度展示数量、申请/核准/打款金额；未知金额单独计数，撤销条目不进入后续汇总。没有个人小计、排行、次数或速度面板。
