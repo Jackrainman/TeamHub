@@ -1,0 +1,107 @@
+/* 右锚定抽屉（SideDrawer）：position:fixed 相对视口（layout 无 transform）。
+   退场保留到面板 animationend；重开由组件移除 data-closing，复用同一 DOM 实例。 */
+@keyframes drawer-slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes drawer-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes drawer-slide-out {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+@keyframes drawer-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.25);
+  animation: drawer-fade-in var(--dur-base) var(--ease-decelerate);
+}
+.drawer-backdrop[data-closing] {
+  pointer-events: none;
+  animation: drawer-fade-out var(--dur-fast) var(--ease-accelerate) both;
+}
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 51;
+  display: flex;
+  flex-direction: column;
+  width: min(440px, 92vw);
+  height: 100vh;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  animation: drawer-slide-in var(--dur-base) var(--ease-decelerate);
+}
+.drawer[data-closing] {
+  pointer-events: none;
+  animation: drawer-slide-out var(--dur-fast) var(--ease-accelerate) both;
+}
+.drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.drawer--center {
+  top: 50%;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+  width: min(640px, calc(100vw - var(--space-4) * 2));
+  height: auto;
+  max-height: calc(100dvh - var(--space-4) * 2);
+  border-left: 0;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  animation: drawer-fade-in var(--dur-base) var(--ease-decelerate);
+}
+.drawer--center[data-closing] {
+  animation: drawer-fade-out var(--dur-fast) var(--ease-accelerate) both;
+}
+.drawer--center .drawer__head { flex-shrink: 0; }
+.drawer__title {
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+}
+.drawer__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--muted);
+  cursor: pointer;
+}
+.drawer__close:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+.drawer__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
+}
