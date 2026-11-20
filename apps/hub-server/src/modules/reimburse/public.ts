@@ -4,6 +4,10 @@ import type { ApplicationUnitOfWork } from '../../application/unit-of-work.js';
 import type { Clock } from '../../clock.js';
 import type { SqliteDatabase } from '../../store/sqlite-db.js';
 import { LocalEvidenceFileStorage } from './evidence-file-storage.js';
+import { ReimburseImportService } from './import-service.js';
+import { LocalReimburseImportStorage } from './import-file-storage.js';
+import { SqliteReimburseImportRepository } from './import-sqlite-repository.js';
+import { registerReimburseImportRoutes } from './import-routes.js';
 import { registerReimburseRoutes } from './routes.js';
 import { ReimburseService } from './service.js';
 import { SqliteReimburseRepository } from './sqlite-repository.js';
@@ -38,12 +42,18 @@ export interface CreateReimburseModuleOptions {
 
 export function createReimburseModule(options: CreateReimburseModuleOptions): ReimburseModule {
   const repository = SqliteReimburseRepository.fromSharedDb(options.db, options.clock);
+  const evidenceStorage = new LocalEvidenceFileStorage();
   const service = new ReimburseService(
     repository,
     options.admin,
     options.unitOfWork,
     options.identityMode,
-    new LocalEvidenceFileStorage(),
+    evidenceStorage,
+  );
+  const importService = new ReimburseImportService(
+    SqliteReimburseImportRepository.fromSharedDb(options.db), repository, service,
+    new LocalReimburseImportStorage(() => evidenceStorage.dir()), evidenceStorage,
+    options.admin, options.unitOfWork, options.clock,
   );
   return {
     publicApi: {
@@ -57,6 +67,7 @@ export function createReimburseModule(options: CreateReimburseModuleOptions): Re
     },
     registerRoutes(app) {
       registerReimburseRoutes(app, { service });
+      registerReimburseImportRoutes(app, importService);
     },
   };
 }

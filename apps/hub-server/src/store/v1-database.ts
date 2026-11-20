@@ -4,7 +4,7 @@ import { SqliteDatabase } from './sqlite-db.js';
 export const V1_SCHEMA_VERSION = 1;
 const ENTITY_TABLES = [
   'app_settings', 'groups', 'members', 'tasks', 'reimburse_entries', 'reimburse_batches',
-  'reimburse_payouts', 'reimburse_evidence_downloads',
+  'reimburse_payouts', 'reimburse_evidence_downloads', 'reimburse_import_jobs',
 ] as const;
 const BUSINESS_TABLES = ENTITY_TABLES.filter((table) => table !== 'app_settings');
 
