@@ -632,6 +632,9 @@ export function parseInvoicePdfText(
       totalAmountFen = fen;
     }
   }
+  if (totalAmountFen === null && amounts.length > 0) {
+    totalAmountFen = Math.max(...amounts);
+  }
   if (totalAmountFen === null && recognitionSource === 'ocr') {
     let derivedTotal = 0;
     let hasDerivedTotal = false;
@@ -645,9 +648,6 @@ export function parseInvoicePdfText(
       hasDerivedTotal = true;
     }
     if (hasDerivedTotal) totalAmountFen = derivedTotal;
-  }
-  if (totalAmountFen === null && amounts.length > 0) {
-    totalAmountFen = Math.max(...amounts);
   }
 
   // 明细行：以 `*分类*品名` 起行，折行续名进 pending，命中数字尾列成行。

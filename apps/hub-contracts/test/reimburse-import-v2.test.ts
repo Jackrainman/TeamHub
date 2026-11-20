@@ -84,11 +84,46 @@ describe('reimburse import v2 matching', () => {
     expect(recomputed[0]).toMatchObject({ status: 'matched', invoiceFileIds: [invoice.id], paymentFileIds: [firstPayment.id] });
   });
 
-  it('derives an OCR total from net and tax when the total row is lost', () => {
+  it('prefers the printed currency total over OCR net-and-tax derivation', () => {
+    const parsed = parseInvoicePdfText(`REAR:
+
+开票日期: 202671012011
+
+63220000086
+
+1975571
+
+8 |各等:新时大学 efi TIME BU PHI INAS
+广                              a
+信 lana mRa/MAARHS:12650000457601471G | |e—ae tem RAH/MEARA: 9132081 1MA1YMO7A65
+项目名称   规格型号   单 位    a 量    单 价    金 阁”税率/征收率     税额
+AAG RTOSAMAE 【80g】 Uh    箱         1      10.59      40.59    13%          5.24
+位复印纸多功能办公室 厚】皮条
+必白纸学生草稿纸昨批 《2000张) ,5
+be
+&        it                                                           ¥40.59                         ¥5.29f
+价税合计《大写)     Qasr inva ses                 Chg) ¥45. 87
+WATT 2020-10-01 T9LOT:SS
+各
+
+FRA: 毛玲`.split('\n'), 'ocr');
+    expect(parsed?.totalAmountFen).toBe(4587);
+  });
+
+  it('prefers a currency amount over the OCR net-and-tax derivation', () => {
     const parsed = parseInvoicePdfText([
       '电子发票',
       '纸制品 箱 1 40. 59 40. 59 13% 5.28',
       '合 计 ¥40.59 ¥5. 2 引',
+    ], 'ocr');
+    expect(parsed?.totalAmountFen).toBe(4059);
+  });
+
+  it('derives an OCR total from detail rows when no currency amount exists', () => {
+    const parsed = parseInvoicePdfText([
+      '电子发票',
+      '项目名称 金额 税率/征收率 税额',
+      '纸制品 40.59 13% 5.28',
     ], 'ocr');
     expect(parsed?.totalAmountFen).toBe(4587);
   });
