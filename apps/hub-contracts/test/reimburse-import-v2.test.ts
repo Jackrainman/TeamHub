@@ -33,13 +33,18 @@ function match(files: ReimburseImportFile[]) {
 describe('reimburse import v2 matching', () => {
   it('pairs one invoice and one payment screenshot at the same amount', () => {
     const pairs = match([
-      file({ role: 'invoice', amountFen: 2450 }),
+      file({ role: 'invoice', amountFen: 2450, parsed: {
+        invoiceNo: '12345678901234567890', invoiceDate: '2026-11-20', seller: '测试商店',
+        purchaserName: null, purchaserTaxNo: null, recognitionSource: 'xml', totalAmountFen: 2450,
+        items: [{ name: '测试物料', unit: null, quantity: 1, unitPriceFen: null, amountFen: 2450 }],
+      } }),
       file({ role: 'paymentShot', amountFen: 2450 }),
     ]);
     expect(pairs).toHaveLength(1);
     expect(pairs[0]).toMatchObject({ status: 'matched', amountFen: 2450, confidence: 'high', reason: null });
     expect(pairs[0].invoiceFileIds).toHaveLength(1);
     expect(pairs[0].paymentFileIds).toHaveLength(1);
+    expect(pairs[0].draft).toMatchObject({ summary: '测试商店', actualItemName: '测试物料', invoiceNo: '12345678901234567890' });
   });
 
   it('keeps every same-amount candidate pending instead of guessing', () => {

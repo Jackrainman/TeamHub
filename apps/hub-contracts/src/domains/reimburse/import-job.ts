@@ -187,8 +187,9 @@ export function matchReimburseImportFiles(
     amountFen: number | null,
     reason: ReimburseImportPendingReason | null,
   ): ReimburseImportPair => {
-    const invoice = group.length === 1 && group[0].role === 'invoice' ? group[0].parsed : null;
-    const draft = draftForInvoice(invoice, group[0]?.confidence ?? null, group.some(file => file.role === 'paymentShot'));
+    const invoiceFiles = group.filter(file => file.role === 'invoice');
+    const invoice = invoiceFiles.length === 1 ? invoiceFiles[0].parsed : null;
+    const draft = draftForInvoice(invoice, invoiceFiles[0]?.confidence ?? null, group.some(file => file.role === 'paymentShot'));
     draft.totalAmountFen = amountFen ?? draft.totalAmountFen;
     return {
       id: createId(), status, fileIds: group.map(file => file.id),
