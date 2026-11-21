@@ -9,6 +9,36 @@ import {
 } from '../src/features/reimburse/reimburse-utils';
 
 describe('reimburse entry form drafts', () => {
+  const profile = {
+    expectedPurchaserName: '哈尔滨工业大学',
+    expectedPurchaserTaxNo: '12100000400000456B',
+  };
+
+  it('prefills a new manual entry with the configured purchaser profile', () => {
+    expect(emptyEntryDraft(profile)).toMatchObject({
+      purchaserName: '哈尔滨工业大学',
+      purchaserTaxNo: '12100000400000456B',
+    });
+  });
+
+  it('fills missing imported purchaser fields without overriding invoice values', () => {
+    const invoice = {
+      invoiceNo: '12345678', invoiceDate: '2026-11-21', seller: '测试商店',
+      purchaserName: null, purchaserTaxNo: null, recognitionSource: 'xml' as const, totalAmountFen: 4587,
+      items: [],
+    };
+    expect(draftFromParsedInvoice(invoice, profile)).toMatchObject({
+      purchaserName: '哈尔滨工业大学',
+      purchaserTaxNo: '12100000400000456B',
+    });
+    expect(draftFromParsedInvoice({
+      ...invoice, purchaserName: '发票上的购买方', purchaserTaxNo: 'INVOICE-TAX-NO',
+    }, profile)).toMatchObject({
+      purchaserName: '发票上的购买方',
+      purchaserTaxNo: 'INVOICE-TAX-NO',
+    });
+  });
+
   it('uses the first purchase item name when summary and actual item name are empty', () => {
     const draft = {
       ...emptyEntryDraft(),

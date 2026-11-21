@@ -374,7 +374,7 @@ export function useReimburseImportController(profile: ReimburseProfile = DEFAULT
             setFails((current) => [...current, { id: sequence.current, fileName: outcome.fileName, reason: outcome.reason }]);
           } else {
             const invoice = outcome.review.selectedInvoice;
-            const draft = invoice ? draftFromParsedInvoice(invoice) : emptyEntryDraft();
+            const draft = invoice ? draftFromParsedInvoice(invoice, profile) : emptyEntryDraft(profile);
             draft.invoiceType = outcome.review.invoiceType;
             const job = jobFromDraft(draft, outcome.fileName, outcome);
             setJobs((current) => [...current, job]);
@@ -395,7 +395,7 @@ export function useReimburseImportController(profile: ReimburseProfile = DEFAULT
     source.initial.package.attachments = source.initial.package.attachments.filter((item) => item.path !== path);
     source.initial.package.review = derivePackageReview(source.initial.package.attachments, profile);
     const pack: PackageDraft = { kind: 'draft', fileName: attachment.path, attachments: [attachment], notices: [], review: derivePackageReview([attachment], profile) };
-    const draft = attachment.invoice ? draftFromParsedInvoice(attachment.invoice) : emptyEntryDraft();
+    const draft = attachment.invoice ? draftFromParsedInvoice(attachment.invoice, profile) : emptyEntryDraft(profile);
     draft.invoiceType = pack.review.invoiceType;
     const job = jobFromDraft(draft, attachment.path, pack);
     setJobs((current) => [...current, job]);

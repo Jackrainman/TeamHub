@@ -495,14 +495,23 @@
 .reimb-page__title-row { justify-content: space-between; }
 .reimb-page__title-row h1 { margin: 0; font-size: var(--text-2xl); }
 .reimb-page__actions { margin-left: auto; }
-.reimb-page__mode-hint { flex: 1 0 100%; margin: 0; color: var(--muted); font-size: var(--text-sm); text-align: right; }
+.reimb-page__profile { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); margin-left: auto; min-width: 0; }
+.reimb-page__profile > span { color: var(--muted); font-size: var(--text-sm); overflow-wrap: anywhere; }
 .reimb-page__head .reimb-page__actions .btn { margin-left: 0; min-height: var(--control-height); }
-.btn--icon { width: var(--control-height); min-height: var(--control-height); padding: 0; justify-content: center; }
-.reimb-filters { align-items: flex-end; gap: var(--space-3); }
+.reimb-filters { align-items: flex-end; gap: var(--space-3); min-width: 0; }
 .reimb-filters > .kb-field { margin: 0; min-width: calc(var(--control-height) * 4); }
 .reimb-filters > .kb-field > span { color: var(--muted); font-size: var(--text-sm); }
 .reimb-filters .ui-select { width: 100%; min-height: var(--control-height); }
-.reimb-filters__actions { margin-left: auto; }
+.reimb-filters__actions { margin-left: auto; flex-wrap: nowrap; }
+.reimb-more { position: relative; }
+.reimb-more > summary { list-style: none; cursor: pointer; white-space: nowrap; }
+.reimb-more > summary::-webkit-details-marker { display: none; }
+.reimb-more__menu { position: absolute; z-index: 20; top: calc(100% + var(--space-1)); right: 0; display: grid; gap: var(--space-1); width: max-content; min-width: 220px; max-width: calc(100vw - var(--space-6)); padding: var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-raised); box-shadow: var(--shadow-md); }
+.reimb-more__menu .domain-actions { display: grid; gap: var(--space-1); margin: 0; }
+.reimb-more__menu .btn { width: 100%; justify-content: flex-start; white-space: nowrap; }
+.reimb-page .empty-state { min-height: 0; padding: var(--space-5); }
+.reimb-import-jobs__archive > summary { cursor: pointer; color: var(--muted); font-size: var(--text-sm); }
+.reimb-import-jobs__archive > .reimb-import-jobs__list { margin-top: var(--space-3); }
 
 .drawer--center:has(.reimb-import-modal),
 .drawer--center:has(.reimb-import-review) { width: min(var(--dialog-width-wide), calc(100vw - var(--space-4) * 2)); }

@@ -12,6 +12,7 @@ import type {
   ReimburseEntryKind,
   ReimburseExpenseType,
   ReimburseItem,
+  ReimburseProfile,
 } from '@teamhub/hub-contracts';
 
 /**
@@ -105,7 +106,7 @@ export function updateEntryItemDraft(
 }
 
 /** 空表单草稿（手动录入初值 / 导入未识别时开空表单）。 */
-export function emptyEntryDraft(): EntryDraft {
+export function emptyEntryDraft(profile?: ReimburseProfile): EntryDraft {
   return {
     kind: 'expense',
     expenseType: null,
@@ -113,8 +114,8 @@ export function emptyEntryDraft(): EntryDraft {
     invoiceNo: '',
     invoiceDate: '',
     seller: '',
-    purchaserName: '',
-    purchaserTaxNo: '',
+    purchaserName: profile?.expectedPurchaserName ?? '',
+    purchaserTaxNo: profile?.expectedPurchaserTaxNo ?? '',
     recognitionSource: 'manual',
     totalYuan: '',
     actualItemName: '',

@@ -1,4 +1,5 @@
 import FormData from 'form-data';
+import { unzipSync } from 'fflate';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createTestHub, login, TEST_PASSWORDS, type TestHub } from './support/build-test-hub-server.js';
 
@@ -57,5 +58,11 @@ describe('reimburse workflow', () => {
     expect(exported.statusCode).toBe(200);
     expect(exported.headers['content-type']).toContain('application/zip');
     expect(exported.rawPayload.length).toBeGreaterThan(100);
+    const archive = unzipSync(exported.rawPayload);
+    const evidencePaths = Object.keys(archive).filter(path => path.startsWith('凭证/')).sort();
+    expect(evidencePaths).toEqual([
+      '凭证/1) - 24.50 - 市区交通/1) - 24.50 - 市区交通.pdf',
+      '凭证/1) - 24.50 - 市区交通/1) - 24.50 - 市区交通.png',
+    ]);
   });
 });

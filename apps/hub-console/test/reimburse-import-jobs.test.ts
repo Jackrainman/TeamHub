@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { importPairAmountApproxNotice } from '../src/features/reimburse/components/ReimburseImportJobs';
+import { importPairAmountApproxNotice, isArchivedReimburseImportJob } from '../src/features/reimburse/components/ReimburseImportJobs';
+
+describe('reimburse import job archiving', () => {
+  it('archives only closed jobs that have confirmed entries', () => {
+    expect(isArchivedReimburseImportJob({ status: 'closed', confirmedEntryIds: ['entry-1'] })).toBe(true);
+    expect(isArchivedReimburseImportJob({ status: 'closed', confirmedEntryIds: [] })).toBe(false);
+    expect(isArchivedReimburseImportJob({ status: 'ready', confirmedEntryIds: ['entry-1'] })).toBe(false);
+  });
+});
 
 describe('reimburse import approximate pairing notice', () => {
   it('shows the invoice/payment difference in yuan for an approximate pair', () => {

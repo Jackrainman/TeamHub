@@ -102,13 +102,20 @@ export async function buildReimburseDelivery(
     evidence: [],
   })) };
   const files: Record<string, Uint8Array> = {};
+  const reservedPaths = new Set<string>();
   let totalBytes = 0;
   if (includeEvidence) {
-    for (const entry of entries) {
+    for (const [index, entry] of entries.entries()) {
       const target = manifest.entries.find((item) => item.entryId === entry.id)!;
-      const directory = `凭证/${entry.id}-${safeName(entry.summary ?? entry.actualItemName ?? entry.seller ?? '条目')}`;
+      const amount = entry.totalAmountFen === null ? '金额待补' : (entry.totalAmountFen / 100).toFixed(2);
+      const baseName = `${index + 1}) - ${amount} - ${safeName(entry.summary ?? '未命名')}`;
+      const directory = `凭证/${baseName}`;
       for (const evidence of entry.evidence) {
-        const path = `${directory}/${evidence.id}-${safeName(evidence.originalName)}`;
+        let path = `${directory}/${baseName}${evidence.ext}`;
+        for (let suffix = 2; reservedPaths.has(path); suffix += 1) {
+          path = `${directory}/${baseName}-${suffix}${evidence.ext}`;
+        }
+        reservedPaths.add(path);
         try {
           const content = await readEvidence(entry.id, evidence.id);
           totalBytes += content.length;

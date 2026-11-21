@@ -12,6 +12,12 @@ const REASON_LABEL: Record<ReimburseImportPendingReason, string> = {
   unsupported: '无法识别或格式不支持',
 };
 
+export function isArchivedReimburseImportJob(
+  job: Pick<ReimburseImportJob, 'status' | 'confirmedEntryIds'>,
+): boolean {
+  return job.status === 'closed' && job.confirmedEntryIds.length > 0;
+}
+
 export function importPairAmountApproxNotice(
   pair: Pick<ReimburseImportPair, 'reasons' | 'invoiceFileIds' | 'paymentFileIds'>,
   files: ReadonlyArray<Pick<ReimburseImportJob['files'][number], 'id' | 'amountFen'>>,
@@ -43,7 +49,7 @@ function PairFiles({ job, pair, onDeleteFile, canDelete }: {
   </ul>;
 }
 
-export function ReimburseImportJobs({ jobs, canWrite, onReview, onOpenEntry, onReparse, onDeleteFile, onDismiss, onClose }: {
+interface ReimburseImportJobsProps {
   jobs: ReimburseImportJob[];
   canWrite: boolean;
   onReview: (jobId: string, pairId: string) => void;
@@ -52,10 +58,69 @@ export function ReimburseImportJobs({ jobs, canWrite, onReview, onOpenEntry, onR
   onDeleteFile: (jobId: string, fileId: string) => void;
   onDismiss: (jobId: string, pairId: string) => void;
   onClose: (jobId: string) => void;
-}) {
+}
+
+function ReimburseImportJobCard({ job, canWrite, onReview, onOpenEntry, onReparse, onDeleteFile, onDismiss, onClose }: Omit<ReimburseImportJobsProps, 'jobs'> & { job: ReimburseImportJob }) {
+  const matchedPairs = job.pairs.filter(pair => pair.status === 'matched');
+  const pendingPairs = job.pairs.filter(pair => pair.status === 'pending');
+  const confirmedPairs = job.pairs.filter(pair => pair.status === 'confirmed');
+  return <article className="reimb-import-job" data-job-status={job.status}>
+    <header><div><strong>导入作业 {job.id.slice(-8)}</strong><small>{job.createdAt.slice(0, 16).replace('T', ' ')} · {job.status === 'parsing' ? '解析中' : job.status === 'ready' ? '可审阅' : '已关闭'}</small></div>
+      {canWrite && job.status !== 'parsing' && <div>
+        <button type="button" className="btn btn--sm btn--secondary" onClick={() => onReparse(job.id)}>重新解析</button>
+        {job.status !== 'closed' && <button type="button" className="btn btn--sm btn--ghost" onClick={() => onClose(job.id)}>放弃作业</button>}
+      </div>}
+    </header>
+    {job.error && <p className="form-hint form-hint--warn" role="alert">{job.error === 'interrupted' ? '服务重启中断了识别，请重新解析。' : '本次导入未能完成，请重试。'}</p>}
+    <div className="reimb-import-pools">
+      <section className="reimb-import-pool" aria-label="待确认">
+        <h3>待确认 <span>{matchedPairs.length}</span></h3>
+        {matchedPairs.length === 0 ? <p className="reimb-import-pool__empty">暂无证据齐全的配对</p> : matchedPairs.map(pair => <div className="reimb-import-candidate" key={pair.id}>
+          <div><strong>{formatAmountFen(pair.amountFen)}</strong><small>{pair.draft.summary ?? '待补充摘要'} · {importPairAmountApproxNotice(pair, job.files) ?? '高置信同价配对'}</small></div>
+          <button type="button" className="btn btn--secondary btn--sm" disabled={!canWrite} onClick={() => onReview(job.id, pair.id)}>核对并建单<ChevronRight size={14} /></button>
+        </div>)}
+      </section>
+      <section className="reimb-import-pool" aria-label="待定">
+        <h3>待定 <span>{pendingPairs.length}</span></h3>
+        {pendingPairs.length === 0 ? <p className="reimb-import-pool__empty">暂无待定文件</p> : pendingPairs.map(pair => <details className="reimb-import-candidate reimb-import-candidate--pending" key={pair.id}>
+          <summary><span><strong>{REASON_LABEL[pair.reason ?? 'unsupported']}</strong><small>{formatAmountFen(pair.amountFen)} · {pair.fileIds.length} 个文件</small></span></summary>
+          <PairFiles job={job} pair={pair} onDeleteFile={onDeleteFile} canDelete={canWrite && job.status !== 'parsing'} />
+          <div className="reimb-import-candidate__actions">
+            <button type="button" className="btn btn--secondary btn--sm" disabled={!canWrite} onClick={() => onReview(job.id, pair.id)}>手动建单</button>
+            <button type="button" className="btn btn--ghost btn--sm" disabled={!canWrite} onClick={() => onDismiss(job.id, pair.id)}>忽略</button>
+          </div>
+        </details>)}
+      </section>
+      <section className="reimb-import-pool" aria-label="已建单">
+        <h3>已建单 <span>{confirmedPairs.length}</span></h3>
+        {confirmedPairs.length === 0 ? <p className="reimb-import-pool__empty">确认后会出现在这里</p> : confirmedPairs.map(pair => <div className="reimb-import-candidate" key={pair.id}>
+          <div><strong>{formatAmountFen(pair.amountFen)}</strong><small>条目 {pair.confirmedEntryId}</small></div>
+          {pair.confirmedEntryId && <button type="button" className="btn btn--secondary btn--sm" onClick={() => onOpenEntry(pair.confirmedEntryId!)}>查看条目</button>}
+        </div>)}
+      </section>
+    </div>
+    <details className="reimb-import-job__files">
+      <summary>作业文件（{job.files.length}）</summary>
+      <ul className="reimb-import-files">
+        {job.files.map(file => <li key={file.id}>
+          <span><strong>{file.displayName}</strong><small>{file.status === 'duplicate' ? '重复文件（未重复存盘）' : file.status === 'removed' ? `已删除 ${file.removedAt ?? ''}` : file.status === 'unreadable' ? '无法识别' : file.status === 'mounted' ? '已挂载' : file.status === 'uploading' ? '上传完成，待解析' : '已解析'} · {file.originalName}</small></span>
+          {canWrite && job.status !== 'parsing' && job.status !== 'closed' && file.status !== 'removed' && file.status !== 'mounted' && <button type="button" className="btn btn--sm btn--ghost" onClick={() => onDeleteFile(job.id, file.id)}><Trash2 size={14} />删除文件</button>}
+        </li>)}
+      </ul>
+    </details>
+  </article>;
+}
+
+function ReimburseImportJobList({ jobs, ...props }: ReimburseImportJobsProps) {
+  return <>{jobs.map(job => <ReimburseImportJobCard key={job.id} job={job} {...props} />)}</>;
+}
+
+export function ReimburseImportJobs({ jobs, ...props }: ReimburseImportJobsProps) {
   const matched = jobs.flatMap(job => job.pairs.filter(pair => pair.status === 'matched')).length;
   const pending = jobs.flatMap(job => job.pairs.filter(pair => pair.status === 'pending')).length;
   const confirmed = jobs.flatMap(job => job.pairs.filter(pair => pair.status === 'confirmed')).length;
+  const activeJobs = jobs.filter(job => !isArchivedReimburseImportJob(job));
+  const archivedJobs = jobs.filter(isArchivedReimburseImportJob);
   return <section className="reimb-import-jobs" aria-label="导入任务">
     <header className="reimb-import-jobs__head">
       <div><h2><FileClock size={18} />导入任务</h2><p>任务保存在服务器，关闭弹窗或刷新页面不会丢失。</p></div>
@@ -63,57 +128,11 @@ export function ReimburseImportJobs({ jobs, canWrite, onReview, onOpenEntry, onR
         <span>待确认 <strong>{matched}</strong></span><span>待定 <strong>{pending}</strong></span><span>已建单 <strong>{confirmed}</strong></span>
       </div>
     </header>
-    {jobs.length === 0 ? <p className="reimb-import-jobs__empty">还没有导入任务。点击右上角「批量导入」开始。</p> : <div className="reimb-import-jobs__list">
-      {jobs.map(job => {
-        const matchedPairs = job.pairs.filter(pair => pair.status === 'matched');
-        const pendingPairs = job.pairs.filter(pair => pair.status === 'pending');
-        const confirmedPairs = job.pairs.filter(pair => pair.status === 'confirmed');
-        return <article className="reimb-import-job" key={job.id} data-job-status={job.status}>
-          <header><div><strong>导入作业 {job.id.slice(-8)}</strong><small>{job.createdAt.slice(0, 16).replace('T', ' ')} · {job.status === 'parsing' ? '解析中' : job.status === 'ready' ? '可审阅' : '已关闭'}</small></div>
-            {canWrite && job.status !== 'parsing' && <div>
-              <button type="button" className="btn btn--sm btn--secondary" onClick={() => onReparse(job.id)}>重新解析</button>
-              {job.status !== 'closed' && <button type="button" className="btn btn--sm btn--ghost" onClick={() => onClose(job.id)}>放弃作业</button>}
-            </div>}
-          </header>
-          {job.error && <p className="form-hint form-hint--warn" role="alert">{job.error === 'interrupted' ? '服务重启中断了识别，请重新解析。' : '本次导入未能完成，请重试。'}</p>}
-          <div className="reimb-import-pools">
-            <section className="reimb-import-pool" aria-label="待确认">
-              <h3>待确认 <span>{matchedPairs.length}</span></h3>
-              {matchedPairs.length === 0 ? <p className="reimb-import-pool__empty">暂无证据齐全的配对</p> : matchedPairs.map(pair => <div className="reimb-import-candidate" key={pair.id}>
-                <div><strong>{formatAmountFen(pair.amountFen)}</strong><small>{pair.draft.summary ?? '待补充摘要'} · {importPairAmountApproxNotice(pair, job.files) ?? '高置信同价配对'}</small></div>
-                <button type="button" className="btn btn--primary btn--sm" disabled={!canWrite} onClick={() => onReview(job.id, pair.id)}>核对并建单<ChevronRight size={14} /></button>
-              </div>)}
-            </section>
-            <section className="reimb-import-pool" aria-label="待定">
-              <h3>待定 <span>{pendingPairs.length}</span></h3>
-              {pendingPairs.length === 0 ? <p className="reimb-import-pool__empty">暂无待定文件</p> : pendingPairs.map(pair => <details className="reimb-import-candidate reimb-import-candidate--pending" key={pair.id}>
-                <summary><span><strong>{REASON_LABEL[pair.reason ?? 'unsupported']}</strong><small>{formatAmountFen(pair.amountFen)} · {pair.fileIds.length} 个文件</small></span></summary>
-                <PairFiles job={job} pair={pair} onDeleteFile={onDeleteFile} canDelete={canWrite && job.status !== 'parsing'} />
-                <div className="reimb-import-candidate__actions">
-                  <button type="button" className="btn btn--secondary btn--sm" disabled={!canWrite} onClick={() => onReview(job.id, pair.id)}>手动建单</button>
-                  <button type="button" className="btn btn--ghost btn--sm" disabled={!canWrite} onClick={() => onDismiss(job.id, pair.id)}>忽略</button>
-                </div>
-              </details>)}
-            </section>
-            <section className="reimb-import-pool" aria-label="已建单">
-              <h3>已建单 <span>{confirmedPairs.length}</span></h3>
-              {confirmedPairs.length === 0 ? <p className="reimb-import-pool__empty">确认后会出现在这里</p> : confirmedPairs.map(pair => <div className="reimb-import-candidate" key={pair.id}>
-                <div><strong>{formatAmountFen(pair.amountFen)}</strong><small>条目 {pair.confirmedEntryId}</small></div>
-                {pair.confirmedEntryId && <button type="button" className="btn btn--secondary btn--sm" onClick={() => onOpenEntry(pair.confirmedEntryId!)}>查看条目</button>}
-              </div>)}
-            </section>
-          </div>
-          <details className="reimb-import-job__files">
-            <summary>作业文件（{job.files.length}）</summary>
-            <ul className="reimb-import-files">
-              {job.files.map(file => <li key={file.id}>
-                <span><strong>{file.displayName}</strong><small>{file.status === 'duplicate' ? '重复文件（未重复存盘）' : file.status === 'removed' ? `已删除 ${file.removedAt ?? ''}` : file.status === 'unreadable' ? '无法识别' : file.status === 'mounted' ? '已挂载' : file.status === 'uploading' ? '上传完成，待解析' : '已解析'} · {file.originalName}</small></span>
-                {canWrite && job.status !== 'parsing' && job.status !== 'closed' && file.status !== 'removed' && file.status !== 'mounted' && <button type="button" className="btn btn--sm btn--ghost" onClick={() => onDeleteFile(job.id, file.id)}><Trash2 size={14} />删除文件</button>}
-              </li>)}
-            </ul>
-          </details>
-        </article>;
-      })}
-    </div>}
+    {activeJobs.length === 0 ? <p className="reimb-import-jobs__empty">{archivedJobs.length > 0 ? '没有待处理的导入任务。' : '还没有导入任务。点击右上角「批量导入」开始。'}</p>
+      : <div className="reimb-import-jobs__list"><ReimburseImportJobList jobs={activeJobs} {...props} /></div>}
+    {archivedJobs.length > 0 && <details className="reimb-import-jobs__archive">
+      <summary>已归档（{archivedJobs.length}）</summary>
+      <div className="reimb-import-jobs__list"><ReimburseImportJobList jobs={archivedJobs} {...props} /></div>
+    </details>}
   </section>;
 }

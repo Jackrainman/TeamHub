@@ -50,7 +50,7 @@ export function ConsoleLayout({ children, page, onNavigate, pages, client, actio
       <div className="sidebar-foot"><span aria-hidden="true" className="sidebar-foot-dot" /><span className="nav-copy"><strong>TeamHub</strong></span></div>
     </aside>
     <div className="console-content">
-      <header className="console-topbar"><div className="console-topbar-title"><strong>{active && t(active.labelKey)}</strong></div><GlobalSearchBox client={client} onNavigate={onNavigate} availablePages={pages.map(item => item.key)} /><button type="button" id="console-rail-toggle" className="icon-button console-rail-toggle" onClick={rail.toggle} aria-controls="console-right-rail" aria-expanded={rail.isOpen} aria-label={t(rail.isOpen ? 'rail.close' : 'rail.open')} title={t(rail.isOpen ? 'rail.close' : 'rail.open')}><PanelRight size={16} aria-hidden="true" /></button>{actions}</header>
+      <header className="console-topbar"><div className="console-topbar-title"><strong>{active && page !== 'reimburse' && t(active.labelKey)}</strong></div><GlobalSearchBox client={client} onNavigate={onNavigate} availablePages={pages.map(item => item.key)} /><button type="button" id="console-rail-toggle" className="icon-button console-rail-toggle" onClick={rail.toggle} aria-controls="console-right-rail" aria-expanded={rail.isOpen} aria-label={t(rail.isOpen ? 'rail.close' : 'rail.open')} title={t(rail.isOpen ? 'rail.close' : 'rail.open')}><PanelRight size={16} aria-hidden="true" /></button>{actions}</header>
       <main className="console-main" id="console-main" data-page={page}>{children}</main>
     </div>
     <RightRail title={t('rail.title')} open={rail.isOpen} onClose={rail.close}>

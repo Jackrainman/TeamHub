@@ -6,6 +6,7 @@ import {
   parseInvoiceXmlText,
   planInvoiceArchive,
   type ParsedInvoice,
+  type ReimburseProfile,
 } from '@teamhub/hub-contracts';
 import { extractPdfTextLines } from './lib/pdf-extract';
 import {
@@ -240,9 +241,9 @@ function fenToYuanText(fen: number): string {
 /**
  * ParsedInvoice → 表单草稿（预填，用户可改后再提交）。
  * 类型无法从发票判断，恒落 'goods'（有明细行正好用；纯费用用户自己切 expense）；
- * 识别不出的字段留空串（= 表单的空值约定），不硬凑。
+ * 其他识别不出的字段留空串；购买方缺失时才取服务器配置，已有发票值始终优先。
  */
-export function draftFromParsedInvoice(invoice: ParsedInvoice): EntryDraft {
+export function draftFromParsedInvoice(invoice: ParsedInvoice, profile?: ReimburseProfile): EntryDraft {
   const items: EntryItemDraft[] = invoice.items.map((item) => ({
     name: item.name,
     unit: item.unit ?? '',
@@ -257,8 +258,8 @@ export function draftFromParsedInvoice(invoice: ParsedInvoice): EntryDraft {
     invoiceNo: invoice.invoiceNo,
     invoiceDate: invoice.invoiceDate ?? '',
     seller: invoice.seller ?? '',
-    purchaserName: invoice.purchaserName ?? '',
-    purchaserTaxNo: invoice.purchaserTaxNo ?? '',
+    purchaserName: invoice.purchaserName?.trim() ? invoice.purchaserName : profile?.expectedPurchaserName ?? '',
+    purchaserTaxNo: invoice.purchaserTaxNo?.trim() ? invoice.purchaserTaxNo : profile?.expectedPurchaserTaxNo ?? '',
     recognitionSource: invoice.recognitionSource,
     totalYuan:
       invoice.totalAmountFen === null ? '' : fenToYuanText(invoice.totalAmountFen),

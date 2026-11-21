@@ -93,8 +93,12 @@ export function ReimburseEntryForm({
       kind: editingEntry.kind, expenseType: editingEntry.expenseType, summary: editingEntry.summary ?? '', invoiceType: editingEntry.invoiceType ?? 'unknown',
       actualItemName: editingEntry.actualItemName ?? '', note: editingEntry.note ?? '',
     };
-    if (initial?.draft) return initial.draft;
-    const empty = emptyEntryDraft();
+    if (initial?.draft) return {
+      ...initial.draft,
+      purchaserName: initial.draft.purchaserName.trim() ? initial.draft.purchaserName : profile.expectedPurchaserName,
+      purchaserTaxNo: initial.draft.purchaserTaxNo.trim() ? initial.draft.purchaserTaxNo : profile.expectedPurchaserTaxNo,
+    };
+    const empty = emptyEntryDraft(profile);
     if (presetExpenseType) { empty.expenseType = presetExpenseType; empty.kind = kindForExpenseType(presetExpenseType); }
     return empty;
   });
@@ -106,7 +110,7 @@ export function ReimburseEntryForm({
       if (onDone) {
         onDone(); // 队列还有下一张时父组件换 key 重挂，草稿随预填重置
       } else {
-        setDraft(emptyEntryDraft());
+        setDraft(emptyEntryDraft(profile));
       }
   });
   const updateMutation = useUpdateReimburseEntry(client, source);
