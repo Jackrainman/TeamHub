@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   classifyPackageText,
   extractPaymentAmountFen,
+  extractReimburseImportCandidates,
   matchReimburseImportFiles,
   normalizeInvoiceOcrText,
   parseInvoicePdfText,
+  ReimburseImportFileSchema,
   type ReimburseImportFile,
 } from '../src/index.js';
 
@@ -23,6 +25,7 @@ function file(patch: Partial<ReimburseImportFile>): ReimburseImportFile {
     amountFen: null,
     confidence: null,
     parsed: null,
+    candidates: { seller: [], purchaserName: [], invoiceNo: [], invoiceDate: [], amounts: [] },
     error: null,
     removedAt: null,
     ...patch,
@@ -69,6 +72,36 @@ describe('reimburse OCR invoice fields', () => {
     expect(parseType('专用发票')).toBe('vatSpecial');
     expect(parseType('铁路电子客票')).toBe('railway');
     expect(parseType('票证')).toBe('unknown');
+  });
+});
+
+describe('reimburse import review candidates', () => {
+  it('collects deduplicated values from actual text and excludes invoice numbers shorter than 20 digits', () => {
+    const text = `发票号码：12345678901234567890 22345678901234567890 12345678
+开票日期：2026年11月20日
+购 名称：新疆大学 销 名称：第一商店
+购 名称：第二大学 销 名称：第二商店
+价税合计（小写）¥45.87 ¥45.87
+合计 ¥40.59 ¥5.28`;
+    const parsed = parseInvoicePdfText(text.split('\n'), 'ocr');
+    expect(extractReimburseImportCandidates(text, parsed)).toEqual({
+      seller: ['第一商店', '第二商店'],
+      purchaserName: ['新疆大学', '第二大学'],
+      invoiceNo: ['12345678901234567890', '22345678901234567890'],
+      invoiceDate: ['2026-11-20'],
+      amounts: [4587, 4059, 528],
+    });
+  });
+
+  it('includes the parsed labelled payment amount even when the OCR text omits a currency symbol', () => {
+    expect(extractReimburseImportCandidates('支付成功\n实付：45.87').amounts).toEqual([4587]);
+  });
+
+  it('backfills empty candidates when reading a persisted legacy file', () => {
+    const { candidates: _candidates, ...legacy } = file({});
+    expect(ReimburseImportFileSchema.parse(legacy).candidates).toEqual({
+      seller: [], purchaserName: [], invoiceNo: [], invoiceDate: [], amounts: [],
+    });
   });
 });
 

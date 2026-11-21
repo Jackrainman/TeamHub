@@ -70,6 +70,17 @@ export function registerReimburseImportRoutes(app: FastifyInstance, service: Rei
     return present(reply, async () => ReimburseImportJobResponseSchema.parse({ job: await service.getJob(id, actor) }));
   });
 
+  app.get('/api/reimburse/imports/:id/files/:fileId/content', async (request, reply) => {
+    const actor = requireActor(request, reply, undefined, '查看导入文件须先登录');
+    if (!actor) return;
+    const { id, fileId } = request.params as { id: string; fileId: string };
+    return present(reply, async () => {
+      const { content, contentType } = await service.getFileContent(id, fileId, actor);
+      void reply.type(contentType).header('Content-Disposition', 'inline');
+      return content;
+    });
+  });
+
   app.post('/api/reimburse/imports/:id/reparse', async (request, reply) => {
     const actor = requireActor(request, reply, undefined, '重新解析须先登录');
     if (!actor) return;

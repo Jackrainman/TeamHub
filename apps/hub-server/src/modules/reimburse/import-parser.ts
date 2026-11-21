@@ -6,6 +6,7 @@ import {
   classifyPackageText,
   evidenceExtOf,
   extractPaymentAmountFen,
+  extractReimburseImportCandidates,
   normalizeInvoiceOcrText,
   parseInvoicePdfText,
   parseInvoiceXbrlText,
@@ -20,6 +21,7 @@ export interface ImportFileParseResult {
   amountFen: number | null;
   confidence: number | null;
   parsed: ParsedInvoice | null;
+  candidates: ReimburseImportFile['candidates'];
 }
 export interface ImportArchiveMember { name: string; content: Buffer }
 
@@ -188,5 +190,6 @@ export async function parseReimburseImportFile(
     amountFen: role === 'invoice' ? parsed?.totalAmountFen ?? null : role === 'paymentShot' ? extractPaymentAmountFen(text) : null,
     confidence: confidence ?? (text ? 100 : null),
     parsed,
+    candidates: extractReimburseImportCandidates(text, parsed),
   };
 }

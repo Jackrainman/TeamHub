@@ -3,7 +3,7 @@ import {
   appError,
 } from '../../application/application-error.js';
 import type { ActorRef, ConfirmReimburseImportRequest, ReimburseEvidence, ReimburseImportFile, ReimburseImportJob, ReimburseImportPair } from '@teamhub/hub-contracts';
-import { matchReimburseImportFiles, REIMBURSE_EVIDENCE_MAX_PER_ENTRY } from '@teamhub/hub-contracts';
+import { matchReimburseImportFiles, REIMBURSE_EVIDENCE_MAX_PER_ENTRY, emptyReimburseImportCandidates } from '@teamhub/hub-contracts';
 import type { Clock } from '../../clock.js';
 import type { ApplicationUnitOfWork } from '../../application/unit-of-work.js';
 import type { ReimburseAdminPort } from './public.js';
@@ -17,6 +17,10 @@ import { evidenceExtOf } from '@teamhub/hub-contracts';
 const ALLOWED_EXTENSIONS = new Set(['.pdf', '.ofd', '.xml', '.jpg', '.jpeg', '.png', '.zip']);
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 const RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+const IMPORT_CONTENT_TYPES: Record<string, string> = {
+  '.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+  '.xml': 'application/xml', '.ofd': 'application/ofd', '.zip': 'application/zip',
+};
 
 export interface ReimburseImportUpload { name: string; content: Buffer }
 
@@ -24,7 +28,7 @@ function blankFile(id: string, name: string, content: Buffer, sha256: string): R
   return {
     id, originalName: name, displayName: name, ext: evidenceExtOf(name), sizeBytes: content.length,
     sha256, role: 'unknown', status: 'uploading', amountFen: null, confidence: null,
-    parsed: null, error: null, removedAt: null,
+    parsed: null, candidates: emptyReimburseImportCandidates(), error: null, removedAt: null,
   };
 }
 
@@ -221,6 +225,24 @@ export class ReimburseImportService {
     const job = this.requireJob(id);
     if (!(await this.canRead(job, actor))) throw appError('forbidden', 'REIMBURSE_ENTRY_FORBIDDEN', '只有本人或财务能查看导入作业');
     return job;
+  }
+
+  async getFileContent(id: string, fileId: string, actor: ActorRef): Promise<{ content: Buffer; contentType: string }> {
+    const job = this.requireJob(id);
+    if (!(await this.canRead(job, actor))) throw appError('forbidden', 'REIMBURSE_ENTRY_FORBIDDEN', '只有本人或财务能查看导入文件');
+    const file = job.files.find(item => item.id === fileId);
+    if (!file || file.status === 'removed' || file.status === 'duplicate') {
+      throw appError('not_found', 'REIMBURSE_EVIDENCE_NOT_FOUND', '未知导入文件');
+    }
+    try {
+      const content = await this.storage.read(id, file.id, file.ext);
+      return { content, contentType: IMPORT_CONTENT_TYPES[file.ext.toLowerCase()] ?? 'application/octet-stream' };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        throw appError('not_found', 'REIMBURSE_EVIDENCE_NOT_FOUND', '导入文件已不存在');
+      }
+      throw error;
+    }
   }
 
   reparseJob(id: string, actor: ActorRef): ReimburseImportJob {

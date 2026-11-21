@@ -67,7 +67,7 @@ type PdfjsModule = typeof import('pdfjs-dist');
 let pdfjsPromise: Promise<PdfjsModule> | null = null;
 
 /** 懒加载 pdf.js 并接 worker（Vite `?url` 产物路径，构建期拷贝成独立 asset）。 */
-function loadPdfjs(): Promise<PdfjsModule> {
+export function loadPdfjs(): Promise<PdfjsModule> {
   pdfjsPromise ??= import('pdfjs-dist').then((pdfjs) => {
     pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
     return pdfjs;

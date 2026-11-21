@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import type { ReimburseSegment } from '../api';
-import { derivePackageReview, DEFAULT_REIMBURSE_PROFILE, kindForExpenseType, type CreateReimburseEntryRequest, type InvoiceType, type ReimburseEntry, type ReimburseExpenseType, type ReimburseProfile } from '@teamhub/hub-contracts';
+import { derivePackageReview, DEFAULT_REIMBURSE_PROFILE, kindForExpenseType, type CreateReimburseEntryRequest, type InvoiceType, type ReimburseEntry, type ReimburseExpenseType, type ReimburseImportCandidates, type ReimburseProfile } from '@teamhub/hub-contracts';
 import {
   useSaveReimbursePackage,
   useUpdateReimburseEntry,
@@ -44,6 +44,25 @@ const VALIDATION_MESSAGE_KEYS: Record<EntryDraftValidationIssue, TranslationKey>
   'item-unit-price-invalid': 'reimb.create.invalid.itemUnitPrice',
 };
 
+function CandidateChips<T extends string | number>({ label, values, onSelect, format = String }: {
+  label: string;
+  values: readonly T[];
+  onSelect: (value: T) => void;
+  format?: (value: T) => string;
+}) {
+  if (values.length === 0) return null;
+  return <div className="reimb-candidate-chips" aria-label={`${label}候选值`}>
+    <span>解析候选</span>
+    {values.map(value => <button
+      type="button"
+      className="reimb-candidate-chip"
+      key={String(value)}
+      aria-label={`填入${label}：${format(value)}`}
+      onClick={() => onSelect(value)}
+    >{format(value)}</button>)}
+  </div>;
+}
+
 /**
  * 新建条目表单（阶段 3 手动录入；阶段 4 接 initial 预填——识别值只进草稿，用户确认才 POST）。
  * 金额一律元输入、装配时转分（buildCreateEntryRequest 纯函数，校验逻辑有单测）。
@@ -55,6 +74,7 @@ export function ReimburseEntryForm({
   canWrite,
   writeLockedHint,
   initial,
+  candidates,
   onDone,
   onDraftChange,
   profile = DEFAULT_REIMBURSE_PROFILE,
@@ -73,6 +93,8 @@ export function ReimburseEntryForm({
   writeLockedHint: string | null;
   /** 导入预填：变化时父组件用 key 重挂本表单；null/缺省 = 手动录入。 */
   initial?: ReimburseFormInitial | null;
+  /** 仅导入核对传入；候选只在用户点击 chip 后写入，不参与自动预填。 */
+  candidates?: ReimburseImportCandidates;
   /** 预填模式下提交成功/跳过后回调（父组件推进导入队列）。 */
   onDone?: () => void;
   onDraftChange?: (draft: EntryDraft) => void;
@@ -187,33 +209,41 @@ export function ReimburseEntryForm({
                 options={EXPENSE_OPTIONS.map((option) => ({ value: option.value, label: t(option.labelKey) }))}
               />
             </Field>
-            <Field label={t('reimb.create.field.invoiceNo')} className={unrecognized(draft.invoiceNo) ? 'kb-field--missing' : undefined} hint={unrecognized(draft.invoiceNo)}>
+            <Field as="div" label={t('reimb.create.field.invoiceNo')} className={unrecognized(draft.invoiceNo) ? 'kb-field--missing' : undefined} hint={unrecognized(draft.invoiceNo)}>
               <input
+                aria-label={t('reimb.create.field.invoiceNo')}
                 value={draft.invoiceNo}
                 placeholder={t('reimb.create.field.invoiceNo.placeholder')}
                 onChange={(e) => patch({ invoiceNo: e.target.value })}
               />
+              <CandidateChips label={t('reimb.create.field.invoiceNo')} values={candidates?.invoiceNo ?? []} onSelect={invoiceNo => patch({ invoiceNo })} />
             </Field>
-            <Field label={t('reimb.create.field.invoiceDate')} className={unrecognized(draft.invoiceDate) ? 'kb-field--missing' : undefined} hint={unrecognized(draft.invoiceDate)}>
+            <Field as="div" label={t('reimb.create.field.invoiceDate')} className={unrecognized(draft.invoiceDate) ? 'kb-field--missing' : undefined} hint={unrecognized(draft.invoiceDate)}>
               <input
+                aria-label={t('reimb.create.field.invoiceDate')}
                 type="date"
                 value={draft.invoiceDate}
                 onChange={(e) => patch({ invoiceDate: e.target.value })}
               />
+              <CandidateChips label={t('reimb.create.field.invoiceDate')} values={candidates?.invoiceDate ?? []} onSelect={invoiceDate => patch({ invoiceDate })} />
             </Field>
-            <Field label={t('reimb.create.field.seller')} className={unrecognized(draft.seller) ? 'kb-field--missing' : undefined} hint={unrecognized(draft.seller)}>
+            <Field as="div" label={t('reimb.create.field.seller')} className={unrecognized(draft.seller) ? 'kb-field--missing' : undefined} hint={unrecognized(draft.seller)}>
               <input
+                aria-label={t('reimb.create.field.seller')}
                 value={draft.seller}
                 placeholder={t('reimb.create.field.seller.placeholder')}
                 onChange={(e) => patch({ seller: e.target.value })}
               />
+              <CandidateChips label={t('reimb.create.field.seller')} values={candidates?.seller ?? []} onSelect={seller => patch({ seller })} />
             </Field>
-            <Field label={t('reimb.create.field.purchaserName')} className={unrecognized(draft.purchaserName) ? 'kb-field--missing' : undefined} hint={unrecognized(draft.purchaserName)}>
+            <Field as="div" label={t('reimb.create.field.purchaserName')} className={unrecognized(draft.purchaserName) ? 'kb-field--missing' : undefined} hint={unrecognized(draft.purchaserName)}>
               <input
+                aria-label={t('reimb.create.field.purchaserName')}
                 value={draft.purchaserName}
                 placeholder={t('reimb.create.field.purchaserName.placeholder')}
                 onChange={(e) => patch({ purchaserName: e.target.value })}
               />
+              <CandidateChips label={t('reimb.create.field.purchaserName')} values={candidates?.purchaserName ?? []} onSelect={purchaserName => patch({ purchaserName })} />
             </Field>
             <Field label={t('reimb.create.field.purchaserTaxNo')} className={unrecognized(draft.purchaserTaxNo) ? 'kb-field--missing' : undefined} hint={unrecognized(draft.purchaserTaxNo)}>
               <input
@@ -227,12 +257,19 @@ export function ReimburseEntryForm({
         <section className="reimb-form-section">
           {reviewLayout && <h3>{t('reimb.create.section.amount')}</h3>}
           <FormGrid>
-            <Field label={t('reimb.create.field.total')} className={unrecognized(draft.totalYuan) ? 'kb-field--missing' : undefined} hint={unrecognized(draft.totalYuan)}>
+            <Field as="div" label={t('reimb.create.field.total')} className={unrecognized(draft.totalYuan) ? 'kb-field--missing' : undefined} hint={unrecognized(draft.totalYuan)}>
               <input
+                aria-label={t('reimb.create.field.total')}
                 value={draft.totalYuan}
                 placeholder={t('reimb.create.field.total.placeholder')}
                 inputMode="decimal"
                 onChange={(e) => patch({ totalYuan: e.target.value })}
+              />
+              <CandidateChips
+                label={t('reimb.create.field.total')}
+                values={candidates?.amounts ?? []}
+                format={fen => (fen / 100).toFixed(2)}
+                onSelect={fen => patch({ totalYuan: (fen / 100).toFixed(2) })}
               />
             </Field>
           </FormGrid>

@@ -32,6 +32,8 @@ import { ReimburseSupplementForm } from './components/ReimburseSupplementForm';
 import { ReimbursePayoutForm } from './components/ReimbursePayoutForm';
 import { ReimburseStructuralSummary } from './components/ReimburseStructuralSummary';
 import { draftFromParsedInvoice } from './reimburse-import';
+import { candidatesForImportPair } from './reimburse-review-candidates';
+import { ReimburseImportPreview } from './components/ReimburseImportPreview';
 import { Field, Select } from '../../shared/ui';
 
 function importFormInitial(job: ReimburseImportJob, pair: ReimburseImportPair, profile: ReimburseProfile) {
@@ -171,13 +173,17 @@ export function ReimbursePage({ client, source, identity }: {
           <label><input type="checkbox" checked={joinBatch} onChange={event => setJoinBatch(event.target.checked)} />确认后加入批次（默认不加入）</label>
           {joinBatch && <Field label="批次"><Select value={reviewBatchId} onChange={event => setReviewBatchId(event.target.value)}><option value="all">请选择批次</option>{batches.map(batch => <option key={batch.id} value={batch.id}>{batch.name}</option>)}</Select></Field>}
         </div>}
-        <ReimburseEntryForm key={reviewPair.id} client={client} source={cacheSource} profile={profile} canWrite={identity.canWrite}
-          writeLockedHint={identity.canWrite ? null : t('identity.writeHint')} initial={importFormInitial(reviewJob, reviewPair, profile)}
-          submitLabel={reviewPair.status === 'pending' ? '手动建单' : '确认并建单'} requestPending={confirmImport.isPending}
-          onSubmitRequest={(request, clientRequestId) => confirmImport.mutate({ id: reviewJob.id, request: { items: [{
-            pairId: reviewPair.id, draft: request, clientRequestId,
-            batchId: joinBatch && reviewBatchId !== 'all' ? reviewBatchId : null,
-          }] } })} />
+        <div className="reimb-import-review__content">
+          <ReimburseImportPreview job={reviewJob} pair={reviewPair} contentUrl={client.reimburseImportFileContentUrl} />
+          <ReimburseEntryForm key={reviewPair.id} client={client} source={cacheSource} profile={profile} canWrite={identity.canWrite}
+            writeLockedHint={identity.canWrite ? null : t('identity.writeHint')} initial={importFormInitial(reviewJob, reviewPair, profile)}
+            candidates={candidatesForImportPair(reviewJob, reviewPair)}
+            submitLabel={reviewPair.status === 'pending' ? '手动建单' : '确认并建单'} requestPending={confirmImport.isPending}
+            onSubmitRequest={(request, clientRequestId) => confirmImport.mutate({ id: reviewJob.id, request: { items: [{
+              pairId: reviewPair.id, draft: request, clientRequestId,
+              batchId: joinBatch && reviewBatchId !== 'all' ? reviewBatchId : null,
+            }] } })} />
+        </div>
       </div>}
     </SideDrawer>
 

@@ -28,6 +28,18 @@ export const ParsedInvoiceSchema = z.object({
   items: z.array(ReimburseItemSchema),
 });
 
+export const ReimburseImportCandidatesSchema = z.object({
+  seller: z.array(z.string().min(1)),
+  purchaserName: z.array(z.string().min(1)),
+  invoiceNo: z.array(z.string().regex(/^\d{20}$/)),
+  invoiceDate: z.array(z.string().min(1)),
+  amounts: z.array(z.number().int()),
+});
+
+export function emptyReimburseImportCandidates(): ReimburseImportCandidates {
+  return { seller: [], purchaserName: [], invoiceNo: [], invoiceDate: [], amounts: [] };
+}
+
 export const ReimburseImportFileSchema = z.object({
   id: z.string().min(1),
   originalName: z.string().min(1),
@@ -40,6 +52,7 @@ export const ReimburseImportFileSchema = z.object({
   amountFen: z.number().int().nonnegative().nullable(),
   confidence: z.number().min(0).max(100).nullable(),
   parsed: ParsedInvoiceSchema.nullable(),
+  candidates: ReimburseImportCandidatesSchema.default(emptyReimburseImportCandidates),
   error: z.string().nullable(),
   removedAt: isoDateTimeSchema.nullable(),
 });
@@ -160,6 +173,79 @@ function paymentYuanToFen(raw: string): number | null {
 
 const CURRENCY = String.raw`[¥￥]\s*([0-9][0-9,，\s]*(?:\.\s*\d{1,2})?)`;
 const PAYMENT_LABEL = String.raw`支\s*付\s*金\s*额|实\s*付\s*款?|合\s*计|交\s*易\s*金\s*额`;
+
+/**
+ * 核对表单的候选值只来自本次真实解析文本与已解析字段；不把空值、配置默认值或猜测补成候选。
+ * 金额统一为分；发票号只接受完整 20 位，避免 OCR 截断值进入可点选项。
+ */
+export function extractReimburseImportCandidates(
+  text: string,
+  parsed: ParsedInvoice | null = null,
+): ReimburseImportCandidates {
+  const result = emptyReimburseImportCandidates();
+  const seen: Record<keyof ReimburseImportCandidates, Set<string | number>> = {
+    seller: new Set(), purchaserName: new Set(), invoiceNo: new Set(), invoiceDate: new Set(), amounts: new Set(),
+  };
+  const add = (field: keyof ReimburseImportCandidates, value: string | number | null | undefined) => {
+    if (value === null || value === undefined) return;
+    const normalized = typeof value === 'string' ? value.trim() : value;
+    if (normalized === '' || seen[field].has(normalized)) return;
+    seen[field].add(normalized);
+    (result[field] as Array<string | number>).push(normalized);
+  };
+  const cleanName = (value: string | null | undefined) => value?.replace(/[|£\s]+$/g, '').replace(/\s+/g, '').trim() || null;
+
+  add('seller', cleanName(parsed?.seller));
+  add('purchaserName', cleanName(parsed?.purchaserName));
+  add('invoiceNo', /^\d{20}$/.test(parsed?.invoiceNo ?? '') ? parsed!.invoiceNo : null);
+  add('invoiceDate', parsed?.invoiceDate);
+  add('amounts', parsed?.totalAmountFen);
+
+  const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  let party: 'seller' | 'purchaserName' | null = null;
+  for (const line of lines) {
+    const compact = line.replace(/\s+/g, '');
+    if (/^(?:销售方信息|卖方信息)$/.test(compact)) { party = 'seller'; continue; }
+    if (/^(?:购买方信息|买方信息)$/.test(compact)) { party = 'purchaserName'; continue; }
+    const direct = /购\s+名\s*称\s*[:：]\s*(.+?)\s+销\s+名\s*称\s*[:：]\s*(.+?)\s*$/.exec(line);
+    if (direct) {
+      add('purchaserName', cleanName(direct[1]));
+      add('seller', cleanName(direct[2]));
+      continue;
+    }
+    const twoNames = /名\s*称\s*[:：]\s*(.+?)\s+名\s*称\s*[:：]\s*(.+?)\s*$/.exec(line);
+    if (twoNames) {
+      add('purchaserName', cleanName(twoNames[1]));
+      add('seller', cleanName(twoNames[2]));
+      continue;
+    }
+    const purchaser = /购买方名称\s*[:：]\s*(.+?)(?=\s+(?:统一社会信用代码|纳税人识别号|税号)\s*[:：]|$)/.exec(line)?.[1];
+    const seller = /销售方名称\s*[:：]\s*(.+?)(?=\s+(?:统一社会信用代码|纳税人识别号|税号)\s*[:：]|$)/.exec(line)?.[1];
+    add('purchaserName', cleanName(purchaser));
+    add('seller', cleanName(seller));
+    if (party) add(party, cleanName(/^\s*名\s*称\s*[:：]\s*(.+?)\s*$/.exec(line)?.[1]));
+  }
+
+  for (const match of text.matchAll(/(?<!\d)\d{20}(?!\d)/g)) add('invoiceNo', match[0]);
+  for (const match of text.matchAll(/(?<!\d)(?:\d[^\S\n]*){8,}/g)) {
+    const value = match[0].replace(/\D/g, '');
+    if (value.length === 20) add('invoiceNo', value);
+  }
+  for (const match of text.matchAll(/((?:\d[^\S\n]*){4})[^\S\n]*年[^\S\n]*((?:\d[^\S\n]*){1,2})[^\S\n]*月[^\S\n]*((?:\d[^\S\n]*){1,2})[^\S\n]*(?:日|[一-鿿])?/g)) {
+    const digits = (value: string) => value.replace(/\D/g, '');
+    add('invoiceDate', `${digits(match[1])}-${digits(match[2]).padStart(2, '0')}-${digits(match[3]).padStart(2, '0')}`);
+  }
+  for (const match of text.matchAll(/(?<!\d)(\d{4})-(\d{1,2})-(\d{1,2})(?!\d)/g)) {
+    add('invoiceDate', `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`);
+  }
+  for (const match of text.matchAll(new RegExp(CURRENCY, 'g'))) {
+    const amount = paymentYuanToFen(match[1]);
+    if (amount !== null) add('amounts', amount);
+  }
+  add('amounts', extractPaymentAmountFen(text));
+  return result;
+}
+
 /** 付款截图金额：优先标签同行，其次全图最大 ¥ 金额。 */
 export function extractPaymentAmountFen(text: string): number | null {
   const lines = text.split(/\r?\n/);
@@ -261,6 +347,7 @@ export type ReimburseImportFileStatus = z.infer<typeof ReimburseImportFileStatus
 export type ReimburseImportPairStatus = z.infer<typeof ReimburseImportPairStatusSchema>;
 export type ReimburseImportPendingReason = z.infer<typeof ReimburseImportPendingReasonSchema>;
 export type ReimburseImportDraft = z.infer<typeof ReimburseImportDraftSchema>;
+export type ReimburseImportCandidates = z.infer<typeof ReimburseImportCandidatesSchema>;
 export type ReimburseImportFile = z.infer<typeof ReimburseImportFileSchema>;
 export type ReimburseImportPair = z.infer<typeof ReimburseImportPairSchema>;
 export type ReimburseImportJob = z.infer<typeof ReimburseImportJobSchema>;

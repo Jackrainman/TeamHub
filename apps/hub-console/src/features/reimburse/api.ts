@@ -47,6 +47,7 @@ export interface ReimburseSegment {
   deleteReimburseImportFile(id: string, fileId: string): Promise<ReimburseImportJobResponse>;
   dismissReimburseImportPair(id: string, pairId: string): Promise<ReimburseImportJobResponse>;
   closeReimburseImport(id: string): Promise<ReimburseImportJobResponse>;
+  reimburseImportFileContentUrl(id: string, fileId: string): string;
   reimburseEvidenceDownloadUrl(id: string, evidenceId: string): string;
 }
 export function createReimburseSegment(ctx: HttpContext): ReimburseSegment {
@@ -113,6 +114,9 @@ export function createReimburseSegment(ctx: HttpContext): ReimburseSegment {
     },
     async closeReimburseImport(id) {
       return sendJson('DELETE', `${baseUrl}/api/reimburse/imports/${encodeURIComponent(id)}`, undefined, ReimburseImportJobResponseSchema, fetcher, writeToken);
+    },
+    reimburseImportFileContentUrl(id, fileId) {
+      return `${baseUrl}/api/reimburse/imports/${encodeURIComponent(id)}/files/${encodeURIComponent(fileId)}/content`;
     },
     reimburseEvidenceDownloadUrl(id, evidenceId) {
       return `${baseUrl}/api/reimburse/entries/${encodeURIComponent(id)}/evidence/${encodeURIComponent(evidenceId)}/download`;

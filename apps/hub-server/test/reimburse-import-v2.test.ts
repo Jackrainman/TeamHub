@@ -59,6 +59,9 @@ describe('reimburse import job persistence', () => {
       const job = await readyJob(hub.app, cookie, id);
       expect(job.pairs).toHaveLength(1);
       expect(job.pairs[0]).toMatchObject({ status: 'matched', amountFen: 2450 });
+      expect(job.files.find((file: { originalName: string }) => file.originalName === 'invoice.xml').candidates).toMatchObject({
+        seller: ['测试商店'], invoiceNo: ['12345678901234567890'], invoiceDate: ['2026-11-20'], amounts: [2450],
+      });
       const request = { items: [{ pairId: job.pairs[0].id, draft: job.pairs[0].draft, clientRequestId: crypto.randomUUID(), batchId: null }] };
       const confirmed = await hub.app.inject({ method: 'POST', url: `/api/reimburse/imports/${id}/confirm`, headers: { cookie }, payload: request });
       expect(confirmed.statusCode, confirmed.body).toBe(200);
