@@ -255,6 +255,7 @@ export function draftFromParsedInvoice(invoice: ParsedInvoice, profile?: Reimbur
     kind: 'goods',
     expenseType: null,
     summary: '',
+    invoiceType: invoice.invoiceType,
     invoiceNo: invoice.invoiceNo,
     invoiceDate: invoice.invoiceDate ?? '',
     seller: invoice.seller ?? '',

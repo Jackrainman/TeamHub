@@ -1,6 +1,6 @@
 import {
   classifyInvoiceType, classifyPackageText, derivePackageReview, DEFAULT_REIMBURSE_PROFILE,
-  INVOICE_ARCHIVE_LIMITS, parseInvoicePdfText, parseInvoiceXmlText, parseInvoiceXbrlText,
+  INVOICE_ARCHIVE_LIMITS, normalizeInvoiceOcrText, parseInvoicePdfText, parseInvoiceXmlText, parseInvoiceXbrlText,
   type PackageCandidate, type PackageReview, type ReimburseProfile,
 } from '@teamhub/hub-contracts';
 import { extractZipEntries, extractOfdXbrlText } from './archive-extract';
@@ -70,7 +70,7 @@ export async function analyzeReimbursePackage(
           else {
             try {
               const result = await deps.extractOcrText(member);
-              lines = result.lines;
+              lines = normalizeInvoiceOcrText(result.lines.join('\n')).split(/\r?\n/);
               text = lines.join('\n');
               ocr = true;
               if (result.confidence < 80) notices.push({ fileName: member.name, reason: 'low-confidence' });
@@ -78,9 +78,9 @@ export async function analyzeReimbursePackage(
           }
         }
         const role = invoice ? 'invoice' : classifyPackageText(text);
-        if (!invoice && role === 'invoice') invoice = parseInvoicePdfText(lines);
+        if (!invoice && role === 'invoice') invoice = parseInvoicePdfText(lines, ocr ? 'ocr' : 'pdf', profile);
         if (invoice && ocr) invoice = { ...invoice, recognitionSource: 'ocr' };
-        attachments.push({ path: member.name, file: member, included: true, role, invoice, invoiceType: classifyInvoiceType(text) });
+        attachments.push({ path: member.name, file: member, included: true, role, invoice, invoiceType: invoice?.invoiceType ?? classifyInvoiceType(text) });
       } catch { notices.push({ fileName: member.name, reason: 'read' }); }
     }
     if (!attachments.length) return { kind: 'failed', fileName, reason: 'read' };

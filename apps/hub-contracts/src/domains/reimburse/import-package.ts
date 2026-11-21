@@ -37,9 +37,9 @@ export function suggestPackageExpenseType(review: PackageReview): PackageExpense
 
 export function classifyInvoiceType(text: string): InvoiceType {
   const compact = text.replace(/\s/g, '');
-  if (/铁路电子客票|电子客票号/.test(compact)) return 'railway';
+  if (/铁路|电子客票号/.test(compact) || (/电子客票/.test(compact) && !/航空运输/.test(compact))) return 'railway';
   if (/专用发票/.test(compact)) return 'vatSpecial';
-  if (/普通发票/.test(compact)) return 'vatOrdinary';
+  if (/普通发票|电子发票/.test(compact)) return 'vatOrdinary';
   if (/机动车销售统一发票|航空运输电子客票行程单|定额发票/.test(compact)) return 'other';
   return 'unknown';
 }

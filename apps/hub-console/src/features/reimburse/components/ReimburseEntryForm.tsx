@@ -89,7 +89,7 @@ export function ReimburseEntryForm({
   const { t } = useI18n();
   const [draft, setDraft] = useState<EntryDraft>(() => {
     if (editingEntry) return {
-      ...draftFromParsedInvoice({ ...editingEntry, invoiceNo: editingEntry.invoiceNo ?? '' }),
+      ...draftFromParsedInvoice({ ...editingEntry, invoiceNo: editingEntry.invoiceNo ?? '', invoiceType: editingEntry.invoiceType ?? 'unknown' }),
       kind: editingEntry.kind, expenseType: editingEntry.expenseType, summary: editingEntry.summary ?? '', invoiceType: editingEntry.invoiceType ?? 'unknown',
       actualItemName: editingEntry.actualItemName ?? '', note: editingEntry.note ?? '',
     };
@@ -142,6 +142,11 @@ export function ReimburseEntryForm({
   const itemsTotalFen = entryItemsTotalFen(draft);
   const showTotalMismatch = valid && request.totalAmountFen !== null &&
     itemsTotalFen !== null && itemsTotalFen !== request.totalAmountFen;
+  const reviewLayout = !!initial;
+  const unrecognized = (value: string) => reviewLayout && draft.recognitionSource === 'ocr' && !value.trim()
+    ? t('reimb.create.unrecognized') : undefined;
+  const unrecognizedType = reviewLayout && (draft.invoiceType ?? 'unknown') === 'unknown'
+    ? t('reimb.create.unrecognizedType') : undefined;
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -155,84 +160,82 @@ export function ReimburseEntryForm({
   }
 
   return (
-    <section className="panel" aria-label={t('reimb.create.title')}>
+    <section className={`panel${reviewLayout ? ' reimb-entry-form--review' : ''}`} aria-label={t('reimb.create.title')}>
       {!initial && <header className="pm-create__head">
         <div>
           <h2>{t(editingEntry ? 'reimb.entry.editFields' : 'reimb.create.title')}</h2>
         </div>
       </header>}
-      {initial?.package && <ReimbursePackageReview data={initial.package} attachments={attachments}
-        request={request} profile={profile} locked={frozen} targets={importTargets} onSplit={splitAttachment} onMove={moveAttachment}
-        onChange={next => { setAttachments(next); initial.package!.attachments = next; }} />}
       {!!saveState.request && <p role="status">{t('reimb.package.retryHint')}</p>}
       {saveState.entryId && <p role="status">{t('reimb.package.saved', { done: saveState.completed ?? 0, total: attachments.filter(a => a.included).length })}</p>}
       <form className="pm-form" onSubmit={submit}>
         <fieldset disabled={frozen} className="reimb-form-fields">
-        <Field label={t('reimb.package.type')}>
-          <select value={draft.invoiceType ?? 'unknown'} onChange={e => patch({ invoiceType: e.target.value as InvoiceType })}>
-            {(['unknown', 'vatOrdinary', 'vatSpecial', 'railway', 'other'] as const).map(type =>
-              <option key={type} value={type}>{t(`reimb.invoiceType.${type}`)}</option>)}
-          </select>
-        </Field>
-        <FormGrid>
-          <Field label={t('reimb.create.field.expenseType')} className="span-all">
-            <SegToggle<ReimburseExpenseType>
-              value={draft.expenseType}
-              onChange={(expenseType) => patch({ expenseType, kind: kindForExpenseType(expenseType) })}
-              ariaLabel={t('reimb.create.field.expenseType')}
-              options={EXPENSE_OPTIONS.map((option) => ({ value: option.value, label: t(option.labelKey) }))}
-            />
-          </Field>
-        </FormGrid>
-        <FormGrid>
-          <Field label={t('reimb.create.field.invoiceNo')}>
-            <input
-              value={draft.invoiceNo}
-              placeholder={t('reimb.create.field.invoiceNo.placeholder')}
-              onChange={(e) => patch({ invoiceNo: e.target.value })}
-            />
-          </Field>
-          <Field label={t('reimb.create.field.invoiceDate')}>
-            <input
-              type="date"
-              value={draft.invoiceDate}
-              onChange={(e) => patch({ invoiceDate: e.target.value })}
-            />
-          </Field>
-        </FormGrid>
-        <FormGrid>
-          <Field label={t('reimb.create.field.seller')}>
-            <input
-              value={draft.seller}
-              placeholder={t('reimb.create.field.seller.placeholder')}
-              onChange={(e) => patch({ seller: e.target.value })}
-            />
-          </Field>
-          <Field label={t('reimb.create.field.purchaserName')}>
-            <input
-              value={draft.purchaserName}
-              placeholder={t('reimb.create.field.purchaserName.placeholder')}
-              onChange={(e) => patch({ purchaserName: e.target.value })}
-            />
-          </Field>
-          <Field label={t('reimb.create.field.purchaserTaxNo')}>
-            <input
-              value={draft.purchaserTaxNo}
-              placeholder={t('reimb.create.field.purchaserTaxNo.placeholder')}
-              onChange={(e) => patch({ purchaserTaxNo: e.target.value })}
-            />
-          </Field>
-        </FormGrid>
-        <FormGrid>
-          <Field label={t('reimb.create.field.total')}>
-            <input
-              value={draft.totalYuan}
-              placeholder={t('reimb.create.field.total.placeholder')}
-              inputMode="decimal"
-              onChange={(e) => patch({ totalYuan: e.target.value })}
-            />
-          </Field>
-        </FormGrid>
+        <section className="reimb-form-section">
+          {reviewLayout && <h3>{t('reimb.create.section.invoice')}</h3>}
+          <FormGrid>
+            <Field label={t('reimb.package.type')} className={unrecognizedType ? 'kb-field--missing' : undefined} hint={unrecognizedType}>
+              <select value={draft.invoiceType ?? 'unknown'} onChange={e => patch({ invoiceType: e.target.value as InvoiceType })}>
+                {(['unknown', 'vatOrdinary', 'vatSpecial', 'railway', 'other'] as const).map(type =>
+                  <option key={type} value={type}>{t(`reimb.invoiceType.${type}`)}</option>)}
+              </select>
+            </Field>
+            <Field label={t('reimb.create.field.expenseType')} className={reviewLayout ? undefined : 'span-all'}>
+              <SegToggle<ReimburseExpenseType>
+                value={draft.expenseType}
+                onChange={(expenseType) => patch({ expenseType, kind: kindForExpenseType(expenseType) })}
+                ariaLabel={t('reimb.create.field.expenseType')}
+                options={EXPENSE_OPTIONS.map((option) => ({ value: option.value, label: t(option.labelKey) }))}
+              />
+            </Field>
+            <Field label={t('reimb.create.field.invoiceNo')} className={unrecognized(draft.invoiceNo) ? 'kb-field--missing' : undefined} hint={unrecognized(draft.invoiceNo)}>
+              <input
+                value={draft.invoiceNo}
+                placeholder={t('reimb.create.field.invoiceNo.placeholder')}
+                onChange={(e) => patch({ invoiceNo: e.target.value })}
+              />
+            </Field>
+            <Field label={t('reimb.create.field.invoiceDate')} className={unrecognized(draft.invoiceDate) ? 'kb-field--missing' : undefined} hint={unrecognized(draft.invoiceDate)}>
+              <input
+                type="date"
+                value={draft.invoiceDate}
+                onChange={(e) => patch({ invoiceDate: e.target.value })}
+              />
+            </Field>
+            <Field label={t('reimb.create.field.seller')} className={unrecognized(draft.seller) ? 'kb-field--missing' : undefined} hint={unrecognized(draft.seller)}>
+              <input
+                value={draft.seller}
+                placeholder={t('reimb.create.field.seller.placeholder')}
+                onChange={(e) => patch({ seller: e.target.value })}
+              />
+            </Field>
+            <Field label={t('reimb.create.field.purchaserName')} className={unrecognized(draft.purchaserName) ? 'kb-field--missing' : undefined} hint={unrecognized(draft.purchaserName)}>
+              <input
+                value={draft.purchaserName}
+                placeholder={t('reimb.create.field.purchaserName.placeholder')}
+                onChange={(e) => patch({ purchaserName: e.target.value })}
+              />
+            </Field>
+            <Field label={t('reimb.create.field.purchaserTaxNo')} className={unrecognized(draft.purchaserTaxNo) ? 'kb-field--missing' : undefined} hint={unrecognized(draft.purchaserTaxNo)}>
+              <input
+                value={draft.purchaserTaxNo}
+                placeholder={t('reimb.create.field.purchaserTaxNo.placeholder')}
+                onChange={(e) => patch({ purchaserTaxNo: e.target.value })}
+              />
+            </Field>
+          </FormGrid>
+        </section>
+        <section className="reimb-form-section">
+          {reviewLayout && <h3>{t('reimb.create.section.amount')}</h3>}
+          <FormGrid>
+            <Field label={t('reimb.create.field.total')} className={unrecognized(draft.totalYuan) ? 'kb-field--missing' : undefined} hint={unrecognized(draft.totalYuan)}>
+              <input
+                value={draft.totalYuan}
+                placeholder={t('reimb.create.field.total.placeholder')}
+                inputMode="decimal"
+                onChange={(e) => patch({ totalYuan: e.target.value })}
+              />
+            </Field>
+          </FormGrid>
         <FormGrid>
           <Field label={t('reimb.create.field.actualItemName')}>
             <input
@@ -254,6 +257,8 @@ export function ReimburseEntryForm({
           <div className="reimb-items-editor">
             <p className="reimb-items-editor__title">{t('reimb.create.items.title')}</p>
             <p className="kb-field__hint">{t('reimb.create.items.requiredHint')}</p>
+            {reviewLayout && draft.recognitionSource === 'ocr' && draft.items.every(row => !row.name.trim()) &&
+              <p className="reimb-field-unrecognized">{t('reimb.create.items.unrecognized')}</p>}
             {draft.items.map((row, index) => (
               <div className="reimb-items-editor__row" key={index}>
                 <input
@@ -336,6 +341,16 @@ export function ReimburseEntryForm({
             <input aria-label={t('reimb.create.field.summary')} value={draft.summary} onChange={(event) => patch({ summary: event.target.value })} />
           </Field>
         </FormGrid>
+        </section>
+        {reviewLayout && <section className="reimb-form-section reimb-form-section--evidence">
+          <h3>{t('reimb.create.section.evidence')}</h3>
+          {initial?.fileName && <div className="reimb-review-evidence">
+            <span>{t('reimb.create.evidenceFile')}</span><strong>{initial.fileName}</strong>
+          </div>}
+          {initial?.package && <ReimbursePackageReview data={initial.package} attachments={attachments}
+            request={request} profile={profile} locked={frozen} targets={importTargets} onSplit={splitAttachment} onMove={moveAttachment}
+            onChange={next => { setAttachments(next); initial.package!.attachments = next; }} />}
+        </section>}
 
         </fieldset>
         {initial && onDone && !saveState.request ? (

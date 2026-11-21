@@ -3,7 +3,7 @@ import { isoDateTimeSchema } from '../../common.js';
 import { classifyPackageText } from './import-package.js';
 import { kindForExpenseType } from './workflow.js';
 import {
-  InvoiceRecognitionSourceSchema, ReimburseItemSchema,
+  InvoiceRecognitionSourceSchema, InvoiceTypeSchema, ReimburseItemSchema,
 } from './model.js';
 import {
   CreateReimburseEntryRequestSchema,
@@ -18,6 +18,7 @@ export const ReimburseImportDraftSchema = CreateReimburseEntryRequestSchema.omit
 
 export const ParsedInvoiceSchema = z.object({
   invoiceNo: z.string(),
+  invoiceType: InvoiceTypeSchema.default('unknown'),
   invoiceDate: z.string().nullable(),
   seller: z.string().nullable(),
   purchaserName: z.string().nullable(),
@@ -131,6 +132,7 @@ function draftForInvoice(invoice: ParsedInvoice | null, confidence: number | nul
     kind: expenseType ? kindForExpenseType(expenseType) : 'goods' as const,
     expenseType,
     summary: invoice.items[0]?.name ?? invoice.seller ?? null,
+    invoiceType: invoice.invoiceType,
     invoiceNo: trustworthyInvoiceNo ? invoice.invoiceNo : null,
     invoiceDate: invoice.invoiceDate,
     seller: invoice.seller,

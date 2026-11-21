@@ -3,6 +3,7 @@ import {
   classifyPackageText,
   extractPaymentAmountFen,
   matchReimburseImportFiles,
+  normalizeInvoiceOcrText,
   parseInvoicePdfText,
   type ReimburseImportFile,
 } from '../src/index.js';
@@ -32,11 +33,50 @@ function match(files: ReimburseImportFile[]) {
   return matchReimburseImportFiles(files, () => `reip-${++id}`);
 }
 
+describe('reimburse OCR invoice fields', () => {
+  it('removes whitespace between CJK characters without changing dates or amounts', () => {
+    expect(normalizeInvoiceOcrText('江 苏 悟 锐 达 科 技 有 限 公 司\n2026 年 10 月 20 昌\n合 计 ¥40.59 ¥5. 2 引'))
+      .toBe('江苏悟锐达科技有限公司\n2026 年 10 月 20 昌\n合计 ¥40.59 ¥5. 2 引');
+  });
+  it('accepts an OCR suffix after the day instead of requiring the character 日', () => {
+    const text = normalizeInvoiceOcrText('开 票 日 期 : 2026 年 10 月 20 昌\n价税合计（小写）¥45.87');
+    expect(parseInvoicePdfText(text.split('\n'), 'ocr')?.invoiceDate).toBe('2026-10-20');
+  });
+  it('uses the known purchaser tax ID to separate OCR seller and purchaser candidates', () => {
+    const text = normalizeInvoiceOcrText(`? A WRE g 名 称 :江苏 悟 锐 达 科 技 有 限 公司 £
+和 统一 社会 信用 代 己 /纳税 人 识别 号 :1 2650000457601471G 县 统一 社会 信用 代码 / 钠 秘 人 识别 好 :91320811MR1YM07&A65
+合 计 ¥40.59 ¥5.28`);
+    const parsed = parseInvoicePdfText(text.split('\n'), 'ocr', {
+      expectedPurchaserName: '新疆大学', expectedPurchaserTaxNo: '12650000457601471G',
+    });
+    expect(parsed).toMatchObject({
+      seller: '江苏悟锐达科技有限公司', purchaserName: '新疆大学', purchaserTaxNo: '12650000457601471G',
+      invoiceNo: '', totalAmountFen: 4587,
+    });
+  });
+  it('uses the known purchaser name to split adjacent OCR name columns', () => {
+    const text = normalizeInvoiceOcrText(`名 称 :新 疆 大 学 名 称 :江 苏 悟 锐 达 科 技 有 限 公 司
+纳 税 人 识 别 号 :12650000457601471G
+合 计 ¥40.59 ¥5.28`);
+    const parsed = parseInvoicePdfText(text.split('\n'), 'ocr', {
+      expectedPurchaserName: '新疆大学', expectedPurchaserTaxNo: '12650000457601471G',
+    });
+    expect(parsed).toMatchObject({ seller: '江苏悟锐达科技有限公司', purchaserName: '新疆大学' });
+  });
+  it('maps normalized invoice type text and preserves unknown when no keyword exists', () => {
+    const parseType = (label: string) => parseInvoicePdfText([label, '价税合计（小写）¥45.87'], 'ocr')?.invoiceType;
+    expect(parseType('电子发票')).toBe('vatOrdinary');
+    expect(parseType('专用发票')).toBe('vatSpecial');
+    expect(parseType('铁路电子客票')).toBe('railway');
+    expect(parseType('票证')).toBe('unknown');
+  });
+});
+
 describe('reimburse import v2 matching', () => {
   it('pairs one invoice and one payment screenshot at the same amount', () => {
     const pairs = match([
       file({ role: 'invoice', amountFen: 2450, parsed: {
-        invoiceNo: '12345678901234567890', invoiceDate: '2026-11-20', seller: '测试商店',
+        invoiceNo: '12345678901234567890', invoiceType: 'unknown' as const, invoiceDate: '2026-11-20', seller: '测试商店',
         purchaserName: null, purchaserTaxNo: null, recognitionSource: 'xml', totalAmountFen: 2450,
         items: [{ name: '测试物料', unit: null, quantity: 1, unitPriceFen: null, amountFen: 2450 }],
       } }),

@@ -1,8 +1,10 @@
-import type { InvoiceRecognitionSource, ReimburseItem } from './model.js';
+import { classifyInvoiceType } from './import-package.js';
+import type { InvoiceRecognitionSource, InvoiceType, ReimburseItem, ReimburseProfile } from './model.js';
 
 /** 解析结果（表单预填用，瞬态不落库）：字段识别不出为 null，整体识别不出返回 null。文件本体永不进入此契约。 */
 export interface ParsedInvoice {
   invoiceNo: string;
+  invoiceType: InvoiceType;
   invoiceDate: string | null;
   seller: string | null;
   purchaserName: string | null;
@@ -122,6 +124,7 @@ export function parseInvoiceXmlText(xmlText: string): ParsedInvoice | null {
 
   return {
     invoiceNo,
+    invoiceType: classifyInvoiceType(xmlText),
     invoiceDate,
     seller,
     purchaserName,
@@ -189,6 +192,7 @@ export function parseInvoiceXbrlText(xmlText: string): ParsedInvoice | null {
 
   return {
     invoiceNo,
+    invoiceType: classifyInvoiceType(xmlText),
     invoiceDate,
     seller: null, // 铁路客票 XBRL 无销售方字段，不臆造
     purchaserName,
@@ -282,6 +286,13 @@ export function planInvoiceArchive(
 
 // ---------------------------------------------------------------- PDF 文本行
 
+/**
+ * OCR 常在相邻汉字之间插入空格；只合并 CJK↔CJK 的横向空白，保留日期、金额和行边界。
+ */
+export function normalizeInvoiceOcrText(text: string): string {
+  return text.replace(/(?<=[㐀-鿿])[^\S\r\n]+(?=[㐀-鿿])/g, '');
+}
+
 /** 明细区终止词（tidoc _SKIP_PREFIXES 精简版）：命中即非明细行。 */
 const PDF_ITEM_SKIP_PREFIXES = [
   '合计',
@@ -342,10 +353,10 @@ function extractPdfInvoiceNo(text: string): string {
   return '';
 }
 
-/** 开票日期 → YYYY-MM-DD（容忍字符间空格，tidoc _extract_invoice_date 同款）。 */
+/** 开票日期 → YYYY-MM-DD（容忍字符间空格及 OCR 把末尾「日」识别成其他汉字）。 */
 function extractPdfInvoiceDate(text: string): string | null {
   const m =
-    /((?:\d[^\S\n]*){4})[^\S\n]*年[^\S\n]*((?:\d[^\S\n]*){1,2})[^\S\n]*月[^\S\n]*((?:\d[^\S\n]*){1,2})[^\S\n]*日/.exec(
+    /((?:\d[^\S\n]*){4})[^\S\n]*年[^\S\n]*((?:\d[^\S\n]*){1,2})[^\S\n]*月[^\S\n]*((?:\d[^\S\n]*){1,2})[^\S\n]*(?:日|[一-鿿])?/.exec(
       text,
     );
   if (!m) {
@@ -607,6 +618,41 @@ interface SplitPartyColumns {
   seller: string | null;
 }
 
+function normalizedTaxNo(value: string): string {
+  return value.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+}
+
+/**
+ * OCR 双栏标签常丢失或错字；只有候选名称/税号与已知购方精确匹配时才据此拆分，绝不猜测。
+ */
+function extractProfileParties(lines: string[], profile?: ReimburseProfile): SplitPartyColumns | null {
+  if (!profile) return null;
+  const names: string[] = [];
+  const taxes: string[] = [];
+  for (const line of lines) {
+    for (const match of line.matchAll(/名\s*称\s*[:：]\s*(.+?)(?=名\s*称\s*[:：]|$)/g)) {
+      const name = match[1].replace(/[£\s]+$/g, '').replace(/\s+/g, '');
+      if (name && !/^(购|销|买|售)$/.test(name)) names.push(name);
+    }
+    for (const match of line.matchAll(/(?:统一社会信用|纳税人识别|税号)[^:：\n]{0,20}[:：]\s*([0-9A-Za-z& ]{15,30})/g)) {
+      const tax = normalizedTaxNo(match[1]);
+      if (tax.length >= 15 && tax.length <= 20) taxes.push(tax);
+    }
+  }
+  const expectedName = profile.expectedPurchaserName.replace(/\s+/g, '');
+  const expectedTax = normalizedTaxNo(profile.expectedPurchaserTaxNo);
+  const nameIndex = expectedName ? names.findIndex(name => name === expectedName) : -1;
+  const taxIndex = expectedTax ? taxes.findIndex(tax => tax === expectedTax) : -1;
+  if (nameIndex < 0 && taxIndex < 0) return null;
+  const purchaserNameIndex = nameIndex >= 0 ? nameIndex
+    : names.length === taxes.length && names.length > 1 ? taxIndex : -1;
+  return {
+    purchaserName: nameIndex >= 0 ? names[nameIndex] : expectedName || null,
+    purchaserTaxNo: taxIndex >= 0 ? taxes[taxIndex] : extractPdfPurchaserTaxNo(lines),
+    seller: names.find((_, index) => index !== purchaserNameIndex) ?? null,
+  };
+}
+
 /** 部分 PDF 文本层先集中输出购销标签，再按购方名称/税号、销方名称/税号输出值。 */
 function extractSplitPartyColumns(lines: string[]): SplitPartyColumns | null {
   if (!lines.some(line => line.replace(/\s/g, '') === '名称：名称：')) return null;
@@ -633,6 +679,7 @@ function extractSplitPartyColumns(lines: string[]): SplitPartyColumns | null {
 export function parseInvoicePdfText(
   textLines: string[],
   recognitionSource: 'pdf' | 'ocr' = 'pdf',
+  profile?: ReimburseProfile,
 ): ParsedInvoice | null {
   const rawLines = textLines.map((l) => l.trim()).filter((l) => l.length > 0);
   const lines = mergeVerticalCharLines(rawLines);
@@ -641,9 +688,10 @@ export function parseInvoicePdfText(
   const invoiceNo = extractPdfInvoiceNo(text);
   const invoiceDate = extractPdfInvoiceDate(text);
   const splitParties = extractSplitPartyColumns(lines);
-  const seller = splitParties?.seller ?? extractPdfSeller(lines);
-  const purchaserName = splitParties?.purchaserName ?? extractPdfPurchaserName(lines);
-  const purchaserTaxNo = splitParties?.purchaserTaxNo ?? extractPdfPurchaserTaxNo(lines);
+  const profileParties = extractProfileParties(lines, profile);
+  const seller = profileParties?.seller ?? splitParties?.seller ?? extractPdfSeller(lines);
+  const purchaserName = profileParties?.purchaserName ?? splitParties?.purchaserName ?? extractPdfPurchaserName(lines);
+  const purchaserTaxNo = profileParties?.purchaserTaxNo ?? splitParties?.purchaserTaxNo ?? extractPdfPurchaserTaxNo(lines);
 
   // 价税合计：优先「价税合计（小写）」同行金额，兜底全局最大 ¥ 金额（tidoc 同款）。
   let totalAmountFen: number | null = null;
@@ -792,6 +840,7 @@ export function parseInvoicePdfText(
   }
   return {
     invoiceNo,
+    invoiceType: classifyInvoiceType(text),
     invoiceDate,
     seller,
     purchaserName,

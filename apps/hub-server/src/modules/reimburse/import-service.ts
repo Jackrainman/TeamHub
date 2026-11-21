@@ -157,6 +157,7 @@ export class ReimburseImportService {
       job = { ...job, files: expanded };
       this.jobs.saveJob(job);
       const parsedFiles: ReimburseImportFile[] = [];
+      const profile = this.entries.getProfile();
       for (const file of job.files) {
         if (file.status === 'duplicate' || file.status === 'removed' || file.status === 'mounted' || file.error === 'nested zip unsupported') {
           parsedFiles.push(file); continue;
@@ -165,7 +166,7 @@ export class ReimburseImportService {
           parsedFiles.push({ ...file, status: 'unreadable', error: 'unsupported' }); continue;
         }
         try {
-          const parsed = await parseReimburseImportFile(file.ext, await this.storage.read(id, file.id, file.ext));
+          const parsed = await parseReimburseImportFile(file.ext, await this.storage.read(id, file.id, file.ext), profile);
           const next = { ...file, ...parsed, status: 'parsed' as const, error: null };
           next.displayName = displayNameFor(next, job.createdAt);
           parsedFiles.push(next);

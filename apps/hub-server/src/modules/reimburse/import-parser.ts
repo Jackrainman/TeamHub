@@ -6,11 +6,13 @@ import {
   classifyPackageText,
   evidenceExtOf,
   extractPaymentAmountFen,
+  normalizeInvoiceOcrText,
   parseInvoicePdfText,
   parseInvoiceXbrlText,
   parseInvoiceXmlText,
   type ParsedInvoice,
   type ReimburseImportFile,
+  type ReimburseProfile,
 } from '@teamhub/hub-contracts';
 
 export interface ImportFileParseResult {
@@ -151,6 +153,7 @@ async function pdfTextAndOcrImages(data: Uint8Array): Promise<{ lines: string[];
 export async function parseReimburseImportFile(
   ext: string,
   content: Buffer,
+  profile?: ReimburseProfile,
 ): Promise<ImportFileParseResult> {
   let text = '';
   let confidence: number | null = null;
@@ -165,18 +168,18 @@ export async function parseReimburseImportFile(
   } else if (ext === '.pdf') {
     const result = await pdfTextAndOcrImages(content);
     text = result.lines.join('\n');
-    parsed = parseInvoicePdfText(result.lines);
+    parsed = parseInvoicePdfText(result.lines, 'pdf', profile);
     if (!text.trim() && result.ocrImages.length) {
       const recognized = await ocr(result.ocrImages);
-      text = recognized.text;
+      text = normalizeInvoiceOcrText(recognized.text);
       confidence = recognized.confidence;
-      parsed = parseInvoicePdfText(text.split(/\r?\n/), 'ocr');
+      parsed = parseInvoicePdfText(text.split(/\r?\n/), 'ocr', profile);
     }
   } else if (ext === '.png' || ext === '.jpg' || ext === '.jpeg') {
     const recognized = await ocr([content]);
-    text = recognized.text;
+    text = normalizeInvoiceOcrText(recognized.text);
     confidence = recognized.confidence;
-    if (classifyPackageText(text) === 'invoice') parsed = parseInvoicePdfText(text.split(/\r?\n/), 'ocr');
+    if (classifyPackageText(text) === 'invoice') parsed = parseInvoicePdfText(text.split(/\r?\n/), 'ocr', profile);
   }
   const classified = classifyPackageText(text);
   const role = parsed ? 'invoice' : classified === 'inspection' ? 'inspection' : classified === 'paymentShot' ? 'paymentShot' : 'unknown';

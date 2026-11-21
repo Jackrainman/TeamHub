@@ -37,7 +37,7 @@ import { Field, Select } from '../../shared/ui';
 function importFormInitial(job: ReimburseImportJob, pair: ReimburseImportPair, profile: ReimburseProfile) {
   const draft = pair.draft;
   const base = draftFromParsedInvoice({
-    invoiceNo: draft.invoiceNo ?? '', invoiceDate: draft.invoiceDate ?? null,
+    invoiceNo: draft.invoiceNo ?? '', invoiceType: draft.invoiceType ?? 'unknown', invoiceDate: draft.invoiceDate ?? null,
     seller: draft.seller ?? null, purchaserName: draft.purchaserName ?? null, purchaserTaxNo: draft.purchaserTaxNo ?? null,
     recognitionSource: draft.recognitionSource, totalAmountFen: draft.totalAmountFen, items: draft.items,
   }, profile);

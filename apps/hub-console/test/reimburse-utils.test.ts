@@ -23,11 +23,12 @@ describe('reimburse entry form drafts', () => {
 
   it('fills missing imported purchaser fields without overriding invoice values', () => {
     const invoice = {
-      invoiceNo: '12345678', invoiceDate: '2026-11-21', seller: '测试商店',
+      invoiceNo: '12345678', invoiceType: 'vatOrdinary' as const, invoiceDate: '2026-11-21', seller: '测试商店',
       purchaserName: null, purchaserTaxNo: null, recognitionSource: 'xml' as const, totalAmountFen: 4587,
       items: [],
     };
     expect(draftFromParsedInvoice(invoice, profile)).toMatchObject({
+      invoiceType: 'vatOrdinary',
       purchaserName: '哈尔滨工业大学',
       purchaserTaxNo: '12100000400000456B',
     });
@@ -95,7 +96,7 @@ describe('reimburse entry form drafts', () => {
 
   it('round-trips every existing item into edit form fields', () => {
     const draft = draftFromParsedInvoice({
-      invoiceNo: '12345678', invoiceDate: '2026-11-21', seller: '测试商店',
+      invoiceNo: '12345678', invoiceType: 'vatOrdinary' as const, invoiceDate: '2026-11-21', seller: '测试商店',
       purchaserName: null, purchaserTaxNo: null, recognitionSource: 'pdf', totalAmountFen: 16904,
       items: [
         { name: '墨盒', unit: '个', quantity: 1, unitPriceFen: 9071, amountFen: 8452 },
