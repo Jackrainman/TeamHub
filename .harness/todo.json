@@ -34,6 +34,15 @@
   ],
   "todo": [
     {
+      "id": "REIMBURSE-SCOPE-LEAK",
+      "title": "报销「本人」视图混入全队条目：财务账号在本人页看到别人的条目",
+      "tag": "bug",
+      "batch": "reimburse",
+      "priority": "P0",
+      "note": "2026-11-21 用户实测：财务账号（projectManager）在「本人」视图看到张亚伦的 3 条条目。根因：service.listEntries() 对 super-admin 直接返回全部条目（service.ts:85），前端 view===\"mine\" 只换标题不按 memberId 过滤（ReimbursePage.tsx 无 mine 过滤）。同时确认「已建单 3 条取消/草稿」是张亚伦 37 文件批量导入的测试数据，非脏数据。",
+      "dod": "本人视图只出现 entry.memberId===当前登录人；财务视图才出现全队；补一条 e2e：财务切换视图后行数分别正确；typecheck/verify 绿"
+    },
+    {
       "id": "MODULE-REGISTRY",
       "title": "域注册表步骤 2-3：server 遍历 DOMAINS 装配 + console 页面 id 约束 + CODE_MAP 派生",
       "tag": "code",
