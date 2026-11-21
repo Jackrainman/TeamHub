@@ -104,10 +104,46 @@ async function seedReviewJob(hub) {
       const viewer = page.getByRole('dialog', { name: '查看付款截图：review-payment.png', exact: true });
       await viewer.waitFor();
       for (let index = 0; index < 4; index += 1) await viewer.getByRole('button', { name: '放大', exact: true }).click();
-      assert.equal(await viewer.getByLabel('缩放比例', { exact: true }).innerText(), '200%');
+      const scaleOutput = viewer.getByLabel('缩放比例', { exact: true });
+      assert.equal(await scaleOutput.innerText(), '200%');
       assert.match(await viewer.locator('.reimb-viewer__transform').getAttribute('style'), /scale\(2\)/);
-      await viewer.locator('.reimb-viewer__stage').dispatchEvent('wheel', { deltaY: -120 });
-      assert.notEqual(await viewer.getByLabel('缩放比例', { exact: true }).innerText(), '200%');
+      const wheelStage = await viewer.locator('.reimb-viewer__stage').boundingBox();
+      await page.mouse.move(wheelStage.x + wheelStage.width / 2, wheelStage.y + wheelStage.height / 2);
+      const background = await page.evaluate(() => {
+        const scrollingElement = document.scrollingElement;
+        const previousMinHeight = document.body.style.minHeight;
+        const previousScrollTop = scrollingElement.scrollTop;
+        document.body.style.minHeight = `${window.innerHeight * 2}px`;
+        scrollingElement.scrollTop = 100;
+        return { previousMinHeight, previousScrollTop, scrollTop: scrollingElement.scrollTop };
+      });
+      assert.equal(background.scrollTop, 100);
+      await page.mouse.wheel(0, -120);
+      try {
+        await page.waitForFunction(() => {
+          const output = document.querySelector('.reimb-viewer output[aria-label="缩放比例"]');
+          return output !== null && output.textContent !== '200%';
+        });
+      } catch (error) {
+        throw new Error(`Wheel zoom did not change from 200% (actual: ${await scaleOutput.innerText()})`, { cause: error });
+      }
+      const increasedScale = await scaleOutput.innerText();
+      assert.ok(Number.parseInt(increasedScale, 10) > 200, increasedScale);
+      assert.equal(await page.evaluate(() => document.scrollingElement.scrollTop), background.scrollTop);
+      await page.mouse.wheel(0, 120);
+      try {
+        await page.waitForFunction(previous => {
+          const output = document.querySelector('.reimb-viewer output[aria-label="缩放比例"]');
+          return output !== null && Number.parseInt(output.textContent, 10) < Number.parseInt(previous, 10);
+        }, increasedScale);
+      } catch (error) {
+        throw new Error(`Wheel zoom did not decrease from ${increasedScale} (actual: ${await scaleOutput.innerText()})`, { cause: error });
+      }
+      assert.equal(await page.evaluate(() => document.scrollingElement.scrollTop), background.scrollTop);
+      await page.evaluate(({ previousMinHeight, previousScrollTop }) => {
+        document.body.style.minHeight = previousMinHeight;
+        document.scrollingElement.scrollTop = previousScrollTop;
+      }, background);
       await viewer.getByRole('button', { name: '重置为 100%', exact: true }).click();
       const stage = await viewer.locator('.reimb-viewer__stage').boundingBox();
       await page.mouse.move(stage.x + stage.width / 2, stage.y + stage.height / 2);

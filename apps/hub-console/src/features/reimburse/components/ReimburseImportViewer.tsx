@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent, type WheelEvent } from 'react';
+import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { RotateCcw, X, ZoomIn, ZoomOut } from 'lucide-react';
 import type { ReimburseImportFile } from '@teamhub/hub-contracts';
@@ -28,6 +28,7 @@ export function ReimburseImportViewer({
   const drag = useRef<{ pointerId: number; startX: number; startY: number; x: number; y: number } | null>(null);
   const closeButton = useRef<HTMLButtonElement | null>(null);
   const dialog = useRef<HTMLDivElement | null>(null);
+  const stage = useRef<HTMLDivElement | null>(null);
   const modalId = useRef(Symbol('reimburse-import-viewer'));
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -61,11 +62,18 @@ export function ReimburseImportViewer({
     };
   }, []);
 
+  useEffect(() => {
+    const element = stage.current;
+    if (!element) return;
+    const wheel = (event: WheelEvent) => {
+      event.preventDefault();
+      setScale(current => clampScale(current * Math.exp(-event.deltaY * 0.001)));
+    };
+    element.addEventListener('wheel', wheel, { passive: false });
+    return () => element.removeEventListener('wheel', wheel);
+  }, []);
+
   const reset = () => { setScale(1); setPosition({ x: 0, y: 0 }); };
-  const wheel = (event: WheelEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setScale(current => clampScale(current * Math.exp(-event.deltaY * 0.001)));
-  };
   const pointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -99,7 +107,7 @@ export function ReimburseImportViewer({
       <div
         className="reimb-viewer__stage"
         data-dragging={dragging || undefined}
-        onWheel={wheel}
+        ref={stage}
         onPointerDown={pointerDown}
         onPointerMove={pointerMove}
         onPointerUp={pointerUp}
