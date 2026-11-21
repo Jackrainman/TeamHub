@@ -32,7 +32,7 @@ const payment = '支付成功\n交易金额：￥36.80\n交易单号：E2E-IMPOR
       const closedJob = page.locator('.reimb-import-job[data-job-status="closed"]');
       await closedJob.getByRole('button', { name: '重新解析', exact: true }).click();
       await page.locator('.reimb-import-job[data-job-status="closed"]').waitFor();
-      await page.locator('.reimb-table tbody tr').filter({ hasText: 'E2E导入商店' }).waitFor();
+      await page.locator('.reimb-table tbody tr').filter({ hasText: '测试采购' }).waitFor();
       await page.locator('.reimb-import-job__files summary').click();
       await page.getByText('20261120-E2E导入商店-36.80.xml', { exact: true }).waitFor();
       await assertNoOverflow(page);

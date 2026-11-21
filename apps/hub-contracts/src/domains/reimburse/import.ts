@@ -468,7 +468,9 @@ interface PdfItemTail {
   unit: string | null;
   quantity: number;
   unitPriceFen: number | null;
-  amountFen: number; // 金额+税额（价税合计）
+  amountFen: number; // 当前版式的明细金额（多数版式为价税合计，税率前置版式为不含税金额）
+  netAmountFen: number; // 不含税金额；折扣并入净额版式时使用
+  amountIncludesTax: boolean;
   discountOnly: boolean; // 纯折扣行（负数金额，并入上一条）
 }
 
@@ -495,12 +497,36 @@ function parsePdfItemLine(line: string, pendingName: string): PdfItemTail | null
         quantity: 1,
         unitPriceFen: null,
         amountFen: amountFen + taxFen,
+        netAmountFen: amountFen,
+        amountIncludesTax: true,
         discountOnly: true,
       };
     }
   }
 
   if (compact.startsWith('*')) {
+    // 部分数电票按「品名 规格 税率 单位 金额 税额 单价 数量」抽行；金额列为不含税净额。
+    const taxRateFirst =
+      /^(\*[^]+?)\s+\S+\s+(-?\d+(?:\.\d+)?)%\s+([一-鿿A-Za-z]{1,4})\s+(-?\d+\.\d{2})\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)$/.exec(
+        compact,
+      );
+    if (taxRateFirst) {
+      const amountFen = yuanTextToFen(taxRateFirst[4]);
+      const taxFen = yuanTextToFen(taxRateFirst[5]);
+      if (amountFen !== null && taxFen !== null) {
+        return {
+          name: taxRateFirst[1],
+          unit: taxRateFirst[3],
+          quantity: Number(taxRateFirst[7]) || 1,
+          unitPriceFen: yuanTextToFen(taxRateFirst[6]),
+          amountFen,
+          netAmountFen: amountFen,
+          amountIncludesTax: false,
+          discountOnly: false,
+        };
+      }
+    }
+
     // 完整版式：「*分类*名称 [规格] 单位 数量 单价 金额 税率% 税额」（规格可省）。
     const full =
       /^(\*.+?)\s+(?:(\S+)\s+)?([一-鿿A-Za-z]{1,4})\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(-?\d+\.\d{2})\s+(-?\d+(?:\.\d+)?)%\s+(-?\d+(?:\.\d+)?)$/.exec(
@@ -516,6 +542,8 @@ function parsePdfItemLine(line: string, pendingName: string): PdfItemTail | null
           quantity: Number(full[4]) || 1,
           unitPriceFen: yuanTextToFen(full[5]),
           amountFen: amountFen + taxFen,
+          netAmountFen: amountFen,
+          amountIncludesTax: true,
           discountOnly: false,
         };
       }
@@ -536,6 +564,8 @@ function parsePdfItemLine(line: string, pendingName: string): PdfItemTail | null
           quantity: 1,
           unitPriceFen: null,
           amountFen: amountFen + taxFen,
+          netAmountFen: amountFen,
+          amountIncludesTax: true,
           // 负金额折行星号行 = 折扣/红冲（滴滴「*交通…*客运服 -16.70 3% -0.50」实测版式，
           // 金额在税率前，上面的 discount 正则锚不住）——并入上一条而非独立成行。
           discountOnly: amountFen < 0,
@@ -561,6 +591,8 @@ function parsePdfItemLine(line: string, pendingName: string): PdfItemTail | null
           quantity: Number(loose[3]) || 1,
           unitPriceFen: yuanTextToFen(loose[4]),
           amountFen: amountFen + taxFen,
+          netAmountFen: amountFen,
+          amountIncludesTax: true,
           discountOnly: false,
         };
       }
@@ -628,26 +660,42 @@ export function parseInvoicePdfText(
       continue;
     }
     amounts.push(fen);
-    if (/价税合计/.test(line) && /小写/.test(line)) {
+    if (/价税合计/.test(line) && (/小写/.test(line) || recognitionSource === 'ocr')) {
       totalAmountFen = fen;
+    }
+  }
+  // OCR 漏掉「价税合计（小写）」时，明细净额 + 税额比净额合计更接近实付；
+  // 必须先于“最大 ¥ 金额”，否则净额合计（如 ¥40.59）会盖住正确的价税合计（45.87）。
+  if (totalAmountFen === null && recognitionSource === 'ocr') {
+    // 完整的「合计 ¥净额 ¥税额」可直接求和；税额被 OCR 截断时不猜，继续看明细行。
+    for (const line of lines) {
+      if (!/合\s*计/.test(line) || /价\s*税\s*合\s*计/.test(line)) continue;
+      const currencyMatches = [...line.matchAll(/[¥￥][^\S\n]*(-?(?:[0-9,，][^\S\n]*)+(?:\.[^\S\n]*(?:[0-9][^\S\n]*){1,2})?)/g)];
+      const lastMatch = currencyMatches.at(-1);
+      if (!lastMatch || !/^[\s|]*$/.test(line.slice(lastMatch.index + lastMatch[0].length))) continue;
+      const summaryAmounts = currencyMatches.map(match => yuanTextToFen(match[1]));
+      if (summaryAmounts.length === 2 && summaryAmounts.every((amount): amount is number => amount !== null)) {
+        totalAmountFen = summaryAmounts[0] + summaryAmounts[1];
+        break;
+      }
+    }
+    if (totalAmountFen === null) {
+      let derivedTotal = 0;
+      let hasDerivedTotal = false;
+      for (const line of lines) {
+        const match = /(-?[0-9][0-9,，]*(?:\.\s*\d{1,2})?)\s+-?\d+(?:\.\d+)?%\s+(-?[0-9][0-9,，]*(?:\.\s*\d{1,2})?)/.exec(line);
+        if (!match) continue;
+        const net = yuanTextToFen(match[1]);
+        const tax = yuanTextToFen(match[2]);
+        if (net === null || tax === null) continue;
+        derivedTotal += net + tax;
+        hasDerivedTotal = true;
+      }
+      if (hasDerivedTotal) totalAmountFen = derivedTotal;
     }
   }
   if (totalAmountFen === null && amounts.length > 0) {
     totalAmountFen = Math.max(...amounts);
-  }
-  if (totalAmountFen === null && recognitionSource === 'ocr') {
-    let derivedTotal = 0;
-    let hasDerivedTotal = false;
-    for (const line of lines) {
-      const match = /(-?[0-9][0-9,，]*(?:\.\s*\d{1,2})?)\s+-?\d+(?:\.\d+)?%\s+(-?[0-9][0-9,，]*(?:\.\s*\d{1,2})?)/.exec(line);
-      if (!match) continue;
-      const net = yuanTextToFen(match[1]);
-      const tax = yuanTextToFen(match[2]);
-      if (net === null || tax === null) continue;
-      derivedTotal += net + tax;
-      hasDerivedTotal = true;
-    }
-    if (hasDerivedTotal) totalAmountFen = derivedTotal;
   }
 
   // 明细行：以 `*分类*品名` 起行，折行续名进 pending，命中数字尾列成行。
@@ -657,6 +705,7 @@ export function parseInvoicePdfText(
   // 83.50 1 83.50 3% 2.50」下一行才「务费」）。上一条明细的下一行若是纯中文短行则续接到
   // 该条品名；续接只认紧跟的一行，且防重（endsWith）——折扣行的同名折行不会重复接尾。
   let lastWasItemLine = false;
+  let lastItemAmountIncludesTax = true;
   for (const line of lines) {
     const norm = line.replace(/\s+/g, '').replace(/：/g, ':');
     if (PDF_ITEM_SKIP_PREFIXES.some((p) => norm.startsWith(p))) {
@@ -698,11 +747,12 @@ export function parseInvoicePdfText(
           last.name.length >= 2 &&
           (last.name.startsWith(name) || name.startsWith(last.name))));
     if (parsed.discountOnly && nameMatches) {
-      last.amountFen += parsed.amountFen; // 折扣行并入上一条（tidoc 同款）
+      last.amountFen += lastItemAmountIncludesTax ? parsed.amountFen : parsed.netAmountFen;
       lastWasItemLine = true; // 折扣行的品名同样可能下一行折行续名
       continue;
     }
     if (!parsed.discountOnly) {
+      lastItemAmountIncludesTax = parsed.amountIncludesTax;
       items.push({
         name: name || parsed.name,
         unit: parsed.unit,

@@ -52,6 +52,8 @@ export interface EntryItemDraft {
   quantity: string;
   unitPriceYuan: string; // 空 = 无单价（unitPriceFen=null）
   amountYuan: string;
+  /** 用户手改金额后锁定，后续改数量/单价不覆盖；导入值和自动值仍可联动。 */
+  amountManuallyEdited?: boolean;
 }
 
 export interface EntryDraft {
@@ -73,6 +75,33 @@ export interface EntryDraft {
 
 export function emptyItemDraft(): EntryItemDraft {
   return { name: '', unit: '', quantity: '', unitPriceYuan: '', amountYuan: '' };
+}
+
+function automaticItemAmountYuan(row: EntryItemDraft): string | null {
+  if (row.quantity.trim() === '' || row.unitPriceYuan.trim() === '') return null;
+  const quantity = Number(row.quantity.trim());
+  const unitPriceFen = yuanTextToFen(row.unitPriceYuan);
+  if (!Number.isFinite(quantity) || quantity <= 0 || unitPriceFen === null || unitPriceFen < 0) return null;
+  const amountFen = Math.round(quantity * unitPriceFen);
+  return `${Math.floor(amountFen / 100)}.${String(amountFen % 100).padStart(2, '0')}`;
+}
+
+/** 明细行单一更新入口：自动金额联动，手动金额优先。 */
+export function updateEntryItemDraft(
+  row: EntryItemDraft,
+  partial: Partial<EntryItemDraft>,
+): EntryItemDraft {
+  const next = { ...row, ...partial };
+  if (Object.prototype.hasOwnProperty.call(partial, 'amountYuan')) {
+    next.amountManuallyEdited = true;
+    return next;
+  }
+  if (!row.amountManuallyEdited &&
+    (Object.prototype.hasOwnProperty.call(partial, 'quantity') ||
+      Object.prototype.hasOwnProperty.call(partial, 'unitPriceYuan'))) {
+    next.amountYuan = automaticItemAmountYuan(next) ?? '';
+  }
+  return next;
 }
 
 /** 空表单草稿（手动录入初值 / 导入未识别时开空表单）。 */
@@ -102,6 +131,43 @@ function isBlankItem(item: EntryItemDraft): boolean {
     item.unitPriceYuan.trim() === '' &&
     item.amountYuan.trim() === ''
   );
+}
+
+export type EntryDraftValidationIssue = 'total-invalid' | 'item-name-required' |
+  'item-quantity-invalid' | 'item-amount-required' | 'item-amount-invalid' | 'item-unit-price-invalid';
+
+/** 与装配校验同口径的具体失败原因，供表单给出可操作的字段提示。 */
+export function entryDraftValidationIssue(draft: EntryDraft): EntryDraftValidationIssue | null {
+  const totalAmountFen = yuanTextToFen(draft.totalYuan);
+  if ((draft.totalYuan.trim() !== '' && totalAmountFen === null) || (totalAmountFen !== null && totalAmountFen < 0)) {
+    return 'total-invalid';
+  }
+  const kind = draft.expenseType ? kindForExpenseType(draft.expenseType) : draft.kind;
+  if (kind !== 'goods') return null;
+  for (const row of draft.items) {
+    if (isBlankItem(row)) continue;
+    if (row.name.trim() === '') return 'item-name-required';
+    const quantity = Number(row.quantity.trim());
+    if (!Number.isFinite(quantity) || quantity <= 0) return 'item-quantity-invalid';
+    if (row.amountYuan.trim() === '') return 'item-amount-required';
+    if (yuanTextToFen(row.amountYuan) === null) return 'item-amount-invalid';
+    if (row.unitPriceYuan.trim() !== '' && yuanTextToFen(row.unitPriceYuan) === null) return 'item-unit-price-invalid';
+  }
+  return null;
+}
+
+/** 有效明细合计；有未填完/非法金额时返回 null，避免干扰正在输入的用户。 */
+export function entryItemsTotalFen(draft: EntryDraft): number | null {
+  let total = 0;
+  let count = 0;
+  for (const row of draft.items) {
+    if (isBlankItem(row)) continue;
+    const amountFen = yuanTextToFen(row.amountYuan);
+    if (amountFen === null) return null;
+    total += amountFen;
+    count += 1;
+  }
+  return count > 0 ? total : null;
 }
 
 /** 可选文本：空串/纯空白 → null（schema 的 nullable 语义），否则 trim 后文本。 */
@@ -154,10 +220,13 @@ export function buildCreateEntryRequest(
     }
   }
 
+  const fallbackSummary = draft.expenseType === 'purchase'
+    ? items[0]?.name ?? optionalText(draft.actualItemName)
+    : optionalText(draft.actualItemName);
   return {
     kind,
     expenseType: draft.expenseType,
-    summary: optionalText(draft.summary) ?? optionalText(draft.actualItemName),
+    summary: optionalText(draft.summary) ?? fallbackSummary,
     invoiceType: draft.invoiceType ?? 'unknown',
     invoiceNo: optionalText(draft.invoiceNo),
     invoiceDate: optionalText(draft.invoiceDate),

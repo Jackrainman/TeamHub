@@ -66,7 +66,7 @@ describe('reimburse import job persistence', () => {
       expect(confirmed.json().job.files.every((file: { status: string }) => file.status === 'mounted')).toBe(true);
       const entryId = confirmed.json().job.confirmedEntryIds[0];
       const entry = hub.database.db.getRow<any>('reimburse_entries', entryId);
-      expect(entry).toMatchObject({ memberId: memberId(hub, 'owner'), workflowStatus: 'draft', batchId: null, summary: '测试商店', actualItemName: '测试物料' });
+      expect(entry).toMatchObject({ memberId: memberId(hub, 'owner'), workflowStatus: 'draft', batchId: null, summary: '测试物料', actualItemName: '测试物料' });
       expect(entry.evidence).toHaveLength(2);
       expect(entry.evidence.map((item: { kind: string }) => item.kind).sort()).toEqual(['invoice', 'paymentShot']);
       const replay = await hub.app.inject({ method: 'POST', url: `/api/reimburse/imports/${id}/confirm`, headers: { cookie }, payload: request });

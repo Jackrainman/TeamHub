@@ -17,7 +17,12 @@ import {
   buildCreateEntryRequest,
   emptyEntryDraft,
   emptyItemDraft,
+  entryDraftValidationIssue,
+  entryItemsTotalFen,
+  formatAmountFen,
+  updateEntryItemDraft,
   type EntryDraft,
+  type EntryDraftValidationIssue,
 } from '../reimburse-utils';
 import { ReimbursePackageReview } from './ReimbursePackageReview';
 import { draftFromParsedInvoice } from '../reimburse-import';
@@ -29,6 +34,15 @@ const EXPENSE_OPTIONS: { value: ReimburseExpenseType; labelKey: TranslationKey }
   { value: 'ticket', labelKey: 'reimb.expenseType.ticket' },
   { value: 'other', labelKey: 'reimb.expenseType.other' },
 ];
+
+const VALIDATION_MESSAGE_KEYS: Record<EntryDraftValidationIssue, TranslationKey> = {
+  'total-invalid': 'reimb.create.invalid.total',
+  'item-name-required': 'reimb.create.invalid.itemName',
+  'item-quantity-invalid': 'reimb.create.invalid.itemQuantity',
+  'item-amount-required': 'reimb.create.invalid.itemAmountRequired',
+  'item-amount-invalid': 'reimb.create.invalid.itemAmount',
+  'item-unit-price-invalid': 'reimb.create.invalid.itemUnitPrice',
+};
 
 /**
  * 新建条目表单（阶段 3 手动录入；阶段 4 接 initial 预填——识别值只进草稿，用户确认才 POST）。
@@ -115,11 +129,15 @@ export function ReimburseEntryForm({
   const patchItem = (index: number, partial: Partial<EntryDraft['items'][number]>) =>
     setDraft((d) => ({
       ...d,
-      items: d.items.map((row, i) => (i === index ? { ...row, ...partial } : row)),
+      items: d.items.map((row, i) => (i === index ? updateEntryItemDraft(row, partial) : row)),
     }));
 
   const request = buildCreateEntryRequest(draft);
   const valid = request !== null;
+  const validationIssue = entryDraftValidationIssue(draft);
+  const itemsTotalFen = entryItemsTotalFen(draft);
+  const showTotalMismatch = valid && request.totalAmountFen !== null &&
+    itemsTotalFen !== null && itemsTotalFen !== request.totalAmountFen;
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -153,9 +171,6 @@ export function ReimburseEntryForm({
           </select>
         </Field>
         <FormGrid>
-          <Field label={t('reimb.create.field.summary')} className="span-all">
-            <input value={draft.summary} onChange={(event) => patch({ summary: event.target.value })} />
-          </Field>
           <Field label={t('reimb.create.field.expenseType')} className="span-all">
             <SegToggle<ReimburseExpenseType>
               value={draft.expenseType}
@@ -234,21 +249,27 @@ export function ReimburseEntryForm({
         {draft.expenseType === 'purchase' || (!draft.expenseType && draft.kind === 'goods') ? (
           <div className="reimb-items-editor">
             <p className="reimb-items-editor__title">{t('reimb.create.items.title')}</p>
+            <p className="kb-field__hint">{t('reimb.create.items.requiredHint')}</p>
             {draft.items.map((row, index) => (
               <div className="reimb-items-editor__row" key={index}>
                 <input
                   value={row.name}
+                  aria-label={t('reimb.create.items.name')}
+                  aria-required="true"
                   placeholder={t('reimb.create.items.name')}
                   onChange={(e) => patchItem(index, { name: e.target.value })}
                 />
                 <input
                   value={row.unit}
+                  aria-label={t('reimb.create.items.unit')}
                   placeholder={t('reimb.create.items.unit')}
                   className="reimb-items-editor__cell--narrow"
                   onChange={(e) => patchItem(index, { unit: e.target.value })}
                 />
                 <input
                   value={row.quantity}
+                  aria-label={t('reimb.create.items.quantity')}
+                  aria-required="true"
                   placeholder={t('reimb.create.items.quantity')}
                   className="reimb-items-editor__cell--narrow"
                   inputMode="decimal"
@@ -256,6 +277,7 @@ export function ReimburseEntryForm({
                 />
                 <input
                   value={row.unitPriceYuan}
+                  aria-label={t('reimb.create.items.unitPrice')}
                   placeholder={t('reimb.create.items.unitPrice')}
                   className="reimb-items-editor__cell--narrow"
                   inputMode="decimal"
@@ -263,6 +285,8 @@ export function ReimburseEntryForm({
                 />
                 <input
                   value={row.amountYuan}
+                  aria-label={t('reimb.create.items.amount')}
+                  aria-required="true"
                   placeholder={t('reimb.create.items.amount')}
                   className="reimb-items-editor__cell--narrow"
                   inputMode="decimal"
@@ -288,8 +312,26 @@ export function ReimburseEntryForm({
               <Plus size={14} strokeWidth={1.5} />
               {t('reimb.create.items.add')}
             </button>
+            {showTotalMismatch ? (
+              <p className="form-hint form-hint--warn" role="status">
+                {t('reimb.create.items.totalMismatch', {
+                  items: formatAmountFen(itemsTotalFen),
+                  total: formatAmountFen(request.totalAmountFen),
+                })}
+              </p>
+            ) : null}
           </div>
         ) : null}
+
+        <FormGrid>
+          <Field
+            label={t('reimb.create.field.summary')}
+            className="span-all"
+            hint={draft.expenseType === 'purchase' ? t('reimb.create.field.summary.purchaseHint') : undefined}
+          >
+            <input aria-label={t('reimb.create.field.summary')} value={draft.summary} onChange={(event) => patch({ summary: event.target.value })} />
+          </Field>
+        </FormGrid>
 
         </fieldset>
         {initial && onDone && !saveState.request ? (
@@ -311,7 +353,7 @@ export function ReimburseEntryForm({
           error={
             mutation.error
               ? humanizeFormError(mutation.error, t, 'reimb.create.error')
-              : !valid ? t('reimb.create.invalid') : null
+              : !valid ? t(validationIssue ? VALIDATION_MESSAGE_KEYS[validationIssue] : 'reimb.create.invalid') : null
           }
           success={mutation.isSuccess ? t('reimb.create.success') : null}
         />

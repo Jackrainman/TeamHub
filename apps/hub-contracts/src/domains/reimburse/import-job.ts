@@ -130,7 +130,7 @@ function draftForInvoice(invoice: ParsedInvoice | null, confidence: number | nul
     ...emptyDraft(),
     kind: expenseType ? kindForExpenseType(expenseType) : 'goods' as const,
     expenseType,
-    summary: invoice.seller ?? invoice.items[0]?.name ?? null,
+    summary: invoice.items[0]?.name ?? invoice.seller ?? null,
     invoiceNo: trustworthyInvoiceNo ? invoice.invoiceNo : null,
     invoiceDate: invoice.invoiceDate,
     seller: invoice.seller,
@@ -192,6 +192,7 @@ export function matchReimburseImportFiles(
     status: ReimburseImportPair['status'],
     amountFen: number | null,
     reason: ReimburseImportPendingReason | null,
+    approximate = false,
   ): ReimburseImportPair => {
     const invoiceFiles = group.filter(file => file.role === 'invoice');
     const invoice = invoiceFiles.length === 1 ? invoiceFiles[0].parsed : null;
@@ -201,8 +202,11 @@ export function matchReimburseImportFiles(
       id: createId(), status, fileIds: group.map(file => file.id),
       invoiceFileIds: group.filter(file => file.role === 'invoice').map(file => file.id),
       paymentFileIds: group.filter(file => file.role === 'paymentShot').map(file => file.id),
-      amountFen, draft, confidence: status === 'matched' ? 'high' : 'low',
-      reasons: invoice?.recognitionSource === 'ocr' ? ['ocr-recognition'] : [],
+      amountFen, draft, confidence: status === 'matched' ? approximate ? 'medium' : 'high' : 'low',
+      reasons: [
+        ...(invoice?.recognitionSource === 'ocr' ? ['ocr-recognition'] : []),
+        ...(approximate ? ['amount-approx'] : []),
+      ],
       reason, confirmedEntryId: null,
     };
   };
@@ -216,6 +220,31 @@ export function matchReimburseImportFiles(
     if (invoiceCount === 1 && paymentCount === 1) pairs.push(makePair(group, 'matched', amountFen, null));
     else if (invoiceCount > 0 && paymentCount > 0) pairs.push(makePair(group, 'pending', amountFen, 'ambiguous-amount'));
     else pairs.push(makePair(group, 'pending', amountFen, 'no-match'));
+  }
+  // 精确配对优先。只差 1～2 分时，仅合并互为唯一候选的单边待定项；
+  // 重复发票/付款截图或更大差额仍保留待定，不用近似金额猜测归属。
+  const unmatchedSingles = pairs.filter(pair => pair.status === 'pending' && pair.reason === 'no-match'
+    && pair.amountFen !== null && pair.fileIds.length === 1);
+  const invoicePairs = unmatchedSingles.filter(pair => pair.invoiceFileIds.length === 1);
+  const paymentPairs = unmatchedSingles.filter(pair => pair.paymentFileIds.length === 1);
+  const closeEnough = (left: ReimburseImportPair, right: ReimburseImportPair) =>
+    Math.abs(left.amountFen! - right.amountFen!) > 0 && Math.abs(left.amountFen! - right.amountFen!) <= 2;
+  const approximations: Array<[ReimburseImportPair, ReimburseImportPair]> = [];
+  for (const invoicePair of invoicePairs) {
+    const candidates = paymentPairs.filter(paymentPair => closeEnough(invoicePair, paymentPair));
+    if (candidates.length !== 1) continue;
+    const paymentPair = candidates[0];
+    if (invoicePairs.filter(candidate => closeEnough(candidate, paymentPair)).length !== 1) continue;
+    approximations.push([invoicePair, paymentPair]);
+  }
+  const approximated = new Set(approximations.flat());
+  for (let index = pairs.length - 1; index >= 0; index -= 1) {
+    if (approximated.has(pairs[index])) pairs.splice(index, 1);
+  }
+  for (const [invoicePair, paymentPair] of approximations) {
+    const invoiceFile = invoices.find(file => file.id === invoicePair.invoiceFileIds[0])!;
+    const paymentFile = payments.find(file => file.id === paymentPair.paymentFileIds[0])!;
+    pairs.push(makePair([invoiceFile, paymentFile], 'matched', invoicePair.amountFen, null, true));
   }
   for (const file of [...invoices, ...payments].filter(file => file.amountFen === null)) {
     pairs.push(makePair([file], 'pending', null, 'no-amount'));

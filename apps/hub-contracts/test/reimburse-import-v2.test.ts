@@ -46,7 +46,29 @@ describe('reimburse import v2 matching', () => {
     expect(pairs[0]).toMatchObject({ status: 'matched', amountFen: 2450, confidence: 'high', reason: null });
     expect(pairs[0].invoiceFileIds).toHaveLength(1);
     expect(pairs[0].paymentFileIds).toHaveLength(1);
-    expect(pairs[0].draft).toMatchObject({ summary: '测试商店', actualItemName: '测试物料', invoiceNo: '12345678901234567890' });
+    expect(pairs[0].draft).toMatchObject({ summary: '测试物料', actualItemName: '测试物料', invoiceNo: '12345678901234567890' });
+  });
+
+  it('pairs a unique invoice and payment within two fen as medium confidence', () => {
+    const pairs = match([
+      file({ role: 'invoice', amountFen: 4587 }),
+      file({ role: 'paymentShot', amountFen: 4588 }),
+    ]);
+    expect(pairs).toHaveLength(1);
+    expect(pairs[0]).toMatchObject({
+      status: 'matched', amountFen: 4587, confidence: 'medium', reason: null,
+    });
+    expect(pairs[0].reasons).toContain('amount-approx');
+  });
+
+  it('does not pair invoice and payment amounts more than two fen apart', () => {
+    const pairs = match([
+      file({ role: 'invoice', amountFen: 4587 }),
+      file({ role: 'paymentShot', amountFen: 4700 }),
+    ]);
+    expect(pairs).toHaveLength(2);
+    expect(pairs.every(pair => pair.status === 'pending' && pair.reason === 'no-match')).toBe(true);
+    expect(pairs.some(pair => pair.reasons.includes('amount-approx'))).toBe(false);
   });
 
   it('keeps every same-amount candidate pending instead of guessing', () => {
@@ -110,13 +132,22 @@ FRA: 毛玲`.split('\n'), 'ocr');
     expect(parsed?.totalAmountFen).toBe(4587);
   });
 
-  it('prefers a currency amount over the OCR net-and-tax derivation', () => {
+  it('derives net plus tax before falling back to the largest currency amount in real OCR text', () => {
+    const parsed = parseInvoicePdfText([
+      '纸 制品 #+ 粉 传 昔 70 冯 Ai4 纸 【80g】【 加 箱 1 40. 59 40. 59 13% 5.28',
+      '合 计 ¥40.59 ¥5. 2 引',
+      '开票 人 : 毛 玲',
+    ], 'ocr');
+    expect(parsed?.totalAmountFen).toBe(4587);
+  });
+
+  it('derives an OCR total from a complete net-and-tax summary row', () => {
     const parsed = parseInvoicePdfText([
       '电子发票',
-      '纸制品 箱 1 40. 59 40. 59 13% 5.28',
-      '合 计 ¥40.59 ¥5. 2 引',
+      '合 计 ¥40.59 ¥5.28',
+      '开票 人 : 毛 玲',
     ], 'ocr');
-    expect(parsed?.totalAmountFen).toBe(4059);
+    expect(parsed?.totalAmountFen).toBe(4587);
   });
 
   it('derives an OCR total from detail rows when no currency amount exists', () => {

@@ -12,6 +12,19 @@ const REASON_LABEL: Record<ReimburseImportPendingReason, string> = {
   unsupported: '无法识别或格式不支持',
 };
 
+export function importPairAmountApproxNotice(
+  pair: Pick<ReimburseImportPair, 'reasons' | 'invoiceFileIds' | 'paymentFileIds'>,
+  files: ReadonlyArray<Pick<ReimburseImportJob['files'][number], 'id' | 'amountFen'>>,
+): string | null {
+  if (!pair.reasons.includes('amount-approx')) return null;
+  const invoiceAmount = files.find(file => file.id === pair.invoiceFileIds[0])?.amountFen;
+  const paymentAmount = files.find(file => file.id === pair.paymentFileIds[0])?.amountFen;
+  if (invoiceAmount === null || invoiceAmount === undefined || paymentAmount === null || paymentAmount === undefined) {
+    return '金额有细微差异，请核对';
+  }
+  return `金额相差 ${formatAmountFen(Math.abs(invoiceAmount - paymentAmount)).replace('¥', '')}，请核对`;
+}
+
 function PairFiles({ job, pair, onDeleteFile, canDelete }: {
   job: ReimburseImportJob;
   pair: ReimburseImportPair;
@@ -67,7 +80,7 @@ export function ReimburseImportJobs({ jobs, canWrite, onReview, onOpenEntry, onR
             <section className="reimb-import-pool" aria-label="待确认">
               <h3>待确认 <span>{matchedPairs.length}</span></h3>
               {matchedPairs.length === 0 ? <p className="reimb-import-pool__empty">暂无证据齐全的配对</p> : matchedPairs.map(pair => <div className="reimb-import-candidate" key={pair.id}>
-                <div><strong>{formatAmountFen(pair.amountFen)}</strong><small>{pair.draft.summary ?? '待补充摘要'} · 高置信同价配对</small></div>
+                <div><strong>{formatAmountFen(pair.amountFen)}</strong><small>{pair.draft.summary ?? '待补充摘要'} · {importPairAmountApproxNotice(pair, job.files) ?? '高置信同价配对'}</small></div>
                 <button type="button" className="btn btn--primary btn--sm" disabled={!canWrite} onClick={() => onReview(job.id, pair.id)}>核对并建单<ChevronRight size={14} /></button>
               </div>)}
             </section>
