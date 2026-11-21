@@ -48,11 +48,14 @@ export function useReimburseEntries(
   client: ReimburseSegment,
   source: string,
   enabled: boolean,
+  scope: 'mine' | 'all' = 'mine',
 ) {
   return useQuery({
-    queryKey: queryKeys.reimburse.entries(source),
-    queryFn: () => client.getReimburseEntries(),
+    queryKey: queryKeys.reimburse.entries(source, scope),
+    queryFn: () => client.getReimburseEntries(scope),
     enabled,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 }
 

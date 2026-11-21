@@ -46,6 +46,10 @@ export const ReimburseEvidenceDownloadsResponseSchema = z.object({ downloads: z.
 export const CreateReimburseBatchRequestSchema = ReimburseBatchSchema.omit({ id: true, status: true, createdAt: true, updatedAt: true });
 export const UpdateReimburseBatchRequestSchema = z.object({ name: z.string().min(1).optional(), status: ReimburseBatchStatusSchema.optional() });
 export const ReimburseBatchResponseSchema = z.object({ batch: ReimburseBatchSchema });
+export const ReimburseEntryScopeSchema = z.enum(['mine', 'all']);
+export const ReimburseEntriesQuerySchema = z.object({
+  scope: ReimburseEntryScopeSchema.default('mine'),
+}).strict();
 export const ReimburseEntriesResponseSchema = z.object({ entries: z.array(ReimburseEntrySchema) });
 export const ReimburseBatchesResponseSchema = z.object({
   batches: z.array(ReimburseBatchSchema), summaries: z.array(ReimburseBatchSummarySchema), profile: ReimburseProfileSchema,
@@ -87,6 +91,7 @@ export type ReimburseEvidenceDownloadsResponse = z.infer<typeof ReimburseEvidenc
 export type CreateReimburseBatchRequest = z.infer<typeof CreateReimburseBatchRequestSchema>;
 export type UpdateReimburseBatchRequest = z.infer<typeof UpdateReimburseBatchRequestSchema>;
 export type ReimburseBatchResponse = z.infer<typeof ReimburseBatchResponseSchema>;
+export type ReimburseEntryScope = z.infer<typeof ReimburseEntryScopeSchema>;
 export type ReimburseEntriesResponse = z.infer<typeof ReimburseEntriesResponseSchema>;
 export type ReimburseBatchesResponse = z.infer<typeof ReimburseBatchesResponseSchema>;
 export type CreateReimbursePayoutRequest = z.infer<typeof CreateReimbursePayoutRequestSchema>;

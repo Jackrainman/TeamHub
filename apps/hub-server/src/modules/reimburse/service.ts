@@ -23,6 +23,7 @@ import type {
   ReimburseEntry,
   ReimburseEntryAction,
   ReimburseEntryActionRequest,
+  ReimburseEntryScope,
   ReimburseEvidence,
   ReimburseEvidenceDownload,
   ReimburseEvidenceKind,
@@ -76,13 +77,17 @@ export class ReimburseService {
     private readonly evidenceStorage: ReimburseEvidenceStorage,
   ) {}
 
-  async listEntries(identity: SessionIdentity | null): Promise<ReimburseEntry[]> {
+  async listEntries(identity: SessionIdentity | null, scope: ReimburseEntryScope = 'mine'): Promise<ReimburseEntry[]> {
     const entries = this.repository.listEntries();
     if (this.identityMode !== 'identity') return entries.map(withoutEvidence);
     if (!identity) {
       throw appError('unauthorized', 'REIMBURSE_LOGIN_REQUIRED', '登录后查看报销条目');
     }
-    const visible = (await this.isAdmin(identity.memberId))
+    const admin = await this.isAdmin(identity.memberId);
+    if (scope === 'all' && !admin) {
+      throw appError('forbidden', 'REIMBURSE_ADMIN_REQUIRED', '只有财务能查看全队报销条目');
+    }
+    const visible = scope === 'all'
       ? entries
       : entries.filter((entry) => entry.memberId === identity.memberId);
     return visible.map(withoutEvidence);
@@ -280,7 +285,8 @@ export class ReimburseService {
   }
 
   async exportEntries(request: ReimburseExportRequest, identity: SessionIdentity | null, actor: ActorRef) {
-    const visible = await this.listEntries(identity);
+    const scope = (await this.isAdmin(actor.id)) ? 'all' : 'mine';
+    const visible = await this.listEntries(identity, scope);
     const visibleIds = new Set(visible.map((entry) => entry.id));
     const entries = this.repository.listEntries().filter((entry) => visibleIds.has(entry.id) &&
       (!request.entryIds || request.entryIds.includes(entry.id)) &&
@@ -311,7 +317,8 @@ export class ReimburseService {
   }
 
   async getStructuralSummary(identity: SessionIdentity | null, query: ReimburseSummaryQuery) {
-    const entries = (await this.listEntries(identity)).filter((entry) =>
+    const scope = identity && await this.isAdmin(identity.memberId) ? 'all' : 'mine';
+    const entries = (await this.listEntries(identity, scope)).filter((entry) =>
       (!query.batchId || entry.batchId === query.batchId) &&
       (!query.expenseType || entry.expenseType === query.expenseType));
     const ids = new Set(entries.map((entry) => entry.id));

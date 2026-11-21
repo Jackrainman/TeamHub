@@ -10,6 +10,18 @@ const { startV1Server, withBrowser, login, assertNoOverflow } = require('./lib/v
       await page.locator('.reimb-page').waitFor();
       await page.getByRole('button', { name: '新建一笔', exact: true }).click();
       await page.getByRole('dialog', { name: '新建一笔', exact: true }).locator('.reimb-import-presets').getByRole('button', { name: '打车', exact: true }).click();
+      assert.equal(await page.getByLabel('发票号码', { exact: true }).getAttribute('placeholder'), '20 位号码');
+      const invoiceAlignment = await page.evaluate(() => {
+        const numberField = document.querySelector('input[aria-label="发票号码"]').closest('.kb-field');
+        const dateField = document.querySelector('input[aria-label="开票日期"]').closest('.kb-field');
+        const numberInput = numberField.querySelector('input').getBoundingClientRect();
+        const dateInput = dateField.querySelector('input').getBoundingClientRect();
+        const numberHint = numberField.querySelector('.kb-field__hint')?.getBoundingClientRect();
+        const dateHint = dateField.querySelector('.kb-field__hint')?.getBoundingClientRect();
+        return { inputDelta: Math.abs(numberInput.y - dateInput.y), hintDelta: numberHint && dateHint ? Math.abs(numberHint.y - dateHint.y) : null };
+      });
+      assert.ok(invoiceAlignment.inputDelta <= 1, JSON.stringify(invoiceAlignment));
+      assert.ok(invoiceAlignment.hintDelta !== null && invoiceAlignment.hintDelta <= 1, JSON.stringify(invoiceAlignment));
       await page.getByLabel('费用摘要', { exact: true }).fill('E2E交通报销');
       await page.getByLabel('发票号码', { exact: true }).fill('E2E-TAXI-001');
       await page.getByLabel('开票日期', { exact: true }).fill('2026-11-01');

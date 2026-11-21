@@ -35,6 +35,7 @@ import { draftFromParsedInvoice } from './reimburse-import';
 import { candidatesForImportPair } from './reimburse-review-candidates';
 import { ReimburseImportPreview } from './components/ReimburseImportPreview';
 import { Field, Select } from '../../shared/ui';
+import { ReimburseFinanceWorkspace, type FinanceLayout } from './components/ReimburseFinanceWorkspace';
 
 function importFormInitial(job: ReimburseImportJob, pair: ReimburseImportPair, profile: ReimburseProfile) {
   const draft = pair.draft;
@@ -66,7 +67,9 @@ export function ReimbursePage({ client, source, identity }: {
   const importsEnabled = identity.mode === 'identity' && session !== null;
   const [view, setView] = useState<'mine' | 'finance'>('mine');
   const cacheSource = `${source}:${identityCacheKey(session)}`;
-  const entriesQuery = useReimburseEntries(client, cacheSource, enabled);
+  const layoutParam = new URLSearchParams(window.location.search).get('financeLayout');
+  const financeLayout: FinanceLayout | null = layoutParam === 'a' || layoutParam === 'b' || layoutParam === 'c' ? layoutParam : null;
+  const entriesQuery = useReimburseEntries(client, cacheSource, enabled, view === 'finance' ? 'all' : 'mine');
   const batchesQuery = useReimburseBatches(client, cacheSource, isFinance);
   const payoutsQuery = useReimbursePayouts(client, cacheSource, session !== null);
   const profileQuery = useReimburseProfile(client, cacheSource, enabled);
@@ -187,6 +190,10 @@ export function ReimbursePage({ client, source, identity }: {
       </div>}
     </SideDrawer>
 
+    {view === 'finance' && financeLayout ? <ReimburseFinanceWorkspace
+      layout={financeLayout} entries={entries} batches={batches} summaries={summaries}
+      payouts={payoutsQuery.data?.payouts ?? []} client={client} source={cacheSource}
+      selectedIds={selectedIds} onSelect={setSelectedIds} onOpen={setEntryId} onPayout={() => setPayoutOpen(true)} /> : <>
     <div className="week-summary"><span><b>{entries.length}</b>{t('reimb.entries.title')}</span><span><b>{formatAmountFen(entries.reduce((sum, entry) => sum + (entry.totalAmountFen ?? 0), 0))}</b>{t('reimb.export.col.totalYuan')}</span></div>
     <div className="reimb-filters">
       <Field label="状态"><Select aria-label="状态" value={completeness} onChange={event => setCompleteness(event.target.value as typeof completeness)}><option value="all">{t('expected.all')}</option>{(['draft', 'partial', 'complete'] as const).map(value => <option key={value} value={value}>{t(`reimb.status.${value}`)}</option>)}</Select></Field>
@@ -214,6 +221,7 @@ export function ReimbursePage({ client, source, identity }: {
       {visible.length === 0 ? <EmptyState icon={ReceiptText} title={t('reimb.entries.empty.title')} desc={t('reimb.entries.empty.desc')} />
         : <ReimburseTable entries={visible} selected={selectedIds} onSelect={setSelectedIds} onOpen={setEntryId} finance={view === 'finance'} />}
     </section>
+    </>}
     <p className="expected-page-hint">{t('expected.reimbursePrivacy')}</p>
     <SideDrawer open={supplementIds.length > 0} onClose={() => setSupplementIds([])} title={t('reimb.supplement.open')}>
       {supplementIds.length > 0 && <ReimburseSupplementForm client={client} source={cacheSource} entries={entries.filter(entry => supplementIds.includes(entry.id) && entry.memberId === myMemberId)} />}

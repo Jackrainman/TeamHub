@@ -8,6 +8,7 @@ import {
   LEGACY_CODE_MAP,
   ReimburseBatchResponseSchema,
   ReimburseBatchesResponseSchema,
+  ReimburseEntriesQuerySchema,
   ReimburseEntriesResponseSchema,
   ReimburseEntryActionRequestSchema,
   ReimburseEntryActionResponseSchema,
@@ -62,11 +63,13 @@ async function present<T>(reply: FastifyReply, action: () => T | Promise<T>): Pr
 }
 
 export function registerReimburseRoutes(app: FastifyInstance, { service }: ReimburseRouteDeps): void {
-  app.get('/api/reimburse/entries', async (request, reply) =>
-    present(reply, async () => ReimburseEntriesResponseSchema.parse({
-      entries: await service.listEntries(request.identity),
-    })),
-  );
+  app.get('/api/reimburse/entries', async (request, reply) => {
+    const query = parseQuery(ReimburseEntriesQuerySchema, request, reply);
+    if (!query) return;
+    return present(reply, async () => ReimburseEntriesResponseSchema.parse({
+      entries: await service.listEntries(request.identity, query.scope),
+    }));
+  });
 
   app.post('/api/reimburse/entries', async (request, reply) => {
     const body = parseBody(CreateReimburseEntryRequestSchema, request, reply);

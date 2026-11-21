@@ -57,7 +57,8 @@ export function createReimburseModule(options: CreateReimburseModuleOptions): Re
   );
   return {
     publicApi: {
-      listForSearch: async (identity) => (await service.listEntries(identity)).map((entry) => ({
+      listForSearch: async (identity) => (await service.listEntries(identity,
+        identity && await options.admin.isSuperAdmin(identity.memberId) ? 'all' : 'mine')).map((entry) => ({
         id: entry.id,
         summary: entry.summary,
         invoiceNo: entry.invoiceNo,

@@ -209,7 +209,7 @@ export function ReimburseEntryForm({
                 options={EXPENSE_OPTIONS.map((option) => ({ value: option.value, label: t(option.labelKey) }))}
               />
             </Field>
-            <Field as="div" label={t('reimb.create.field.invoiceNo')} className={unrecognized(draft.invoiceNo) ? 'kb-field--missing' : undefined} hint={unrecognized(draft.invoiceNo)}>
+            <Field as="div" label={t('reimb.create.field.invoiceNo')} className={unrecognized(draft.invoiceNo) ? 'kb-field--missing' : undefined} hint={unrecognized(draft.invoiceNo) ?? t('reimb.create.field.invoiceNo.hint')}>
               <input
                 aria-label={t('reimb.create.field.invoiceNo')}
                 value={draft.invoiceNo}
@@ -218,7 +218,7 @@ export function ReimburseEntryForm({
               />
               <CandidateChips label={t('reimb.create.field.invoiceNo')} values={candidates?.invoiceNo ?? []} onSelect={invoiceNo => patch({ invoiceNo })} />
             </Field>
-            <Field as="div" label={t('reimb.create.field.invoiceDate')} className={unrecognized(draft.invoiceDate) ? 'kb-field--missing' : undefined} hint={unrecognized(draft.invoiceDate)}>
+            <Field as="div" label={t('reimb.create.field.invoiceDate')} className={unrecognized(draft.invoiceDate) ? 'kb-field--missing' : undefined} hint={unrecognized(draft.invoiceDate) ?? t('reimb.create.field.invoiceDate.hint')}>
               <input
                 aria-label={t('reimb.create.field.invoiceDate')}
                 type="date"

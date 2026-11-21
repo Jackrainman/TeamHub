@@ -7,7 +7,9 @@ export const queryKeys = {
   members: () => ['members'] as const,
   reimburse: {
     all: (source: string) => ['reimburse', source] as const,
-    entries: (source: string, filter = 'all') => ['reimburse', source, 'entries', filter] as const,
+    entries: (source: string, scope?: string) => scope
+      ? ['reimburse', source, 'entries', scope] as const
+      : ['reimburse', source, 'entries'] as const,
     batches: (source: string) => ['reimburse', source, 'batches'] as const,
     payouts: (source: string) => ['reimburse', source, 'payouts'] as const,
     summary: (source: string, batchId: string, expenseType: string) =>

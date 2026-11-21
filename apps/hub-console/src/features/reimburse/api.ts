@@ -9,7 +9,7 @@ import {
   type CreateReimburseEntryRequest, type CreateReimburseEntryResponse,
   type UpdateReimburseEntryRequest, type UpdateReimburseEntryResponse,
   type CreateReimburseBatchRequest, type UpdateReimburseBatchRequest,
-  type ReimburseBatchResponse, type ReimburseEntriesResponse, type ReimburseBatchesResponse,
+  type ReimburseBatchResponse, type ReimburseEntriesResponse, type ReimburseEntryScope, type ReimburseBatchesResponse,
   type GetReimburseProfileResponse, type UpdateReimburseProfileRequest, type UpdateReimburseProfileResponse,
   type ReimburseEvidenceKind, type ReimburseEvidenceListResponse,
   type UploadReimburseEvidenceResponse, type DeleteReimburseEvidenceResponse,
@@ -23,7 +23,7 @@ import type { HttpContext } from '../../api/http';
 import { fetchJson, postFormData, postJson, postMultiFormData, sendJson } from '../../api/http';
 
 export interface ReimburseSegment {
-  getReimburseEntries(): Promise<ReimburseEntriesResponse>;
+  getReimburseEntries(scope?: ReimburseEntryScope): Promise<ReimburseEntriesResponse>;
   createReimburseEntry(req: CreateReimburseEntryRequest): Promise<CreateReimburseEntryResponse>;
   updateReimburseEntry(id: string, req: UpdateReimburseEntryRequest): Promise<UpdateReimburseEntryResponse>;
   getReimburseBatches(): Promise<ReimburseBatchesResponse>;
@@ -53,7 +53,10 @@ export interface ReimburseSegment {
 export function createReimburseSegment(ctx: HttpContext): ReimburseSegment {
   const { baseUrl, fetcher, writeToken } = ctx;
   return {
-    async getReimburseEntries() { return fetchJson(`${baseUrl}/api/reimburse/entries`, ReimburseEntriesResponseSchema, fetcher); },
+    async getReimburseEntries(scope) {
+      const query = scope ? `?scope=${scope}` : '';
+      return fetchJson(`${baseUrl}/api/reimburse/entries${query}`, ReimburseEntriesResponseSchema, fetcher);
+    },
     async createReimburseEntry(req) { return postJson(`${baseUrl}/api/reimburse/entries`, req, CreateReimburseEntryResponseSchema, fetcher, writeToken); },
     async updateReimburseEntry(id, req) { return sendJson('PATCH', `${baseUrl}/api/reimburse/entries/${encodeURIComponent(id)}`, req, UpdateReimburseEntryResponseSchema, fetcher, writeToken); },
     async getReimburseBatches() { return fetchJson(`${baseUrl}/api/reimburse/batches`, ReimburseBatchesResponseSchema, fetcher); },
