@@ -512,6 +512,11 @@
 .reimb-page .empty-state { min-height: 0; padding: var(--space-5); }
 .reimb-import-jobs__archive > summary { cursor: pointer; color: var(--muted); font-size: var(--text-sm); }
 .reimb-import-jobs__archive > .reimb-import-jobs__list { margin-top: var(--space-3); }
+.reimb-import-jobs--finance { padding: var(--space-3) var(--space-4); }
+.reimb-import-jobs__summary { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); cursor: pointer; }
+.reimb-import-jobs__summary > span { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-lg); font-weight: var(--weight-bold); }
+.reimb-import-jobs__summary > small { color: var(--muted); font-size: var(--text-sm); }
+.reimb-import-jobs--finance[open] > .reimb-import-jobs__archive { margin-top: var(--space-3); }
 
 .drawer--center:has(.reimb-import-modal) { width: min(var(--dialog-width-wide), calc(100vw - var(--space-4) * 2)); }
 .drawer--center:has(.reimb-import-review) { width: min(1500px, calc(100vw - var(--space-4) * 2)); }
@@ -716,7 +721,11 @@
   .reimb-import-jobs { padding: var(--space-3); }
 }
 
-/* 财务工作台排版探索：仅 ?financeLayout=a|b|c 启用，默认工作台保持原样。 */
+/* 财务工作台三种常驻排版：切换器只改变呈现，共享条目数据与筛选状态。 */
+.finance-workspace { display: grid; gap: var(--space-4); min-width: 0; }
+.finance-layout-switcher { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); min-width: 0; }
+.finance-layout-switcher > span { color: var(--muted); font-size: var(--text-sm); }
+.finance-layout-switcher .seg { flex-wrap: wrap; }
 .finance-preview { display: grid; gap: var(--space-4); min-width: 0; }
 .finance-preview__header { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); }
 .finance-preview__header h2 { margin: var(--space-1) 0; font-size: var(--text-xl); }

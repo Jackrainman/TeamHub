@@ -3,13 +3,13 @@ import { ArrowRight, CheckCircle2, CircleDollarSign, ClipboardCheck, Clock3, Inb
 import type { ReimburseBatch, ReimburseBatchSummary, ReimburseEntry, ReimbursePayout, ReimburseWorkflowStatus } from '@teamhub/hub-contracts';
 import { useI18n } from '../../../i18n';
 import { SideDrawer } from '../../../components/SideDrawer';
+import { SegToggle } from '../../../components/SegToggle';
 import { Field, Select } from '../../../shared/ui';
 import type { ReimburseSegment } from '../api';
+import type { FinanceLayout } from '../finance-layout';
 import { formatAmountFen } from '../reimburse-utils';
 import { ReimburseStructuralSummary } from './ReimburseStructuralSummary';
 import { ReimburseTable } from './ReimburseTable';
-
-export type FinanceLayout = 'a' | 'b' | 'c';
 
 type SharedProps = {
   entries: ReimburseEntry[];
@@ -23,6 +23,7 @@ type SharedProps = {
 
 type WorkspaceProps = SharedProps & {
   layout: FinanceLayout;
+  onLayoutChange: (layout: FinanceLayout) => void;
   payouts: ReimbursePayout[];
   client: ReimburseSegment;
   source: string;
@@ -84,14 +85,18 @@ function TodoLayout(props: SharedProps & { payouts: ReimbursePayout[]; client: R
   </div>;
 }
 
-function BatchLayout(props: SharedProps & { client: ReimburseSegment; source: string }) {
+function BatchLayout(props: SharedProps & {
+  client: ReimburseSegment;
+  source: string;
+  activeBatch: string;
+  onActiveBatch: (id: string) => void;
+}) {
   const { t } = useI18n();
-  const [activeBatch, setActiveBatch] = useState('unbatched');
-  const { entries, batches, summaries } = props;
+  const { entries, batches, summaries, activeBatch } = props;
   const currentBatch = batches.find(batch => batch.id === activeBatch);
   const rows = entries.filter(entry => currentBatch ? entry.batchId === currentBatch.id : entry.batchId === null);
   const currentSummary = summaries.find(summary => summary.batchId === activeBatch);
-  const selectBatch = (id: string) => { setActiveBatch(id); props.onSelect([]); };
+  const selectBatch = (id: string) => { props.onActiveBatch(id); props.onSelect([]); };
   return <div className="finance-preview finance-batches" data-finance-layout="b">
     <header className="finance-preview__header"><div><span className="finance-preview__eyebrow">{t('reimb.finance.b.name')}</span><h2>{t('reimb.finance.b.title')}</h2><p>{t('reimb.finance.b.subtitle')}</p></div></header>
     <div className="finance-batch-workbench">
@@ -128,29 +133,56 @@ function entryAge(createdAt: string, t: ReturnType<typeof useI18n>['t']) {
   return days === 0 ? t('reimb.finance.today') : t('reimb.finance.days', { count: days });
 }
 
-function TableLayout(props: SharedProps) {
+function TableLayout(props: SharedProps & {
+  search: string;
+  onSearch: (value: string) => void;
+  filtersOpen: boolean;
+  onFiltersOpen: (open: boolean) => void;
+  workflow: string;
+  onWorkflow: (value: string) => void;
+  batchId: string;
+  onBatchId: (value: string) => void;
+}) {
   const { t } = useI18n();
-  const [search, setSearch] = useState('');
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [workflow, setWorkflow] = useState('all');
-  const [batchId, setBatchId] = useState('all');
+  const { search, filtersOpen, workflow, batchId } = props;
   const query = search.trim().toLowerCase();
   const rows = props.entries.filter(entry => (!query || [entryTitle(entry), entry.memberId, entry.invoiceNo, entry.seller].some(value => value?.toLowerCase().includes(query)))
     && (workflow === 'all' || entry.workflowStatus === workflow) && (batchId === 'all' || (batchId === 'unbatched' ? entry.batchId === null : entry.batchId === batchId)));
   return <div className="finance-preview finance-table" data-finance-layout="c">
     <header className="finance-preview__header"><div><span className="finance-preview__eyebrow">{t('reimb.finance.c.name')}</span><h2>{t('reimb.finance.c.title')}</h2><p>{t('reimb.finance.c.subtitle')}</p></div><span className="finance-table__count">{rows.length} / {props.entries.length} {t('reimb.finance.metric.entries')}</span></header>
-    <div className="finance-table-toolbar"><Search size={18} /><input aria-label={t('reimb.finance.search')} placeholder={t('reimb.finance.searchPlaceholder')} value={search} onChange={event => setSearch(event.target.value)} /><button className="btn btn--secondary" onClick={() => setFiltersOpen(true)}><SlidersHorizontal size={16} />{t('reimb.finance.advanced')}</button><button className="btn btn--primary" disabled={props.selectedIds.length === 0} onClick={props.onPayout}>{t('reimb.payout.open')}</button></div>
+    <div className="finance-table-toolbar"><Search size={18} /><input aria-label={t('reimb.finance.search')} placeholder={t('reimb.finance.searchPlaceholder')} value={search} onChange={event => props.onSearch(event.target.value)} /><button className="btn btn--secondary" onClick={() => props.onFiltersOpen(true)}><SlidersHorizontal size={16} />{t('reimb.finance.advanced')}</button><button className="btn btn--primary" disabled={props.selectedIds.length === 0} onClick={props.onPayout}>{t('reimb.payout.open')}</button></div>
     <FinanceFocusTable {...props} entries={rows} />
-    <SideDrawer open={filtersOpen} onClose={() => setFiltersOpen(false)} title={t('reimb.finance.advanced')}>
-      <div className="reimb-admin-stack"><Field label={t('reimb.workflow.title')}><Select value={workflow} onChange={event => setWorkflow(event.target.value)}><option value="all">{t('expected.all')}</option>{(['draft', 'submitted', 'reviewing', 'returned', 'pendingPayment', 'completed', 'cancelled'] as const).map(value => <option value={value} key={value}>{t(`reimb.workflow.status.${value}`)}</option>)}</Select></Field>
-        <Field label={t('reimb.batch.title')}><Select value={batchId} onChange={event => setBatchId(event.target.value)}><option value="all">{t('expected.all')}</option><option value="unbatched">{t('reimb.finance.unbatched')}</option>{props.batches.map(batch => <option value={batch.id} key={batch.id}>{batch.name}</option>)}</Select></Field>
-        <button className="btn btn--primary" onClick={() => setFiltersOpen(false)}>{t('reimb.finance.applyFilters')}</button></div>
+    <SideDrawer open={filtersOpen} onClose={() => props.onFiltersOpen(false)} title={t('reimb.finance.advanced')}>
+      <div className="reimb-admin-stack"><Field label={t('reimb.workflow.title')}><Select value={workflow} onChange={event => props.onWorkflow(event.target.value)}><option value="all">{t('expected.all')}</option>{(['draft', 'submitted', 'reviewing', 'returned', 'pendingPayment', 'completed', 'cancelled'] as const).map(value => <option value={value} key={value}>{t(`reimb.workflow.status.${value}`)}</option>)}</Select></Field>
+        <Field label={t('reimb.batch.title')}><Select value={batchId} onChange={event => props.onBatchId(event.target.value)}><option value="all">{t('expected.all')}</option><option value="unbatched">{t('reimb.finance.unbatched')}</option>{props.batches.map(batch => <option value={batch.id} key={batch.id}>{batch.name}</option>)}</Select></Field>
+        <button className="btn btn--primary" onClick={() => props.onFiltersOpen(false)}>{t('reimb.finance.applyFilters')}</button></div>
     </SideDrawer>
   </div>;
 }
 
 export function ReimburseFinanceWorkspace(props: WorkspaceProps) {
-  if (props.layout === 'a') return <TodoLayout {...props} />;
-  if (props.layout === 'b') return <BatchLayout {...props} />;
-  return <TableLayout {...props} />;
+  const { t } = useI18n();
+  // 各排版只负责呈现；筛选状态留在共享工作台，切换时不卸载重置。
+  const [activeBatch, setActiveBatch] = useState('unbatched');
+  const [search, setSearch] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [workflow, setWorkflow] = useState('all');
+  const [batchId, setBatchId] = useState('all');
+  const options: { value: FinanceLayout; label: string }[] = [
+    { value: 'a', label: t('reimb.finance.layout.a') },
+    { value: 'b', label: t('reimb.finance.layout.b') },
+    { value: 'c', label: t('reimb.finance.layout.c') },
+  ];
+  const content = props.layout === 'a' ? <TodoLayout {...props} />
+    : props.layout === 'b' ? <BatchLayout {...props} activeBatch={activeBatch} onActiveBatch={setActiveBatch} />
+      : <TableLayout {...props} search={search} onSearch={setSearch}
+        filtersOpen={filtersOpen} onFiltersOpen={setFiltersOpen}
+        workflow={workflow} onWorkflow={setWorkflow} batchId={batchId} onBatchId={setBatchId} />;
+  return <div className="finance-workspace">
+    <div className="finance-layout-switcher">
+      <span>{t('reimb.finance.layout.label')}</span>
+      <SegToggle value={props.layout} onChange={props.onLayoutChange} ariaLabel={t('reimb.finance.layout.title')} options={options} />
+    </div>
+    {content}
+  </div>;
 }

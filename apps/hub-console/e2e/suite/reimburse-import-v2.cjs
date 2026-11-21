@@ -40,6 +40,10 @@ const payment = '支付成功\n交易金额：￥36.80\n交易单号：E2E-IMPOR
         { name: 'payment.xml', mimeType: 'application/xml', buffer: Buffer.from(payment) },
       ]);
       await page.locator('.reimb-import-job[data-job-status="ready"]').waitFor();
+      const importCounts = await page.locator('.reimb-import-jobs__counts').innerText();
+      assert.match(importCounts, /待确认\s*1/);
+      assert.doesNotMatch(importCounts, /待定/);
+      assert.doesNotMatch(importCounts, /已建单/);
       await page.keyboard.press('Escape');
       await page.reload();
       await page.getByRole('button', { name: '报销', exact: true }).click();

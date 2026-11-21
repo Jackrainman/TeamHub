@@ -52,6 +52,7 @@ function PairFiles({ job, pair, onDeleteFile, canDelete }: {
 interface ReimburseImportJobsProps {
   jobs: ReimburseImportJob[];
   canWrite: boolean;
+  finance?: boolean;
   onReview: (jobId: string, pairId: string) => void;
   onOpenEntry: (entryId: string) => void;
   onReparse: (jobId: string) => void;
@@ -115,24 +116,36 @@ function ReimburseImportJobList({ jobs, ...props }: ReimburseImportJobsProps) {
   return <>{jobs.map(job => <ReimburseImportJobCard key={job.id} job={job} {...props} />)}</>;
 }
 
-export function ReimburseImportJobs({ jobs, ...props }: ReimburseImportJobsProps) {
+export function ReimburseImportJobs({ jobs, finance = false, ...props }: ReimburseImportJobsProps) {
   const matched = jobs.flatMap(job => job.pairs.filter(pair => pair.status === 'matched')).length;
   const pending = jobs.flatMap(job => job.pairs.filter(pair => pair.status === 'pending')).length;
   const confirmed = jobs.flatMap(job => job.pairs.filter(pair => pair.status === 'confirmed')).length;
   const activeJobs = jobs.filter(job => !isArchivedReimburseImportJob(job));
   const archivedJobs = jobs.filter(isArchivedReimburseImportJob);
+  const counts = [
+    { label: '待确认', value: matched },
+    { label: '待定', value: pending },
+    { label: '已建单', value: confirmed },
+  ].filter(item => item.value > 0);
+  const archive = archivedJobs.length > 0 && <details className="reimb-import-jobs__archive">
+    <summary>已归档（{archivedJobs.length}）</summary>
+    <div className="reimb-import-jobs__list"><ReimburseImportJobList jobs={archivedJobs} {...props} /></div>
+  </details>;
+  if (finance && activeJobs.length === 0) {
+    return <details className="reimb-import-jobs reimb-import-jobs--finance" aria-label="导入任务">
+      <summary className="reimb-import-jobs__summary"><span><FileClock size={18} />导入任务</span><small>没有待处理作业</small></summary>
+      {archive}
+    </details>;
+  }
   return <section className="reimb-import-jobs" aria-label="导入任务">
     <header className="reimb-import-jobs__head">
       <div><h2><FileClock size={18} />导入任务</h2><p>任务保存在服务器，关闭弹窗或刷新页面不会丢失。</p></div>
       <div className="reimb-import-jobs__counts" aria-label="导入任务统计">
-        <span>待确认 <strong>{matched}</strong></span><span>待定 <strong>{pending}</strong></span><span>已建单 <strong>{confirmed}</strong></span>
+        {counts.length > 0 ? counts.map(item => <span key={item.label}>{item.label} <strong>{item.value}</strong></span>) : <span>没有待处理</span>}
       </div>
     </header>
     {activeJobs.length === 0 ? <p className="reimb-import-jobs__empty">{archivedJobs.length > 0 ? '没有待处理的导入任务。' : '还没有导入任务。点击右上角「批量导入」开始。'}</p>
       : <div className="reimb-import-jobs__list"><ReimburseImportJobList jobs={activeJobs} {...props} /></div>}
-    {archivedJobs.length > 0 && <details className="reimb-import-jobs__archive">
-      <summary>已归档（{archivedJobs.length}）</summary>
-      <div className="reimb-import-jobs__list"><ReimburseImportJobList jobs={archivedJobs} {...props} /></div>
-    </details>}
+    {archive}
   </section>;
 }

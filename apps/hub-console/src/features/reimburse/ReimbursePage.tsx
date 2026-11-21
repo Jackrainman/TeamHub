@@ -1,4 +1,4 @@
-import { ReceiptText, Settings2, Plus, Upload, WalletCards, MoreHorizontal } from 'lucide-react';
+import { ReceiptText, Settings2, Plus, Upload, MoreHorizontal } from 'lucide-react';
 import { useState } from 'react';
 import {
   deriveReimburseCompleteness,
@@ -30,12 +30,12 @@ import { ReimburseExportSection } from './components/ReimburseExportSection';
 import { ReimburseProfileSection } from './components/ReimburseProfileSection';
 import { ReimburseSupplementForm } from './components/ReimburseSupplementForm';
 import { ReimbursePayoutForm } from './components/ReimbursePayoutForm';
-import { ReimburseStructuralSummary } from './components/ReimburseStructuralSummary';
 import { draftFromParsedInvoice } from './reimburse-import';
 import { candidatesForImportPair } from './reimburse-review-candidates';
 import { ReimburseImportPreview } from './components/ReimburseImportPreview';
 import { Field, Select } from '../../shared/ui';
-import { ReimburseFinanceWorkspace, type FinanceLayout } from './components/ReimburseFinanceWorkspace';
+import { ReimburseFinanceWorkspace } from './components/ReimburseFinanceWorkspace';
+import { readFinanceLayout, writeFinanceLayout, type FinanceLayout } from './finance-layout';
 
 function importFormInitial(job: ReimburseImportJob, pair: ReimburseImportPair, profile: ReimburseProfile) {
   const draft = pair.draft;
@@ -67,8 +67,13 @@ export function ReimbursePage({ client, source, identity }: {
   const importsEnabled = identity.mode === 'identity' && session !== null;
   const [view, setView] = useState<'mine' | 'finance'>('mine');
   const cacheSource = `${source}:${identityCacheKey(session)}`;
-  const layoutParam = new URLSearchParams(window.location.search).get('financeLayout');
-  const financeLayout: FinanceLayout | null = layoutParam === 'a' || layoutParam === 'b' || layoutParam === 'c' ? layoutParam : null;
+  const [financeLayout, setFinanceLayout] = useState<FinanceLayout>(() => {
+    try { return readFinanceLayout(window.localStorage); } catch { return 'b'; }
+  });
+  const changeFinanceLayout = (layout: FinanceLayout) => {
+    setFinanceLayout(layout);
+    try { writeFinanceLayout(window.localStorage, layout); } catch { /* 当前会话仍可使用新排版。 */ }
+  };
   const entriesQuery = useReimburseEntries(client, cacheSource, enabled, view === 'finance' ? 'all' : 'mine');
   const batchesQuery = useReimburseBatches(client, cacheSource, isFinance);
   const payoutsQuery = useReimbursePayouts(client, cacheSource, session !== null);
@@ -89,7 +94,6 @@ export function ReimbursePage({ client, source, identity }: {
   const [completeness, setCompleteness] = useState<ReimburseCompleteness | 'all'>('all');
   const [workflow, setWorkflow] = useState<ReimburseWorkflowStatus | 'all'>('all');
   const [expenseType, setExpenseType] = useState<ReimburseExpenseType | 'all'>('all');
-  const [batchId, setBatchId] = useState('all');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [adminOpen, setAdminOpen] = useState(false);
   const [payoutOpen, setPayoutOpen] = useState(false);
@@ -120,7 +124,6 @@ export function ReimbursePage({ client, source, identity }: {
   const visible = entries.filter(entry =>
     (completeness === 'all' || deriveReimburseCompleteness(entry) === completeness)
     && (workflow === 'all' || entry.workflowStatus === workflow)
-    && (batchId === 'all' || entry.batchId === batchId)
     && (expenseType === 'all' || entry.expenseType === expenseType));
   const selectedPayout = selectedEntry?.payoutId
     ? payoutsQuery.data?.payouts.find(payout => payout.id === selectedEntry.payoutId) : null;
@@ -154,7 +157,7 @@ export function ReimbursePage({ client, source, identity }: {
       </div>
     </SideDrawer>
 
-    <ReimburseImportJobs jobs={jobs} canWrite={identity.canWrite && importsEnabled}
+    <ReimburseImportJobs jobs={jobs} canWrite={identity.canWrite && importsEnabled} finance={view === 'finance'}
       onReview={openReview} onOpenEntry={setEntryId} onReparse={jobId => reparseImport.mutate(jobId)}
       onDeleteFile={(jobId, fileId) => deleteImportFile.mutate({ id: jobId, fileId })}
       onDismiss={(jobId, pairId) => dismissImportPair.mutate({ id: jobId, pairId })}
@@ -190,16 +193,16 @@ export function ReimbursePage({ client, source, identity }: {
       </div>}
     </SideDrawer>
 
-    {view === 'finance' && financeLayout ? <ReimburseFinanceWorkspace
-      layout={financeLayout} entries={entries} batches={batches} summaries={summaries}
+    {view === 'finance' ? <ReimburseFinanceWorkspace
+      layout={financeLayout} onLayoutChange={changeFinanceLayout}
+      entries={entries} batches={batches} summaries={summaries}
       payouts={payoutsQuery.data?.payouts ?? []} client={client} source={cacheSource}
       selectedIds={selectedIds} onSelect={setSelectedIds} onOpen={setEntryId} onPayout={() => setPayoutOpen(true)} /> : <>
-    <div className="week-summary"><span><b>{entries.length}</b>{t('reimb.entries.title')}</span><span><b>{formatAmountFen(entries.reduce((sum, entry) => sum + (entry.totalAmountFen ?? 0), 0))}</b>{t('reimb.export.col.totalYuan')}</span></div>
+    <div className="week-summary"><span><b>{entries.length}</b>{t('reimb.entries.count')}</span><span><b>{formatAmountFen(entries.reduce((sum, entry) => sum + (entry.totalAmountFen ?? 0), 0))}</b>{t('reimb.export.col.totalYuan')}</span></div>
     <div className="reimb-filters">
       <Field label="状态"><Select aria-label="状态" value={completeness} onChange={event => setCompleteness(event.target.value as typeof completeness)}><option value="all">{t('expected.all')}</option>{(['draft', 'partial', 'complete'] as const).map(value => <option key={value} value={value}>{t(`reimb.status.${value}`)}</option>)}</Select></Field>
       <Field label="流程"><Select aria-label="流程" value={workflow} onChange={event => setWorkflow(event.target.value as typeof workflow)}><option value="all">{t('expected.all')}</option>{(['draft', 'submitted', 'reviewing', 'returned', 'pendingPayment', 'completed', 'cancelled'] as const).map(value => <option key={value} value={value}>{t(`reimb.workflow.status.${value}`)}</option>)}</Select></Field>
       <Field label="类型"><Select aria-label="类型" value={expenseType} onChange={event => setExpenseType(event.target.value as typeof expenseType)}><option value="all">{t('expected.all')}</option>{(['purchase', 'taxi', 'ticket', 'other'] as const).map(value => <option key={value} value={value}>{t(`reimb.expenseType.${value}`)}</option>)}</Select></Field>
-      {view === 'finance' && <Field label="批次"><Select aria-label="批次" value={batchId} onChange={event => setBatchId(event.target.value)}><option value="all">{t('expected.all')}</option>{batches.map(batch => <option key={batch.id} value={batch.id}>{batch.name}</option>)}</Select></Field>}
       <div className="reimb-filters__actions">
         <details className="reimb-more">
           <summary className="btn btn--secondary btn--sm"><MoreHorizontal size={14} />{t('reimb.more')}</summary>
@@ -211,15 +214,13 @@ export function ReimbursePage({ client, source, identity }: {
             <ReimburseExportSection client={client} source={cacheSource} entries={selectedEntries} batches={batches} profile={profile} compact />
           </div>
         </details>
-        {view === 'finance' && <button className="btn btn--secondary btn--sm" disabled={selectedEntries.length === 0} onClick={() => setPayoutOpen(true)}><WalletCards size={14} />{t('reimb.payout.open')}</button>}
       </div>
     </div>
-    {view === 'finance' && <ReimburseStructuralSummary client={client} source={cacheSource} query={{ ...(batchId === 'all' ? {} : { batchId }) }} enabled={isFinance} />}
     <section aria-label={t('reimb.entries.title')}>
       {entries.some(entry => entry.totalAmountFen === null) && <p className="form-hint">{t('reimb.package.unknownAmount', { count: entries.filter(entry => entry.totalAmountFen === null).length })}</p>}
-      <h2 className="inv-section-title">{t(view === 'finance' ? 'reimb.view.finance' : 'reimb.entries.title')}</h2>
+      <h2 className="inv-section-title">{t('reimb.entries.title')}</h2>
       {visible.length === 0 ? <EmptyState icon={ReceiptText} title={t('reimb.entries.empty.title')} desc={t('reimb.entries.empty.desc')} />
-        : <ReimburseTable entries={visible} selected={selectedIds} onSelect={setSelectedIds} onOpen={setEntryId} finance={view === 'finance'} />}
+        : <ReimburseTable entries={visible} selected={selectedIds} onSelect={setSelectedIds} onOpen={setEntryId} finance={false} />}
     </section>
     </>}
     <p className="expected-page-hint">{t('expected.reimbursePrivacy')}</p>
