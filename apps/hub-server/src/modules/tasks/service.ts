@@ -4,7 +4,7 @@ import {
 } from '@teamhub/hub-contracts';
 import type {
   ActorRef, CreateTaskRequest, Delivery, MemberPublic, ReviewTaskRequest,
-  SelfReportTaskRequest, Task, TaskStatus, UpdateSelfTaskRequest,
+  ScheduleTaskRequest, SelfReportTaskRequest, Task, TaskStatus, UpdateSelfTaskRequest,
 } from '@teamhub/hub-contracts';
 import type { Clock } from '../../clock.js';
 import type { TasksRepository } from './repository.js';
@@ -91,6 +91,32 @@ export class TasksService {
       activity: [...(current.activity ?? []), { kind: 'edited' as const, at, by: actor,
         title: input.title ?? current.title, rawSummary: input.rawSummary ?? current.rawSummary,
         reviewerIds: input.reviewerIds ?? current.reviewerIds }],
+    }));
+    return updated ? ok(updated) : failure(404, 'task not found');
+  }
+  /**
+   * 日历拖拽排期：窄权限写口径，只碰 plannedStart/plannedEnd。
+   * 作者/负责人/PM 不受组限制；其余人只能调本组任务的日期。
+   */
+  scheduleTask(taskId: string, input: ScheduleTaskRequest, actor: ActorRef): TaskOutcome<Task> {
+    const task = this.repository.getTask(taskId);
+    if (!task) return failure(404, 'task not found');
+    if (task.revision !== input.expectedRevision && (task.revision ?? 0) !== input.expectedRevision) return failure(409, '任务已更新，请刷新后再提交');
+    const privileged = taskAuthorId(task) === actor.id || task.ownerId === actor.id || this.isAdmin(actor);
+    if (!privileged) {
+      const member = this.directory.listMembers().find((item) => item.id === actor.id);
+      if (!member || member.groupId !== task.groupId) return failure(403, '只能调整本组任务的日期');
+    }
+    if (input.plannedStart && input.plannedEnd && input.plannedEnd < input.plannedStart) {
+      return failure(400, 'plannedEnd must not be earlier than plannedStart');
+    }
+    const at = this.now();
+    const previous = `${task.plannedStart ?? '未排期'}~${task.plannedEnd ?? '未排期'}`;
+    const next = `${input.plannedStart ?? '未排期'}~${input.plannedEnd ?? '未排期'}`;
+    const updated = this.repository.updateTask(taskId, (current) => ({
+      ...current, plannedStart: input.plannedStart, plannedEnd: input.plannedEnd,
+      revision: (current.revision ?? 0) + 1, updatedAt: at,
+      activity: [...(current.activity ?? []), { kind: 'rescheduled' as const, at, by: actor, note: `${previous} → ${next}` }],
     }));
     return updated ? ok(updated) : failure(404, 'task not found');
   }

@@ -34,6 +34,7 @@ export const zhWeek = {
   'team.fact.reviewersChanged': '更换备位人',
   'team.fact.accepted': '验收通过',
   'team.fact.rejected': '退回修改',
+  'team.fact.rescheduled': '调整排期',
   'week.selfReport': '新建任务',
 
   'week.loginHint': '登录后可以创建和推进自己的任务。',
@@ -84,6 +85,7 @@ export const enWeek: Record<keyof typeof zhWeek, string> = {
   'team.fact.reviewersChanged': 'Changed backup reviewers',
   'team.fact.accepted': 'Accepted',
   'team.fact.rejected': 'Returned for changes',
+  'team.fact.rescheduled': 'Rescheduled',
   'week.selfReport': 'New task',
 
   'week.loginHint': 'Sign in to report, claim and progress tasks. Team scope shows task facts.',

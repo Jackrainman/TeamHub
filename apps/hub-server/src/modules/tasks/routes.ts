@@ -3,6 +3,7 @@ import {
   ClaimTaskRequestSchema, ClaimTaskResponseSchema, CompleteTaskRequestSchema, CompleteTaskResponseSchema,
   CreateTaskRequestSchema, CreateTaskResponseSchema, LinkTaskWeekRequestSchema,
   ReviewTaskRequestSchema, ReviewTaskResponseSchema, SelfReportTaskRequestSchema,
+  ScheduleTaskRequestSchema,
   TasksQuerySchema, TasksResponseSchema, TransitionTaskStatusRequestSchema, TransitionTaskStatusResponseSchema,
   UpdateSelfTaskRequestSchema,
 } from '@teamhub/hub-contracts';
@@ -54,6 +55,14 @@ export function registerTaskRoutes(app: FastifyInstance, deps: TaskRouteDeps): v
     if (!actor) return;
     const { taskId } = request.params as { taskId: string };
     return present(reply, service.editSelfTask(taskId, input, actor), (task) => CreateTaskResponseSchema.parse({ task }));
+  });
+  app.post('/api/tasks/:taskId/schedule', async (request, reply) => {
+    const input = parseBody(ScheduleTaskRequestSchema, request, reply);
+    if (!input) return;
+    const actor = requireActor(request, reply, undefined, '调整排期须先登录');
+    if (!actor) return;
+    const { taskId } = request.params as { taskId: string };
+    return present(reply, service.scheduleTask(taskId, input, actor), (task) => CreateTaskResponseSchema.parse({ task }));
   });
   app.post('/api/tasks/:taskId/weeks', async (request, reply) => {
     if (!request.identity) return fail(reply, 'SESSION_REQUIRED', { status: 403, detail: '请先登录后延续任务' });

@@ -28,6 +28,9 @@ export const zhCalendar = {
   'calendar.empty.scope.personal': '你没有参与的任务',
   'calendar.empty.scope.group': '本组还没有任务',
   'calendar.clipped': '窗口外部分已截断',
+  'calendar.drag.hint': '拖拽改期，左右边缘拉伸',
+  'calendar.schedule.failed': '排期保存失败，已回滚',
+  'calendar.schedule.conflict': '任务已被他人更新，排期已回滚，请刷新后重试',
   'calendar.drawer.range': '计划起止',
 };
 export const enCalendar: Record<keyof typeof zhCalendar, string> = {
@@ -60,5 +63,8 @@ export const enCalendar: Record<keyof typeof zhCalendar, string> = {
   'calendar.empty.scope.personal': 'You have no participating tasks',
   'calendar.empty.scope.group': 'Your group has no tasks yet',
   'calendar.clipped': 'Clipped to window',
+  'calendar.drag.hint': 'Drag to reschedule, edges to resize',
+  'calendar.schedule.failed': 'Could not save dates; change reverted',
+  'calendar.schedule.conflict': 'Task changed elsewhere; dates reverted, please refresh',
   'calendar.drawer.range': 'Planned dates',
 };

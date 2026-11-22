@@ -1,7 +1,7 @@
 {
   "name": "@teamhub/hub-contracts",
   "private": true,
-  "version": "1.2.6",
+  "version": "1.2.7",
   "description": "Team Hub shared Zod contracts and mock API fixtures",
   "type": "module",
   "main": "dist/index.js",

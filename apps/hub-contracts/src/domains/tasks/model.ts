@@ -60,7 +60,7 @@ const TransitionSchema = z.object({
   by: ActorRefSchema.optional(),
 });
 const ActivitySchema = z.object({
-  kind: z.enum(['created', 'edited', 'reviewersChanged', 'accepted', 'rejected']),
+  kind: z.enum(['created', 'edited', 'reviewersChanged', 'accepted', 'rejected', 'rescheduled']),
   at: isoDateTimeSchema,
   by: ActorRefSchema,
   title: z.string().optional(),

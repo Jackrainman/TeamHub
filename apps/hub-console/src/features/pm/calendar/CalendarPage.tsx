@@ -1,9 +1,13 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import type { Task } from '@teamhub/hub-contracts';
 import type { HubApiClient } from '../../../api/client';
+import { queryKeys } from '../../../api/queryKeys';
+import { HubApiError } from '../../../api/http';
 import type { PageIdentityCtx } from '../../../console-pages';
 import { useI18n } from '../../../i18n';
+import { showToast } from '../../../utils/toast';
 import { useMembers } from '../../identity/hooks';
 import { Button } from '../../../shared/ui/Button';
 import { useQueryGuard } from '../../../shared/QueryGate';
@@ -26,6 +30,7 @@ export function CalendarPage({ client, source, identity, todayOverride }: {
   client: HubApiClient; source: string; identity: PageIdentityCtx; todayOverride?: string;
 }): JSX.Element {
   const { t, lang } = useI18n();
+  const queryClient = useQueryClient();
   const today = useTodayKey(todayOverride);
   const localWeek = useCurrentWeek();
   const [anchor, setAnchor] = useState(() => ({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) }));
@@ -56,6 +61,28 @@ export function CalendarPage({ client, source, identity, todayOverride }: {
     setCreateDates({});
     setCreateOpen(true);
   }
+  function applyRange(taskId: string, plannedStart: string | null, plannedEnd: string | null): void {
+    queryClient.setQueryData<{ tasks: Task[]; currentWeek?: string; today?: string }>(queryKeys.tasks(source), current => current
+      ? { ...current, tasks: current.tasks.map(item => item.id === taskId ? { ...item, plannedStart, plannedEnd } : item) }
+      : current);
+  }
+  /** 乐观更新：松手立即重排；409/网络失败回滚并给可见提示。 */
+  async function rescheduleTask(task: Task, plannedStart: string, plannedEnd: string): Promise<void> {
+    const previous = { plannedStart: task.plannedStart ?? null, plannedEnd: task.plannedEnd ?? null };
+    applyRange(task.id, plannedStart, plannedEnd);
+    try {
+      const response = await client.scheduleTask(task.id, {
+        plannedStart, plannedEnd, expectedRevision: task.revision ?? 0,
+      });
+      applyRange(task.id, response.task.plannedStart ?? null, response.task.plannedEnd ?? null);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.tasks(source) });
+    } catch (error) {
+      applyRange(task.id, previous.plannedStart, previous.plannedEnd);
+      const conflict = error instanceof HubApiError && error.status === 409;
+      showToast(t(conflict ? 'calendar.schedule.conflict' : 'calendar.schedule.failed'));
+      void queryClient.invalidateQueries({ queryKey: queryKeys.tasks(source) });
+    }
+  }
   return <div className="calendar-page" data-today={today}>
     <header className="calendar-toolbar">
       <div className="calendar-toolbar__lead">
@@ -75,7 +102,8 @@ export function CalendarPage({ client, source, identity, todayOverride }: {
     {gate.guard ? gate.guard : gate.data ? <>
       {scopeEmpty ? <div className="calendar-scope-empty" data-empty-scope={scope}>{t(scope === 'personal' ? 'calendar.empty.scope.personal' : 'calendar.empty.scope.group')}</div>
         : <MonthView year={anchor.year} month={anchor.month} tasks={tasks} today={today} canCreate={identity.canWrite && !!identity.session}
-          onOpen={setSelected} onCreateDay={createOnDay} />}
+          canSchedule={identity.canWrite && !!identity.session}
+          onOpen={setSelected} onCreateDay={createOnDay} onSchedule={rescheduleTask} />}
       {allTasks.length === 0 ? <div className="state-band">{t('calendar.empty.tasks')}</div> : null}
     </> : null}
     <SideDrawer placement="center" open={!!currentTask} onClose={() => setSelected(null)} title={currentTask?.title ?? t('week.details')}>

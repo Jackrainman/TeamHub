@@ -29,6 +29,15 @@ export const UpdateSelfTaskRequestSchema = z.object({
   plannedStart: DateKeySchema.nullable().optional(),
   plannedEnd: DateKeySchema.nullable().optional(),
 }).refine((value) => Object.keys(value).some((key) => key !== 'expectedRevision'), 'No changes supplied').superRefine(validateDateOrder);
+/**
+ * 日历拖拽排期：只改计划起止日，不能顺带修改标题/验收人等字段。
+ * 权限是独立于 edit 的窄口径（见 TasksService.scheduleTask）。
+ */
+export const ScheduleTaskRequestSchema = z.object({
+  plannedStart: DateKeySchema.nullable(),
+  plannedEnd: DateKeySchema.nullable(),
+  expectedRevision: z.number().int().nonnegative(),
+}).superRefine(validateDateOrder);
 export const TransitionTaskStatusRequestSchema = z.object({ status: TaskStatusSchema, by: actor, expectedRevision: revision });
 export const TransitionTaskStatusResponseSchema = taskResponse;
 export const WeekKeySchema = z.string().refine(isValidWeekKey, 'Invalid ISO week');
@@ -55,6 +64,7 @@ export type CreateTaskRequest = z.infer<typeof CreateTaskRequestSchema>;
 export type CreateTaskResponse = z.infer<typeof CreateTaskResponseSchema>;
 export type SelfReportTaskRequest = z.infer<typeof SelfReportTaskRequestSchema>;
 export type UpdateSelfTaskRequest = z.infer<typeof UpdateSelfTaskRequestSchema>;
+export type ScheduleTaskRequest = z.infer<typeof ScheduleTaskRequestSchema>;
 export type TransitionTaskStatusResponse = z.infer<typeof TransitionTaskStatusResponseSchema>;
 export type ClaimTaskRequest = z.infer<typeof ClaimTaskRequestSchema>;
 export type ClaimTaskResponse = z.infer<typeof ClaimTaskResponseSchema>;

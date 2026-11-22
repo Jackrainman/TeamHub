@@ -7,7 +7,7 @@ import {
   type CreateTaskResponse, type Group, type GroupResponse, type RenameGroupRequest,
   type ReviewTaskRequest, type ReviewTaskResponse, type SelfReportTaskRequest,
   type TaskStatus, type TaskWithMeta, type TransitionTaskStatusResponse,
-  type UpdateSelfTaskRequest,
+  type UpdateSelfTaskRequest, type ScheduleTaskRequest,
 } from '@teamhub/hub-contracts';
 import type { HttpContext } from '../../api/http';
 import { fetchJson, postJson, sendJson } from '../../api/http';
@@ -21,6 +21,7 @@ export interface PmSegment {
   selfReportTask(weekKey: string, req: SelfReportTaskRequest): Promise<CreateTaskResponse>;
   editSelfTask(taskId: string, req: UpdateSelfTaskRequest): Promise<CreateTaskResponse>;
   linkTaskWeek(taskId: string, weekKey: string): Promise<CreateTaskResponse>;
+  scheduleTask(taskId: string, req: ScheduleTaskRequest): Promise<CreateTaskResponse>;
   createTask(req: CreateTaskRequest): Promise<CreateTaskResponse>;
   updateTaskStatus(taskId: string, status: TaskStatus, expectedRevision?: number): Promise<TransitionTaskStatusResponse>;
   claimTask(taskId: string, req: ClaimTaskRequest): Promise<ClaimTaskResponse>;
@@ -44,6 +45,7 @@ export function createPmSegment(ctx: HttpContext): PmSegment {
     async selfReportTask(weekKey, req) { return postJson(`${baseUrl}/api/weeks/${encodeURIComponent(weekKey)}/tasks`, req, CreateTaskResponseSchema, fetcher, writeToken); },
     async editSelfTask(taskId, req) { return postJson(`${baseUrl}/api/tasks/${encodeURIComponent(taskId)}/edit`, req, CreateTaskResponseSchema, fetcher, writeToken); },
     async linkTaskWeek(taskId, weekKey) { return postJson(`${baseUrl}/api/tasks/${encodeURIComponent(taskId)}/weeks`, { weekKey }, CreateTaskResponseSchema, fetcher, writeToken); },
+    async scheduleTask(taskId, req) { return postJson(`${baseUrl}/api/tasks/${encodeURIComponent(taskId)}/schedule`, req, CreateTaskResponseSchema, fetcher, writeToken); },
     async createTask(req) { return postJson(`${baseUrl}/api/tasks`, req, CreateTaskResponseSchema, fetcher, writeToken); },
     async updateTaskStatus(taskId, status, expectedRevision) {
       return postJson(`${baseUrl}/api/tasks/${encodeURIComponent(taskId)}/status`, { status, expectedRevision }, TransitionTaskStatusResponseSchema, fetcher, writeToken);

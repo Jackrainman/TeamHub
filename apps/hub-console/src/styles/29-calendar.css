@@ -441,6 +441,69 @@
   white-space: nowrap;
 }
 
+/* ===== 拖拽改期：ghost 跟随光标，目标日期格高亮 ===== */
+.calendar-project-bar { position: relative; }
+.calendar-project-bar[data-schedulable="true"] { touch-action: none; }
+.calendar-project-bar[data-schedulable="true"]::before,
+.calendar-project-bar[data-schedulable="true"]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 6px;
+  cursor: ew-resize;
+}
+.calendar-project-bar[data-schedulable="true"]::before { left: 0; }
+.calendar-project-bar[data-schedulable="true"]::after { right: 0; }
+/* 被周边界裁掉的一端没有真实边缘，不提供拉伸热区 */
+.calendar-project-bar[data-continue-start="true"]::before { display: none; }
+.calendar-project-bar[data-continue-end="true"]::after { display: none; }
+.calendar-project-bar[data-dragging="true"] { opacity: 0.45; }
+.calendar-month-day[data-drop-target="true"]::after {
+  background: color-mix(in srgb, var(--blue) 16%, transparent);
+  box-shadow: inset 0 0 0 2px var(--blue);
+}
+.calendar-drag-ghost {
+  position: fixed;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  overflow: hidden;
+  border-left: 3px solid var(--blue);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--blue) 26%, var(--surface));
+  box-shadow: var(--shadow-md);
+  color: var(--text);
+  font-size: var(--text-xs);
+  opacity: 0.82;
+  pointer-events: none;
+}
+.calendar-drag-ghost__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.calendar-drag-ghost__range {
+  flex: none;
+  color: var(--muted);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* 拖拽期间禁止选中文本，并屏蔽日期格/溢出按钮的点击命中 */
+body.calendar-dragging {
+  cursor: grabbing;
+  user-select: none;
+  -webkit-user-select: none;
+}
+body.calendar-dragging .calendar-month-day-hit,
+body.calendar-dragging .calendar-month-overflow { pointer-events: none; }
+
 /* ===== 空态与页面级提示 ===== */
 .calendar-page .state-band { margin-top: var(--space-3); }
 .calendar-scope-empty {
