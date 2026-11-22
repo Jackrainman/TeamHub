@@ -125,8 +125,11 @@
   background: var(--surface);
 }
 .calendar-month-day:last-child { border-right: 0; }
-.calendar-month-day[data-weekend="true"] { background: var(--surface-muted); }
-.calendar-month-day[data-today="true"] { background: var(--blue-soft); }
+.calendar-month-day[data-weekend="true"] { background: color-mix(in srgb, var(--text) 9%, var(--surface)); }
+.calendar-month-day[data-today="true"] {
+  background: color-mix(in srgb, var(--blue) 14%, var(--surface));
+  box-shadow: inset 1px 0 0 var(--blue), inset -1px 0 0 var(--blue);
+}
 .calendar-month-day::after {
   content: "";
   position: absolute;
