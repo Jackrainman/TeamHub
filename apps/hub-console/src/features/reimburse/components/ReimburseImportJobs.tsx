@@ -59,9 +59,10 @@ interface ReimburseImportJobsProps {
   onDeleteFile: (jobId: string, fileId: string) => void;
   onDismiss: (jobId: string, pairId: string) => void;
   onClose: (jobId: string) => void;
+  onPurge: (jobId: string) => void;
 }
 
-function ReimburseImportJobCard({ job, canWrite, onReview, onOpenEntry, onReparse, onDeleteFile, onDismiss, onClose }: Omit<ReimburseImportJobsProps, 'jobs'> & { job: ReimburseImportJob }) {
+function ReimburseImportJobCard({ job, canWrite, onReview, onOpenEntry, onReparse, onDeleteFile, onDismiss, onClose, onPurge }: Omit<ReimburseImportJobsProps, 'jobs'> & { job: ReimburseImportJob }) {
   const matchedPairs = job.pairs.filter(pair => pair.status === 'matched');
   const pendingPairs = job.pairs.filter(pair => pair.status === 'pending');
   const confirmedPairs = job.pairs.filter(pair => pair.status === 'confirmed');
@@ -69,7 +70,10 @@ function ReimburseImportJobCard({ job, canWrite, onReview, onOpenEntry, onRepars
     <header><div><strong>导入作业 {job.id.slice(-8)}</strong><small>{job.createdAt.slice(0, 16).replace('T', ' ')} · {job.status === 'parsing' ? '解析中' : job.status === 'ready' ? '可审阅' : '已关闭'}</small></div>
       {canWrite && job.status !== 'parsing' && <div>
         <button type="button" className="btn btn--sm btn--secondary" onClick={() => onReparse(job.id)}>重新解析</button>
-        {job.status !== 'closed' && <button type="button" className="btn btn--sm btn--ghost" onClick={() => onClose(job.id)}>放弃作业</button>}
+        {job.status !== 'closed' && <button type="button" className="btn btn--sm btn--ghost" onClick={() => onClose(job.id)}>关闭/归档</button>}
+        {job.confirmedEntryIds.length === 0 && <button type="button" className="btn btn--sm btn--ghost" onClick={() => {
+          if (window.confirm(`确定永久删除导入作业 ${job.id.slice(-8)}？该作业及其所有原件文件会一起删除，且无法恢复。`)) onPurge(job.id);
+        }}><Trash2 size={14} />删除作业</button>}
       </div>}
     </header>
     {job.error && <p className="form-hint form-hint--warn" role="alert">{job.error === 'interrupted' ? '服务重启中断了识别，请重新解析。' : '本次导入未能完成，请重试。'}</p>}

@@ -94,6 +94,7 @@ export const ReimburseImportJobSchema = z.object({
 
 export const ReimburseImportJobResponseSchema = z.object({ job: ReimburseImportJobSchema });
 export const ReimburseImportJobsResponseSchema = z.object({ jobs: z.array(ReimburseImportJobSchema) });
+export const ReimburseImportPurgeResponseSchema = z.object({ id: z.string().min(1), purgedAt: isoDateTimeSchema });
 export const ReimburseImportListQuerySchema = z.object({ memberId: z.string().min(1).optional() });
 export const ConfirmReimburseImportRequestSchema = z.object({
   items: z.array(z.object({
@@ -353,5 +354,6 @@ export type ReimburseImportPair = z.infer<typeof ReimburseImportPairSchema>;
 export type ReimburseImportJob = z.infer<typeof ReimburseImportJobSchema>;
 export type ReimburseImportJobResponse = z.infer<typeof ReimburseImportJobResponseSchema>;
 export type ReimburseImportJobsResponse = z.infer<typeof ReimburseImportJobsResponseSchema>;
+export type ReimburseImportPurgeResponse = z.infer<typeof ReimburseImportPurgeResponseSchema>;
 export type ReimburseImportListQuery = z.infer<typeof ReimburseImportListQuerySchema>;
 export type ConfirmReimburseImportRequest = z.infer<typeof ConfirmReimburseImportRequestSchema>;

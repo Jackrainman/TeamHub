@@ -34,4 +34,8 @@ export class SqliteReimburseImportRepository {
       .map(row => ReimburseImportJobSchema.parse(row))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
+
+  deleteJob(id: string): void {
+    this.sdb.tx(() => { this.sdb.deleteRow(REIMBURSE_IMPORT_JOB_TABLE, id); });
+  }
 }

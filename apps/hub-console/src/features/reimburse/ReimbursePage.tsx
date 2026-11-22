@@ -15,6 +15,7 @@ import {
   useCloseReimburseImport, useConfirmReimburseImport, useDeleteReimburseImportFile,
   useDismissReimburseImportPair, useReimburseBatches, useReimburseEntries, useReimburseImportJobs,
   useReimbursePayouts, useReimburseProfile, useReparseReimburseImport, useUploadReimburseImport,
+  usePurgeReimburseImport,
 } from './hooks';
 import type { ReimburseSegment } from './api';
 import type { HubApiClient } from '../../api/client';
@@ -83,6 +84,7 @@ export function ReimbursePage({ client, source, identity }: {
   const deleteImportFile = useDeleteReimburseImportFile(client, cacheSource);
   const dismissImportPair = useDismissReimburseImportPair(client, cacheSource);
   const closeImport = useCloseReimburseImport(client, cacheSource);
+  const purgeImport = usePurgeReimburseImport(client, cacheSource);
   const [entryId, setEntryId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createPreset, setCreatePreset] = useState<ReimburseExpenseType | null>(null);
@@ -156,7 +158,7 @@ export function ReimbursePage({ client, source, identity }: {
       onReview={openReview} onOpenEntry={setEntryId} onReparse={jobId => reparseImport.mutate(jobId)}
       onDeleteFile={(jobId, fileId) => deleteImportFile.mutate({ id: jobId, fileId })}
       onDismiss={(jobId, pairId) => dismissImportPair.mutate({ id: jobId, pairId })}
-      onClose={jobId => closeImport.mutate(jobId)} />
+      onClose={jobId => closeImport.mutate(jobId)} onPurge={jobId => purgeImport.mutate(jobId)} />
 
     <SideDrawer open={createOpen} onClose={() => setCreateOpen(false)} title={t('reimb.create.title')} placement="center">
       <div className="reimb-import-presets"><span>{t('reimb.quickPreset')}</span>

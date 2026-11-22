@@ -4,6 +4,7 @@ import {
   ConfirmReimburseImportResponseSchema,
   ReimburseImportJobResponseSchema,
   ReimburseImportJobsResponseSchema,
+  ReimburseImportPurgeResponseSchema,
   ReimburseImportListQuerySchema,
 } from '@teamhub/hub-contracts';
 import { isApplicationError } from '../../application/application-error.js';
@@ -113,6 +114,17 @@ export function registerReimburseImportRoutes(app: FastifyInstance, service: Rei
     if (!actor) return;
     const { id, pairId } = request.params as { id: string; pairId: string };
     return present(reply, () => ReimburseImportJobResponseSchema.parse({ job: service.dismissPair(id, pairId, actor) }));
+  });
+
+  app.post('/api/reimburse/imports/:id/purge', async (request, reply) => {
+    const actor = requireActor(request, reply, undefined, '删除导入作业须先登录');
+    if (!actor) return;
+    const { id } = request.params as { id: string };
+    return present(reply, async () => {
+      const result = await service.purgeJob(id, actor);
+      app.log.info({ audit: 'reimburse.import.purged', actorId: actor.id, jobId: id, at: result.purgedAt }, 'reimburse import job purged');
+      return ReimburseImportPurgeResponseSchema.parse(result);
+    });
   });
 
   app.delete('/api/reimburse/imports/:id', async (request, reply) => {

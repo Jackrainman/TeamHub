@@ -291,6 +291,23 @@ export class ReimburseImportService {
     return this.jobs.saveJob({ ...job, pairs, status, updatedAt: this.clock.now().toISOString() });
   }
 
+  async purgeJob(id: string, actor: ActorRef): Promise<{ id: string; purgedAt: string }> {
+    const job = this.requireJob(id);
+    const finance = await this.admin.isSuperAdmin(actor.id);
+    if (job.memberId !== actor.id && !finance) {
+      throw appError('forbidden', 'REIMBURSE_ENTRY_FORBIDDEN', '只有本人或财务能删除导入作业');
+    }
+    if (job.confirmedEntryIds.length > 0) {
+      throw appError('conflict', 'REIMBURSE_ENTRY_LOCKED', '已建单的导入作业只能关闭归档');
+    }
+    if (job.status === 'parsing') {
+      throw appError('conflict', 'REIMBURSE_ENTRY_LOCKED', '解析完成后才能删除导入作业');
+    }
+    await this.storage.removeJob(id);
+    this.jobs.deleteJob(id);
+    return { id, purgedAt: this.clock.now().toISOString() };
+  }
+
   async closeJob(id: string, actor: ActorRef): Promise<ReimburseImportJob> {
     const job = this.requireJob(id);
     this.requireOwner(job, actor);

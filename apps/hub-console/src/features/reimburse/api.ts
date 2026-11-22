@@ -5,7 +5,7 @@ import {
   ReimburseEvidenceListResponseSchema, UploadReimburseEvidenceResponseSchema,
   DeleteReimburseEvidenceResponseSchema, ReimburseEntryActionResponseSchema,
   ReimbursePayoutResponseSchema, ReimbursePayoutsResponseSchema, ReimburseSummaryResponseSchema,
-  ReimburseImportJobResponseSchema, ReimburseImportJobsResponseSchema,
+  ReimburseImportJobResponseSchema, ReimburseImportJobsResponseSchema, ReimburseImportPurgeResponseSchema,
   type CreateReimburseEntryRequest, type CreateReimburseEntryResponse,
   type UpdateReimburseEntryRequest, type UpdateReimburseEntryResponse,
   type CreateReimburseBatchRequest, type UpdateReimburseBatchRequest,
@@ -18,6 +18,7 @@ import {
   type ReimburseSummaryQuery, type ReimburseSummaryResponse, type ReimburseExportRequest,
   type UpdateReimburseEvidenceRequest,
   type ReimburseImportJobResponse, type ReimburseImportJobsResponse, type ConfirmReimburseImportRequest,
+  type ReimburseImportPurgeResponse,
 } from '@teamhub/hub-contracts';
 import type { HttpContext } from '../../api/http';
 import { fetchJson, postFormData, postJson, postMultiFormData, sendJson } from '../../api/http';
@@ -47,6 +48,7 @@ export interface ReimburseSegment {
   deleteReimburseImportFile(id: string, fileId: string): Promise<ReimburseImportJobResponse>;
   dismissReimburseImportPair(id: string, pairId: string): Promise<ReimburseImportJobResponse>;
   closeReimburseImport(id: string): Promise<ReimburseImportJobResponse>;
+  purgeReimburseImport(id: string): Promise<ReimburseImportPurgeResponse>;
   reimburseImportFileContentUrl(id: string, fileId: string): string;
   reimburseEvidenceDownloadUrl(id: string, evidenceId: string): string;
 }
@@ -117,6 +119,9 @@ export function createReimburseSegment(ctx: HttpContext): ReimburseSegment {
     },
     async closeReimburseImport(id) {
       return sendJson('DELETE', `${baseUrl}/api/reimburse/imports/${encodeURIComponent(id)}`, undefined, ReimburseImportJobResponseSchema, fetcher, writeToken);
+    },
+    async purgeReimburseImport(id) {
+      return postJson(`${baseUrl}/api/reimburse/imports/${encodeURIComponent(id)}/purge`, {}, ReimburseImportPurgeResponseSchema, fetcher, writeToken);
     },
     reimburseImportFileContentUrl(id, fileId) {
       return `${baseUrl}/api/reimburse/imports/${encodeURIComponent(id)}/files/${encodeURIComponent(fileId)}/content`;

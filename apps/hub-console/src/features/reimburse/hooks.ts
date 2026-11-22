@@ -115,6 +115,13 @@ export function useCloseReimburseImport(client: ReimburseSegment, source: string
   });
 }
 
+export function usePurgeReimburseImport(client: ReimburseSegment, source: string) {
+  return useHubMutation({
+    invalidateKeys: [queryKeys.reimburse.imports(source)],
+    mutationFn: (id: string) => client.purgeReimburseImport(id),
+  });
+}
+
 export function useReimbursePayouts(client: ReimburseSegment, source: string, enabled: boolean) {
   return useQuery({ queryKey: queryKeys.reimburse.payouts(source), queryFn: () => client.getReimbursePayouts(), enabled });
 }
