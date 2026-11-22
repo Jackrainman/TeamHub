@@ -82,7 +82,7 @@ export const ReimburseImportHistoryEventSchema = z.object({
 export const ReimburseImportJobSchema = z.object({
   id: z.string().min(1),
   memberId: z.string().min(1),
-  status: z.enum(['parsing', 'ready', 'closed']),
+  status: z.enum(['queued', 'parsing', 'ready', 'closed']),
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
   files: z.array(ReimburseImportFileSchema),
@@ -92,8 +92,11 @@ export const ReimburseImportJobSchema = z.object({
   error: z.string().nullable(),
 });
 
-export const ReimburseImportJobResponseSchema = z.object({ job: ReimburseImportJobSchema });
-export const ReimburseImportJobsResponseSchema = z.object({ jobs: z.array(ReimburseImportJobSchema) });
+export const ReimburseImportJobViewSchema = ReimburseImportJobSchema.extend({
+  queuePosition: z.number().int().positive().nullable().default(null),
+});
+export const ReimburseImportJobResponseSchema = z.object({ job: ReimburseImportJobViewSchema });
+export const ReimburseImportJobsResponseSchema = z.object({ jobs: z.array(ReimburseImportJobViewSchema) });
 export const ReimburseImportPurgeResponseSchema = z.object({ id: z.string().min(1), purgedAt: isoDateTimeSchema });
 export const ReimburseImportListQuerySchema = z.object({ memberId: z.string().min(1).optional() });
 export const ConfirmReimburseImportRequestSchema = z.object({
@@ -352,6 +355,7 @@ export type ReimburseImportCandidates = z.infer<typeof ReimburseImportCandidates
 export type ReimburseImportFile = z.infer<typeof ReimburseImportFileSchema>;
 export type ReimburseImportPair = z.infer<typeof ReimburseImportPairSchema>;
 export type ReimburseImportJob = z.infer<typeof ReimburseImportJobSchema>;
+export type ReimburseImportJobView = z.infer<typeof ReimburseImportJobViewSchema>;
 export type ReimburseImportJobResponse = z.infer<typeof ReimburseImportJobResponseSchema>;
 export type ReimburseImportJobsResponse = z.infer<typeof ReimburseImportJobsResponseSchema>;
 export type ReimburseImportPurgeResponse = z.infer<typeof ReimburseImportPurgeResponseSchema>;

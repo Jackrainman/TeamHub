@@ -1,11 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { importPairAmountApproxNotice, isArchivedReimburseImportJob } from '../src/features/reimburse/components/ReimburseImportJobs';
+import { deriveImportProgress, importPairAmountApproxNotice, isArchivedReimburseImportJob } from '../src/features/reimburse/components/ReimburseImportJobs';
 
 describe('reimburse import job archiving', () => {
   it('archives only closed jobs that have confirmed entries', () => {
     expect(isArchivedReimburseImportJob({ status: 'closed', confirmedEntryIds: ['entry-1'] })).toBe(true);
     expect(isArchivedReimburseImportJob({ status: 'closed', confirmedEntryIds: [] })).toBe(false);
     expect(isArchivedReimburseImportJob({ status: 'ready', confirmedEntryIds: ['entry-1'] })).toBe(false);
+  });
+});
+
+describe('reimburse import progress', () => {
+  it('counts completed files and failures while excluding removed files', () => {
+    expect(deriveImportProgress([
+      { status: 'parsed' }, { status: 'mounted' }, { status: 'duplicate' },
+      { status: 'unreadable' }, { status: 'uploading' }, { status: 'pending' },
+      { status: 'removed' },
+    ])).toEqual({ done: 4, total: 6, failed: 1 });
+  });
+
+  it('uses the currently expanded ZIP file list so the denominator can grow', () => {
+    expect(deriveImportProgress([{ status: 'uploading' }])).toEqual({ done: 0, total: 1, failed: 0 });
+    expect(deriveImportProgress([
+      { status: 'parsed' }, { status: 'pending' }, { status: 'unreadable' }, { status: 'removed' },
+    ])).toEqual({ done: 2, total: 3, failed: 1 });
   });
 });
 

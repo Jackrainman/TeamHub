@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import {
   appError,
 } from '../../application/application-error.js';
-import type { ActorRef, ConfirmReimburseImportRequest, ReimburseEvidence, ReimburseImportFile, ReimburseImportJob, ReimburseImportPair } from '@teamhub/hub-contracts';
+import type { ActorRef, ConfirmReimburseImportRequest, ReimburseEvidence, ReimburseImportFile, ReimburseImportJob, ReimburseImportJobView, ReimburseImportPair } from '@teamhub/hub-contracts';
 import { matchReimburseImportFiles, REIMBURSE_EVIDENCE_MAX_PER_ENTRY, emptyReimburseImportCandidates } from '@teamhub/hub-contracts';
 import type { Clock } from '../../clock.js';
 import type { ApplicationUnitOfWork } from '../../application/unit-of-work.js';
@@ -61,6 +61,7 @@ function importParseError(ext: string, error: unknown): string {
 
 export class ReimburseImportService {
   private queue: Promise<void> = Promise.resolve();
+  private fifo: string[] = [];
 
   constructor(
     private readonly jobs: SqliteReimburseImportRepository,
@@ -74,7 +75,7 @@ export class ReimburseImportService {
   ) {
     const now = this.clock.now().toISOString();
     for (const job of this.jobs.listJobs()) {
-      if (job.status === 'parsing') this.jobs.saveJob({ ...job, status: 'closed', error: 'interrupted', updatedAt: now });
+      if (job.status === 'queued' || job.status === 'parsing') this.jobs.saveJob({ ...job, status: 'closed', error: 'interrupted', updatedAt: now });
     }
     void this.cleanupExpired();
   }
@@ -86,6 +87,20 @@ export class ReimburseImportService {
     }
   }
 
+  private enqueue(id: string): void {
+    if (!this.fifo.includes(id)) this.fifo.push(id);
+    this.queue = this.queue.catch(() => {}).then(() => this.processJob(id));
+  }
+
+  private withQueuePosition(job: ReimburseImportJob): ReimburseImportJobView {
+    const index = this.fifo.indexOf(job.id);
+    return { ...job, queuePosition: job.status === 'queued' && index >= 0 ? index + 1 : null };
+  }
+
+  private isBusy(job: ReimburseImportJob): boolean {
+    return job.status === 'queued' || job.status === 'parsing';
+  }
+
   private hash(content: Buffer): string {
     return createHash('sha256').update(content).digest('hex');
   }
@@ -95,7 +110,7 @@ export class ReimburseImportService {
       .filter(file => file.status !== 'duplicate' && file.status !== 'removed').map(file => file.sha256));
   }
 
-  async createJob(actor: ActorRef, uploads: ReimburseImportUpload[]): Promise<ReimburseImportJob> {
+  async createJob(actor: ActorRef, uploads: ReimburseImportUpload[]): Promise<ReimburseImportJobView> {
     if (!uploads.length) throw appError('validation', 'REIMBURSE_EXPORT_EMPTY', '至少上传一个文件');
     if (uploads.length > 50) throw appError('validation', 'REIMBURSE_EVIDENCE_LIMIT', '单次最多上传 50 个文件');
     for (const upload of uploads) {
@@ -119,17 +134,19 @@ export class ReimburseImportService {
       files.push(file);
     }
     const job: ReimburseImportJob = {
-      id, memberId: actor.id, status: 'parsing', createdAt: at, updatedAt: at,
+      id, memberId: actor.id, status: 'queued', createdAt: at, updatedAt: at,
       files, pairs: [], confirmedEntryIds: [], history: [], error: null,
     };
     this.jobs.saveJob(job);
-    this.queue = this.queue.catch(() => {}).then(() => this.processJob(id));
-    return job;
+    this.enqueue(id);
+    return this.withQueuePosition(job);
   }
 
   private async processJob(id: string): Promise<void> {
     let job = this.jobs.getJob(id);
-    if (!job || job.status !== 'parsing') return;
+    this.fifo = this.fifo.filter(jobId => jobId !== id);
+    if (!job || job.status !== 'queued') return;
+    job = this.jobs.saveJob({ ...job, status: 'parsing', updatedAt: this.clock.now().toISOString() });
     try {
       const expanded: ReimburseImportFile[] = [];
       const known = this.duplicateHashes(job.memberId);
@@ -213,18 +230,18 @@ export class ReimburseImportService {
     return job.memberId === actor.id || await this.admin.isSuperAdmin(actor.id);
   }
 
-  async listJobs(actor: ActorRef, memberId?: string): Promise<ReimburseImportJob[]> {
+  async listJobs(actor: ActorRef, memberId?: string): Promise<ReimburseImportJobView[]> {
     const admin = await this.admin.isSuperAdmin(actor.id);
     const scope = admin && memberId ? memberId : actor.id;
     if (!admin && memberId && memberId !== actor.id) throw appError('forbidden', 'REIMBURSE_ENTRY_FORBIDDEN', '只能查看本人的导入作业');
     void this.cleanupExpired();
-    return this.jobs.listJobs().filter(job => job.memberId === scope);
+    return this.jobs.listJobs().filter(job => job.memberId === scope).map(job => this.withQueuePosition(job));
   }
 
-  async getJob(id: string, actor: ActorRef): Promise<ReimburseImportJob> {
+  async getJob(id: string, actor: ActorRef): Promise<ReimburseImportJobView> {
     const job = this.requireJob(id);
     if (!(await this.canRead(job, actor))) throw appError('forbidden', 'REIMBURSE_ENTRY_FORBIDDEN', '只有本人或财务能查看导入作业');
-    return job;
+    return this.withQueuePosition(job);
   }
 
   async getFileContent(id: string, fileId: string, actor: ActorRef): Promise<{ content: Buffer; contentType: string }> {
@@ -245,24 +262,24 @@ export class ReimburseImportService {
     }
   }
 
-  reparseJob(id: string, actor: ActorRef): ReimburseImportJob {
+  reparseJob(id: string, actor: ActorRef): ReimburseImportJobView {
     const job = this.requireJob(id);
     this.requireOwner(job, actor);
-    if (job.status === 'parsing') throw appError('conflict', 'REIMBURSE_ENTRY_LOCKED', '解析完成后才能重新解析');
+    if (this.isBusy(job)) throw appError('conflict', 'REIMBURSE_ENTRY_LOCKED', '解析完成后才能重新解析');
     const retainedFiles = new Set(job.pairs.filter(pair => pair.status === 'confirmed' || pair.status === 'dismissed')
       .flatMap(pair => pair.fileIds));
     const hasCandidates = job.files.some(file => !retainedFiles.has(file.id)
       && file.status !== 'duplicate' && file.status !== 'removed' && file.status !== 'mounted');
-    if (!hasCandidates) return job;
-    const parsing = this.jobs.saveJob({ ...job, status: 'parsing', error: null, updatedAt: this.clock.now().toISOString() });
-    this.queue = this.queue.catch(() => {}).then(() => this.processJob(id));
-    return parsing;
+    if (!hasCandidates) return this.withQueuePosition(job);
+    const queued = this.jobs.saveJob({ ...job, status: 'queued', error: null, updatedAt: this.clock.now().toISOString() });
+    this.enqueue(id);
+    return this.withQueuePosition(queued);
   }
 
   async deleteFile(id: string, fileId: string, actor: ActorRef): Promise<ReimburseImportJob> {
     const job = this.requireJob(id);
     this.requireOwner(job, actor);
-    if (job.status === 'parsing') throw appError('conflict', 'REIMBURSE_ENTRY_LOCKED', '解析完成后才能删除文件');
+    if (this.isBusy(job)) throw appError('conflict', 'REIMBURSE_ENTRY_LOCKED', '解析完成后才能删除文件');
     const file = job.files.find(item => item.id === fileId);
     if (!file || file.status === 'removed') throw appError('not_found', 'REIMBURSE_EVIDENCE_NOT_FOUND', '未知导入文件');
     if (file.status === 'mounted' || job.pairs.some(pair => pair.status === 'confirmed' && pair.fileIds.includes(fileId))) {
@@ -300,7 +317,7 @@ export class ReimburseImportService {
     if (job.confirmedEntryIds.length > 0) {
       throw appError('conflict', 'REIMBURSE_ENTRY_LOCKED', '已建单的导入作业只能关闭归档');
     }
-    if (job.status === 'parsing') {
+    if (this.isBusy(job)) {
       throw appError('conflict', 'REIMBURSE_ENTRY_LOCKED', '解析完成后才能删除导入作业');
     }
     await this.storage.removeJob(id);
@@ -311,6 +328,7 @@ export class ReimburseImportService {
   async closeJob(id: string, actor: ActorRef): Promise<ReimburseImportJob> {
     const job = this.requireJob(id);
     this.requireOwner(job, actor);
+    this.fifo = this.fifo.filter(jobId => jobId !== id);
     await this.storage.removeJob(id);
     const at = this.clock.now().toISOString();
     return this.jobs.saveJob({
@@ -323,7 +341,7 @@ export class ReimburseImportService {
   async confirm(id: string, request: ConfirmReimburseImportRequest, actor: ActorRef): Promise<ReimburseImportJob> {
     let job = this.requireJob(id);
     this.requireOwner(job, actor);
-    if (job.status === 'parsing') throw appError('conflict', 'REIMBURSE_ENTRY_LOCKED', '解析完成后才能确认');
+    if (this.isBusy(job)) throw appError('conflict', 'REIMBURSE_ENTRY_LOCKED', '解析完成后才能确认');
     const pendingItems = [];
     for (const item of request.items) {
       const pair = job.pairs.find(candidate => candidate.id === item.pairId);

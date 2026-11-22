@@ -54,7 +54,7 @@ describe('reimburse import job persistence', () => {
       const cookie = await login(hub.app, 'owner', TEST_PASSWORDS.owner);
       const uploaded = await upload(hub.app, cookie);
       expect(uploaded.statusCode).toBe(202);
-      expect(uploaded.json().job).toMatchObject({ memberId: memberId(hub, 'owner'), status: 'parsing' });
+      expect(uploaded.json().job).toMatchObject({ memberId: memberId(hub, 'owner'), status: 'queued', queuePosition: 1 });
       const id = uploaded.json().job.id as string;
       const job = await readyJob(hub.app, cookie, id);
       expect(job.pairs).toHaveLength(1);

@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-const suites = ['auth-session', 'task-lifecycle', 'calendar', 'reimburse-workflow', 'reimburse-scope', 'reimburse-finance-layouts', 'reimburse-import-v2', 'reimburse-review-preview', 'settings-rail'];
+const suites = ['auth-session', 'task-lifecycle', 'calendar', 'reimburse-workflow', 'reimburse-scope', 'reimburse-finance-layouts', 'reimburse-import-v2', 'reimburse-review-preview', 'reimburse-ux-pass', 'settings-rail'];
 const root = fileURLToPath(new URL('..', import.meta.url));
 const consoleDir = path.join(root, 'apps', 'hub-console');
 const suiteDir = path.join(consoleDir, 'e2e', 'suite');

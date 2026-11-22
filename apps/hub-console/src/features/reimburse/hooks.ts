@@ -17,6 +17,7 @@ import type {
   ReimburseSummaryQuery,
   ReimburseExportRequest,
   ConfirmReimburseImportRequest,
+  ReimburseImportJobResponse,
 } from '@teamhub/hub-contracts';
 
 import { DEFAULT_REIMBURSE_PROFILE, derivePackageReview, kindForExpenseType, suggestPackageExpenseType } from '@teamhub/hub-contracts';
@@ -59,6 +60,14 @@ export function useReimburseEntries(
   });
 }
 
+export function shouldPollReimburseImports(
+  jobs: ReadonlyArray<Pick<ReimburseImportJobResponse['job'], 'status' | 'createdAt'>>,
+  now = Date.now(),
+): boolean {
+  return jobs.some(job => (job.status === 'queued' || job.status === 'parsing')
+    && now - Date.parse(job.createdAt) < 10 * 60 * 1000);
+}
+
 export function useReimburseImportJobs(client: ReimburseSegment, source: string, enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.reimburse.imports(source),
@@ -66,8 +75,7 @@ export function useReimburseImportJobs(client: ReimburseSegment, source: string,
     enabled,
     refetchInterval: query => {
       const jobs = query.state.data?.jobs ?? [];
-      const active = jobs.some(job => job.status === 'parsing' && Date.now() - Date.parse(job.createdAt) < 10 * 60 * 1000);
-      return active ? 2000 : false;
+      return shouldPollReimburseImports(jobs) ? 2000 : false;
     },
   });
 }

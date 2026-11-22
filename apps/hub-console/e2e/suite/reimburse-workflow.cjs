@@ -32,7 +32,7 @@ const { startV1Server, withBrowser, login, assertNoOverflow } = require('./lib/v
       await row.waitFor();
       await row.getByRole('button', { name: '查看 / 编辑', exact: true }).click();
       const card = page.locator('.reimb-entry');
-      await card.getByRole('button', { name: '凭证留档', exact: false }).click();
+      assert.equal(await card.getByRole('button', { name: '凭证留档', exact: false }).getAttribute('aria-expanded'), 'true');
       const groups = page.locator('.reimb-evidence__kind');
       await groups.nth(0).getByRole('button', { name: '上传原件', exact: true }).click();
       await page.locator('.reimb-evidence input[type="file"]').setInputFiles({ name: 'invoice.pdf', mimeType: 'application/pdf', buffer: Buffer.from('e2e invoice') });

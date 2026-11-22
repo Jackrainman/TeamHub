@@ -1,5 +1,5 @@
 import { ChevronRight, FileClock, Trash2 } from 'lucide-react';
-import type { ReimburseImportJob, ReimburseImportPair, ReimburseImportPendingReason } from '@teamhub/hub-contracts';
+import type { ReimburseImportJob, ReimburseImportJobView, ReimburseImportPair, ReimburseImportPendingReason } from '@teamhub/hub-contracts';
 import { formatAmountFen } from '../reimburse-utils';
 
 // 旧浏览器导入组件保留到单独清理轮次；仅做兼容导出，不再进入当前页面渲染树。
@@ -16,6 +16,17 @@ export function isArchivedReimburseImportJob(
   job: Pick<ReimburseImportJob, 'status' | 'confirmedEntryIds'>,
 ): boolean {
   return job.status === 'closed' && job.confirmedEntryIds.length > 0;
+}
+
+export function deriveImportProgress(
+  files: ReadonlyArray<Pick<ReimburseImportJob['files'][number], 'status'>>,
+): { done: number; total: number; failed: number } {
+  const included = files.filter(file => file.status !== 'removed');
+  return {
+    done: included.filter(file => ['parsed', 'mounted', 'unreadable', 'duplicate'].includes(file.status)).length,
+    total: included.length,
+    failed: included.filter(file => file.status === 'unreadable').length,
+  };
 }
 
 export function importPairAmountApproxNotice(
@@ -50,7 +61,7 @@ function PairFiles({ job, pair, onDeleteFile, canDelete }: {
 }
 
 interface ReimburseImportJobsProps {
-  jobs: ReimburseImportJob[];
+  jobs: ReimburseImportJobView[];
   canWrite: boolean;
   finance?: boolean;
   onReview: (jobId: string, pairId: string) => void;
@@ -62,13 +73,20 @@ interface ReimburseImportJobsProps {
   onPurge: (jobId: string) => void;
 }
 
-function ReimburseImportJobCard({ job, canWrite, onReview, onOpenEntry, onReparse, onDeleteFile, onDismiss, onClose, onPurge }: Omit<ReimburseImportJobsProps, 'jobs'> & { job: ReimburseImportJob }) {
+function ReimburseImportJobCard({ job, canWrite, onReview, onOpenEntry, onReparse, onDeleteFile, onDismiss, onClose, onPurge }: Omit<ReimburseImportJobsProps, 'jobs'> & { job: ReimburseImportJobView }) {
   const matchedPairs = job.pairs.filter(pair => pair.status === 'matched');
   const pendingPairs = job.pairs.filter(pair => pair.status === 'pending');
   const confirmedPairs = job.pairs.filter(pair => pair.status === 'confirmed');
+  const progress = deriveImportProgress(job.files);
+  const busy = job.status === 'queued' || job.status === 'parsing';
+  const statusText = job.status === 'queued'
+    ? `排队中 · 第 ${job.queuePosition ?? 1} 位`
+    : job.status === 'parsing'
+      ? `解析中 · 已解析 ${progress.done}/${progress.total}（失败 ${progress.failed}）`
+      : job.status === 'ready' ? '可审阅' : '已关闭';
   return <article className="reimb-import-job" data-job-status={job.status}>
-    <header><div><strong>导入作业 {job.id.slice(-8)}</strong><small>{job.createdAt.slice(0, 16).replace('T', ' ')} · {job.status === 'parsing' ? '解析中' : job.status === 'ready' ? '可审阅' : '已关闭'}</small></div>
-      {canWrite && job.status !== 'parsing' && <div>
+    <header><div><strong>导入作业 {job.id.slice(-8)}</strong><small>{job.createdAt.slice(0, 16).replace('T', ' ')} · {statusText}</small></div>
+      {canWrite && !busy && <div>
         <button type="button" className="btn btn--sm btn--secondary" onClick={() => onReparse(job.id)}>重新解析</button>
         {job.status !== 'closed' && <button type="button" className="btn btn--sm btn--ghost" onClick={() => onClose(job.id)}>关闭/归档</button>}
         {job.confirmedEntryIds.length === 0 && <button type="button" className="btn btn--sm btn--ghost" onClick={() => {
@@ -89,7 +107,7 @@ function ReimburseImportJobCard({ job, canWrite, onReview, onOpenEntry, onRepars
         <h3>待定 <span>{pendingPairs.length}</span></h3>
         {pendingPairs.length === 0 ? <p className="reimb-import-pool__empty">暂无待定文件</p> : pendingPairs.map(pair => <details className="reimb-import-candidate reimb-import-candidate--pending" key={pair.id}>
           <summary><span><strong>{REASON_LABEL[pair.reason ?? 'unsupported']}</strong><small>{formatAmountFen(pair.amountFen)} · {pair.fileIds.length} 个文件</small></span></summary>
-          <PairFiles job={job} pair={pair} onDeleteFile={onDeleteFile} canDelete={canWrite && job.status !== 'parsing'} />
+          <PairFiles job={job} pair={pair} onDeleteFile={onDeleteFile} canDelete={canWrite && !busy} />
           <div className="reimb-import-candidate__actions">
             <button type="button" className="btn btn--secondary btn--sm" disabled={!canWrite} onClick={() => onReview(job.id, pair.id)}>手动建单</button>
             <button type="button" className="btn btn--ghost btn--sm" disabled={!canWrite} onClick={() => onDismiss(job.id, pair.id)}>忽略</button>
@@ -109,7 +127,7 @@ function ReimburseImportJobCard({ job, canWrite, onReview, onOpenEntry, onRepars
       <ul className="reimb-import-files">
         {job.files.map(file => <li key={file.id}>
           <span><strong>{file.displayName}</strong><small>{file.status === 'duplicate' ? '重复文件（未重复存盘）' : file.status === 'removed' ? `已删除 ${file.removedAt ?? ''}` : file.status === 'unreadable' ? '无法识别' : file.status === 'mounted' ? '已挂载' : file.status === 'uploading' ? '上传完成，待解析' : '已解析'} · {file.originalName}</small></span>
-          {canWrite && job.status !== 'parsing' && job.status !== 'closed' && file.status !== 'removed' && file.status !== 'mounted' && <button type="button" className="btn btn--sm btn--ghost" onClick={() => onDeleteFile(job.id, file.id)}><Trash2 size={14} />删除文件</button>}
+          {canWrite && !busy && job.status !== 'closed' && file.status !== 'removed' && file.status !== 'mounted' && <button type="button" className="btn btn--sm btn--ghost" onClick={() => onDeleteFile(job.id, file.id)}><Trash2 size={14} />删除文件</button>}
         </li>)}
       </ul>
     </details>
