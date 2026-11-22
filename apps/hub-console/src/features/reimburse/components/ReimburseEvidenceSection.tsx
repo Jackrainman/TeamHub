@@ -53,15 +53,17 @@ export function ReimburseEvidenceSection({
   entry,
   isOwner,
   locked = false,
+  defaultOpen = false,
 }: {
   client: ReimburseSegment;
   source: string;
   entry: ReimburseEntry;
   isOwner: boolean;
   locked?: boolean;
+  defaultOpen?: boolean;
 }) {
   const { t } = useI18n();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [supplementOpen, setSupplementOpen] = useState(false);
   const [reject, setReject] = useState<EvidenceRejectReason | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -161,6 +163,7 @@ export function ReimburseEvidenceSection({
                   {grouped[kind].map((item) => (
                     <li key={item.id}>
                       <span className="reimb-evidence__name">{item.originalName}</span>
+                      <span className="badge badge--dense badge--outline reimb-evidence__kind-badge">{t(KIND_KEY[item.kind])}</span>
                       {isOwner && <select aria-label={t('reimb.package.role')} value={item.kind} disabled={locked || kindMutation.isPending}
                         onChange={(event) => kindMutation.mutate({ evidenceId: item.id, kind: event.target.value as ReimburseEvidenceKind, expectedRevision: entry.revision })}>
                         {EVIDENCE_KINDS.map((kind) => <option key={kind} value={kind}>{t(KIND_KEY[kind])}</option>)}

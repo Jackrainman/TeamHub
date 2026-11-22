@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { isTopModal, popModal, pushModal } from '../shared/lib/modal-stack';
+import { acquireBodyScrollLock } from '../shared/lib/body-scroll-lock';
 
 /** 右侧模态抽屉；焦点留在最上层，关闭后回到打开它的控件。 */
 export function SideDrawer({
@@ -12,12 +13,14 @@ export function SideDrawer({
   children,
   confirmDiscard,
   placement = 'right',
+  size = 'md',
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
   placement?: 'right' | 'center';
+  size?: 'md' | 'lg';
   // 关闭前置确认：脏内容场景下由调用方传入（内部做 window.confirm），返回 true 才放行关闭；
   // 不传则维持原行为（直接关闭）。同时把关 Esc / 背景遮罩 / 右上角 X 三个入口。
   confirmDiscard?: () => boolean;
@@ -59,6 +62,11 @@ export function SideDrawer({
 
   useEffect(() => {
     if (!open) return;
+    return acquireBodyScrollLock();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     const previous = document.activeElement as HTMLElement | null;
     const controls = () => [...(panel.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href], [tabindex="0"]') ?? [])].filter(el => el.getClientRects().length > 0);
     if (!panel.current?.contains(document.activeElement)) (controls()[0] ?? panel.current)?.focus();
@@ -90,7 +98,7 @@ export function SideDrawer({
           else node?.removeAttribute('inert');
         }}
         tabIndex={-1}
-        className={`drawer${placement === 'center' ? ' drawer--center' : ''}`}
+        className={`drawer${placement === 'center' ? ' drawer--center' : ''}${size === 'lg' ? ' drawer--lg' : ''}`}
         data-closing={closing ? '' : undefined}
         role="dialog"
         aria-modal="true"

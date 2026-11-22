@@ -55,6 +55,7 @@ export function ReimburseEntryCard({
   canViewEvidence,
   isOwner,
   payout = null,
+  evidenceDefaultOpen = false,
 }: {
   client: ReimburseSegment;
   source: string;
@@ -68,6 +69,7 @@ export function ReimburseEntryCard({
   /** 本条目是否当前登录人自己的（凭证上传/删除只对本人开放）。 */
   isOwner: boolean;
   payout?: ReimbursePayout | null;
+  evidenceDefaultOpen?: boolean;
 }) {
   const { t } = useI18n();
   const updateMutation = useUpdateReimburseEntry(client, source);
@@ -212,6 +214,7 @@ export function ReimburseEntryCard({
           entry={entry}
           isOwner={isOwner}
           locked={writeDisabled}
+          defaultOpen={evidenceDefaultOpen}
         />
       ) : null}
 

@@ -227,8 +227,8 @@ export function ReimbursePage({ client, source, identity }: {
     <SideDrawer open={supplementIds.length > 0} onClose={() => setSupplementIds([])} title={t('reimb.supplement.open')}>
       {supplementIds.length > 0 && <ReimburseSupplementForm client={client} source={cacheSource} entries={entries.filter(entry => supplementIds.includes(entry.id) && entry.memberId === myMemberId)} />}
     </SideDrawer>
-    <SideDrawer open={!!selectedEntry} onClose={() => setEntryId(null)} title={t('expected.reimburseOpen')}>
-      {selectedEntry && <ReimburseEntryCard key={selectedEntry.id} client={client} source={cacheSource} entry={selectedEntry} batches={batches} isSuperAdmin={isFinance} canWrite={identity.canWrite} profile={profile} canViewEvidence={myMemberId !== null} isOwner={selectedEntry.memberId === myMemberId} payout={selectedPayout} />}
+    <SideDrawer open={!!selectedEntry} onClose={() => setEntryId(null)} title={t('expected.reimburseOpen')} placement="center" size="lg">
+      {selectedEntry && <ReimburseEntryCard key={selectedEntry.id} client={client} source={cacheSource} entry={selectedEntry} batches={batches} isSuperAdmin={isFinance} canWrite={identity.canWrite} profile={profile} canViewEvidence={myMemberId !== null} isOwner={selectedEntry.memberId === myMemberId} payout={selectedPayout} evidenceDefaultOpen />}
     </SideDrawer>
     <SideDrawer open={payoutOpen} onClose={() => setPayoutOpen(false)} title={t('reimb.payout.open')}>
       <ReimbursePayoutForm client={client} source={cacheSource} entries={selectedEntries} onDone={() => { setPayoutOpen(false); setSelectedIds([]); }} />

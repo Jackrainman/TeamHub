@@ -77,6 +77,9 @@
 .drawer--center[data-closing] {
   animation: drawer-fade-out var(--dur-fast) var(--ease-accelerate) both;
 }
+.drawer--center.drawer--lg {
+  width: min(1000px, calc(100vw - var(--space-4) * 2));
+}
 .drawer--center .drawer__head { flex-shrink: 0; }
 .drawer__title {
   font-size: var(--text-md);
