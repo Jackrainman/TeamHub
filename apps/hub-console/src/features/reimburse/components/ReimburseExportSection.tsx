@@ -65,8 +65,7 @@ export function ReimburseExportSection({ client, source, entries, batches, profi
   }
 
   if (compact) return <div className="domain-actions">
-    <button type="button" className="btn btn--secondary" disabled={disabled} onClick={downloadCsv}><Download size={14} />{t('expected.exportSelected', { count: entries.length })}</button>
-    <button type="button" className="btn btn--secondary" disabled={disabled} onClick={() => downloadServer(false)}><FileSpreadsheet size={14} />{t('reimb.export.xlsx')}</button>
+    <button type="button" className="btn btn--secondary" disabled={disabled} onClick={() => downloadServer(false)}><FileSpreadsheet size={14} />{t('reimb.export.onlyXlsx')}</button>
     <button type="button" className="btn btn--secondary" disabled={disabled} onClick={() => downloadServer(true)}><Package size={14} />{t('reimb.export.zip')}</button>
   </div>;
   return <section className="panel" aria-label={t('reimb.export.title')}>

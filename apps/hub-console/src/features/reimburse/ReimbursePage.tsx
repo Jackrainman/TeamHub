@@ -1,4 +1,4 @@
-import { ReceiptText, Settings2, Plus, Upload, MoreHorizontal } from 'lucide-react';
+import { ReceiptText, Settings2, Plus, Upload, Download } from 'lucide-react';
 import { useState } from 'react';
 import {
   deriveReimburseCompleteness,
@@ -28,7 +28,6 @@ import { ReimburseImportZone } from './components/ReimburseImportZone';
 import { ReimburseImportJobs } from './components/ReimburseImportJobs';
 import { ReimburseExportSection } from './components/ReimburseExportSection';
 import { ReimburseProfileSection } from './components/ReimburseProfileSection';
-import { ReimburseSupplementForm } from './components/ReimburseSupplementForm';
 import { ReimbursePayoutForm } from './components/ReimbursePayoutForm';
 import { draftFromParsedInvoice } from './reimburse-import';
 import { candidatesForImportPair } from './reimburse-review-candidates';
@@ -97,7 +96,6 @@ export function ReimbursePage({ client, source, identity }: {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [adminOpen, setAdminOpen] = useState(false);
   const [payoutOpen, setPayoutOpen] = useState(false);
-  const [supplementIds, setSupplementIds] = useState<string[]>([]);
   const confirmImport = useConfirmReimburseImport(client, cacheSource, () => {
     setReview(null);
     void entriesQuery.refetch();
@@ -118,9 +116,6 @@ export function ReimbursePage({ client, source, identity }: {
   const profile = profileGate.data.profile;
   const selectedEntry = entries.find(entry => entry.id === entryId);
   const selectedEntries = entries.filter(entry => selectedIds.includes(entry.id));
-  const canSupplement = identity.canWrite && selectedEntries.length > 0
-    && selectedEntries.every(entry => entry.memberId === myMemberId
-      && (entry.workflowStatus === 'draft' || entry.workflowStatus === 'returned'));
   const visible = entries.filter(entry =>
     (completeness === 'all' || deriveReimburseCompleteness(entry) === completeness)
     && (workflow === 'all' || entry.workflowStatus === workflow)
@@ -205,12 +200,8 @@ export function ReimbursePage({ client, source, identity }: {
       <Field label="类型"><Select aria-label="类型" value={expenseType} onChange={event => setExpenseType(event.target.value as typeof expenseType)}><option value="all">{t('expected.all')}</option>{(['purchase', 'taxi', 'ticket', 'other'] as const).map(value => <option key={value} value={value}>{t(`reimb.expenseType.${value}`)}</option>)}</Select></Field>
       <div className="reimb-filters__actions">
         <details className="reimb-more">
-          <summary className="btn btn--secondary btn--sm"><MoreHorizontal size={14} />{t('reimb.more')}</summary>
+          <summary className="btn btn--secondary btn--sm"><Download size={14} />{t('reimb.more')}</summary>
           <div className="reimb-more__menu">
-            <button className="btn btn--ghost btn--sm" disabled={!canSupplement} onClick={event => {
-              event.currentTarget.closest('details')?.removeAttribute('open');
-              setSupplementIds(selectedEntries.map(entry => entry.id));
-            }}>{t('reimb.supplement.open')}</button>
             <ReimburseExportSection client={client} source={cacheSource} entries={selectedEntries} batches={batches} profile={profile} compact />
           </div>
         </details>
@@ -224,9 +215,6 @@ export function ReimbursePage({ client, source, identity }: {
     </section>
     </>}
     <p className="expected-page-hint">{t('expected.reimbursePrivacy')}</p>
-    <SideDrawer open={supplementIds.length > 0} onClose={() => setSupplementIds([])} title={t('reimb.supplement.open')}>
-      {supplementIds.length > 0 && <ReimburseSupplementForm client={client} source={cacheSource} entries={entries.filter(entry => supplementIds.includes(entry.id) && entry.memberId === myMemberId)} />}
-    </SideDrawer>
     <SideDrawer open={!!selectedEntry} onClose={() => setEntryId(null)} title={t('expected.reimburseOpen')} placement="center" size="lg">
       {selectedEntry && <ReimburseEntryCard key={selectedEntry.id} client={client} source={cacheSource} entry={selectedEntry} batches={batches} isSuperAdmin={isFinance} canWrite={identity.canWrite} profile={profile} canViewEvidence={myMemberId !== null} isOwner={selectedEntry.memberId === myMemberId} payout={selectedPayout} evidenceDefaultOpen />}
     </SideDrawer>
