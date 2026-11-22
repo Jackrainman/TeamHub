@@ -3,9 +3,10 @@ import type { Group, MemberPublic, SelfReportTaskRequest } from '@teamhub/hub-co
 import { useI18n } from '../../../i18n';
 import { ReviewerPicker } from '../components/ReviewerPicker';
 
-export function SelfReportForm({ groups, defaultGroupId, pending, onSubmit, members, memberId }: {
+export function SelfReportForm({ groups, defaultGroupId, pending, onSubmit, members, memberId, defaultPlannedStart = '', defaultPlannedEnd = '' }: {
   groups: Group[]; defaultGroupId?: string; pending: boolean;
   members: MemberPublic[]; memberId: string;
+  defaultPlannedStart?: string; defaultPlannedEnd?: string;
   onSubmit: (input: SelfReportTaskRequest) => void;
 }) {
   const { t } = useI18n();
@@ -15,8 +16,8 @@ export function SelfReportForm({ groups, defaultGroupId, pending, onSubmit, memb
   const [robot, setRobot] = useState('');
   const [reviewerIds, setReviewerIds] = useState<string[]>([]);
   const [complexity, setComplexity] = useState<SelfReportTaskRequest['intrinsicComplexity']>('normal');
-  const [plannedStart, setPlannedStart] = useState('');
-  const [plannedEnd, setPlannedEnd] = useState('');
+  const [plannedStart, setPlannedStart] = useState(defaultPlannedStart);
+  const [plannedEnd, setPlannedEnd] = useState(defaultPlannedEnd);
   const validRange = !plannedStart || !plannedEnd || plannedEnd >= plannedStart;
   const valid = Boolean(groupId && title.trim() && summary.trim() && validRange);
   return <form className="week-form" onSubmit={event => {

@@ -1,7 +1,7 @@
 import type { Task } from '@teamhub/hub-contracts';
 import { addDays, dateKeyOf, dayNumber, mondayOf } from './model';
 
-export interface MonthDay { key: string; day: number; inMonth: boolean; isToday: boolean }
+export interface MonthDay { key: string; day: number; inMonth: boolean; isToday: boolean; weekend: boolean }
 export interface MonthWeek { weekStart: string; weekEnd: string; days: MonthDay[] }
 export interface MonthGrid { year: number; month: number; weeks: MonthWeek[] }
 export interface MonthBar {
@@ -19,7 +19,7 @@ export function buildMonthGrid(year: number, month: number, today: string): Mont
       const key = addDays(weekStart, dayIndex);
       return { key, day: Number(key.slice(8, 10)),
         inMonth: Number(key.slice(5, 7)) === month && Number(key.slice(0, 4)) === year,
-        isToday: key === today };
+        isToday: key === today, weekend: dayIndex >= 5 };
     });
     weeks.push({ weekStart, weekEnd: days[6].key, days });
   }
@@ -59,10 +59,11 @@ export function layoutWeekBars(tasks: Task[], weekStart: string, _today: string,
     bars: candidates.filter(candidate => candidate.bar.lane < maxLanes).map(candidate => candidate.bar),
     hidden: candidates.filter(candidate => candidate.bar.lane >= maxLanes).map(candidate => candidate.task) };
 }
-export function colorIndexOf(taskId: string): number {
-  let sum = 0;
-  for (const character of taskId) sum += character.charCodeAt(0);
-  return sum % 6;
+/** 任务条颜色只承载状态语义，不再按 id 哈希随机上色。 */
+export const CALENDAR_TONES = ['pending', 'inProgress', 'blocked', 'done', 'shelved'] as const;
+export type CalendarTone = (typeof CALENDAR_TONES)[number];
+export function statusToneOf(status: string | null | undefined): CalendarTone {
+  return CALENDAR_TONES.find(tone => tone === status) ?? 'pending';
 }
 const ENGLISH_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 export function monthLabel(year: number, month: number, lang: 'zh' | 'en'): string {

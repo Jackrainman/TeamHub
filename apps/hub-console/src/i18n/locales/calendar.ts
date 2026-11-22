@@ -1,5 +1,4 @@
 export const zhCalendar = {
-  'calendar.legend.month': '任务条 · 今天',
   'calendar.scope.aria': '任务范围',
   'calendar.scope.personal': '个人',
   'calendar.scope.group': '本组',
@@ -15,6 +14,10 @@ export const zhCalendar = {
   'calendar.month.label': '{year}年{month}月',
   'calendar.month.overflow': '+{count}',
   'calendar.month.overflowTitle': '还有 {count} 个任务：{names}',
+  'calendar.month.overflowHead': '本周另有 {count} 项',
+  'calendar.month.overflowClose': '关闭',
+  'calendar.month.createOn': '在 {month} 月 {day} 日新建任务',
+  'calendar.month.unscheduledTitle': '未排期 ({count})',
   'calendar.month.unscheduled': '未安排',
   'calendar.weekday.mon': '一', 'calendar.weekday.tue': '二', 'calendar.weekday.wed': '三',
   'calendar.weekday.thu': '四', 'calendar.weekday.fri': '五', 'calendar.weekday.sat': '六', 'calendar.weekday.sun': '日',
@@ -28,7 +31,6 @@ export const zhCalendar = {
   'calendar.drawer.range': '计划起止',
 };
 export const enCalendar: Record<keyof typeof zhCalendar, string> = {
-  'calendar.legend.month': 'Task bars · Today',
   'calendar.scope.aria': 'Task scope',
   'calendar.scope.personal': 'Personal',
   'calendar.scope.group': 'My group',
@@ -44,6 +46,10 @@ export const enCalendar: Record<keyof typeof zhCalendar, string> = {
   'calendar.month.label': '{month} {year}',
   'calendar.month.overflow': '+{count}',
   'calendar.month.overflowTitle': '{count} more tasks: {names}',
+  'calendar.month.overflowHead': '{count} more this week',
+  'calendar.month.overflowClose': 'Close',
+  'calendar.month.createOn': 'Create task on {month}/{day}',
+  'calendar.month.unscheduledTitle': 'Unscheduled ({count})',
   'calendar.month.unscheduled': 'Unscheduled',
   'calendar.weekday.mon': 'Mon', 'calendar.weekday.tue': 'Tue', 'calendar.weekday.wed': 'Wed',
   'calendar.weekday.thu': 'Thu', 'calendar.weekday.fri': 'Fri', 'calendar.weekday.sat': 'Sat', 'calendar.weekday.sun': 'Sun',

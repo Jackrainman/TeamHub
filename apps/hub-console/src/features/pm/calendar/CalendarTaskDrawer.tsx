@@ -5,14 +5,15 @@ import { SelfReportForm } from '../week/SelfReportForm';
 import { useWeekActions } from '../hooks';
 import type { HubApiClient } from '../../../api/client';
 
-export function CalendarTaskDrawer({ client, open, week, groups, members, memberId, onClose }: {
+export function CalendarTaskDrawer({ client, open, week, groups, members, memberId, defaultPlannedStart, defaultPlannedEnd, onClose }: {
   client: HubApiClient; open: boolean; week: string; groups: Group[]; members: MemberPublic[];
-  memberId: string; onClose: () => void;
+  memberId: string; defaultPlannedStart?: string; defaultPlannedEnd?: string; onClose: () => void;
 }): JSX.Element {
   const { t } = useI18n();
   const actions = useWeekActions(client, onClose);
   return <SideDrawer open={open} onClose={onClose} title={t('calendar.task.create')}>
     {open && memberId ? <SelfReportForm groups={groups} defaultGroupId={groups[0]?.id} members={members} memberId={memberId}
+      defaultPlannedStart={defaultPlannedStart} defaultPlannedEnd={defaultPlannedEnd}
       pending={actions.create.isPending} onSubmit={input => actions.create.mutate({ weekKey: week, input })} /> : null}
   </SideDrawer>;
 }

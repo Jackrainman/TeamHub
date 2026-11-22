@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Task } from '@teamhub/hub-contracts';
-import { buildMonthGrid, layoutWeekBars } from '../src/features/pm/calendar/calendar-month';
+import { buildMonthGrid, layoutWeekBars, statusToneOf } from '../src/features/pm/calendar/calendar-month';
 import { addDays, dateKeyOf, filterTasksByScope } from '../src/features/pm/calendar/model';
 
 function task(id: string, plannedStart?: string, plannedEnd?: string, patch: Partial<Task> = {}): Task {
@@ -15,6 +15,7 @@ describe('Task month calendar', () => {
     expect(grid.weeks[0].days).toHaveLength(7);
     expect(grid.weeks[0].weekStart).toBe('2026-10-26');
     expect(grid.weeks.flatMap(week => week.days).filter(day => day.isToday).map(day => day.key)).toEqual(['2026-11-17']);
+    expect(grid.weeks[0].days.map(day => day.weekend)).toEqual([false, false, false, false, false, true, true]);
   });
   it('clips cross-week bars and includes both start and end dates', () => {
     const across = task('across', '2026-11-20', '2026-11-23');
@@ -32,6 +33,15 @@ describe('Task month calendar', () => {
     expect(new Set(layout.bars.map(bar => bar.lane))).toEqual(new Set([0, 1]));
     expect(dateKeyOf(undefined)).toBeNull();
     expect(addDays('2026-11-30', 1)).toBe('2026-12-01');
+  });
+  it('maps bar colors to task status instead of hashing the id', () => {
+    expect(statusToneOf('pending')).toBe('pending');
+    expect(statusToneOf('inProgress')).toBe('inProgress');
+    expect(statusToneOf('blocked')).toBe('blocked');
+    expect(statusToneOf('done')).toBe('done');
+    expect(statusToneOf('shelved')).toBe('shelved');
+    expect(statusToneOf(undefined)).toBe('pending');
+    expect(statusToneOf('unknown-status')).toBe('pending');
   });
   it('filters personal/group/team without person aggregation', () => {
     const mine = task('mine');
